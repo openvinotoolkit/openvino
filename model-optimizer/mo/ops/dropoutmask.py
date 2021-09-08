@@ -5,17 +5,18 @@ from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
-class LstmNonLinearity(Op):
+class DropoutMask(Op):
     """
+    Operation for dropout proportion, it will be replaced by broadcast constant on front stage
     """
-    op = 'LstmNonLinearity'
+    op = 'dropoutmaskcomponent'
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'op': __class__.op,
-            'use_dropout': False,
+            'op': self.op,
+            'dropout_proportion': None,
             'type': None,  # type is None because this operation should not appear in IR
             'infer': None,
-            'in_ports_count': 1,
+            'in_ports_count': 0,
             'out_ports_count': 1,
         }, attrs)
