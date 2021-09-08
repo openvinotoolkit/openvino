@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
-    ngraph::element::f16
+    //ngraph::element::f16
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -20,7 +20,8 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
 };
 
 const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> params = {
-   {
+  // without operation
+  {
         {},
         {},
         {},
@@ -33,8 +34,9 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         "Concatenation",
         "U8",
-        1
+        1,
     },
+    // with ReLU operation
     {
         {},
         {},
@@ -50,7 +52,8 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         "U8",
         1
     },
-    /*{
+    // negative axis
+    {
         {},
         {},
         {},
@@ -58,13 +61,13 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "",
-        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+        {256ul, {},  {-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
         {},
         {},
         "Concatenation",
         "FP32",
         0
-    },*/
+    }
 };
 
 const std::vector<ngraph::Shape> shapes = {

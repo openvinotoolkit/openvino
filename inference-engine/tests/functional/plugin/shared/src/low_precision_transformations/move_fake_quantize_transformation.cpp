@@ -27,8 +27,8 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.operation;
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) <<
+        param.operation << param.fakeQuantizeAfter;
     return result.str();
 }
 
@@ -55,7 +55,7 @@ void MoveFakeQuantizeTransformation::SetUp() {
         {},
         {},
         {},
-        1ul);
+        param.axis);
 }
 
 void MoveFakeQuantizeTransformation::Run() {

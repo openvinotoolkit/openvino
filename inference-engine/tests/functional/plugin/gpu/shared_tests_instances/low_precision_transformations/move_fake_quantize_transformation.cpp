@@ -20,34 +20,54 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     };
 
     const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> params = {
-       {
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        "",
-        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
-        {},
-        {},
-        "Concat",
-        "U8"
-    },
+     // without operation
     {
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        "relu",
-        { 256ul, {}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
-        {},
-        {},
-        "Concat",
-        "U8"
+       {},
+       {},
+       {},
+       {},
+       {},
+       {},
+       "",
+       { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+       {},
+       {},
+       "Concat",
+       "U8",
+       1,
     },
+   // with ReLU operation
+    {
+       {},
+       {},
+       {},
+       {},
+       {},
+       {},
+       "relu",
+       { 256ul, {}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
+       {},
+       {},
+       "Concat",
+       "U8",
+       1
+    },
+     // negative axis
+    {
+       {},
+       {},
+       {},
+       {},
+       {},
+       {},
+       "",
+       {256ul, {},  {-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
+       {},
+       {},
+       "Concat",
+       "FP32",
+       0
+    }
     };
 
     const std::vector<ngraph::Shape> shapes = {
