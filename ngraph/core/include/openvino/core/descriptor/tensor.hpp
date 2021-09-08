@@ -56,7 +56,7 @@ public:
     const element::Type& get_element_type() const {
         return m_element_type;
     }
-    const ngraph::Shape& get_shape() const;
+    const StaticShape& get_shape() const;
     const Shape& get_partial_shape() const {
         return m_partial_shape;
     }
@@ -78,19 +78,19 @@ protected:
     element::Type m_element_type;
 
     // TODO: remove along with get_shape
-    // Initially there was ngraph::Shape m_shape only available to keep shape information.
-    // Support for dynamic shapes required transition to ngraph::PartialShape.
-    // To smoothly transition to ngraph::PartialShape we introduced m_partial_shape
+    // Initially there was StaticShape m_shape only available to keep shape information.
+    // Support for dynamic shapes required transition to ov::Shape.
+    // To smoothly transition to ov::Shape we introduced m_partial_shape
     // and kept m_shape in sync with m_partial_shape. Synchronization point was placed
     // in set_partial_shape which dramatically affected performance of ngraph::Function
-    // validation. Since we have started the transition to ngraph::PartialShape and reduced
-    // ngraph::Shape usage the only user of m_shape was get_shape method with signature:
+    // validation. Since we have started the transition to ov::Shape and reduced
+    // StaticShape usage the only user of m_shape was get_shape method with signature:
     // const Shape& descriptor::Tensor::get_shape() const
     // It was decided to move m_shape and m_partial_shape synchronization point there and
     // to keep methods signature backward compatible.
     mutable std::mutex shape_mutex;
     mutable std::atomic_bool m_shape_changed;
-    mutable ngraph::Shape m_shape;
+    mutable StaticShape m_shape;
     // TODO: end
 
     Shape m_partial_shape;

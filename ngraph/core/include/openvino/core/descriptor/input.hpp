@@ -92,7 +92,7 @@ public:
     }
 
     /// \return the shape of the connected output
-    const ngraph::Shape& get_shape() const;
+    const StaticShape& get_shape() const;
 
     /// \return the partial shape of the connected output
     const Shape& get_partial_shape() const;

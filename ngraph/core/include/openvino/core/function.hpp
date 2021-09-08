@@ -97,7 +97,7 @@ public:
     const ngraph::element::Type& get_output_element_type(size_t i) const;
 
     /// Return the shape of element i
-    const ngraph::Shape& get_output_shape(size_t i) const;
+    const StaticShape& get_output_shape(size_t i) const;
 
     /// Return the partial shape of element i
     const Shape& get_output_partial_shape(size_t i) const;
