@@ -51,8 +51,13 @@ find_dependency(OpenVINO
 
 # WA for cmake: it exports ngraph as IE::ngraph in the IE export list
 # while we already have ngraph export in its own export list as ngraph::ngraph
-set_property(TARGET ngraph::ngraph PROPERTY IMPORTED_GLOBAL TRUE)
-add_library(IE::ngraph ALIAS ngraph::ngraph)
+if(TARGET ngraph::ngraph)
+    add_library(IE::ngraph INTERFACE IMPORTED)
+    set_target_properties(IE::ngraph PROPERTIES INTERFACE_LINK_LIBRARIES ngraph::ngraph)
+elseif(TARGET IE::core)
+    add_library(IE::ngraph INTERFACE IMPORTED)
+    set_target_properties(IE::ngraph PROPERTIES INTERFACE_LINK_LIBRARIES IE::core)
+endif()
 
 foreach(component @openvino_export_components@)
     include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
