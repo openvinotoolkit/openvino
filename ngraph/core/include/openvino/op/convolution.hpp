@@ -167,8 +167,8 @@ public:
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 /// \return The output spatial dimensions shape.
-                const PartialShape get_output_shape() const;
-                void set_output_shape(const ngraph::Shape& output_shape);
+                const Shape get_output_shape() const;
+                void set_output_shape(const StaticShape& output_shape);
                 /// \return The strides from the forward prop.
                 const Strides& get_strides() const { return m_strides; }
                 void set_strides(const Strides& strides) { m_strides = strides; }

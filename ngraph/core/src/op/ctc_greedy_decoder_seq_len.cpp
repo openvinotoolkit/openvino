@@ -65,7 +65,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
 
         const auto& blank_index_partial_shape = get_input_partial_shape(2);
         if (blank_index_partial_shape.is_static()) {
-            Shape blank_index_shape = blank_index_partial_shape.to_shape();
+            ov::StaticShape blank_index_shape = blank_index_partial_shape.to_shape();
             NODE_VALIDATION_CHECK(
                 this,
                 ngraph::is_scalar(blank_index_shape) || (is_vector(blank_index_shape) && (blank_index_shape[0] == 1)),
@@ -100,8 +100,8 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
         batch_size = seq_len_pshape[0] & logits_pshape[0];
     }
 
-    set_output_type(0, m_classes_index_type, PartialShape{batch_size, time_size});
-    set_output_type(1, m_sequence_length_type, PartialShape{batch_size});
+    set_output_type(0, m_classes_index_type, ov::Shape{batch_size, time_size});
+    set_output_type(1, m_sequence_length_type, ov::Shape{batch_size});
 }
 
 bool op::v6::CTCGreedyDecoderSeqLen::visit_attributes(AttributeVisitor& visitor) {

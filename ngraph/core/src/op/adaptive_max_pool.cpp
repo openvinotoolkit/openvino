@@ -35,7 +35,7 @@ void op::v8::AdaptiveMaxPool::validate_and_infer_types() {
                           m_index_element_type == element::i64 || m_index_element_type == element::i32,
                           "Index element type must be i32 or i64");
 
-    const PartialShape& data_shape = get_input_partial_shape(0);
+    const ov::Shape& data_shape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(
         this,
@@ -43,7 +43,7 @@ void op::v8::AdaptiveMaxPool::validate_and_infer_types() {
         "Expected a 3D, 4D or 5D tensor for the input. Got: ",
         data_shape);
 
-    auto output_shape = PartialShape::dynamic(data_shape.rank());
+    auto output_shape = ov::Shape::dynamic(data_shape.rank());
     if (data_shape.rank().is_static()) {
         if (data_shape[0].is_static()) {
             output_shape[0] = data_shape[0];  // batch size
