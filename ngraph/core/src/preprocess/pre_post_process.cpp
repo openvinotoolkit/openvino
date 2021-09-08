@@ -145,16 +145,16 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
     bool tensor_data_updated = false;
     for (const auto& input : m_impl->in_contexts) {
         std::shared_ptr<op::v0::Parameter> param;
-        OV_CHECK(input, "Internal error: Invalid preprocessing input, please report a problem");
+        OPENVINO_ASSERT(input, "Internal error: Invalid preprocessing input, please report a problem");
         if (input->has_index()) {
             param = function->get_parameters().at(input->m_index);
         } else {
             // Default case
-            OV_CHECK(function->get_parameters().size() == 1,
-                     std::string("Preprocessing info expects having 1 input, however function has ") +
-                         std::to_string(function->get_parameters().size()) +
-                         " inputs. Please use ov::preprocess::InputInfo constructor specifying "
-                         "particular input instead of default one");
+            OPENVINO_ASSERT(function->get_parameters().size() == 1,
+                            std::string("Preprocessing info expects having 1 input, however function has ") +
+                                std::to_string(function->get_parameters().size()) +
+                                " inputs. Please use ov::preprocess::InputInfo constructor specifying "
+                                "particular input instead of default one");
             param = function->get_parameters().front();
         }
         auto consumers = param->output(0).get_target_inputs();
