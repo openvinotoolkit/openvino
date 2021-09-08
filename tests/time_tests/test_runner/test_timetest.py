@@ -18,9 +18,18 @@ from pathlib import Path
 import logging
 import os
 import shutil
+import sys
+
+# add utils folder to imports
+UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
+sys.path.insert(0, str(UTILS_DIR))
+
+from path_utils import expand_env_vars
+
+TIME_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(TIME_TESTS_DIR)
 
 from scripts.run_timetest import run_timetest
-from test_runner.utils import expand_env_vars
 
 REFS_FACTOR = 1.2      # 120%
 
