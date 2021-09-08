@@ -110,7 +110,7 @@ class MulQuantizeFuseTest(unittest.TestCase):
     def test_2(self):
         graph = build_graph(nodes, edges, {
             'mul': {'can_be_fused': True},
-            'mul_const_data': {'shape': np.array([1]), 'value': np.array([-1])},
+            'mul_const_data': {'shape': np.array([1]), 'value': np.array([2])},
             'quantize_data': {'shape': np.array([2, 3, 4, 4])},
             'mi_o_data': {'shape': np.array([1]), 'value': np.array([0])},
             'ma_o_data': {'shape': np.array([1]), 'value': np.array([1])},
@@ -118,11 +118,11 @@ class MulQuantizeFuseTest(unittest.TestCase):
         graph.stage = 'middle'
         graph_ref = build_graph(nodes, edges_ref, {
             'quantize_data': {'shape': np.array([2, 3, 4, 4])},
-            'mul_const_data': {'shape': np.array([1]), 'value': np.array([-1])},
-            'mi_o_data': {'shape': np.array([1]), 'value': np.array([1])},
-            'ma_o_data': {'shape': np.array([1]), 'value': np.array([0])},
-            'mi_i_data': {'shape': np.array([1]), 'value': np.array([10])},
-            'ma_i_data': {'shape': np.array([1]), 'value': np.array([-10])},
+            'mul_const_data': {'shape': np.array([1]), 'value': np.array([2])},
+            'mi_o_data': {'shape': np.array([1]), 'value': np.array([0])},
+            'ma_o_data': {'shape': np.array([1]), 'value': np.array([1])},
+            'mi_i_data': {'shape': np.array([1]), 'value': np.array([-5])},
+            'ma_i_data': {'shape': np.array([1]), 'value': np.array([5])},
         }, nodes_with_edges_only=True)
 
         MulFakeQuantizeFuse().find_and_replace_pattern(graph)
@@ -131,31 +131,7 @@ class MulQuantizeFuseTest(unittest.TestCase):
 
         self.assertTrue(flag, resp)
 
-    def test_3(self):
-        graph = build_graph(nodes, edges, {
-            'mul': {'can_be_fused': True},
-            'mul_const_data': {'shape': np.array([3, 1, 1]), 'value': np.array([[[-1]], [[1]], [[-1]]])},
-            'quantize_data': {'shape': np.array([2, 3, 4, 4])},
-            'mi_o_data': {'shape': np.array([1, 1, 1, 1]), 'value': np.broadcast_to(np.array([0]), (1, 1, 1, 1))},
-            'ma_o_data': {'shape': np.array([1, 1, 1, 1]), 'value': np.broadcast_to(np.array([1]), (1, 1, 1, 1))},
-        }, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-        graph_ref = build_graph(nodes, edges_ref, {
-            'quantize_data': {'shape': np.array([2, 3, 4, 4])},
-            'mul_const_data': {'shape': np.array([3, 1, 1]), 'value': np.array([[[-1]], [[1]], [[-1]]])},
-            'mi_o_data': {'shape': np.array([1, 3, 1, 1]), 'value': np.array([[[1]], [[0]], [[1]]])},
-            'ma_o_data': {'shape': np.array([1, 3, 1, 1]), 'value': np.array([[[0]], [[1]], [[0]]])},
-            'mi_i_data': {'shape': np.array([1, 3, 1, 1]), 'value': np.array([[[10]], [[-10]], [[10]]])},
-            'ma_i_data': {'shape': np.array([1, 3, 1, 1]), 'value': np.array([[[-10]], [[10]], [[-10]]])},
-        }, nodes_with_edges_only=True)
-
-        MulFakeQuantizeFuse().find_and_replace_pattern(graph)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-
-        self.assertTrue(flag, resp)
-
-    def negative_test_1(self):
+    def test_negative_1(self):
         graph = build_graph(nodes, edges, nodes_with_edges_only=True)
         graph.stage = 'middle'
         graph_ref = build_graph(nodes, edges, nodes_with_edges_only=True)
@@ -165,12 +141,63 @@ class MulQuantizeFuseTest(unittest.TestCase):
 
         self.assertTrue(flag, resp)
 
-    def negative_test_2(self):
+    def test_negative_2(self):
         graph = build_graph(nodes, edges, {'mul': {'can_be_fused': False}}, nodes_with_edges_only=True)
         graph.stage = 'middle'
         graph_ref = build_graph(nodes, edges, {'mul': {'can_be_fused': False}}, nodes_with_edges_only=True)
 
         MulFakeQuantizeFuse().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+
+        self.assertTrue(flag, resp)
+
+    def test_negative_3(self):
+        graph = build_graph(nodes, edges, {
+            'mul': {'can_be_fused': True},
+            'mul_const_data': {'shape': np.array([1]), 'value': np.array([-1])},
+            'quantize_data': {'shape': np.array([2, 3, 4, 4])},
+            'mi_o_data': {'shape': np.array([1]), 'value': np.array([0])},
+            'ma_o_data': {'shape': np.array([1]), 'value': np.array([1])},
+        }, nodes_with_edges_only=True)
+        graph.stage = 'middle'
+        graph_ref = graph.copy()
+
+        MulFakeQuantizeFuse().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+
+        self.assertTrue(flag, resp)
+
+    def test_negative_4(self):
+        graph = build_graph(nodes, edges, {
+            'mul': {'can_be_fused': True},
+            'mul_const_data': {'shape': np.array([3, 1, 1]), 'value': np.array([[[-1]], [[1]], [[-1]]])},
+            'quantize_data': {'shape': np.array([2, 3, 4, 4])},
+            'mi_o_data': {'shape': np.array([1, 1, 1, 1]), 'value': np.broadcast_to(np.array([0]), (1, 1, 1, 1))},
+            'ma_o_data': {'shape': np.array([1, 1, 1, 1]), 'value': np.broadcast_to(np.array([1]), (1, 1, 1, 1))},
+        }, nodes_with_edges_only=True)
+        graph.stage = 'middle'
+        graph_ref = graph.copy()
+
+        MulFakeQuantizeFuse().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+
+        self.assertTrue(flag, resp)
+
+    def test_negative_5(self):
+        graph = build_graph(nodes, edges, {
+            'mul': {'can_be_fused': True},
+            'mul_const_data': {'shape': np.array([3, 1, 1]), 'value': np.array([[[0]], [[1]], [[2]]])},
+            'quantize_data': {'shape': np.array([2, 3, 4, 4])},
+            'mi_o_data': {'shape': np.array([1, 1, 1, 1]), 'value': np.broadcast_to(np.array([0]), (1, 1, 1, 1))},
+            'ma_o_data': {'shape': np.array([1, 1, 1, 1]), 'value': np.broadcast_to(np.array([1]), (1, 1, 1, 1))},
+        }, nodes_with_edges_only=True)
+        graph.stage = 'middle'
+        graph_ref = graph.copy()
+
+        MulFakeQuantizeFuse().find_and_replace_pattern(graph)
+
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
 
         self.assertTrue(flag, resp)
