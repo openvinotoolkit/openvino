@@ -322,7 +322,7 @@ void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemor
             }
         }
         if (pReorder) {
-            mkldnn::stream loc_stream(output.getEngine(), mkldnn::stream::flags::default_order);
+            mkldnn::stream loc_stream(output.getEngine(), mkldnn::stream::flags::in_order);
             pReorder->execute(loc_stream, *srcMemoryPtr, *output.GetPrimitivePtr());
         } else {
             IE_THROW() << "Could not make mkldnn reorder.";
