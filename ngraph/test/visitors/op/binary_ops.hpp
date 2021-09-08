@@ -28,7 +28,7 @@ public:
     {
         using OP_Type = typename T::op_type;
         constexpr ngraph::element::Type precision(T::element_type);
-        const ngraph::Node::type_info_t typeinfo = OP_Type::get_type_info_static();
+        const ngraph::Node::type_info_t typeinfo = OP_Type::type_info;
         return std::string{typeinfo.name} + "_" + precision.get_type_name();
     }
 };

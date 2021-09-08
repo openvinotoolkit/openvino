@@ -40,13 +40,13 @@ public:
     static OperationPrecisionRestriction create(
         const PrecisionsByPort& precisionsByPort,
         const bool specifyVersion = false) {
-        return OperationPrecisionRestriction(T::get_type_info_static(), specifyVersion, precisionsByPort);
+        return OperationPrecisionRestriction(T::type_info, specifyVersion, precisionsByPort);
     }
 
     template <typename T>
     static PrecisionsByPort getPrecisionsByOperationType(std::vector<OperationPrecisionRestriction>& restrictions) {
         for (const auto& restriction : restrictions) {
-            if (restriction.operationType == T::get_type_info_static()) {
+            if (restriction.operationType == T::type_info) {
                 return restriction.precisionsByPort;
             }
         }

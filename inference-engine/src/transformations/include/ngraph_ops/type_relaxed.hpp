@@ -235,7 +235,7 @@ const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
 }
 
 template <typename BaseOp>
-const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info = TypeRelaxed<BaseOp>::get_type_info_static();
+const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info{BaseOp::type_info.name, BaseOp::type_info.version, &BaseOp::type_info};
 
 NGRAPH_SUPPRESS_DEPRECATED_END
 
