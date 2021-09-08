@@ -1,7 +1,7 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "pyopenvino/inference_engine/ie_infer_queue.hpp"
+#include "pyopenvino/core/ie_infer_queue.hpp"
 
 #include <ie_common.h>
 #include <pybind11/functional.h>
@@ -17,8 +17,8 @@
 #include <string>
 #include <vector>
 
-#include "pyopenvino/inference_engine/common.hpp"
-#include "pyopenvino/inference_engine/ie_infer_request.hpp"
+#include "pyopenvino/core/common.hpp"
+#include "pyopenvino/core/ie_infer_request.hpp"
 
 #define INVALID_ID -1
 

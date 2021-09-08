@@ -6,3 +6,4 @@ add_subdirectory(compatibility)
 
 if(NGRAPH_PYTHON_BUILD_ENABLE)
     add_subdirectory(pyopenvino)
+endif()

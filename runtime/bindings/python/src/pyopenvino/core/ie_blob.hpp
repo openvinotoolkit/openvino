@@ -12,7 +12,7 @@
 #include "ie_layouts.h"
 #include "ie_precision.hpp"
 
-#include "pyopenvino/inference_engine/tensor_description.hpp"
+#include "pyopenvino/core/tensor_description.hpp"
 
 namespace py = pybind11;
 

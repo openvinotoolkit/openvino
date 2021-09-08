@@ -5,10 +5,10 @@
 #include <ie_input_info.hpp>
 #include "common.hpp"
 
-#include "pyopenvino/inference_engine/ie_executable_network.hpp"
-#include "pyopenvino/inference_engine/ie_infer_request.hpp"
-#include "pyopenvino/inference_engine/ie_input_info.hpp"
-#include "pyopenvino/inference_engine/containers.hpp"
+#include "pyopenvino/core/ie_executable_network.hpp"
+#include "pyopenvino/core/ie_infer_request.hpp"
+#include "pyopenvino/core/ie_input_info.hpp"
+#include "pyopenvino/core/containers.hpp"
 
 namespace py = pybind11;
 

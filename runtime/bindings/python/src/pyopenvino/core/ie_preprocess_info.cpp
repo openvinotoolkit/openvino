@@ -4,8 +4,8 @@
 
 #include <pybind11/stl.h>
 
-#include "pyopenvino/inference_engine/ie_preprocess_info.hpp"
-#include "pyopenvino/inference_engine/common.hpp"
+#include "pyopenvino/core/ie_preprocess_info.hpp"
+#include "pyopenvino/core/common.hpp"
 
 #include <ie_preprocess.hpp>
 #include <ie_common.h>

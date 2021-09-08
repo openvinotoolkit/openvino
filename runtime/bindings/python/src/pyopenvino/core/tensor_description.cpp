@@ -6,7 +6,7 @@
 #include <ie_common.h>
 #include <ie_precision.hpp>
 
-#include "pyopenvino/inference_engine/tensor_description.hpp"
+#include "pyopenvino/core/tensor_description.hpp"
 #include <pybind11/stl.h>
 #include "common.hpp"
 

@@ -35,7 +35,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${NGR
 if(OpenVINO_SOURCE_DIR)
     add_custom_command(TARGET ${PROJECT_NAME}
             POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/openvino
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/openvino
             COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.*.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/openvino
             )
 endif()
