@@ -656,9 +656,9 @@ check_current_driver()
     if [[ $DISTRO == centos || $DISTRO == redhat ]]; then
         gfx_version=$(yum info intel-opencl | grep Version)
     elif [[ $DISTRO == ubuntu ]]; then
-        gfx_version=$(apt show intel-opencl | grep Version)
+        gfx_version=$(dpkg-query --showformat='${Version}' --show intel-opencl)
         if [[ -z "$gfx_version" ]]; then 
-            gfx_version=$(apt show intel-opencl-icd | grep Version)
+            gfx_version=$(dpkg-query --showformat='${Version}' --show intel-opencl)
         fi
     fi
     
