@@ -4,7 +4,12 @@
 
 #pragma once
 
+#include <vector>
+
 namespace MKLDNNPlugin {
+
+using Dim = std::size_t;
+using VectorDims = std::vector<Dim>;
 
 enum Type {
     Unknown,

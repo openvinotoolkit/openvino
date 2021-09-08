@@ -21,8 +21,12 @@ using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 
-bool MKLDNNPSROIPoolingNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNPSROIPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto psroi = std::dynamic_pointer_cast<const ngraph::opset1::PSROIPooling>(op);
         const auto defPsroi = std::dynamic_pointer_cast<const ngraph::opset1::DeformablePSROIPooling>(op);
         if (!psroi && !defPsroi) {
@@ -495,8 +499,9 @@ void MKLDNNPSROIPoolingNode::executeSpecified() {
     int numClasses = 1;
     int channelsEachClass = outputDim;
     if (!noTrans) {
-        bottomTrans = reinterpret_cast<const float *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-        numClasses = static_cast<int>(getParentEdgeAt(2)->getShape().getStaticDims()[1]) / 2;
+        const auto mem = getParentEdgeAt(2)->getMemoryPtr();
+        bottomTrans = reinterpret_cast<const float *>(mem->GetPtr());
+        numClasses = static_cast<int>(mem->getStaticDims()[1]) / 2;
         channelsEachClass /= numClasses;
     }
 
@@ -504,9 +509,9 @@ void MKLDNNPSROIPoolingNode::executeSpecified() {
         const float *bottomRois = bottomRoisBeginning + currentRoi * 5;
         int roiBatchInd = static_cast<int>(bottomRois[0]);
         if (getAlgorithm() == Algorithm::PSROIPoolingAverage) {
-            executeAverage(srcData, dstData, bottomRois, currentRoi, roiBatchInd, srcDesc, dstDesc);
+            executeAverage(srcData, dstData, bottomRois, currentRoi, roiBatchInd, *srcDesc, *dstDesc);
         } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinear) {
-            executeBilinear(srcData, dstData, bottomRois, currentRoi, roiBatchInd, srcDesc, dstDesc);
+            executeBilinear(srcData, dstData, bottomRois, currentRoi, roiBatchInd, *srcDesc, *dstDesc);
         } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable) {
             executeBilinearDeformable(srcData, dstData, bottomRois, bottomTrans,
                     numClasses, channelsEachClass, currentRoi, roiBatchInd);
@@ -533,8 +538,8 @@ struct MKLDNNPSROIPoolingNode::PSROIPoolingExecute {
 };
 
 void MKLDNNPSROIPoolingNode::execute(mkldnn::stream strm) {
-    auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().GetDesc().getPrecision();
-    auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().GetDesc().getPrecision();
+    auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
+    auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
 
     if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
           (inputPrec == Precision::FP32 && outputPrec == Precision::FP32))) {

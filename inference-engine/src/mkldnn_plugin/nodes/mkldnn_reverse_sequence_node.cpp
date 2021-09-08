@@ -12,8 +12,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNReverseSequenceNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNReverseSequenceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
         if (!revSeq) {
             errorMessage = "Only opset1 ReverseSequence operation is supported";
@@ -94,7 +98,7 @@ void MKLDNNReverseSequenceNode::execute(mkldnn::stream strm) {
     const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    switch (getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().GetDesc().getPrecision()) {
+    switch (getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision()) {
         case Precision::FP32: {
             float *seq_lengths_data = reinterpret_cast<float *>(getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr()->GetPtr());
             for (i = 0; i < src_dims[batch_axis]; i++) {
@@ -169,7 +173,7 @@ void MKLDNNReverseSequenceNode::execute(mkldnn::stream strm) {
         break;
         default:
             IE_THROW() << "ReverseSequence layer does not support "
-                        << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().GetDesc().getPrecision()  << " precision";
+                        << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision()  << " precision";
     }
 }
 

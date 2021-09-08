@@ -215,8 +215,12 @@ static void nms_cf(const float* conf_data,
     detections = (post_nms_topn == -1 ? detections : (std::min)(post_nms_topn, detections));
 }
 
-bool MKLDNNExperimentalDetectronDetectionOutputNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNExperimentalDetectronDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto doOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronDetectionOutput>(op);
         if (!doOp) {
             errorMessage = "Node is not an instance of the ExperimentalDetectronDetectionOutput from the operations set v6.";
@@ -253,8 +257,8 @@ void MKLDNNExperimentalDetectronDetectionOutputNode::initSupportedPrimitiveDescr
         return;
 
     std::vector<PortConfigurator> inDataConf;
-    inDataConf.reserve(getOriginalInputsNumber());
-    for (int i = 0; i < getOriginalInputsNumber(); ++i)
+    inDataConf.reserve(inputShapes.size());
+    for (int i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
@@ -265,9 +269,9 @@ void MKLDNNExperimentalDetectronDetectionOutputNode::initSupportedPrimitiveDescr
 }
 
 void MKLDNNExperimentalDetectronDetectionOutputNode::execute(mkldnn::stream strm) {
-    const int rois_num = getParentEdgeAt(INPUT_ROIS)->getShape().getStaticDims()[0];
-    assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getShape().getStaticDims()[1]));
-    assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getShape().getStaticDims()[1]));
+    const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
+    assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
+    assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
 
     const auto* boxes = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
     const auto* deltas = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->GetPtr());

@@ -227,8 +227,12 @@ private:
     }
 };
 
-bool MKLDNNRegionYoloNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNRegionYoloNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto regionYolo = std::dynamic_pointer_cast<const ngraph::opset1::RegionYolo>(op);
         if (!regionYolo) {
             errorMessage = "Only opset1 RegionYolo operation is supported";
@@ -367,10 +371,12 @@ inline void MKLDNNRegionYoloNode::calculate_logistic(size_t start_index, int cou
 }
 
 void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
-    size_t B =  (getParentEdgeAt(0)->getShape().getRank() > 0) ? getParentEdgeAt(0)->getShape().getStaticDims()[0] : 1;
-    size_t IC = (getParentEdgeAt(0)->getShape().getRank() > 1) ? getParentEdgeAt(0)->getShape().getStaticDims()[1] : 1;
-    size_t IH = (getParentEdgeAt(0)->getShape().getRank() > 2) ? getParentEdgeAt(0)->getShape().getStaticDims()[2] : 1;
-    size_t IW = (getParentEdgeAt(0)->getShape().getRank() > 3) ? getParentEdgeAt(0)->getShape().getStaticDims()[3] : 1;
+    const auto &inShape = getParentEdgeAt(0)->getMemory().GetShape();
+    const auto &inDims = inShape.getStaticDims();
+    size_t B =  (inShape.getRank() > 0) ? inDims[0] : 1;
+    size_t IC = (inShape.getRank() > 1) ? inDims[1] : 1;
+    size_t IH = (inShape.getRank() > 2) ? inDims[2] : 1;
+    size_t IW = (inShape.getRank() > 3) ? inDims[3] : 1;
 
     size_t mask_size = mask.size();
     int end_index = 0;
@@ -388,8 +394,9 @@ void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
         output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
 
-    if (output_size != getChildEdgeAt(0)->getMemoryPtr()->GetElementsCount())
-        IE_THROW() << "Incorrect layer configuration or output dimensions. " << output_size << " != " << getChildEdgeAt(0)->getMemoryPtr()->GetElementsCount();
+    if (output_size != getChildEdgeAt(0)->getMemoryPtr()->GetShape().getElementsCount())
+        IE_THROW() << "Incorrect layer configuration or output dimensions. " << output_size << " != "
+                   << getChildEdgeAt(0)->getMemoryPtr()->GetShape().getElementsCount();
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;
@@ -397,8 +404,8 @@ void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
     const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    cpu_convert(src_data, dst_data, getParentEdgeAt(0)->getMemory().GetDesc().getPrecision(),
-                getChildEdgeAt(0)->getMemory().GetDesc().getPrecision(), output_size);
+    cpu_convert(src_data, dst_data, getParentEdgeAt(0)->getMemory().getDesc().getPrecision(),
+                getChildEdgeAt(0)->getMemory().getDesc().getPrecision(), output_size);
 
     for (int b = 0; b < B; b++) {
         for (int n = 0; n < num_; n++) {

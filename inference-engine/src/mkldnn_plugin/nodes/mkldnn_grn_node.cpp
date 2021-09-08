@@ -11,8 +11,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNGRNNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNGRNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
         if (!grn) {
             errorMessage = "Only opset1 GRN operation is supported";
@@ -53,7 +57,7 @@ void MKLDNNGRNNode::execute(mkldnn::stream strm) {
     const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    SizeVector dims = getParentEdgeAt(0)->getShape().getStaticDims();
+    const auto &dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 
     int N = static_cast<int>((dims.size() > 0) ? dims[0] : 1);
     int C = static_cast<int>((dims.size() > 1) ? dims[1] : 1);

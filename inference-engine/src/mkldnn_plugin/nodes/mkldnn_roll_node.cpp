@@ -19,8 +19,12 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNRollNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNRollNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto interp = std::dynamic_pointer_cast<const ngraph::opset7::Roll>(op);
         if (!interp) {
             errorMessage = "Only opset7 Roll operation is supported";
@@ -90,33 +94,18 @@ void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
 
-    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+    auto srcDims = getInputShapeAtPort(0).getStaticDims();
 
-    auto srcDims = getParentEdgeAt(0)->getShape().getStaticDims();
-
-    NodeConfig config;
-    config.dynBatchSupport = false;
-
-    auto createDataConfig = [](const Shape& dims, memory::data_type dataType) -> PortConfig {
-        PortConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
-        dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dims.getStaticDims(), dataType, MKLDNNMemory::GetPlainFormatByRank(dims.getRank()));
-        return dataConfig;
-    };
-
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(0)->getShape(), dataType));
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(1)->getShape(), memory::data_type::s32));
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(2)->getShape(), memory::data_type::s32));
-
-    config.outConfs.push_back(createDataConfig(getChildEdgeAt(0)->getShape(), dataType));
-
-    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
+    addSupportedPrimDesc({{LayoutType::ncsp, precision},
+                          {LayoutType::ncsp, InferenceEngine::Precision::I32},
+                          {LayoutType::ncsp, InferenceEngine::Precision::I32}},
+                         {{LayoutType::ncsp, precision}},
+                         impl_desc_type::ref);
 }
 
 
 void MKLDNNRollNode::execute(mkldnn::stream strm) {
-    const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().GetDesc().getPrecision();
+    const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
     switch (dataTypeSize) {
         case sizeof(PrecisionTrait<Precision::I8>::value_type): {
@@ -155,7 +144,7 @@ void MKLDNNRollNode::rollImpl() {
     auto *output = reinterpret_cast<DataType*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     std::vector<size_t> shiftsVector(numOfDims, 0);
 
-    const size_t axesLength = axesEdge->getShape().getStaticDims()[0];
+    const size_t axesLength = axesEdge->getMemory().getStaticDims()[0];
     for (size_t dim = 0; dim < axesLength ; ++dim) {
         int32_t currentAxis = axes[dim] < 0 ? axes[dim] + numOfDims : axes[dim];
         int32_t shiftSum = shiftsVector[currentAxis] + shifts[dim];
@@ -170,7 +159,7 @@ void MKLDNNRollNode::rollImpl() {
     const size_t elementSize = sizeof(DataType);
 
     const size_t nIterations = totalElements / blockSize;
-    const auto strides = dataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    const auto strides = dataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     parallel_for(nIterations, [&](size_t iter) {
         size_t start = iter * blockSize;
         size_t leftBlockStartOffset = start;

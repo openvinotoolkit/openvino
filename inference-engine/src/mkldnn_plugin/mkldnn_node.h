@@ -11,7 +11,6 @@
 #include <cassert>
 #include <algorithm>
 #include <caseless.hpp>
-#include "mkldnn_dims.h"
 #include "mkldnn_memory.h"
 #include "mkldnn_edge.h"
 #include "mkldnn_descriptor.h"
@@ -29,11 +28,12 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
-#include "cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
+using MKLDNNNodeConstPtr = std::shared_ptr<const MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
 Type TypeFromName(const std::string type);
@@ -238,7 +238,7 @@ struct PortConfig {
         this->constant = rhs.constant;
         this->inPlace = rhs.inPlace;
         if (rhs.desc) {
-            this->desc = rhs.desc->clone();
+            this->desc = rhs.desc;
         }
     }
 
@@ -246,7 +246,7 @@ struct PortConfig {
         this->constant = rhs.constant;
         this->inPlace = rhs.inPlace;
         if (rhs.desc) {
-            this->desc = rhs.desc->clone();
+            this->desc = rhs.desc;
         }
         return *this;
     }
@@ -257,7 +257,7 @@ struct PortConfig {
     // TODO [DS]: better to make private and const
     bool constant = false;
     int inPlace = -1;
-    std::unique_ptr<MemoryDesc> desc;
+    MemoryDescPtr desc;
 };
 
 struct NodeConfig {
@@ -454,6 +454,44 @@ public:
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
 
+    /**
+     * @brief Returns input selected primitive descriptor on the specified port
+     * must be used after selectOptimalPrimitiveDescriptor stage
+     * @param portNum port number
+     * @return pointer to selected primitive descriptor with type MemoryDesc
+     */
+    MemoryDescPtr getBaseMemDescAtInputPort(size_t portNum) const;
+
+    /**
+     * @brief Returns output selected primitive descriptor on the specified port
+     * must be used after selectOptimalPrimitiveDescriptor stage
+     * @param portNum port number
+     * @return pointer to selected primitive descriptor with type MemoryDesc
+     */
+    MemoryDescPtr getBaseMemDescAtOutputPort(size_t portNum) const;
+
+    /**
+     * @brief Returns input selected primitive descriptor on the specified port
+     * must be used after selectOptimalPrimitiveDescriptor stage
+     * @param portNum port number
+     * @return pointer to selected primitive descriptor with type T
+     */
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+    std::shared_ptr<T> getInputMemDescAtPort(size_t portNum) const;
+
+    /**
+     * @brief Returns output selected primitive descriptor on the specified port
+     * must be used after selectOptimalPrimitiveDescriptor stage
+     * @param portNum port number
+     * @return pointer to selected primitive descriptor with type T
+     */
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+    std::shared_ptr<T> getOutputMemDescAtPort(size_t portNum) const;
+
     void selectPrimitiveDescriptorByIndex(int index) {
         if (index < 0 || index >= supportedPrimitiveDescriptors.size())
             selectedPrimitiveDescriptorIndex = -1;
@@ -467,8 +505,12 @@ public:
 
     virtual void setDynamicBatchLim(int lim);
 
-    void resolveNotAllocatedEdges();
+    void resolveInPlaceEdges();
+
     virtual void execute(mkldnn::stream strm);
+    void executeDynamic(mkldnn::stream strm);
+    void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
+
     virtual void initSupportedPrimitiveDescriptors();
 
     /**
@@ -484,8 +526,8 @@ public:
 
     virtual void getSupportedDescriptors() = 0;
     // TODO [DS]: Should be moved into Node derivative class
-    virtual void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
-                                  const std::vector<const MemoryDesc*>& outputDesc) {}
+    virtual void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                                  const std::vector<MemoryDescPtr>& outputDesc) {}
     virtual void initDescriptor(const NodeConfig& config);
     virtual bool created() const = 0;
     virtual bool created(const MKLDNNExtensionManager::Ptr& extMgr) {
@@ -621,10 +663,23 @@ public:
         originalOutputPrecisions.push_back(precision);
     }
 
+    // TODO: alighn behaviour for original(Input/Output)Precisions and (input/output)Shapes
+    /**
+     * @brief Returns inputs number which have ngraph nodes.
+     * Inputs number compute as size of originalInputPrecisions vector
+     * IMPORTANT!!!
+     * FuseConvolutionAndBias and FuseMultiplyAndAdd change originalInputPrecisions vector
+     * @return original inputs number
+     */
     size_t getOriginalInputsNumber() const {
         return originalInputPrecisions.size();
     }
 
+    /**
+     * @brief Returns outputs number which have ngraph nodes.
+     * Outputs number compute as size of originalOutputPrecisions vector
+     * @return original outputs number
+     */
     size_t getOriginalOutputsNumber() const {
         return originalOutputPrecisions.size();
     }
@@ -647,7 +702,33 @@ public:
 
     bool canBePerformedAsScaleShift(const MKLDNNNode *parentNode = nullptr) const;
 
+    bool isDynamicNode() const {
+        return isDynamic;
+    }
+
+    const Shape& getInputShapeAtPort(size_t port) const {
+        if (inputShapes.size() <= port) {
+            IE_THROW() << "Incorrect input port number for node " << getName();
+        }
+        return inputShapes[port];
+    }
+
+    const Shape& getOutputShapeAtPort(size_t port) const {
+        if (outputShapes.size() <= port) {
+            IE_THROW() << "Incorrect output port number for node " << getName();
+        }
+        return outputShapes[port];
+    }
+
 protected:
+    // TODO [DS] : make pure after all nodes will be support dynamic shapes
+    virtual std::vector<VectorDims> shapeInfer() const {
+        IE_THROW(NotImplemented) << "[DS] MKLDNNNode::shapeInfer is not defined for node with type: " << getTypeStr();
+    }
+    virtual void executeDynamicImpl(mkldnn::stream strm) {
+        IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
+    }
+
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
     // TODO [mandrono]: place outside of the node API
     void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
@@ -656,13 +737,13 @@ protected:
         this->type = type;
     }
 
-    virtual int getMaxBatch();
+    virtual size_t getMaxBatch();
 
 
-    virtual std::unique_ptr<MemoryDesc> getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
-    virtual std::unique_ptr<MemoryDesc> getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
-    virtual std::unique_ptr<MKLDNNMemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
-    virtual std::unique_ptr<MKLDNNMemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual MemoryDescPtr getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
+    virtual MemoryDescPtr getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
+    virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
     /**
      * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
@@ -672,7 +753,7 @@ protected:
     virtual void appendPostOps(mkldnn::post_ops& ops);
     virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
 
-    typedef std::function<MKLDNNMemoryDesc (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
+    typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;
     std::vector<GetPrimitiveMemoryFormatFunc> internalBlobDesc;
 
@@ -755,7 +836,7 @@ protected:
             PortConfig portConfig;
             portConfig.inPlace = portConfigurator.inPlace;
             portConfig.constant = portConfigurator.constant;
-            portConfig.desc = portConfigurator.blockedDescCreator->createUniqueDesc(prc, shape.getStaticDims());
+            portConfig.desc = portConfigurator.blockedDescCreator->createSharedDesc(prc, shape);
 
             port.push_back(std::move(portConfig));
 
@@ -764,14 +845,14 @@ protected:
 
         NodeConfig config;
         for (size_t i = 0; i < inPortConfigs.size(); i++) {
-            auto shape = inPortConfigs[i].shape.getRank() == 0 ? getParentEdgesAtPort(i)[0]->getShape() : inPortConfigs[i].shape;
+            auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
             auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
             if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs))
                 return;
         }
 
         for (size_t i = 0; i < outPortConfigs.size(); i++) {
-            auto dims = outPortConfigs[i].shape.getRank() == 0 ? getChildEdgesAtPort(i)[0]->getShape() : outPortConfigs[i].shape;
+            auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
             auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
             if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
                 return;
@@ -782,6 +863,8 @@ protected:
     }
 
 private:
+    bool isDynamic = false;
+
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;
 

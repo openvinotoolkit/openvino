@@ -289,6 +289,19 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
                 return node->input_value(0).get_partial_shape().rank().get_length() > 5;
             });
 
+    pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(
+            [](const_node_ptr &node) -> bool {
+                for (size_t i = 0; i < node->get_output_size(); i++) {
+                    const auto outputs = node->get_output_target_inputs(i);
+                    for (const auto &out : outputs) {
+                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::type_info) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+
     // List of enabled/disabled transformations
     pass_config->disable<ngraph::pass::ConvertGELU>();
     pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();

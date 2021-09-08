@@ -14,6 +14,7 @@ addIeTargetTest(
         LINK_LIBRARIES
             gtest
             gtest_main
+            gmock
             mkldnn
             inference_engine_transformations
             inference_engine_lp_transformations

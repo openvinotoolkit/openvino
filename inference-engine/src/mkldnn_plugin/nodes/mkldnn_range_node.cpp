@@ -12,8 +12,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNRangeNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNRangeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::Range::type_info, ngraph::op::v4::Range::type_info)) {
             errorMessage = "Only opset1 and opset4 Range operation is supported";
             return false;
@@ -74,15 +78,15 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
             getOriginalInputPrecisionAtPort(RANGE_LIMIT) == Precision::FP32 &&
             getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::FP32 &&
             getOriginalOutputPrecisionAtPort(0) == Precision::FP32)) {
-        inDataConf.reserve(getOriginalInputsNumber());
-        for (int i = 0; i < getOriginalInputsNumber(); ++i)
+        inDataConf.reserve(inputShapes.size());
+        for (int i = 0; i < inputShapes.size(); ++i)
             inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
         outDataConf.reserve(1);
         outDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
         addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
     } else {
-        inDataConf.reserve(getOriginalInputsNumber());
-        for (int i = 0; i < getOriginalInputsNumber(); ++i)
+        inDataConf.reserve(inputShapes.size());
+        for (int i = 0; i < inputShapes.size(); ++i)
             inDataConf.emplace_back(LayoutType::ncsp);
         outDataConf.reserve(1);
         outDataConf.emplace_back(LayoutType::ncsp);
@@ -92,7 +96,7 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
 
 void MKLDNNRangeNode::execute(mkldnn::stream strm) {
     StatusCode retcode = OK;
-    switch (getParentEdgeAt(0)->getMemory().GetDesc().getPrecision()) {
+    switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
         case Precision::FP32:
             retcode = rangeKernel<float>();
             break;
@@ -110,7 +114,7 @@ void MKLDNNRangeNode::execute(mkldnn::stream strm) {
 
 template <typename data_t>
 InferenceEngine::StatusCode MKLDNNRangeNode::rangeKernel() noexcept {
-    size_t dst_size = (getChildEdgesAtPort(0)[0]->getShape().getStaticDims())[0];
+    size_t dst_size = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[0];
     data_t* dst_data = reinterpret_cast<data_t *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
     data_t start = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_START)->getMemoryPtr()->GetPtr())[0];
     data_t limit = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_LIMIT)->getMemoryPtr()->GetPtr())[0];

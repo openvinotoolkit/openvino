@@ -872,8 +872,13 @@ private:
     }
 };
 
-bool MKLDNNBinaryConvolutionNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNBinaryConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
         if (!binConv) {
             errorMessage = "Only opset1 BinaryConvolution operation is supported";
@@ -942,16 +947,16 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "has incorrect number of output edges";
 
-    if (getParentEdgeAt(0)->getShape().getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getShape().getRank();
+    if (getInputShapeAtPort(0).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
     }
 
-    if (getParentEdgeAt(1)->getShape().getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getShape().getRank();
+    if (getInputShapeAtPort(1).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
     }
 
-    if (getChildEdgeAt(0)->getShape().getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getShape().getRank();
+    if (getOutputShapeAtPort(0).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
     }
 }
 
@@ -979,20 +984,20 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
 
         //activation
         auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
-        config.inConfs[0].desc = nspcCreator->createUniqueDesc(Precision::BIN, getParentEdgeAt(0)->getShape().getStaticDims());
+        config.inConfs[0].desc = nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0));
 
         //weights
         size_t weiFirstDimBlockSize = implType == impl_desc_type::jit_avx512 ? 16 : 8; //memory::format_tag::OIhw16o32i : memory::format_tag::OIhw8o32i;
-        auto weiDims = getParentEdgeAt(1)->getShape().getStaticDims();
+        auto weiDims = getInputShapeAtPort(1).getStaticDims();
         std::vector<size_t> weiBlockDims = {div_up(weiDims[0], weiFirstDimBlockSize), div_up(weiDims[1], 32),
                                             weiDims[2], weiDims[3], weiFirstDimBlockSize, 32};
         std::vector<size_t> weiOrder = {0, 1, 2, 3, 0, 1};
 
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(Precision::BIN, weiDims, weiBlockDims, weiOrder);
+        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(Precision::BIN, Shape(weiDims), weiBlockDims, weiOrder);
 
         //result
         auto outputPrecision = withBinarization ? Precision::BIN : Precision::FP32;
-        config.outConfs[0].desc = nspcCreator->createUniqueDesc(outputPrecision, getChildEdgeAt(0)->getShape().getStaticDims());
+        config.outConfs[0].desc = nspcCreator->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
         if (withSum) {
             config.inConfs.push_back(config.outConfs[0]);
             config.outConfs[0].inPlace = 2;
@@ -1003,9 +1008,9 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
         auto weiCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
         auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
 
-        config.inConfs[0].desc = nspcCreator->createUniqueDesc(Precision::BIN, getParentEdgeAt(0)->getShape().getStaticDims());
-        config.inConfs[1].desc = weiCreator->createUniqueDesc(Precision::BIN, getParentEdgeAt(1)->getShape().getStaticDims());
-        config.outConfs[0].desc = nspcCreator->createUniqueDesc(Precision::FP32, getChildEdgeAt(0)->getShape().getStaticDims());
+        config.inConfs[0].desc = nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0));
+        config.inConfs[1].desc = weiCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(1));
+        config.outConfs[0].desc = nspcCreator->createSharedDesc(Precision::FP32, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 }
@@ -1015,9 +1020,9 @@ void MKLDNNBinaryConvolutionNode::createPrimitive() {
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
 
-    auto srcDims = getParentEdgeAt(0)->getShape().getStaticDims();
-    auto weiDims = getParentEdgeAt(1)->getShape().getStaticDims();
-    auto dstDims = getChildEdgeAt(0)->getShape().getStaticDims();
+    auto srcDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    auto weiDims = getParentEdgesAtPort(1)[0]->getMemory().getStaticDims();
+    auto dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
     auto implType = selectedPrimitiveDescriptor->getImplementationType();
 
@@ -1071,8 +1076,8 @@ void MKLDNNBinaryConvolutionNode::createPrimitive() {
 
     jcp.nb_oc_blocking = nstl::min(implType == impl_desc_type::jit_sse42 ? 2 : implType == impl_desc_type::jit_avx2 ? 4 : 6, jcp.nb_oc);
 
-    auto srcPrecision = getParentEdgeAt(0)->getMemory().GetDesc().getPrecision();
-    auto dstPrecision = getChildEdgeAt(0)->getMemory().GetDesc().getPrecision();
+    auto srcPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
+    auto dstPrecision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
     jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(dstPrecision);
     jcp.typesize_in = srcPrecision == Precision::BIN ? 1 : srcPrecision.size();
@@ -1295,21 +1300,21 @@ void MKLDNNBinaryConvolutionNode::execute(mkldnn::stream strm) {
     auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    std::vector<size_t> srcStride(srcDesc.getStrides().size());
+    std::vector<size_t> srcStride(srcDesc->getStrides().size());
     for (int i = 0; i < srcStride.size(); i++) {
-        srcStride[srcDesc.getOrder()[i]] = srcDesc.getStrides()[i];
+        srcStride[srcDesc->getOrder()[i]] = srcDesc->getStrides()[i];
     }
 
     auto weiDesc = getParentEdgeAt(1)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    std::vector<size_t> weightsStride(weiDesc.getShape().getRank());
+    std::vector<size_t> weightsStride(weiDesc->getShape().getRank());
     for (int i = 0; i < weightsStride.size(); i++) {
-        weightsStride[weiDesc.getOrder()[i]] = weiDesc.getStrides()[i];
+        weightsStride[weiDesc->getOrder()[i]] = weiDesc->getStrides()[i];
     }
 
     auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    std::vector<size_t> dstStride(dstDesc.getStrides().size());
+    std::vector<size_t> dstStride(dstDesc->getStrides().size());
     for (int i = 0; i < dstStride.size(); i++) {
-        dstStride[dstDesc.getOrder()[i]] = dstDesc.getStrides()[i];
+        dstStride[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];
     }
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();

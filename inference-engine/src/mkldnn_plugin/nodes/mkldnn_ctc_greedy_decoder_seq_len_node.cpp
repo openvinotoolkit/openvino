@@ -12,8 +12,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNCTCGreedyDecoderSeqLenNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNCTCGreedyDecoderSeqLenNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v6::CTCGreedyDecoderSeqLen>(op);
         if (!greedyDecOp) {
             errorMessage = "Node is not an instance of the CTCGreedyDecoderSeqLen operation from operation set v6.";
@@ -58,9 +62,9 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::initSupportedPrimitiveDescriptors() {
         IE_THROW() << errorPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
 
     std::vector<PortConfigurator> inDataConf;
-    inDataConf.reserve(getOriginalInputsNumber());
+    inDataConf.reserve(inputShapes.size());
     inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
-    for (int i = 1; i < getOriginalInputsNumber(); ++i)
+    for (int i = 1; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
@@ -75,9 +79,9 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
     int* decodedClasses =  reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemoryPtr()->GetPtr());
     int* decodedClassesLength = reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_LENGTH_INDEX)[0]->getMemoryPtr()->GetPtr());
 
-    const size_t B = getParentEdgeAt(DATA_INDEX)->getShape().getStaticDims()[0];;
-    const size_t T = getParentEdgeAt(DATA_INDEX)->getShape().getStaticDims()[1];;
-    const int C = getParentEdgeAt(DATA_INDEX)->getShape().getStaticDims()[2];;
+    const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];;
+    const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];;
+    const int C = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[2];;
     const size_t TC = T * C;
 
     int blankIndex = C - 1;
@@ -90,7 +94,7 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
             std::string errorMsg = errorPrefix
                                    + ". Sequence length " + std::to_string(sequenceLengths[b])
                                    + " cannot be greater than according decoded classes dimension size "
-                                   + std::to_string(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getShape().getStaticDims()[1]);
+                                   + std::to_string(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemory().getStaticDims()[1]);
             IE_THROW() << errorMsg;
         }
         workAmount += sequenceLengths[b];

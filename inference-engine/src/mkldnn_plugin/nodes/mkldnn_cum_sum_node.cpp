@@ -16,8 +16,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNCumSumNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNCumSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
         if (!cumsum) {
             errorMessage = "Only opset3 CumSum operation is supported";
@@ -71,16 +75,16 @@ void MKLDNNCumSumNode::initSupportedPrimitiveDescriptors() {
         dataPrecision != Precision::FP32 && dataPrecision != Precision::I64 && dataPrecision != Precision::U64 && dataPrecision != Precision::BF16)
         IE_THROW() << errorPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
 
-    if (getOriginalInputsNumber() == numOfInputs) {
+    if (inputShapes.size() == numOfInputs) {
         const auto &axisTensorPrec = getOriginalInputPrecisionAtPort(AXIS);
         if (axisTensorPrec != Precision::I32 && axisTensorPrec != Precision::I64)
             IE_THROW() << errorPrefix << " has unsupported 'axis' input precision: " << axisTensorPrec.name();
     }
 
     std::vector<PortConfigurator> inDataConf;
-    inDataConf.reserve(getOriginalInputsNumber());
+    inDataConf.reserve(inputShapes.size());
     inDataConf.emplace_back(LayoutType::ncsp, dataPrecision);
-    for (int i = 1; i < getOriginalInputsNumber(); ++i)
+    for (int i = 1; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
@@ -133,7 +137,7 @@ template <typename dataType>
 void MKLDNNCumSumNode::exec() {
     const auto *input = reinterpret_cast<const dataType *>(getParentEdgeAt(CUM_SUM_DATA)->getMemoryPtr()->GetPtr());
     auto *output = reinterpret_cast<dataType *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
-    const std::vector<size_t> strides = getParentEdgeAt(CUM_SUM_DATA)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    const VectorDims strides = getParentEdgeAt(CUM_SUM_DATA)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
 
     if (reverse) {
         if (exclusive) {
@@ -151,7 +155,7 @@ void MKLDNNCumSumNode::exec() {
 }
 
 template <bool reverse, bool exclusive, typename dataType>
-void MKLDNNCumSumNode::cumSum(const dataType *input, dataType *output, const std::vector<size_t> &strides) {
+void MKLDNNCumSumNode::cumSum(const dataType *input, dataType *output, const VectorDims &strides) {
     SizeVector iterationRange(numOfDims - 1);
     size_t j = 0;
     for (size_t i = 0; i < shape.size(); i++) {
@@ -248,8 +252,8 @@ inline size_t MKLDNNCumSumNode::getStartOffset(const std::vector<size_t> &forSta
 }
 
 size_t MKLDNNCumSumNode::getAxis(const MKLDNNMemory& _axis, const MKLDNNMemory& _data) const {
-    const auto& axisPrecision = _axis.GetDesc().getPrecision();
-    const int64_t dataShapeSize = static_cast<int64_t>(_data.GetDesc().getShape().getRank());
+    const auto& axisPrecision = _axis.getDesc().getPrecision();
+    const int64_t dataShapeSize = static_cast<int64_t>(_data.GetShape().getRank());
     int64_t axisValueFromBlob;
     switch (axisPrecision) {
         case Precision::I32 : {

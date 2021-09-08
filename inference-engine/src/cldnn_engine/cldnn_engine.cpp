@@ -308,18 +308,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     return true;
                 });
 
-            pass_config->set_callback<ngraph::pass::ConvertNMS1ToNMS5,
-                                      ngraph::pass::ConvertNMS3ToNMS5,
-                                      ngraph::pass::ConvertNMS4ToNMS5,
-                                      ngraph::pass::ConvertNMSToNMSIEInternal>(
-                    [](const_node_ptr &node) -> bool {
-                        return node->input_value(0).get_shape().back() == 4lu &&
-                               node->input_value(0).get_shape().front() == node->input_value(1).get_shape().front() &&
-                               node->input_value(0).get_shape()[1] == node->input_value(1).get_shape().back() &&
-                               node->input_value(0).get_shape().size() == 3lu &&
-                               node->input_value(1).get_shape().size() == 3lu;
-                    });
-
             pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
                 [](const_node_ptr &node) -> bool {
                     const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);

@@ -75,7 +75,7 @@ public:
         return false;
     }
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     void reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size_t dst_size);
