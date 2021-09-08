@@ -3,14 +3,16 @@
 //
 
 #include "transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include <memory>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
 
 #include "itt.hpp"
+#include "transformations/utils/utils.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DropoutWithRandomUniformReplacer, "DropoutWithRandomUniformReplacer", 0);
 
@@ -22,8 +24,13 @@ ngraph::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer
     const auto random_uniform_pattern =
         ngraph::pattern::wrap_type<opset8::RandomUniform>({shape_pattern, ru_min_const_pattern, ru_max_const_pattern},
                                                           pattern::consumers_count(1));
+    const auto convert_pattern = ngraph::pattern::wrap_type<opset8::Convert>({random_uniform_pattern});
     const auto add_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
-    const auto add_pattern = ngraph::pattern::wrap_type<opset8::Add>({random_uniform_pattern, add_const_pattern});
+    const auto convert_or_random_uniform_pattern =
+        std::make_shared<pattern::op::Or>(OutputVector{convert_pattern, random_uniform_pattern});
+
+    const auto add_pattern =
+        ngraph::pattern::wrap_type<opset8::Add>({convert_or_random_uniform_pattern, add_const_pattern});
 
     const auto floor_pattern = ngraph::pattern::wrap_type<opset8::Floor>({add_pattern});
 

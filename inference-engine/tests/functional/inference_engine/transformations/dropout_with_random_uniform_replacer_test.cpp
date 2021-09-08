@@ -104,3 +104,46 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerCase2) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, DropoutWithRandomUniformReplacerWithConvert) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
+        auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
+        auto max_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.0});
+        auto ru = std::make_shared<ngraph::opset8::RandomUniform>(input,
+                                                                  min_const,
+                                                                  max_const,
+                                                                  ngraph::element::f32,
+                                                                  100,
+                                                                  200);
+        auto convert = std::make_shared<ngraph::opset8::Convert>(ru, ngraph::element::f16);
+        auto add_const = ngraph::opset8::Constant::create(ngraph::element::f16, ngraph::Shape{}, {1.0});
+        auto add = std::make_shared<ngraph::opset8::Add>(convert, add_const);
+        auto floor = std::make_shared<ngraph::opset8::Floor>(add);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
+        auto broadcast_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.5});
+        auto broadcast = std::make_shared<ngraph::opset8::Broadcast>(broadcast_const, input);
+        auto convert = std::make_shared<ngraph::opset8::Convert>(broadcast, ngraph::element::f16);
+
+        auto add_const = ngraph::opset8::Constant::create(ngraph::element::f16, ngraph::Shape{}, {1.0});
+        auto add = std::make_shared<ngraph::opset8::Add>(convert, add_const);
+        auto floor = std::make_shared<ngraph::opset8::Floor>(add);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
