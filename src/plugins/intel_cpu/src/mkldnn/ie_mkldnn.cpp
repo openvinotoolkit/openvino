@@ -121,6 +121,14 @@ mkldnn::memory::format_tag str2fmt(const char *str) {
         CASE(ldigo);
         CASE(ldgoi);
         CASE(ldgo);
+        CASE(aBcd16b);
+        CASE(aBcd8b);
+        CASE(abcd);
+        CASE(acdb);
+        CASE(aBcde16b);
+        CASE(aBcde8b);
+        CASE(abcde);
+        CASE(acdeb);
 #undef CASE
         assert(!"unknown memory format");
         return dnnl::memory::format_tag::undef;

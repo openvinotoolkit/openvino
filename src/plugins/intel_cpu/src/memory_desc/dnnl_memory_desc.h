@@ -42,8 +42,6 @@ public:
 
     bool hasLayoutType(LayoutType layoutType) const override { return false; }
 
-    virtual bool isSame(mkldnn::memory::format_tag fmt) const { return false; }
-
     bool hasEmptyExtraData() const { return desc.data.extra.flags == dnnl_memory_extra_flag_none; }
 
     MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;

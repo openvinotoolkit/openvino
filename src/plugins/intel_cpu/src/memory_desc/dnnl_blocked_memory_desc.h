@@ -47,8 +47,6 @@ public:
 
     bool hasLayoutType(LayoutType layoutType) const override;
 
-    bool isSame(mkldnn::memory::format_tag fmt) const override;
-
     std::string serializeFormat() const override;
 
     size_t getMaxMemSize() const override;

@@ -715,11 +715,11 @@ void MKLDNNConvolutionNode::filterSupportedDescriptors() {
             bool isSuitableDesc = true;
             if (!inputMemoryFormatsFilter.empty()) {
                 auto src_tdesc = MKLDNNExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.src_desc);
-                isSuitableDesc &= src_tdesc->isSame(inputMemoryFormatsFilter[0]);
+                isSuitableDesc &= dnnl::utils::str2fmt(src_tdesc->serializeFormat().c_str()) == inputMemoryFormatsFilter[0];
             }
             if (!outputMemoryFormatsFilter.empty()) {
                 auto dst_tdesc = MKLDNNExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.dst_desc);
-                isSuitableDesc &= dst_tdesc->isSame(outputMemoryFormatsFilter[0]);
+                isSuitableDesc &= dnnl::utils::str2fmt(dst_tdesc->serializeFormat().c_str()) == outputMemoryFormatsFilter[0];
             }
             if (!isSuitableDesc) {
                 itd = descs.erase(itd);

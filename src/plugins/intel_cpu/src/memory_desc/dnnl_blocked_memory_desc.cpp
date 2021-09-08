@@ -426,6 +426,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
     return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order)));
 }
 
+<<<<<<< HEAD
 bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
     mkldnn::memory::desc refDesc(desc.dims(), desc.data_type(), fmt);
 
@@ -529,6 +530,8 @@ size_t DnnlBlockedMemoryDesc::getPaddedElementsCount() const {
 }
 
 bool DnnlBlockedMemoryDesc::blocksExtended() const {
+    if (shape.isDynamic())
+        IE_THROW() << "Can't define blockExtended if dims are undefined";
     for (int i = 0; i < desc.data.ndims; i++) {
         if (desc.data.dims[i] != desc.data.padded_dims[i])
             return true;

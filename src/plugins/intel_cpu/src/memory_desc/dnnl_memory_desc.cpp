@@ -13,6 +13,9 @@ DnnlMemoryDesc::DnnlMemoryDesc(const mkldnn::memory::desc& desc) :
     MemoryDesc(Shape(MKLDNNExtensionUtils::convertToVectorDims(desc.dims())), Mkldnn), desc(desc) {
     if (desc.data.format_kind == dnnl::impl::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
+    mkldnn::impl::memory_desc_wrapper wrapperThis(desc.data);
+    if (wrapperThis.has_runtime_dims_or_strides())
+        IE_THROW(Unexpected) << "Can't create DnnlMemoryDesc from undefined dims or strides!";
 }
 
 bool DnnlMemoryDesc::canComputeMemSizeZeroDims() const {

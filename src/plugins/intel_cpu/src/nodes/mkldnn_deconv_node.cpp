@@ -395,19 +395,19 @@ void MKLDNNDeconvolutionNode::filterSupportedDescriptors() {
             if (!inputMemoryFormatsFilter.empty()) {
                 if (isInt8) {
                     auto src_tdesc = MKLDNNExtensionUtils::makeDescriptor(std::shared_ptr<dnnl::deconvolution_forward::desc>(*itd)->data.src_desc);
-                    isSuitableDesc &= src_tdesc->isSame(inputMemoryFormatsFilter[0]);
+                    isSuitableDesc &= dnnl::utils::str2fmt(src_tdesc->serializeFormat().c_str()) == inputMemoryFormatsFilter[0];
                 } else {
                     auto src_tdesc = MKLDNNExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.diff_src_desc);
-                    isSuitableDesc &= src_tdesc->isSame(inputMemoryFormatsFilter[0]);
+                    isSuitableDesc &= dnnl::utils::str2fmt(src_tdesc->serializeFormat().c_str()) == inputMemoryFormatsFilter[0];
                 }
             }
             if (!outputMemoryFormatsFilter.empty()) {
                 if (isInt8) {
                     auto dst_tdesc = MKLDNNExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::deconvolution_forward::desc>(*itd)->data.dst_desc);
-                    isSuitableDesc &= dst_tdesc->isSame(outputMemoryFormatsFilter[0]);
+                    isSuitableDesc &= dnnl::utils::str2fmt(dst_tdesc->serializeFormat().c_str()) == outputMemoryFormatsFilter[0];
                 } else {
                     auto dst_tdesc = MKLDNNExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.diff_dst_desc);
-                    isSuitableDesc &= dst_tdesc->isSame(outputMemoryFormatsFilter[0]);
+                    isSuitableDesc &= dnnl::utils::str2fmt(dst_tdesc->serializeFormat().c_str()) == outputMemoryFormatsFilter[0];
                 }
             }
             if (!isSuitableDesc) {
