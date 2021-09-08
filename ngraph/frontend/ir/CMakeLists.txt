@@ -46,16 +46,3 @@ target_link_libraries(${TARGET_NAME} PRIVATE ngraph::frontend_manager::static
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
-
-install(TARGETS ${TARGET_NAME} EXPORT ngraphTargets
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
-
-install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/ir_frontend
-        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-        COMPONENT ngraph_dev
-        FILES_MATCHING PATTERN "*.hpp"
-)
-
-export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")

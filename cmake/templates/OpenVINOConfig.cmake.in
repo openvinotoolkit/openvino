@@ -8,13 +8,14 @@
 # to convert models from framework specific formats.
 #
 # The following components are supported:
-#  * `Runtime`: OpenVINO C++ and C runtimes, IR frontend
+#
+#  * `Runtime`: OpenVINO C++ and C Core & Inference Runtime, frontend manager
 #  * `ONNX`: OpenVINO ONNX frontend
 #  * `PaddlePaddle`: OpenVINO PaddlePaddle frontend
 #
-# If no components are specified, all components are provided:
+# If no components are specified, `Runtime` component is provided:
 #
-#   find_package(OpenVINO REQUIRED)
+#   find_package(OpenVINO REQUIRED) # only Runtime component
 #
 # If specific components are required:
 #
@@ -25,24 +26,24 @@
 #
 #  Runtime targets:
 #
-#   `OpenVINO::Runtime`
-#   The OpenVINO C++ Runtime Core & Inference
+#   `openvino::runtime`
+#   The OpenVINO C++ Core & Inference Runtime
 #
-#   `OpenVINO::Runtime::C`
+#   `openvino::runtime::c`
 #   The OpenVINO C Inference Runtime
+#
+#   `openvino::core`
+#   The OpenVINO C++ Core Runtime
 #
 #  Frontend specific targets:
 #
-#   `OpenVINO::Frontend::Manager`
+#   `openvino::frontend::manager`
 #   OpenVINO frontend manager
 #
-#   `OpenVINO::Frontend::IR`
-#   IR FrontEnd target
-#
-#   `OpenVINO::Frontend::ONNX`
+#   `openvino::frontend::onnx`
 #   ONNX FrontEnd target (optional)
 #
-#   `OpenVINO::Frontend::PaddlePaddle`
+#   `openvino::frontend::paddlepaddle`
 #   PaddlePaddle FrontEnd target (optional)
 #
 # Result variables:
@@ -52,6 +53,9 @@
 #
 #   `OpenVINO_FOUND`
 #   System has OpenVINO Runtime installed
+#
+#   `OpenVINO_Runtime_FOUND`
+#   OpenVINO C++ Core & Inference Runtime is available
 #
 #   `OpenVINO_Frontend_ONNX_FOUND`
 #   OpenVINO ONNX frontend is available
@@ -135,7 +139,7 @@ endfunction()
 #
 
 # need to store current PACKAGE_PREFIX_DIR, because it's overwritten by sub-package one
-set(OV_PACKAGE_PREFIX_DIR "${PACKAGE_PREFIX_DIR}")
+set(_ov_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
 
 set(THREADING "@THREADING@")
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
@@ -149,50 +153,47 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
                         NO_DEFAULT_PATH)
 endif()
 
-# TODO: remove in a new package structure
-set_and_check(_ngraph_dir "@PACKAGE_IE_NGRAPH_DIR@")
-_ov_find_dependency(ngraph
-                    CONFIG
-                    PATHS ${_ngraph_dir}
-                    NO_CMAKE_FIND_ROOT_PATH
-                    NO_DEFAULT_PATH)
-
-# TODO: replace target
 if(NOT TARGET inference_engine)
     set(_ov_as_external_package ON)
     include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
 endif()
 
-# mark components as available
-foreach(comp inference_engine inference_engine_c_api)
-    set(${CMAKE_FIND_PACKAGE_NAME}_${comp}_FOUND ON)
-endforeach()
+#
+# Components
+#
 
+set(${CMAKE_FIND_PACKAGE_NAME}_Runtime_FOUND ON)
+
+set(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND @NGRAPH_ONNX_FRONTEND_ENABLE@)
+set(${CMAKE_FIND_PACKAGE_NAME}_PaddlePaddle_FOUND @NGRAPH_PDPD_FRONTEND_ENABLE@)
+
+# if no components specified, only Runtime is provided
 if(NOT ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)
-    set(${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS inference_engine inference_engine_c_api)
+    set(${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS Runtime)
 endif()
 
-unset(OpenVINO_LIBRARIES)
+#
+# Apply common functions
+#
+
+unset(_openvino_libraries)
 foreach(comp IN LISTS ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)
     # check if the component is available
     if(${CMAKE_FIND_PACKAGE_NAME}_${comp}_FOUND)
         set(pcomp ${comp})
         if(_ov_as_external_package)
-            set(pcomp IE::${comp})
+            set(pcomp openvino::${comp})
         endif()
 
-        list(APPEND OpenVINO_LIBRARIES ${pcomp})
+        list(APPEND _openvino_libraries ${pcomp})
+        _ov_target_no_deprecation_error(${_openvino_libraries})
     endif()
 endforeach()
-
-if(_ov_as_external_package)
-    _ov_target_no_deprecation_error(${OpenVINO_LIBRARIES})
-endif()
 unset(_ov_as_external_package)
 
 # restore PACKAGE_PREFIX_DIR
-set(PACKAGE_PREFIX_DIR ${OV_PACKAGE_PREFIX_DIR})
-unset(OV_PACKAGE_PREFIX_DIR)
+set(PACKAGE_PREFIX_DIR ${_ov_package_prefix_dir})
+unset(_ov_package_prefix_dir)
 
 check_required_components(${CMAKE_FIND_PACKAGE_NAME})
 

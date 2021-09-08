@@ -29,6 +29,10 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 export(TARGETS ${TARGET_NAME} NAMESPACE IE::
        APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c)
+export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
 # install
 
 ie_cpack_add_component(core_c DEPENDS core)
