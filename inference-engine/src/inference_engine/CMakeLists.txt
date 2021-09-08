@@ -292,7 +292,9 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        INCLUDES DESTINATION ${IE_CPACK_IE_DIR}/include)
+        INCLUDES DESTINATION ${IE_CPACK_IE_DIR}/include
+                             # TODO: remove later once samples are updated
+                             ${IE_CPACK_IE_DIR}/include)
 
 install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
         DESTINATION ${IE_CPACK_RUNTIME_PATH}
