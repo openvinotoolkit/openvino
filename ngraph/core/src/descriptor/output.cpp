@@ -47,7 +47,7 @@ const ngraph::Shape& ov::descriptor::Output::get_shape() const {
     return m_tensor->get_shape();
 }
 
-const ov::PartialShape& ov::descriptor::Output::get_partial_shape() const {
+const ov::Shape& ov::descriptor::Output::get_partial_shape() const {
     return m_tensor->get_partial_shape();
 }
 

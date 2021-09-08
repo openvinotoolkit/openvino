@@ -89,7 +89,7 @@ void op::v3::GRUCell::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_GRUCell_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+            set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
             return;
         }
     }
@@ -173,7 +173,7 @@ void op::v3::GRUCell::validate_and_infer_types() {
 void op::v3::GRUCell::add_default_bias_input() {
     Output<Node> B =
         op::v0::Constant::create(get_input_element_type(0),
-                                 Shape{(s_gates_count + m_linear_before_reset) * get_hidden_size()},
+                                 ov::StaticShape{(s_gates_count + m_linear_before_reset) * get_hidden_size()},
                                  vector<float>((s_gates_count + m_linear_before_reset) * get_hidden_size(), 0.f));
     set_argument(4, B);
 }

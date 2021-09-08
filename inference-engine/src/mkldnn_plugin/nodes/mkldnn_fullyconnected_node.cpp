@@ -12,14 +12,20 @@
 #include <mkldnn_extension_utils.h>
 #include <mkldnn.hpp>
 #include "utils/general_utils.h"
-#include <cpu_memory_desc_utils.h>
+#include <memory_desc/cpu_memory_desc_utils.h>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNFullyConnectedNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNFullyConnectedNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto fc = std::dynamic_pointer_cast<const FullyConnectedNode>(op);
         if (!fc) {
             errorMessage = "Only legacy FullyConnected operation is supported";
@@ -101,8 +107,8 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         outputDataType = memory::data_type::bf16;
     }
 
-    const auto inDims = getParentEdgeAt(0)->getShape().getStaticDims();
-    const auto outDims = getChildEdgeAt(0)->getShape().getStaticDims();
+    const auto& inDims = getInputShapeAtPort(0).getStaticDims();
+    const auto& outDims = getOutputShapeAtPort(0).getStaticDims();
 
     if (inDims.size() == 3) {
         weightsDims = InferenceEngine::SizeVector({static_cast<size_t>(outDims[2]), static_cast<size_t>(inDims[2])});
@@ -113,7 +119,7 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     }
     biasesDims.push_back(weightsDims[0]);
 
-    for (auto format : getAvailableFormatsForDims(getParentEdgeAt(0)->getShape())) {
+    for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
         auto in_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
         auto out_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(outDims), outputDataType, mkldnn::memory::format_tag::any);
 
@@ -149,7 +155,7 @@ void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
                 auto oldMem = param->second;
                 auto dims = oldMem.get_desc().dims();
                 if (dims.size() == 3) {
-                    MKLDNNDims normalizedDims({static_cast<ptrdiff_t>(dims[0] * dims[1]), static_cast<ptrdiff_t>(dims[2])});
+                    std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
                     mkldnn::memory::desc newMemDesc(oldMem.get_desc().reshape(normalizedDims));
                     mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
                     primArgs.at(argType) = newMem;
@@ -237,7 +243,7 @@ std::shared_ptr<mkldnn::primitive_attr> MKLDNNFullyConnectedNode::initPrimitiveA
     return attr;
 }
 
-// WA: creation MKLDNNMemoryDesc with format == any is prohibited
+// WA: creation DnnlMemoryDesc with format == any is prohibited
 // so we create mkldnn::memory::desc directly
 // we need specific method and can't remove createDescriptor from base class because its used into initDescriptor
 void MKLDNNFullyConnectedNode::createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
@@ -261,12 +267,12 @@ void MKLDNNFullyConnectedNode::createDescriptorInternal(const mkldnn::memory::de
         auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
         auto normalizedOutDims = {outDims[0] * outDims[1], outDims[2]};
         in_candidate = mkldnn::memory::desc(normalizedInDims, in_candidate.data_type(),
-                                         MKLDNNMemory::GetPlainFormatByRank(normalizedInDims.size()));
+                                         MKLDNNExtensionUtils::GetPlainFormatByRank(normalizedInDims.size()));
         out_candidate = mkldnn::memory::desc(normalizedOutDims, out_candidate.data_type(),
-                                             MKLDNNMemory::GetPlainFormatByRank(normalizedOutDims.size()));
+                                             MKLDNNExtensionUtils::GetPlainFormatByRank(normalizedOutDims.size()));
     }
 
-    mkldnn::memory::desc wgh_candidate(MKLDNNDims(weightsDims), wdt, mkldnn::memory::format_tag::any);
+    mkldnn::memory::desc wgh_candidate(MKLDNNExtensionUtils::convertToDnnlDims(weightsDims), wdt, mkldnn::memory::format_tag::any);
 
     if (withBiases) {
         mkldnn::memory::desc bias_candidate(MKLDNNExtensionUtils::convertToDnnlDims(inputShapes[BIAS_ID].getStaticDims()), bdt,
@@ -283,28 +289,30 @@ void MKLDNNFullyConnectedNode::createDescriptorInternal(const mkldnn::memory::de
     }
 }
 
-void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
-                                                const std::vector<const MemoryDesc*> &outputDesc) {
-    createDescriptorInternal(MemoryDescUtils::convertToMKLDNNMemoryDesc(*inputDesc[0]), MemoryDescUtils::convertToMKLDNNMemoryDesc(*outputDesc[0]));
+void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
+                                                const std::vector<MemoryDescPtr> &outputDesc) {
+    createDescriptorInternal(MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc(),
+                             MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0])->getDnnlDesc());
 }
 
-std::unique_ptr<MKLDNNMemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    auto desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_desc(idx - 1)) : MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
+std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
 
-    if (getParentEdgeAt(idx)->getShape().getRank() == 3) {
-        desc = MKLDNNMemoryDesc(getParentEdgeAt(idx)->getShape().getStaticDims(), MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
-                                MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(idx)->getShape().getRank()));
+    if (getInputShapeAtPort(idx).getRank() == 3) {
+        return std::make_shared<CpuBlockedMemoryDesc>(MKLDNNExtensionUtils::DataTypeToIEPrecision(
+            static_cast<mkldnn::memory::data_type>(desc.data.data_type)), getInputShapeAtPort(idx));
     }
-    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::move(desc));
+    return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
 
-std::unique_ptr<MKLDNNMemoryDesc> MKLDNNFullyConnectedNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    auto desc = MKLDNNMemoryDesc(primitive_desc_it.dst_desc(idx));
-    if (getChildEdgeAt(idx)->getShape().getRank() == 3) {
-        desc = MKLDNNMemoryDesc(getChildEdgeAt(idx)->getShape().getStaticDims(), MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
-                                MKLDNNMemory::GetPlainFormatByRank(getChildEdgeAt(idx)->getShape().getRank()));
+std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    auto desc = primitive_desc_it.dst_desc(idx);
+
+    if (getOutputShapeAtPort(idx).getRank() == 3) {
+        return std::make_shared<CpuBlockedMemoryDesc>(MKLDNNExtensionUtils::DataTypeToIEPrecision(
+            static_cast<mkldnn::memory::data_type>(desc.data.data_type)), getOutputShapeAtPort(idx));
     }
-    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::move(desc));
+    return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
 
 InferenceEngine::Precision MKLDNNFullyConnectedNode::getRuntimePrecision() const {

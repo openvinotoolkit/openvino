@@ -24,9 +24,9 @@ public:
     /// \param auto_pad Padding type. it can be any value from
     /// valid, same_lower, same_upper
     ExtractImagePatches(const Output<Node>& image,
-                        const ngraph::Shape& sizes,
+                        const StaticShape& sizes,
                         const Strides& strides,
-                        const ngraph::Shape& rates,
+                        const StaticShape& rates,
                         const PadType& auto_pad);
 
     void validate_and_infer_types() override;
@@ -34,10 +34,10 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    const ngraph::Shape& get_sizes() const {
+    const StaticShape& get_sizes() const {
         return m_patch_sizes;
     }
-    void set_sizes(const ngraph::Shape& sizes) {
+    void set_sizes(const StaticShape& sizes) {
         m_patch_sizes = sizes;
     }
     const Strides& get_strides() const {
@@ -46,10 +46,10 @@ public:
     void set_strides(const Strides& strides) {
         m_patch_movement_strides = strides;
     }
-    const ngraph::Shape& get_rates() const {
+    const StaticShape& get_rates() const {
         return m_patch_selection_rates;
     }
-    void set_rates(const ngraph::Shape& rates) {
+    void set_rates(const StaticShape& rates) {
         m_patch_selection_rates = rates;
     }
     const PadType& get_auto_pad() const {
@@ -60,9 +60,9 @@ public:
     }
 
 private:
-    ngraph::Shape m_patch_sizes;
+    StaticShape m_patch_sizes;
     Strides m_patch_movement_strides;
-    ngraph::Shape m_patch_selection_rates;
+    StaticShape m_patch_selection_rates;
     PadType m_padding;
 };
 }  // namespace v3

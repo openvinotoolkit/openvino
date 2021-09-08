@@ -42,28 +42,28 @@ void op::v1::Select::validate_and_infer_types() {
                           element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
                           "Argument 1 and 2 element types must match.");
 
-    PartialShape result_shape;
+    ov::Shape result_shape;
     if (get_auto_broadcast().m_type == op::AutoBroadcastType::PDPD) {
         result_shape = get_input_partial_shape(1);  // 'then' tensor
         NODE_VALIDATION_CHECK(
             this,
-            PartialShape::broadcast_merge_into(result_shape, get_input_partial_shape(2), get_auto_broadcast()),
+            ov::Shape::broadcast_merge_into(result_shape, get_input_partial_shape(2), get_auto_broadcast()),
             "'Else' tensor shape is not broadcastable.");
         NODE_VALIDATION_CHECK(
             this,
-            PartialShape::broadcast_merge_into(result_shape, get_input_partial_shape(0), get_auto_broadcast()),
+            ov::Shape::broadcast_merge_into(result_shape, get_input_partial_shape(0), get_auto_broadcast()),
             "'Cond' tensor shape is not broadcastable.");
     } else {
         result_shape = get_input_partial_shape(2);
         for (int i = 1; i >= 0; i--) {
             if (get_auto_broadcast().m_type == op::AutoBroadcastType::NONE) {
                 NODE_VALIDATION_CHECK(this,
-                                      PartialShape::merge_into(result_shape, get_input_partial_shape(i)),
+                                      ov::Shape::merge_into(result_shape, get_input_partial_shape(i)),
                                       "Argument shapes are inconsistent.");
             } else if (get_auto_broadcast().m_type == op::AutoBroadcastType::NUMPY) {
                 NODE_VALIDATION_CHECK(
                     this,
-                    PartialShape::broadcast_merge_into(result_shape, get_input_partial_shape(i), get_auto_broadcast()),
+                    ov::Shape::broadcast_merge_into(result_shape, get_input_partial_shape(i), get_auto_broadcast()),
                     "Argument shapes are inconsistent.");
             } else {
                 NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");

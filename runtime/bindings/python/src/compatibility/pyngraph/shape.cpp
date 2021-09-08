@@ -42,6 +42,6 @@ void regclass_pyngraph_Shape(py::module m) {
     });
 
     shape.def("__repr__", [](const ngraph::Shape& self) -> std::string {
-        return "<" + py::cast(self).attr("__str__")().cast<std::string>() + ">";
+        return "<Shape: " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
     });
 }

@@ -53,31 +53,31 @@ protected:
     bool evaluate_broadcast(const HostTensorPtr& arg0,
                             const HostTensorPtr& out,
                             const std::pair<bool, AxisSet>& pair_broadcast_axes,
-                            const ngraph::Shape& output_shape) const;
+                            const StaticShape& output_shape) const;
 
     bool evaluate_broadcast(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisSet& broadcast_axes) const;
 
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
 
-    PartialShape get_result_shape_pdpd(const PartialShape& arg0_shape,
-                                       const PartialShape& target_shape,
-                                       const op::BroadcastModeSpec& broadcast_spec) const;
+    Shape get_result_shape_pdpd(const Shape& arg0_shape,
+                                const Shape& target_shape,
+                                const op::BroadcastModeSpec& broadcast_spec) const;
 
-    void validate_target_shape_numpy(const PartialShape& arg_shape, const PartialShape& target_shape) const;
+    void validate_target_shape_numpy(const Shape& arg_shape, const Shape& target_shape) const;
 
-    static std::pair<bool, AxisSet> get_broadcast_axes_numpy_pdpd(const ngraph::Shape& arg_shape,
-                                                                  const ngraph::Shape& result_shape,
+    static std::pair<bool, AxisSet> get_broadcast_axes_numpy_pdpd(const StaticShape& arg_shape,
+                                                                  const StaticShape& result_shape,
                                                                   const op::BroadcastModeSpec& broadcast_spec);
 
     static std::pair<bool, AxisSet> get_broadcast_axes_none(const AxisVector& axes_mapping_val,
                                                             const size_t target_shape);
 
-    void validate_target_shape_none(const PartialShape& arg_shape,
+    void validate_target_shape_none(const Shape& arg_shape,
                                     const AxisVector& axes_mapping_val,
-                                    const PartialShape& target_shape) const;
+                                    const Shape& target_shape) const;
 
-    ngraph::Shape get_target_shape(const HostTensorPtr& input1) const;
+    StaticShape get_target_shape(const HostTensorPtr& input1) const;
 };
 }  // namespace util
 }  // namespace op

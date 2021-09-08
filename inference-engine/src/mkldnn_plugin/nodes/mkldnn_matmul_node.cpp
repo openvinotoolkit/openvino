@@ -13,13 +13,19 @@
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset1.hpp>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto matMul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(op);
         if (!matMul) {
             errorMessage = "Only opset1 MatMul operation is supported";
@@ -70,9 +76,9 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW()  << errorPrefix << " has incorrect number of output edges for layer " << getName();
 
-    auto inDims0 = getParentEdgeAt(0)->getShape().getStaticDims();
-    auto inDims1 = getParentEdgeAt(1)->getShape().getStaticDims();
-    auto outDims = getChildEdgeAt(0)->getShape().getStaticDims();
+    auto inDims0 = getInputShapeAtPort(0).getStaticDims();
+    auto inDims1 = getInputShapeAtPort(1).getStaticDims();
+    auto outDims = getOutputShapeAtPort(0).getStaticDims();
 
     if (inDims0.size() != inDims1.size() || inDims0.size() != outDims.size())
         IE_THROW()  << errorPrefix << " has invalid dims count";
@@ -131,24 +137,22 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    auto inputDataType0 = MKLDNNExtensionUtils::IEPrecisionToDataType(inPrec0);
-    auto inputDataType1 = MKLDNNExtensionUtils::IEPrecisionToDataType(inPrec1);
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
+    auto outputPrec = InferenceEngine::Precision::FP32;
 
     NodeConfig config;
     config.dynBatchSupport = true;
 
-    auto createDataConfig = [](const std::vector<size_t>& dims, memory::data_type dataType) -> PortConfig {
+    auto createDataConfig = [](const Shape& shape, InferenceEngine::Precision dataType) -> PortConfig {
         PortConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dims, dataType, MKLDNNMemory::GetPlainFormatByRank(dims.size()));
+        dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(dataType, shape);
         return dataConfig;
     };
 
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType0));
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(1)->getShape().getStaticDims(), inputDataType1));
-    config.outConfs.push_back(createDataConfig(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType));
+    config.inConfs.push_back(createDataConfig(getInputShapeAtPort(0), inPrec0));
+    config.inConfs.push_back(createDataConfig(getInputShapeAtPort(1), inPrec1));
+    config.outConfs.push_back(createDataConfig(getOutputShapeAtPort(0), outputPrec));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::gemm_any);
 }
@@ -181,8 +185,8 @@ void MKLDNNMatMulNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW()  << errorPrefix << " did not set preferable primitive descriptor";
 
-    auto inDims0 = src0MemPtr->GetDims();
-    auto outDims = dstMemPtr->GetDims();
+    auto inDims0 = src0MemPtr->getStaticDims();
+    auto outDims = dstMemPtr->getStaticDims();
 
     params.src0_mem_ptr = src0MemPtr;
     params.src1_mem_ptr = src1MemPtr;
@@ -207,7 +211,7 @@ void MKLDNNMatMulNode::createPrimitive() {
     params.shift1 = params.M * params.N * params.MB2;
     params.shift2 = params.M * params.N;
 
-    runtimePrecision = getParentEdgeAt(0)->getMemory().GetDesc().getPrecision();
+    runtimePrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
 }
 
 inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const float *A, int lda,
@@ -301,7 +305,7 @@ bool MKLDNNMatMulNode::created() const {
     return getType() == MatMul;
 }
 
-int MKLDNNMatMulNode::getMaxBatch() {
+size_t MKLDNNMatMulNode::getMaxBatch() {
     if (!outputShapes.empty())
         return outputShapes[0].getStaticDims()[0];
     return 0;

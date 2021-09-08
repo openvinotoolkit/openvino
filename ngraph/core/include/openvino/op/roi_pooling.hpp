@@ -23,7 +23,7 @@ public:
     /// \param method         Method of pooling - Max or Bilinear
     ROIPooling(const Output<Node>& input,
                const Output<Node>& coords,
-               const ngraph::Shape& output_size,
+               const StaticShape& output_size,
                const float spatial_scale,
                const std::string& method = "max");
 
@@ -31,7 +31,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    const ngraph::Shape& get_output_size() const {
+    const StaticShape& get_output_size() const {
         return m_output_size;
     }
     float get_spatial_scale() const {
@@ -43,7 +43,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
-    ngraph::Shape m_output_size{0, 0};
+    StaticShape m_output_size{0, 0};
     float m_spatial_scale;
     std::string m_method = "max";
 };
