@@ -64,7 +64,7 @@ void GNADeviceHelper::tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::r
         {rRegion::REGION_SCRATCH, Gna2MemoryTagScratch},
         {rRegion::REGION_RO, Gna2MemoryTagReadOnly},
         {rRegion::REGION_STATES, Gna2MemoryTagState},
-        // {rRegion::REGION_AUTO, Gna2MemoryTagReadWrite},
+        {rRegion::REGION_AUTO, Gna2MemoryTagState},
     };
     auto memoryTag = tagMap.at(tag);
     const auto status = Gna2MemorySetTag(memPtr, memoryTag);
@@ -515,8 +515,9 @@ void GNADeviceHelper::dumpXnnForDeviceVersion(
 }
 
 void GNADeviceHelper::dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
-    Gna2DeviceVersion targetDeviceVersion, uint32_t input_size, uint32_t output_size) {
-    ExportTlvModel(modelId, nGnaDeviceIndex, outStream, targetDeviceVersion, input_size, output_size);
+    Gna2DeviceVersion targetDeviceVersion, uint32_t input_size, uint32_t output_size,
+    float inSF, float outSF) {
+    ExportTlvModel(modelId, nGnaDeviceIndex, outStream, targetDeviceVersion, input_size, output_size, inSF, outSF);
 }
 
 void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose) {
