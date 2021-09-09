@@ -42,7 +42,7 @@ void transform(const In1& in1, const In2& in2, Out& out, const Func& func) {
 }
 }  // namespace util
 
-TestResult common_test_pipeline(const std::function<void()>& test_pipeline, const int& n) {
+TestResult common_test_pipeline(std::vector<std::function<void()>> test_pipeline, const int& n) {
     if (AVERAGE_NUM > n)
         return TestResult(TestStatus::TEST_FAILED, "Test failed: number of iterations less than defined AVERAGE_NUM");
 
@@ -65,7 +65,7 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
 
     for (size_t iteration = 1, measure_count = n / AVERAGE_NUM; ; iteration++) {
         // run test pipeline and collect metrics
-        test_pipeline();
+        for (auto step: test_pipeline) step();
         getVmValues(cur[VMSIZE], cur[VMPEAK], cur[VMRSS], cur[VMHWM]);
         cur[THREADS] = getThreadsNum();
 
@@ -146,72 +146,4 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
         return TestResult(TestStatus::TEST_FAILED, "Test failed: HWM virtual memory consumption grown too much.");
 
     return TestResult(TestStatus::TEST_OK, "");
-}
-
-TestResult test_load_unload_plugin(const std::string& target_device, const int& n) {
-    log_info("Load/unload plugin for device: " << target_device << " for " << n << " times");
-    return common_test_pipeline(load_unload_plugin(target_device), n);
-}
-
-TestResult test_read_network(const std::string& model, const int& n) {
-    log_info("Read network: \"" << model << "\" for " << n << " times");
-    return common_test_pipeline(read_cnnnetwork(model), n);
-}
-
-TestResult test_cnnnetwork_reshape_batch_x2(const std::string& model, const int& n) {
-    log_info("Reshape to batch*=2 of CNNNetwork created from network: \"" << model << "\" for " << n << " times");
-    return common_test_pipeline(cnnnetwork_reshape_batch_x2(model), n);
-}
-
-TestResult test_set_input_params(const std::string& model, const int& n) {
-    log_info("Apply preprocessing for CNNNetwork from network: \"" << model << "\" for " << n << " times");
-    return common_test_pipeline(set_input_params(model), n);
-}
-
-TestResult test_create_exenetwork(const std::string& model, const std::string& target_device, const int& n) {
-    log_info("Create ExecutableNetwork from network: \"" << model << "\" for device: \"" << target_device << "\" for "
-                                                         << n << " times");
-    return common_test_pipeline(create_exenetwork(model, target_device), n);
-}
-
-TestResult test_recreate_exenetwork(InferenceEngine::Core& ie, const std::string& model,
-                                    const std::string& target_device, const int& n) {
-    log_info("Recreate ExecutableNetwork from network within existing InferenceEngine::Core: \""
-             << model << "\" for device: \"" << target_device << "\" for " << n << " times");
-    return common_test_pipeline(recreate_exenetwork(ie, model, target_device), n);
-}
-
-TestResult test_create_infer_request(const std::string& model, const std::string& target_device, const int& n) {
-    log_info("Create InferRequest from network: \"" << model << "\" for device: \"" << target_device << "\" for " << n
-                                                    << " times");
-    return common_test_pipeline(create_infer_request(model, target_device), n);
-}
-
-TestResult test_recreate_infer_request(ExecutableNetwork& network, const std::string& model,
-                                       const std::string& target_device, const int& n) {
-    log_info("Create InferRequest from network: \"" << model << "\" for device: \"" << target_device << "\" for " << n
-                                                    << " times");
-    return common_test_pipeline(recreate_infer_request(network), n);
-}
-
-TestResult test_infer_request_inference(const std::string& model, const std::string& target_device, const int& n) {
-    log_info("Inference of InferRequest from network: \"" << model << "\" for device: \"" << target_device << "\" for "
-                                                          << n << " times");
-    return common_test_pipeline(infer_request_inference(model, target_device), n);
-}
-
-TestResult test_reinfer_request_inference(InferenceEngine::InferRequest& infer_request,
-                                          InferenceEngine::OutputsDataMap& output_info, const std::string& model,
-                                          const std::string& target_device, const int& n) {
-    log_info("Inference of InferRequest from network: \"" << model << "\" for device: \"" << target_device << "\" for "
-                                                          << n << " times");
-    return common_test_pipeline(reinfer_request_inference(infer_request, output_info), n);
-}
-
-TestResult test_inference_with_streams(const std::string& model, const std::string& target_device,
-                                       const int& nstreams, const int& n) {
-    log_info("Inference of InferRequest from network: \"" << model
-                                                          << "\" for device: \"" << target_device
-                                                          << "\" with streams: " << nstreams << " for " << n << " times");
-    return common_test_pipeline(inference_with_streams(model, target_device, nstreams), n);
 }

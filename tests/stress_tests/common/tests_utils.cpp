@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 #include <pugixml.hpp>
 #include <string>
+#include <map>
 
 #define DEBUG_MODE false
 
@@ -75,10 +76,47 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
                 for (auto &device : devices)
                     for (int i = 0; i < models.size(); i++)
                         tests_cases.push_back(TestCase(numprocesses, numthreads, numiters, device, models[i], models_names[i], precisions[i]));
+                    return tests_cases;
+}
+
+std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
+    std::vector<MemLeaksTestCase> tests_cases;
+    const pugi::xml_document & test_config = Environment::Instance().getTestConfig();
+
+    int numprocesses, numthreads, numiterations;
+    std::string device_name;
+
+    pugi::xml_node cases;
+    cases = test_config.child("cases");
+
+    for (pugi::xml_node device = cases.first_child(); device; device = device.next_sibling()) {
+        device_name = device.attribute("name").as_string("NULL");
+        numprocesses = device.attribute("processes").as_int(1);
+        numthreads = device.attribute("threads").as_int(1);
+        numiterations = device.attribute("iterations").as_int(1);
+
+        std::vector <std::map <std::string, std::string>> models;
+
+        for (pugi::xml_node model = device.first_child(); model; model = model.next_sibling()){
+            std::string full_path = model.attribute("full_path").as_string();
+            std::string path = model.attribute("path").as_string();
+            if (full_path.empty() || path.empty())
+                throw std::logic_error("One of the 'model' records from test config doesn't contain 'full_path' or 'path' attributes");
+            std::string precision = model.attribute("precision").as_string();
+            std::map<std::string, std::string> model_map { {"name", path}, {"path", full_path}, {"path", precision} };
+            models.push_back(model_map);
+        }
+        tests_cases.push_back(MemLeaksTestCase(numprocesses, numthreads, numiterations, device_name, models));
+    }
+
     return tests_cases;
 }
 
 std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj) {
+    return obj.param.test_case_name;
+}
+
+std::string getTestCaseName(const testing::TestParamInfo<MemLeaksTestCase> &obj) {
     return obj.param.test_case_name;
 }
 
