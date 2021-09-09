@@ -34,7 +34,7 @@ Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README
 ## Using Caching API for first inference latency optimization
 Since with the 2021.4 release, Inference Engine provides an ability to enable internal caching of loaded networks.
 This can significantly reduce load network latency for some devices at application startup.
-Internally caching uses plugin's Export/ImportNetwork flow, like it is done for [Compile tool](../../inference-engine/tools/compile_tool/README.md), using the regular ReadNetwork/LoadNetwork API.
+Internally caching uses plugin's Export/ImportNetwork flow, like it is done for [Compile tool](../../tools/compile_tool/README.md), using the regular ReadNetwork/LoadNetwork API.
 Refer to the [Model Caching Overview](Model_caching_overview.md) for more detailed explanation.
 
 ## Using Async API

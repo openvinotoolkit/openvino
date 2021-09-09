@@ -42,6 +42,7 @@ runtime::HostTensor::HostTensor(const Output<Node>& value)
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 void runtime::HostTensor::allocate_buffer() {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(get_partial_shape().is_static(),
                  "Attempt to allocate buffer for tensor with partial shape: ",
                  get_partial_shape());
@@ -63,6 +64,7 @@ void runtime::HostTensor::allocate_buffer() {
             m_aligned_buffer_pool = (allocated_buffer_pool + alignment - mod);
         }
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -78,9 +80,11 @@ void runtime::HostTensor::initialize(const std::shared_ptr<op::v0::Constant>& co
 }
 
 runtime::HostTensor::~HostTensor() {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     if (m_allocated_buffer_pool != nullptr) {
         ngraph_free(m_allocated_buffer_pool);
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 void* runtime::HostTensor::get_data_ptr() {
