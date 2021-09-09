@@ -109,7 +109,10 @@ public:
                 max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
             }
             double diff = static_cast<float>(absoluteDifference) / max;
-            if (max == 0 || (diff > static_cast<float>(threshold)) ||
+            if (max == 0) {
+                continue; // only both res and ref are 0
+            }            
+            if ((diff > static_cast<float>(threshold)) ||
                 (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref)))) {
                 IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
                            << " at index " << i << " with relative threshold " << threshold
