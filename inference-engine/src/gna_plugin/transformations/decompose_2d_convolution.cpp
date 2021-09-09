@@ -74,7 +74,7 @@ static bool VerifyMaxPool(GraphData& graph_data, std::shared_ptr<ngraph::opset7:
         (max_pool->get_auto_pad() != ngraph::op::PadType::EXPLICIT ||
             max_pool->get_pads_begin() != ngraph::Shape({0, 0}) || max_pool->get_pads_end() != ngraph::Shape({0, 0}))) ||
         pool_filter.size() != 2 || pool_strides.size() != 2 ||
-        pool_filter[1] > 1 || pool_strides[1] > 1 ||
+        pool_filter[0] > 1 || pool_strides[0] > 1 ||
         pool_filter[0] > GNALimitations::maxPoolMaxWindowSize)
         return false;
 
@@ -532,20 +532,25 @@ Decompose2DConv::Decompose2DConv(const std::string& gnaCompileTarget, const Infe
         ngraph::pattern::consumers_count(1));
     auto af1 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({bias}, ngraph::pattern::consumers_count(1));
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({conv}, ngraph::pattern::consumers_count(1));
     auto af2 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({fq_bias}, ngraph::pattern::consumers_count(1));
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({bias}, ngraph::pattern::consumers_count(1));
     auto af3 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({max_pool1}, ngraph::pattern::consumers_count(1));
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({fq_bias}, ngraph::pattern::consumers_count(1));
     auto af4 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({max_pool1}, ngraph::pattern::consumers_count(1));
+    auto af5 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
+        ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
         ngraph::opset7::Sign, ngraph::opset7::Clamp>({max_pool2}, ngraph::pattern::consumers_count(1));
-    auto fq_af = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({af4, const_input, const_input, const_input, const_input},
+    auto fq_af1 = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({af3, const_input, const_input, const_input, const_input},
+        ngraph::pattern::consumers_count(1));
+    auto fq_af2 = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({af5, const_input, const_input, const_input, const_input},
         ngraph::pattern::consumers_count(1));
     auto transpose_input =
-        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, bias, max_pool1, max_pool2, fq_bias, af1, af2, af3, af4, fq_af});
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, bias, max_pool1, max_pool2, fq_bias, af1, af2, af3, af4, fq_af1, fq_af2});
     auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({transpose_input, const_input},
         consumers_and_rank(1, 4));
 
@@ -562,8 +567,10 @@ Decompose2DConv::Decompose2DConv(const std::string& gnaCompileTarget, const Infe
 
         auto fq_bias_it = pattern_map.find(fq_bias);
         auto fq_bias_node = (fq_bias_it == std::end(pattern_map) ? nullptr : fq_bias_it->second.get_node_shared_ptr());
-        auto fq_af_it = pattern_map.find(fq_af);
-        auto fq_af_node = (fq_af_it == std::end(pattern_map) ? nullptr : fq_af_it->second.get_node_shared_ptr());
+        auto fq_af1_it = pattern_map.find(fq_af1);
+        auto fq_af2_it = pattern_map.find(fq_af2);
+        auto fq_af_node = (fq_af1_it == std::end(pattern_map) ?
+            ((fq_af2_it == std::end(pattern_map) ? nullptr : fq_af2_it->second.get_node_shared_ptr())) : fq_af1_it->second.get_node_shared_ptr());
         auto max_pool1_it = pattern_map.find(max_pool1);
         auto max_pool2_it = pattern_map.find(max_pool2);
         auto max_pool_node = (max_pool1_it == std::end(pattern_map) ?

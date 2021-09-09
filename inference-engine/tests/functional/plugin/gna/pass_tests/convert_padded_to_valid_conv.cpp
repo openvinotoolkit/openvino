@@ -25,6 +25,7 @@ namespace LayerTestsDefinitions {
 enum class modelType {
     TranspConvTransp = 0,               /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) */
     TranspConvBcastAddTransp,           /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Transpose(NCHW->NHWC) */
+    TranspConvActTransp,                /* Transpose(NHWC->NCHW) => Conv => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvBcastAddMaxPoolTransp,    /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPooling => Transpose(NCHW->NHWC) (2D Max Pool case) */
     TranspConvBcastAddActTransp,        /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvBcastAddMaxPoolActTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPool => Activation Function => Transpose(NCHW->NHWC) */
@@ -139,6 +140,13 @@ protected:
         {
             auto bias = std::make_shared<Add>(conv, biasConst);
             lastOp = std::make_shared<Transpose>(bias, transposeOutOrder);
+        }
+        break;
+
+        case modelType::TranspConvActTransp:
+        {
+            auto activation = std::make_shared<Relu>(conv);
+            lastOp = std::make_shared<Transpose>(activation, transposeOutOrder);
         }
         break;
 
@@ -257,6 +265,7 @@ const std::vector<op::PadType> padTypes = {
 const std::vector<modelType> models = {
     modelType::TranspConvTransp,
     modelType::TranspConvBcastAddTransp,
+    modelType::TranspConvActTransp,
     modelType::TranspConvBcastAddActTransp,
     modelType::TranspConvTranspBcastAdd,
     modelType::TranspConvTranspBcastAddAct,

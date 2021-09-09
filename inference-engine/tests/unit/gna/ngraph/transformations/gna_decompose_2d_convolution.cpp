@@ -22,6 +22,7 @@ namespace {
 enum class modelType {
     TranspConvTransp = 0,               /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) */
     TranspConvBcastAddTransp,           /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Transpose(NCHW->NHWC) */
+    TranspConvActTransp,                /* Transpose(NHWC->NCHW) => Conv => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvBcastAddMaxPoolTransp,    /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPooling => Transpose(NCHW->NHWC) (2D Max Pool case) */
     TranspConvBcastAddActTransp,        /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvBcastAddMaxPoolActTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPool => Activation Function => Transpose(NCHW->NHWC) */
@@ -154,6 +155,19 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     {
         fq_bias = createBiasFQ(conv, bias_const, bias, fq);
         last_op = std::make_shared<ngraph::opset7::Transpose>(fq_bias, transpose_out_order);
+    }
+    break;
+
+    case modelType::TranspConvActTransp:
+    {
+        fq_bias = createBiasFQ(conv, bias_const, bias, fq);
+        std::shared_ptr<ngraph::Node> activation = std::make_shared<ngraph::opset7::Relu>(fq_bias);
+
+        if (fq) {
+            activation = createFQ(activation);
+        }
+
+        last_op = std::make_shared<ngraph::opset7::Transpose>(activation, transpose_out_order);
     }
     break;
 
@@ -701,6 +715,7 @@ void execute_test(modelType model, std::shared_ptr<ngraph::Function> function, s
     default:
     case modelType::TranspConvTransp:
     case modelType::TranspConvBcastAddTransp:
+    case modelType::TranspConvActTransp:
     case modelType::TranspConvBcastAddMaxPoolTransp:
     case modelType::TranspConvBcastAddActTransp:
     case modelType::TranspConvBcastAddMaxPoolActTransp:
@@ -733,6 +748,8 @@ INSTANTIATE_TEST_CASE_P(Decompose2DConvTestSuite, Decompose2DConvTestFixture,
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1}),
             std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{1, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1}),
+            std::make_tuple(modelType::TranspConvActTransp, ngraph::PartialShape{1, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+                ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1}),
             std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{1, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1}),
             std::make_tuple(modelType::TranspConvBcastAddActTransp, ngraph::PartialShape{1, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
@@ -756,6 +773,8 @@ INSTANTIATE_TEST_CASE_P(Decompose2DConvInvalidTestSuite, Decompose2DConvTestInva
             std::make_tuple(modelType::TranspConvTransp, ngraph::PartialShape{1, 1, 4, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}),
             std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{2, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+                ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}),
+            std::make_tuple(modelType::TranspConvActTransp, ngraph::PartialShape{2, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}),
             std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{1, 16, 16, 128}, ngraph::Shape{5, 5}, ngraph::Strides{1, 1},
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{2, 2}),
