@@ -45,10 +45,10 @@ void SoftMaxLayerTest::SetUp() {
 
     inputDynamicShape = FuncTestUtils::PartialShapeUtils::vec2partialshape(inputShape, targetStaticShapes[0]);
 
-    makeSoftMaxFunction();
+    makeSoftMax();
 }
 
-void SoftMaxLayerTest::makeSoftMaxFunction() {
+void SoftMaxLayerTest::makeSoftMax() {
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     const auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShape});
     const auto paramOuts =

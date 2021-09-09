@@ -53,7 +53,6 @@ inline std::string pair2str(const std::pair<size_t, size_t>& p) {
     return result.str();
 }
 
-template<>
 inline std::string vec2str(const std::vector<std::pair<size_t, size_t>> &vec) {
     std::ostringstream result;
     for (const auto &p : vec) {

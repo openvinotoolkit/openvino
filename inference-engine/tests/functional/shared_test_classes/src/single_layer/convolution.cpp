@@ -57,10 +57,10 @@ void ConvolutionLayerTest::SetUp() {
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
     setTargetStaticShape(targetStaticShapes[0]);
-    makeConvolutionFunction();
+    makeConvolution();
 }
 
-void ConvolutionLayerTest::makeConvolutionFunction() {
+void ConvolutionLayerTest::makeConvolution() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(

@@ -78,13 +78,34 @@ INSTANTIATE_TEST_SUITE_P(
         SoftMaxLayerTest::getTestCaseName
 );
 
-const std::vector<InferenceEngine::SizeVector> inputShapes4D = {
-    InferenceEngine::SizeVector {1, 100, 1, 1},
-    InferenceEngine::SizeVector {1, 3, 4, 3},
-    InferenceEngine::SizeVector {2, 3, 4, 5},
+const std::vector<std::vector<std::pair<size_t, size_t>>> inputStaticShape4D = {
+    {NULL_RANGE}
+};
+
+const std::vector<std::vector<std::pair<size_t, size_t>>> inputShape4D = {
+    {{1, 200}, {1, 200}, {1, 200}, {1, 200}}
+};
+
+const std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes4D = {
+    {InferenceEngine::SizeVector {1, 100, 1, 1}},
+    {InferenceEngine::SizeVector {1, 3, 4, 3}},
+    {InferenceEngine::SizeVector {2, 3, 4, 5}},
 };
 
 const std::vector<size_t> axis4D = {0, 1, 2, 3};
+
+const auto params4DStaticShape = testing::Combine(
+    testing::ValuesIn(netPrecision),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    testing::Values(InferenceEngine::Layout::NCHW),
+    testing::Values(InferenceEngine::Layout::ANY),
+    testing::ValuesIn(inputStaticShape4D),
+    testing::ValuesIn(targetShapes4D),
+    testing::ValuesIn(axis4D),
+    testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+    testing::Values(std::map<std::string, std::string>())
+);
 
 const auto params4D = testing::Combine(
     testing::ValuesIn(netPrecision),
@@ -92,17 +113,25 @@ const auto params4D = testing::Combine(
     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::Values(InferenceEngine::Layout::NCHW),
     testing::Values(InferenceEngine::Layout::ANY),
-    testing::ValuesIn(inputShapes4D),
+    testing::ValuesIn(inputShape4D),
+    testing::ValuesIn(targetShapes4D),
     testing::ValuesIn(axis4D),
     testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
     testing::Values(std::map<std::string, std::string>())
 );
 
-//INSTANTIATE_TEST_SUITE_P(
-//        smoke_SoftMax4D,
-//        SoftMaxLayerTest,
-//        params4D,
-//        SoftMaxLayerTest::getTestCaseName
-//);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_SoftMax4DStaticShape,
+        SoftMaxLayerTest,
+        params4DStaticShape,
+        SoftMaxLayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_SoftMax4D,
+        SoftMaxLayerTest,
+        params4D,
+        SoftMaxLayerTest::getTestCaseName
+);
 
 }  // namespace

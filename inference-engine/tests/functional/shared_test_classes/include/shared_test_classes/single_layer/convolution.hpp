@@ -44,7 +44,7 @@ public:
 
 protected:
     void SetUp() override;
-    void makeConvolutionFunction();
+    void makeConvolution();
 
 private:
     InferenceEngine::Precision::ePrecision netPrecision = InferenceEngine::Precision::UNSPECIFIED;

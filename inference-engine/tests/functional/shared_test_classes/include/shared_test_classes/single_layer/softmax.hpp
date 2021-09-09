@@ -36,7 +36,7 @@ public:
 
 protected:
     void SetUp() override;
-    void makeSoftMaxFunction();
+    void makeSoftMax();
 
 private:
     InferenceEngine::Precision netPrecision;
