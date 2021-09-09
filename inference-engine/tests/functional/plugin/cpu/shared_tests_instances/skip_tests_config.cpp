@@ -25,12 +25,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
         R"(.*(RangeNumpyAddSubgraphTest).*netPRC=FP16.*)",
         // TODO: Issue: 43793
-        R"(.*PreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
-        R"(.*PreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
+        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
+        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
-        // TODO: Issue: 25533
-        R"(.*ConvertLikeLayerTest.*)",
+        // TODO: Issue: 63469
+        R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
@@ -70,13 +70,26 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 55656 AUTO plugin and QueryNetwork
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
         // Unsupported config KEY_ENFORCE_BF16 for AUTO plugin
-        R"(.*smoke_SetBlobOfKindAUTO.*SetBlobOfKindTest.CompareWithRefs.*)",
+        R"(.*Behavior_Auto.*InferRequestSetBlobByType.*)",
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
         // need to implement Export / Import
         R"(.*IEClassImportExportTestP.*)",
+        // CVS-58963: Not implemented yet
+        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+        // Not expected behavior
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=HW.*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*targetDevice=(AUTO|MULTI).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=CN.*targetDevice=(AUTO|MULTI).*)",
+        R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
+        R"(.*Auto_Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // azure is failing after #6199
-        R"(.*/NmsLayerTest.*)"
+        R"(.*/NmsLayerTest.*)",
+        // TODO: 56520 Accuracy mismatch
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)"
     };
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))

@@ -10,21 +10,20 @@
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::util::FFTBase, "FFTBase", 0);
+NGRAPH_RTTI_DEFINITION(ov::op::util::FFTBase, "FFTBase", 0);
 
-op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {}
+ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {}
 
-op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size)
+ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size)
     : Op({data, axes, signal_size}) {}
 
-bool op::util::FFTBase::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::FFTBase::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_FFTBase_visit_attributes);
     return true;
 }
 
-void op::util::FFTBase::validate() {
+void ov::op::util::FFTBase::validate() {
     size_t num_of_inputs = get_input_size();
 
     NODE_VALIDATION_CHECK(this, num_of_inputs == 2 || num_of_inputs == 3, "FFT op must have 2 or 3 inputs.");
@@ -39,7 +38,7 @@ void op::util::FFTBase::validate() {
                           axes_et == element::i64 || axes_et == element::i32,
                           "FFT op axes element type must be i32 or i64");
 
-    const auto& input_shape = PartialShape(get_input_partial_shape(0));
+    const auto& input_shape = Shape(get_input_partial_shape(0));
     if (input_shape.rank().is_static()) {
         const auto input_rank = input_shape.rank().get_length();
         NODE_VALIDATION_CHECK(this,
@@ -54,7 +53,7 @@ void op::util::FFTBase::validate() {
                               input_shape[input_rank - 1]);
     }
 
-    const auto& axes_shape = PartialShape(get_input_partial_shape(1));
+    const auto& axes_shape = Shape(get_input_partial_shape(1));
     if (axes_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,
                               axes_shape.rank().get_length() == 1,
@@ -73,7 +72,7 @@ void op::util::FFTBase::validate() {
                               axes_shape.to_shape()[0]);
     }
 
-    if (input_shape.rank().is_static() && ov::is_type<op::Constant>(input_value(1).get_node())) {
+    if (input_shape.rank().is_static() && ov::is_type<ngraph::op::Constant>(input_value(1).get_node())) {
         const auto input_rank = input_shape.rank().get_length();
         const auto& const_axes = get_constant_from_source(input_value(1));
         auto axes = const_axes->cast_vector<int64_t>();
@@ -111,7 +110,7 @@ void op::util::FFTBase::validate() {
                               signal_size_et == element::i64 || signal_size_et == element::i32,
                               "FFT op signal_size element type must be i32 or i64");
 
-        const auto& signal_size_shape = PartialShape(get_input_partial_shape(2));
+        const auto& signal_size_shape = Shape(get_input_partial_shape(2));
         if (signal_size_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(this,
                                   signal_size_shape.rank().get_length() == 1,
@@ -132,13 +131,13 @@ void op::util::FFTBase::validate() {
     }
 }
 
-void op::util::FFTBase::validate_and_infer_types() {
+void ov::op::util::FFTBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_FFTBase_validate_and_infer_types);
     validate();
 
-    const auto& input_shape = PartialShape(get_input_partial_shape(0));
-    const auto& axes_shape = PartialShape(get_input_partial_shape(1));
-    PartialShape output_shape = input_shape;
+    const auto& input_shape = Shape(get_input_partial_shape(0));
+    const auto& axes_shape = Shape(get_input_partial_shape(1));
+    Shape output_shape = input_shape;
     if (input_shape.rank().is_dynamic()) {
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
@@ -146,7 +145,7 @@ void op::util::FFTBase::validate_and_infer_types() {
 
     const auto input_rank = input_shape.rank().get_length();
 
-    if (axes_shape.rank().is_dynamic() || !ov::is_type<op::Constant>(input_value(1).get_node())) {
+    if (axes_shape.rank().is_dynamic() || !ov::is_type<ngraph::op::Constant>(input_value(1).get_node())) {
         for (int64_t i = 0; i < input_rank - 1; ++i) {
             output_shape[i] = Dimension::dynamic();
         }
@@ -159,7 +158,7 @@ void op::util::FFTBase::validate_and_infer_types() {
         return;
     }
 
-    const auto& signal_size_shape = PartialShape(get_input_partial_shape(2));
+    const auto& signal_size_shape = Shape(get_input_partial_shape(2));
     if (signal_size_shape.rank().is_dynamic()) {
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
@@ -179,7 +178,7 @@ void op::util::FFTBase::validate_and_infer_types() {
         }
     }
 
-    if (!ov::is_type<op::Constant>(input_value(2).get_node())) {
+    if (!ov::is_type<ngraph::op::Constant>(input_value(2).get_node())) {
         for (int64_t axis : axes) {
             output_shape[axis] = Dimension::dynamic();
         }

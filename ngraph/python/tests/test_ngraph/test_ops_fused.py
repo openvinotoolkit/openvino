@@ -6,7 +6,7 @@ import pytest
 
 import ngraph as ng
 from tests.runtime import get_runtime
-from tests import (xfail_issue_36486, xfail_issue_44976)
+from tests import xfail_issue_36486
 
 
 def test_elu_operator_with_scalar_and_array():
@@ -40,7 +40,6 @@ def test_elu_operator_with_scalar():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_44976
 def test_fake_quantize():
     runtime = get_runtime()
 

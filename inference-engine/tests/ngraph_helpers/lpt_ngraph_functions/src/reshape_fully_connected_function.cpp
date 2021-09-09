@@ -14,7 +14,6 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 namespace ngraph {
 namespace builder {

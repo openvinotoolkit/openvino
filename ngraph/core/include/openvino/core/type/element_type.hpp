@@ -165,10 +165,6 @@ OPENVINO_API
 std::ostream& operator<<(std::ostream& out, const ov::element::Type& obj);
 }  // namespace element
 
-}  // namespace ov
-
-namespace ngraph {
-
 template <>
 class OPENVINO_API AttributeAdapter<ov::element::Type_t> : public EnumAttributeAdapterBase<ov::element::Type_t> {
 public:
@@ -199,4 +195,4 @@ public:
 protected:
     ov::element::Type& m_ref;
 };
-}  // namespace ngraph
+}  // namespace ov
