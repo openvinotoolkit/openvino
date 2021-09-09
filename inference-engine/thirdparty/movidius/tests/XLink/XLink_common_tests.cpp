@@ -371,6 +371,63 @@ TEST_P(XLinkOpenStreamTests, DISABLED_CannotOpenStreamsMoreThanMemoryOnDevice) {
 }
 
 //------------------------------------------------------------------------------
+//      XLinkWriteWithTimeoutTests
+//------------------------------------------------------------------------------
+
+TEST_P(XLinkOpenStreamTests, CantWriteWithSmallTO) {
+    streamId_t stream = XLinkOpenStream(_handlerPtr.get()->linkId, "funnyName", 1024);
+    ASSERT_NE(INVALID_STREAM_ID, stream);
+    ASSERT_NE(INVALID_STREAM_ID_OUT_OF_MEMORY, stream);
+
+    uint8_t data = 42;
+    ASSERT_EQ(XLinkWriteDataWithTimeout(stream, &data, sizeof(uint8_t), 1), X_LINK_TIMEOUT);
+    ASSERT_EQ(XLinkCloseStream(stream), X_LINK_SUCCESS);
+}
+
+TEST_P(XLinkOpenStreamTests, CanWriteWithLargeTO) {
+    streamId_t stream = XLinkOpenStream(_handlerPtr.get()->linkId, "funnyName", 1024);
+    ASSERT_NE(INVALID_STREAM_ID, stream);
+    ASSERT_NE(INVALID_STREAM_ID_OUT_OF_MEMORY, stream);
+
+    uint8_t data = 42;
+    ASSERT_EQ(XLinkWriteDataWithTimeout(stream, &data, sizeof(uint8_t), 1000), X_LINK_SUCCESS);
+    ASSERT_EQ(XLinkCloseStream(stream), X_LINK_SUCCESS);
+}
+
+//------------------------------------------------------------------------------
+//      XLinkReadWithTimeoutTests
+//------------------------------------------------------------------------------
+
+TEST_P(XLinkOpenStreamTests, CantReadWithSmallTO) {
+    streamId_t stream = XLinkOpenStream(_handlerPtr.get()->linkId, "deviceMonitor", 2000);
+    ASSERT_NE(INVALID_STREAM_ID, stream);
+    ASSERT_NE(INVALID_STREAM_ID_OUT_OF_MEMORY, stream);
+
+    deviceCommand_t config;
+    config.type = DEVICE_GET_THERMAL_STATS;
+    ASSERT_EQ(XLinkWriteData(stream, (const uint8_t*)&config, sizeof(config)), X_LINK_SUCCESS);
+
+    streamPacketDesc_t* packet = 0;
+    ASSERT_EQ(XLinkReadDataWithTimeout(stream, &packet, 1), X_LINK_TIMEOUT);
+    ASSERT_EQ(XLinkCloseStream(stream), X_LINK_SUCCESS);
+}
+
+TEST_P(XLinkOpenStreamTests, CanReadWithLargeTO) {
+    streamId_t stream = XLinkOpenStream(_handlerPtr.get()->linkId, "deviceMonitor", 2000);
+    ASSERT_NE(INVALID_STREAM_ID, stream);
+    ASSERT_NE(INVALID_STREAM_ID_OUT_OF_MEMORY, stream);
+
+    deviceCommand_t config;
+    config.type = DEVICE_GET_THERMAL_STATS;
+    ASSERT_EQ(XLinkWriteData(stream, (const uint8_t*)&config, sizeof(config)), X_LINK_SUCCESS);
+    streamPacketDesc_t* packet = 0;
+    printf("\nTry read\n");
+    ASSERT_EQ(XLinkReadDataWithTimeout(stream, &packet, 1000), X_LINK_SUCCESS);
+    printf("\n%d\n", packet->data[0]);
+    ASSERT_EQ(XLinkCloseStream(stream), X_LINK_SUCCESS);
+}
+
+//------------------------------------------------------------------------------
 // Initialization of XLinkCommonTests
 //------------------------------------------------------------------------------
 
@@ -426,7 +483,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     XLinkCommon,
     XLinkOpenStreamTests,
-    Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
+    Combine(Values(X_LINK_USB_VSC),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkOpenStreamTests::getTestCaseName);
 

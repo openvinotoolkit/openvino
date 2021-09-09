@@ -18,6 +18,16 @@
 #include <string.h>
 #include <XLinkPrivateFields.h>
 
+static void msToTimespec(struct timespec *ts, unsigned long ms)
+{
+    ASSERT_XLINK(!clock_gettime(CLOCK_REALTIME, ts));
+
+    ts->tv_nsec += (ms % 1000) * 1000000;
+    ts->tv_sec += ms / 1000;
+    ts->tv_sec += ts->tv_nsec / 1000000000;
+    ts->tv_nsec %= 1000000000;
+}
+
 // ------------------------------------
 // Packet API implementation. Begin.
 // ------------------------------------
@@ -90,6 +100,23 @@ XLinkError_t Packet_WaitPacketComplete(Packet* packet) {
 
     if (sem_wait(&packet->privateFields.completedSem)) {
         mvLog(MVLOG_ERROR, "can't wait completedSem semaphore");
+        return X_LINK_ERROR;
+    }
+
+    return X_LINK_SUCCESS;
+}
+
+XLinkError_t Packet_TimedWaitPacketComplete(Packet* packet, unsigned long timeoutMs) {
+    XLINK_RET_IF(packet == NULL);
+
+    struct timespec ts;
+    msToTimespec(&ts, timeoutMs);
+
+    int rc = sem_timedwait(&packet->privateFields.completedSem, &ts);
+    if (rc && errno == ETIMEDOUT) {
+        mvLog(MVLOG_DEBUG, "Can't wait completedSem semaphore");    
+        return X_LINK_TIMEOUT;
+    } else if (rc) {
         return X_LINK_ERROR;
     }
 

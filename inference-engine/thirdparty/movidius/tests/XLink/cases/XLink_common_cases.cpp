@@ -71,10 +71,10 @@ std::string XLinkOpenStreamTests::getTestCaseName(
     const TestParamInfo<XLinkDeviceTestsCommonParam::ParamType>& param) {
     const auto name = XLinkDeviceTestsCommon::getTestCaseName(param);
 
-    XLinkProtocol_t protocol = get<0>(param.param);
-    if (getCountSpecificDevices(X_LINK_UNBOOTED, protocol) == 0) {
-        return "DISABLED_" + name;
-    }
+    // XLinkProtocol_t protocol = get<0>(param.param);
+    // if (getCountSpecificDevices(X_LINK_UNBOOTED, protocol) == 0) {
+    //     return "DISABLED_" + name;
+    // }
 
     return name;
 }

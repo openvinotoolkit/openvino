@@ -86,6 +86,8 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     mvLogLevelSet(MVLOG_FATAL);
     mvLogDefaultLevelSet(MVLOG_FATAL);
 #endif
+    // mvLogLevelSet(MVLOG_DEBUG);
+    // mvLogDefaultLevelSet(MVLOG_DEBUG);
 
     XLINK_RET_IF(globalHandler == NULL);
     ASSERT_XLINK(XLINK_MAX_STREAMS <= MAX_POOLS_ALLOC);

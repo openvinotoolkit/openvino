@@ -158,7 +158,6 @@ XLinkError_t BlockingQueue_TimedPop(BlockingQueue* queue, void** packet, unsigne
 
     struct timespec ts;
     msToTimespec(&ts, ms);
-
     XLINK_RET_IF(_blockingQueue_IncrementPendingCounter(queue));
     int semRc = sem_timedwait(&queue->addPacketSem, &ts);
     XLinkError_t rc;

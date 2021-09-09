@@ -67,11 +67,13 @@ XLinkError_t Connection_Write(
         Connection* connection,
         streamId_t streamId,
         const uint8_t* buffer,
-        int size);
+        int size,
+        unsigned int timeoutMs);
 XLinkError_t Connection_Read(
         Connection* connection,
         streamId_t streamId,
-        streamPacketDesc_t** packet);
+        streamPacketDesc_t** packet,
+        unsigned int timeoutMs);
 
 XLinkError_t Connection_ReleaseData(
         Connection* connection,

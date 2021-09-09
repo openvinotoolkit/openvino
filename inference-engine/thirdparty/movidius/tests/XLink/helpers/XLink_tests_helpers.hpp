@@ -41,7 +41,7 @@ constexpr std::chrono::seconds operator "" _sec(unsigned long long s)
 class XLinkTestsHelper {
 public:
     const std_seconds kBootTimeoutSec = 2_sec;
-    const std_seconds kResetTimeoutSec = 5_sec;
+    const std_seconds kResetTimeoutSec = 10_sec;
 
     const std::string kUSBMyriadX = "ma2480";
     const std::string kUSBMyriad2 = "ma2450";

@@ -70,6 +70,9 @@ XLinkError_t Packet_Release(
 
 XLinkError_t Packet_WaitPacketComplete(
         Packet* packet);
+XLinkError_t Packet_TimedWaitPacketComplete(
+        Packet* packet,
+        unsigned long timeoutMs);
 XLinkError_t Packet_FreePending(
         Packet* packet,
         packetStatus_t status);

@@ -180,6 +180,33 @@ XLinkError_t XLinkReleaseData(streamId_t streamId);
  */
 XLinkError_t XLinkGetFillLevel(streamId_t streamId, int isRemote, int* fillLevel);
 
+/**
+ * @brief Send a package to initiate the writing of data to a remote stream with specific timeout
+ * @warning This function should be used in a host application
+ * @warning Actual size of the written data is ALIGN_UP(size, 64)
+ * @param[in] streamId – stream link Id obtained from XLinkOpenStream call
+ * @param[in] buffer – data buffer to be transmitted
+ * @param[in] size – size of the data to be transmitted
+ * @param[in] timeout – timeout for a write operation in sec
+ * @return Status code of the operation: X_LINK_SUCCESS (0) for success
+ */
+XLinkError_t XLinkWriteDataWithTimeout(streamId_t streamId, const uint8_t* buffer, int size, unsigned int timeout);
+
+// /**
+//  * @brief Reads data from local stream with specific timeout. Will only have something if it was written to by the remote
+//  * @warning This function should be used in a host application
+//  * @param[in] streamId – stream link Id obtained from XLinkOpenStream call
+//  * @param[out] packet – structure containing output data buffer and received size
+//  * @param[in] timeout – timeout for a read operation in sec
+//  * @return Status code of the operation: X_LINK_SUCCESS (0) for success
+//  */
+XLinkError_t XLinkReadDataWithTimeout(streamId_t streamId, streamPacketDesc_t** packet, unsigned int timeout);
+
+//TODO
+void XLinkSetWriteTimeoutMs(unsigned int ms);
+
+void XLinkSetReadTimeoutMs(unsigned int ms);
+
 // ------------------------------------
 // Device streams management. End.
 // ------------------------------------
@@ -201,10 +228,7 @@ XLinkError_t XLinkDisconnect(linkId_t id);
 
 XLinkError_t XLinkGetAvailableStreams(linkId_t id);
 
-XLinkError_t XLinkWriteDataWithTimeout(streamId_t streamId, const uint8_t* buffer, int size, unsigned int timeout);
 XLinkError_t XLinkAsyncWriteData();
-
-XLinkError_t XLinkReadDataWithTimeOut(streamId_t streamId, streamPacketDesc_t** packet, unsigned int timeout);
 
 XLinkError_t XLinkSetDeviceOpenTimeOutMsec(unsigned int msec);
 XLinkError_t XLinkSetCommonTimeOutMsec(unsigned int msec);

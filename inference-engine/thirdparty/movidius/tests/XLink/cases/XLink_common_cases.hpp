@@ -10,6 +10,25 @@
 #include "gtest/gtest.h"
 #include <memory>
 
+
+typedef enum {
+    DEVICE_GET_THERMAL_STATS        = 0,
+    DEVICE_GET_CAPABILITIES         = 1,
+    DEVICE_GET_USED_MEMORY          = 2,
+    DEVICE_GET_DEVICE_ID            = 3,
+    DEVICE_WATCHDOG_PING            = 4,
+    DEVICE_SET_STDIO_REDIRECT_XLINK = 5,
+    DEVICE_SET_POWER_CONFIG         = 6,
+    DEVICE_RESET_POWER_CONFIG       = 7,
+    DEVICE_ENABLE_ASYNC_DMA         = 8,
+    DEVICE_COMMAND_LAST             = 9
+} deviceCommandType_t;
+
+typedef struct {
+    deviceCommandType_t type;
+    uint32_t arg;
+} deviceCommand_t;
+
 using namespace ::testing;
 using XLinkDeviceTestsCommonParam = WithParamInterface<std::tuple<XLinkProtocol_t, XLinkPlatform_t>>;
 
@@ -32,6 +51,9 @@ class XLinkNullPtrTests: public XLinkTests {};
 //------------------------------------------------------------------------------
 
 class XLinkFindAllSuitableDevicesTests : public XLinkTests {};
+
+
+class XLinkWriteDataWithTimeoutTests : public XLinkTests {};
 
 
 //------------------------------------------------------------------------------

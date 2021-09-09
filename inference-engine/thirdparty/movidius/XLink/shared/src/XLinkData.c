@@ -35,6 +35,17 @@ static XLinkError_t getLinkByStreamId(streamId_t streamId, Connection** out_conn
 // Helpers declaration. End.
 // ------------------------------------
 
+static unsigned int writeTimeoutMs = 0;
+static unsigned int readTimeoutMs = 0;
+
+void XLinkSetWriteTimeoutMs(unsigned int ms) {
+    writeTimeoutMs = ms;
+};
+
+void XLinkSetReadTimeoutMs(unsigned int ms) {
+    readTimeoutMs = ms;
+};
+
 streamId_t XLinkOpenStream(linkId_t id, const char* name, int stream_write_size)
 {
     XLINK_RET_ERR_IF(name == NULL, INVALID_STREAM_ID);
@@ -70,7 +81,6 @@ XLinkError_t XLinkCloseStream(streamId_t streamId)
     XLINK_RET_IF(getLinkByStreamId(streamId, &connection));
     XLINK_RET_IF(connection == NULL);
     streamId = EXTRACT_STREAM_ID(streamId);
-
     XLINK_RET_IF(Connection_CloseStream(connection, streamId));
 
     return X_LINK_SUCCESS;
@@ -91,7 +101,11 @@ XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer,
     streamId = EXTRACT_STREAM_ID(streamId);
 
     clock_gettime(CLOCK_REALTIME, &start);
-    XLINK_RET_IF(Connection_Write(connection, streamId, buffer, size));
+    XLinkError_t rc = Connection_Write(connection, streamId, buffer, size, writeTimeoutMs);
+    XLinkSetWriteTimeoutMs(0);
+    if (rc != X_LINK_SUCCESS) {
+        return rc;
+    }
     clock_gettime(CLOCK_REALTIME, &end);
 
     if (glHandler->profEnable) {
@@ -100,6 +114,13 @@ XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer,
     }
 
     return X_LINK_SUCCESS;
+}
+
+XLinkError_t XLinkWriteDataWithTimeout(streamId_t streamId, const uint8_t* buffer,
+                                       int size, unsigned int timeout)
+{
+    XLinkSetWriteTimeoutMs(timeout);
+    return XLinkWriteData(streamId, buffer, size);
 }
 
 XLinkError_t XLinkReadData(streamId_t streamId, streamPacketDesc_t** packet)
@@ -115,7 +136,11 @@ XLinkError_t XLinkReadData(streamId_t streamId, streamPacketDesc_t** packet)
     streamId = EXTRACT_STREAM_ID(streamId);
 
     clock_gettime(CLOCK_REALTIME, &start);
-    XLINK_RET_IF(Connection_Read(connection, streamId, packet));
+    XLinkError_t rc = Connection_Read(connection, streamId, packet, readTimeoutMs);
+    XLinkSetReadTimeoutMs(0);
+    if (rc != X_LINK_SUCCESS) {
+        return rc;
+    }
     clock_gettime(CLOCK_REALTIME, &end);
 
     if (glHandler->profEnable) {
@@ -124,6 +149,11 @@ XLinkError_t XLinkReadData(streamId_t streamId, streamPacketDesc_t** packet)
     }
 
     return X_LINK_SUCCESS;
+}
+
+XLinkError_t XLinkReadDataWithTimeout(streamId_t streamId, streamPacketDesc_t** packet, unsigned int timeout) {
+    XLinkSetReadTimeoutMs(timeout);
+    return XLinkReadData(streamId, packet);
 }
 
 XLinkError_t XLinkReleaseData(streamId_t streamId)

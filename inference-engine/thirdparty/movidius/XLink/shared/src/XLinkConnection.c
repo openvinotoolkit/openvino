@@ -39,10 +39,10 @@ static Packet* _connection_GetPacket(Connection *connection, streamId_t streamId
                                      xLinkEventType_t type,
                                      const uint8_t *buffer, int size);
 
-static XLinkError_t _connection_SendPacket(Connection *connection, Packet* packet);
+static XLinkError_t _connection_SendPacket(Connection *connection, Packet* packet, unsigned int timeoutMs);
 
 static XLinkError_t _connection_ReceivePacket(Connection *connection, streamId_t streamId,
-                                              streamPacketDesc_t** packet);
+                                              streamPacketDesc_t** packet, unsigned int timeoutMs);
 
 // ------------------------------------
 // Private methods declaration. End.
@@ -161,7 +161,7 @@ XLinkError_t Connection_Connect(Connection* connection, XLinkHandler_t* handler)
     XLINK_RET_IF(packet == NULL);
 
     Packet_SetPacketStatus(packet, PACKET_PENDING_RESPONSE);
-    XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
+    XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet, 0);
     if (Packet_Release(packet) != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Cannot release packet");
     }
@@ -195,7 +195,7 @@ XLinkError_t Connection_Reset(Connection* connection) {
 
     XLINK_RET_IF(packet == NULL);
     Packet_SetPacketStatus(packet, PACKET_PENDING_TO_SEND);
-    XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
+    XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet, 0);
     if (packetSendStatus != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Sending reset request failed with error %d. Just closing the connection...", packetSendStatus);
     }
@@ -237,7 +237,7 @@ streamId_t Connection_OpenStream(Connection* connection, const char* name, int s
     }
 
     Packet_SetPacketStatus(packet, PACKET_PENDING_RESPONSE);
-    XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
+    XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet, 0);
     XLINK_RET_ERR_IF(packetSendStatus != X_LINK_SUCCESS, INVALID_STREAM_ID);
 
     if (XLink_isOnHostSide()) {
@@ -277,7 +277,7 @@ XLinkError_t Connection_CloseStream(Connection* connection, streamId_t streamId)
     packet->header.serviceInfo = (int32_t)streamId;
 
     Packet_SetPacketStatus(packet, PACKET_PENDING_TO_SEND);
-    XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
+    XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet, 0);
     if (packetSendStatus != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Sending close stream request failed with error %d. Just closing stream...", packetSendStatus);
     }
@@ -290,9 +290,9 @@ XLinkError_t Connection_CloseStream(Connection* connection, streamId_t streamId)
     return packetSendStatus;
 }
 
-XLinkError_t Connection_Write(Connection* connection, streamId_t streamId, const uint8_t* buffer, int size) {
+XLinkError_t Connection_Write(Connection* connection, streamId_t streamId, const uint8_t* buffer, int size, unsigned int timeoutMs) {
     XLINK_RET_IF(connection == NULL);
-    XLINK_RET_IF(streamId > XLINK_MAX_STREAMS);
+    XLINK_RET_IF(streamId >= XLINK_MAX_STREAMS);
     XLINK_RET_IF(buffer == NULL);
     XLINK_RET_IF(size < 0);
 
@@ -302,7 +302,7 @@ XLinkError_t Connection_Write(Connection* connection, streamId_t streamId, const
     XLINK_RET_IF(packet == NULL);
 
     Packet_SetPacketStatus(packet, PACKET_PENDING_TO_SEND);
-    XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
+    XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet, timeoutMs);
     if (packetSendStatus != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Writing failed with error %d.", packetSendStatus);
     }
@@ -313,13 +313,13 @@ XLinkError_t Connection_Write(Connection* connection, streamId_t streamId, const
     return packetSendStatus;
 }
 
-XLinkError_t Connection_Read(Connection* connection, streamId_t streamId, streamPacketDesc_t** packet) {
+XLinkError_t Connection_Read(Connection* connection, streamId_t streamId, streamPacketDesc_t** packet, unsigned int timeoutMs) {
     XLINK_RET_IF(connection == NULL);
     XLINK_RET_IF(connection->status != XLINK_CONNECTION_UP);
     XLINK_RET_IF(streamId > XLINK_MAX_STREAMS);
     XLINK_RET_IF(packet == NULL);
 
-    return _connection_ReceivePacket(connection, streamId, packet);
+    return _connection_ReceivePacket(connection, streamId, packet, timeoutMs);
 }
 
 XLinkError_t Connection_ReleaseData(Connection* connection, streamId_t streamId) {
@@ -388,7 +388,7 @@ static Packet* _connection_GetPacket(Connection* connection, streamId_t streamId
     return packet;
 }
 
-static XLinkError_t _connection_SendPacket(Connection* connection, Packet* packet) {
+static XLinkError_t _connection_SendPacket(Connection* connection, Packet* packet, unsigned int timeoutMs) {
     XLINK_RET_IF(connection == NULL);
 
     mvLog(MVLOG_DEBUG, "Push packet to packetsToSendQueue: id=%d, idx=%d",
@@ -401,7 +401,14 @@ static XLinkError_t _connection_SendPacket(Connection* connection, Packet* packe
         return packetPushedToQueueStatus;
     }
 
-    XLINK_RET_IF(Packet_WaitPacketComplete(packet));
+    if (timeoutMs) {
+        XLinkError_t rc = Packet_TimedWaitPacketComplete(packet, timeoutMs);
+        if (rc != X_LINK_SUCCESS) {
+            return rc;
+        }
+    } else {
+        XLINK_RET_IF(Packet_WaitPacketComplete(packet));
+    }
 
     XLinkError_t isCompleted = X_LINK_SUCCESS;
     packetStatus_t status;
@@ -415,10 +422,17 @@ static XLinkError_t _connection_SendPacket(Connection* connection, Packet* packe
 }
 
 static XLinkError_t _connection_ReceivePacket(Connection *connection, streamId_t streamId,
-                                              streamPacketDesc_t** packet) {
+                                              streamPacketDesc_t** packet, unsigned int timeoutMs) {
     Packet* receivedPacket = NULL;
 
-    XLINK_RET_IF(BlockingQueue_Pop(&connection->receivedPacketsQueue[streamId], (void**)&receivedPacket));
+    if (timeoutMs) {
+        XLinkError_t rc = BlockingQueue_TimedPop(&connection->receivedPacketsQueue[streamId], (void**)&receivedPacket, timeoutMs);
+        if (rc != X_LINK_SUCCESS) {
+            return rc;
+        }
+    } else {
+        XLINK_RET_IF(BlockingQueue_Pop(&connection->receivedPacketsQueue[streamId], (void**)&receivedPacket));
+    }
     XLINK_RET_IF(receivedPacket == NULL);
 
     packetStatus_t status;

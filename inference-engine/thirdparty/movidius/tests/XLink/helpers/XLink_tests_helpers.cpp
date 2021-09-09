@@ -12,7 +12,7 @@
 void XLinkTestsHelper::bootDevice(const deviceDesc_t& in_deviceDesc, deviceDesc_t& out_bootedDeviceDesc) {
     deviceDesc_t tmp_deviceDesc = {};
     ASSERT_EQ(X_LINK_SUCCESS,
-              XLinkFindFirstSuitableDevice(X_LINK_UNBOOTED, in_deviceDesc, &tmp_deviceDesc));
+              XLinkFindFirstSuitableDevice(X_LINK_ANY_STATE, in_deviceDesc, &tmp_deviceDesc));
 
     std::string firmwarePath;
     ASSERT_NO_THROW(firmwarePath = getMyriadFirmwarePath(tmp_deviceDesc));

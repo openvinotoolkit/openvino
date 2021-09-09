@@ -90,19 +90,6 @@ XLinkError_t XLinkGetAvailableStreams(linkId_t id)
     return X_LINK_NOT_IMPLEMENTED;
 }
 
-XLinkError_t XLinkWriteDataWithTimeout(streamId_t streamId, const uint8_t* buffer,
-                                       int size, unsigned int timeout)
-{
-    (void)timeout;
-    return XLinkWriteData(streamId, buffer, size);
-}
-
-XLinkError_t XLinkReadDataWithTimeOut(streamId_t streamId, streamPacketDesc_t** packet, unsigned int timeout)
-{
-    (void)timeout;
-    return XLinkReadData(streamId, packet);
-}
-
 XLinkError_t XLinkAsyncWriteData()
 {
     return X_LINK_NOT_IMPLEMENTED;
