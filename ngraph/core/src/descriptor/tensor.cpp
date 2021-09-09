@@ -3,6 +3,7 @@
 //
 
 #include "openvino/core/descriptor/tensor.hpp"
+
 #include <mutex>
 
 #include "ngraph/node.hpp"
