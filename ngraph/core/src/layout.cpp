@@ -24,19 +24,18 @@ static constexpr int ELLIPSIS_LEN = 3;
 
 static const std::map<std::string, layouts::PredefinedDim>& dim_aliases() {
     static const std::map<std::string, layouts::PredefinedDim> DIM_ALIASES = {
-            {BATCH, layouts::PredefinedDim::BATCH},
-            {"BATCH", layouts::PredefinedDim::BATCH},
-            {"B", layouts::PredefinedDim::BATCH},
-            {CHANNELS, layouts::PredefinedDim::CHANNELS},
-            {"CHANNELS", layouts::PredefinedDim::CHANNELS},
-            {"CHANNEL", layouts::PredefinedDim::CHANNELS},
-            {HEIGHT, layouts::PredefinedDim::HEIGHT},
-            {"HEIGHT", layouts::PredefinedDim::HEIGHT},
-            {WIDTH, layouts::PredefinedDim::WIDTH},
-            {"WIDTH", layouts::PredefinedDim::WIDTH},
-            {DEPTH, layouts::PredefinedDim::DEPTH},
-            {"DEPTH", layouts::PredefinedDim::DEPTH}
-    };
+        {BATCH, layouts::PredefinedDim::BATCH},
+        {"BATCH", layouts::PredefinedDim::BATCH},
+        {"B", layouts::PredefinedDim::BATCH},
+        {CHANNELS, layouts::PredefinedDim::CHANNELS},
+        {"CHANNELS", layouts::PredefinedDim::CHANNELS},
+        {"CHANNEL", layouts::PredefinedDim::CHANNELS},
+        {HEIGHT, layouts::PredefinedDim::HEIGHT},
+        {"HEIGHT", layouts::PredefinedDim::HEIGHT},
+        {WIDTH, layouts::PredefinedDim::WIDTH},
+        {"WIDTH", layouts::PredefinedDim::WIDTH},
+        {DEPTH, layouts::PredefinedDim::DEPTH},
+        {"DEPTH", layouts::PredefinedDim::DEPTH}};
     return DIM_ALIASES;
 }
 
@@ -52,16 +51,17 @@ static std::string to_internal_name(const std::string& dim_name) {
 static void validate_name(const std::string& dim_name) {
     OPENVINO_ASSERT(!dim_name.empty(), "Layout dimension name can't be empty");
     bool has_alphanumeric = false;
-    for (const auto& c: dim_name) {
+    for (const auto& c : dim_name) {
         bool is_alnum = std::isalnum(c);
         has_alphanumeric |= is_alnum;
-        OPENVINO_ASSERT(is_alnum || c == '_' ,
-                 "Layout name is invalid (" + dim_name + "). Only english letters, digits and _ is allowed");
+        OPENVINO_ASSERT(is_alnum || c == '_',
+                        "Layout name is invalid (" + dim_name + "). Only english letters, digits and _ is allowed");
     }
-    OPENVINO_ASSERT(has_alphanumeric, "Layout name is invalid (" + dim_name + "). Name shall have alphanumeric characters");
+    OPENVINO_ASSERT(has_alphanumeric,
+                    "Layout name is invalid (" + dim_name + "). Name shall have alphanumeric characters");
 }
 
-Layout::Layout(): m_rank(LayoutRank::create_dynamic()) {}
+Layout::Layout() : m_rank(LayoutRank::create_dynamic()) {}
 
 Layout Layout::scalar() {
     return Layout(SCALAR);
@@ -85,7 +85,8 @@ Layout::Layout(const std::string& layout_str) {
     auto assign_name = [&](const std::string& name, int64_t index) {
         auto dim_name = to_internal_name(name);
         validate_name(name);
-        OPENVINO_ASSERT(m_names.count(dim_name) == 0, "Dimension (" + dim_name + ") is defined multiple times in layout");
+        OPENVINO_ASSERT(m_names.count(dim_name) == 0,
+                        "Dimension (" + dim_name + ") is defined multiple times in layout");
         m_names[dim_name] = index;
     };
 
@@ -104,7 +105,7 @@ Layout::Layout(const std::string& layout_str) {
             }
             return index;
         };
-        layout = layout.substr(1, layout.length() - 2); // remove []
+        layout = layout.substr(1, layout.length() - 2);  // remove []
         auto ellipsis = layout.find(ELLIPSIS);
         if (ellipsis == std::string::npos) {
             auto last_index = parse_commas(layout);
@@ -152,8 +153,9 @@ Layout::Layout(const std::string& layout_str) {
         assign_name(std::string(1, static_cast<char>(c)), index);
     }
     if (dynamic_start != std::string::npos) {
-        m_rank = LayoutRank::create_dynamic(static_cast<LayoutRank::value_type>(dynamic_start),
-                                            static_cast<LayoutRank::value_type>(layout.length() - dynamic_start - ELLIPSIS_LEN));
+        m_rank = LayoutRank::create_dynamic(
+            static_cast<LayoutRank::value_type>(dynamic_start),
+            static_cast<LayoutRank::value_type>(layout.length() - dynamic_start - ELLIPSIS_LEN));
     } else {
         m_rank = LayoutRank::create_static(static_cast<LayoutRank::value_type>(layout.length()));
     }
@@ -166,7 +168,7 @@ bool Layout::operator==(const Layout& rhs) const {
     if (m_scalar != rhs.m_scalar) {
         return false;
     }
-    for (const auto& item: m_names) {
+    for (const auto& item : m_names) {
         auto it = rhs.m_names.find(item.first);
         if (it == rhs.m_names.end()) {
             return false;
@@ -200,18 +202,21 @@ std::int64_t Layout::get_index_by_name(const std::string& dimension_name) const 
 
 std::string Layout::get_name_by_index(std::int64_t index) const {
     for (const auto& item : m_names) {
-        if (item.second == index){
+        if (item.second == index) {
             return item.first;
         }
     }
     if (rank().is_dynamic()) {
         if (index >= 0) {
-            OPENVINO_ASSERT(index < rank().size_left(), "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
+            OPENVINO_ASSERT(index < rank().size_left(),
+                            "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
         } else {
-            OPENVINO_ASSERT(-index <= rank().size_right(), "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
+            OPENVINO_ASSERT(-index <= rank().size_right(),
+                            "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
         }
     } else {
-        OPENVINO_ASSERT(index >= 0 && index < rank().size(), "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
+        OPENVINO_ASSERT(index >= 0 && index < rank().size(),
+                        "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
     }
     return {};
 }
@@ -222,11 +227,12 @@ void Layout::set_name_for_index(const std::string& dimension_name, std::int64_t 
     auto it = m_names.find(name);
     OPENVINO_ASSERT(it == m_names.end() || it->second == index, "Cannot change " + dimension_name + " dimension index");
     if (it != m_names.end()) {
-        return; // Name is already in layout at exactly this place
+        return;  // Name is already in layout at exactly this place
     }
     // Verify that 'index' is also free
-    for (const auto& item: m_names) {
-        OPENVINO_ASSERT(item.second != index, "Index " + std::to_string(index) + " is already occupied with " + item.first);
+    for (const auto& item : m_names) {
+        OPENVINO_ASSERT(item.second != index,
+                        "Index " + std::to_string(index) + " is already occupied with " + item.first);
     }
 
     auto new_rank = m_rank;
@@ -234,14 +240,14 @@ void Layout::set_name_for_index(const std::string& dimension_name, std::int64_t 
         OPENVINO_ASSERT(index >= 0 && index < m_rank.size(), "Layout index is out of bounds");
     } else {
         if (index >= 0 && rank().size_left() <= index) {
-            new_rank = LayoutRank::create_dynamic(index+1, rank().size_right());
+            new_rank = LayoutRank::create_dynamic(index + 1, rank().size_right());
         } else if (index < 0 && index <= -rank().size_right()) {
             new_rank = LayoutRank::create_dynamic(rank().size_left(), -index);
         }
     }
     // Update internal data here, should be exception-safe
     m_names[name] = index;
-    m_rank = new_rank; // trivial, noexcept
+    m_rank = new_rank;  // trivial, noexcept
 }
 
 bool Layout::is_scalar() const {
@@ -290,18 +296,18 @@ std::string Layout::to_string() const {
 
 std::string layouts::predefined_name(layouts::PredefinedDim dim) {
     switch (dim) {
-        case PredefinedDim::BATCH:
-            return BATCH;
-        case PredefinedDim::CHANNELS:
-            return CHANNELS;
-        case PredefinedDim::WIDTH:
-            return WIDTH;
-        case PredefinedDim::HEIGHT:
-            return HEIGHT;
-        case PredefinedDim::DEPTH:
-            return DEPTH;
-        case PredefinedDim::UNDEFINED:
-            break;
+    case PredefinedDim::BATCH:
+        return BATCH;
+    case PredefinedDim::CHANNELS:
+        return CHANNELS;
+    case PredefinedDim::WIDTH:
+        return WIDTH;
+    case PredefinedDim::HEIGHT:
+        return HEIGHT;
+    case PredefinedDim::DEPTH:
+        return DEPTH;
+    case PredefinedDim::UNDEFINED:
+        break;
     }
     return {};
 }

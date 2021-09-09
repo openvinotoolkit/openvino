@@ -82,16 +82,14 @@ TEST(layout, predefined_names) {
 }
 
 TEST(layout, to_string) {
-    std::vector<Layout> layouts = {
-            {"NCHW"},
-            {"[?, N, CHANNELS, ?, ?, Custom_dim_name]"},
-            {"012?...3?456"},
-            {"...3?456"},
-            {"12?34..."},
-            {"..."},
-            Layout::scalar()
-    };
-    for (const auto& l: layouts) {
+    std::vector<Layout> layouts = {{"NCHW"},
+                                   {"[?, N, CHANNELS, ?, ?, Custom_dim_name]"},
+                                   {"012?...3?456"},
+                                   {"...3?456"},
+                                   {"12?34..."},
+                                   {"..."},
+                                   Layout::scalar()};
+    for (const auto& l : layouts) {
         EXPECT_EQ(l, Layout(l.to_string()));
     }
 }
@@ -217,28 +215,28 @@ TEST(layout, set_name_for_index) {
     l = Layout("...");
     EXPECT_TRUE(l.rank().is_dynamic());
     EXPECT_EQ(l.rank().size_left(), 0);
-    l.set_name_for_index("N", 1);          // becomes "?N..."
+    l.set_name_for_index("N", 1);  // becomes "?N..."
     EXPECT_TRUE(l.has_name("n"));
-    l.set_name_for_index("C", 3);          // becomes "?N?C..."
+    l.set_name_for_index("C", 3);  // becomes "?N?C..."
     EXPECT_TRUE(layouts::has_channels(l));
     EXPECT_EQ(layouts::channels(l), 3);
     EXPECT_TRUE(l.rank().is_dynamic());
     EXPECT_EQ(l.rank().size_left(), 4);
-    l.set_name_for_index("H", -2);         // becomes "?N?C...H?"
+    l.set_name_for_index("H", -2);  // becomes "?N?C...H?"
     EXPECT_EQ(l.rank().size_right(), 2);
     EXPECT_EQ(layouts::height(l), -2);
 
-    l.set_name_for_index("1", 2);          // becomes "?N1C...H?"
+    l.set_name_for_index("1", 2);  // becomes "?N1C...H?"
     EXPECT_EQ(l.rank().size_left(), 4);
     EXPECT_TRUE(l.has_name("1"));
     EXPECT_EQ(l.get_index_by_name("1"), 2);
 
-    l.set_name_for_index("q", -5);          // becomes "?N1C...Q??H?"
+    l.set_name_for_index("q", -5);  // becomes "?N1C...Q??H?"
     EXPECT_EQ(l.rank().size_right(), 5);
     EXPECT_TRUE(l.has_name("q"));
     EXPECT_EQ(l.get_index_by_name("Q"), -5);
 
-    l.set_name_for_index("z", -4);          // becomes "?N1C...QZ?H?"
+    l.set_name_for_index("z", -4);  // becomes "?N1C...QZ?H?"
     EXPECT_EQ(l.rank().size_right(), 5);
     EXPECT_TRUE(l.has_name("Z"));
     EXPECT_EQ(l.get_index_by_name("z"), -4);
