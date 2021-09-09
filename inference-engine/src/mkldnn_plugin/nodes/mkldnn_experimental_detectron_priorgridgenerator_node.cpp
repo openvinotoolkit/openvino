@@ -11,8 +11,13 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                                             std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
         if (!priorGridGen) {
             errorMessage = "Only opset6 ExperimentalDetectronPriorGridGenerator operation is supported";
@@ -61,14 +66,14 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::initSupportedPrimitiveDe
 }
 
 void MKLDNNExperimentalDetectronPriorGridGeneratorNode::execute(mkldnn::stream strm) {
-    const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getShape().getStaticDims()[0];
-    assert(getParentEdgeAt(INPUT_PRIORS)->getShape().getStaticDims()[1] == 4);
+    const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[0];
+    assert(getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[1] == 4);
 
     // Execute
-    const int layer_width = grid_w_ ? grid_w_ : getParentEdgeAt(INPUT_FEATUREMAP)->getShape().getStaticDims()[3];
-    const int layer_height = grid_h_ ? grid_h_ : getParentEdgeAt(INPUT_FEATUREMAP)->getShape().getStaticDims()[2];
-    const float step_w = stride_w_ ? stride_w_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getShape().getStaticDims()[3]) / layer_width;
-    const float step_h = stride_h_ ? stride_h_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getShape().getStaticDims()[2]) / layer_height;
+    const int layer_width = grid_w_ ? grid_w_ : getParentEdgeAt(INPUT_FEATUREMAP)->getMemory().getStaticDims()[3];
+    const int layer_height = grid_h_ ? grid_h_ : getParentEdgeAt(INPUT_FEATUREMAP)->getMemory().getStaticDims()[2];
+    const float step_w = stride_w_ ? stride_w_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[3]) / layer_width;
+    const float step_h = stride_h_ ? stride_h_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[2]) / layer_height;
 
     const auto *bottom_data_0 = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *top_data_0 = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
