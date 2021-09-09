@@ -239,10 +239,10 @@ def test_repr_dynamic_shape():
 def test_discrete_type_info():
     data_shape = [6, 12, 10, 24]
     data_parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
-    K = np.int32(3)
+    k = np.int32(3)
     axis = np.int32(1)
-    n1 = ng.topk(data_parameter, K, axis, "max", "value")
-    n2 = ng.topk(data_parameter, K, axis, "max", "value")
+    n1 = ng.topk(data_parameter, k, axis, "max", "value")
+    n2 = ng.topk(data_parameter, k, axis, "max", "value")
     n3 = ng.sin(0.2)
 
     assert n1.type_info.name == "TopK"
