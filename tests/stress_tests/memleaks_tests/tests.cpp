@@ -59,7 +59,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, read_network) {
     for (int i = 0; i < test_params.models.size(); i++)
         pipeline.push_back(read_cnnnetwork(test_params.models[i]["path"]));
     auto test = [&] {
-        log_info("Read networks: " << test_params.models_names
+        log_info("Read networks: " << test_params.model_name
               << " for " << test_params.numiters << " times");
         return common_test_pipeline(pipeline, test_params.numiters);
     };
@@ -72,7 +72,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, cnnnetwork_reshape_batch_x2) {
     for (int i = 0; i < test_params.models.size(); i++)
         pipeline.push_back(cnnnetwork_reshape_batch_x2(test_params.models[i]["path"]));
     auto test = [&] {
-        log_info("Reshape to batch*=2 of CNNNetwork created from networks: " << test_params.models_names
+        log_info("Reshape to batch*=2 of CNNNetwork created from networks: " << test_params.model_name
               << " for " << test_params.numiters << " times");
         return common_test_pipeline(pipeline, test_params.numiters);
     };
@@ -84,7 +84,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, set_input_params) {
     std::vector<std::function<void()>> pipeline;
     for (auto model: test_params.models) pipeline.push_back(set_input_params(model["path"]));
     auto test = [&] {
-        log_info("Apply preprocessing for CNNNetwork from networks: " << test_params.models_names
+        log_info("Apply preprocessing for CNNNetwork from networks: " << test_params.model_name
               << " for " << test_params.numiters << " times");
         return common_test_pipeline(pipeline, test_params.numiters);
     };
@@ -98,7 +98,7 @@ TEST_P(MemLeaksTestSuite, recreate_exenetwork) {
     for (int i = 0; i < test_params.models.size(); i++)
         pipeline.push_back(recreate_exenetwork(ie, test_params.models[i]["path"], test_params.device));
     auto test = [&] {
-        log_info("Recreate ExecutableNetwork from network within existing InferenceEngine::Core: " << test_params.models_names
+        log_info("Recreate ExecutableNetwork from network within existing InferenceEngine::Core: " << test_params.model_name
               << " for device: \"" << test_params.device << "\" for " << test_params.numiters << " times");
         return common_test_pipeline(pipeline, test_params.numiters);
     };
@@ -116,7 +116,7 @@ TEST_P(MemLeaksTestSuite, recreate_infer_request) {
         pipeline.push_back(recreate_infer_request(*exeNetwork));
     }
     auto test = [&] {
-        log_info("Create InferRequest from networks: " << test_params.models_names
+        log_info("Create InferRequest from networks: " << test_params.model_name
               << " for device: \"" << test_params.device << "\" for " << test_params.numiters << " times");
         return common_test_pipeline(pipeline, test_params.numiters);
     };
@@ -156,7 +156,7 @@ TEST_P(MemLeaksTestSuite, infer_request_inference) {
     for (int i = 0; i < test_params.models.size(); i++)
         pipeline.push_back(infer_request_inference(test_params.models[i]["path"], test_params.device));
     auto test = [&] {
-        log_info("Inference of InferRequest from networks: " << test_params.models_names
+        log_info("Inference of InferRequest from networks: " << test_params.model_name
               << " for device: \"" << test_params.device << "\" for " << test_params.numiters << " times");
         return common_test_pipeline(pipeline, test_params.numiters);
     };
@@ -171,7 +171,7 @@ TEST_P(MemLeaksTestSuite, inference_with_streams) {
         pipeline.push_back(inference_with_streams(test_params.models[i]["path"], test_params.device, nstreams));
     }
     auto test = [&] {
-        log_info("Inference of InferRequest from networks: " << test_params.models_names
+        log_info("Inference of InferRequest from networks: " << test_params.model_name
               << " for device: \"" << test_params.device << "\" with streams: " << nstreams << " for " << test_params.numiters << " times");
         return common_test_pipeline(pipeline, test_params.numiters);
     };
