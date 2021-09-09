@@ -37,7 +37,7 @@ public:
     /// \param values A vector of literals for initializing the tensor constant. The
     ///               size of values must match the size of the shape.
     template <typename T>
-    Constant(const element::Type& type, const ngraph::Shape& shape, const std::vector<T>& values)
+    Constant(const element::Type& type, const StaticShape& shape, const std::vector<T>& values)
         : Constant(type, shape) {
         NODE_VALIDATION_CHECK(this,
                               values.size() == 1 || values.size() == shape_size(m_shape),
@@ -59,7 +59,7 @@ public:
     }
 
     /// \brief Create uninitialized constant
-    Constant(const element::Type& type, const ngraph::Shape& shape);
+    Constant(const element::Type& type, const StaticShape& shape);
     /// \brief Constructs a uniform tensor constant.
     ///
     /// \param type The element type of the tensor constant.
@@ -67,7 +67,7 @@ public:
     /// \param value A scalar for initializing the uniform tensor constant. The
     ///               value is broadcast to the specified shape.
     template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
-    Constant(const element::Type& type, const ngraph::Shape& shape, T value) : Constant(type, shape) {
+    Constant(const element::Type& type, const StaticShape& shape, T value) : Constant(type, shape) {
         fill_data(type, value);
         m_all_elements_bitwise_identical = true;
     }
@@ -144,14 +144,14 @@ public:
     /// \param type The element type of the tensor constant.
     /// \param shape The shape of the tensor constant.
     /// \param values A list of string values to use as the constant data.
-    Constant(const element::Type& type, const ngraph::Shape& shape, const std::vector<std::string>& values);
+    Constant(const element::Type& type, const StaticShape& shape, const std::vector<std::string>& values);
 
     /// \brief Constructs a tensor constant with the supplied data
     ///
     /// \param type The element type of the tensor constant.
     /// \param shape The shape of the tensor constant.
     /// \param data A void* to constant data.
-    Constant(const element::Type& type, const ngraph::Shape& shape, const void* data);
+    Constant(const element::Type& type, const StaticShape& shape, const void* data);
 
     /// \brief Constructs a tensor constant with the supplied data
     ///
@@ -160,7 +160,7 @@ public:
     /// \param data A pointer to pre-allocated shared data.
     template <typename T>
     Constant(const element::Type& type,
-             const ngraph::Shape& shape,
+             const StaticShape& shape,
              std::shared_ptr<ngraph::runtime::SharedBuffer<T>> data)
         : m_element_type(type),
           m_shape(shape) {
@@ -169,7 +169,7 @@ public:
     }
 
     Constant(const Constant& other);
-    Constant(const Constant& other, const ngraph::Shape& new_shape);
+    Constant(const Constant& other, const StaticShape& new_shape);
     Constant& operator=(const Constant&) = delete;
 
     ~Constant() override;
@@ -196,7 +196,7 @@ public:
     /// \brief Returns the value of the constant node as a Shape object
     ///        Can only be used on element::i64 nodes and interprets
     ///        negative values as zeros.
-    ngraph::Shape get_shape_val() const;
+    StaticShape get_shape_val() const;
     /// \brief Returns the value of the constant node as a Strides
     ///        object
     ///        Can only be used on element::i64 nodes and interprets
@@ -228,7 +228,7 @@ public:
     ///
     /// \param shape The shape of the tensor constant.
     OPENVINO_DEPRECATED("Use Constant c-tor with shape argument instead")
-    void set_data_shape(const ngraph::Shape& shape);
+    void set_data_shape(const StaticShape& shape);
 
     /// \brief Wrapper around constructing a shared_ptr of a Constant
     ///
@@ -237,7 +237,7 @@ public:
     /// \param values A vector of values to use as the constant data.
     template <typename T>
     static std::shared_ptr<Constant> create(const element::Type& type,
-                                            const ngraph::Shape& shape,
+                                            const StaticShape& shape,
                                             const std::vector<T>& values) {
         return std::make_shared<Constant>(type, shape, values);
     }
@@ -249,7 +249,7 @@ public:
     /// \param values An initializer_list of values to use as the constant data.
     template <typename T>
     static std::shared_ptr<Constant> create(const element::Type& type,
-                                            const ngraph::Shape& shape,
+                                            const StaticShape& shape,
                                             std::initializer_list<T> values) {
         return std::make_shared<Constant>(type, shape, std::vector<T>{values});
     }
@@ -259,7 +259,7 @@ public:
     /// \param type The element type of the tensor constant.
     /// \param shape The shape of the tensor constant.
     /// \param memory An continues memory chunk which contains the constant data.
-    static std::shared_ptr<Constant> create(const element::Type& type, const ngraph::Shape& shape, const void* memory) {
+    static std::shared_ptr<Constant> create(const element::Type& type, const StaticShape& shape, const void* memory) {
         return std::make_shared<Constant>(type, shape, memory);
     }
 
@@ -701,7 +701,7 @@ private:
     }
 
     element::Type m_element_type;
-    ngraph::Shape m_shape{};
+    StaticShape m_shape{};
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
     bool m_all_elements_bitwise_identical;
     bool m_alloc_buffer_on_visit_attributes = true;
