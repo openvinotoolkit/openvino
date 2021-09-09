@@ -21,21 +21,21 @@ using namespace testing;
 TEST(TransformationTests, UnrollIf) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape {3});
-        auto Y = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape {3});
-        auto cond = std::make_shared<ngraph::opset1::Constant>(ngraph::element::boolean, ngraph::Shape {1}, true);
+        auto X = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
+        auto Y = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
+        auto cond = std::make_shared<ngraph::opset1::Constant>(ngraph::element::boolean, ngraph::Shape{ 1 }, true);
         auto if_op = std::make_shared<ngraph::opset8::If>(cond);
-        auto Xt = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape {3});
-        auto Yt = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape {3});
+        auto Xt = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
+        auto Yt = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
         auto add_op = std::make_shared<ngraph::opset1::Add>(Xt, Yt);
         auto then_op_result = std::make_shared<ngraph::opset1::Result>(add_op);
-        auto then_body = std::make_shared<ngraph::Function>(ngraph::OutputVector {then_op_result}, ngraph::ParameterVector {Xt, Yt});
+        auto then_body = std::make_shared<ngraph::Function>(ngraph::OutputVector{ then_op_result }, ngraph::ParameterVector{ Xt, Yt });
 
-        auto Xe = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape {3});
-        auto Ye = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape {3});
+        auto Xe = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
+        auto Ye = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
         auto mul_op = std::make_shared<ngraph::opset1::Multiply>(Xe, Ye);
         auto else_op_result = std::make_shared<ngraph::opset1::Result>(mul_op);
-        auto else_body = std::make_shared<ngraph::Function>(ngraph::OutputVector {else_op_result}, ngraph::ParameterVector {Xe, Ye});
+        auto else_body = std::make_shared<ngraph::Function>(ngraph::OutputVector{ else_op_result }, ngraph::ParameterVector{ Xe, Ye });
 
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
@@ -44,7 +44,7 @@ TEST(TransformationTests, UnrollIf) {
         if_op->set_output(then_op_result, else_op_result);
         auto if_result = std::make_shared<ngraph::opset1::Result>(if_op);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector {if_result}, ngraph::ParameterVector {X, Y});
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ if_result }, ngraph::ParameterVector{ X, Y });
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -55,11 +55,11 @@ TEST(TransformationTests, UnrollIf) {
     }
 
     {
-        auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape {3});
-        auto Y = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape {3});
+        auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
+        auto Y = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
         auto add_op = std::make_shared<ngraph::opset1::Add>(X, Y);
         auto if_result = std::make_shared<ngraph::opset1::Result>(add_op);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector {if_result}, ngraph::ParameterVector {X, Y});
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ if_result }, ngraph::ParameterVector{ X, Y });
     }
 
     auto res = compare_functions(f, f_ref);
