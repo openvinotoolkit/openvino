@@ -30,7 +30,7 @@ public:
         int64_t body_condition_output_idx = -1;
     };
 
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI_DECLARATION;
 
     /// \brief Constructs a Loop operation.
     Loop() = default;

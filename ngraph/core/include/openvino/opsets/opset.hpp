@@ -29,13 +29,13 @@ public:
     /// \brief Insert OP_TYPE into the opset with a special name and the default factory
     template <typename OP_TYPE>
     void insert(const std::string& name) {
-        insert(name, OP_TYPE::type_info, ngraph::FactoryRegistry<Node>::get_default_factory<OP_TYPE>());
+        insert(name, OP_TYPE::get_type_info_static(), ngraph::FactoryRegistry<Node>::get_default_factory<OP_TYPE>());
     }
 
     /// \brief Insert OP_TYPE into the opset with the default name and factory
     template <typename OP_TYPE>
     void insert() {
-        insert<OP_TYPE>(OP_TYPE::type_info.name);
+        insert<OP_TYPE>(OP_TYPE::get_type_info_static().name);
     }
 
     const std::set<NodeTypeInfo>& get_types_info() const {

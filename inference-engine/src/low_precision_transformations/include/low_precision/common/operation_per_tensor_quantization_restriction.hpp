@@ -37,13 +37,13 @@ public:
     static OperationPerTensorQuantizationRestriction create(
         const RestrictedPorts& restrictedPorts = {},
         const bool specifyVersion = false) {
-        return OperationPerTensorQuantizationRestriction(T::type_info, specifyVersion, restrictedPorts);
+        return OperationPerTensorQuantizationRestriction(T::get_type_info_static(), specifyVersion, restrictedPorts);
     }
 
     template <typename T>
     static RestrictedPorts getPrecisionsByOperationType(std::vector<OperationPerTensorQuantizationRestriction>& restrictions) {
         for (const auto& restriction : restrictions) {
-            if (restriction.operationType == T::type_info) {
+            if (restriction.operationType == T::get_type_info_static()) {
                 return restriction.restrictedPorts;
             }
         }

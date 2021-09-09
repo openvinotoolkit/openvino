@@ -522,22 +522,43 @@ OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
 #define _OPENVINO_RTTI_EXPAND(X)                                      X
 #define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
 
-#define _OPENVINO_RTTI_WITH_TYPE(CLASS, TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(CLASS, TYPE_NAME, "extension")
+#define _OPENVINO_RTTI_DEF_WITH_TYPE(CLASS, TYPE_NAME) \
+    _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION(CLASS, TYPE_NAME, "extension")
 
-#define _OPENVINO_RTTI_WITH_TYPE_VERSION(CLASS, TYPE_NAME, VERSION_NAME) \
-    _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(CLASS, TYPE_NAME, VERSION_NAME, ::ov::op::Op)
+#define _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION(CLASS, TYPE_NAME, VERSION_NAME) \
+    _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION_PARENT(CLASS, TYPE_NAME, VERSION_NAME, ::ov::op::Op)
 
-#define _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(CLASS, TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
-    _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(CLASS, TYPE_NAME, VERSION_NAME, PARENT_CLASS, 0)
+#define _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION_PARENT(CLASS, TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
+    _OPENVINO_RTTI_DEF_WITH_TYPE_VERSIONS_PARENT(CLASS, TYPE_NAME, VERSION_NAME, PARENT_CLASS, 0)
 
-#define _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(CLASS, TYPE_NAME, VERSION_NAME, PARENT_CLASS, OLD_VERSION)         \
-    const ::ov::Node::type_info_t CLASS::type_info{TYPE_NAME, OLD_VERSION, VERSION_NAME, &PARENT_CLASS::type_info}; \
-    const ::ov::Node::type_info_t& CLASS::get_type_info() const {                                                   \
-        return type_info;                                                                                           \
+#define _OPENVINO_RTTI_DEF_WITH_TYPE_VERSIONS_PARENT(CLASS, TYPE_NAME, VERSION_NAME, PARENT_CLASS, OLD_VERSION) \
+    const ::ov::Node::type_info_t CLASS::type_info{TYPE_NAME,                                                   \
+                                                   OLD_VERSION,                                                 \
+                                                   VERSION_NAME,                                                \
+                                                   &PARENT_CLASS::get_type_info_static()};                      \
+    const ::ov::Node::type_info_t& CLASS::get_type_info() const {                                               \
+        return type_info;                                                                                       \
     }
 
-/// TODO: with C++17 need to introduce OPENVINO_RTTI macro for inplace initialization
+#define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "extension")
 
+#define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME) \
+    _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, ::ov::op::Op)
+
+#define _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
+    _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS, 0)
+
+#define _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS, OLD_VERSION) \
+    static const ::ov::Node::type_info_t& get_type_info_static() {                                   \
+        static const ::ov::Node::type_info_t type_info{TYPE_NAME,                                    \
+                                                       OLD_VERSION,                                  \
+                                                       VERSION_NAME,                                 \
+                                                       &PARENT_CLASS::get_type_info_static()};       \
+        return type_info;                                                                            \
+    }                                                                                                \
+    const ::ov::Node::type_info_t& get_type_info() const override {                                  \
+        return get_type_info_static();                                                               \
+    }
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
 /// Should be used in the scope of class that requires type identification besides one provided by
 /// C++ RTTI.
@@ -612,12 +633,23 @@ OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
 /// OPENVINO_RTTI(name, version_id)
 /// OPENVINO_RTTI(name, version_id, parent)
 /// OPENVINO_RTTI(name, version_id, parent, old_version)
-#define OPENVINO_RTTI_DEFINITION(CLASS, ...)                                                           \
+#define OPENVINO_RTTI_DEFINITION(CLASS, ...)                                                               \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                                  \
+                                                             _OPENVINO_RTTI_DEF_WITH_TYPE_VERSIONS_PARENT, \
+                                                             _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION_PARENT,  \
+                                                             _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION,         \
+                                                             _OPENVINO_RTTI_DEF_WITH_TYPE)(CLASS, __VA_ARGS__))
+
+#define OPENVINO_RTTI(...)                                                                             \
     _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                              \
                                                              _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT, \
                                                              _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT,  \
                                                              _OPENVINO_RTTI_WITH_TYPE_VERSION,         \
-                                                             _OPENVINO_RTTI_WITH_TYPE)(CLASS, __VA_ARGS__))
+                                                             _OPENVINO_RTTI_WITH_TYPE)(__VA_ARGS__))
+
+/// Note: Please don't use this macros for new operations
+#define BWDCMP_RTTI_DECLARATION       static const ::ov::Node::type_info_t type_info
+#define BWDCMP_RTTI_DEFINITION(CLASS) const ::ov::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static();
 
 // Like an Output but with a Node* instead of a shared_ptr<Node>
 struct RawNodeOutput {

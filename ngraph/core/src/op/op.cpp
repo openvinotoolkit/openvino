@@ -14,8 +14,3 @@
 using namespace std;
 
 ov::op::Op::Op(const ov::OutputVector& args) : Node(args) {}
-const ov::Node::type_info_t ov::op::Op::type_info{"Op", 0, "util"};
-const ov::Node::type_info_t& ov::op::Op::get_type_info() const {
-    static const ::ov::Node::type_info_t info{"Op", 0, "util"};
-    return info;
-}

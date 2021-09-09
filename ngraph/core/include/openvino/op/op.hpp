@@ -17,8 +17,13 @@ protected:
     Op(const OutputVector& arguments);
 
 public:
-    static const ::ov::Node::type_info_t type_info;
-    const ::ov::Node::type_info_t& get_type_info() const override;
+    static const ::ov::Node::type_info_t& get_type_info_static() {
+        static const ::ov::Node::type_info_t info{"Op", 0, "util"};
+        return info;
+    }
+    const ::ov::Node::type_info_t& get_type_info() const override {
+        return get_type_info_static();
+    }
 };
 }  // namespace op
 }  // namespace ov

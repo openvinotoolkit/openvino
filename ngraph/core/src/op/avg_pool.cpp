@@ -12,16 +12,16 @@
 using namespace std;
 
 // *** AvgPool OP SET 1 ***
-OPENVINO_RTTI_DEFINITION(op::v1::AvgPool, "AvgPool", "opset1", op::Op, 1);
+OPENVINO_RTTI_DEFINITION(ov::op::v1::AvgPool, "AvgPool", "opset1", op::Op, 1);
 
-op::v1::AvgPool::AvgPool(const Output<Node>& arg,
-                         const Strides& strides,
-                         const Shape& pads_begin,
-                         const Shape& pads_end,
-                         const Shape& kernel,
-                         bool exclude_pad,
-                         op::RoundingType rounding_type,
-                         const PadType& auto_pad)
+ov::op::v1::AvgPool::AvgPool(const Output<Node>& arg,
+                             const Strides& strides,
+                             const StaticShape& pads_begin,
+                             const StaticShape& pads_end,
+                             const StaticShape& kernel,
+                             bool exclude_pad,
+                             op::RoundingType rounding_type,
+                             const PadType& auto_pad)
     : Op({arg}),
       m_kernel(kernel),
       m_strides(strides),

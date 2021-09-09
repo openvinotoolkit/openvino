@@ -26,7 +26,7 @@ namespace v0 {
 // clang-format on
 class NGRAPH_API LRN : public Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI_DECLARATION;
 
     /// \brief Constructs a LRN operation.
     LRN() = default;
