@@ -154,7 +154,7 @@ class BuildCMakeExt(build_ext):
 
         self.announce("Configuring cmake project", level=3)
         ext_args = self.cmake_args.split() if self.cmake_args else []
-        self.spawn(["cmake", "-S " + root_dir, "-B " + self.build_temp,
+        self.spawn(["cmake", "-S" + root_dir, "-B" + self.build_temp,
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
                     "-DENABLE_PYTHON=ON",
                     "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
