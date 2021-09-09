@@ -1,10 +1,10 @@
 # Custom nGraph Operation {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
 
-Inference Engine Extension API enables you to register operation sets (opsets) with custom nGraph operations to support models with operations which OpenVINO™ does not support out-of-the-box.
+The Inference Engine Extension API allows you to register operation sets (opsets) with custom nGraph operations to support models with operations that OpenVINO™ does not support out-of-the-box.
 
 ## Operation Class
 
-To add your custom nGraph operation, create a new class that extends `ngraph::Op`, which is in turn derived from `ngraph::Node`, the base class for all graph operations in nGraph. Follow the steps below:
+To add your custom nGraph operation, create a new class that extends `ngraph::Op`, which is in turn derived from `ngraph::Node`, the base class for all graph operations in nGraph. Follow the steps below to add a custom nGraph operation:
 
 1. Add the `NGRAPH_RTTI_DECLARATION` and `NGRAPH_RTTI_DEFINITION` macros which define a `NodeTypeInfo` object that identifies the type of the operation to the graph users and helps with dynamic type resolution. The type info of an nGraph operation currently consists of a string identifier and a version number, but this may change in the future.
 
@@ -16,7 +16,7 @@ To add your custom nGraph operation, create a new class that extends `ngraph::Op
 
 5. Override the `visit_attributes` method, which enables serialization and deserialization of operation attributes. An `AttributeVisitor` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware `on_attribute` helper. Helpers are already implemented for standard C++ types like `int64_t`, `float`, `bool`, `vector`, and for existing nGraph defined types.
 
-6. Override `evaluate`, which is an optional method that enables the application of constant folding if there is a custom operation on the constant branch.
+6. Override `evaluate`, which is an optional method that enables the application of constant folding if there is a custom operation on the constant branch. If your operation contains `evaluate` method you also need to override the `has_evaluate` method, this method allow to get information about availability of `evaluate` method for the operation.
 
 Based on that, declaration of an operation class can look as follows:
 
@@ -55,7 +55,7 @@ nGraph operation contains two constructors:
 
 @snippet template_extension/op.cpp op:visit_attributes
 
-### `evaluate()`
+### `evaluate()` and `has_evaluate()`
 
 `ngraph::Node::evaluate` method enables you to apply constant folding to an operation.
 

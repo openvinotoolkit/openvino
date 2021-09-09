@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import logging as log
-
 import numpy as np
 
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, is_fully_defined
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
@@ -72,10 +71,11 @@ class Range(Op):
         limit = node.in_port(1).data.get_value()
         delta = node.in_port(2).data.get_value()
 
-        assert start is not None and limit is not None and delta is not None, \
-            'Range operation {} with dynamic inputs is not supported'.format(name)
+        for input in (start, limit, delta):
+            if input is not None and not node.has_valid('output_type'):
+                node['output_type'] = input.dtype
 
-        if not node.has_valid('output_type'):
-            node['output_type'] = start.dtype
-
-        node.out_port(0).data.set_value(np.arange(start, limit, delta, dtype=node['output_type']))
+        if not is_fully_defined(start) or not is_fully_defined(limit) or not is_fully_defined(delta):
+            node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value]))
+        else:
+            node.out_port(0).data.set_value(np.arange(start, limit, delta, dtype=node['output_type']))

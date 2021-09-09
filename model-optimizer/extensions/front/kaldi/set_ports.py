@@ -3,6 +3,7 @@
 
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
+from mo.utils.error import Error
 
 
 class SetPortsPattern(FrontReplacementSubgraph):
@@ -28,6 +29,11 @@ class SetPortsPattern(FrontReplacementSubgraph):
 
             in_ports_count = node.in_ports_count if node.has_valid('in_ports_count') else len(inputs)
             out_ports_count = node.out_ports_count if node.has_valid('out_ports_count') else len(outputs)
+
+            if len(outputs) > out_ports_count > 1:
+                raise Error("Node {} has more children than it should: " +
+                            "should be {} but there is {}".format(node_id, out_ports_count, len(outputs)))
+
             node['_in_ports'] = {}
             node['_out_ports'] = {}
             if in_ports_count is not None:

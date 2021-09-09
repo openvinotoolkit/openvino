@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import logging as log
+
 from functools import partial
 from typing import Any, Dict, List, Optional, Union
 
@@ -8,7 +10,7 @@ from _pyngraph import NodeFactory as _NodeFactory
 
 from ngraph.impl import Node, Output
 
-DEFAULT_OPSET = "opset6"
+DEFAULT_OPSET = "opset8"
 
 
 class NodeFactory(object):
@@ -82,6 +84,9 @@ class NodeFactory(object):
             if issubclass(type(argument), Output):
                 outputs.append(argument)
             else:
+                log.warning("Op arguments were passed as Node, please avoid passing arguments in "
+                            "this manner, and pass Output(s) instead, because accepting Nodes will "
+                            "be deprecated in a future release.")
                 outputs.extend(argument.outputs())
         return outputs
 

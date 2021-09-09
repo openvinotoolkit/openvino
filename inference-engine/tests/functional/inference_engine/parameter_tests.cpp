@@ -246,6 +246,18 @@ TEST_F(ParameterTests, ParametersCStringEqual) {
     ASSERT_FALSE(p1 != p2);
 }
 
+TEST_F(ParameterTests, MapOfParametersEqual) {
+    std::map<std::string, Parameter> map0;
+    map0["testParamInt"] = 4;
+    map0["testParamString"] = "test";
+    const auto map1 = map0;
+
+    Parameter p0 = map0;
+    Parameter p1 = map1;
+    ASSERT_TRUE(p0 == p1);
+    ASSERT_FALSE(p0 != p1);
+}
+
 TEST_F(ParameterTests, CompareParametersWithoutEqualOperator) {
     class TestClass {
     public:
@@ -312,4 +324,95 @@ TEST_F(ParameterTests, ParameterRemovedRealObjectPointerWithDuplication) {
     }
     ASSERT_EQ(1, DestructorTest::constructorCount);
     ASSERT_EQ(1, DestructorTest::destructorCount);
+}
+
+TEST_F(ParameterTests, PrintToEmptyParameterDoesNothing) {
+    Parameter p;
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), std::string{});
+}
+
+TEST_F(ParameterTests, PrintToIntParameter) {
+    int value = -5;
+    Parameter p = value;
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), std::to_string(value));
+}
+
+TEST_F(ParameterTests, PrintToUIntParameter) {
+    unsigned int value = 5;
+    Parameter p = value;
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), std::to_string(value));
+}
+
+TEST_F(ParameterTests, PrintToSize_tParameter) {
+    std::size_t value = 5;
+    Parameter p = value;
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), std::to_string(value));
+}
+
+TEST_F(ParameterTests, PrintToFloatParameter) {
+    Parameter p = 5.5f;
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), std::string{"5.5"});
+}
+
+TEST_F(ParameterTests, PrintToStringParameter) {
+    std::string value = "some text";
+    Parameter p = value;
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), value);
+}
+
+TEST_F(ParameterTests, PrintToVectorOfIntsParameterDoesNothing) {
+    Parameter p = std::vector<int>{-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5};
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), std::string{});
+}
+
+TEST_F(ParameterTests, PrintToVectorOfUIntsParameterDoesNothing) {
+    Parameter p = std::vector<unsigned int>{0, 1, 2, 3, 4, 5};
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), std::string{});
+}
+
+TEST_F(ParameterTests, PrintToVectorOfSize_tParameterDoesNothing) {
+    Parameter p = std::vector<std::size_t>{0, 1, 2, 3, 4, 5};
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), std::string{});
+}
+
+TEST_F(ParameterTests, PrintToVectorOfFloatsParameterDoesNothing) {
+    Parameter p = std::vector<float>{0.0f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f};
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), std::string{});
+}
+
+TEST_F(ParameterTests, PrintToVectorOfStringsParameterDoesNothing) {
+    Parameter p = std::vector<std::string>{"zero", "one", "two", "three", "four", "five"};
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), std::string{});
+}
+
+TEST_F(ParameterTests, PrintToMapOfParametersDoesNothing) {
+    std::map<std::string, Parameter> refMap;
+    refMap["testParamInt"] = 4;
+    refMap["testParamString"] = "test";
+    Parameter p = refMap;
+    std::stringstream stream;
+    ASSERT_NO_THROW(PrintTo(p, &stream));
+    ASSERT_EQ(stream.str(), std::string{});
 }

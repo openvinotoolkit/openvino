@@ -8,7 +8,7 @@
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/convert_like.hpp"
 
-#include "api/reorder.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 

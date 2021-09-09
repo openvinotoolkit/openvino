@@ -12,6 +12,10 @@ const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
     if (v == _fmt) return #_fmt; \
 } while (0)
     CASE(undef);
+    CASE(ncw);
+    CASE(nCw8c);
+    CASE(nCw16c);
+    CASE(nwc);
     CASE(nchw);
     CASE(nChw8c);
     CASE(nChw16c);
@@ -44,6 +48,10 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(undef);
     CASE(a);
     CASE(ab);
+    CASE(abc);
+    CASE(acb);
+    CASE(aBc8b);
+    CASE(aBc16b);
     CASE(abcd);
     CASE(acdb);
     CASE(aBcd8b);
@@ -52,10 +60,13 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(acdeb);
     CASE(aBcde8b);
     CASE(aBcde16b);
-    CASE(abc);
     CASE(bac);
     CASE(abdc);
     CASE(abdec);
+    CASE(ncw);
+    CASE(nCw8c);
+    CASE(nCw16c);
+    CASE(nwc);
     CASE(nchw);
     CASE(nChw8c);
     CASE(nChw16c);
@@ -79,10 +90,10 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     return undef;
 }
 
-std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t> &fmts) {
+std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t> &fmts, const std::string &prefix) {
     std::string str;
     for (auto &fmt : fmts) {
-        ((str += "cpu:") += cpu_fmt2str(fmt)) += ",";
+        ((str += prefix) += cpu_fmt2str(fmt)) += ",";
     }
     if (!str.empty()) {
         str.pop_back();
@@ -129,7 +140,7 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
         // skip policy
         auto should_be_skipped = [] (const ngraph::Shape &shape, cpu_memory_format_t fmt) {
             bool skip_unsquized_1D =  std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
-            bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc) && shape[1] == 1;
+            bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc || fmt == cpu_memory_format_t::nwc) && shape[1] == 1;
             return skip_unsquized_1D || permule_of_1;
         };
 
@@ -165,7 +176,21 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 
             auto actualOutputMemoryFormats = getActualOutputMemoryFormats(getExecValueOutputsLayout(node));
 
-            for (size_t i = 0; i < outFmts.size(); i++) {
+            bool isAllEqual = true;
+            for (size_t i = 1; i < outFmts.size(); i++) {
+                if (outFmts[i - 1] != outFmts[i]) {
+                    isAllEqual = false;
+                    break;
+                }
+            }
+            size_t fmtsNum = outFmts.size();
+            if (isAllEqual) {
+                fmtsNum = fmtsNum == 0 ? 0 : 1;
+            } else {
+                ASSERT_EQ(fmtsNum, actualOutputMemoryFormats.size());
+            }
+
+            for (size_t i = 0; i < fmtsNum; i++) {
                 const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
                 const auto shape = node->get_output_shape(i);
 
@@ -190,10 +215,10 @@ std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
     std::string selectedType;
     std::tie(inFmts, outFmts, priority, selectedType) = params;
     if (!inFmts.empty()) {
-        result << "_inFmts=" << fmts2str(inFmts);
+        result << "_inFmts=" << fmts2str(inFmts, "");
     }
     if (!outFmts.empty()) {
-        result << "_outFmts=" << fmts2str(outFmts);
+        result << "_outFmts=" << fmts2str(outFmts, "");
     }
     if (!selectedType.empty()) {
         result << "_primitive=" << selectedType;
@@ -225,11 +250,11 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
 
     if (!inFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
-                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts)))});
+                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts, "cpu:")))});
     }
     if (!outFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
-                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts)))});
+                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:")))});
     }
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});

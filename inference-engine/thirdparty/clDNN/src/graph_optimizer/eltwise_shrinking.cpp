@@ -8,7 +8,7 @@
 
 using namespace cldnn;
 
-void eltwise_shrinking::run(program_impl& p) {
+void eltwise_shrinking::run(program& p) {
     std::vector<program_node*> convs_to_shrink;
 
     for (auto& node : p.get_processing_order()) {
@@ -84,7 +84,7 @@ void eltwise_shrinking::run(program_impl& p) {
                 if (can_shrink) {
                     // add stride for every eltwise's inputs to have shrinked output
                     auto e = const_cast<eltwise*>(&(*eltw));
-                    for (size_t dep = 0; dep < node->get_dependencies().size(); dep++) {
+                    for (size_t dep = 0; dep < e->input_size(); dep++) {
                         auto dep_stride_x = stride_x;
                         auto dep_stride_y = stride_y;
                         // don't shrink if input is broadcasted

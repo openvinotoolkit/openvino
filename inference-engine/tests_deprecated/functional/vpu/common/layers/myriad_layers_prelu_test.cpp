@@ -4,14 +4,14 @@
 
 #include "myriad_layers_prelu_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy_PReLU, myriadLayerPReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_PReLU, myriadLayerPReLU_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_PReLUTensors)
       , ::testing::Values<ChannelSharedPrelu>(0, 1)
     )
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     accuracy, myriadLayerFullyConnectedWithPReLU_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(g_fcTestParamsSubset),
@@ -21,7 +21,7 @@ INSTANTIATE_TEST_CASE_P(
     )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMaxPoolingWithPReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsMaxPoolingWithPReLU_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(g_poolingInput),
         ::testing::ValuesIn(g_poolingLayerParamsLite),
@@ -29,7 +29,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMaxPoolingWithPReLU_smoke,
         ::testing::ValuesIn(s_PReluLayerParams))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsAvgPoolingWithPReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsAvgPoolingWithPReLU_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(g_poolingInput),
         ::testing::ValuesIn(g_poolingLayerParamsLite),
@@ -37,7 +37,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsAvgPoolingWithPReLU_smoke,
         ::testing::ValuesIn(s_PReluLayerParams))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsMaxPoolingWithPReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_postop, myriadLayersTestsMaxPoolingWithPReLU_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(g_poolingInput_postOp),
         ::testing::Values<pooling_layer_params>(MAKE_STRUCT(pooling_layer_params, {3, 3}, {1, 1}, {1, 1})),
@@ -45,7 +45,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsMaxPoolingWithPReLU_sm
         ::testing::Values<PReLULayerDef>(MAKE_STRUCT(PReLULayerDef, {{{PRELU_PARAM, "0"}}})))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsAvgPoolingWithPReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_postop, myriadLayersTestsAvgPoolingWithPReLU_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(g_poolingInput_postOp),
         ::testing::Values<pooling_layer_params>(MAKE_STRUCT(pooling_layer_params, {3, 3}, {1, 1}, {1, 1})),
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsAvgPoolingWithPReLU_sm
         ::testing::Values<PReLULayerDef>(MAKE_STRUCT(PReLULayerDef, {{{PRELU_PARAM, "0"}}})))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithPReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayerConvolutionWithPReLU_smoke,
         ::testing::Combine(
             ::testing::ValuesIn(g_convolutionTensors)
           , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 3, 3))
@@ -65,7 +65,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithPReLU_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayerConvolutionWithPReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_postop, myriadLayerConvolutionWithPReLU_smoke,
         ::testing::Combine(
             ::testing::ValuesIn(g_poolingInput_postOp)
           , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 3, 3))

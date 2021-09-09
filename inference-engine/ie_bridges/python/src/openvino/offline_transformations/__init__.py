@@ -1,10 +1,11 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import sys
 
-if sys.platform == "win32":
+if sys.platform == 'win32':
     # Installer, yum, pip installs openvino dlls to the different directories
     # and those paths need to be visible to the openvino modules
     #
@@ -24,7 +25,8 @@ if sys.platform == "win32":
             if (3, 8) <= sys.version_info:
                 os.add_dll_directory(os.path.abspath(lib_path))
             else:
-                os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
+                os.environ['PATH'] = os.path.abspath(lib_path) + ';' + os.environ['PATH']
 
 from .offline_transformations_api import *
+
 __all__ = ['ApplyMOCTransformations']

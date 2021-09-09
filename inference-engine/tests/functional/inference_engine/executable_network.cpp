@@ -12,52 +12,52 @@ using namespace InferenceEngine::details;
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetOutputsInfo) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetOutputsInfo(), InferenceEngine::Exception);
+    ASSERT_THROW(exec.GetOutputsInfo(), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetInputsInfo) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetInputsInfo(), InferenceEngine::Exception);
+    ASSERT_THROW(exec.GetInputsInfo(), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedExport) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.Export(std::string()), InferenceEngine::Exception);
+    ASSERT_THROW(exec.Export(std::string()), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedExportStream) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.Export(std::cout), InferenceEngine::Exception);
+    ASSERT_THROW(exec.Export(std::cout), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetExecGraphInfo) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetExecGraphInfo(), InferenceEngine::Exception);
+    ASSERT_THROW(exec.GetExecGraphInfo(), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedQueryState) {
     IE_SUPPRESS_DEPRECATED_START
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.QueryState(), InferenceEngine::Exception);
+    ASSERT_THROW(exec.QueryState(), InferenceEngine::NotAllocated);
     IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedSetConfig) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.SetConfig({{}}), InferenceEngine::Exception);
+    ASSERT_THROW(exec.SetConfig({{}}), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetConfig) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetConfig({}), InferenceEngine::Exception);
+    ASSERT_THROW(exec.GetConfig({}), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetMetric) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetMetric({}), InferenceEngine::Exception);
+    ASSERT_THROW(exec.GetMetric({}), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetContext) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetContext(), InferenceEngine::Exception);
+    ASSERT_THROW(exec.GetContext(), InferenceEngine::NotAllocated);
 }

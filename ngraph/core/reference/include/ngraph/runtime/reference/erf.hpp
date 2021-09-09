@@ -11,31 +11,22 @@
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace reference
-        {
-            template <typename T>
-            typename std::enable_if<!std::is_integral<T>::value>::type
-                erf(const T* arg, T* out, size_t count)
-            {
-                for (size_t i = 0; i < count; i++)
-                {
-                    out[i] = std::erf(arg[i]);
-                }
-            }
+namespace ngraph {
+namespace runtime {
+namespace reference {
+template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
+void erf(const T* arg, T* out, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        out[i] = std::erf(arg[i]);
+    }
+}
 
-            template <typename T>
-            typename std::enable_if<std::is_integral<T>::value>::type
-                erf(const T* arg, T* out, size_t count)
-            {
-                for (size_t i = 0; i < count; i++)
-                {
-                    out[i] = std::round(std::erf(arg[i]));
-                }
-            }
-        } // namespace reference
-    }     // namespace runtime
-} // namespace ngraph
+template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+void erf(const T* arg, T* out, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        out[i] = std::round(std::erf(arg[i]));
+    }
+}
+}  // namespace reference
+}  // namespace runtime
+}  // namespace ngraph

@@ -9,8 +9,6 @@
 #include <functional>
 #include <set>
 
-#include <ie_icnn_network.hpp>
-
 #include <vpu/model/base.hpp>
 #include <vpu/model/edges.hpp>
 #include <vpu/model/data.hpp>

@@ -8,7 +8,6 @@
 
 namespace kernel_selector {
 const primitive_db KernelBase::db;
-thread_local size_t KernelBase::counter = 0;
 
 std::string toString(const kernel_selector::CommonDispatchData& dispatchData) {
     auto gws = dispatchData.gws;
@@ -109,23 +108,27 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     if (conf.empty())
         return jit;
 
+    if (params.fused_ops.size() == 1 && params.fused_ops[0].GetType() == KernelType::REORDER)
+        return jit;
+
     try {
         for (auto& c : conf) {
             std::string fused_ops;
             std::string fused_ops_preload;
             std::string fused_ops_calc;
             std::string in_name = c.input_var_name;
+            std::string out_name = "";
             Datatype in_type = c.input_dt;
             bool can_all_use_preload = true;
 
             for (size_t i = 0; i < params.fused_ops.size(); i++) {
+                // Reorder is not processed by jitter
+                if (params.fused_ops[i].GetType() == FusedOpType::REORDER)
+                    continue;
+
                 auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
-                std::string out_var;
-                Datatype out_type;
                 jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.output));
-                jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_var, out_type));
-                in_name = out_var;
-                in_type = out_type;
+                jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_name));
 
                 bool can_use_preload = fused_dep_codegen.CanPreloadData(c);
                 can_all_use_preload &= can_use_preload;
@@ -133,19 +136,19 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
                 if (params.fused_ops[i].GetType() == FusedOpType::ELTWISE &&
                     c.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE)
                     can_preload_eltwise = false;
-                fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
-                fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
+                fused_ops += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
+                fused_ops += "\\\n\tFUSED_OP" + toCodeString(i) + "_ACTION" + c.suffix;
                 if (can_use_preload && can_preload_eltwise)
-                    fused_ops_preload += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
+                    fused_ops_preload += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
                 if (c.allow_for_partial_preload && (!can_use_preload || !can_preload_eltwise))
-                    fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
-                fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
+                    fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
+                fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_ACTION" + c.suffix;
             }
 
             jit.AddConstant(MakeJitConstant("FUSED_OPS" + c.suffix, fused_ops));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_PRELOAD" + c.suffix, fused_ops_preload));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc));
-            jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, in_name));
+            jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, out_name));
 
             bool can_any_use_preload = !fused_ops_preload.empty();
             jit.AddConstant(MakeJitConstant("FUSED_OPS_CAN_USE_PRELOAD" + c.suffix,
@@ -176,7 +179,7 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
         jit.Merge(fused_dep_codegen.MakeInputDeclsJitConstants(conf[0]));
         if (!params.fused_ops[i].tensors.empty()) {
             std::string optional_comma = (!input_decls.empty() ? "," : "");
-            input_decls += optional_comma + "\\\n\tFUSED_OP" + std::to_string(i) + "_DECLS";
+            input_decls += optional_comma + "\\\n\tFUSED_OP" + toCodeString(i) + "_DECLS";
         }
     }
 

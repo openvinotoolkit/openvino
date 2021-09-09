@@ -1,5 +1,4 @@
-#include <inference_engine.hpp>
-
+#include <ie_core.hpp>
 
 int main() {
 using namespace InferenceEngine;

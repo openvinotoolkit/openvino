@@ -9,11 +9,12 @@ namespace SubgraphTestsDefinitions {
 std::string FqConvFqAffineTest::getTestCaseName(testing::TestParamInfo<FqConvFqAffineTestParamsSet> obj) {
     FqSpecificParams fqParams;
     ConvParams convParams;
+    bool permute;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     std::map<std::string, std::string> config;
-    std::tie(fqParams, convParams, netPrecision, inputShapes, targetDevice, config) = obj.param;
+    std::tie(fqParams, convParams, permute, netPrecision, inputShapes, targetDevice, config) = obj.param;
 
     std::vector<size_t> levels;
     std::vector<float> inputArg;
@@ -39,17 +40,19 @@ std::string FqConvFqAffineTest::getTestCaseName(testing::TestParamInfo<FqConvFqA
     result << "_KERNEL=" << CommonTestUtils::vec2str(kernelShape) << "_";
     result << "STRIDES=" << CommonTestUtils::vec2str(strides) << "_";
     result << "IC=" << inputChannels << "_";
-    result << "OC=" << outputChannels;
+    result << "OC=" << outputChannels << "_";
+    result << "permute=" << permute << "\n";
     return result.str();
 }
 
 void FqConvFqAffineTest::SetUp() {
     FqSpecificParams fqParams;
     ConvParams convParams;
+    bool permute;
     std::vector<size_t> inputShape;
     std::map<std::string, std::string> config;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(fqParams, convParams, netPrecision, inputShape, targetDevice, config) = this->GetParam();
+    std::tie(fqParams, convParams, permute, netPrecision, inputShape, targetDevice, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
 
     std::vector<size_t> levels;
@@ -71,7 +74,7 @@ void FqConvFqAffineTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     const int seed = 0;
-    std::mt19937 gen(static_cast<float>(seed));
+    std::mt19937 gen(seed);
 
     auto inputFQNode = ngraph::builder::makeFakeQuantize(params[0], ngraph::element::f32, levels[0], std::vector<size_t>{},
         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
@@ -100,8 +103,19 @@ void FqConvFqAffineTest::SetUp() {
     auto heightAfterConv = (convInputShape[2] - kernelShape[0]) / strides[0] + 1;
     std::vector<size_t> outFormShapes = {1,  outputChannels * widthAfterConv * heightAfterConv };
 
+    ngraph::Output<ngraph::Node> nodeBeforeReshape;
+    if (permute) {
+        auto permuteOrder = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
+                                                                       ngraph::Shape{4},
+                                                                       ngraph::Shape{{0, 3, 2, 1}});
+        auto transpose = std::make_shared<ngraph::opset1::Transpose>(add, permuteOrder);
+        nodeBeforeReshape = transpose;
+    } else {
+        nodeBeforeReshape = add;
+    }
+
     auto reshapePattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(add, reshapePattern2, false);
+    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(nodeBeforeReshape, reshapePattern2, false);
 
     auto matMulWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, {outFormShapes[1], outFormShapes[1]}, { 1.0f });
     auto matMulLowNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMin});

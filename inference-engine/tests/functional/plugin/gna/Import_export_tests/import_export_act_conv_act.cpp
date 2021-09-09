@@ -165,7 +165,7 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
         }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ImportActConvAct, ImportActConvActTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ImportActConvAct, ImportActConvActTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShape),
                                 ::testing::ValuesIn(netPrecisions),

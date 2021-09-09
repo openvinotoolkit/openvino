@@ -1,8 +1,6 @@
-# Configuring the Model Optimizer {#openvino_docs_MO_DG_prepare_model_Config_Model_Optimizer}
+# Installing Model Optimizer Pre-Requisites {#openvino_docs_MO_DG_prepare_model_Config_Model_Optimizer}
 
-You must configure the Model Optimizer for the framework that was used to train
-the model. This section tells you how to configure the Model Optimizer either
-through scripts or by using a manual process.
+Before running the Model Optimizer, you must install the Model Optimizer pre-requisites for the framework that was used to train the model. This section tells you how to install the pre-requisites either through scripts or by using a manual process.
 
 ## Using Configuration Scripts
 
@@ -122,10 +120,12 @@ virtualenv -p /usr/bin/python3.6 .env3 --system-site-packages
 virtualenv -p /usr/bin/python3.6 .env3/bin/activate
 ```
 3.  Install all dependencies or only the dependencies for a specific framework:
-    *   To install dependencies for all frameworks except TensorFlow* 2.x:
+    *   To install dependencies for all frameworks except TensorFlow* 1.x:
 ```shell
 pip3 install -r requirements.txt
 ```
+> **NOTE**: TensorFlow 1.x and 2.x are incompatible. Use separate virtual environments if you want to install multiple TensorFlow versions.
+
     *   To install dependencies only for Caffe:
 ```shell
 pip3 install -r requirements_caffe.txt
@@ -152,11 +152,15 @@ pip3 install -r requirements_onnx.txt
 ```
 
 ## Using the protobuf Library in the Model Optimizer for Caffe\*
+<details>
+    <summary>Click to expand</summary>
+
+
 
 These procedures require:
 
 *   Access to GitHub and the ability to use git commands
-*   Microsoft Visual Studio\* 2013 for Win64\*
+*   Microsoft Visual Studio\* 2013 for Win64\* (if using Windows\*)
 *   C/C++
 
 Model Optimizer uses the protobuf library to load trained Caffe models.
@@ -164,7 +168,7 @@ By default, the library executes pure Python\* language implementation,
 which is slow. These steps show how to use the faster C++ implementation
 of the protobuf library on Windows OS or Linux OS.
 
-### Using the protobuf Library on Linux\* OS
+#### Using the protobuf Library on Linux\* OS
 
 To use the C++ implementation of the protobuf library on Linux, it is enough to
 set up the environment variable:
@@ -172,7 +176,7 @@ set up the environment variable:
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 ```
 
-### <a name="protobuf-install-windows"></a>Using the protobuf Library on Windows\* OS
+#### <a name="protobuf-install-windows"></a>Using the protobuf Library on Windows\* OS
 
 On Windows, pre-built protobuf packages for Python versions 3.4, 3.5, 3.6,
 and 3.7 are provided with the installation package and can be found in
@@ -259,6 +263,8 @@ python3 -m easy_install dist/protobuf-3.6.1-py3.6-win-amd64.egg
 ```shell
 set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 ```
+
+</details>
 
 ## See Also
 

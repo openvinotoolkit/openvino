@@ -3,14 +3,12 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -18,8 +16,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, proposal_op)
-{
+TEST(attributes, proposal_op) {
     NodeBuilder::get_ops().register_factory<opset1::Proposal>();
     const auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1024, 2, 128, 128});
     const auto class_logits = make_shared<op::Parameter>(element::f32, Shape{1024, 4, 128, 128});
@@ -43,7 +40,7 @@ TEST(attributes, proposal_op)
 
     auto proposal = make_shared<opset1::Proposal>(class_probs, class_logits, image_shape, attrs);
     NodeBuilder builder(proposal);
-    auto g_proposal = as_type_ptr<opset1::Proposal>(builder.create());
+    auto g_proposal = ov::as_type_ptr<opset1::Proposal>(builder.create());
 
     const auto proposal_attrs = proposal->get_attrs();
     const auto g_proposal_attrs = g_proposal->get_attrs();

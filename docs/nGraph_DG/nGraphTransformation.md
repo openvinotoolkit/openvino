@@ -27,7 +27,7 @@ Transformation flow in the transformation library has several layers:
 2. Transformations - Perform a particular transformation algorithm on `ngraph::Function`.
 3. Low-level functions - Take a set of nodes and perform some transformation action.
 They are not mandatory and all transformation code can be located inside the transformation.
-But if some transformation parts can potentially be reused in other transformations, we suggest keeping them as a separate functions.
+But if some transformation parts can potentially be reused in other transformations, we suggest keeping them as separate functions.
 
 ### Location for Your Transformation Code
 To decide where to store your transformation code, please follow these rules:
@@ -61,9 +61,9 @@ nGraph has three main transformation types:
 
 Template for FunctionPass transformation class
 
-@snippet src/template_function_transformation.hpp function_pass:template_transformation_hpp
+@snippet src/transformations/template_function_transformation.hpp function_pass:template_transformation_hpp
 
-@snippet src/template_function_transformation.cpp function_pass:template_transformation_cpp
+@snippet src/transformations/template_function_transformation.cpp function_pass:template_transformation_cpp
 
 Using `ngraph::FunctionPass`, you need to override the `run_on_function` method where you will write the transformation code.
 Return value is `true` if the original function has changed during transformation (new operation was added, or operations replacement was made, or node attributes were changed); otherwise, it is `false`.
@@ -75,9 +75,9 @@ Also `ngraph::FunctionPass` based transformations can be executed via `pass::Man
 `ngraph::pass::MatcherPass` is used for pattern-based transformations.
 
 Template for MatcherPass transformation class
-@snippet src/template_pattern_transformation.hpp graph_rewrite:template_transformation_hpp
+@snippet src/transformations/template_pattern_transformation.hpp graph_rewrite:template_transformation_hpp
 
-@snippet src/template_pattern_transformation.cpp graph_rewrite:template_transformation_cpp
+@snippet src/transformations/template_pattern_transformation.cpp graph_rewrite:template_transformation_cpp
 
 To use `ngraph::pass::MatcherPass`, you need to complete these steps:
 1. Create a pattern
@@ -113,7 +113,7 @@ That means that matcher passes registered in `pass::GraphRewrite` will be applie
 
 The example below shows how single MatcherPass can fuse sequence of operations using the `register_new_node` method.
 
-@snippet src/template_pattern_transformation.cpp matcher_pass:relu_fusion
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:relu_fusion
 
 > **NOTE**: If you register multiple nodes, please add them in topological order. We do not topologically sort these nodes as it is a time-consuming operation.
 
@@ -128,11 +128,11 @@ register_matcher(m, callback);
 ### Execute MatcherPass
 MatcherPass has multiple ways to be executed:
 * Run on a single node - it can be useful if you want to run MatcherPass inside another transformation.
-@snippet src/template_pattern_transformation.cpp matcher_pass:run_on_node
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:run_on_node
 * Run on `ngraph::Function` using GraphRewrite - this approach gives ability to run MatcherPass on whole `ngraph::Function`. Moreover, multiple MatcherPass transformation can be registered in a single GraphRewite to be executed in a single graph traversal.
-@snippet src/template_pattern_transformation.cpp matcher_pass:graph_rewrite
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:graph_rewrite
 * Run on `ngraph::Function` using `pass::Manager` - this approach helps you to register MatcherPass for execution on `ngraph::Function` as another transformation types.
-@snippet src/template_pattern_transformation.cpp matcher_pass:manager
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager
 
 
 ### ngraph::pass::GraphRewrite <a name="graph_rewrite_pass"></a>
@@ -140,7 +140,7 @@ MatcherPass has multiple ways to be executed:
 GraphRewrite pass serves for running multiple matcher passes on `ngraph::Function` in a single graph traversal.
 Example:
 
-@snippet src/template_pattern_transformation.cpp matcher_pass:graph_rewrite
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:graph_rewrite
 
 In addition, GraphRewrite handles nodes that were registered by MatcherPasses during their execution. This nodes will be added to the beginning of the sequence with nodes for pattern matching.
 
@@ -352,7 +352,7 @@ Manual constant folding is more preferable than `ngraph::pass::ConstantFolding()
 
 Below you can find an example of manual constant folding:
 
-@snippet src/template_pattern_transformation.cpp manual_constant_folding
+@snippet src/transformations/template_pattern_transformation.cpp manual_constant_folding
 
 ## Common mistakes in transformations <a name="common_mistakes"></a>
 
@@ -373,11 +373,11 @@ In addition, `ngraph::pass::Manager` has extended debug capabilities (find more 
 
 The example below shows basic usage of `ngraph::pass::Manager`
 
-@snippet src/template_pattern_transformation.cpp matcher_pass:manager3
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager3
 
 Another example shows how multiple matcher passes can be united into single GraphRewrite.
 
-@snippet src/template_pattern_transformation.cpp matcher_pass:manager2
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager2
 
 > **Note:** nGraph used to have the `pass::PassConfig` class for transformation pipeline manipulation.
 This mechanism is now obsolete and the `pass::PassConfig` class will be removed in future release.

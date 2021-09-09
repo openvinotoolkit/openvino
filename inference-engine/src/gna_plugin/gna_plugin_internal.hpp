@@ -7,15 +7,15 @@
 #include <memory>
 #include <string>
 #include <map>
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "gna_executable_network.hpp"
 #include "gna_plugin_config.hpp"
 #include <legacy/ie_util_internal.hpp>
 
 namespace GNAPluginNS {
 
-class GNAPluginInternal  : public InferenceEngine::InferencePluginInternal {
+class GNAPluginInternal  : public InferenceEngine::IInferencePlugin {
 private:
     std::mutex syncCallsToLoadExeNetworkImpl;
     Config defaultConfig;
@@ -30,7 +30,7 @@ private:
     }
 
 public:
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
                                                 const InferenceEngine::CNNNetwork &network,
                                                 const std::map<std::string, std::string> &config) override {
         std::lock_guard<std::mutex> lock{ syncCallsToLoadExeNetworkImpl };

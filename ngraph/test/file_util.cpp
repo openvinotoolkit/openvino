@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/file_util.hpp"
+
 #include <random>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "ngraph/file_util.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
 
-TEST(file_util, path_join)
-{
+TEST(file_util, path_join) {
     {
         string s1 = "";
         string s2 = "";
@@ -78,8 +80,7 @@ TEST(file_util, path_join)
     }
 }
 
-TEST(file_util, santize_path)
-{
+TEST(file_util, santize_path) {
     {
         string path = "../../tensor.data";
         EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());

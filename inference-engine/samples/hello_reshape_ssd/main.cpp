@@ -21,10 +21,10 @@ int main(int argc, char* argv[]) {
             std::cout << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device> <batch>" << std::endl;
             return EXIT_FAILURE;
         }
-        const std::string input_model {argv[1]};
-        const std::string input_image_path {argv[2]};
-        const std::string device_name {argv[3]};
-        const size_t batch_size {std::stoul(argv[4])};
+        const std::string input_model{argv[1]};
+        const std::string input_image_path{argv[2]};
+        const std::string device_name{argv[3]};
+        const size_t batch_size{std::stoul(argv[4])};
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 1. Initialize inference engine core
@@ -177,8 +177,8 @@ int main(int argc, char* argv[]) {
                 std::ostringstream conf;
                 conf << ":" << std::fixed << std::setprecision(3) << confidence;
                 cv::rectangle(image, cv::Point2f(xmin, ymin), cv::Point2f(xmax, ymax), cv::Scalar(0, 0, 255));
-                std::cout << "[" << cur_proposal << "," << label << "] element, prob = " << confidence << ", bbox = (" << xmin << "," << ymin << ")-(" << xmax
-                          << "," << ymax << ")"
+                std::cout << "[" << cur_proposal << "," << label << "] element, prob = " << confidence << ", bbox = ("
+                          << xmin << "," << ymin << ")-(" << xmax << "," << ymax << ")"
                           << ", batch id = " << image_id << std::endl;
             }
         }

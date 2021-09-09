@@ -10,6 +10,7 @@
     },
     {
         "custom_attributes": {
+            "operation_to_add": "Proposal",
             "clip_before_nms": false,
             "clip_after_nms": true
         },
@@ -37,8 +38,7 @@
         "custom_attributes": {
             "clip_before_nms": false,
             "clip_after_nms": true,
-            "background_label_id": 0,
-            "coordinates_swap_method": "swap_weights"
+            "background_label_id": 0
         },
         "id": "ObjectDetectionAPIDetectionOutputReplacement",
         "include_inputs_to_sub_graph": true,

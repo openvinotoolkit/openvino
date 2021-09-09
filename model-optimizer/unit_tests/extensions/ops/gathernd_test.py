@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from extensions.ops.gathernd import GatherND
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
@@ -14,7 +14,7 @@ nodes_attributes = {'data': {'kind': 'op'},
                     'data_data': {'shape': None, 'value': None, 'kind': 'data'},
                     'indices': {'kind': 'op'},
                     'indices_data': {'shape': None, 'value': None, 'kind': 'data'},
-                    'gathernd_node': {'op': 'ScatterNDUpdate', 'kind': 'op', 'batch_dims': 0},
+                    'gathernd_node': {'op': 'GatherNDUpdate', 'kind': 'op', 'batch_dims': 0},
                     'output': {'shape': None, 'value': None, 'kind': 'data'}}
 
 # graph 1
@@ -106,6 +106,10 @@ output8 = int64_array([[3, 8, 6],
                        [36, 37, 37],
                        [41, 48, 48]])
 
+# test data for partial infer: gather slices and batch_dims=2
+inputs9 = {'data_data': {'shape': shape_array([dynamic_dimension_value, 40, 4, 9]), 'value': None},
+           'indices_data': {'shape': shape_array([dynamic_dimension_value, 40, 3, 5, 1]), 'value': None}}
+
 # invalid test case with incorrect rank for indices
 inputs_inv1 = {'data_data': {'shape': int64_array([10, 40]), 'value': None},
                'indices_data': {'shape': int64_array([5, 3, 4]), 'value': None}}
@@ -118,7 +122,8 @@ inputs_inv2 = {'data_data': {'shape': int64_array([10, 40, 20]), 'value': None},
 inputs_inv3 = {'data_data': {'shape': int64_array([10, 40, 20, 10, 2]), 'value': None},
                'indices_data': {'shape': int64_array([10, 40, 4]), 'value': None}}
 
-class TestScatterNDUpdate(unittest.TestCase):
+
+class TestGatherNDUpdate(unittest.TestCase):
     def setUp(self):
         nodes_attributes['gathernd_node']['batch_dims'] = 0
 
@@ -163,6 +168,21 @@ class TestScatterNDUpdate(unittest.TestCase):
         res_output_shape = graph.node['output']['shape']
 
         self.assertTrue(np.array_equal(ref_output_shape, res_output_shape),
+                        'values do not match expected: {} and given: {}'.format(ref_output_shape, res_output_shape))
+
+    def test_partial_infer_gather_slice_batch_dims2_dynamic(self):
+        nodes_attributes['gathernd_node']['batch_dims'] = 2
+        graph = build_graph(nodes_attributes, edges, inputs9)
+        gathernd_node = Node(graph, 'gathernd_node')
+        GatherND.infer(gathernd_node)
+
+        # prepare reference results
+        ref_output_shape = shape_array([dynamic_dimension_value, 3, 5, 9])
+
+        # get the result
+        res_output_shape = graph.node['output']['shape']
+
+        self.assertTrue(strict_compare_tensors(ref_output_shape, res_output_shape),
                         'values do not match expected: {} and given: {}'.format(ref_output_shape, res_output_shape))
 
     def test_infer4(self):

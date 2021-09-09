@@ -40,6 +40,7 @@ ngraph::pass::ConvertTopK3::ConvertTopK3() {
             last1 = new_topk->output(1);
             new_topk->set_friendly_name(topk->get_friendly_name());
         } else if (topk->get_output_target_inputs(0).size() == 0) {
+            last0 = topk->output(0);
             last1 = std::make_shared<ngraph::opset2::Convert>(new_topk->output(1), topk->get_index_element_type());
             new_ops.push_back(last1.get_node_shared_ptr());
 

@@ -9,7 +9,6 @@
 #include <ie_common.h>
 #include <ie_iextension.h>
 
-#include <ie_icnn_network.hpp>
 #include <ie_reader.hpp>
 #include <map>
 #include <memory>
@@ -20,10 +19,6 @@ namespace pugi {
 class xml_node;
 class xml_document;
 }  // namespace pugi
-
-namespace ngraph {
-class Function;
-}  // namespace ngraph
 
 namespace InferenceEngine {
 

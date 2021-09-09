@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string NonZeroLayerTest::getTestCaseName(testing::TestParamInfo<NonZeroLayerTestParamsSet> obj) {
+std::string NonZeroLayerTest::getTestCaseName(const testing::TestParamInfo<NonZeroLayerTestParamsSet>& obj) {
     std::vector<size_t> inputShape;
     InferenceEngine::Precision inputPrecision;
     std::string targetDevice;
@@ -21,7 +21,6 @@ std::string NonZeroLayerTest::getTestCaseName(testing::TestParamInfo<NonZeroLaye
 }
 
 void NonZeroLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     auto inputShape     = std::vector<std::size_t>{};
     auto inputPrecision = InferenceEngine::Precision::UNSPECIFIED;
     ConfigMap additionalConfig;

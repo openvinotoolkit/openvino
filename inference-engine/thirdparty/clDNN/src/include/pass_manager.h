@@ -4,14 +4,21 @@
 
 #pragma once
 
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "layout_optimizer.h"
+#include "split_inst.h"
+#include "lstm_inst.h"
+#include "lstm_dynamic_inst.h"
+#include "quantize_inst.h"
+#include "eltwise_inst.h"
+#include "convolution_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
 #include <list>
 #include <utility>
 #include <set>
+#include <functional>
 
 #include <fstream>
 
@@ -21,9 +28,9 @@ class base_pass {
 
 public:
     explicit base_pass(const std::string& pass_name) : name(pass_name) {}
-    virtual void run(program_impl& p) = 0;
+    virtual void run(program& p) = 0;
     std::string get_name() { return name; }
-    void clean_marks(program_impl& p) {
+    void clean_marks(program& p) {
         for (auto& node : p.get_processing_order()) {
             node->unmark();
         }
@@ -35,8 +42,8 @@ private:
 
 class pass_manager {
 public:
-    explicit pass_manager(program_impl& p);
-    void run(program_impl& p, base_pass& pass);
+    explicit pass_manager(program& p);
+    void run(program& p, base_pass& pass);
     uint32_t get_pass_count() { return pass_count; }
     uint32_t inc_pass_count() { return ++pass_count; }
     ~pass_manager() {}
@@ -51,8 +58,8 @@ public:
     add_required_reorders() : base_pass("add_required_reorders") {}
 
 private:
-    void run(program_impl& p) override;
-    void add_reorder(program_impl& p, program_node* node, program_node* usr);
+    void run(program& p) override;
+    void add_reorder(program& p, program_node* node, program_node* usr);
 };
 
 class add_reshape_to_primitives : public base_pass {
@@ -60,7 +67,7 @@ public:
     add_reshape_to_primitives() : base_pass("add_reshape_to_primitives_pass") {}
 
 private:
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class calculate_prior_boxes : public base_pass {
@@ -68,7 +75,7 @@ public:
     calculate_prior_boxes() : base_pass("calculated_prior_boxes") {}
 
 private:
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class compile_graph : public base_pass {
@@ -76,7 +83,7 @@ public:
     compile_graph() : base_pass("compile_graph") {}
 
 private:
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class eltwise_shrinking : public base_pass {
@@ -84,7 +91,7 @@ public:
     eltwise_shrinking() : base_pass("eltwise_shrinking") {}
 
 private:
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class eltwise_remove_stride : public base_pass {
@@ -92,8 +99,8 @@ public:
     eltwise_remove_stride() : base_pass("eltwise_remove_stride") {}
 
 private:
-    void run(program_impl& p) override;
-    void conv_stride_extend(program_impl& p, program_node& node, cldnn::tensor& tensor);
+    void run(program& p) override;
+    void conv_stride_extend(program& p, program_node& node, cldnn::tensor& tensor);
 };
 
 class graph_initializations : public base_pass {
@@ -101,11 +108,11 @@ public:
     graph_initializations() : base_pass("init") {}
 
 private:
-    void run(program_impl& p) override;
-    void replace_nodes(program_impl& p);
-    void handle_lstm(program_impl& p);
-    void handle_dynamic_lstm(program_impl& p);
-    void set_outputs(program_impl& p);
+    void run(program& p) override;
+    void handle_split_node(program& p, split_node& node);
+    void handle_lstm_node(program& p, lstm_node& node);
+    void handle_dynamic_lstm_node(program& p, lstm_dynamic_node& node);
+    void set_outputs(program& p);
 };
 
 class handle_reshape : public base_pass {
@@ -113,7 +120,7 @@ public:
     handle_reshape() : base_pass("handle_reshape") {}
 
 private:
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class handle_input_padding : public base_pass {
@@ -121,7 +128,7 @@ public:
     handle_input_padding() : base_pass("handle_input_padding") {}
 
 private:
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class mark_nodes : public base_pass {
@@ -129,9 +136,7 @@ public:
     mark_nodes() : base_pass("analyzed_graph") {}
 
 private:
-    void run(program_impl& p) override;
-    void mark_constants(program_impl& p);
-    void mark_data_flow(program_impl& p);
+    void run(program& p) override;
 };
 
 class prepare_buffer_fusing : public base_pass {
@@ -139,7 +144,7 @@ public:
     prepare_buffer_fusing() : base_pass("prepare_buffer_fusing") {}
 
 private:
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class prepare_quantization : public base_pass {
@@ -147,12 +152,13 @@ public:
     prepare_quantization() : base_pass("prepare_quantization") {}
 
 private:
-    void run(program_impl& p) override;
-    void prepare_packed_quantize(program_impl& p);
-    void prepare_scale_shift_opt(program_impl& p);
-    void prepare_dequantize_merge(program_impl& p);
-    void remove_fake_reorders(program_impl& p);
-    void prepare_asymmetric_quantization(program_impl& p);
+    void run(program& p) override;
+    void handle_quantize_node(program& p, quantize_node& quantize_node);
+    void prepare_packed_quantize(program& p, quantize_node& quantize_node);
+    void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
+    void remove_fake_reorders(program& p, reorder_node& reorder_node);
+    void prepare_asymmetric_quantization(program& p, convolution_node& convolution_node);
+    void prepare_scale_shift_opt(program &p, quantize_node& quantize_node);
 };
 
 class prepare_conv_eltw_fusing : public base_pass {
@@ -161,9 +167,9 @@ public:
         base_pass("prepare_conv_eltw_fusing"), _lo(lo_ref), b_fs_yx_fsv16_opt(b_fs_yx_fsv16_opt) {}
 
 private:
-    void run(program_impl& p) override;
-    void fuse_conv_eltwise(program_impl& p, program_node* node);
-    void fuse_conv_depth_to_space(program_impl& p, program_node* node);
+    void run(program& p) override;
+    void fuse_conv_eltwise(program& p, program_node* node);
+    void fuse_conv_depth_to_space(program& p, program_node* node);
     layout_optimizer& _lo;
     bool b_fs_yx_fsv16_opt;
 };
@@ -173,8 +179,8 @@ public:
     prepare_conv_eltw_read_write_opt() : base_pass("prepare_conv_eltw_read_write_opt") {}
 
 private:
-    void run(program_impl& p) override;
-    void conv_eltwise_read_write_opt(program_impl& p, program_node* node);
+    void run(program& p) override;
+    void conv_eltwise_read_write_opt(program& p, program_node* node);
 };
 
 class prepare_primitive_fusing : public base_pass {
@@ -183,13 +189,13 @@ public:
         base_pass("prepare_primitive_fusing"), _lo(lo_ref) {}
 
 private:
-    void run(program_impl& p) override;
-    void fuse_sigmoid_mul_to_swish(program_impl &p);
-    void fuse_bias(program_impl &p);
-    void fuse_reorders(program_impl& p);
-    void fuse_activations(program_impl& p);
-    void fuse_simple_primitives(program_impl &p);
-    void optimize_fused_ops(program_impl &p);
+    void run(program& p) override;
+    void fuse_sigmoid_mul_to_swish(program &p);
+    void fuse_bias(program &p);
+    void fuse_reorders(program& p);
+    void fuse_activations(program& p);
+    void fuse_simple_primitives(program &p);
+    void optimize_fused_ops(program &p);
     layout_optimizer& _lo;
 };
 
@@ -199,7 +205,7 @@ public:
         base_pass("pre_replace_deconv"), _lo(lo_ref) {}
 
 private:
-    void run(program_impl& p) override;
+    void run(program& p) override;
     layout_optimizer& _lo;
 };
 
@@ -208,10 +214,10 @@ public:
     explicit pre_optimize_bias(reorder_factory& rf_ref);
 
 private:
-    void run(program_impl& p) override;
-    virtual void run(program_impl& p, reorder_factory& rf);
+    void run(program& p) override;
+    virtual void run(program& p, reorder_factory& rf);
     template <typename T>
-    void optimize_bias(T& node, reorder_factory& rf, program_impl& p);
+    void optimize_bias(T& node, reorder_factory& rf, program& p);
     reorder_factory& _rf;
 };
 
@@ -221,7 +227,7 @@ public:
         : base_pass("prepare_padding"), output_size_handling_enabled(output_size_handling_enabled_switch) {}
 
 private:
-    void run(program_impl& p) override;
+    void run(program& p) override;
     bool output_size_handling_enabled;
 };
 
@@ -230,8 +236,8 @@ public:
     post_input_reorder() : base_pass("post_input_reorder") {}
 
 private:
-    void run(program_impl& p) override;
-    program_node& add_reorder(program_impl& p, program_node* node, program_node* usr, const layout& reorder_layout);
+    void run(program& p) override;
+    program_node& add_reorder(program& p, program_node* node, program_node* usr, const layout& reorder_layout);
 };
 
 class post_optimize_weights : public base_pass {
@@ -250,11 +256,11 @@ private:
         {}
     };
 
-    void run(program_impl& p) override;
+    void run(program& p) override;
     template<typename T>
     weights_bias_offset get_weights_bias_offset(const T& node);
     template<typename T>
-    void optimize_weights(T& node, program_impl& p);
+    void optimize_weights(T& node, program& p);
     reorder_factory& _rf;
 };
 
@@ -263,12 +269,12 @@ public:
     propagate_constants() : base_pass("propagate_constants") {}
 
 private:
-    void run(program_impl& p) override;
-    std::list<std::pair<primitive_id, memory_impl::ptr>> calculate(engine_impl& engine, build_options bo);
+    void run(program& p) override;
+    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine, build_options bo);
     bool has_non_const_user(program_node& node) const;
-    void handle_constant(program_impl& prog, program_node& node);
-    void add_constant(program_impl& prog, program_node& node);
-    void add_deps_to_tpl(program_impl& prog, const std::vector<program_node*>& node);
+    void handle_constant(program& prog, program_node& node);
+    void add_constant(program& prog, program_node& node);
+    void add_deps_to_tpl(program& prog, const std::vector<program_node*>& node);
 
     bool has_non_trivial_constants = false;
     std::list<typed_program_node<data>*> const_inputs;
@@ -280,7 +286,7 @@ class remove_redundant_reorders : public base_pass {
 public:
     explicit remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing = false, bool update_implementations = false,
         bool remove_output_reorders = false);
-    void run(program_impl& p) override;
+    void run(program& p) override;
 
 private:
     layout_optimizer& lo;
@@ -294,8 +300,8 @@ public:
     reorder_inputs(layout_optimizer& lo_ref, reorder_factory& rf_ref);
 
 private:
-    void run(program_impl& p) override;
-    virtual void run(program_impl& p, layout_optimizer& lo, reorder_factory& rf);
+    void run(program& p) override;
+    virtual void run(program& p, layout_optimizer& lo, reorder_factory& rf);
     layout_optimizer& _lo;
     reorder_factory& _rf;
 };
@@ -305,19 +311,19 @@ public:
     trim_to_outputs() : base_pass("trimmed") {}
 
 private:
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class strided_slice_optimize : public base_pass {
 public:
     strided_slice_optimize() : base_pass("strided_slice_optimize") {}
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class reverse_optional_nodes_outputs : public base_pass {
 public:
     reverse_optional_nodes_outputs() : base_pass("reverse_optional_nodes_outputs") {}
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class concat_input_order : public base_pass {
@@ -339,7 +345,7 @@ class concat_input_order : public base_pass {
     // - no fused primitives
 public:
     concat_input_order() : base_pass("concat_input_order") {}
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class memory_dependency_pass : public base_pass {
@@ -363,19 +369,27 @@ public:
 class basic_memory_dependencies : public memory_dependency_pass {
 public:
     basic_memory_dependencies() : memory_dependency_pass("basic_memory_dependencies") {}
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class skipped_branch_memory_dependencies : public memory_dependency_pass {
 public:
     skipped_branch_memory_dependencies() : memory_dependency_pass("skipped_branch_memory_dependencies") {}
-    void run(program_impl& p) override;
+    void run(program& p) override;
 };
 
 class oooq_memory_dependencies : public memory_dependency_pass {
 public:
     oooq_memory_dependencies() : memory_dependency_pass("oooq_memory_dependencies") {}
-    void run(program_impl& p) override;
+    void run(program& p) override;
+};
+
+class update_loop_primitive_map : public base_pass {
+public:
+    update_loop_primitive_map() : base_pass("update_loop_primitive_map") {}
+
+private:
+    void run(program& p) override;
 };
 
 }  // namespace cldnn

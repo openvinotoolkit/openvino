@@ -4,11 +4,6 @@
 
 set(TARGET_NAME conformanceTests)
 
-list(APPEND EXPORT_DEPENDENCIES
-        gflags
-        funcSharedTests
-    )
-
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -20,13 +15,10 @@ addIeTargetTest(
                 "${CMAKE_CURRENT_SOURCE_DIR}/include"
         LINK_LIBRARIES
             PUBLIC
-                ${EXPORT_DEPENDENCIES}
-        DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
+                gflags
+                funcSharedTests
         LABELS
             CONFORMANCE
 )
 
-ie_faster_build(${TARGET_NAME}
-        PCH PRIVATE "src/precomp.hpp"
-        )
+ie_faster_build(${TARGET_NAME} UNITY)

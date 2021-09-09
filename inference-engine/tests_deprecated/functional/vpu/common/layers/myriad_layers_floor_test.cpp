@@ -4,6 +4,6 @@
 
 #include "myriad_layers_floor_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         accuracy, myriadLayersTestsFloor_smoke,
         ::testing::ValuesIn(s_FloorParams));

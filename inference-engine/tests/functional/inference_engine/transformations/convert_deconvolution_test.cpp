@@ -60,7 +60,7 @@ private:
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
         auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
         auto conv = std::make_shared<ngraph::op::DeconvolutionIE>(input, weights, ngraph::Strides(spatial_dims, 1), ngraph::Strides(spatial_dims, 1),
-                ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0));
+                ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::element::f32);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
     }
@@ -76,7 +76,7 @@ TEST_P(ConvertDeconvolutionTest, CompareFunctions) {
     ASSERT_TRUE(orig_shape.same_scheme(f->get_output_partial_shape(0))) << "Shape " << orig_shape << " is not equal to " << f->get_output_partial_shape(0);
 }
 
-INSTANTIATE_TEST_CASE_P(ConvertDeconvolution, ConvertDeconvolutionTest,
+INSTANTIATE_TEST_SUITE_P(ConvertDeconvolution, ConvertDeconvolutionTest,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{3, 8, 1, 2, 3}),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{3, 8, 1, 2, 3}),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{3, 9, 2, 3, 1}),

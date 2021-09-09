@@ -111,15 +111,17 @@ protected:
         // STAGE3:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["Elt_sum"] = "BF16";
+        expectedPrecisions["Elt_sum"] = "ndef";
     }
 };
 
 TEST_P(ConvAdd, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ConvAdd,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_NoReshape, ConvAdd,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -128,7 +130,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ConvAdd,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvAdd::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, ConvAdd,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, ConvAdd,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::BF16),
