@@ -60,9 +60,12 @@ static void validate_name(const std::string& dim_name) {
     OV_CHECK(has_alphanumeric, "Layout name is invalid (" + dim_name + "). Name shall have alphanumeric characters");
 }
 
+Layout::Layout(): m_rank(LayoutRank::create_dynamic()) {}
+
 Layout Layout::scalar() {
     Layout l;
     l.m_scalar = true;
+    l.rank() = LayoutRank::create_static(0);
     return l;
 }
 
@@ -111,18 +114,39 @@ Layout::Layout(const std::string& layout_str) {
         m_names[dim_name] = index;
     }
     if (dynamic_start != std::string::npos) {
-        m_rank = LayoutRank::create_dynamic(dynamic_start, layout.length() - dynamic_start - ELLIPSIS_LEN);
+        m_rank = LayoutRank::create_dynamic(static_cast<LayoutRank::value_type>(dynamic_start),
+                                            static_cast<LayoutRank::value_type>(layout.length() - dynamic_start - ELLIPSIS_LEN));
     } else {
-        m_rank = LayoutRank::create_static(layout.length());
+        m_rank = LayoutRank::create_static(static_cast<LayoutRank::value_type>(layout.length()));
     }
 }
 
 bool Layout::operator==(const Layout& rhs) const {
+    if (m_rank != rhs.m_rank) {
+        return false;
+    }
+    if (m_scalar != rhs.m_scalar) {
+        return false;
+    }
+    for (const auto& item: m_names) {
+        auto it = rhs.m_names.find(item.first);
+        if (it == rhs.m_names.end()) {
+            return false;
+        }
+        if (it->second != item.second) {
+            return false;
+        }
+    }
+    for (const auto& item: rhs.m_names) {
+        if (!m_names.count(item.first)) {
+            return false;
+        }
+    }
     return true;
 }
 
 bool Layout::operator!=(const Layout& rhs) const {
-    return false;
+    return !(*this == rhs);
 }
 
 bool Layout::has_name(const std::string& dimension_name) const {
@@ -139,19 +163,50 @@ std::int64_t Layout::get_index_by_name(const std::string& dimension_name) const 
     return it->second;
 }
 
+std::string Layout::get_name_by_index(std::int64_t index) const {
+    for (const auto& item : m_names) {
+        if (item.second == index){
+            return item.first;
+        }
+    }
+//    if (index >= 0 )
+    return {};
+}
+
 void Layout::set_name_for_index(const std::string& dimension_name, std::int64_t index) {
     auto name = to_internal_name(dimension_name);
     validate_name(name);
     auto it = m_names.find(name);
-    if (it != m_names.end() && it->second != index) {
-        throw ngraph::ngraph_error("Cannot change " + dimension_name + " dimension index");
-    } else if (it == m_names.end()) {
-        m_names[name] = index;
+    OV_CHECK(it == m_names.end() || it->second == index, "Cannot change " + dimension_name + " dimension index");
+    if (it != m_names.end()) {
+        return; // Name is already in layout at exactly this place
     }
+    // Verify that 'index' is also free
+    for (const auto& item: m_names) {
+        OV_CHECK(item.second != index, "Index " + std::to_string(index) + " is already occupied with " + item.first);
+    }
+
+    auto new_rank = m_rank;
+    if (!m_rank.is_dynamic()) {
+        OV_CHECK(index >= 0 && index < m_rank.size(), "Layout index is out of bounds");
+    } else {
+        if (index >= 0 && rank().size_left() <= index) {
+            new_rank = LayoutRank::create_dynamic(index+1, rank().size_right());
+        } else if (index < 0 && index <= -rank().size_right()) {
+            new_rank = LayoutRank::create_dynamic(rank().size_left(), -index);
+        }
+    }
+    // Update internal data here, should be exception-safe
+    m_names[name] = index;
+    m_rank = new_rank; // trivial, noexcept
 }
 
 bool Layout::is_scalar() const {
     return m_scalar;
+}
+
+LayoutRank Layout::rank() const {
+    return m_rank;
 }
 
 std::string layouts::predefined_name(layouts::PredefinedDim dim) {
@@ -172,7 +227,7 @@ std::string layouts::predefined_name(layouts::PredefinedDim dim) {
     return {};
 }
 
-OPENVINO_API layouts::PredefinedDim layouts::to_predefined_dim(const std::string& predef_name) {
+layouts::PredefinedDim layouts::to_predefined_dim(const std::string& predef_name) {
     auto name = ngraph::to_upper(predef_name);
     auto it = dim_aliases().find(name);
     if (it != dim_aliases().end()) {

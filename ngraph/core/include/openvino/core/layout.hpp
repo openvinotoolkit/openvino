@@ -19,6 +19,14 @@ public:
 
     LayoutRank() = default;
 
+    bool operator==(const LayoutRank& rhs) const {
+        return m_dynamic == rhs.m_dynamic && m_right == rhs.m_right && m_left == rhs.m_left && m_size == rhs.m_size;
+    }
+
+    bool operator!=(const LayoutRank& rhs) const {
+        return !(*this == rhs);
+    }
+
     static LayoutRank create_static(value_type size) {
         return LayoutRank(size);
     }
@@ -74,8 +82,8 @@ public:
     /// - can define order and meaning for dimensions "NCHW"
     /// - partial layout specialization:
     ///   - "NC?" defines 3 dimensional layout, first two NC, 3rd one is not defined
-    ///   - "N..C" defines layout with dynamic rank where 1st dimension is N, last one is C
-    ///   - "N..C" defines layout with dynamic rank where first two are NC, others are not
+    ///   - "N...C" defines layout with dynamic rank where 1st dimension is N, last one is C
+    ///   - "N...C" defines layout with dynamic rank where first two are NC, others are not
     ///   defined
     /// - only order of dimensions "adbc" (0312)
     Layout(const std::string& layoutStr);
@@ -88,13 +96,25 @@ public:
     /// \return Index of given dimension name
     std::int64_t get_index_by_name(const std::string& dimensionName) const;
 
+    /// \brief Gets name of dimension at specified index
+    ///
+    /// \note: For layouts with dynamic rank, like 'NC...HW' negative index specifies position of dimension on the right.
+    /// \code{.cpp}
+    /// auto name = Layout("NC...HW).get_name_by_index(-2); //returns "H"
+    /// \endcode    ///
+    /// \throw ov::CheckFailure if dimension is neither defined, not specified as '?'
+    ///
+    /// \return Index of given dimension name. Empty string if dimension name is not defined, e.g. "?"
+    std::string get_name_by_index(std::int64_t index) const;
+
     /// \brief Sets index of dimension by a specified name
     void set_name_for_index(const std::string& dimensionName, std::int64_t index);
 
-    /// \brief Checks whether layout is SCALAR
-    /// \return `true` if layout is SCALAR
+    /// \brief Checks whether layout is scalar
+    /// \return `true` if layout is scalar
     bool is_scalar() const;
 
+    /// \brief Returns rank/size of layout. E.g. for Layout("NCHW").rank() returns 4
     LayoutRank rank() const;
 
     void update_rank(LayoutRank new_rank);
