@@ -287,6 +287,12 @@ install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
         INCLUDES DESTINATION ${IE_CPACK_IE_DIR}/include/ie)
 
+# TODO: remove once inference_engine_ir_reader is removed
+install(TARGETS ${TARGET_NAME} EXPORT ngraphTargets
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
@@ -294,7 +300,7 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
         INCLUDES DESTINATION ${IE_CPACK_IE_DIR}/include
                              # TODO: remove later once samples are updated
-                             ${IE_CPACK_IE_DIR}/include)
+                             ${IE_CPACK_IE_DIR}/include/ie)
 
 install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
         DESTINATION ${IE_CPACK_RUNTIME_PATH}

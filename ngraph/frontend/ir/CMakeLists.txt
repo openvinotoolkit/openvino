@@ -41,8 +41,13 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
-                                     PRIVATE ngraph::builder inference_engine_transformations
+        ngraph::builder inference_engine_transformations
         inference_engine pugixml::static inference_engine_plugin_api)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
+
+install(TARGETS ${TARGET_NAME} EXPORT ngraphTargets
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
