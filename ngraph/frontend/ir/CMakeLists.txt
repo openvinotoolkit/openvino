@@ -46,7 +46,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
 
-install(TARGETS ${TARGET_NAME} EXPORT ngraphTargets
+install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
