@@ -143,7 +143,7 @@ void op::v8::Slice::validate_and_infer_types() {
         const std::vector<int64_t> axes = axes_const->cast_vector<int64_t>();
 
         std::unordered_set<int64_t> axes_set(axes.begin(), axes.end());
-        NGRAPH_CHECK(axes_set.size() == axes.size(), "Slice values in `axes` input must be unique.");
+        NODE_VALIDATION_CHECK(this, axes_set.size() == axes.size(), "Slice values in `axes` input must be unique.");
 
         for (size_t i = 0; i < starts.size(); ++i) {
             const auto norm_axis = ngraph::normalize_axis(this, axes[i], data_shape.rank());
