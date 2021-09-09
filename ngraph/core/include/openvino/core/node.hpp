@@ -18,14 +18,14 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/check.hpp"
-#include "ngraph/deprecated.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -239,7 +239,7 @@ public:
     /// Sets/replaces the arguments with new arguments.
     void set_argument(size_t position, const Output<Node>& argument);
 
-    void set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape);
+    void set_output_type(size_t i, const element::Type& element_type, const Shape& pshape);
 
     /// Sets the number of outputs
     void set_output_size(size_t output_size);
@@ -318,10 +318,10 @@ public:
     const element::Type& get_element_type() const;
 
     /// Returns the shape for output i
-    const ngraph::Shape& get_output_shape(size_t i) const;
+    const StaticShape& get_output_shape(size_t i) const;
 
     /// Returns the partial shape for output i
-    const PartialShape& get_output_partial_shape(size_t i) const;
+    const Shape& get_output_partial_shape(size_t i) const;
 
     /// Return the output to use when converting to an Output<Node> with no index specified.
     /// Throws when not supported.
@@ -337,7 +337,7 @@ public:
     // TODO: deprecate in favor of node->get_output_shape(0) with a suitable check in the
     // calling code, or updates to the calling code if it is making an invalid assumption of
     // only one output.
-    const ngraph::Shape& get_shape() const;
+    const StaticShape& get_shape() const;
 
     /// Returns the tensor for output or input i
     descriptor::Tensor& get_output_tensor(size_t i) const;
@@ -358,11 +358,11 @@ public:
 
     /// Returns the shape of input i
     // TODO: deprecate in favor of node->get_input_shape(i)
-    const ngraph::Shape& get_input_shape(size_t i) const;
+    const StaticShape& get_input_shape(size_t i) const;
 
     /// Returns the partial shape of input i
     // TODO: deprecate in favor of node->get_input_partial_shape(i)
-    const PartialShape& get_input_partial_shape(size_t i) const;
+    const Shape& get_input_partial_shape(size_t i) const;
 
     /// Returns the tensor name for input i
     OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
@@ -654,10 +654,10 @@ struct RawNodeOutput {
 
 using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
-class OPENVINO_API NodeValidationFailure : public ngraph::CheckFailure {
+class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
     NodeValidationFailure(const ngraph::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
-        : CheckFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
+        : AssertFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
 };
 }  // namespace ov
 #define NODE_VALIDATION_CHECK(node, ...) NGRAPH_CHECK_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)

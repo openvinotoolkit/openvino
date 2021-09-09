@@ -24,8 +24,12 @@ bool SortScorePairDescend<std::pair<int, int>>(const std::pair<float, std::pair<
     return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second.second < pair2.second.second);
 }
 
-bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto doOp = ngraph::as_type_ptr<const ngraph::op::v0::DetectionOutput>(op);
         if (!doOp) {
             errorMessage = "Node is not an instance of the DetectionOutput from the operations set v0.";
@@ -116,8 +120,8 @@ void MKLDNNDetectionOutputNode::initSupportedPrimitiveDescriptors() {
         return;
 
     std::vector<PortConfigurator> inDataConf;
-    inDataConf.reserve(getOriginalInputsNumber());
-    for (int i = 0; i < getOriginalInputsNumber(); ++i)
+    inDataConf.reserve(inputShapes.size());
+    for (int i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
@@ -136,7 +140,7 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
     const float *arm_loc_data = inputShapes.size() > 4 ?
             reinterpret_cast<const float *>(getParentEdgeAt(idx_arm_location)->getMemoryPtr()->GetPtr()) : nullptr;
 
-    const int N = getParentEdgeAt(idx_confidence)->getShape().getStaticDims()[0];
+    const int N = getParentEdgeAt(idx_confidence)->getMemory().getStaticDims()[0];
 
     float *decoded_bboxes_data = _decoded_bboxes.data();
     float *reordered_conf_data = _reordered_conf.data();
@@ -285,8 +289,9 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
         }
     }
 
-    const int num_results = getChildEdgesAtPort(0)[0]->getShape().getStaticDims()[2];
-    const int DETECTION_SIZE = getChildEdgesAtPort(0)[0]->getShape().getStaticDims()[3];
+    const auto outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const int num_results = outDims[2];
+    const int DETECTION_SIZE = outDims[3];
     if (DETECTION_SIZE != 7) {
         IE_THROW() << NOT_IMPLEMENTED;
     }

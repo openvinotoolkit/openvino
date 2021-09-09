@@ -49,11 +49,11 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
     std::string outputPrecisionsStr;
     if (!node->getChildEdges().empty()) {
-        outputPrecisionsStr = node->getChildEdgeAt(0)->getMemory().GetDesc().getPrecision().name();
+        outputPrecisionsStr = node->getChildEdgeAt(0)->getMemory().getDesc().getPrecision().name();
 
         bool isAllEqual = true;
         for (size_t i = 1; i < node->getChildEdges().size(); i++) {
-            if (node->getChildEdgeAt(i - 1)->getMemory().GetDesc().getPrecision() != node->getChildEdgeAt(i)->getMemory().GetDesc().getPrecision()) {
+            if (node->getChildEdgeAt(i - 1)->getMemory().getDesc().getPrecision() != node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision()) {
                 isAllEqual = false;
                 break;
             }
@@ -62,12 +62,12 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
         // If all output precisions are the same, we store the name only once
         if (!isAllEqual) {
             for (size_t i = 1; i < node->getChildEdges().size(); i++)
-                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getMemory().GetDesc().getPrecision().name());
+                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().name());
         }
     } else {
         // Branch to correctly handle output nodes
         if (!node->getParentEdges().empty()) {
-            outputPrecisionsStr = node->getParentEdgeAt(0)->getMemory().GetDesc().getPrecision().name();
+            outputPrecisionsStr = node->getParentEdgeAt(0)->getMemory().getDesc().getPrecision().name();
         }
     }
     serialization_info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
@@ -164,7 +164,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
         auto meta_data = extract_node_metadata(node);
         std::shared_ptr<ngraph::Node> return_node;
         if (is_input) {
-            auto& desc = node->getChildEdgeAt(0)->getMemory().GetDesc();
+            auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
             auto param = std::make_shared<ngraph::op::Parameter>(details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
             return_node = param;
             params.push_back(param);
@@ -176,7 +176,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
                 get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
-                auto& desc = node->getChildEdgeAt(port)->getMemory().GetDesc();
+                auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
                 return_node->set_output_type(port, details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
             }
         }
