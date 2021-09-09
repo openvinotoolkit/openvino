@@ -4,6 +4,7 @@
 
 #include "ngraph/op/slice.hpp"
 
+#include <cmath>
 #include <numeric>
 
 #include "itt.hpp"
@@ -44,16 +45,31 @@ std::shared_ptr<ngraph::op::v0::Constant> get_default_const_axes(const Output<No
         std::vector<int64_t> axes(axes_length);
         std::iota(axes.begin(), axes.end(), 0);
         return op::v0::Constant::create(element::i64, Shape{axes_length}, axes);
-    } else
-        return nullptr;  // Dynamic case, if start is parameter without const values, we can't calculate output dims
-                         // anyway;
-
-    // // Dynamic case // not needed, if start is dynamic we can't calculate output dims anyway
-    // const auto axes_start_val = op::Constant::create(element::i64, {}, {0});
-    // const auto axes_end_val = std::make_shared<op::v0::Squeeze>(std::make_shared<op::v3::ShapeOf>(start));
-    // const auto axes_step_val = op::Constant::create(element::i64, {}, {1});
-    // return std::make_shared<op::v4::Range>(axes_start_val, axes_end_val, axes_step_val, element::i64);
+    } else  // Dynamic case
+        return nullptr;
 }
+
+int64_t get_sliced_dim_size(int64_t start, int64_t stop, int64_t step, int64_t dim_size) {
+    // Normalize index
+    start = start < 0 ? dim_size + start : start;
+    stop = stop < 0 ? dim_size + stop : stop;
+
+    // Clip normalized bounds according to the dim size
+    start = std::max(int64_t(0), std::min(start, dim_size));  // inclusive
+    stop = std::max(int64_t(-1), std::min(stop, dim_size));   // exclusive
+
+    int64_t elements_in_range = 0;
+    if (step < 0) {
+        // Clip max start index (last element inclusively)
+        elements_in_range = std::max(int64_t(0), std::min(dim_size - 1, start) - stop);
+    } else {
+        // Clip max stop index (last element exclusively)
+        elements_in_range = std::max(int64_t(0), std::min(dim_size, stop) - start);
+    }
+    const int64_t sliced_dim_size = std::ceil(elements_in_range / std::fabs(step));
+    return sliced_dim_size;
+}
+
 }  // namespace
 
 bool op::v8::Slice::visit_attributes(AttributeVisitor& visitor) {
@@ -64,15 +80,14 @@ bool op::v8::Slice::visit_attributes(AttributeVisitor& visitor) {
 void op::v8::Slice::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v8_Slice_validate_and_infer_types);
 
+    const auto inputs_size = get_input_size();
+    NODE_VALIDATION_CHECK(this,
+                          inputs_size == 4 || inputs_size == 5,
+                          "Slice has to have 4 or 5 inputs. Got: ",
+                          inputs_size);
+
     const PartialShape& data_shape = get_input_partial_shape(0);
     PartialShape output_shape(data_shape);
-
-    // If data_shape.rank() is dynamic we can't calulate output shape
-    // even with const start/stop/step/axes we don't know how many axes should be copied
-    // as "unspefified" in the final output shape, so the output shape rank is also dynamic.
-    if (data_shape.rank().is_dynamic()) {
-        set_output_type(0, get_input_element_type(0), output_shape);
-    }
 
     const auto& start_rank = get_input_partial_shape(1).rank();
     const auto& stop_rank = get_input_partial_shape(2).rank();
@@ -82,20 +97,28 @@ void op::v8::Slice::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, stop_rank.compatible(1), "Stop input must be a 1D tensor. Got: ", stop_rank);
     NODE_VALIDATION_CHECK(this, step_rank.compatible(1), "Step input must be a 1D tensor. Got: ", step_rank);
 
-    const auto inputs_size = get_input_size();
+    const auto& start_input = input_value(1);
+    const auto& stop_input = input_value(2);
+    const auto& step_input = input_value(3);
+
     NODE_VALIDATION_CHECK(this,
-                          inputs_size == 4 || inputs_size == 5,
-                          "Slice has to have 4 or 5 inputs. Got: ",
-                          inputs_size);
+                          start_input.get_element_type().is_integral_number(),
+                          "Slice `start` input type must be integral.");
+    NODE_VALIDATION_CHECK(this,
+                          stop_input.get_element_type().is_integral_number(),
+                          "Slice `stop` input type must be integral.");
+    NODE_VALIDATION_CHECK(this,
+                          step_input.get_element_type().is_integral_number(),
+                          "Slice `step` input type must be integral.");
 
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    const auto start_const = get_constant_from_source(input_value(1));
-    const auto stop_const = get_constant_from_source(input_value(2));
-    const auto step_const = get_constant_from_source(input_value(3));
+    const auto start_const = get_constant_from_source(start_input);
+    const auto stop_const = get_constant_from_source(stop_input);
+    const auto step_const = get_constant_from_source(step_input);
 
     std::shared_ptr<ngraph::op::v0::Constant> axes_const;
     if (get_input_size() > 4) {
@@ -105,70 +128,79 @@ void op::v8::Slice::validate_and_infer_types() {
         axes_const = get_default_const_axes(input_value(1));
     }
 
+    // If data_shape rank is dynamic we can't calulate output shape.
+    // Even with const start/stop/step/axes, we don't know how many axes should be copied
+    // as "unspefified" in the final output shape, so the output shape rank is also dynamic.
+    if (data_shape.rank().is_dynamic()) {
+        set_output_type(0, get_input_element_type(0), output_shape);
+        return;
+    }
+
     if (start_const && stop_const && step_const && axes_const) {
         const std::vector<int64_t> starts = start_const->cast_vector<int64_t>();
         const std::vector<int64_t> stops = stop_const->cast_vector<int64_t>();
         const std::vector<int64_t> steps = step_const->cast_vector<int64_t>();
         const std::vector<int64_t> axes = axes_const->cast_vector<int64_t>();
 
-        for (size_t i = 0; i < data_shape.rank().get_length(); ++i) {
-            // Dynamic data_shape rank was handled on the begining
+        std::unordered_set<int64_t> axes_set(axes.begin(), axes.end());
+        NGRAPH_CHECK(axes_set.size() == axes.size(), "Slice values in `axes` input must be unique.");
+
+        for (size_t i = 0; i < starts.size(); ++i) {
             const auto norm_axis = ngraph::normalize_axis(this, axes[i], data_shape.rank());
 
             auto start = starts[i];
             auto stop = stops[i];
             auto step = steps[i];
 
-            NODE_VALIDATION_CHECK(this, step != 0, "'step' value can't be zero!");
+            NODE_VALIDATION_CHECK(this, step != 0, "Sllice 'step' value can't be zero.");
 
             const auto& axis_dim = data_shape[norm_axis];
-            if (axis_dim.is_dynamic()) {
-                if (start < 0 || stop < 0) {  // Can't be normalized
-                    output_shape[norm_axis] = Dimension(0, axis_dim.get_max_length());
+            const auto axis_min_dim_length = axis_dim.get_min_length();
+            const auto min_dim_size = get_sliced_dim_size(start, stop, step, axis_min_dim_length);
+            if (axis_dim.is_static()) {
+                output_shape[norm_axis] = min_dim_size;
+            }
+
+            // Avoid negative index normalization without upper bounds
+            if (!axis_dim.get_interval().has_upper_bound()) {
+                if ((step < 0 && start < 0 && stop > 0) || (step > 0 && stop < 0 && start > 0)) {
+                    output_shape[norm_axis] = Dimension(-1);
+                    continue;
+                } else if (step < 0 && start > 0 && stop < 0) {
+                    int64_t max_out_dim = start >= INT32_MAX ? INT64_MAX : start + 1;
+                    output_shape[norm_axis] = Dimension(0, max_out_dim);
+                    continue;
+                } else if (step > 0 && stop > 0 && start < 0) {
+                    int64_t max_out_dim = stop >= INT32_MAX ? INT64_MAX : stop;
+                    output_shape[norm_axis] = Dimension(0, max_out_dim);
                     continue;
                 }
             }
 
-            const auto axis_dim_length = axis_dim.get_max_length();
-
-            // Normalize indices
-            start = start < 0 ? axis_dim_length + start : start;
-            stop = stop < 0 ? axis_dim_length + stop : stop;
-
-            // Check bounds intersection
-            const bool no_intersection_negative_step = (start <= stop || start < 0) && step < 0;
-            const bool no_intersection_positive_step = (start >= axis_dim_length || start >= stop) && step > 0;
-            if (no_intersection_positive_step || no_intersection_negative_step) {
-                output_shape[norm_axis] = 0;
-                continue;
-            }
-
-            // Clip bounds values according to the dim size
-            start = std::max(int64_t(0), std::min(start, axis_dim_length - 1));  // inclusive
-            stop = std::max(int64_t(-1), std::min(stop, axis_dim_length));       // exclusive
-
-            const auto elements_in_range = std::ceil(std::fabs(stop - start) / fabs(step));
-            output_shape[norm_axis] = elements_in_range;
+            // Calculate max dim length (upper bound)
+            auto axis_max_dim_length = axis_dim.get_interval().get_max_val();
+            const auto max_dim_size = get_sliced_dim_size(start, stop, step, axis_max_dim_length);
+            output_shape[norm_axis] = Dimension(min_dim_size, max_dim_size);
         }
     } else {
         if (axes_const) {
             // If we know only axes values, we should update lower_bound to 0 value,
             // for the specified dims by the axes. For unspecified dims, bounds as in data_shape.
             for (const auto& axis : axes_const->cast_vector<int64_t>()) {
-                if (axis < data_shape.rank().get_length()) {
-                    output_shape[axis] = Dimension(0, data_shape[axis].get_max_length());
-                }
-                // TODO: else throw, or check the values in advance
+                NODE_VALIDATION_CHECK(this,
+                                      axis < data_shape.rank().get_length(),
+                                      "Provided axis value must be in range of the data input rank. Got: ",
+                                      axis);
+                output_shape[axis] = Dimension(0, data_shape[axis].get_max_length());
             }
         } else {
             // Otherwise axes values are also unknown,
-            // then all of the output dims can be 0, so lower_bound = 0.
+            // then all of the output dims can be 0, so have lower bound = 0.
             for (size_t i = 0; i < data_shape.rank().get_length(); ++i) {
                 output_shape[i] = Dimension(0, data_shape[i].get_max_length());
             }
         }
     }
-
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
