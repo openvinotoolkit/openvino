@@ -49,6 +49,11 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "template_plugin"
     )
+    # marker for skipping some tests in Debug configuration (issue - 29031)
+    config.addinivalue_line(
+        "markers", "file_name_dependent_test"
+    )
+
 
 
 def create_ngraph_function(inputShape):
