@@ -10,7 +10,7 @@
 
 using namespace std;
 
-constexpr ov::NodeTypeInfo ov::op::util::ScatterNDBase::type_info;
+OPENVINO_RTTI_DEFINITION(ov::op::util::ScatterNDBase, "ScatterNDBase", 0);
 constexpr int ov::op::util::ScatterNDBase::INPUTS;
 constexpr int ov::op::util::ScatterNDBase::INDICES;
 constexpr int ov::op::util::ScatterNDBase::UPDATES;
@@ -33,9 +33,9 @@ void ov::op::util::ScatterNDBase::validate_and_infer_types() {
     element::Type indices_et = get_input_element_type(INDICES);
     element::Type updates_et = get_input_element_type(UPDATES);
 
-    const PartialShape& inputs_shape = get_input_partial_shape(INPUTS);
-    const PartialShape& indices_shape = get_input_partial_shape(INDICES);
-    const PartialShape& updates_shape = get_input_partial_shape(UPDATES);
+    const Shape& inputs_shape = get_input_partial_shape(INPUTS);
+    const Shape& indices_shape = get_input_partial_shape(INDICES);
+    const Shape& updates_shape = get_input_partial_shape(UPDATES);
 
     const auto& inputs_rank = inputs_shape.rank();
     const auto& indices_rank = indices_shape.rank();
