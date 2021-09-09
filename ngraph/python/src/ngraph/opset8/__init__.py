@@ -84,7 +84,7 @@ from ngraph.opset4.ops import lstm_cell
 from ngraph.opset1.ops import lstm_sequence
 from ngraph.opset1.ops import matmul
 from ngraph.opset8.ops import matrix_nms
-from ngraph.opset1.ops import max_pool
+from ngraph.opset8.ops import max_pool
 from ngraph.opset1.ops import maximum
 from ngraph.opset1.ops import minimum
 from ngraph.opset4.ops import mish
