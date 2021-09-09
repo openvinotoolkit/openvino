@@ -370,7 +370,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Pow", 1, pow);
     REGISTER_OPERATOR("PRelu", 1, prelu);
     REGISTER_OPERATOR("QLinearConv", 1, qlinear_conv);
-    REGISTER_OPERATOR("QLinearMatMul", 10, qlinear_matmul);
+    REGISTER_OPERATOR("QLinearMatMul", 1, qlinear_matmul);
     REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
     REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
     REGISTER_OPERATOR("Range", 1, range);

@@ -16,7 +16,7 @@
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace set_10 {
+namespace set_1 {
 OutputVector qlinear_matmul(const Node& node) {
     const OutputVector& inputs = node.get_ng_inputs();
 
@@ -48,7 +48,7 @@ OutputVector qlinear_matmul(const Node& node) {
 
     return {quantized_result};
 }
-}  // namespace set_10
+}  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph

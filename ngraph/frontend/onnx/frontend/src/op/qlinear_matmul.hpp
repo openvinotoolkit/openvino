@@ -10,7 +10,7 @@
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace set_10 {
+namespace set_1 {
 /// \brief Performs ONNX QLinearMatMul operation.
 ///
 /// \param node   The ONNX node object representing this operation.
@@ -18,7 +18,7 @@ namespace set_10 {
 /// \return The vector containing Ngraph nodes producing output of ONNX quantizied
 ///         matrix multiplication operation.
 OutputVector qlinear_matmul(const Node& node);
-}  // namespace set_10
+}  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
