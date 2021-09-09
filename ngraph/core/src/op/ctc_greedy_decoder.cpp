@@ -27,7 +27,7 @@ void op::CTCGreedyDecoder::validate_and_infer_types() {
 
     // output dynamic rank tensor if all inputs are of dynamic rank
     if (logits_pshape.rank().is_dynamic() && seq_mask_pshape.rank().is_dynamic()) {
-        set_output_type(0, input_et, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 1, 1});
+        set_output_type(0, input_et, ov::Shape{Dimension::dynamic(), Dimension::dynamic(), 1, 1});
     }
 
     // check ranks of input tensors
@@ -71,7 +71,7 @@ void op::CTCGreedyDecoder::validate_and_infer_types() {
             batch_size = seq_mask_pshape[1];
         }
     }
-    set_output_type(0, input_et, PartialShape{batch_size, time_size, 1, 1});
+    set_output_type(0, input_et, ov::Shape{batch_size, time_size, 1, 1});
 }
 
 bool op::CTCGreedyDecoder::visit_attributes(AttributeVisitor& visitor) {

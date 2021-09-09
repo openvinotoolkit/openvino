@@ -28,8 +28,7 @@ op::v8::If::If(const Output<Node>& execution_condition) : If() {
 
 // This function tries to calculate the output shape of the if operation by two outputs from two
 // subgraphs.
-static ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshape,
-                                          const ngraph::PartialShape& else_pshape) {
+static ov::Shape resolve_shape(const ov::Shape& then_pshape, const ov::Shape& else_pshape) {
     // then_pshape - shape of output from then_body
     // else_pshape - shape of output from else_body
     auto then_rank = then_pshape.rank();
@@ -38,7 +37,7 @@ static ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshap
     // if rangs of shapes are not equal or rang of one of them is dynamic function
     // return shape with dynamic rank
     if (then_rank.is_dynamic() || else_rank.is_dynamic() || then_rank.get_length() != else_rank.get_length()) {
-        return ngraph::PartialShape::dynamic(ngraph::Rank::dynamic());
+        return ov::Shape::dynamic(ngraph::Rank::dynamic());
     }
     std::vector<Dimension> new_dims;
 
@@ -57,7 +56,7 @@ static ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshap
         }
     }
 
-    return PartialShape(new_dims);
+    return ov::Shape(new_dims);
 }
 
 bool op::v8::If::visit_attributes(AttributeVisitor& visitor) {

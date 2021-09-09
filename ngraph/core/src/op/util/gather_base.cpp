@@ -88,7 +88,7 @@ void ov::op::util::GatherBase::validate_and_infer_types() {
 
     if (data_rank.is_static() && indices_rank.is_static()) {
         auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
-        PartialShape output_pshape = PartialShape::dynamic(out_rank);
+        Shape output_pshape = Shape::dynamic(out_rank);
 
         // implementation of out_shape formula
         // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
@@ -124,7 +124,7 @@ void ov::op::util::GatherBase::validate_and_infer_types() {
         Rank out_rank = data_rank + indices_rank - 1 - batch_dims;
         if (batch_dims < 0)
             out_rank = out_rank - indices_rank.get_max_length();
-        set_output_type(0, data_type, PartialShape::dynamic(out_rank));
+        set_output_type(0, data_type, Shape::dynamic(out_rank));
     }
 }
 
@@ -218,7 +218,7 @@ bool evaluate_gather(const ngraph::HostTensorPtr& arg0,
 
 bool cf_gather_with_subgraph(ov::OutputVector& output_values,
                              const ov::OutputVector& input_values,
-                             const ov::PartialShape& gather_ps) {
+                             const ov::Shape& gather_ps) {
     if (gather_ps.is_dynamic() || input_values.size() != 3) {
         return false;
     }

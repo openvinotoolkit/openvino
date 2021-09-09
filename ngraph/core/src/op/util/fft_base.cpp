@@ -38,7 +38,7 @@ void ov::op::util::FFTBase::validate() {
                           axes_et == element::i64 || axes_et == element::i32,
                           "FFT op axes element type must be i32 or i64");
 
-    const auto& input_shape = PartialShape(get_input_partial_shape(0));
+    const auto& input_shape = Shape(get_input_partial_shape(0));
     if (input_shape.rank().is_static()) {
         const auto input_rank = input_shape.rank().get_length();
         NODE_VALIDATION_CHECK(this,
@@ -53,7 +53,7 @@ void ov::op::util::FFTBase::validate() {
                               input_shape[input_rank - 1]);
     }
 
-    const auto& axes_shape = PartialShape(get_input_partial_shape(1));
+    const auto& axes_shape = Shape(get_input_partial_shape(1));
     if (axes_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,
                               axes_shape.rank().get_length() == 1,
@@ -110,7 +110,7 @@ void ov::op::util::FFTBase::validate() {
                               signal_size_et == element::i64 || signal_size_et == element::i32,
                               "FFT op signal_size element type must be i32 or i64");
 
-        const auto& signal_size_shape = PartialShape(get_input_partial_shape(2));
+        const auto& signal_size_shape = Shape(get_input_partial_shape(2));
         if (signal_size_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(this,
                                   signal_size_shape.rank().get_length() == 1,
@@ -135,9 +135,9 @@ void ov::op::util::FFTBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_FFTBase_validate_and_infer_types);
     validate();
 
-    const auto& input_shape = PartialShape(get_input_partial_shape(0));
-    const auto& axes_shape = PartialShape(get_input_partial_shape(1));
-    PartialShape output_shape = input_shape;
+    const auto& input_shape = Shape(get_input_partial_shape(0));
+    const auto& axes_shape = Shape(get_input_partial_shape(1));
+    Shape output_shape = input_shape;
     if (input_shape.rank().is_dynamic()) {
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
@@ -158,7 +158,7 @@ void ov::op::util::FFTBase::validate_and_infer_types() {
         return;
     }
 
-    const auto& signal_size_shape = PartialShape(get_input_partial_shape(2));
+    const auto& signal_size_shape = Shape(get_input_partial_shape(2));
     if (signal_size_shape.rank().is_dynamic()) {
         set_output_type(0, get_input_element_type(0), output_shape);
         return;

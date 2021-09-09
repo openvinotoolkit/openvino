@@ -63,7 +63,7 @@ ngraph::pass::LowLatency::LowLatency() {
                     func->get_parameters().at(merged_in->m_body_parameter_index)->get_friendly_name(),
                     variable_id));
                 auto variable =
-                    std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name});
+                    std::make_shared<Variable>(VariableInfo{ov::Shape::dynamic(), element::dynamic, variable_name});
                 auto read_value =
                     std::make_shared<opset6::ReadValue>(func->get_parameters().at(merged_in->m_body_parameter_index),
                                                         variable);
@@ -186,7 +186,7 @@ bool ov::pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
                         }
                     }
 
-                    ngraph::VariableInfo var_info{PartialShape::dynamic(), element::dynamic, var_name};
+                    ngraph::VariableInfo var_info{Shape::dynamic(), element::dynamic, var_name};
                     auto variable = make_shared<ngraph::Variable>(var_info);
 
                     // insert ReadValue
