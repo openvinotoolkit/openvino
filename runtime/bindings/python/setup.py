@@ -18,9 +18,8 @@ from distutils.command.build import build as _build
 
 __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
 PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
-NGRAPH_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, ".."))
-OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../.."))
-# Change current working dircectory to ngraph/python
+OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../../../"))
+# Change current working directory to runtime/bindings/python
 os.chdir(PYNGRAPH_ROOT_DIR)
 
 NGRAPH_LIBS = ["ngraph", "onnx_ngraph_frontend"]
