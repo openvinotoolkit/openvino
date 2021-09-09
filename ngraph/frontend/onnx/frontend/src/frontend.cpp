@@ -26,7 +26,7 @@ extern "C" ONNX_FRONTEND_API FrontEndVersion GetAPIVersion() {
 
 extern "C" ONNX_FRONTEND_API void* GetFrontEndData() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
-    res->m_name = "onnx_experimental";
+    res->m_name = "onnx";
     res->m_creator = []() {
         return std::make_shared<FrontEndONNX>();
     };
@@ -34,6 +34,7 @@ extern "C" ONNX_FRONTEND_API void* GetFrontEndData() {
 }
 
 InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
     if (variants.size() == 0) {
         return nullptr;
     }
@@ -65,16 +66,19 @@ InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Varian
 }
 
 std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) const {
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
     auto model_onnx = std::dynamic_pointer_cast<InputModelONNX>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->convert();
 }
 
 void FrontEndONNX::convert(std::shared_ptr<ngraph::Function> partially_converted) const {
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
     onnx_import::detail::convert_decoded_function(partially_converted);
 }
 
 std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) const {
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
     auto model_onnx = std::dynamic_pointer_cast<InputModelONNX>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();
