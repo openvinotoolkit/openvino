@@ -62,7 +62,6 @@ public:
                                          operationType(std::move(operationType)) {}
     };
 
-    ngraph::element::Type precision;
     bool broadcast;
     int constInput;
     TestTransformationParams params;
@@ -169,7 +168,6 @@ const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputSh
 const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches = {
     // Multiply with zero on the first branch
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -192,7 +190,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     },
     // Multiply with zero on the second branch
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -245,7 +242,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     //           \    /
     //            Add
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -298,7 +294,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     //           \    /
     //            Add
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -328,7 +323,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
         ""
     },
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -350,7 +344,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
         ""
     },
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -372,7 +365,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
         ""
     },
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -394,7 +386,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
         ""
     },
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -419,7 +410,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     // I8 + broadcast
 
     {
-        ngraph::element::f32,
         true,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -441,7 +431,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
         ""
     },
     {
-        ngraph::element::f32,
         true,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -463,7 +452,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
         ""
     },
     {
-        ngraph::element::f32,
         true,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -485,7 +473,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
         ""
     },
     {
-        ngraph::element::f32,
         true,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -507,7 +494,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
         ""
     },
     {
-        ngraph::element::f32,
         true,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -531,7 +517,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
 
     // convolution before FQ (choose that branch)
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -554,7 +539,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     },
     // convolution with multiple consumers before FQ ( FP32 on other branch due to possible quantize fusing )
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -577,7 +561,6 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     },
     // group convolution before FQ (choose that branch)
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -645,7 +628,6 @@ const std::vector<AddTransformationTestValues> testValuesWithFirstConstantBranch
     //       \      /
     //      Multiply
     {
-        ngraph::element::f32,
         false,
         0,
         LayerTransformation::createParamsU8I8(),
@@ -722,7 +704,6 @@ const std::vector<AddTransformationTestValues> testValuesWithSecondConstantBranc
     //       \      /
     //      Multiply
     {
-        ngraph::element::f32,
         false,
         1,
         LayerTransformation::createParamsU8I8(),
@@ -772,7 +753,6 @@ const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputSh
 const std::vector<AddTransformationTestValues> specialTestValues = {
     // constant input: Add -> Subtract
     {
-        ngraph::element::f32,
         false,
         1,
         LayerTransformation::createParamsU8I8(),
@@ -797,7 +777,6 @@ const std::vector<AddTransformationTestValues> specialTestValues = {
 
     // constant input: Add -> Subtract
     {
-        ngraph::element::f32,
         false,
         0,
         LayerTransformation::createParamsU8I8(),
@@ -839,7 +818,6 @@ const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputSh
 
 const std::vector<AddTransformationTestValues> specialTestValues = {
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -888,7 +866,6 @@ const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputSh
 
 const std::vector<AddTransformationTestValues> testValues = {
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -910,7 +887,6 @@ const std::vector<AddTransformationTestValues> testValues = {
         ""
     },
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -933,7 +909,6 @@ const std::vector<AddTransformationTestValues> testValues = {
     },
     // multiply with zero
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -982,7 +957,6 @@ const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputSh
 
 const std::vector<AddTransformationTestValues> testValues = {
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -1004,7 +978,6 @@ const std::vector<AddTransformationTestValues> testValues = {
         ""
     },
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -1027,7 +1000,6 @@ const std::vector<AddTransformationTestValues> testValues = {
     },
     // multiply with zero
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8(),
@@ -1077,7 +1049,6 @@ const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputSh
 const std::vector<AddTransformationTestValues> testValues = {
     // FP32 model, quantized branch: 1
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
@@ -1100,7 +1071,6 @@ const std::vector<AddTransformationTestValues> testValues = {
     },
     // FP32 model, quantized branch: 0
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
@@ -1123,7 +1093,6 @@ const std::vector<AddTransformationTestValues> testValues = {
     },
     // INT8 model (FQ decomposition before LPT), quantized branch: 1
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
@@ -1146,7 +1115,6 @@ const std::vector<AddTransformationTestValues> testValues = {
     },
     // INT8 model (FQ decomposition before LPT), quantized branch: 0
     {
-        ngraph::element::f32,
         false,
         -1,
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),

@@ -73,7 +73,7 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
     auto& output = outputs[0];
-    auto repeats_val = read_vector<int64_t>(axis);
+    auto repeats_val = read_index_vector(axis);
     auto repeats_rank = repeats_val.size();
     ov::StaticShape data_shape = data->get_shape();
     auto data_rank = data_shape.size();
