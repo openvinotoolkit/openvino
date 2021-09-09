@@ -403,7 +403,7 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
     network network_second(*engine, topo, bo);
     network_second.set_input_data("input", input_1);
     auto outputs_second = network_second.execute();
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)3928);
+    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)4328);
 }
 
 TEST(memory_pool, shared_dep_two_output) {
