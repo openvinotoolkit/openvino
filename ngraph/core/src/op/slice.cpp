@@ -4,7 +4,6 @@
 
 #include "ngraph/op/slice.hpp"
 
-#include <cmath>
 #include <numeric>
 
 #include "itt.hpp"
@@ -16,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v8::Slice, "Slice", 8);
+OPENVINO_RTTI_DEFINITION(op::v8::Slice, "Slice", 8);
 
 op::v8::Slice::Slice(const Output<Node>& data,
                      const Output<Node>& start,

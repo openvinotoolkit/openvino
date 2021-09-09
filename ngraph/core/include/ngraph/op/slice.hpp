@@ -5,34 +5,12 @@
 #pragma once
 
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/op/slice.hpp"
 
 namespace ngraph {
 namespace op {
 namespace v8 {
-/// \brief Slice operation.
-///
-class NGRAPH_API Slice : public Op {
-public:
-    NGRAPH_RTTI_DECLARATION;
-
-    Slice() = default;
-
-    ///
-    /// \brief    Constructs Slice operation.
-    ///
-    Slice(const Output<Node>& data, const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step);
-    Slice(const Output<Node>& data,
-          const Output<Node>& start,
-          const Output<Node>& stop,
-          const Output<Node>& step,
-          const Output<Node>& axes);
-
-    void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-};
+using ov::op::v8::Slice;
 }  // namespace v8
 }  // namespace op
 }  // namespace ngraph
