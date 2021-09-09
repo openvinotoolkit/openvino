@@ -577,7 +577,7 @@ def test_infer_dynamic_network_with_set_shape(shape, p_shape, ref_shape):
     function = create_ngraph_function(shape)
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
-    ie_core = ie.IECore()
+    ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     exec_net.requests[0].input_blobs["data"].set_shape(ref_shape)
@@ -585,8 +585,8 @@ def test_infer_dynamic_network_with_set_shape(shape, p_shape, ref_shape):
     exec_net.infer({"data": np.ones(ref_shape)})
     request = exec_net.requests[0]
     request.async_infer({"data": np.ones(ref_shape)})
-    status = request.wait(ie.WaitMode.RESULT_READY)
-    assert status == ie.StatusCode.OK
+    status = request.wait(WaitMode.RESULT_READY)
+    assert status == StatusCode.OK
     assert request.output_blobs['out'].tensor_desc.dims == ref_shape
 
 
@@ -604,15 +604,15 @@ def test_infer_dynamic_network_without_set_shape(shape, p_shape, ref_shape):
     function = create_ngraph_function(shape)
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
-    ie_core = ie.IECore()
+    ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     exec_net.infer({"data": np.ones(ref_shape)})
     assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape
     request = exec_net.requests[0]
     request.async_infer({"data": np.ones(ref_shape)})
-    status = request.wait(ie.WaitMode.RESULT_READY)
-    assert status == ie.StatusCode.OK
+    status = request.wait(WaitMode.RESULT_READY)
+    assert status == StatusCode.OK
     assert request.output_blobs['out'].tensor_desc.dims == ref_shape
 
 
@@ -630,19 +630,19 @@ def test_infer_dynamic_network_with_set_blob(shape, p_shape, ref_shape):
     function = create_ngraph_function(shape)
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
-    ie_core = ie.IECore()
+    ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
     tensor_desc.dims = ref_shape
-    blob = ie.Blob(tensor_desc)
+    blob = Blob(tensor_desc)
     exec_net.requests[0].set_blob("data", blob)
     assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape
     request = exec_net.requests[0]
     request.infer({"data": np.ones(ref_shape)})
     request.async_infer({"data": np.ones(ref_shape)})
-    status = request.wait(ie.WaitMode.RESULT_READY)
-    assert status == ie.StatusCode.OK
+    status = request.wait(WaitMode.RESULT_READY)
+    assert status == StatusCode.OK
     assert request.output_blobs["out"].tensor_desc.dims == ref_shape
 
 
@@ -656,7 +656,7 @@ def test_infer_dynamic_network_twice():
     function = create_ngraph_function(shape)
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
-    ie_core = ie.IECore()
+    ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     request = exec_net.requests[0]
@@ -678,20 +678,20 @@ def test_infer_dynamic_network_with_set_blob_twice():
     function = create_ngraph_function(shape)
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
-    ie_core = ie.IECore()
+    ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     request = exec_net.requests[0]
     td = request.input_blobs['data'].tensor_desc
     td.dims = ref_shape1
-    blob = ie.Blob(td)
+    blob = Blob(td)
     request.set_blob("data", blob)
     request.infer({"data": np.ones(ref_shape1)})
     assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape1
     assert request.output_blobs['out'].tensor_desc.dims == ref_shape1
     td = request.input_blobs['data'].tensor_desc
     td.dims = ref_shape2
-    blob = ie.Blob(td)
+    blob = Blob(td)
     request.set_blob("data", blob)
     request.infer({"data": np.ones(ref_shape2)})
     assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape2
@@ -710,14 +710,14 @@ def test_async_infer_dynamic_network_3_requests(shapes):
     function = create_ngraph_function([3, 4, 20, 20])
     net = ng.function_to_cnn(function)
     net.reshape({"data": [3, (2, 10), 20, 20]})
-    ie_core = ie.IECore()
+    ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE", num_requests=3)
     for i,request in enumerate(exec_net.requests):
         request.async_infer({"data": np.ones(shapes[i])})
     for i,request in enumerate(exec_net.requests):
-        status = request.wait(ie.WaitMode.RESULT_READY)
-        assert status == ie.StatusCode.OK
+        status = request.wait(WaitMode.RESULT_READY)
+        assert status == StatusCode.OK
         assert request.output_blobs['out'].tensor_desc.dims == shapes[i]
 
 
@@ -728,12 +728,12 @@ def test_set_blob_with_incorrect_name():
     import ngraph as ng
     function = create_ngraph_function([4, 4, 20, 20])
     net = ng.function_to_cnn(function)
-    ie_core = ie.IECore()
+    ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
     tensor_desc.dims = [4, 4, 20, 20]
-    blob = ie.Blob(tensor_desc)
+    blob = Blob(tensor_desc)
     with pytest.raises(RuntimeError) as e:
         exec_net.requests[0].set_blob("incorrect_name", blob)
     assert f"Failed to find input or output with name: 'incorrect_name'" in str(e.value)
@@ -746,12 +746,12 @@ def test_set_blob_with_incorrect_size():
     import ngraph as ng
     function = create_ngraph_function([4, 4, 20, 20])
     net = ng.function_to_cnn(function)
-    ie_core = ie.IECore()
+    ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
     tensor_desc.dims = [tensor_desc.dims[0]*2, 4, 20, 20]
-    blob = ie.Blob(tensor_desc)
+    blob = Blob(tensor_desc)
     with pytest.raises(RuntimeError) as e:
         exec_net.requests[0].set_blob("data", blob)
     assert f"Input blob size is not equal network input size" in str(e.value)
@@ -767,13 +767,13 @@ def test_set_blob_after_async_infer():
     import ngraph as ng
     function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)
-    ie_core = ie.IECore()
+    ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
     request = exec_net.requests[0]
     tensor_desc = request.input_blobs['data'].tensor_desc
     tensor_desc.dims = [2, 4, 20, 20]
-    blob = ie.Blob(tensor_desc)
+    blob = Blob(tensor_desc)
     request.async_infer({"data": np.ones([4, 4, 20, 20])})
     with pytest.raises(RuntimeError) as e:
         request.set_blob("data", blob)
