@@ -5,7 +5,6 @@ import logging as log
 
 import numpy as np
 
-from extensions.back.ScalarConstNormalize import ScalarNormalize
 from extensions.ops.ReduceOps import reduce_map
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
@@ -22,9 +21,6 @@ class ReduceMerge(BackReplacementPattern):
     """
     enabled = True
     force_clean_up = True
-
-    def run_before(self):
-        return [ScalarNormalize]
 
     @staticmethod
     def fuse_reduces(first_reduce, second_reduce):
