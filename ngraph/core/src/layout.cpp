@@ -18,6 +18,7 @@ static constexpr char CHANNELS[] = "C";
 static constexpr char WIDTH[] = "W";
 static constexpr char HEIGHT[] = "H";
 static constexpr char DEPTH[] = "D";
+static constexpr char SCALAR[] = "**SCALAR**";
 static constexpr char ELLIPSIS[] = "...";
 static constexpr int ELLIPSIS_LEN = 3;
 
@@ -49,42 +50,84 @@ static std::string to_internal_name(const std::string& dim_name) {
 }
 
 static void validate_name(const std::string& dim_name) {
-    OV_CHECK(!dim_name.empty(), "Layout name can't be empty");
+    OPENVINO_ASSERT(!dim_name.empty(), "Layout dimension name can't be empty");
     bool has_alphanumeric = false;
     for (const auto& c: dim_name) {
         bool is_alnum = std::isalnum(c);
         has_alphanumeric |= is_alnum;
-        OV_CHECK(is_alnum || c == '_' ,
+        OPENVINO_ASSERT(is_alnum || c == '_' ,
                  "Layout name is invalid (" + dim_name + "). Only english letters, digits and _ is allowed");
     }
-    OV_CHECK(has_alphanumeric, "Layout name is invalid (" + dim_name + "). Name shall have alphanumeric characters");
+    OPENVINO_ASSERT(has_alphanumeric, "Layout name is invalid (" + dim_name + "). Name shall have alphanumeric characters");
 }
 
 Layout::Layout(): m_rank(LayoutRank::create_dynamic()) {}
 
 Layout Layout::scalar() {
-    Layout l;
-    l.m_scalar = true;
-    l.rank() = LayoutRank::create_static(0);
-    return l;
+    return Layout(SCALAR);
 }
 
 // 1. only order of dimensions "adbc" (0312)
 // 2. can define order and meaning for dimensions "NCHW"
 // 3. partial layout specialization "NC?"
 Layout::Layout(const std::string& layout_str) {
-    if (layout_str.empty()) {
-        throw ngraph::ngraph_error("Cannot parse ov::Layout from an empty string");
-    }
-
     auto layout = ngraph::trim(layout_str);
-
-    auto is_serialized = [](const std::string& layout) {
-        return layout.length() >= 2 && layout.front() == '[' && layout.back() == '[';
+    OPENVINO_ASSERT(layout.length() > 0, "Cannot parse ov::Layout from an empty string");
+    if (layout == SCALAR) {
+        m_scalar = true;
+        rank() = LayoutRank::create_static(0);
+        return;
+    }
+    auto is_advanced_syntax = [](const std::string& layout) {
+        return layout.length() >= 2 && layout.front() == '[' && layout.back() == ']';
     };
 
-    if (is_serialized(layout)) {
-        // TODO: parse from serialized string with format like "[batch, channels, height, width]"
+    auto assign_name = [&](const std::string& name, int64_t index) {
+        auto dim_name = to_internal_name(name);
+        validate_name(name);
+        OPENVINO_ASSERT(m_names.count(dim_name) == 0, "Dimension (" + dim_name + ") is defined multiple times in layout");
+        m_names[dim_name] = index;
+    };
+
+    if (is_advanced_syntax(layout)) {
+        OPENVINO_ASSERT(layout.length() > 2, "Cannot parse ov::Layout from an empty string");
+        auto parse_commas = [&](const std::string& sub_name, int64_t index = 0) -> int64_t {
+            OPENVINO_ASSERT(!sub_name.empty(), "Empty sub-string detected while parsing layout");
+            std::istringstream ss(sub_name);
+            std::string name;
+            while (std::getline(ss, name, ',')) {
+                name = ngraph::trim(name);
+                if (name != "?") {
+                    assign_name(name, index);
+                }
+                index++;
+            }
+            return index;
+        };
+        layout = layout.substr(1, layout.length() - 2); // remove []
+        auto ellipsis = layout.find(ELLIPSIS);
+        if (ellipsis == std::string::npos) {
+            auto last_index = parse_commas(layout);
+            m_rank = LayoutRank::create_static(last_index);
+        } else {
+            int64_t left_index = 0, right_index = 0;
+            // Parse left and right parts
+            auto left_layout = ngraph::trim(layout.substr(0, ellipsis));
+            if (!left_layout.empty()) {
+                OPENVINO_ASSERT(left_layout.at(left_layout.length() - 1) == ',',
+                                "Layout: Invalid left side (" + layout + ")");
+                left_layout = left_layout.substr(0, left_layout.length() - 1);
+                left_index = parse_commas(left_layout);
+            }
+            auto right_layout = ngraph::trim(layout.substr(ellipsis + ELLIPSIS_LEN));
+            if (!right_layout.empty()) {
+                OPENVINO_ASSERT(right_layout.at(0) == ',', "Layout: Invalid right side (" + layout + ")");
+                right_layout = right_layout.substr(1, right_layout.length() - 1);
+                right_index = std::count(right_layout.begin(), right_layout.end(), ',') + 1;
+                parse_commas(right_layout, -right_index);
+            }
+            m_rank = LayoutRank::create_dynamic(left_index, right_index);
+        }
         return;
     }
     auto dynamic_start = layout.find(ELLIPSIS);
@@ -96,8 +139,8 @@ Layout::Layout(const std::string& layout_str) {
         if (c == '?') {
             continue;
         } else if (c == '.') {
-            OV_CHECK(!backward, std::string("Multiple ") + ELLIPSIS + " are not allowed");
-            OV_CHECK(i == dynamic_start, "Undefined number of dimensions shall have ...");
+            OPENVINO_ASSERT(!backward, std::string("Multiple ") + ELLIPSIS + " are not allowed");
+            OPENVINO_ASSERT(i == dynamic_start, "Undefined number of dimensions shall have ...");
             // check next characters
             i += ELLIPSIS_LEN - 1;
             index += ELLIPSIS_LEN - 1;
@@ -106,12 +149,7 @@ Layout::Layout(const std::string& layout_str) {
             index = index - static_cast<int64_t>(layout.length());
             continue;
         }
-        // Only letters and digits are allowed
-        std::string dim_name = std::string(1, static_cast<char>(c));
-        validate_name(dim_name);
-        dim_name = to_internal_name(dim_name);
-        OV_CHECK(m_names.count(dim_name) == 0, "Dimension (" + dim_name + ") is defined multiple times in layout");
-        m_names[dim_name] = index;
+        assign_name(std::string(1, static_cast<char>(c)), index);
     }
     if (dynamic_start != std::string::npos) {
         m_rank = LayoutRank::create_dynamic(static_cast<LayoutRank::value_type>(dynamic_start),
@@ -137,12 +175,9 @@ bool Layout::operator==(const Layout& rhs) const {
             return false;
         }
     }
-    for (const auto& item: rhs.m_names) {
-        if (!m_names.count(item.first)) {
-            return false;
-        }
-    }
-    return true;
+    return std::all_of(rhs.m_names.begin(), rhs.m_names.end(), [&](const std::pair<std::string, int64_t>& item) {
+        return m_names.count(item.first);
+    });
 }
 
 bool Layout::operator!=(const Layout& rhs) const {
@@ -169,7 +204,15 @@ std::string Layout::get_name_by_index(std::int64_t index) const {
             return item.first;
         }
     }
-//    if (index >= 0 )
+    if (rank().is_dynamic()) {
+        if (index >= 0) {
+            OPENVINO_ASSERT(index < rank().size_left(), "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
+        } else {
+            OPENVINO_ASSERT(-index <= rank().size_right(), "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
+        }
+    } else {
+        OPENVINO_ASSERT(index >= 0 && index < rank().size(), "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
+    }
     return {};
 }
 
@@ -177,18 +220,18 @@ void Layout::set_name_for_index(const std::string& dimension_name, std::int64_t 
     auto name = to_internal_name(dimension_name);
     validate_name(name);
     auto it = m_names.find(name);
-    OV_CHECK(it == m_names.end() || it->second == index, "Cannot change " + dimension_name + " dimension index");
+    OPENVINO_ASSERT(it == m_names.end() || it->second == index, "Cannot change " + dimension_name + " dimension index");
     if (it != m_names.end()) {
         return; // Name is already in layout at exactly this place
     }
     // Verify that 'index' is also free
     for (const auto& item: m_names) {
-        OV_CHECK(item.second != index, "Index " + std::to_string(index) + " is already occupied with " + item.first);
+        OPENVINO_ASSERT(item.second != index, "Index " + std::to_string(index) + " is already occupied with " + item.first);
     }
 
     auto new_rank = m_rank;
     if (!m_rank.is_dynamic()) {
-        OV_CHECK(index >= 0 && index < m_rank.size(), "Layout index is out of bounds");
+        OPENVINO_ASSERT(index >= 0 && index < m_rank.size(), "Layout index is out of bounds");
     } else {
         if (index >= 0 && rank().size_left() <= index) {
             new_rank = LayoutRank::create_dynamic(index+1, rank().size_right());
@@ -207,6 +250,42 @@ bool Layout::is_scalar() const {
 
 LayoutRank Layout::rank() const {
     return m_rank;
+}
+
+std::string Layout::to_string() const {
+    if (is_scalar()) {
+        return SCALAR;
+    }
+    std::stringstream res;
+    int64_t left_size = rank().is_dynamic() ? left_size = rank().size_left() : left_size = rank().size();
+    res << "[";
+    auto add_dim = [&](const std::string& name) {
+        if (name.empty()) {
+            res << "?";
+        } else {
+            res << name;
+        }
+    };
+
+    if (left_size > 0) {
+        add_dim(get_name_by_index(0));
+    }
+    for (int64_t i = 1; i < left_size; i++) {
+        res << ",";
+        add_dim(get_name_by_index(i));
+    }
+    if (rank().is_dynamic()) {
+        if (left_size > 0) {
+            res << ",";
+        }
+        res << "...";
+        for (int64_t i = -rank().size_right(); i < 0; i++) {
+            res << ",";
+            add_dim(get_name_by_index(i));
+        }
+    }
+    res << "]";
+    return res.str();
 }
 
 std::string layouts::predefined_name(layouts::PredefinedDim dim) {
@@ -262,8 +341,10 @@ DEFINE_NAMED_DIMENSION(WIDTH, width)
 constexpr DiscreteTypeInfo AttributeAdapter<ov::Layout>::type_info;
 
 const std::string& AttributeAdapter<ov::Layout>::get() {
-    throw ngraph::ngraph_error("not implemented");
+    m_dump = m_ref.to_string();
+    return m_dump;
 }
+
 void AttributeAdapter<ov::Layout>::set(const std::string& value) {
     m_ref = Layout(value);
 }

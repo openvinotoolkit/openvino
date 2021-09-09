@@ -23,6 +23,32 @@ TEST(layout, basic) {
     EXPECT_FALSE(l.is_scalar());
 }
 
+TEST(layout, advanced_syntax) {
+    auto l = Layout("[batch, channels, depth, height, width]");
+    EXPECT_TRUE(layouts::has_batch(l));
+    EXPECT_EQ(layouts::batch(l), 0);
+    EXPECT_TRUE(layouts::has_channels(l));
+    EXPECT_EQ(layouts::channels(l), 1);
+    EXPECT_TRUE(layouts::has_depth(l));
+    EXPECT_EQ(layouts::depth(l), 2);
+    EXPECT_TRUE(layouts::has_height(l));
+    EXPECT_EQ(layouts::height(l), 3);
+    EXPECT_TRUE(layouts::has_width(l));
+    EXPECT_EQ(layouts::width(l), 4);
+    EXPECT_FALSE(l.is_scalar());
+    EXPECT_EQ(l, Layout("ncdhw"));
+
+    l = Layout("[custom1, ?, custom2]");
+    EXPECT_EQ(l.get_index_by_name("CUSTOm1"), 0);
+    EXPECT_EQ(l.get_name_by_index(1), std::string());
+    EXPECT_EQ(l.get_index_by_name("Custom2"), 2);
+
+    l = Layout("[?, N , ... , channels , ?]");
+    EXPECT_EQ(l, Layout("?N...C?"));
+    l = Layout("[?, N , ... , custom1 , ?]");
+    EXPECT_EQ(l.get_index_by_name("Custom1"), -2);
+}
+
 TEST(layout, empty) {
     auto l = Layout();
     EXPECT_FALSE(layouts::has_batch(l));
@@ -36,6 +62,38 @@ TEST(layout, empty) {
     EXPECT_FALSE(layouts::has_width(l));
     EXPECT_ANY_THROW(layouts::width(l));
     EXPECT_FALSE(l.is_scalar());
+}
+
+TEST(layout, predefined_names) {
+    using namespace layouts;
+    auto l = Layout("[?, ?, ?, ?, ?, Custom_dim_name]");
+    set_batch(l, 0);
+    set_channels(l, 1);
+    set_depth(l, 2);
+    set_height(l, 3);
+    set_width(l, 4);
+    EXPECT_EQ(l.get_index_by_name(predefined_name(PredefinedDim::BATCH)), batch(l));
+    EXPECT_EQ(l.get_index_by_name(predefined_name(PredefinedDim::CHANNELS)), channels(l));
+    EXPECT_EQ(l.get_index_by_name(predefined_name(PredefinedDim::DEPTH)), depth(l));
+    EXPECT_EQ(l.get_index_by_name(predefined_name(PredefinedDim::WIDTH)), width(l));
+    EXPECT_EQ(l.get_index_by_name(predefined_name(PredefinedDim::HEIGHT)), height(l));
+    EXPECT_EQ(to_predefined_dim(l.get_name_by_index(5)), PredefinedDim::UNDEFINED);
+    EXPECT_EQ(layouts::predefined_name(to_predefined_dim(l.get_name_by_index(5))), std::string());
+}
+
+TEST(layout, to_string) {
+    std::vector<Layout> layouts = {
+            {"NCHW"},
+            {"[?, N, CHANNELS, ?, ?, Custom_dim_name]"},
+            {"012?...3?456"},
+            {"...3?456"},
+            {"12?34..."},
+            {"..."},
+            Layout::scalar()
+    };
+    for (const auto& l: layouts) {
+        EXPECT_EQ(l, Layout(l.to_string()));
+    }
 }
 
 TEST(layout, scalar) {
@@ -87,22 +145,65 @@ TEST(layout, dims_valid_syntax) {
     auto l = Layout();
     EXPECT_NO_THROW(l = Layout("..."));
     EXPECT_NO_THROW(l = Layout("?...?"));
+    EXPECT_NO_THROW(l = Layout("...?"));
+    EXPECT_NO_THROW(l = Layout("?..."));
     EXPECT_NO_THROW(l = Layout("????"));
+    EXPECT_NO_THROW(l = Layout("[?,?,?,?]"));
+    EXPECT_NO_THROW(l = Layout("[?, ... ,?]"));
+    EXPECT_NO_THROW(l = Layout("[...,?]"));
+    EXPECT_NO_THROW(l = Layout("[?,...]"));
 }
 
 TEST(layout, dims_wrong_syntax) {
     auto l = Layout();
     EXPECT_ANY_THROW(l = Layout(""));
-    std::string invalidChars = "`~!@#$%^&*()-_=+{}\"'><,|";
+    EXPECT_ANY_THROW(l = Layout(" "));
+    std::string invalidChars = "`~!@#$%^&*()-=+{}\"'><,|";
     for (auto c : invalidChars) {
-        EXPECT_THROW(l = Layout(std::string(1, c)), ov::CheckFailure);
+        EXPECT_THROW(l = Layout(std::string(1, c)), ov::AssertFailure);
     }
-    EXPECT_THROW(l = Layout("...."), ov::CheckFailure);
-    EXPECT_THROW(l = Layout(".nchw"), ov::CheckFailure);
-    EXPECT_THROW(l = Layout("n...c..."), ov::CheckFailure);
-    EXPECT_THROW(l = Layout("ncChw"), ov::CheckFailure);
-    EXPECT_THROW(l = Layout("c...C"), ov::CheckFailure);
-    EXPECT_THROW(l = Layout("."), ov::CheckFailure);
+    EXPECT_THROW(l = Layout("...."), ov::AssertFailure);
+    EXPECT_THROW(l = Layout(".nchw"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("n...c..."), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("ncChw"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("c...C"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("."), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[....]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[c, ..., n, ...]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[c,,]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[c"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[c]]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[ ]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[,]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[...,]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[   ]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[?...]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[? ...]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[...N]"), ov::AssertFailure);
+    EXPECT_THROW(l = Layout("[... N]"), ov::AssertFailure);
+}
+
+TEST(layout, get_name_by_index) {
+    auto l1 = Layout("n?hw");
+    EXPECT_EQ(layouts::to_predefined_dim(l1.get_name_by_index(0)), layouts::PredefinedDim::BATCH);
+    EXPECT_TRUE(l1.get_name_by_index(1).empty());
+    EXPECT_EQ(layouts::to_predefined_dim(l1.get_name_by_index(2)), layouts::PredefinedDim::HEIGHT);
+    EXPECT_EQ(layouts::to_predefined_dim(l1.get_name_by_index(3)), layouts::PredefinedDim::WIDTH);
+    EXPECT_THROW(l1.get_name_by_index(-1), ov::AssertFailure);
+    EXPECT_THROW(l1.get_name_by_index(5), ov::AssertFailure);
+
+    l1 = Layout("?n...c??");
+    EXPECT_TRUE(l1.get_name_by_index(0).empty());
+    EXPECT_TRUE(l1.get_name_by_index(-1).empty());
+    EXPECT_TRUE(l1.get_name_by_index(-2).empty());
+    EXPECT_EQ(layouts::to_predefined_dim(l1.get_name_by_index(1)), layouts::PredefinedDim::BATCH);
+    EXPECT_EQ(layouts::to_predefined_dim(l1.get_name_by_index(-3)), layouts::PredefinedDim::CHANNELS);
+    EXPECT_THROW(l1.get_name_by_index(-4), ov::AssertFailure);
+    EXPECT_THROW(l1.get_name_by_index(2), ov::AssertFailure);
+
+    l1 = Layout::scalar();
+    EXPECT_THROW(l1.get_name_by_index(0), ov::AssertFailure);
 }
 
 TEST(layout, set_name_for_index) {
@@ -145,14 +246,14 @@ TEST(layout, set_name_for_index) {
 
 TEST(layout, invalid_set_name_for_index) {
     auto l = Layout("n?hw");
-    EXPECT_THROW(l.set_name_for_index("w", 1), ov::CheckFailure);
-    EXPECT_THROW(l.set_name_for_index("c", 0), ov::CheckFailure);
-    EXPECT_THROW(l.set_name_for_index("c", 4), ov::CheckFailure);
-    EXPECT_THROW(l.set_name_for_index("c", -1), ov::CheckFailure);
-    EXPECT_THROW(l.set_name_for_index("___", 1), ov::CheckFailure);
-    EXPECT_THROW(l.set_name_for_index("?", 1), ov::CheckFailure);
-    EXPECT_THROW(l.set_name_for_index("...", 1), ov::CheckFailure);
-    EXPECT_THROW(l.set_name_for_index("[]", 1), ov::CheckFailure);
+    EXPECT_THROW(l.set_name_for_index("w", 1), ov::AssertFailure);
+    EXPECT_THROW(l.set_name_for_index("c", 0), ov::AssertFailure);
+    EXPECT_THROW(l.set_name_for_index("c", 4), ov::AssertFailure);
+    EXPECT_THROW(l.set_name_for_index("c", -1), ov::AssertFailure);
+    EXPECT_THROW(l.set_name_for_index("___", 1), ov::AssertFailure);
+    EXPECT_THROW(l.set_name_for_index("?", 1), ov::AssertFailure);
+    EXPECT_THROW(l.set_name_for_index("...", 1), ov::AssertFailure);
+    EXPECT_THROW(l.set_name_for_index("[]", 1), ov::AssertFailure);
 }
 
 TEST(layout, layout_equals) {
@@ -174,7 +275,18 @@ TEST(layout, dims_implicit_api) {
     EXPECT_NE(Layout("nchw"), Layout("NHWC"));
     auto l = Layout("NCHW");
     auto l2 = l;
-    auto l3 = std::move(l);
-    l2 = l3;
+    auto l3 = l;
+    auto l4 = std::move(l3);
+    l2 = l4;
     l3 = std::move(l2);
+    EXPECT_EQ(l3, l4);
+}
+
+TEST(layout, attribute_adapter) {
+    auto l = Layout("NCHW");
+    auto l2 = Layout("NHCW");
+    AttributeAdapter<Layout> at(l);
+    EXPECT_EQ(at.get(), l.to_string());
+    at.set("NHCW");
+    EXPECT_EQ(l, l2);
 }

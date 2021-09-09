@@ -102,7 +102,7 @@ public:
     /// \code{.cpp}
     /// auto name = Layout("NC...HW).get_name_by_index(-2); //returns "H"
     /// \endcode    ///
-    /// \throw ov::CheckFailure if dimension is neither defined, not specified as '?'
+    /// \throw ov::AssertFailure if dimension is neither defined, not specified as '?'
     ///
     /// \return Index of given dimension name. Empty string if dimension name is not defined, e.g. "?"
     std::string get_name_by_index(std::int64_t index) const;
@@ -117,9 +117,8 @@ public:
     /// \brief Returns rank/size of layout. E.g. for Layout("NCHW").rank() returns 4
     LayoutRank rank() const;
 
-    void update_rank(LayoutRank new_rank);
-
-//    std::vector<int64_t> permutation(const Layout& layout) const;
+    /// \brief String representation of Layout
+    std::string to_string() const;
 
 private:
     /// stores dimension names map to index in a layout
@@ -187,5 +186,6 @@ public:
 
 protected:
     Layout& m_ref;
+    std::string m_dump;
 };
 }  // namespace ov
