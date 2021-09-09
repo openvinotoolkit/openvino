@@ -16,7 +16,7 @@ void compare(const std::shared_ptr<ngraph::Node> node,
              float threshold) {
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> types(expected.size());
     auto outputs = node->outputs();
-    LayerTestsUtils::LayerTestsCommon::Compare(expected, actual, threshold);
+    LayerTestsUtils::LayerTestsCommon::Compare(expected, actual, threshold, -1); // skipping absolute comparison
 }
 
 void compare(const std::shared_ptr<ngraph::op::v0::DetectionOutput> node,

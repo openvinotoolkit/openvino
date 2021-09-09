@@ -59,11 +59,11 @@ public:
 
     static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
-                        float threshold);
+                        float threshold, float absThreshold);
 
     static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                         const InferenceEngine::Blob::Ptr &actual,
-                        float threshold);
+                        float threshold, float absThreshold);
 
     virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
@@ -73,6 +73,14 @@ public:
     virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
 
     virtual void Compare(const InferenceEngine::TensorDesc &actualDesc, const InferenceEngine::TensorDesc &expectedDesc);
+
+    virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
+                        const std::vector<InferenceEngine::Blob::Ptr> &actual,
+                        float threshold);
+
+    virtual void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
+                        const InferenceEngine::Blob::Ptr &actual,
+                        float threshold);
 
     virtual void SetRefMode(RefMode mode);
 
@@ -89,13 +97,11 @@ public:
 
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
+        // Only use relative threshold for legacy call
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
             const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
-            if (absoluteDifference <= threshold) {
-                continue;
-            }
             double max;
             if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
                 max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
@@ -105,6 +111,36 @@ public:
             double diff = static_cast<float>(absoluteDifference) / max;
             if (max == 0 || (diff > static_cast<float>(threshold)) ||
                 (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref)))) {
+                IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                           << " at index " << i << " with relative threshold " << threshold
+                           << " failed";
+            }
+        }
+    }
+
+    template<class T_IE, class T_NGRAPH>
+    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float absThreshold) {
+        if ((threshold < 0) && (absThreshold < 0)) {
+            IE_THROW() << "Both relative threshold and absolute threshold aren't set properly";
+        }
+        for (std::size_t i = 0; i < size; ++i) {
+            const T_NGRAPH &ref = expected[i];
+            const auto &res = actual[i];
+            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
+            if ((absoluteDifference > absThreshold) && (absThreshold >= 0)) {
+                IE_THROW() << "Absolute comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                           << " at index " << i << " with threshold " << absThreshold
+                           << " failed";
+            }
+            double max;
+            if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
+                max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
+            } else {
+                max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
+            }
+            double diff = static_cast<float>(absoluteDifference) / max;
+            if ((max == 0 || (diff > static_cast<float>(threshold)) ||
+                (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref)))) && (threshold >= 0)) {
                 IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
                            << " at index " << i << " with threshold " << threshold
                            << " failed";
@@ -141,7 +177,8 @@ protected:
     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED;
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
-    float threshold;
+    float threshold; // relative threshold: when it is negative value, the comparison will be skipped
+    float absThreshold; // absolute threshold: when it is negative value, the comparison will be skipped
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
 
