@@ -11,7 +11,6 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -21,7 +20,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Atan, "Atan", 0, util::UnaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(ov::op::v0::Atan, "Atan", 0, util::UnaryElementwiseArithmetic);
 
 op::Atan::Atan(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
