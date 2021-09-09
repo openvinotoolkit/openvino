@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(TARGET_NAME "template_extension")
 
-find_package(OpenVINO REQUIRED OPTIONAL_COMPONENTS Runtime ONNX)
+find_package(OpenVINO REQUIRED COMPONENTS Runtime OPTIONAL_COMPONENTS ONNX)
 find_package(OpenCV QUIET COMPONENTS core)
 
 set(SRC cpu_kernel.cpp extension.cpp op.cpp)
