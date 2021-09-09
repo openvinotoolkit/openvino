@@ -58,10 +58,13 @@ void regclass_pyngraph_DiscreteTypeInfo(py::module m) {
     discrete_type_info.def("__repr__", [](const ngraph::DiscreteTypeInfo& self) {
         std::string name = std::string(self.name);
         std::string version = std::to_string(self.version);
-        std::string parent_name = self.parent != nullptr ? self.parent->name : "None";
-        std::string parent_version = self.parent != nullptr ? std::to_string(self.parent->version) : "";
-
-        return "<'" + name + version + " Parent('" + parent_name + parent_version + "')" + "'>";
+        if (self.parent != nullptr) {
+            std::string parent_version = std::to_string(self.parent->version);
+            std::string parent_name = self.parent->name;
+            return "<DiscreteTypeInfo: " + name +" v" + version + " Parent(" + parent_name +" v"+ parent_version + ")" + ">";
+        } else {
+            return "<DiscreteTypeInfo: " + name +" v" + version + ">";
+        }
     });
 
     discrete_type_info.def_property_readonly("name", [](const ngraph::DiscreteTypeInfo& self) {
