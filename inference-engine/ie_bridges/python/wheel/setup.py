@@ -42,8 +42,8 @@ elif machine == 'aarch64':
 
 # The following variables can be defined in environment or .env file
 CMAKE_BUILD_DIR = config('CMAKE_BUILD_DIR', '.')
-OV_RUNTIME_LIBS_DIR = config('OV_RUNTIME_LIBS_DIR', '')
-TBB_LIBS_DIR = config('TBB_LIBS_DIR', '')
+OV_RUNTIME_LIBS_DIR = config('OV_RUNTIME_LIBS_DIR', f'runtime/{LIBS_DIR}/{ARCH}/{CONFIG}')
+TBB_LIBS_DIR = config('TBB_LIBS_DIR', f'runtime/3rdparty/tbb/{LIBS_DIR}')
 PY_PACKAGES_DIR = config('PY_PACKAGES_DIR', f'python/{PYTHON_VERSION}')
 LIBS_RPATH = '$ORIGIN' if sys.platform == 'linux' else '@loader_path'
 
