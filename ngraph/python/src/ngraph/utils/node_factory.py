@@ -8,7 +8,7 @@ from _pyngraph import NodeFactory as _NodeFactory
 
 from ngraph.impl import Node, Output
 
-import warnings
+from ngraph.exceptions import UserInputError
 
 DEFAULT_OPSET = "opset8"
 
@@ -45,9 +45,12 @@ class NodeFactory(object):
             node._attr_cache_valid = False
             return node
 
-        if arguments is None:
-            warnings.warn("Arguments are missing, please use set_arguments() before running validate().")
-            arguments = {}
+        if arguments is None and attributes is not None:
+            raise UserInputError(
+                'Error: cannot create "{}" op without arguments.'.format(
+                    op_type_name
+                )
+            )
 
         if attributes is None:
             attributes = {}
