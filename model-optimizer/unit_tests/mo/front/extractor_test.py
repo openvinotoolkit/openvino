@@ -6,6 +6,7 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
+from mo.front.common.partial_infer.utils import strict_compare_tensors
 from mo.front.extractor import input_user_data_repack, output_user_data_repack, update_ie_fields, add_input_op, \
     get_node_id_with_ports
 from mo.front.extractor import spatial_attr_getter, add_input_ops, attr_getter, CaffePythonFrontExtractorOp, \
@@ -293,8 +294,8 @@ class TestInputAddition(unittest.TestCase):
         self.assertTrue(graph.node[new_input_2]['is_input'])
         self.assertTrue((new_input_1, 'node_1') in graph.edges())
         self.assertTrue((new_input_2, 'node_4') in graph.edges())
-        self.assertListEqual(shape_1, graph.node[new_input_1]['shape'])
-        self.assertListEqual(shape_2, graph.node[new_input_2]['shape'])
+        self.assertTrue(strict_compare_tensors(shape_1, graph.node[new_input_1]['shape']))
+        self.assertTrue(strict_compare_tensors(shape_2, graph.node[new_input_2]['shape']))
 
     def test_two_inputs_two_shapes_not_all_inputs(self):
         shape_1 = [1, 2, 3, 4]

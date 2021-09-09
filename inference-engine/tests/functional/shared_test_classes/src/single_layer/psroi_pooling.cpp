@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PSROIPoolingLayerTest::getTestCaseName(testing::TestParamInfo<psroiParams> obj) {
+std::string PSROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<psroiParams>& obj) {
     std::vector<size_t> inputShape;
     std::vector<size_t> coordsShape;
     size_t outputDim;

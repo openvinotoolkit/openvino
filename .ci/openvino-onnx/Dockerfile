@@ -65,7 +65,6 @@ RUN cmake .. \
     -DENABLE_CLDNN=OFF \
     -DENABLE_PROFILING_ITT=OFF \
     -DENABLE_SAMPLES=OFF \
-    -DENABLE_SPEECH_DEMO=OFF \
     -DENABLE_PYTHON=ON \
     -DPYTHON_EXECUTABLE=/usr/bin/python3 \
     -DNGRAPH_ONNX_FRONTEND_ENABLE=ON \
@@ -75,7 +74,7 @@ RUN cmake .. \
 RUN make -j $(nproc) install
 
 # Run tests via tox
-WORKDIR /openvino/ngraph/python
+WORKDIR /openvino/runtime/bindings/python
 ENV ngraph_DIR=/openvino/dist/deployment_tools/ngraph
 ENV LD_LIBRARY_PATH=/openvino/dist/deployment_tools/ngraph/lib
 ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/lib/python_api/python3.8:${PYTHONPATH}
