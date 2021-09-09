@@ -14,40 +14,53 @@
 
 namespace ov {
 
+/// \brief Layout rank. Usually represents number of layout dimensions.
+/// Can be static, e.g. for 'NCHW' or 'N???' rank is 4
+/// Or can be dynamic for layouts like 'N..."
 class OPENVINO_API LayoutRank {
 public:
     using value_type = int64_t;
 
     LayoutRank() = default;
 
+    /// \brief Comparison operator
     bool operator==(const LayoutRank& rhs) const {
         return m_dynamic == rhs.m_dynamic && m_right == rhs.m_right && m_left == rhs.m_left && m_size == rhs.m_size;
     }
 
+    /// \brief Comparison operator
     bool operator!=(const LayoutRank& rhs) const {
         return !(*this == rhs);
     }
 
+    /// \brief Create static rank with defined size
     static LayoutRank create_static(value_type size) {
         return LayoutRank(size);
     }
 
+    /// \brief Create dynamic rank with defined 'left' and 'right' dimensions
+    ///
+    /// E.g. Layout("?N...C") has rank with left=2 (length of '?N') and right=1 (length of 'C')
     static LayoutRank create_dynamic(value_type left = 0, value_type right = 0) {
         return {left, right};
     }
 
+    /// \brief Return 'true' if layout rank is dynamic (has ...)
     bool is_dynamic() const {
         return m_dynamic;
     }
 
+    /// \brief Return size of rank. Return 'no_size' for dynamic rank
     value_type size() const {
         return m_size;
     }
 
+    /// \brief Return left size of dynamic rank. Returns 'no_size' for static rank
     value_type size_left() const {
         return m_left;
     }
 
+    /// \brief Return right size of dynamic rank. Returns 'no_size' for static rank
     value_type size_right() const {
         return m_right;
     }
@@ -55,7 +68,6 @@ public:
     static const value_type no_size = static_cast<value_type>(-1);
 
 private:
-    /// \brief
     LayoutRank(value_type left, value_type right) : m_dynamic(true), m_left(left), m_right(right) {}
 
     explicit LayoutRank(value_type size) : m_dynamic(false), m_left(no_size), m_right(no_size), m_size(size) {}
@@ -145,10 +157,10 @@ namespace layouts {
 enum class PredefinedDim {
     UNDEFINED,  /// \brief undefined standard name
     BATCH,      /// \brief Batch dimension, related to name 'N'
-    CHANNELS,   /// \brief Channels dimension, related to name 'N'
-    DEPTH,      /// \brief Depth dimension, related to name 'N'
-    WIDTH,      /// \brief Width dimension, related to name 'N'
-    HEIGHT      /// \brief Height dimension, related to name 'N'
+    CHANNELS,   /// \brief Channels dimension, related to name 'C'
+    DEPTH,      /// \brief Depth dimension, related to name 'D'
+    WIDTH,      /// \brief Width dimension, related to name 'W'
+    HEIGHT      /// \brief Height dimension, related to name 'H'
 };
 
 /// \brief Returns one-character string representing standard dimension name
