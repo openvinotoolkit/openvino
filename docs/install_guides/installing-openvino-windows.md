@@ -1,8 +1,14 @@
 # Install Intel® Distribution of OpenVINO™ toolkit for Windows* 10 {#openvino_docs_install_guides_installing_openvino_windows}
 
-> **NOTES**:
+> **NOTE**:
 > - This guide applies to Microsoft Windows\* 10 64-bit. For Linux* OS information and instructions, see the [Installation Guide for Linux](installing-openvino-linux.md).
-> - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
+
+> **TIP**: If you want to [quick start with OpenVINO™ toolkit](@ref 
+> openvino_docs_get_started_get_started_dl_workbench), you can use 
+> the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench). DL Workbench is the OpenVINO™ toolkit UI 
+> that enables you to import a
+> model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for deployment
+> on various Intel® platforms. 
 
 ## Introduction
 
@@ -46,7 +52,7 @@ For more information, see the online [Intel® Distribution of OpenVINO™ toolk
 The Intel® Distribution of OpenVINO™ toolkit for Windows\* 10 OS:
 
 - Enables CNN-based deep learning inference on the edge
-- Supports heterogeneous execution across Intel® CPU, Intel® Processor Graphics (GPU), Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+- Supports heterogeneous execution across Intel® CPU, Intel® GPU, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 - Speeds time-to-market through an easy-to-use library of computer vision functions and pre-optimized kernels
 - Includes optimized calls for computer vision standards including OpenCV\* and OpenCL™
 
@@ -64,18 +70,6 @@ The following components are installed by default:
 | Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and other  |
 | [Documentation for Pre-Trained Models ](@ref omz_models_group_intel)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/openvinotoolkit/open_model_zoo)  |
 
-**Could Be Optionally Installed**
-
-[Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models on various Intel® architecture
-configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components:
-* [Model Downloader](@ref omz_tools_downloader)
-* [Intel® Open Model Zoo](@ref omz_models_group_intel)
-* [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Post-training Optimization Tool](@ref pot_README)
-* [Accuracy Checker](@ref omz_tools_accuracy_checker)
-* [Benchmark Tool](../../inference-engine/samples/benchmark_app/README.md)
-
-Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
 
 ### System Requirements
 
@@ -86,6 +80,7 @@ Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_I
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
 * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
 * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
+* Intel® Iris® Xe MAX Graphics
 * Intel® Neural Compute Stick 2
 * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
@@ -101,9 +96,8 @@ Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_I
 - Microsoft Windows\* 10 64-bit
 
 **Software**
-- [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)
-- [CMake **3.10 or higher** 64-bit](https://cmake.org/download/)
-   > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
+- [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/). Make sure that C++ CMake tools for Windows is [enabled](https://docs.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-160#:~:text=The%20Visual%20C%2B%2B%20Tools%20for,Visual%20Studio%20generators%20are%20supported).
+- [CMake **3.10 or higher** 64-bit](https://cmake.org/download/). If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
 - [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
 
 ## Installation Steps
@@ -276,7 +270,7 @@ To perform inference on Intel® Vision Accelerator Design with Intel® Movidius�
   1. Download and install <a href="https://www.microsoft.com/en-us/download/details.aspx?id=48145">Visual C++ Redistributable for Visual Studio 2017</a>
   2. Check with a support engineer if your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs card requires SMBUS connection to PCIe slot (most unlikely). Install the SMBUS driver only if confirmed (by default, it's not required):
       1. Go to the `<INSTALL_DIR>\deployment_tools\inference-engine\external\hddl\drivers\SMBusDriver` directory, where `<INSTALL_DIR>` is the directory in which the Intel Distribution of OpenVINO toolkit is installed.
-      2. Right click on the `hddlsmbus.inf` file and choose **Install** from the pop up menu.
+      2. Right click on the `hddlsmbus.inf` file and choose **Install** from the pop-up menu.
 
 You are done installing your device driver and are ready to use your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 
@@ -338,6 +332,7 @@ To learn more about converting deep learning models, go to:
 - [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 - [Convert Your MXNet* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
 - [Convert Your ONNX* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)
+- [Convert Your Kaldi* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md)
 
 ## Additional Resources
 
