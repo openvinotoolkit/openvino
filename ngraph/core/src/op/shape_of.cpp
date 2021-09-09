@@ -20,7 +20,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::ShapeOf::type_info;
+OPENVINO_RTTI_DEFINITION(op::v3::ShapeOf, "ShapeOf", 3);
 
 op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type) : Op({arg}), m_output_type(output_type) {
     constructor_validate_and_infer_types();
@@ -33,7 +33,7 @@ void op::v3::ShapeOf::validate_and_infer_types() {
                           "Output type must be i32 or i64");
     set_input_is_relevant_to_value(0, false);
     const auto input_partial_shape = get_input_partial_shape(0);
-    set_output_type(0, m_output_type, PartialShape{input_partial_shape.rank()});
+    set_output_type(0, m_output_type, ov::Shape{input_partial_shape.rank()});
 }
 
 bool ngraph::op::v3::ShapeOf::visit_attributes(AttributeVisitor& visitor) {
@@ -51,15 +51,15 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 
 namespace shape_of {
 template <element::Type_t ET>
-inline bool evaluate(const Shape& shape, const HostTensorPtr& output_value) {
+inline bool evaluate(const ov::StaticShape& shape, const HostTensorPtr& output_value) {
     runtime::reference::shape_of(shape, output_value->get_data_ptr<ET>());
     return true;
 }
 
 bool evaluate_shape_of(const HostTensorPtr& output_value, const HostTensorPtr& input_value) {
     bool rc = true;
-    Shape shape = input_value->get_shape();
-    output_value->set_shape(Shape{shape.size()});
+    ov::StaticShape shape = input_value->get_shape();
+    output_value->set_shape(ov::StaticShape{shape.size()});
     switch (output_value->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_shape_of, i32, shape, output_value);
         NGRAPH_TYPE_CASE(evaluate_shape_of, i64, shape, output_value);
@@ -93,7 +93,7 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
     if (input_partial_shape.rank().is_dynamic())
         return false;
     const auto rank = input_partial_shape.rank().get_length();
-    auto pshape_low = PartialShape::dynamic(rank), pshape_up = PartialShape::dynamic(rank);
+    auto pshape_low = ov::Shape::dynamic(rank), pshape_up = ov::Shape::dynamic(rank);
     for (Dimension::value_type i = 0; i < rank; ++i) {
         Interval interval = input_partial_shape[i].get_interval();
         pshape_low[i] = interval.get_min_val();
@@ -109,16 +109,16 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
         shape_of_node->get_output_tensor(0).set_upper_value(output_values[0]);
     } else {
         HostTensorVector upper =
-            is_upper ? output_values
-                     : HostTensorVector{
-                           std::make_shared<HostTensor>(output_et, PartialShape{pshape_up.rank().get_length()})};
+            is_upper
+                ? output_values
+                : HostTensorVector{std::make_shared<HostTensor>(output_et, ov::Shape{pshape_up.rank().get_length()})};
         shape_of_node->evaluate(upper, {std::make_shared<HostTensor>(input_et, pshape_up)});
         shape_of_node->get_output_tensor(0).set_upper_value(upper[0]);
 
         HostTensorVector lower =
-            !is_upper ? output_values
-                      : HostTensorVector{
-                            std::make_shared<HostTensor>(output_et, PartialShape{pshape_low.rank().get_length()})};
+            !is_upper
+                ? output_values
+                : HostTensorVector{std::make_shared<HostTensor>(output_et, ov::Shape{pshape_low.rank().get_length()})};
         shape_of_node->evaluate(lower, {std::make_shared<HostTensor>(input_et, pshape_low)});
         shape_of_node->get_output_tensor(0).set_lower_value(lower[0]);
 
@@ -180,7 +180,7 @@ bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
 }
 
 // op::v0::ShapeOf
-NGRAPH_RTTI_DEFINITION(op::v0::ShapeOf, "ShapeOf", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::ShapeOf, "ShapeOf", 0);
 
 op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
@@ -189,7 +189,7 @@ op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
 void op::v0::ShapeOf::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_ShapeOf_validate_and_infer_types);
     set_input_is_relevant_to_value(0, false);
-    set_output_type(0, element::i64, PartialShape{get_input_partial_shape(0).rank()});
+    set_output_type(0, element::i64, ov::Shape{get_input_partial_shape(0).rank()});
 }
 
 bool ngraph::op::v0::ShapeOf::visit_attributes(AttributeVisitor& visitor) {

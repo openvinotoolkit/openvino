@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Result, "Result", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Result, "Result", 0);
 
 op::Result::Result(const Output<Node>& arg, bool needs_default_layout)
     : Op({arg}),

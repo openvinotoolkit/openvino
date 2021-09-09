@@ -50,7 +50,6 @@
 #include <ngraph/runtime/reference/lrn.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>
 #include <ngraph/runtime/reference/matrix_nms.hpp>
-#include <ngraph/runtime/reference/max_pool.hpp>
 #include <ngraph/runtime/reference/mod.hpp>
 #include <ngraph/runtime/reference/multiclass_nms.hpp>
 #include <ngraph/runtime/reference/mvn.hpp>
@@ -2919,47 +2918,6 @@ namespace
                                                    op->get_batch_dims());
         } else {
             throw ngraph_error("Unexpected indices type for Gather operation");
-        }
-        return true;
-    }
-
-    template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v8::MaxPool>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-        if (op->get_index_element_type() == element::i32)
-        {
-            runtime::reference::max_pool(inputs[0]->get_data_ptr<const T>(),
-                                         outputs[0]->get_data_ptr<T>(),
-                                         outputs[1]->get_data_ptr<int32_t>(),
-                                         inputs[0]->get_shape(),
-                                         outputs[0]->get_shape(),
-                                         op->get_kernel(),
-                                         op->get_strides(),
-                                         op->get_dilations(),
-                                         op->get_pads_begin(),
-                                         op->get_pads_end(),
-                                         op->get_axis());
-        }
-        else if (op->get_index_element_type() == element::i64)
-        {
-            runtime::reference::max_pool(inputs[0]->get_data_ptr<const T>(),
-                                         outputs[0]->get_data_ptr<T>(),
-                                         outputs[1]->get_data_ptr<int64_t>(),
-                                         inputs[0]->get_shape(),
-                                         outputs[0]->get_shape(),
-                                         op->get_kernel(),
-                                         op->get_strides(),
-                                         op->get_dilations(),
-                                         op->get_pads_begin(),
-                                         op->get_pads_end(),
-                                         op->get_axis());
-        }
-        else
-        {
-            return false;
         }
         return true;
     }

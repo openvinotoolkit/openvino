@@ -18,7 +18,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/acos.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::op::v0::Acos, "Acos", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::v0::Acos, "Acos", 0, util::UnaryElementwiseArithmetic);
 
 ov::op::v0::Acos::Acos(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
