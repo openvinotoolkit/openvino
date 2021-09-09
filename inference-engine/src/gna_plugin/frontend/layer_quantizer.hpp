@@ -699,5 +699,53 @@ using QuantI8_I8 = frontend::QuantPair<frontend::QuantI8_I8, frontend::QuantI8_I
 using FakeQuantI16 = frontend::QuantPair<frontend::FakeQuantI16, frontend::FakeQuantI16>;
 using FakeQuantI8 = frontend::QuantPair<frontend::FakeQuantI8, frontend::FakeQuantI16>;
 
+enum class QuantizedDataType {
+    input,
+    output,
+    weights,
+    bias
+};
+
+/**
+ * @brief Returns a scale factor for specific layer data
+ * @param layer Layer to be quantized
+ * @param data_type Type of data to be quantized
+ * @return scale factor
+ */
+inline float getScaleFactor(InferenceEngine::CNNLayerPtr layer, QuantizedDataType data_type) {
+    IE_ASSERT(layer != nullptr);
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+    float scale_factor;
+    if (!quantized) {
+        scale_factor = 1.0f;
+    } else {
+        switch (data_type) {
+            case QuantizedDataType::input:
+                scale_factor = quantized->_src_quant.GetScale();
+                break;
+            case QuantizedDataType::output:
+            scale_factor = quantized->_dst_quant.GetScale();
+                break;
+            case QuantizedDataType::weights:
+                scale_factor = quantized->_weights_quant.GetScale();
+                break;
+            case QuantizedDataType::bias:
+                scale_factor = quantized->_bias_quant.GetScale();
+                break;
+            default:
+                THROW_GNA_LAYER_EXCEPTION(layer) << "Unsupported data type for quantization: " << static_cast<int>(data_type);
+        }
+    }
+
+    auto isZero = [](float p1) {
+        return std::abs(p1) <= 0.00001f;
+    };
+
+    if (scale_factor < 0.0 || isZero(scale_factor) || std::isinf(scale_factor)) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Invalid scale factor: " << scale_factor;
+    }
+
+    return scale_factor;
+}
 
 }  // namespace GNAPluginNS
