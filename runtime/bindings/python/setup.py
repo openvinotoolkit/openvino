@@ -217,7 +217,7 @@ setup(
     url="https://github.com/openvinotoolkit/openvino",
     license="License :: OSI Approved :: Apache Software License",
     ext_modules=[CMakeExtension(name="_pyngraph")],
-    package_dir={"": "src"},
+    package_dir={"": "src/compatibility"},
     packages=packages,
     install_requires=requirements,
     data_files=data_files,
