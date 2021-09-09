@@ -49,6 +49,7 @@ set(SRC
     misc.cpp
     node_input_output.cpp
     op.cpp
+    opset.cpp
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/clamp.cpp
@@ -62,10 +63,6 @@ set(SRC
     op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
-    op_eval/reduce_max.cpp
-    op_eval/reduce_min.cpp
-    op_eval/reduce_prod.cpp
-    op_eval/reduce_sum.cpp
     op_eval/roi_align.cpp
     op_eval/roi_pooling.cpp
     op_eval/round.cpp
@@ -80,6 +77,7 @@ set(SRC
     pass_config.cpp
     pass_manager.cpp
     pattern.cpp
+    preprocess.cpp
     provenance.cpp
     replace_node.cpp
     reshape_opt_kernel.cpp
@@ -331,6 +329,7 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/scatter_elements_update.cpp
     visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
@@ -421,7 +420,6 @@ set(MULTI_TEST_SRC
     backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
-    backend/comparison.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convolution_backprop.in.cpp
@@ -491,13 +489,6 @@ set(MULTI_TEST_SRC
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/recurrent_cells.in.cpp
-    backend/reduce_l1.in.cpp
-    backend/reduce_l2.in.cpp
-    backend/reduce_max.in.cpp
-    backend/reduce_mean.in.cpp
-    backend/reduce_min.in.cpp
-    backend/reduce_prod.in.cpp
-    backend/reduce_sum.in.cpp
     backend/region_yolo.in.cpp
     backend/relu.in.cpp
     backend/reorg_yolo.in.cpp

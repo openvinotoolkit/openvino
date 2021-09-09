@@ -7,6 +7,7 @@
 #    define NGRAPH_OP(x, y)
 #endif
 
+<<<<<<< HEAD
 NGRAPH_OP(Abs, ngraph::op::v0)
 NGRAPH_OP(Acos, ngraph::op::v0)
 NGRAPH_OP(Add, ngraph::op::v1)
@@ -184,3 +185,8 @@ NGRAPH_OP(MulticlassNms, ngraph::op::v8)
 NGRAPH_OP(RandomUniform, ngraph::op::v8)
 NGRAPH_OP(Slice, ngraph::op::v8)
 NGRAPH_OP(If, ngraph::op::v8)
+=======
+#define OPENVINO_OP NGRAPH_OP
+#include "openvino/opsets/opset8_tbl.hpp"
+#undef OPENVINO_OP
+>>>>>>> upstream/master
