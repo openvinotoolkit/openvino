@@ -11,6 +11,7 @@
 
 #include "gna_device.hpp"
 #include "polymorph_allocator.hpp"
+#include "memory/gna_mem_requests.hpp"
 
 namespace GNAPluginNS {
 namespace memory {
@@ -35,6 +36,9 @@ class GNAAllocator {
     }
     void deallocate(uint8_t *p, std::size_t n) {
         _device->free(p);
+    }
+    void setTag(void* memPtr, GNAPluginNS::memory::rRegion tagValue) {
+        _device->tagMemoryRegion(memPtr, tagValue);
     }
 };
 }  // namespace memory

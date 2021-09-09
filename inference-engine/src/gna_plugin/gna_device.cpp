@@ -17,10 +17,10 @@
 #include "gna2-inference-api.h"
 #include "gna2-instrumentation-api.h"
 #include "gna2-memory-api.h"
+#include "gna2-model-export-api.h"
 #include "gna2_model_export_helper.hpp"
 
 #include "gna2_model_debug_log.hpp"
-#include "gna2-tlv-writer.h"
 #else
 #include "gna-api-status.h"
 #include "gna-api.h"
@@ -29,6 +29,7 @@
 #include "backend/am_intel_dnn.hpp"
 #include "gna/gna_config.hpp"
 #include "gna_plugin_log.hpp"
+#include "memory/gna_mem_requests.hpp"
 
 //#define MODEL_DUMP
 
@@ -42,13 +43,34 @@ uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted)
 #else
     const auto status = Gna2MemoryAlloc(size_requested, size_granted, &memPtr);
     checkGna2Status(status, "Gna2MemoryAlloc");
+    gnalog() << "Gna2MemoryAlloc(" << size_requested << ") -> " << *size_granted << ", " << memPtr << "\n";
 #endif
     if (memPtr == nullptr) {
         THROW_GNA_EXCEPTION << "GNAAlloc failed to allocate memory. Requested: " << size_requested << " Granted: " << *(size_granted);
     }
+
     dumpXNNROPtr = memPtr;
     dumpXNNROSize = *size_granted;
     return static_cast<uint8_t *>(memPtr);
+}
+
+void GNADeviceHelper::tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion tag) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+#if GNA_LIB_VER == 2
+    using GNAPluginNS::memory::rRegion;
+    std::map<rRegion, Gna2MemoryTag> tagMap {
+        {rRegion::REGION_INPUTS, Gna2MemoryTagInput},
+        {rRegion::REGION_OUTPUTS, Gna2MemoryTagOutput},
+        {rRegion::REGION_SCRATCH, Gna2MemoryTagScratch},
+        {rRegion::REGION_RO, Gna2MemoryTagReadOnly},
+        {rRegion::REGION_STATES, Gna2MemoryTagState},
+        // {rRegion::REGION_AUTO, Gna2MemoryTagReadWrite},
+    };
+    auto memoryTag = tagMap.at(tag);
+    const auto status = Gna2MemorySetTag(memPtr, memoryTag);
+    checkGna2Status(status, "Gna2MemorySetTag");
+    gnalog() << "Gna2MemorySetTag(" << memPtr << ", " << memoryTag << ")\n";
+#endif
 }
 
 void GNADeviceHelper::free(void * ptr) {
@@ -494,7 +516,7 @@ void GNADeviceHelper::dumpXnnForDeviceVersion(
 
 void GNADeviceHelper::dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
     Gna2DeviceVersion targetDeviceVersion, uint32_t input_size, uint32_t output_size) {
-    ExportTlvModel(modelId, outStream, targetDeviceVersion, input_size, output_size);
+    ExportTlvModel(modelId, nGnaDeviceIndex, outStream, targetDeviceVersion, input_size, output_size);
 }
 
 void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose) {

@@ -71,6 +71,7 @@
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
+#include <gna2-common-api.h>
 
 uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
@@ -1150,6 +1151,9 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
 #endif
 
 int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {
+    if (deviceString == "GNA35") {
+        return static_cast<int>(Gna2DeviceVersionEmbedded3_5);
+    }
     constexpr uint32_t embeddedSuffix = 0xE;
     if (deviceString.empty())
         return 0x100 + embeddedSuffix;
@@ -1198,7 +1202,7 @@ void GNAPlugin::DumpXNNToFile() const {
     } else if (versionInt == Gna2DeviceVersionEmbedded3_5) {
         uint32_t input_size = 0;
         uint32_t output_size = 0;
-        for (auto i : inputsDesc->bytes_allocated_for_input) 
+        for (auto i : inputsDesc->bytes_allocated_for_input)
             input_size += i.second;
         for (auto o : outputsDesc)
             output_size += o.num_bytes_per_element* o.num_elements;

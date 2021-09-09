@@ -56,6 +56,7 @@ void * ExportSueLegacyUsingGnaApi2(
 }
 
 void ExportTlvModel(uint32_t modelId,
+    uint32_t deviceIndex,
     std::ostream& outStream,
     Gna2DeviceVersion deviceVersionToExport,
     uint32_t input_size,
@@ -65,7 +66,7 @@ void ExportTlvModel(uint32_t modelId,
     auto status = Gna2ModelExportConfigCreate(gnaUserAllocatorAlignedPage, &exportConfig);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigCreate");
 
-    status = Gna2ModelExportConfigSetSource(exportConfig, 0, modelId);
+    status = Gna2ModelExportConfigSetSource(exportConfig, deviceIndex, modelId);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetSource");
     status = Gna2ModelExportConfigSetTarget(exportConfig, deviceVersionToExport);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetTarget");
@@ -101,7 +102,7 @@ void ExportTlvModel(uint32_t modelId,
     void* bufferStateRWData = nullptr;
     uint32_t sizeOfStateRWData = 0;
 
-#if 0
+
     // RW - state
     status = Gna2ModelExport(exportConfig,
         Gna2ModelExportComponentStateDump,
@@ -115,26 +116,26 @@ void ExportTlvModel(uint32_t modelId,
     void* bufferInputRWData;
     uint32_t sizeOfInputRWData;
     status = Gna2ModelExport(exportConfig,
-        Gna2ModelExportComponentExternalBufferInputDump,
+        Gna2ModelExportComponentInputDump,
         &bufferInputRWData, &sizeOfInputRWData);
-    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentExternalBufferInputDump)");
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentInputDump)");
 
     // RW - external Output
     void* bufferOutputRWData;
     uint32_t sizeOfOutputRWData;
     status = Gna2ModelExport(exportConfig,
-        Gna2ModelExportComponentExternalBufferOutputDump,
+        Gna2ModelExportComponentOutputDump,
         &bufferOutputRWData, &sizeOfOutputRWData);
-    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentExternalBufferOutputDump)");
-#endif
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentOutputDump)");
+
     char* outTlv;
     uint32_t outTlvSize;
-    char* RW = nullptr;
 
-    const char* gnaLibraryVersion = GNADeviceHelper::GetGnaLibraryVersion().c_str();
+    const auto gnaLibraryVersion = GNADeviceHelper::GetGnaLibraryVersion();
     const char* userData = nullptr;
     uint32_t userDataSize = 0;
-    auto tlv_status = Gna2ExportTlvGNAA35(
+    auto tlv_status = Gna2ExportTlv(
+        deviceVersionToExport,
         gnaUserAllocator,
         &outTlv,
         &outTlvSize,
@@ -147,7 +148,7 @@ void ExportTlvModel(uint32_t modelId,
         sizeOfScratchRWData,
         input_size,
         output_size,
-        gnaLibraryVersion,
+        gnaLibraryVersion.c_str(),
         userData,
         userDataSize);
 
@@ -160,10 +161,10 @@ void ExportTlvModel(uint32_t modelId,
     gnaUserFree(bufferROData);
     gnaUserFree(bufferScratchRWData);
     gnaUserFree(bufferStateRWData);
-#if 0
+
     gnaUserFree(bufferInputRWData);
     gnaUserFree(bufferOutputRWData);
-#endif
+
     GNADeviceHelper::checkGna2Status((Gna2Status)status, "ExportTlvModel");
     status = Gna2ModelExportConfigRelease(exportConfig);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigRelease");

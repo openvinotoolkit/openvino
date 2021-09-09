@@ -138,6 +138,7 @@ class GNAMemory {
             if (queue.second->calcSize() != 0) {
                 heap_offset = ALIGN(allocateRegion(queue.second), _page_alignment);
                 std::cout << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
+                _allocator.setTag(queue.second->getBasePtr(), queue.first);
             }
         }
 #ifdef GNA_HEAP_PROFILER

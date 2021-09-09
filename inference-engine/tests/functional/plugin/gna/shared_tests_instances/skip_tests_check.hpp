@@ -16,7 +16,7 @@ protected:
             if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(GNA_LIBRARY_FULL_VERSION)) != metrics.end()) {
                 std::string gnaLibVer = ie_core.GetMetric(targetDevice, METRIC_KEY(GNA_LIBRARY_FULL_VERSION));
 
-                if (gnaLibVer.rfind("2.1", 0) != 0 && gnaLibVer.rfind("3.0", 0) != 0) {
+                if (gnaLibVer.rfind("2.1", 0) != 0 && gnaLibVer.rfind("3.", 0) != 0) {
                     GTEST_SKIP() << "Disabled test due to GNA library version being not 2.1 or 3.0" << std::endl;
                 }
                 skipTest = false;

@@ -23,6 +23,7 @@ void ExportLdForDeviceVersion(
     Gna2DeviceVersion deviceVersionToExport);
 
 void ExportTlvModel(uint32_t modelId,
+    uint32_t deviceIndex,
     std::ostream& outStream,
     Gna2DeviceVersion deviceVersionToExport,
     uint32_t input_size,
