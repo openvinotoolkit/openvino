@@ -24,16 +24,16 @@
 using namespace testing;
 
 TEST(TransformationTests, FQTransposeTest1) {
-    auto data1 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 3}, {1, 2, 3});
-    auto data2 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {1, 2, 3});
-    auto data3 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
-    auto data4 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
-    auto data5 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
-    auto transpose_order = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
-
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto fq = std::make_shared<ngraph::op::FakeQuantize>(data1, data2, data3, data4, data5, 1);
+        auto data = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 3}, {1, 2, 3});
+        auto input_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
+        auto input_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
+        auto output_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
+        auto output_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
+        auto transpose_order = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
+
+        auto fq = std::make_shared<ngraph::op::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
         auto transpose = std::make_shared<ngraph::op::Transpose>(fq, transpose_order);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{transpose}, ngraph::ParameterVector{});
@@ -47,29 +47,35 @@ TEST(TransformationTests, FQTransposeTest1) {
         manager.register_pass<ngraph::pass::ConstantFolding>();
         ASSERT_NO_THROW(manager.run_passes(f));
     }
-    std::vector<size_t> ref_shape{1, 3, 1};
-    for (auto op : f->get_ops()) {
-        if (auto constant = ngraph::as_type_ptr<ngraph::op::Constant>(op)) {
-            auto shape = constant->get_shape();
-            ASSERT_EQ(shape, ref_shape);
-        }
+    {
+        auto data = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 1}, {1, 2, 3});
+        auto input_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {2});
+        auto input_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {3});
+        auto output_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {2});
+        auto output_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {3});
+
+        auto fq = std::make_shared<ngraph::op::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{fq}, ngraph::ParameterVector{});
     }
+    auto res = compare_functions(f, f_ref, true);
+    ASSERT_TRUE(res.first) << res.second;
 }
 
 TEST(TransformationTests, FQTransposeDynamic) {
-    auto data1 = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-    auto data2 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {1, 2, 3});
-    auto data3 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
-    auto data4 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
-    auto data5 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
+    auto data = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+    auto input_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
+    auto input_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
+    auto output_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
+    auto output_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
     auto transpose_order = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
 
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto fq = std::make_shared<ngraph::op::FakeQuantize>(data1, data2, data3, data4, data5, 1);
+        auto fq = std::make_shared<ngraph::op::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
         auto transpose = std::make_shared<ngraph::op::Transpose>(fq, transpose_order);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{transpose}, ngraph::ParameterVector{data1});
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{transpose}, ngraph::ParameterVector{data});
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
