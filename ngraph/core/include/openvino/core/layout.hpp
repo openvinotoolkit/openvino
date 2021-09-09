@@ -10,6 +10,7 @@
 #include "ngraph/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/rank.hpp"
+#include "openvino/core/variant.hpp"
 
 namespace ov {
 
@@ -32,7 +33,7 @@ public:
     }
 
     static LayoutRank create_dynamic(value_type left = 0, value_type right = 0) {
-        return LayoutRank(left, right);
+        return {left, right};
     }
 
     bool is_dynamic() const {
@@ -57,7 +58,7 @@ private:
     /// \brief
     LayoutRank(value_type left, value_type right) : m_dynamic(true), m_left(left), m_right(right) {}
 
-    LayoutRank(value_type size) : m_dynamic(false), m_left(no_size), m_right(no_size), m_size(size) {}
+    explicit LayoutRank(value_type size) : m_dynamic(false), m_left(no_size), m_right(no_size), m_size(size) {}
 
     bool m_dynamic = true;
     value_type m_left = 0;
@@ -205,7 +206,7 @@ OPENVINO_API void set_width(Layout& layout, std::int64_t index);
 template <>
 class OPENVINO_API AttributeAdapter<Layout> : public ValueAccessor<std::string> {
 public:
-    AttributeAdapter(Layout& value) : m_ref(value) {}
+    explicit AttributeAdapter(Layout& value) : m_ref(value) {}
 
     const std::string& get() override;
     void set(const std::string& value) override;
@@ -213,7 +214,7 @@ public:
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
-    operator Layout&() {
+    explicit operator Layout&() {
         return m_ref;
     }
 
@@ -221,4 +222,16 @@ protected:
     Layout& m_ref;
     std::string m_dump;
 };
+
+template <>
+class OPENVINO_API VariantWrapper<Layout> : public VariantImpl<Layout> {
+public:
+    static constexpr VariantTypeInfo type_info{"Variant::Layout", 0};
+    const VariantTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+
+    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
+};
+
 }  // namespace ov

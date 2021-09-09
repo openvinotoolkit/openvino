@@ -354,3 +354,5 @@ const std::string& AttributeAdapter<ov::Layout>::get() {
 void AttributeAdapter<ov::Layout>::set(const std::string& value) {
     m_ref = Layout(value);
 }
+
+constexpr VariantTypeInfo VariantWrapper<ov::Layout>::type_info;
