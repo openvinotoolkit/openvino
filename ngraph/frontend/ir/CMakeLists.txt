@@ -28,7 +28,6 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
 target_include_directories(${TARGET_NAME}
         PUBLIC
             $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
-            $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             ${CMAKE_CURRENT_BINARY_DIR})
