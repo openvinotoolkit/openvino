@@ -235,9 +235,9 @@ protected:
     void Allocate();
     void AllocateWithReuse();
     void CreatePrimitives();
-    void ExtractConstantNodes();
+    void ExtractConstantAndExecutableNodes();
     void ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::stream& stream) const;
-    void ExecuteConstantNodesOnly() const;
+    void ExecuteConstantNodesOnly();
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
@@ -247,10 +247,12 @@ private:
     // TODO: change std::map to std::unordered_map
     std::map<std::string, MKLDNNNodePtr> inputNodesMap;
     std::map<std::string, MKLDNNNodePtr> outputNodesMap;
+
     // these node pointers (from graphNodes) are to avoid regular checking for
-    // constant node in ExecuteConstantNodesOnly and Infer methods
+    // constantness of nodes in ExecuteConstantNodesOnly, Infer methods and calls of
+    // non-executable (optimized out) nodes, such as Input, Reshape, etc.
     std::vector<MKLDNNNodePtr> constantGraphNodes;
-    std::vector<MKLDNNNodePtr> mutableGraphNodes;
+    std::vector<MKLDNNNodePtr> executableGraphNodes;
 
     void EnforceBF16();
 };
