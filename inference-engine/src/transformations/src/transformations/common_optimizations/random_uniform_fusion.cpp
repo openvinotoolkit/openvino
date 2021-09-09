@@ -32,7 +32,7 @@ ngraph::pass::RandomUniformMaxValFusion::RandomUniformMaxValFusion() {
   const auto mul_pattern = ngraph::pattern::wrap_type<opset8::Multiply>(
       {random_uniform_pattern, mul_const_pattern});
 
-  const auto conv_pattern =
+  const auto convert_pattern =
       ngraph::pattern::wrap_type<opset8::Convert>({random_uniform_pattern});
   const auto mul_with_convert_pattern =
       ngraph::pattern::wrap_type<opset8::Multiply>(
@@ -43,7 +43,7 @@ ngraph::pass::RandomUniformMaxValFusion::RandomUniformMaxValFusion() {
           OutputVector{mul_pattern, mul_with_convert_pattern});
 
   ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
-    auto pattern_map = m.get_pattern_value_map();
+    const auto & pattern_map = m.get_pattern_value_map();
     const auto data = pattern_map[data_pattern];
     const auto random_uniform = pattern_map[random_uniform_pattern];
     const auto mul_const = pattern_map[mul_const_pattern];
