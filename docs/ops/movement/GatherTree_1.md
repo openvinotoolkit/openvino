@@ -43,8 +43,8 @@ for batch in range(BATCH_SIZE):
 
 **Inputs**
 
-* **1**:  `step_ids` - Indices from per each step. A tensor of type *T* and rank 3. Layout is `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]`. **Required.**
-* **2**:  `parent_ids` - Parent beam indices. A tensor of type *T* and rank3. Layout is `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]`. **Required.**
+* **1**:  `step_ids` - Indices per each step. A tensor of type *T* and rank 3. Layout is `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]`. **Required.**
+* **2**:  `parent_ids` - Parent beam indices. A tensor of type *T* and rank 3. Layout is `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]`. **Required.**
 * **3**:  `max_seq_len` - Maximum lengths for each sequence in the batch. A tensor of type *T* and rank 1. Layout is `[BATCH_SIZE]`. **Required.**
 * **4**:  `end_token` - Value of the end marker in a sequence. A scalar of type *T*. **Required.**
 * **Note**: Inputs should have integer values only.
