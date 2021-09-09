@@ -61,9 +61,10 @@ void regclass_pyngraph_DiscreteTypeInfo(py::module m) {
         if (self.parent != nullptr) {
             std::string parent_version = std::to_string(self.parent->version);
             std::string parent_name = self.parent->name;
-            return "<DiscreteTypeInfo: " + name +" v" + version + " Parent(" + parent_name +" v"+ parent_version + ")" + ">";
+            return "<DiscreteTypeInfo: " + name + " v" + version + " Parent(" + parent_name + " v" + parent_version +
+                   ")" + ">";
         } else {
-            return "<DiscreteTypeInfo: " + name +" v" + version + ">";
+            return "<DiscreteTypeInfo: " + name + " v" + version + ">";
         }
     });
 

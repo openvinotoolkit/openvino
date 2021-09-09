@@ -38,7 +38,6 @@ PYBIND11_MAKE_OPAQUE(PyRTMap);
 void regclass_pyngraph_Node(py::module m) {
     py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>, PyNode> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
-    node.def("get_type_info", &ngraph::Node::get_type_info);
     node.def(
         "__add__",
         [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
@@ -182,6 +181,7 @@ void regclass_pyngraph_Node(py::module m) {
                 get_name : str
                     Friendly name of the node.
              )");
+    node.def("get_type_info", &ngraph::Node::get_type_info);
     node.def("set_friendly_name",
              &ngraph::Node::set_friendly_name,
              py::arg("name"),
