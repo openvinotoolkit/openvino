@@ -25,12 +25,13 @@ shift
 done
 
 if [ -e "$INSTALLDIR/runtime" ]; then
-    export InferenceEngine_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
-    export ngraph_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
-    export OpenVINO_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
+    export InferenceEngine_DIR=$INSTALLDIR/runtime/cmake
+    export ngraph_DIR=$INSTALLDIR/runtime/cmake
+    export OpenVINO_DIR=$INSTALLDIR/runtime/cmake
 
-    system_type=$(ls "$INTEL_OPENVINO_DIR/runtime/lib/")
-    IE_PLUGINS_PATH=$INTEL_OPENVINO_DIR/runtime/lib/$system_type
+    system_type=$(ls "$INSTALLDIR/runtime/lib/")
+    IE_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
+    export OV_FRONTEND_PATH=$IE_PLUGINS_PATH{OV_FRONTEND_PATH:+:$OV_FRONTEND_PATH}
 
     export HDDL_INSTALL_DIR=$INSTALLDIR/runtime/3rdparty/hddl
     if [[ "$OSTYPE" == "darwin"* ]]; then
