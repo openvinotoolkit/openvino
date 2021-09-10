@@ -23,8 +23,10 @@
 #include <samples/slog.hpp>
 #include <string>
 #include <vector>
+#include <tuple>
 
 #include "classification_sample_async.h"
+#include "../../src/plugin_api/precision_utils.h"
 
 using namespace InferenceEngine;
 
@@ -60,8 +62,53 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     return true;
 }
 
+using ImagesInfo = std::pair<
+    std::vector<std::shared_ptr<unsigned char>>, // ImagesData
+    std::vector<std::string>                     // ValidImageNames
+    >;
+                                  
+/**
+ * @brief Reads images data
+ * @param imageNames Image names
+ * @param width Image width
+ * @param height Image height
+ * @return ImagesInfo pair of ImagesData and ValidImageNames
+ */
+ImagesInfo readImages(const std::vector<std::string>& imageNames,
+                      size_t width,
+                      size_t height) {
+    ImagesInfo outData;
+    std::vector<std::shared_ptr<unsigned char>> imagesData = {};
+    std::vector<std::string> validImageNames = {};
+
+    for (const auto& i : imageNames) {
+        FormatReader::ReaderPtr reader(i.c_str());
+        if (reader.get() == nullptr) {
+            slog::warn << "Image " + i + " cannot be read!" << slog::endl;
+            continue;
+        }
+        /** Store image data **/
+        std::shared_ptr<unsigned char> data(reader->getData(width, height));
+        if (data != nullptr) {
+            imagesData.push_back(data);
+            validImageNames.push_back(i);
+        }
+    }
+    if (imagesData.empty() || validImageNames.empty())
+        throw std::logic_error("Valid input images were not found!");
+
+    outData.first = std::move(imagesData);
+    outData.second = std::move(validImageNames);
+
+    return outData;
+}
+
+Blob::Ptr getFp32Blob(const Blob::Ptr& in);
+
 int main(int argc, char* argv[]) {
     try {
+        ExecutableNetwork executable_network;
+
         // ------------------------------ Get Inference Engine version
         // ------------------------------------------------------
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
@@ -71,6 +118,12 @@ int main(int argc, char* argv[]) {
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
+
+        bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
+        if (isNetworkCompiled) {
+            slog::info << "Network is compiled" << slog::endl;
+        }
+
         // ------------------------------ Read input
         // -----------------------------------------------------------
         /** This vector stores paths to the processed images **/
@@ -100,71 +153,82 @@ int main(int argc, char* argv[]) {
             // Config for device plugin custom extension is loaded from an .xml
             // description
             ie.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, FLAGS_d);
-            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c
-                       << slog::endl;
+            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c << slog::endl;
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and
-        // .bin files) or ONNX (.onnx file) format
-        slog::info << "Loading network files:" << slog::endl << FLAGS_m << slog::endl;
-
-        /** Read network model **/
-        CNNNetwork network = ie.ReadNetwork(FLAGS_m);
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- Step 3. Configure input & output
-        // ---------------------------------------------
-        if (network.getOutputsInfo().size() != 1)
-            throw std::logic_error("Sample supports topologies with 1 output only");
-
-        // --------------------------- Prepare input blobs
-        // -----------------------------------------------------
-        slog::info << "Preparing input blobs" << slog::endl;
-
-        /** Taking information about all topology inputs **/
-        InputsDataMap inputInfo(network.getInputsInfo());
-        if (inputInfo.size() != 1)
-            throw std::logic_error("Sample supports topologies with 1 input only");
-
-        auto inputInfoItem = *inputInfo.begin();
-
-        /** Specifying the precision and layout of input data provided by the user.
-         * This should be called before load of the network to the device **/
-        inputInfoItem.second->setPrecision(Precision::U8);
-        inputInfoItem.second->setLayout(Layout::NCHW);
-
+        InputsDataMap inputInfo;
         std::vector<std::shared_ptr<unsigned char>> imagesData = {};
         std::vector<std::string> validImageNames = {};
-        for (const auto& i : imageNames) {
-            FormatReader::ReaderPtr reader(i.c_str());
-            if (reader.get() == nullptr) {
-                slog::warn << "Image " + i + " cannot be read!" << slog::endl;
-                continue;
-            }
-            /** Store image data **/
-            std::shared_ptr<unsigned char> data(reader->getData(inputInfoItem.second->getTensorDesc().getDims()[3],
-                                                                inputInfoItem.second->getTensorDesc().getDims()[2]));
-            if (data != nullptr) {
-                imagesData.push_back(data);
-                validImageNames.push_back(i);
-            }
+
+        if (!isNetworkCompiled) {
+            // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and
+            // .bin files) or ONNX (.onnx file) format
+            slog::info << "Loading network files:" << slog::endl << FLAGS_m << slog::endl;
+
+            /** Read network model **/
+            CNNNetwork network = ie.ReadNetwork(FLAGS_m);
+            // -----------------------------------------------------------------------------------------------------
+
+            // --------------------------- Step 3. Configure input & output
+            // ---------------------------------------------
+            if (network.getOutputsInfo().size() != 1)
+                throw std::logic_error("Sample supports topologies with 1 output only");
+
+            // --------------------------- Prepare input blobs
+            // -----------------------------------------------------
+            slog::info << "Preparing input blobs" << slog::endl;
+
+            /** Taking information about all topology inputs **/
+            inputInfo = network.getInputsInfo();
+            if (inputInfo.size() != 1)
+                throw std::logic_error("Sample supports topologies with 1 input only");
+
+            auto inputInfoItem = *inputInfo.begin();
+
+            /** Specifying the precision and layout of input data provided by the user.
+             * This should be called before load of the network to the device **/
+            inputInfoItem.second->setPrecision(Precision::U8);
+            inputInfoItem.second->setLayout(Layout::NCHW);
+
+            /** Read images **/
+            size_t width = inputInfoItem.second->getTensorDesc().getDims()[3];
+            size_t height = inputInfoItem.second->getTensorDesc().getDims()[2];
+            std::tie(imagesData, validImageNames) = readImages(imageNames, width, height);
+
+            /** Setting batch size using image count **/
+            network.setBatchSize(imagesData.size());
+            size_t batchSize = network.getBatchSize();
+            slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
+
+            // -----------------------------------------------------------------------------------------------------
+
+            // --------------------------- Step 4. Loading model to the device
+            // ------------------------------------------
+            slog::info << "Loading model to the device" << slog::endl;
+            executable_network = ie.LoadNetwork(network, FLAGS_d);
+            // -----------------------------------------------------------------------------------------------------
+        } else {
+            // Step 2. Read compiled model (.blob file)
+            slog::info << "Loading blob:" << slog::endl << FLAGS_m << slog::endl;
+            executable_network = ie.ImportNetwork(FLAGS_m, FLAGS_d, {});
+
+            // --------------------------- Step 3,4 Configure input & output
+            // ---------------------------------------------
+            if (executable_network.GetOutputsInfo().size() != 1)
+                throw std::logic_error("Sample supports topologies with 1 output only");
+
+            ConstInputsDataMap inputInfo = executable_network.GetInputsInfo();
+            if (inputInfo.size() != 1)
+                throw std::logic_error("Sample supports topologies only with 1 input");
+
+            auto inputInfoItem = *inputInfo.begin();
+
+            /** Read images **/
+            size_t width = inputInfoItem.second->getTensorDesc().getDims()[3];
+            size_t height = inputInfoItem.second->getTensorDesc().getDims()[2];
+            std::tie(imagesData, validImageNames) = readImages(imageNames, width, height);
         }
-        if (imagesData.empty() || validImageNames.empty())
-            throw std::logic_error("Valid input images were not found!");
-
-        /** Setting batch size using image count **/
-        network.setBatchSize(imagesData.size());
-        size_t batchSize = network.getBatchSize();
-        slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
-
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- Step 4. Loading model to the device
-        // ------------------------------------------
-        slog::info << "Loading model to the device" << slog::endl;
-        ExecutableNetwork executable_network = ie.LoadNetwork(network, FLAGS_d);
-        // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 5. Create infer request
         // -------------------------------------------------
@@ -204,8 +268,7 @@ int main(int argc, char* argv[]) {
                     for (size_t ch = 0; ch < num_channels; ++ch) {
                         /**          [images stride + channels stride + pixel id ] all in
                          * bytes            **/
-                        data[image_id * image_size * num_channels + ch * image_size + pid] =
-                            imagesData.at(image_id).get()[pid * num_channels + ch];
+                        data[image_id * image_size * num_channels + ch * image_size + pid] = imagesData.at(image_id).get()[pid * num_channels + ch];
                     }
                 }
             }
@@ -249,17 +312,19 @@ int main(int argc, char* argv[]) {
         // --------------------------- Step 8. Process output
         // -------------------------------------------------------
         slog::info << "Processing output blobs" << slog::endl;
-        OutputsDataMap outputInfo(network.getOutputsInfo());
+        ConstOutputsDataMap outputInfo(executable_network.GetOutputsInfo());
         if (outputInfo.empty())
             throw std::runtime_error("Can't get output blobs");
-        Blob::Ptr outputBlob = inferRequest.GetBlob(outputInfo.begin()->first);
+
+        /** Convert output blob to Fp32 **/
+        Blob::Ptr outputBlob = getFp32Blob(inferRequest.GetBlob(outputInfo.begin()->first));
 
         /** Validating -nt value **/
+        size_t batchSize = imagesData.size();
         const size_t resultsCnt = outputBlob->size() / batchSize;
         if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
-            slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than "
-                       << resultsCnt + 1 << " and more than 0)\n            Maximal value " << resultsCnt
-                       << " will be used." << slog::endl;
+            slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than " << resultsCnt + 1
+                       << " and more than 0)\n            Maximal value " << resultsCnt << " will be used." << slog::endl;
             FLAGS_nt = resultsCnt;
         }
 
@@ -294,4 +359,27 @@ int main(int argc, char* argv[]) {
                   "please use the dedicated benchmark_app tool"
                << slog::endl;
     return 0;
+}
+
+
+Blob::Ptr getFp32Blob(const Blob::Ptr& in) {
+    if (in->getTensorDesc().getPrecision() == Precision::FP32)
+        return in;
+
+    auto out = make_shared_blob<float>({Precision::FP32, 
+                                        in->getTensorDesc().getDims(),
+                                        in->getTensorDesc().getLayout()
+                                        });
+    out->allocate();
+
+    if (in->getTensorDesc().getPrecision() == Precision::FP16) {
+        PrecisionUtils::f16tof32Arrays(out->buffer().as<float*>(),
+                                       in->cbuffer().as<ie_fp16*>(),
+                                       in->size()
+                                       );
+    } else {
+        throw std::logic_error("Unsupported precision "  + std::to_string(in->getTensorDesc().getPrecision()));
+    }
+
+    return out;
 }
