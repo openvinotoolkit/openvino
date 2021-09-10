@@ -30,6 +30,9 @@ if(NOT DEFINED CMAKE_FIND_PACKAGE_NAME)
     set(_ie_need_package_name_reset ON)
 endif()
 
+# need to store current PACKAGE_PREFIX_DIR, because it's overwritten by sub-package one
+set(_ie_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
+
 include(CMakeFindDependencyMacro)
 
 find_dependency(OpenVINO
@@ -63,23 +66,15 @@ unset(InferenceEngine_LIBRARIES)
 foreach(comp IN LISTS ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)
     # check if the component is available
     if(${CMAKE_FIND_PACKAGE_NAME}_${comp}_FOUND)
-        set(pcomp ${comp})
-        if(_ie_as_external_package)
-            set(pcomp IE::${comp})
-        endif()
+        set(pcomp IE::${comp})
 
         list(APPEND InferenceEngine_LIBRARIES ${pcomp})
     endif()
 endforeach()
 
-if(_ie_as_external_package)
-    _ie_target_no_deprecation_error(${InferenceEngine_LIBRARIES})
-endif()
-unset(_ie_as_external_package)
-
 # restore PACKAGE_PREFIX_DIR
-set(PACKAGE_PREFIX_DIR ${IE_PACKAGE_PREFIX_DIR})
-unset(IE_PACKAGE_PREFIX_DIR)
+set(PACKAGE_PREFIX_DIR ${_ie_package_prefix_dir})
+unset(_ie_package_prefix_dir)
 
 set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_IE_INCLUDE_DIR@")
 
