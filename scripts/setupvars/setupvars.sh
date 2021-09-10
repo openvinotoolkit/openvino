@@ -31,6 +31,7 @@ done
 
 if [ -e "$INSTALLDIR/deployment_tools/inference_engine" ]; then
     export InferenceEngine_DIR=$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/share
+    export OpenVINO_DIR=$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/share
     system_type=$(ls "$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/lib/")
     IE_PLUGINS_PATH=$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/lib/$system_type
 
