@@ -22,11 +22,11 @@
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <string>
-#include <vector>
 #include <tuple>
+#include <vector>
 
-#include "classification_sample_async.h"
 #include "../../src/plugin_api/precision_utils.h"
+#include "classification_sample_async.h"
 
 using namespace InferenceEngine;
 
@@ -62,11 +62,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     return true;
 }
 
-using ImagesInfo = std::pair<
-    std::vector<std::shared_ptr<unsigned char>>, // ImagesData
-    std::vector<std::string>                     // ValidImageNames
-    >;
-                                  
+using ImagesInfo = std::pair<std::vector<std::shared_ptr<unsigned char>>,  // ImagesData
+                             std::vector<std::string>                      // ValidImageNames
+                             >;
+                               
 /**
  * @brief Reads images data
  * @param imageNames Image names
@@ -74,9 +73,7 @@ using ImagesInfo = std::pair<
  * @param height Image height
  * @return ImagesInfo pair of ImagesData and ValidImageNames
  */
-ImagesInfo readImages(const std::vector<std::string>& imageNames,
-                      size_t width,
-                      size_t height) {
+ImagesInfo readImages(const std::vector<std::string>& imageNames, size_t width, size_t height) {
     ImagesInfo outData;
     std::vector<std::shared_ptr<unsigned char>> imagesData = {};
     std::vector<std::string> validImageNames = {};
@@ -153,7 +150,7 @@ int main(int argc, char* argv[]) {
             // Config for device plugin custom extension is loaded from an .xml
             // description
             ie.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, FLAGS_d);
-            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c 
+            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c
                        << slog::endl;
         }
         // -----------------------------------------------------------------------------------------------------
@@ -364,24 +361,18 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-
 Blob::Ptr getFp32Blob(const Blob::Ptr& in) {
     if (in->getTensorDesc().getPrecision() == Precision::FP32)
         return in;
 
-    auto out = make_shared_blob<float>({Precision::FP32, 
-                                        in->getTensorDesc().getDims(),
-                                        in->getTensorDesc().getLayout()
-                                        });
+    auto out =
+        make_shared_blob<float>({Precision::FP32, in->getTensorDesc().getDims(), in->getTensorDesc().getLayout()});
     out->allocate();
 
     if (in->getTensorDesc().getPrecision() == Precision::FP16) {
-        PrecisionUtils::f16tof32Arrays(out->buffer().as<float*>(),
-                                       in->cbuffer().as<ie_fp16*>(),
-                                       in->size()
-                                       );
+        PrecisionUtils::f16tof32Arrays(out->buffer().as<float*>(), in->cbuffer().as<ie_fp16*>(), in->size());
     } else {
-        throw std::logic_error("Unsupported precision "  + std::to_string(in->getTensorDesc().getPrecision()));
+        throw std::logic_error("Unsupported precision " + std::to_string(in->getTensorDesc().getPrecision()));
     }
 
     return out;
