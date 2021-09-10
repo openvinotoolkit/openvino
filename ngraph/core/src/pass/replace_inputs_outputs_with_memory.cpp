@@ -5,6 +5,8 @@
 #include "openvino/pass/replace_inputs_outputs_with_memory.h"
 
 #include <memory>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <openvino/op/util/variable.hpp>
 #include <openvino/opsets/opset8.hpp>
 
@@ -28,6 +30,7 @@ bool ov::pass::ReplaceInputsOutputsWithMemory::run_on_function(std::shared_ptr<n
     for (const auto& pair : m_pairs_to_replace) {
         const auto& param = pair.first;
         const auto& res = pair.second;
+        const auto& target_inputs = param->get_output_target_inputs(0);
 
         std::string var_name = generate_variable_name(param, res);
         auto variable = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, var_name});
@@ -35,15 +38,19 @@ bool ov::pass::ReplaceInputsOutputsWithMemory::run_on_function(std::shared_ptr<n
 
         // create ReadValue
         auto const_zero = make_shared<Constant>(param->get_element_type(), ngraph::Shape{1}, 0);
-        auto shape_of = make_shared<ShapeOf>(param);  // not found
+        auto shape_of = make_shared<ShapeOf>(param);
 
         auto broadcast = make_shared<Broadcast>(const_zero, shape_of);
         auto read_val = make_shared<ReadValue>(broadcast, variable);
-        replace_node(param, read_val);
+        for (const auto& target_in : target_inputs) {
+            target_in.replace_source_output(read_val->output(0));
+        }
+        copy_runtime_info(param, {const_zero, shape_of, broadcast, read_val});
 
         // create Assign
         auto assign = make_shared<Assign>(res->input_value(0), variable);
         sinks.push_back(assign);
+        copy_runtime_info(res, assign);
 
         assign->add_control_dependency(read_val);
     }
