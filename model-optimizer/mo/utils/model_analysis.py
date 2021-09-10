@@ -112,13 +112,14 @@ class AnalysisCollectorAnchor(AnalyzeAction):
         pass
 
 
-def graph_contains_scope(graph: Graph, scope: str):
+def graph_contains_scope(graph: Graph, scope: [str, tuple]):
     """
-    Checks whether the graph contains node(s) which name starts with "scope" string.
+    Checks whether the graph contains node(s) which name includes "scope" string.
     :param graph: graph to check
-    :param scope: string defining the scope
+    :param scope: string or tuple with strings defining the scope
     :return: the result of the check (True/False)
     """
-    if scope[-1] != '/':
-        scope += '/'
-    return any([node.soft_get('name').startswith(scope) for node in graph.get_op_nodes()])
+    if type(scope) is str:
+        return any([node.soft_get('name').find(scope) != -1 for node in graph.get_op_nodes()])
+    else:
+        return any([graph_contains_scope(graph, s) for s in scope])
