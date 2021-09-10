@@ -45,9 +45,9 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
     auto rois_shape = get_input_partial_shape(0);
     auto input_et = get_input_element_type(0);
 
-    PartialShape out_shape = {Dimension::dynamic(), Dimension::dynamic(), m_attrs.output_size, m_attrs.output_size};
+    ov::Shape out_shape = {Dimension::dynamic(), Dimension::dynamic(), m_attrs.output_size, m_attrs.output_size};
 
-    PartialShape out_rois_shape = {Dimension::dynamic(), 4};
+    ov::Shape out_rois_shape = {Dimension::dynamic(), 4};
     if (rois_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this, rois_shape.rank().get_length() == 2, "Input rois rank must be equal to 2.");
 
