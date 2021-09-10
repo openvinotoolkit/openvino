@@ -28,6 +28,7 @@
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
+#include "transformations/common_optimizations/random_uniform_fusion.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
@@ -175,6 +176,9 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+
+    // RandomUniformFusion must be executed after LinOpSequenceFusion
+    manager.register_pass<ngraph::pass::RandomUniformFusion>();
 
     auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();

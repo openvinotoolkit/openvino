@@ -49,8 +49,10 @@ ngraph::pass::RandomUniformMaxValFusion::RandomUniformMaxValFusion() {
         auto const_shape = mul_const->get_shape();
         size_t const_shape_size = shape_size(const_shape);
 
-        if (const_shape_size != 1 || const_shape.size() != 1)
+        if (const_shape_size != 1)
             return false;
+        const auto value = mul_const->cast_vector<double>();
+        auto new_mul_const = op::Constant::create(ru->get_out_type(), Shape{}, value);
 
         if (pattern_map.count(convert_pattern)) {
             const auto& mul = pattern_map.at(mul_pattern);
@@ -62,9 +64,9 @@ ngraph::pass::RandomUniformMaxValFusion::RandomUniformMaxValFusion() {
             const auto cvt = std::dynamic_pointer_cast<opset8::Convert>(convert.get_node_shared_ptr());
             if (!cvt)
                 return false;
-            const auto new_conv = std::make_shared<ngraph::opset8::Convert>(ml->input_value(1), ru->get_out_type());
-            const auto new_mul = ml->clone_with_new_inputs({ru->input_value(2), new_conv});
-            const auto new_ru = ru->clone_with_new_inputs({data, ru->input_value(1), new_mul});
+            const auto new_mul1 = ml->clone_with_new_inputs({ru->input_value(1), new_mul_const});
+            const auto new_mul2 = ml->clone_with_new_inputs({ru->input_value(2), new_mul_const});
+            const auto new_ru = ru->clone_with_new_inputs({data, new_mul1, new_mul2});
             new_ru->set_friendly_name(m.get_match_root()->get_friendly_name());
             const auto new_ru_conv = cvt->clone_with_new_inputs({new_ru});
             copy_runtime_info({ru, cvt}, {new_ru, new_ru_conv});
@@ -75,10 +77,11 @@ ngraph::pass::RandomUniformMaxValFusion::RandomUniformMaxValFusion() {
             const auto ml = std::dynamic_pointer_cast<opset8::Multiply>(mul.get_node_shared_ptr());
             if (!ml)
                 return false;
-            const auto new_mul = ml->clone_with_new_inputs({ru->input_value(2), ml->input_value(1)});
-            const auto new_ru = ru->clone_with_new_inputs({data, ru->input_value(1), new_mul});
+            const auto new_mul1 = ml->clone_with_new_inputs({ru->input_value(1), new_mul_const});
+            const auto new_mul2 = ml->clone_with_new_inputs({ru->input_value(2), new_mul_const});
+            const auto new_ru = ru->clone_with_new_inputs({data, new_mul1, new_mul2});
             new_ru->set_friendly_name(m.get_match_root()->get_friendly_name());
-            copy_runtime_info({mul.get_node_shared_ptr(), ru}, {new_mul, new_ru});
+            copy_runtime_info({mul.get_node_shared_ptr(), ru}, {new_mul1, new_mul2, new_ru});
             ngraph::replace_node(m.get_match_root(), new_ru);
         }
 
@@ -122,8 +125,10 @@ ngraph::pass::RandomUniformMinValFusion::RandomUniformMinValFusion() {
         auto const_shape = add_const->get_shape();
         size_t const_shape_size = shape_size(const_shape);
 
-        if (const_shape_size != 1 || const_shape.size() != 1)
+        if (const_shape_size != 1)
             return false;
+        const auto value = add_const->cast_vector<double>();
+        auto new_add_const = op::Constant::create(ru->get_out_type(), Shape{}, value);
 
         if (!ru)
             return false;
@@ -133,17 +138,16 @@ ngraph::pass::RandomUniformMinValFusion::RandomUniformMinValFusion() {
             const auto cvt = std::dynamic_pointer_cast<opset8::Convert>(convert.get_node_shared_ptr());
             if (!cvt)
                 return false;
-            const auto add_conv = std::make_shared<ngraph::opset8::Convert>(add_const, ru->get_out_type());
-            const auto add2 = std::make_shared<ngraph::opset8::Add>(add_conv, ru_max_input);
-            const auto add1 = std::make_shared<ngraph::opset8::Add>(add_conv, ru_min_input);
+            const auto add1 = std::make_shared<ngraph::opset8::Add>(ru_min_input, new_add_const);
+            const auto add2 = std::make_shared<ngraph::opset8::Add>(ru_max_input, new_add_const);
             const auto new_ru = ru->clone_with_new_inputs({data, add1, add2});
             new_ru->set_friendly_name(m.get_match_root()->get_friendly_name());
             const auto new_ru_conv = cvt->clone_with_new_inputs({new_ru});
             copy_runtime_info({add.get_node_shared_ptr(), ru, cvt}, {new_ru, new_ru_conv});
             ngraph::replace_node(m.get_match_root(), new_ru_conv);
         } else {
-            const auto add2 = std::make_shared<ngraph::opset8::Add>(add_const, ru_max_input);
-            const auto add1 = std::make_shared<ngraph::opset8::Add>(add_const, ru_min_input);
+            const auto add1 = std::make_shared<ngraph::opset8::Add>(ru_min_input, new_add_const);
+            const auto add2 = std::make_shared<ngraph::opset8::Add>(ru_max_input, new_add_const);
             const auto new_ru = ru->clone_with_new_inputs({data, add1, add2});
             new_ru->set_friendly_name(m.get_match_root()->get_friendly_name());
             copy_runtime_info({add.get_node_shared_ptr(), ru}, new_ru);
