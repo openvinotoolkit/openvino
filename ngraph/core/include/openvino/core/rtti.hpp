@@ -9,8 +9,7 @@
 #define _OPENVINO_RTTI_EXPAND(X)                                      X
 #define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
 
-#define _OPENVINO_RTTI_DEF_WITH_TYPE(CLASS, TYPE_NAME) \
-    _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION(CLASS, TYPE_NAME, "extension")
+#define _OPENVINO_RTTI_DEF_WITH_TYPE(CLASS, TYPE_NAME) _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION(CLASS, TYPE_NAME, "util")
 
 #define _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION(CLASS, TYPE_NAME, VERSION_NAME) \
     _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION_PARENT(CLASS, TYPE_NAME, VERSION_NAME, ::ov::op::Op)
@@ -27,7 +26,7 @@
         return type_info;                                                                                       \
     }
 
-#define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "extension")
+#define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "util")
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                  \
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {                  \
