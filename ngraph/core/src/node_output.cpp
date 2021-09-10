@@ -56,6 +56,16 @@ std::set<Input<Node>> Output<Node>::get_target_inputs() const {
     return result;
 }
 
+NodeVector Output<Node>::target_inputs() const {
+    NodeVector result;
+
+    for (auto& input : m_node->m_outputs.at(m_index).get_inputs()) {
+        result.emplace_back(input->get_node());
+    }
+
+    return result;
+}
+
 void Output<Node>::remove_target_input(const Input<Node>& target_input) const {
     m_node->m_outputs.at(m_index).remove_input(&(target_input.get_node()->m_inputs.at(target_input.get_index())));
 }

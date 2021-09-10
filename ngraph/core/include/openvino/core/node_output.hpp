@@ -81,6 +81,10 @@ public:
     ///        this output handle.
     std::set<Input<Node>> get_target_inputs() const;
 
+    /// \return A vector containing handles for all inputs targeted by the output referenced by
+    ///        this output handle.
+    NodeVector target_inputs() const;
+
     /// \brief Removes a target input from the output referenced by this output handle.
     /// \param target_input The target input to remove.
     ///
