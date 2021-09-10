@@ -74,8 +74,7 @@ static void Execute(std::shared_ptr<ngraph::Function> function, std::shared_ptr<
     m.register_pass<ngraph::pass::InitNodeInfo>();
     m.register_pass<GNAPluginNS::SwapInputMatMulWithFq>();
     m.register_pass<GNAPluginNS::SwapInputMatMulWithBias>();
-    m.register_pass<GNAPluginNS::SwapInputMatMulFirstInputConstant>();
-    m.register_pass<GNAPluginNS::SwapInputMatMulSecondInputConstant>();
+    m.register_pass<GNAPluginNS::SwapInputMatMul>();
     m.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
 

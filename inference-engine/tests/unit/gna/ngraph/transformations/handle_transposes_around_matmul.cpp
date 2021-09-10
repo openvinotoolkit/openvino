@@ -241,9 +241,9 @@ TEST(TransformationTests, RemoveTransposeBeforeMatmulTestReshapeInOutEq) {
 }
 
 TEST(TransformationTests, InsertTransposeAfterMatmulTest) {
-    for (auto enable_add : { true, false }) {
-        for (auto matmul_on_left_side : { true, false }) {
-            for (auto enable_fq : { true, false }) {
+    for (auto enable_add : { true, false}) {
+        for (auto matmul_on_left_side : { true, false}) {
+            for (auto enable_fq : { true, false}) {
                 RunTest(
                     handle_transpose_after_matmul::CreateMatmulFunction(
                         {4, 1}, {1, 8}, {2, 16}, false, true, enable_add, matmul_on_left_side, enable_fq),
@@ -255,16 +255,14 @@ TEST(TransformationTests, InsertTransposeAfterMatmulTest) {
 }
 
 TEST(TransformationTests, RemoveTransposeAfterMatmulTest) {
-    for (auto enable_last_reshape : { true, false }) {
-        for (auto enable_add : { true, false }) {
-            for (auto matmul_on_left_side : { true, false }) {
-                for (auto enable_fq : { true, false }) {
-                    RunTest(
-                        handle_transpose_after_matmul::CreateMatmulTransposeFunction(
-                            {4, 1}, {1, 8}, {2, 16}, false, enable_last_reshape, enable_add, matmul_on_left_side, enable_fq),
-                        handle_transpose_after_matmul::CreateMatmulFunction(
-                            {4, 1}, {1, 8}, {2, 16}, true, enable_last_reshape, enable_add, matmul_on_left_side, enable_fq));
-                }
+    for (auto enable_add : { true, false }) {
+        for (auto matmul_on_left_side : { true, false }) {
+            for (auto enable_fq : { true, false }) {
+                RunTest(
+                    handle_transpose_after_matmul::CreateMatmulTransposeFunction(
+                        {4, 1}, {1, 8}, {2, 16}, false, true, enable_add, matmul_on_left_side, enable_fq),
+                    handle_transpose_after_matmul::CreateMatmulFunction(
+                        {4, 1}, {1, 8}, {2, 16}, true, true, enable_add, matmul_on_left_side, enable_fq));
             }
         }
     }
