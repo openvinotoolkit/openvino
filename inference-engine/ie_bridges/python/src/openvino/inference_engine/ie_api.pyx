@@ -29,7 +29,6 @@ from .constants import WaitMode, StatusCode, MeanVariant, layout_str_to_enum, fo
 
 import numpy as np
 
-
 warnings.filterwarnings(action="module", category=DeprecationWarning)
 
 cdef extern from "<utility>" namespace "std" nogil:
@@ -51,6 +50,11 @@ cdef c_map_to_dict(map[string, string] c_map):
     for v in c_map:
         py_dict[v.first.decode()] = v.second.decode()
     return py_dict
+
+
+cdef expand_dims_to_corresponding_layout(shape, layout):
+    single_axes = [1] * (len(layout) - len(shape))
+    return single_axes + list(shape)
 
 
 def get_version():
@@ -270,6 +274,10 @@ cdef class Blob:
         dims = c_tensor_desc.getDims()
         tensor_desc = TensorDesc(precision, dims, layout_int_to_str_map[layout])
         return tensor_desc
+
+    def set_shape(self, new_shape):
+        self._initial_shape = new_shape
+        deref(self._ptr).setShape(new_shape)
 
 ## This class represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
 cdef class IECore:
@@ -815,6 +823,14 @@ cdef class DataPtr:
     def initialized(self):
         return deref(self._ptr).isInitialized()
 
+    @property
+    def is_dynamic(self):
+        return deref(self._ptr).isDynamic()
+
+    ## get capsule with ngraph::PartialShape
+    def _get_partial_shape_capsule(self):
+        return C.getPartialShape_capsule(self._ptr)
+
 
 ## This class is the layer constant data representation. Provides same interface as DataPtr object except properties setters
 cdef class CDataPtr:
@@ -842,6 +858,14 @@ cdef class CDataPtr:
     @property
     def initialized(self):
         return deref(self._ptr).isInitialized()
+
+    @property
+    def is_dynamic(self):
+        return deref(self._ptr).isDynamic()
+
+    ## get capsule with ngraph::PartialShape
+    def _get_partial_shape_capsule(self):
+        return C.getPartialShape_capsule(self._ptr)
 
 
 ## This class represents a network instance loaded to plugin and ready for inference.
@@ -912,6 +936,8 @@ cdef class ExecutableNetwork:
                     infer_request.impl = &(deref(self.impl).infer_requests[i])
                 infer_request._inputs_list = list(self.input_info.keys())
                 infer_request._outputs_list = list(self.outputs.keys())
+                for input_name in infer_request._inputs_list:
+                    infer_request._inputs_is_dynamic[input_name] = self.input_info[input_name].input_data.is_dynamic
                 self._infer_requests.append(infer_request)
 
         if len(self._infer_requests) != c_infer_requests_size:
@@ -1048,6 +1074,7 @@ cdef class InferRequest:
         self._py_callback_used = False
         self._py_callback_called = threading.Event()
         self._py_data = None
+        self._inputs_is_dynamic = {}
 
     cdef void user_callback(self, int status) with gil:
         if self._py_callback:
@@ -1308,6 +1335,9 @@ cdef class InferRequest:
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
             assert k in self._inputs_list, f"No input with name {k} found in network"
+            if self._inputs_is_dynamic[k]:
+                shape = expand_dims_to_corresponding_layout(v.shape, self.input_blobs[k].tensor_desc.layout)
+                self.input_blobs[k].set_shape(shape)
             if self.input_blobs[k].tensor_desc.precision == "FP16":
                 self.input_blobs[k].buffer[:] = v.view(dtype=np.int16)
             else:
@@ -1452,15 +1482,25 @@ cdef class IENetwork:
     #  net.reshape({input_layer: (n, c, h*2, w*2)})
     #  ```
     def reshape(self, input_shapes: dict):
-        cdef map[string, vector[size_t]] c_input_shapes
-        cdef vector[size_t] c_shape
+        cdef map[string, vector[vector[int64_t]]] c_input_shapes
+        cdef vector[vector[int64_t]] c_shape
+        cdef vector[int64_t] dim
         net_inputs = self.input_info
         for input, shape in input_shapes.items():
             c_shape = []
             if input not in net_inputs:
                 raise AttributeError(f"Specified '{input}' layer not in network inputs '{net_inputs}'! ")
             for v in shape:
-                c_shape.push_back(v)
+                if isinstance(v, list) or isinstance(v, tuple):
+                    if len(v) < 1 or len(v) > 2:
+                        raise ValueError(f"Incorrect PartialShape dimension definition '{v}' "
+                                         f"in shape '{shape}', expected one or two values for a dimension! ")
+                    for d in v:
+                        dim.push_back(d)
+                else:
+                    dim.push_back(v)
+                c_shape.push_back(dim)
+                dim.clear()
             c_input_shapes[input.encode()] = c_shape
         self.impl.reshape(c_input_shapes)
 
