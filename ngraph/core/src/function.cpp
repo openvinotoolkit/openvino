@@ -21,7 +21,7 @@
 
 using namespace std;
 
-constexpr ov::DiscreteTypeInfo ov::Function::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Function>>);
 
 atomic<size_t> ov::Function::m_next_instance_id(0);
 
@@ -518,5 +518,3 @@ ov::op::util::Variable::Ptr ov::Function::get_variable_by_id(const string& varia
     else
         return ov::op::util::Variable::Ptr();
 }
-
-constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<shared_ptr<ov::Function>>::type_info;

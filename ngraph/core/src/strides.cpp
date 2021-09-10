@@ -33,4 +33,4 @@ ov::Strides& ov::Strides::operator=(Strides&& v) noexcept {
     return *this;
 }
 
-constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ov::Strides>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::Strides>);

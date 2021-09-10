@@ -26,7 +26,8 @@ bool MKLDNNNonMaxSuppressionNode::isSupportedOperation(const std::shared_ptr<con
         }
 
         using NonMaxSuppressionV5 = ngraph::op::v5::NonMaxSuppression;
-        if (!one_of(op->get_type_info(), NonMaxSuppressionV5::type_info, ngraph::op::internal::NonMaxSuppressionIEInternal::type_info)) {
+        if (!one_of(op->get_type_info(), NonMaxSuppressionV5::get_type_info_static(),
+                    ngraph::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
             errorMessage = "Only NonMaxSuppression v5 and NonMaxSuppressionIEInternal are supported";
             return false;
         }

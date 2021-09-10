@@ -48,7 +48,7 @@ void op::Parameter::set_is_relevant_to_shapes(bool is_relevant) {
     m_is_relevant_to_shapes = is_relevant;
 }
 
-constexpr DiscreteTypeInfo ov::AttributeAdapter<ParameterVector>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ParameterVector>);
 
 ov::AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
 

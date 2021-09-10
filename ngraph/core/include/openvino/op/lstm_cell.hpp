@@ -388,10 +388,8 @@ class OPENVINO_API AttributeAdapter<op::LSTMWeightsFormat> : public EnumAttribut
 public:
     AttributeAdapter(op::LSTMWeightsFormat& value) : EnumAttributeAdapterBase<op::LSTMWeightsFormat>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::LSTMWeightsFormat>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::LSTMWeightsFormat>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

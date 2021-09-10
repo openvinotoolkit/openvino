@@ -8,11 +8,7 @@
 
 using namespace std;
 
-constexpr ov::NodeTypeInfo ov::pass::pattern::op::Any::type_info;
-
-const ov::NodeTypeInfo& ov::pass::pattern::op::Any::get_type_info() const {
-    return type_info;
-}
+BWDCMP_RTTI_DEFINITION(ov::pass::pattern::op::Any);
 
 bool ov::pass::pattern::op::Any::match_value(Matcher* matcher,
                                              const Output<Node>& pattern_value,

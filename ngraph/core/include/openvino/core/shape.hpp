@@ -10,6 +10,7 @@
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rank.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/static_shape.hpp"
 
 namespace ov {
@@ -376,10 +377,8 @@ public:
 
     const std::vector<int64_t>& get() override;
     void set(const std::vector<int64_t>& value) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Shape>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<Shape>");
+    BWDCMP_RTTI_DECLARATION;
     operator ov::Shape&() {
         return m_ref;
     }

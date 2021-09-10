@@ -56,7 +56,7 @@ public:
     /// \brief Return true if OP_TYPE is in the opset
     template <typename OP_TYPE>
     bool contains_type() const {
-        return contains_type(OP_TYPE::type_info);
+        return contains_type(OP_TYPE::get_type_info_static());
     }
 
     /// \brief Return true if name is in the opset

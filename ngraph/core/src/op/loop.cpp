@@ -306,6 +306,4 @@ op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
     other.clone_to(*this, other.input_values());
 }
 
-namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>::type_info;
-}
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>);

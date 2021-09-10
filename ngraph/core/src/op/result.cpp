@@ -62,7 +62,7 @@ bool op::Result::constant_fold(OutputVector& output_values, const OutputVector& 
     return false;
 }
 
-constexpr DiscreteTypeInfo ov::AttributeAdapter<ResultVector>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ResultVector>);
 
 ov::AttributeAdapter<ResultVector>::AttributeAdapter(ResultVector& ref) : m_ref(ref) {}
 

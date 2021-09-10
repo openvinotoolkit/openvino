@@ -186,7 +186,7 @@ EnumNames<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>);
 
 }  // namespace ov
 
@@ -374,7 +374,7 @@ EnumNames<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>);
 
 }  // namespace ov
 
@@ -834,5 +834,5 @@ EnumNames<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>);
 }  // namespace ov

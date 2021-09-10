@@ -18,8 +18,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::DeconvolutionIE::type_info;
-
 op::DeconvolutionIE::DeconvolutionIE(const Output<Node>& data,
                                      const Output<Node>& filters,
                                      const Strides& strides,

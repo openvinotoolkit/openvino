@@ -11,12 +11,6 @@
 
 using namespace ngraph;
 
-namespace ov {
-constexpr VariantTypeInfo VariantWrapper<pugi::xml_node>::type_info;
-constexpr VariantTypeInfo VariantWrapper<InferenceEngine::Blob::CPtr>::type_info;
-constexpr VariantTypeInfo VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>>::type_info;
-}  // namespace ov
-
 namespace ngraph {
 namespace frontend {
 

@@ -210,5 +210,5 @@ EnumNames<ngraph::op::v1::Reverse::Mode>& EnumNames<ngraph::op::v1::Reverse::Mod
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v1::Reverse::Mode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v1::Reverse::Mode>);
 }  // namespace ov

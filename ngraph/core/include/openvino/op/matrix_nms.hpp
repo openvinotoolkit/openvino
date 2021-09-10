@@ -82,10 +82,8 @@ public:
     AttributeAdapter(op::v8::MatrixNms::DecayFunction& value)
         : EnumAttributeAdapterBase<op::v8::MatrixNms::DecayFunction>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v8::MatrixNms::DecayFunction>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v8::MatrixNms::DecayFunction>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

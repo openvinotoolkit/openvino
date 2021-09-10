@@ -69,10 +69,8 @@ public:
     AttributeAdapter(op::v0::DepthToSpace::DepthToSpaceMode& value)
         : EnumAttributeAdapterBase<op::v0::DepthToSpace::DepthToSpaceMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::DepthToSpace::DepthToSpaceMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v0::DepthToSpace::DepthToSpaceMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

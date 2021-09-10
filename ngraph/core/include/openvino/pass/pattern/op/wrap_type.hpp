@@ -13,8 +13,8 @@ namespace pattern {
 namespace op {
 class OPENVINO_API WrapType : public Pattern {
 public:
-    static constexpr NodeTypeInfo type_info{"patternAnyType", 0};
-    const NodeTypeInfo& get_type_info() const override;
+    OPENVINO_RTTI("patternAnyType");
+    BWDCMP_RTTI_DECLARATION;
 
     explicit WrapType(
         NodeTypeInfo wrapped_type,
@@ -55,7 +55,7 @@ private:
 
 template <class... Args>
 std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const pattern::op::ValuePredicate& pred) {
-    std::vector<DiscreteTypeInfo> info{Args::type_info...};
+    std::vector<DiscreteTypeInfo> info{Args::get_type_info_static()...};
     return std::make_shared<op::WrapType>(info, pred, inputs);
 }
 

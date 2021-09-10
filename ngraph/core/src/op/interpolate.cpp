@@ -84,7 +84,7 @@ EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v0::Interpolate::InterpolateMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v0::Interpolate::InterpolateMode>);
 
 }  // namespace ov
 
@@ -492,7 +492,7 @@ EnumNames<ngraph::op::v4::Interpolate::InterpolateMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::InterpolateMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::InterpolateMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>&
@@ -503,8 +503,7 @@ EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>::get() {
          {"scales", ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES}});
     return enum_names;
 }
-
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::ShapeCalcMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>&
@@ -519,7 +518,7 @@ EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::CoordinateTransformMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::NearestMode>&
@@ -534,7 +533,7 @@ EnumNames<ngraph::op::v4::Interpolate::NearestMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::NearestMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::NearestMode>);
 
 std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type) {
     return s << as_string(type);

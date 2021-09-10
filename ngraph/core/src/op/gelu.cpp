@@ -64,7 +64,7 @@ std::ostream& op::operator<<(std::ostream& s, const op::GeluApproximationMode& t
     return s << as_string(type);
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::GeluApproximationMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::GeluApproximationMode>);
 }  // namespace ov
 
 OPENVINO_RTTI_DEFINITION(op::v7::Gelu, "Gelu", "opset7", op::Op, 7);

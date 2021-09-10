@@ -133,11 +133,8 @@ public:
     AttributeAdapter(op::v1::BinaryConvolution::BinaryConvolutionMode& value)
         : EnumAttributeAdapterBase<op::v1::BinaryConvolution::BinaryConvolutionMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v1::BinaryConvolution::BinaryConvolutionMode>",
-                                                0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v1::BinaryConvolution::BinaryConvolutionMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

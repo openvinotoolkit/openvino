@@ -381,4 +381,4 @@ void ov::AttributeAdapter<ov::Shape>::set(const std::vector<int64_t>& value) {
     m_buffer_valid = false;
 }
 
-OPENVINO_API constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ov::Shape>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::Shape>);

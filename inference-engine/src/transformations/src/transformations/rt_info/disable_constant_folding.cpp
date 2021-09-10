@@ -6,9 +6,7 @@
 
 template class ov::VariantImpl<ngraph::DisableConstantFolding>;
 
-constexpr ov::VariantTypeInfo ov::VariantWrapper<ngraph::DisableConstantFolding>::type_info;
-
 void ngraph::disable_constant_folding(const std::shared_ptr<Node>& node) {
     auto & rt_info = node->get_rt_info();
-    rt_info[VariantWrapper<DisableConstantFolding>::type_info.name] = make_variant<DisableConstantFolding>({});
+    rt_info[VariantWrapper<DisableConstantFolding>::get_type_info_static().name] = make_variant<DisableConstantFolding>({});
 }

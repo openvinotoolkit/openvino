@@ -79,7 +79,7 @@ NGRAPH_API EnumNames<ngraph::op::MVNEpsMode>& EnumNames<ngraph::op::MVNEpsMode>:
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::MVNEpsMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::MVNEpsMode>);
 
 }  // namespace ov
 

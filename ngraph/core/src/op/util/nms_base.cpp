@@ -158,5 +158,5 @@ NGRAPH_API EnumNames<op::util::NmsBase::SortResultType>& EnumNames<op::util::Nms
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::util::NmsBase::SortResultType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::util::NmsBase::SortResultType>);
 }  // namespace ov

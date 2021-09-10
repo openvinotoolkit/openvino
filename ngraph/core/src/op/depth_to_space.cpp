@@ -128,5 +128,5 @@ EnumNames<ngraph::op::DepthToSpace::DepthToSpaceMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::DepthToSpace::DepthToSpaceMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v0::DepthToSpace::DepthToSpaceMode>);
 }  // namespace ov

@@ -83,10 +83,8 @@ public:
     AttributeAdapter(op::util::NmsBase::SortResultType& value)
         : EnumAttributeAdapterBase<op::util::NmsBase::SortResultType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::util::NmsBase::SortResultType>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::util::NmsBase::SortResultType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

@@ -36,4 +36,4 @@ ov::StaticShape& ov::StaticShape::operator=(StaticShape&& v) noexcept {
     return *this;
 }
 
-constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ov::StaticShape>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::StaticShape>);

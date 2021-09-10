@@ -127,5 +127,5 @@ EnumNames<ngraph::op::v5::Round::RoundMode>& EnumNames<ngraph::op::v5::Round::Ro
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v5::Round::RoundMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v5::Round::RoundMode>);
 }  // namespace ov

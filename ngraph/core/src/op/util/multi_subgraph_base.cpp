@@ -7,12 +7,12 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp, "MultiSubGraphOp");
-OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::SliceInputDescription, "SliceInputDescription");
-OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::MergedInputDescription, "MergedInputDescription");
-OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::InvariantInputDescription, "InvariantInputDescription");
-OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::BodyOutputDescription, "BodyOutputDescription");
-OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::ConcatOutputDescription, "ConcatOutputDescription");
+BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp);
+BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::SliceInputDescription);
+BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::MergedInputDescription);
+BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::InvariantInputDescription);
+BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::BodyOutputDescription);
+BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::ConcatOutputDescription);
 
 ov::op::util::MultiSubGraphOp::InputDescription::InputDescription(uint64_t input_index, uint64_t body_parameter_index)
     : m_input_index(input_index),
@@ -153,11 +153,6 @@ ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const Resul
 }
 
 namespace ov {
-OPENVINO_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>,
-                         "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
-                         "MultiSubGraphOp::InputDescription>>>");
-
-OPENVINO_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>,
-                         "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
-                         "MultiSubGraphOp::OutputDescription>>>");
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>);
 }  // namespace ov

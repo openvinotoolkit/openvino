@@ -8,12 +8,13 @@
 #include <string>
 
 #include "ngraph/output_vector.hpp"
-#include "ngraph/type.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type.hpp"
 
 namespace ov {
 class Node;
-using VariantTypeInfo = ngraph::DiscreteTypeInfo;
+using VariantTypeInfo = DiscreteTypeInfo;
 
 class OPENVINO_API Variant {
 public:
@@ -58,20 +59,14 @@ class VariantWrapper {};
 template <>
 class OPENVINO_API VariantWrapper<std::string> : public VariantImpl<std::string> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::std::string", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("VariantWrapper<std::string>");
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
 template <>
 class OPENVINO_API VariantWrapper<int64_t> : public VariantImpl<int64_t> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::int64_t", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("VariantWrapper<int64_t>");
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 

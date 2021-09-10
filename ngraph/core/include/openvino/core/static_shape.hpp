@@ -11,6 +11,7 @@
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/axis_set.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/strides.hpp"
 
 namespace ov {
@@ -101,11 +102,9 @@ class OPENVINO_API AttributeAdapter<ov::StaticShape>
 
 {
 public:
+    OPENVINO_RTTI("AttributeAdapter<StaticShape>");
+    BWDCMP_RTTI_DECLARATION;
     AttributeAdapter(ov::StaticShape& value)
         : IndirectVectorValueAccessor<ov::StaticShape, std::vector<int64_t>>(value) {}
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<StaticShape>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
 };
 }  // namespace ov

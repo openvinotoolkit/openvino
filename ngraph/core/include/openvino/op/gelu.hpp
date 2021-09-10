@@ -73,9 +73,7 @@ class OPENVINO_API AttributeAdapter<op::GeluApproximationMode>
 public:
     AttributeAdapter(op::GeluApproximationMode& value) : EnumAttributeAdapterBase<op::GeluApproximationMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::GeluApproximationMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::GeluApproximationMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

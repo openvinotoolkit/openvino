@@ -162,7 +162,7 @@ shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new
 }
 
 namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v3::ROIAlign::PoolingMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v3::ROIAlign::PoolingMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>& EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>::get() {

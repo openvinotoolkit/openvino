@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ConvolutionIE::type_info;
-
 op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
                                  const Strides& strides,

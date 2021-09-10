@@ -6,4 +6,4 @@
 
 #include "ngraph/op/util/variable_context.hpp"
 
-constexpr ov::VariantTypeInfo ov::VariantWrapper<ngraph::VariableContext>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::VariantWrapper<ov::op::util::VariableContext>);

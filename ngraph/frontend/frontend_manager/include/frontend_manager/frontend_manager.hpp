@@ -101,10 +101,7 @@ namespace ov {
 template <>
 class FRONTEND_API VariantWrapper<std::istream*> : public VariantImpl<std::istream*> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::std::istream*", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("VariantWrapper<std::istream*>");
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
@@ -112,10 +109,7 @@ public:
 template <>
 class FRONTEND_API VariantWrapper<std::wstring> : public VariantImpl<std::wstring> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::std::wstring", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("VariantWrapper<std::wstring>");
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 #endif

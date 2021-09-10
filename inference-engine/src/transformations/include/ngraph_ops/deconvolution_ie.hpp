@@ -18,8 +18,7 @@ namespace op {
 
 class TRANSFORMATIONS_API DeconvolutionIE : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"DeconvolutionIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_RTTI("DeconvolutionIE");
 
     DeconvolutionIE() = default;
 

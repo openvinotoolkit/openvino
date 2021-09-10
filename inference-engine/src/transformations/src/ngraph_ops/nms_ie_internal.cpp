@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::internal::NonMaxSuppressionIEInternal::type_info;
-
 op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Output<Node>& boxes,
                                                                        const Output<Node>& scores,
                                                                        const Output<Node>& max_output_boxes_per_class,

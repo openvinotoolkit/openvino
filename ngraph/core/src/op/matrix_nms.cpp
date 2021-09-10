@@ -79,6 +79,6 @@ EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v8::MatrixNms::DecayFunction>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v8::MatrixNms::DecayFunction>);
 
 }  // namespace ov

@@ -301,10 +301,8 @@ public:
     AttributeAdapter(op::v0::Interpolate::InterpolateMode& value)
         : EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::Interpolate::InterpolateMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v0::Interpolate::InterpolateMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 template <>
 class OPENVINO_API AttributeAdapter<op::v4::Interpolate::InterpolateMode>
@@ -313,10 +311,8 @@ public:
     AttributeAdapter(op::v4::Interpolate::InterpolateMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::InterpolateMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::InterpolateMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::InterpolateMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -326,10 +322,8 @@ public:
     AttributeAdapter(op::v4::Interpolate::CoordinateTransformMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::CoordinateTransformMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -339,10 +333,8 @@ public:
     AttributeAdapter(op::v4::Interpolate::NearestMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::NearestMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::NearestMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::NearestMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -352,9 +344,7 @@ public:
     AttributeAdapter(op::v4::Interpolate::ShapeCalcMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::ShapeCalcMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::ShapeCalcMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

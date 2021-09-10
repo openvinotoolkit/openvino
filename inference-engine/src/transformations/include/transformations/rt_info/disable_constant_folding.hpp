@@ -33,11 +33,7 @@ extern template class TRANSFORMATIONS_API VariantImpl<ngraph::DisableConstantFol
 template<>
 class TRANSFORMATIONS_API VariantWrapper<ngraph::DisableConstantFolding> : public VariantImpl<ngraph::DisableConstantFolding> {
 public:
-    static constexpr VariantTypeInfo type_info{"DISABLED_CONSTANT_FOLDING", 0};
-
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("DISABLED_CONSTANT_FOLDING");
 
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 

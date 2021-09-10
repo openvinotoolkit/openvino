@@ -346,7 +346,7 @@ EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMWeightsForma
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::LSTMWeightsFormat>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::LSTMWeightsFormat>);
 
 }  // namespace ov
 

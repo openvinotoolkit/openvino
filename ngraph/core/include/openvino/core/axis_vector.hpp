@@ -10,6 +10,7 @@
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/rtti.hpp"
 
 namespace ov {
 /// \brief A vector of axes.
@@ -42,11 +43,8 @@ template <>
 class OPENVINO_API AttributeAdapter<AxisVector> : public IndirectVectorValueAccessor<AxisVector, std::vector<int64_t>> {
 public:
     AttributeAdapter(AxisVector& value) : IndirectVectorValueAccessor<AxisVector, std::vector<int64_t>>(value) {}
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<AxisVector>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<AxisVector>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

@@ -135,10 +135,8 @@ class OPENVINO_API AttributeAdapter<op::MVNEpsMode> : public EnumAttributeAdapte
 public:
     AttributeAdapter(op::MVNEpsMode& value) : EnumAttributeAdapterBase<op::MVNEpsMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::MVNEpsMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::MVNEpsMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

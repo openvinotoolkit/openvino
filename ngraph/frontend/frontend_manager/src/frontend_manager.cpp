@@ -372,9 +372,3 @@ Place::Ptr Place::get_producing_operation(const std::string& inputName, int inpu
 std::vector<Place::Ptr> Place::get_consuming_operations(const std::string& outputPortName) const {
     return {};
 }
-
-constexpr VariantTypeInfo VariantWrapper<std::istream*>::type_info;
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-constexpr VariantTypeInfo VariantWrapper<std::wstring>::type_info;
-#endif

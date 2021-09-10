@@ -83,10 +83,11 @@ struct OPENVINO_API DiscreteTypeInfo {
 /// Type*/shared_ptr<Type>
 template <typename Type, typename Value>
 typename std::enable_if<
-    std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::type_info)), bool>::value,
+    std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
+                        bool>::value,
     bool>::type
 is_type(Value value) {
-    return value->get_type_info().is_castable(Type::type_info);
+    return value->get_type_info().is_castable(Type::get_type_info_static());
 }
 
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
