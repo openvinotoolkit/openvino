@@ -52,6 +52,7 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
     def calculate_frame_time(graph: Graph):
         # there are either one or two inputs in Kaldi. Only main input can change delay in network.
         # Usually ivector input has name 'ivector'.
+        max_frame_time = -2
         inputs = graph.get_op_nodes(op='Parameter')
         if len(inputs) == 1:
             inp_name = inputs[0].name
@@ -68,7 +69,6 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
 
         # sort nodes to calculate delays
         nodes = list(bfs_search(graph, [inp_name]))
-        nx.set_node_attributes(G=graph, name='frame_time', values=-1)
 
         for n in nodes:
             node = Node(graph, n)
@@ -92,16 +92,30 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
                         node.frame_time = splice_node.in_port(0).get_source().node.frame_time + new_delay
                     else:
                         node.frame_time = node.in_port(0).get_source().node.frame_time
+                elif node.op == 'ShapeOf':
+                    # exclude shape path from time delay calculation using special value
+                    node.frame_time = max_frame_time
+                elif node.op == 'Broadcast':
+                    # finished shape path
+                    node.frame_time = node.in_port(0).get_source().node.frame_time
                 # for node with several inputs frame_time = maximum of delays from branches
                 else:
                     # find out maximum of delay and check that we have at least one branch with another delay
-                    node.frame_time = 0
+                    node.frame_time = -1 if len(node.in_ports()) != 0 else 0
+                    min_in_frame_time = -1
                     for inp in node.in_ports():
                         if node.in_port(inp).disconnected():
                             continue
                         in_node = node.in_port(inp).get_source().node
-                        if in_node.frame_time > node.frame_time:
+                        if in_node.frame_time < min_in_frame_time:
+                            min_in_frame_time = in_node.frame_time
+                        if in_node.frame_time > node.frame_time and in_node.frame_time != -1:
                             node.frame_time = in_node.frame_time
+                    # if all inputs have special value for frame time, node have special value for frame time too
+                    # because it is on shape path
+                    if min_in_frame_time == max_frame_time:
+                        node.frame_time = max_frame_time
+
 
     @staticmethod
     def insert_select(graph: Graph, node: Node):
@@ -186,6 +200,9 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
         if np.all([node.soft_get('name', node.id) == 'iteration_number_out'
                    for node in graph.get_op_nodes(op='Assign')]):
             return
+
+        nx.set_node_attributes(G=graph, name='frame_time', values=-1)
+        self.calculate_frame_time(graph)
 
         self.calculate_frame_time(graph)
 
