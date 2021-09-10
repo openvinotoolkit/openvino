@@ -5,6 +5,8 @@
 #pragma once
 
 #include <string>
+#include <vector>
+#include <pair>
 
 #include "Python.h"
 #include "ie_api_impl.hpp"
@@ -16,6 +18,8 @@ void ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf);
 void ApplyPOTTransformations(InferenceEnginePython::IENetwork network, std::string device);
 
 void ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network, bool use_const_initializer = true);
+
+void ApplyReplaceInputsOutputsWithMemoryTransformation(InferenceEnginePython::IENetwork network, std::vector<std::pair<std::string, std::string>>& in_out_names);
 
 void ApplyPruningTransformation(InferenceEnginePython::IENetwork network);
 
