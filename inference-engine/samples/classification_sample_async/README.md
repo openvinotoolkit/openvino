@@ -19,7 +19,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 | Options  | Values |
 |:---                              |:---
 | Validated Models                 | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1)
-| Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
+| Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx), compiled network (\*.blob)
 | Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png), single-channel `ubyte` images.
 | Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [Python](../../ie_bridges/python/sample/classification_sample_async/README.md) |
@@ -71,7 +71,7 @@ classification_sample_async [OPTION]
 Options:
 
     -h                      Print a usage message.
-    -m "<path>"             Required. Path to an .xml file with a trained model.
+    -m "<path>"             Required. Path to an .xml file with a trained model or to a .blob file with a compiled network.
     -i "<path>"             Required. Path to a folder with images or path to an image files: a .ubyte file for LeNet and a .bmp file for the other networks.
       -l "<absolute_path>"  Required for CPU plugin custom layers. Absolute path to a shared library with the kernels implementations
           Or
