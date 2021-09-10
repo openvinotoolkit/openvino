@@ -31,7 +31,7 @@ Several examples for case when `axis = 0`:
 
 *   **2**: `indices` tensor with indices of type *T_IND*.
 All index values are expected to be within bounds `[0, s - 1]` along the axis of size `s`. If multiple indices point to the
-same output location then the order of updating the values is undefined. If an index points to non-existing output
+same output location, the order of updating the values is undefined. If an index points to a non-existing output
 tensor element or is negative, then an exception is raised. **Required.**
 
 *   **3**: `updates` tensor of type *T_NUMERIC* and rank equal to `rank(indices) + rank(data) - 1` **Required.**
