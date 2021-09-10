@@ -9,6 +9,7 @@
 #include "utils/bfloat16.hpp"
 #include "mkldnn_input_node.h"
 #include <mkldnn_extension_utils.h>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 #include <ngraph/node.hpp>
 
@@ -109,6 +110,11 @@ const std::map<InferenceEngine::Precision, InferenceEngine::Precision> MKLDNNRNN
 
 bool MKLDNNRNN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         if (!one_of(op->get_type_info(),
                 ngraph::op::v3::GRUCell::type_info,
                 ngraph::op::v0::LSTMCell::type_info,
@@ -260,7 +266,7 @@ void MKLDNNRNN::initCell(const std::shared_ptr<ngraph::Node>& op) {
     Gb = (cell_type != mkldnn::algorithm::lbr_gru) ? G : G + 1;
 
     // Expected shapes
-    std::vector<size_t> D_shape {N, DC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC};
+    VectorDims D_shape {N, DC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC};
 
     if (in_data_dims != D_shape
         || in_h_state_dims != S_shape
@@ -281,15 +287,15 @@ void MKLDNNRNN::fillCellDesc() {
     runtimePrecision = getOriginalInputPrecisionAtPort(0);
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
-    std::vector<size_t> S_4D_shape {L, D, N, SC};
+    Shape S_4D_shape(VectorDims{L, D, N, SC});
 
     // layer input plus states
     in_data_d.reserve(S + 1);
     out_data_d.reserve(S + 1);
 
     // Shapes and Attributes are correct. Can start internal stuff initialization.
-    in_data_d.emplace_back(std::vector<size_t>{T, N, DC}, dataType, memory::format_tag::tnc);
-    out_data_d.emplace_back(std::vector<size_t>{T, N, SC}, dataType, memory::format_tag::tnc);
+    in_data_d.emplace_back(Shape(VectorDims{T, N, DC}), dataType, memory::format_tag::tnc);
+    out_data_d.emplace_back(Shape(VectorDims{T, N, SC}), dataType, memory::format_tag::tnc);
 
     in_data_d.emplace_back(S_4D_shape, dataType, memory::format_tag::ldnc);
     out_data_d.emplace_back(S_4D_shape, dataType, memory::format_tag::ldnc);
@@ -299,39 +305,34 @@ void MKLDNNRNN::fillCellDesc() {
         out_data_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
-    w_data_d   = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
-    w_state_d  = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_data_d   = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, DC, G, SC}), dataType, memory::format_tag::ldigo);
+    w_state_d  = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, SC, G, SC}), dataType, memory::format_tag::ldigo);
 
     // Add 5th input
-    w_bias_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
+    w_bias_d = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, Gb, SC}), memory::data_type::f32, memory::format_tag::ldgo);
 
     copyWeightsData();
 
     // Expected shapes
-    std::vector<size_t> D_shape {N, DC}, S_shape {N, SC}, WShape {SC * G, DC}, RShape {SC * G, SC}, BShape {SC * Gb};
-    std::vector<MKLDNNMemoryDesc> in_candidate, out_candidate;
+    Shape D_shape(VectorDims{N, DC}), S_shape(VectorDims{N, SC}), WShape(VectorDims{SC * G, DC}), RShape(VectorDims{SC * G, SC}), BShape(VectorDims{SC * Gb});
+    std::vector<MemoryDescPtr> in_candidate, out_candidate;
     in_candidate.reserve(6);
 
-    in_candidate.emplace_back(D_shape, dataType, memory::format_tag::nc);
-    in_candidate.emplace_back(S_shape, dataType, memory::format_tag::nc);
-    out_candidate.emplace_back(S_shape, dataType, memory::format_tag::nc);
+    in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(D_shape, dataType, memory::format_tag::nc));
+    in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(S_shape, dataType, memory::format_tag::nc));
+    out_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(S_shape, dataType, memory::format_tag::nc));
 
     if (haveCellState(cell_type)) {
-        in_candidate.emplace_back(S_shape, memory::data_type::f32, memory::format_tag::nc);
-        out_candidate.emplace_back(S_shape, memory::data_type::f32, memory::format_tag::nc);
+        in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(S_shape, memory::data_type::f32, memory::format_tag::nc));
+        out_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(S_shape, memory::data_type::f32, memory::format_tag::nc));
     }
     if (one_of(cell_type, mkldnn::algorithm::vanilla_rnn, mkldnn::algorithm::vanilla_gru, mkldnn::algorithm::lbr_gru, mkldnn::algorithm::vanilla_lstm)) {
-        in_candidate.emplace_back(WShape, memory::data_type::f32, memory::format_tag::nc);
-        in_candidate.emplace_back(RShape, memory::data_type::f32, memory::format_tag::nc);
-        in_candidate.emplace_back(BShape, memory::data_type::f32, memory::format_tag::x);
+        in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, memory::data_type::f32, memory::format_tag::nc));
+        in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, memory::data_type::f32, memory::format_tag::nc));
+        in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(BShape, memory::data_type::f32, memory::format_tag::x));
     }
 
-    std::vector<const MemoryDesc*> in_candidate_ptrs(in_candidate.size());
-    std::vector<const MemoryDesc*> out_candidate_ptrs(out_candidate.size());
-    std::transform(in_candidate.begin(), in_candidate.end(), in_candidate_ptrs.begin(), [](const MKLDNNMemoryDesc& item) { return &item; });
-    std::transform(out_candidate.begin(), out_candidate.end(), out_candidate_ptrs.begin(), [](const MKLDNNMemoryDesc& item) { return &item; });
-
-    createDescriptor(in_candidate_ptrs, out_candidate_ptrs);
+    createDescriptor(in_candidate, out_candidate);
 }
 
 void MKLDNNRNN::initSeq(const std::shared_ptr<ngraph::Node>& op) {
@@ -386,63 +387,84 @@ void MKLDNNRNN::fillSeqDesc() {
     runtimePrecision = getOriginalInputPrecisionAtPort(0);
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
-    std::vector<size_t> S_4D_shape {L, D, N, SC};
+    Shape S_4D_shape(VectorDims{L, D, N, SC});
 
     // Try to create descriptor and corresponding configuration
-    in_data_d.emplace_back(std::vector<size_t>{in_data_dims},  dataType, memory::format_tag::tnc);
-    out_data_d.emplace_back(std::vector<size_t>{out_data_dims}, dataType, memory::format_tag::tnc);
+    in_data_d.emplace_back(Shape(VectorDims{in_data_dims}),  dataType, memory::format_tag::tnc);
+    out_data_d.emplace_back(Shape(VectorDims{out_data_dims}), dataType, memory::format_tag::tnc);
 
-    in_data_d.emplace_back(std::vector<size_t>{S_4D_shape}, dataType, memory::format_tag::ldnc);
-    out_data_d.emplace_back(std::vector<size_t>{S_4D_shape}, dataType, memory::format_tag::ldnc);
+    in_data_d.emplace_back(S_4D_shape, dataType, memory::format_tag::ldnc);
+    out_data_d.emplace_back(S_4D_shape, dataType, memory::format_tag::ldnc);
 
     if (haveCellState(cell_type)) {
-        in_data_d.emplace_back(std::vector<size_t>{S_4D_shape}, memory::data_type::f32, memory::format_tag::ldnc);
-        out_data_d.emplace_back(std::vector<size_t>{S_4D_shape}, memory::data_type::f32, memory::format_tag::ldnc);
+        in_data_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
+        out_data_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
-    w_data_d  = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
-    w_state_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_data_d  = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, DC, G, SC}), dataType, memory::format_tag::ldigo);
+    w_state_d = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, SC, G, SC}), dataType, memory::format_tag::ldigo);
 
-    w_bias_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
+    w_bias_d = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, Gb, SC}), memory::data_type::f32, memory::format_tag::ldgo);
 
     copyWeightsData();
 
-    std::vector<MKLDNNMemoryDesc> in_candidate;
+    std::vector<MemoryDescPtr> in_candidate;
     in_candidate.reserve(7);
 
     if (nativeOrder)
-        in_candidate.emplace_back(inputShapes[RNNInOutKind::Layer].getStaticDims(), dataType, memory::format_tag::tnc);
+        in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(inputShapes[RNNInOutKind::Layer], dataType, memory::format_tag::tnc));
+    else if (N == 1)
+        // WA to avoid reorder before sequence for some models
+        in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, T, DC}), dataType, memory::format_tag::tnc));
     else
-        in_candidate.emplace_back(std::vector<size_t>{N, T, DC}, dataType, memory::format_tag::ntc);
+        in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, T, DC}), dataType, memory::format_tag::ntc));
 
-    in_candidate.emplace_back(std::vector<size_t>{N, D, SC}, dataType, memory::format_tag::ntc); // initial hidden state
-    if (haveCellState(cell_type))
-        in_candidate.emplace_back(std::vector<size_t>{N, D, SC}, memory::data_type::f32, memory::format_tag::ntc); // initial cell state
-    in_candidate.emplace_back(std::vector<size_t>{N}, memory::data_type::s32, memory::format_tag::x); // sequence lengths
-    in_candidate.emplace_back(std::vector<size_t>{D, G * SC, DC}, memory::data_type::f32, memory::format_tag::ntc); // W
-    in_candidate.emplace_back(std::vector<size_t>{D, G * SC, SC}, memory::data_type::f32, memory::format_tag::ntc); // R
-    in_candidate.emplace_back(std::vector<size_t>{D, Gb * SC}, memory::data_type::f32, memory::format_tag::nc); // B
+    // initial hidden state
+    // WA to avoid reorder before
+    if (D == 1)
+        in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, D, SC}), dataType, memory::format_tag::tnc));
+    else
+        in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, D, SC}), dataType, memory::format_tag::ntc));
 
-    std::vector<MKLDNNMemoryDesc> out_candidate;
+    // initial cell state
+    if (haveCellState(cell_type)) {
+        if (D == 1)
+            in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, D, SC}), memory::data_type::f32, memory::format_tag::tnc));
+        else
+            in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, D, SC}), memory::data_type::f32, memory::format_tag::ntc));
+    }
+
+    in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N}), memory::data_type::s32, memory::format_tag::x)); // sequence lengths
+    in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{D, G * SC, DC}), memory::data_type::f32, memory::format_tag::ntc)); // W
+    in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{D, G * SC, SC}), memory::data_type::f32, memory::format_tag::ntc)); // R
+    in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{D, Gb * SC}), memory::data_type::f32, memory::format_tag::nc)); // B
+
+    std::vector<MemoryDescPtr> out_candidate;
     out_candidate.reserve(3);
 
     if (nativeOrder) {
-        out_candidate.emplace_back(out_data_d[RNNInOutKind::Layer]);
+        out_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(out_data_d[RNNInOutKind::Layer]));
+    } else if (N == 1) {
+        // WA to avoid reorder after sequence for some models
+        out_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, T, SC}), dataType, memory::format_tag::tnc));
     } else {
-        // TODO reorder ntc -> ndtc does not work, thus use tnc(plain) + transformation reshape-transpose-reshape for now.
-        out_candidate.emplace_back(std::vector<size_t>{T, N, SC}, dataType, memory::format_tag::tnc);
+        out_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, T, SC}), dataType, memory::format_tag::ntc));
     }
 
-    out_candidate.emplace_back(std::vector<size_t>{N, D, SC}, dataType, memory::format_tag::ntc);
-    if (haveCellState(cell_type))
-        out_candidate.emplace_back(std::vector<size_t>{N, D, SC}, memory::data_type::f32, memory::format_tag::ntc);
+    // WA to avoid reorder after
+    if (D == 1)
+        out_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, D, SC}), dataType, memory::format_tag::tnc));
+    else
+        out_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, D, SC}), dataType, memory::format_tag::ntc));
 
-    std::vector<const MemoryDesc*> in_candidate_ptrs(in_candidate.size());
-    std::vector<const MemoryDesc*> out_candidate_ptrs(out_candidate.size());
-    std::transform(in_candidate.begin(), in_candidate.end(), in_candidate_ptrs.begin(), [](const MKLDNNMemoryDesc& item) { return &item; });
-    std::transform(out_candidate.begin(), out_candidate.end(), out_candidate_ptrs.begin(), [](const MKLDNNMemoryDesc& item) { return &item; });
+    if (haveCellState(cell_type)) {
+        if (D == 1)
+            out_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, D, SC}), memory::data_type::f32, memory::format_tag::tnc));
+        else
+            out_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, D, SC}), memory::data_type::f32, memory::format_tag::ntc));
+    }
 
-    createDescriptor(in_candidate_ptrs, out_candidate_ptrs);
+    createDescriptor(in_candidate, out_candidate);
 }
 
 bool MKLDNNRNN::verifyWeightsPrecision(const Precision &layerPrec, const Precision &weightsPrec) {
@@ -465,8 +487,8 @@ void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t
     w_state_mem->Create(*w_state_d);
     internalBlobMemory.push_back(w_state_mem);
 
-    const size_t ie_w_vec_size = getParentEdgesAtPort(wIdx)[0]->getShape().getElementsCount();
-    const size_t ie_r_vec_size = getParentEdgesAtPort(rIdx)[0]->getShape().getElementsCount();
+    const size_t ie_w_vec_size = getInputShapeAtPort(wIdx).getElementsCount();
+    const size_t ie_r_vec_size = getInputShapeAtPort(rIdx).getElementsCount();
 
     auto *wInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(wIdx)[0]->getParent().get());
     auto wConstBlob = wInputNode->getMemoryPtr();
@@ -521,7 +543,7 @@ void MKLDNNRNN::fillBiases(const int *gate_map) {
 
     auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
     auto constBlob = constInputNode->getMemoryPtr();
-    auto const elementsCount = constBlob->GetElementsCount();
+    auto const elementsCount = constBlob->GetSize() / constBlob->getDesc().getPrecision().size();
 
     std::vector<dataType> ie_b_vec(elementsCount);
     cpu_convert(constBlob->GetPtr(),
@@ -602,57 +624,57 @@ void MKLDNNRNN::copyWeightsData() {
     if (runtimePrecision == Precision::BF16 || runtimePrecision == Precision::FP32)
         fillBiases<Precision::FP32>(gate_map);
 }
-void MKLDNNRNN::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
-                                 const std::vector<const MemoryDesc*> &outputDesc) {
+void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
+                                 const std::vector<MemoryDescPtr> &outputDesc) {
     switch (cell_type) {
         case mkldnn::algorithm::vanilla_rnn: {
             MKLDNNDescriptor desc(std::shared_ptr<vanilla_rnn_forward::desc>(
                     new vanilla_rnn_forward::desc(prop_kind::forward_scoring, cell_act, direction,
-                            /* In Data       */ in_data_d[RNNInOutKind::Layer],
-                            /* In State      */ in_data_d[RNNInOutKind::HiddenState],
-                            /* Weights data  */ *w_data_d,
-                            /* Weights state */ *w_state_d,
-                            /* Bias          */ *w_bias_d,
-                            /* Out Data      */ out_data_d[RNNInOutKind::Layer],
-                            /* Out State     */ out_data_d[RNNInOutKind::HiddenState])));
+                            /* In Data       */ in_data_d[RNNInOutKind::Layer].getDnnlDesc(),
+                            /* In State      */ in_data_d[RNNInOutKind::HiddenState].getDnnlDesc(),
+                            /* Weights data  */ w_data_d->getDnnlDesc(),
+                            /* Weights state */ w_state_d->getDnnlDesc(),
+                            /* Bias          */ w_bias_d->getDnnlDesc(),
+                            /* Out Data      */ out_data_d[RNNInOutKind::Layer].getDnnlDesc(),
+                            /* Out State     */ out_data_d[RNNInOutKind::HiddenState].getDnnlDesc())));
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::vanilla_gru: {
             MKLDNNDescriptor desc(std::shared_ptr<gru_forward::desc>(
                     new gru_forward::desc(prop_kind::forward_scoring, direction,
-                            /* In Data       */ in_data_d[RNNInOutKind::Layer],
-                            /* In State      */ in_data_d[RNNInOutKind::HiddenState],
-                            /* Weights data  */ *w_data_d,
-                            /* Weights state */ *w_state_d,
-                            /* Bias          */ *w_bias_d,
-                            /* Out Data      */ out_data_d[RNNInOutKind::Layer],
-                            /* Out State     */ out_data_d[RNNInOutKind::HiddenState])));
+                            /* In Data       */ in_data_d[RNNInOutKind::Layer].getDnnlDesc(),
+                            /* In State      */ in_data_d[RNNInOutKind::HiddenState].getDnnlDesc(),
+                            /* Weights data  */ w_data_d->getDnnlDesc(),
+                            /* Weights state */ w_state_d->getDnnlDesc(),
+                            /* Bias          */ w_bias_d->getDnnlDesc(),
+                            /* Out Data      */ out_data_d[RNNInOutKind::Layer].getDnnlDesc(),
+                            /* Out State     */ out_data_d[RNNInOutKind::HiddenState].getDnnlDesc())));
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::lbr_gru: {
             MKLDNNDescriptor desc(std::shared_ptr<lbr_gru_forward::desc>(
                     new lbr_gru_forward::desc(prop_kind::forward_scoring, direction,
-                            /* In Data       */ in_data_d[RNNInOutKind::Layer],
-                            /* In State      */ in_data_d[RNNInOutKind::HiddenState],
-                            /* Weights data  */ *w_data_d,
-                            /* Weights state */ *w_state_d,
-                            /* Bias          */ *w_bias_d,
-                            /* Out Data      */ out_data_d[RNNInOutKind::Layer],
-                            /* Out State     */ out_data_d[RNNInOutKind::HiddenState])));
+                            /* In Data       */ in_data_d[RNNInOutKind::Layer].getDnnlDesc(),
+                            /* In State      */ in_data_d[RNNInOutKind::HiddenState].getDnnlDesc(),
+                            /* Weights data  */ w_data_d->getDnnlDesc(),
+                            /* Weights state */ w_state_d->getDnnlDesc(),
+                            /* Bias          */ w_bias_d->getDnnlDesc(),
+                            /* Out Data      */ out_data_d[RNNInOutKind::Layer].getDnnlDesc(),
+                            /* Out State     */ out_data_d[RNNInOutKind::HiddenState].getDnnlDesc())));
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::vanilla_lstm: {
             MKLDNNDescriptor desc(std::shared_ptr<lstm_forward::desc>(
                     new lstm_forward::desc(prop_kind::forward_scoring, direction,
-                            /* In Data       */ in_data_d[RNNInOutKind::Layer],
-                            /* In State      */ in_data_d[RNNInOutKind::HiddenState],
-                            /* In State C    */ in_data_d[RNNInOutKind::CellState],
-                            /* Weights data  */ *w_data_d,
-                            /* Weights state */ *w_state_d,
-                            /* Bias          */ *w_bias_d,
-                            /* Out Data      */ out_data_d[RNNInOutKind::Layer],
-                            /* Out State     */ out_data_d[RNNInOutKind::HiddenState],
-                            /* Out State C   */ out_data_d[RNNInOutKind::CellState])));
+                            /* In Data       */ in_data_d[RNNInOutKind::Layer].getDnnlDesc(),
+                            /* In State      */ in_data_d[RNNInOutKind::HiddenState].getDnnlDesc(),
+                            /* In State C    */ in_data_d[RNNInOutKind::CellState].getDnnlDesc(),
+                            /* Weights data  */ w_data_d->getDnnlDesc(),
+                            /* Weights state */ w_state_d->getDnnlDesc(),
+                            /* Bias          */ w_bias_d->getDnnlDesc(),
+                            /* Out Data      */ out_data_d[RNNInOutKind::Layer].getDnnlDesc(),
+                            /* Out State     */ out_data_d[RNNInOutKind::HiddenState].getDnnlDesc(),
+                            /* Out State C   */ out_data_d[RNNInOutKind::CellState].getDnnlDesc())));
             descs.push_back(desc);
         } break;
         default:
@@ -666,7 +688,7 @@ void MKLDNNRNN::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc
         PortConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = inputDesc[i]->clone();
+        dataConfig.desc = inputDesc[i];
         config.inConfs.push_back(dataConfig);
     }
 
@@ -674,7 +696,7 @@ void MKLDNNRNN::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc
         PortConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = outputDesc[i]->clone();
+        dataConfig.desc = outputDesc[i];
         config.outConfs.push_back(dataConfig);
     }
 

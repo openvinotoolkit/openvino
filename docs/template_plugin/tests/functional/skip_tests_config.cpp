@@ -9,11 +9,13 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-        ".*ExclusiveAsyncRequests.*",
-        ".*ReusableCPUStreamsExecutor.*",
+        R"(.*ExclusiveAsyncRequests.*)",
+        R"(.*ReusableCPUStreamsExecutor.*)",
         R"(.*SplitLayerTest.*numSplits\=30.*)",
         // CVS-51758
-        ".*PreprocessConversionTest.*oLT=NHWC.*",
-        ".*PreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*",
+        R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
+        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
+        // CVS-58963: Not implemented yet
+        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
     };
 }

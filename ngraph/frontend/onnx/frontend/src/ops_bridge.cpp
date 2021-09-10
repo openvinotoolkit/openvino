@@ -26,6 +26,7 @@
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
 #include "op/cast.hpp"
+#include "op/cast_like.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
 #include "op/compress.hpp"
@@ -62,6 +63,7 @@
 #include "op/greater.hpp"
 #include "op/gru.hpp"
 #include "op/hard_sigmoid.hpp"
+#include "op/hard_swish.hpp"
 #include "op/hardmax.hpp"
 #include "op/identity.hpp"
 #include "op/image_scaler.hpp"
@@ -89,10 +91,6 @@
 #include "op/not.hpp"
 #include "op/onehot.hpp"
 #include "op/or.hpp"
-#include "op/pad.hpp"
-#include "op/pow.hpp"
-#include "op/prelu.hpp"
-// #include "op/quant_conv.hpp"
 #include "op/org.openvinotoolkit/deformable_conv_2d.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
@@ -105,7 +103,13 @@
 #include "op/org.openvinotoolkit/normalize.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
 #include "op/org.openvinotoolkit/swish.hpp"
+#include "op/pad.hpp"
+#include "op/pow.hpp"
+#include "op/prelu.hpp"
+#include "op/qlinear_conv.hpp"
 #include "op/quantize_linear.hpp"
+#include "op/random_uniform.hpp"
+#include "op/random_uniform_like.hpp"
 #include "op/range.hpp"
 #include "op/reciprocal.hpp"
 #include "op/reduce.hpp"
@@ -283,6 +287,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("Cast", 1, cast);
+    REGISTER_OPERATOR("CastLike", 1, cast_like);
     REGISTER_OPERATOR("Ceil", 1, ceil);
     REGISTER_OPERATOR("Clip", 1, clip);
     REGISTER_OPERATOR("Clip", 11, clip);
@@ -328,6 +333,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
     REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
+    REGISTER_OPERATOR("HardSwish", 1, hard_swish);
     REGISTER_OPERATOR("Identity", 1, identity);
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
@@ -362,10 +368,12 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Pad", 11, pad);
     REGISTER_OPERATOR("Pow", 1, pow);
     REGISTER_OPERATOR("PRelu", 1, prelu);
-    // REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
+    REGISTER_OPERATOR("QLinearConv", 1, qlinear_conv);
     REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
     REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
     REGISTER_OPERATOR("Range", 1, range);
+    REGISTER_OPERATOR("RandomUniform", 1, random_uniform);
+    REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
     REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);

@@ -16,6 +16,7 @@
 #include "cpp/ie_plugin.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "cpp_interfaces/interface/ie_iremote_context.hpp"
 #include "file_utils.h"
 #include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
@@ -63,16 +64,14 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
         deviceName_ = "MULTI";
         config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
     } else if (deviceName.find("AUTO") == 0) {
-        deviceName_ = "MULTI";
+        deviceName_ = "AUTO";
         if (deviceName.find("AUTO:") == 0) {
             config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
                 deviceName.substr(std::string("AUTO:").size());
         }
-        config_.insert({CONFIG_KEY_INTERNAL(WORK_MODE), ""});
     } else {
-        if (deviceName_ == "AUTO") {
-            deviceName_ = "MULTI";
-            config_.insert({CONFIG_KEY_INTERNAL(WORK_MODE), ""});
+        if (deviceName_.empty()) {
+            deviceName_ = "AUTO";
         }
         InferenceEngine::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
@@ -212,7 +211,7 @@ class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_t
     InferenceEngine::SoExecutableNetworkInternal LoadNetworkImpl(const InferenceEngine::CNNNetwork& network,
                                                                  InferenceEngine::InferencePlugin& plugin,
                                                                  const std::map<std::string, std::string>& parsedConfig,
-                                                                 const InferenceEngine::RemoteContext::Ptr& context,
+                                                                 const InferenceEngine::IRemoteContext::Ptr& context,
                                                                  const std::string& blobID,
                                                                  const std::string& modelPath = std::string(),
                                                                  bool forceDisableCache = false) {
@@ -244,7 +243,7 @@ class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_t
         const std::string& blobId,
         InferenceEngine::InferencePlugin& plugin,
         const std::map<std::string, std::string>& config,
-        const InferenceEngine::RemoteContext::Ptr& context,
+        const std::shared_ptr<InferenceEngine::IRemoteContext>& context,
         bool& networkIsImported,
         const std::string& modelPath = std::string()) {
         InferenceEngine::SoExecutableNetworkInternal execNetwork;
@@ -443,9 +442,10 @@ public:
     }
 
     // TODO: In future this method can be added to ICore interface
-    InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const InferenceEngine::CNNNetwork& network,
-                                                             const InferenceEngine::RemoteContext::Ptr& context,
-                                                             const std::map<std::string, std::string>& config) {
+    InferenceEngine::SoExecutableNetworkInternal LoadNetwork(
+        const InferenceEngine::CNNNetwork& network,
+        const std::shared_ptr<InferenceEngine::IRemoteContext>& context,
+        const std::map<std::string, std::string>& config) {
         OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
             IE_THROW() << "Remote context is null";
@@ -582,17 +582,12 @@ public:
         {
             if (deviceName.find("AUTO:") == 0) {
                 IE_THROW()
-                    << "You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
+                    << "You can get specific metrics with the GetMetric only for the AUTO itself (without devices). "
                        "To get individual devices's metrics call GetMetric for each device separately";
             }
         }
 
-        std::string pluginName = deviceName;
-        if (pluginName == "AUTO") {
-            pluginName = "MULTI";
-        }
-
-        auto parsed = parseDeviceNameIntoConfig(pluginName);
+        auto parsed = parseDeviceNameIntoConfig(deviceName);
 
         // we need to return a copy of Parameter object which is created on Core side,
         // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
@@ -647,9 +642,6 @@ public:
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
         auto deviceName = pluginName;
-        if (deviceName == "AUTO") {
-            deviceName = "MULTI";
-        }
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
             IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
@@ -874,7 +866,7 @@ public:
                 if (pos != std::string::npos) {
                     deviceNames = InferenceEngine::DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
                 }
-                deviceNames.emplace_back("MULTI");
+                deviceNames.emplace_back("AUTO");
             } else {
                 deviceNames.push_back(deviceName);
             }
@@ -994,7 +986,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
-    auto exec = _impl->LoadNetwork(network, context, config);
+    auto exec = _impl->LoadNetwork(network, std::dynamic_pointer_cast<IRemoteContext>(context), config);
     return {exec, exec};
 }
 
@@ -1017,7 +1009,9 @@ RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const Para
     }
 
     auto parsed = core_detail::parseDeviceNameIntoConfig(deviceName, params);
-    return _impl->GetCPPPluginByName(parsed._deviceName).CreateContext(parsed._config);
+    InferenceEngine::IRemoteContext::Ptr context =
+        _impl->GetCPPPluginByName(parsed._deviceName).CreateContext(parsed._config);
+    return context;
 }
 
 RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
@@ -1032,7 +1026,9 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
     }
 
     auto parsed = core_detail::parseDeviceNameIntoConfig(deviceName, ParamMap());
-    return _impl->GetCPPPluginByName(parsed._deviceName).GetDefaultContext(parsed._config);
+    InferenceEngine::IRemoteContext::Ptr context =
+        _impl->GetCPPPluginByName(parsed._deviceName).GetDefaultContext(parsed._config);
+    return context;
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
@@ -1106,7 +1102,8 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     std::string deviceName = device.getDeviceName();
 
     auto parsed = core_detail::parseDeviceNameIntoConfig(deviceName, config);
-    auto exec = _impl->GetCPPPluginByName(deviceName).ImportNetwork(networkModel, context, parsed._config);
+    auto exec = _impl->GetCPPPluginByName(deviceName)
+                    .ImportNetwork(networkModel, std::dynamic_pointer_cast<IRemoteContext>(context), parsed._config);
     return {exec, exec};
 }
 
@@ -1250,9 +1247,10 @@ ie::ExecutableNetwork Core::compile_model(const std::string& modelPath,
 }
 
 ie::ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Function>& network,
-                                          const ie::RemoteContext::Ptr& context,
+                                          const RemoteContext& context,
                                           const ConfigMap& config) {
-    auto exec = _impl->LoadNetwork(ie::CNNNetwork(std::const_pointer_cast<ngraph::Function>(network)), context, config);
+    auto exec =
+        _impl->LoadNetwork(ie::CNNNetwork(std::const_pointer_cast<ngraph::Function>(network)), context._impl, config);
     return {exec, exec};
 }
 
@@ -1269,7 +1267,7 @@ ie::ExecutableNetwork Core::import_model(std::istream& networkModel,
 }
 
 ie::ExecutableNetwork Core::import_model(std::istream& networkModel,
-                                         const ie::RemoteContext::Ptr& context,
+                                         const RemoteContext& context,
                                          const ConfigMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
@@ -1386,7 +1384,7 @@ void Core::register_plugins(const std::string& xmlConfigFile) {
     _impl->RegisterPluginsInRegistry(xmlConfigFile);
 }
 
-ie::RemoteContext::Ptr Core::create_context(const std::string& deviceName, const ie::ParamMap& params) {
+RemoteContext Core::create_context(const std::string& deviceName, const ie::ParamMap& params) {
     if (deviceName.find("HETERO") == 0) {
         IE_THROW() << "HETERO device does not support remote context";
     }
@@ -1398,10 +1396,11 @@ ie::RemoteContext::Ptr Core::create_context(const std::string& deviceName, const
     }
 
     auto parsed = core_detail::parseDeviceNameIntoConfig(deviceName, params);
-    return _impl->GetCPPPluginByName(parsed._deviceName).CreateContext(parsed._config);
+    auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).CreateContext(parsed._config);
+    return {remoteContext, remoteContext};
 }
 
-ie::RemoteContext::Ptr Core::get_default_context(const std::string& deviceName) {
+RemoteContext Core::get_default_context(const std::string& deviceName) {
     if (deviceName.find("HETERO") == 0) {
         IE_THROW() << "HETERO device does not support remote context";
     }
@@ -1414,7 +1413,9 @@ ie::RemoteContext::Ptr Core::get_default_context(const std::string& deviceName) 
 
     auto parsed = core_detail::parseDeviceNameIntoConfig(deviceName, ie::ParamMap());
 
-    return _impl->GetCPPPluginByName(parsed._deviceName).GetDefaultContext(parsed._config);
+    auto remoteCtx = _impl->GetCPPPluginByName(parsed._deviceName).GetDefaultContext(parsed._config);
+
+    return {remoteCtx, remoteCtx};
 }
 
 }  // namespace runtime

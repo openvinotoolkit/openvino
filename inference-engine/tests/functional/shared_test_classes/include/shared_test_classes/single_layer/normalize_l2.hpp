@@ -25,7 +25,7 @@ using NormalizeL2LayerTestParams = std::tuple<
 class NormalizeL2LayerTest : public testing::WithParamInterface<NormalizeL2LayerTestParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<NormalizeL2LayerTestParams>& obj);
 
 protected:
     void SetUp() override;

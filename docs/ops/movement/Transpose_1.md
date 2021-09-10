@@ -2,7 +2,7 @@
 
 **Versioned name**: *Transpose-1*
 
-**Category**: Data movement
+**Category**: *Data movement*
 
 **Short description**: *Transpose* operation reorders the input tensor dimensions.
 
