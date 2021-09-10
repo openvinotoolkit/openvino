@@ -24,7 +24,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_floor) {
+NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d) {
     Shape shape{1, 1, 3, 3};
     const Strides& strides{1, 1};
     const Shape& pads_begin{0, 0};
@@ -41,6 +41,59 @@ NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_floor) {
 
     std::vector<float> a{1, -2, -3, 4, -5, -6, 7, 8, 9};
     std::vector<float> result{0, 0, 0, 4, 0, 0, 0, 8, 9};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape, result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_big_out_shape) {
+    Shape shape{1, 1, 3, 3};
+    Shape out_shape{1, 1, 3, 5};
+    const Strides& strides{1, 1};
+    const Shape& pads_begin{0, 0};
+    const Shape& pads_end{0, 0};
+    const Shape& kernel{2, 2};
+    const op::RoundingType rounding_type = op::RoundingType::FLOOR;
+    const op::PadType pad_type = op::PadType::NOTSET;
+
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, out_shape);
+    auto maxPool = make_shared<op::v1::MaxPool>(A, strides, pads_begin, pads_end, kernel, rounding_type, pad_type);
+    auto relu = std::make_shared<op::Relu>(maxPool);
+    auto maxUnpool = make_shared<op::v8::MaxUnpool>(A, maxPool, relu, B);
+    auto f = make_shared<Function>(maxUnpool, ParameterVector{A, B});
+
+    std::vector<float> a{1, -2, -3, 4, -5, -6, 7, 8, 9};
+    std::vector<float> b{1, -2, -3, 4, -5, -6, 7, 8, 9, 0, 0, 0, 0, 0, 0};
+    std::vector<float> result{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(out_shape, result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_different_h_w) {
+    Shape shape{1, 2, 3, 4};
+    const Strides& strides{1, 1};
+    const Shape& pads_begin{0, 0};
+    const Shape& pads_end{0, 0};
+    const Shape& kernel{3, 3};
+    const op::RoundingType rounding_type = op::RoundingType::FLOOR;
+    const op::PadType pad_type = op::PadType::NOTSET;
+
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto maxPool = make_shared<op::v1::MaxPool>(A, strides, pads_begin, pads_end, kernel, rounding_type, pad_type);
+    auto relu = std::make_shared<op::Relu>(maxPool);
+    auto maxUnpool = make_shared<op::v8::MaxUnpool>(A, maxPool, relu, A);
+    auto f = make_shared<Function>(maxUnpool, ParameterVector{A});
+
+    std::vector<float> a{1, -2, -3, 4, 5, -6, -7, 8, 9, 10, 11, 12,
+                         13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
+    std::vector<float> result{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 12,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 23, 24};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({a});
