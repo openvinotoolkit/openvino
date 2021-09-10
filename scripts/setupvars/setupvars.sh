@@ -27,6 +27,7 @@ done
 if [ -e "$INSTALLDIR/runtime" ]; then
     export InferenceEngine_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
     export ngraph_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
+    export OpenVINO_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
 
     system_type=$(ls "$INTEL_OPENVINO_DIR/runtime/lib/")
     IE_PLUGINS_PATH=$INTEL_OPENVINO_DIR/runtime/lib/$system_type

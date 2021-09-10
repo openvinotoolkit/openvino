@@ -43,9 +43,10 @@ set PYTHONPATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PYTH
 set "PATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PATH%"
 )
 
-:: Inference Engine
+:: OpenVINO runtime
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
+set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\hddl"
 set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENVINO_LIB_PATHS%"
 
