@@ -8,9 +8,6 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
-#include <iomanip>
-#include <iostream>
-#include <limits>
 #include <numeric>
 
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
@@ -127,15 +124,11 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
         for (int64_t pw = 0; pw < pooled_width; pw++) {
             for (int64_t iy = 0; iy < iy_upper; iy++) {
                 for (int64_t ix = 0; ix < ix_upper; ix++) {
-//                     const T yy = roi_start_h + static_cast<T>(ph) * bin_size_h +
-//                                  (static_cast<T>(iy) + static_cast<T>(0.5f)) * bin_size_h /
-//                                      static_cast<T>(roi_bin_grid_h);
                     T y = roi_start_h + static_cast<T>(ph) * bin_size_h +
                           (static_cast<T>(iy) + static_cast<T>(0.5f)) * bin_size_h / static_cast<T>(roi_bin_grid_h);
                     T x = roi_start_w + static_cast<T>(pw) * bin_size_w +
                           (static_cast<T>(ix) + static_cast<T>(0.5f)) * bin_size_w / static_cast<T>(roi_bin_grid_w);
 
-//                     T y = yy;
                     // deal with: inverse elements are out of feature map boundary
                     if (y < static_cast<T>(-1.0f) || y > static_cast<T>(height) || x < static_cast<T>(-1.0f) ||
                         x > static_cast<T>(width)) {

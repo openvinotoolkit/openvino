@@ -11,9 +11,6 @@
 #define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
 #endif
 // clang-format on
-#include <iostream>
-#include <iomanip>
-#include <limits>
 #include <numeric>
 #include <vector>
 #include "gtest/gtest.h"
@@ -62,8 +59,6 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_roi_feature_eval) {
     const auto output_features_shape = Shape{2, 2, 3, 3};
     const auto output_rois_shape = Shape{2, 4};
 
-    std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
-
     auto output_features = backend->create_tensor(element::f32, output_features_shape);
     auto output_rois = backend->create_tensor(element::f32, output_rois_shape);
 
@@ -80,17 +75,6 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_roi_feature_eval) {
 
     const auto calculated_features = read_vector<float>(output_features);
     const auto calculated_rois = read_vector<float>(output_rois);
-
-    std::cout << "Calculated features:\n    ";
-    for (auto x : calculated_features) {
-        std::cout << x << ", ";
-    }
-    std::cout << "\n\n";
-    std::cout << "Calculated rois:\n    ";
-    for (auto x : calculated_rois) {
-        std::cout << x << ", ";
-    }
-    std::cout << "\n\n";
 
     std::vector<float> expected_output_features = {1.416666746139526367,
                                                    1.750000119209289551,
