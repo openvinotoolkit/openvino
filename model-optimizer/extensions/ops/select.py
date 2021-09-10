@@ -64,7 +64,8 @@ class Select(Op):
                 # if we use np.where for such cases then dtype of output_value will be object (non numeric type)
                 # and subsequent numpy operation on a such tensors will fail
                 output_value = resulting_tensors[not np.bool(condition_value.item(0))]
-
+                if output_value is None:
+                    return
                 if broadcast_rule == 'numpy':
                     output_value = bi_directional_broadcasting(output_value, output_shape)
                 elif broadcast_rule == 'pdpd':
@@ -72,7 +73,6 @@ class Select(Op):
                     raise Error("PDPD broadcasting rule is not implemented yet")
 
                 node.out_port(0).data.set_value(output_value)
-                return
             else:
                 output_value = np.ma.where(condition_value, resulting_tensors[0], resulting_tensors[1])
                 # If any element of output value is None that means that we use the value from the 'then' or the
