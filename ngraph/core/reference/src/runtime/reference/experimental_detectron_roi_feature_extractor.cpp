@@ -22,9 +22,6 @@
 # else
 #  define NEED_FIX 0
 # endif
-// # define NEEDED_LINUX (defined(__linux__) && defined(__i386__))
-// # define NEEDED_COMPILER_VER (__GNUC__ == 7 && __GNUC_MINOR__ == 5 && __GNUC_PATCHLEVEL__ == 0)
-// # define NEED_FIX (NEEDED_LINUX && NEEDED_COMPILER_VER)
 #else
 # define NEED_FIX 0
 #endif
@@ -106,7 +103,7 @@ struct PreCalc {
 // on Ubuntu 18.04 32-bit with -O3 optimization level.
 #if NEED_FIX
 # pragma GCC push_options
-# pragma GCC optimize("-O2")
+# pragma GCC optimize("-O0")
 #endif
 template <typename T>
 void pre_calc_for_bilinear_interpolate(const int64_t height,
@@ -126,7 +123,6 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
     for (int64_t ph = 0; ph < pooled_height; ph++) {
         for (int64_t pw = 0; pw < pooled_width; pw++) {
             for (int64_t iy = 0; iy < iy_upper; iy++) {
-                // std::cout << "                        yy: " << yy << "\n";
                 for (int64_t ix = 0; ix < ix_upper; ix++) {
                     const T yy = roi_start_h + static_cast<T>(ph) * bin_size_h +
                                  (static_cast<T>(iy) + static_cast<T>(0.5f)) * bin_size_h /
@@ -151,17 +147,7 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
 //                               << "                        y:  " << y << "\n"
 //                               << "                        x:  " << x << "\n";
                     if (y < static_cast<T>(-1.0f) || y > static_cast<T>(height) || x < static_cast<T>(-1.0f) || x > static_cast<T>(width)) {
-//                         // empty
-//                         PreCalc<T> pc;
-//                         pc.pos1 = 0;
-//                         pc.pos2 = 0;
-//                         pc.pos3 = 0;
-//                         pc.pos4 = 0;
-//                         pc.w1 = static_cast<T>(0.0f);
-//                         pc.w2 = static_cast<T>(0.0f);
-//                         pc.w3 = static_cast<T>(0.0f);
-//                         pc.w4 = static_cast<T>(0.0f);
-//                         pre_calc.at(pre_calc_index) = pc;
+                        // empty
                         pre_calc_index += 1;
                         continue;
                     }
@@ -192,10 +178,6 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
                     T lx = x - x_low;
                     T hy = static_cast<T>(1.0) - ly;
                     T hx = static_cast<T>(1.0) - lx;
-                    // T w1 = hy * hx;
-                    // T w2 = hy * lx;
-                    // T w3 = ly * hx;
-                    // T w4 = ly * lx;
 
                     // save weights and indeces
                     PreCalc<T> pc;
@@ -203,10 +185,6 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
                     pc.pos2 = y_low * width + x_high;
                     pc.pos3 = y_high * width + x_low;
                     pc.pos4 = y_high * width + x_high;
-                    // pc.w1 = w1;
-                    // pc.w2 = w2;
-                    // pc.w3 = w3;
-                    // pc.w4 = w4;
                     pc.w1 = hy * hx;
                     pc.w2 = hy * lx;
                     pc.w3 = ly * hx;
