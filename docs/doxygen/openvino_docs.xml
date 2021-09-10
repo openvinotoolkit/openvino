@@ -67,10 +67,6 @@ limitations under the License.
                     <tab type="user" title="Intel® Movidius™ VPUs Setup Guide" url="@ref openvino_docs_install_guides_movidius_setup_guide"/>
                     <tab type="user" title="Intel® Movidius™ VPUs Programming Guide" url="@ref openvino_docs_install_guides_movidius_programming_guide"/>
                 </tab>
-                <tab type="usergroup" title="[DEPRECATED] FPGAs" url="@ref openvino_docs_install_guides_VisionAcceleratorFPGA_Configure">
-                    <tab type="user" title="[DEPRECATED] Configuration Guide for Intel® Vision Accelerator Design with an Intel® Arria 10 FPGA SG2 (IEIs Mustang-F100-A10) on Linux" url="@ref openvino_docs_install_guides_VisionAcceleratorFPGA_Configure"/>
-                    <tab type="user" title="[DEPRECATED] Configuration Guide for Intel® Programmable Acceleration Card with Intel® Arria® 10 FPGA GX on CentOS or Ubuntu*" url="@ref openvino_docs_install_guides_PAC_Configure"/>   
-                </tab>
             </tab>
             <!-- Security -->
             <tab type="usergroup" title="Security" url="@ref openvino_docs_security_guide_introduction"><!--automatically generated-->
