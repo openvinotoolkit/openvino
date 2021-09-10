@@ -193,11 +193,10 @@ build/                  - build directory
 ``` cmake
 cmake_minimum_required(VERSION 3.0.0)
 project(project_name)
-find_package(ngraph REQUIRED)
-find_package(InferenceEngine REQUIRED)
+find_package(OpenVINO REQUIRED)
 find_package(OpenCV REQUIRED)
 add_executable(${PROJECT_NAME} src/main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${OpenCV_LIBS} ${NGRAPH_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OpenCV_LIBS})
 ```
 3. **To build your project** using CMake with the default build tools currently available on your machine, execute the following commands:
 > **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/bin/setupvars.sh` (or setupvars.bat for Windows)`. Otherwise the `InferenceEngine_DIR` and `OpenCV_DIR` variables won't be configured properly to pass `find_package` calls.

@@ -4,10 +4,8 @@
 
 #include "ie_api_impl.hpp"
 
-#include <ngraph/partial_shape.hpp>
-
-#include "ie_iinfer_request.hpp"
 #include "ie_plugin_config.hpp"
+#include "ngraph/partial_shape.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map<std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
