@@ -5,6 +5,7 @@
 #pragma once
 
 #include "mkldnn_memory.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 #include <string>
 
@@ -25,7 +26,7 @@ class BlobDumper {
 
 public:
     BlobDumper() = default;
-    BlobDumper(const MKLDNNMemoryDesc &desc) {
+    BlobDumper(const DnnlBlockedMemoryDesc &desc) {
         mkldnn::engine eng(mkldnn::engine::kind::cpu, 0);
         memory = std::make_shared<MKLDNNMemory>(eng);
         memory->Create(desc);
