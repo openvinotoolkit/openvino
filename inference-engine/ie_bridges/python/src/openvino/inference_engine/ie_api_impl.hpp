@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <ie_extension.h>
-
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
-#include <ie_core.hpp>
 #include <iostream>
 #include <iterator>
 #include <list>
@@ -23,6 +20,7 @@
 #include <vector>
 
 #include "Python.h"
+#include "ie_core.hpp"
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;

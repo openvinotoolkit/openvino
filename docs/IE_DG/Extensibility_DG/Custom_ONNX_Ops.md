@@ -50,8 +50,8 @@ The example below demonstrates how to unregister an operator from the destructor
 
 ## Requirements for Building with CMake
 
-A program that uses the `register_operator` functionality requires `ngraph::ngraph` and `ngraph::onnx_ngraph_frontend` libraries in addition to the Inference Engine.
-The `onnx_ngraph_frontend` is a component of the `ngraph` package , so `find_package(ngraph REQUIRED COMPONENTS onnx_ngraph_frontend)` can find both.
+A program that uses the `register_operator` functionality requires `openvino::core` and `openvino::frontend::onnx` libraries in addition to the OpenVINO Inference Runtime.
+The `onnx_ngraph_frontend` is a component of the `OpenVINO` package , so `find_package(OpenVINO REQUIRED COMPONENTS ONNX)` can find both.
 Those libraries need to be passed to the `target_link_libraries` command in the CMakeLists.txt file.
 
 See CMakeLists.txt below for reference:

@@ -75,7 +75,7 @@ RUN make -j $(nproc) install
 
 # Run tests via tox
 WORKDIR /openvino/runtime/bindings/python
-ENV ngraph_DIR=/openvino/dist/deployment_tools/ngraph
+ENV OpenVINO_DIR=/openvino/dist/deployment_tools/inference_engine/share
 ENV LD_LIBRARY_PATH=/openvino/dist/deployment_tools/ngraph/lib
 ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/lib/python_api/python3.8:${PYTHONPATH}
 CMD tox

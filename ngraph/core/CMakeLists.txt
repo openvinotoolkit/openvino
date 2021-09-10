@@ -71,25 +71,52 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
-                                         $<INSTALL_INTERFACE:${NGRAPH_INSTALL_INCLUDE}>
                                   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
                                           ${CMAKE_CURRENT_BINARY_DIR}/include)
 
-#Add an alias so that library can be used inside the build tree, e.g. when testing
+# Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::ngraph ALIAS ngraph)
+add_library(openvino::core ALIAS ngraph)
 
 target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
+
+#-----------------------------------------------------------------------------------------------
+# Export for build tree
+#-----------------------------------------------------------------------------------------------
+
+export(TARGETS ngraph NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+
+# WA for cmake
+export(TARGETS ngraph NAMESPACE IE::
+       APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
+
+set_target_properties(ngraph PROPERTIES EXPORT_NAME core)
+export(TARGETS ngraph NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 #-----------------------------------------------------------------------------------------------
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
 
-export(TARGETS ngraph NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
-
 install(TARGETS ngraph EXPORT ngraphTargets
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        INCLUDES DESTINATION ${NGRAPH_INSTALL_INCLUDE})
+
+# because ngraph is exported in multiple export list
+# it needs to be exported in each list it's used
+install(TARGETS ngraph EXPORT InferenceEngineTargets
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        INCLUDES DESTINATION ${NGRAPH_INSTALL_INCLUDE})
+
+install(TARGETS ngraph EXPORT OpenVINOTargets
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        INCLUDES DESTINATION ${NGRAPH_INSTALL_INCLUDE})
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         DESTINATION ${NGRAPH_INSTALL_INCLUDE}
