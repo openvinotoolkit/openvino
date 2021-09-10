@@ -16,12 +16,15 @@
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "ngraph/shape.hpp"
 
-#define GNU_COMPILER (defined(__GNUC__) && !defined(__clang__))
-
-#if GNU_COMPILER
-# define NEEDED_LINUX (defined(__linux__) && defined(__i386__))
-# define NEEDED_COMPILER_VER (__GNUC__ == 7 && __GNUC_MINOR__ == 5 && __GNUC_PATCHLEVEL__ == 0)
-# define NEED_FIX (NEEDED_LINUX && NEEDED_COMPILER_VER)
+#if defined(__GNUC__) && !defined(__clang__)
+# if defined(__linux__) && defined(__i386__) && (__GNUC__ == 7 && __GNUC_MINOR__ == 5 && __GNUC_PATCHLEVEL__ == 0)
+#  define NEED_FIX 1
+# else
+#  define NEED_FIX 0
+# endif
+// # define NEEDED_LINUX (defined(__linux__) && defined(__i386__))
+// # define NEEDED_COMPILER_VER (__GNUC__ == 7 && __GNUC_MINOR__ == 5 && __GNUC_PATCHLEVEL__ == 0)
+// # define NEED_FIX (NEEDED_LINUX && NEEDED_COMPILER_VER)
 #else
 # define NEED_FIX 0
 #endif
