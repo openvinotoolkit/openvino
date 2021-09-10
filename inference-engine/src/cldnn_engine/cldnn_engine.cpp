@@ -565,23 +565,19 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
     }
 }
 
-IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const std::map<std::string, std::string> &orig_config) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl");
-    // verification of supported input
-    InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
-    check_inputs(_networkInputs);
-
-    CLDNNPlugin::Config conf = _impl->m_config;
-    auto config = orig_config;
-    const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
+std::map<std::string, std::string> clDNNEngine::ConvertPerfHintsToConfig(
+        const std::map<std::string, std::string>& network_config,
+        const CLDNNPlugin::Config& plugin_config) const {
+    // deduces the actual settings from the performance hints and returns fully-defined config
+    auto config = network_config;
+    const auto &mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
     // the mode may have just arrived to the LoadNetwork, or was set with the plugins' SetConfig
-    if (mode != config.end() || !conf.perfHintsConfig.ovPerfHint.empty()) {
+    if (mode != config.end() || !plugin_config.perfHintsConfig.ovPerfHint.empty()) {
         const auto mode_name = (mode != config.end())
                                ? PerfHintsConfig::CheckPerformanceHintValue(mode->second)
-                               : conf.perfHintsConfig.ovPerfHint;
+                               : plugin_config.perfHintsConfig.ovPerfHint;
         //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
-        const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
+        const auto streams = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS);
         if (streams == config.end() && !streamsSet) {
             if (mode_name == CONFIG_VALUE(LATENCY)) {
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(1);
@@ -591,7 +587,18 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
             }
         }
     }
+    return config;
+}
 
+IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
+                                                                const std::map<std::string, std::string> &orig_config) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl");
+    // verification of supported input
+    InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
+    check_inputs(_networkInputs);
+
+    CLDNNPlugin::Config conf = _impl->m_config;
+    auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
     CLDNNRemoteCLContext::Ptr context;
@@ -637,7 +644,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
 
 IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                 const IRemoteContext::Ptr &context,
-                                                                const std::map<std::string, std::string> &config) {
+                                                                const std::map<std::string, std::string> &orig_config) {
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
@@ -647,6 +654,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     }
 
     CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
+    auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);

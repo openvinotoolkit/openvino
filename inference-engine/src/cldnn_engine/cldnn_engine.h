@@ -32,6 +32,9 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
     InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                          const CLDNNPlugin::Config& config) const;
 
+    std::map<std::string, std::string> ConvertPerfHintsToConfig(const std::map<std::string, std::string>& network_config,
+                                                               const CLDNNPlugin::Config& plugin_config) const;
+
     void RegisterPrimitives();
     void UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const;
 public:
