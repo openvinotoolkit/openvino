@@ -45,7 +45,7 @@ std::shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector
 
 void op::DepthToSpace::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_DepthToSpace_validate_and_infer_types);
-    PartialShape data_pshape = get_input_partial_shape(0);
+    ov::Shape data_pshape = get_input_partial_shape(0);
 
     const auto& data_type = get_input_element_type(0);
 
@@ -79,7 +79,7 @@ void op::DepthToSpace::validate_and_infer_types() {
         set_output_size(1);
         set_output_type(0, data_type, out_shape);
     } else {
-        set_output_type(0, data_type, PartialShape::dynamic(data_pshape.rank()));
+        set_output_type(0, data_type, ov::Shape::dynamic(data_pshape.rank()));
     }
 }
 

@@ -17,7 +17,7 @@ using namespace ngraph;
 OPENVINO_RTTI_DEFINITION(op::v0::LRN, "LRN", 0);
 
 op::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)
-    : LRN(arg, op::v0::Constant::create(element::i64, Shape{1}, {1}), alpha, beta, bias, size) {
+    : LRN(arg, op::v0::Constant::create(element::i64, ov::StaticShape{1}, {1}), alpha, beta, bias, size) {
     add_provenance_group_member(input_value(1).get_node_shared_ptr());
 }
 
@@ -41,13 +41,13 @@ AxisSet op::LRN::get_reduction_axes() const {
 void op::LRN::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_LRN_validate_and_infer_types);
     element::Type arg_type = get_input_element_type(0);
-    PartialShape arg_shape = get_input_partial_shape(0);
+    ov::Shape arg_shape = get_input_partial_shape(0);
     set_output_type(0, arg_type, arg_shape);
 
-    const PartialShape& input_shape = get_input_partial_shape(0);
+    const ov::Shape& input_shape = get_input_partial_shape(0);
     const auto input_shape_rank = input_shape.rank();
 
-    PartialShape axes_shape{PartialShape::dynamic()};
+    ov::Shape axes_shape{ov::Shape::dynamic()};
     if (get_input_partial_shape(1).is_static()) {
         axes_shape = get_input_partial_shape(1);
     }
