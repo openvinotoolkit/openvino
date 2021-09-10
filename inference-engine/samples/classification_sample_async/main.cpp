@@ -65,7 +65,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 using ImagesInfo = std::pair<std::vector<std::shared_ptr<unsigned char>>,  // ImagesData
                              std::vector<std::string>                      // ValidImageNames
                              >;
-                               
+
 /**
  * @brief Reads images data
  * @param imageNames Image names
