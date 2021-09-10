@@ -1,15 +1,19 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
-#include "single_layer_tests/gather_tree.hpp"
+#include "shared_test_classes/single_layer/gather_tree.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
+
+TEST_P(GatherTreeLayerTest, Serialize) {
+    Serialize();
+}
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -23,7 +27,7 @@ const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherTree, GatherTreeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherTree_Serialization, GatherTreeLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(inputShapes),
                             ::testing::ValuesIn(secondaryInputTypes),
@@ -34,5 +38,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTree, GatherTreeLayerTest,
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GatherTreeLayerTest::getTestCaseName);
-
-}  // namespace
+}   // namespace
