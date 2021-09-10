@@ -75,7 +75,7 @@ public:
     bool created() const override;
 
 private:
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     template<typename T> void execute();
     template<typename T> struct ROIPoolingExecute;
