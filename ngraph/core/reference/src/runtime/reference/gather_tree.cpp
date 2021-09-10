@@ -72,11 +72,12 @@ void runtime::reference::gather_tree(const char* step_ids,
         throw ngraph_error("max_seq_len must have size of BATCH_SIZE");
     }
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform cordinate_transform(step_ids_shape);
+    const auto in_strides = row_major_strides(step_ids_shape);
+    ngraph::CoordinateTransformBasic cordinate_transform(step_ids_shape);
 
     for (const auto& coord : cordinate_transform) {
-        memcpy(out + cordinate_transform.index(coord) * elem_size, end_token, elem_size);
+        const auto out_idx = std::inner_product(coord.begin(), coord.end(), in_strides.begin(), 0);
+        memcpy(out + out_idx * elem_size, end_token, elem_size);
     }
 
     for (size_t batch = 0; batch < batch_size; ++batch) {
@@ -87,31 +88,35 @@ void runtime::reference::gather_tree(const char* step_ids,
                 continue;
             }
 
-            auto offset = cordinate_transform.index({max_seq_in_beam - 1, batch, beam}) * elem_size;
-
+            const auto coord = Coordinate({max_seq_in_beam - 1, batch, beam});
+            const auto offset = std::inner_product(coord.begin(), coord.end(), in_strides.begin(), 0) * elem_size;
             memcpy(out + offset, step_ids + offset, elem_size);
 
             size_t parent = _asIndex(parent_ids + offset, element_type);
 
             for (size_t level = max_seq_in_beam - 1; level-- > 0;) {
-                memcpy(out + cordinate_transform.index({level, batch, beam}) * elem_size,
-                       step_ids + cordinate_transform.index({level, batch, parent}) * elem_size,
-                       elem_size);
+                const auto coord_beam = Coordinate({level, batch, beam});
+                const auto out_idx = std::inner_product(coord_beam.begin(), coord_beam.end(), in_strides.begin(), 0);
 
-                parent =
-                    _asIndex(parent_ids + cordinate_transform.index({level, batch, parent}) * elem_size, element_type);
+                const auto coord_parent = Coordinate({level, batch, parent});
+                const auto step_ids_idx =
+                    std::inner_product(coord_parent.begin(), coord_parent.end(), in_strides.begin(), 0);
+
+                memcpy(out + out_idx * elem_size, step_ids + step_ids_idx * elem_size, elem_size);
+
+                parent = _asIndex(parent_ids + step_ids_idx * elem_size, element_type);
             }
 
             bool finished = false;
             for (size_t time = 0; time < max_seq_in_beam; ++time) {
+                const auto out_coord = Coordinate({time, batch, beam});
+                const auto out_idx = std::inner_product(out_coord.begin(), out_coord.end(), in_strides.begin(), 0);
                 if (finished) {
-                    memcpy(out + cordinate_transform.index({time, batch, beam}) * elem_size, end_token, elem_size);
-                } else if (_asIndex(out + cordinate_transform.index({time, batch, beam}) * elem_size, element_type) ==
-                           _asIndex(end_token, element_type)) {
+                    memcpy(out + out_idx * elem_size, end_token, elem_size);
+                } else if (_asIndex(out + out_idx * elem_size, element_type) == _asIndex(end_token, element_type)) {
                     finished = true;
                 }
             }
         }
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
