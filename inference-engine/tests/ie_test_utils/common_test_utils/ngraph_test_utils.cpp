@@ -129,16 +129,16 @@ public:
             return false;
         }
 
-        if (lhs->get_type_info() == SubGraphOp::SliceInputDescription::type_info) {
+        if (lhs->get_type_info() == SubGraphOp::SliceInputDescription::get_type_info_static()) {
             using InDesc = SubGraphOp::SliceInputDescription;
             const InDesc *l_input = static_cast<const InDesc *>(lhs);
             const InDesc *r_input = static_cast<const InDesc *>(rhs);
             return l_input->m_start == r_input->m_start && l_input->m_stride == r_input->m_stride &&
                    l_input->m_part_size == r_input->m_part_size &&
                    l_input->m_end == r_input->m_end && l_input->m_axis == r_input->m_axis;
-        } else if (lhs->get_type_info() == SubGraphOp::MergedInputDescription::type_info) {
+        } else if (lhs->get_type_info() == SubGraphOp::MergedInputDescription::get_type_info_static()) {
             return true;  // noting extra to check
-        } else if (lhs->get_type_info() == SubGraphOp::InvariantInputDescription::type_info) {
+        } else if (lhs->get_type_info() == SubGraphOp::InvariantInputDescription::get_type_info_static()) {
             return true;  // noting extra to check
         }
 
@@ -179,8 +179,8 @@ public:
             }
             return true;
         } else if (
-                m_description->get_type_info() == SubGraphOp::MergedInputDescription::type_info ||
-                m_description->get_type_info() == SubGraphOp::InvariantInputDescription::type_info) {
+                m_description->get_type_info() == SubGraphOp::MergedInputDescription::get_type_info_static() ||
+                m_description->get_type_info() == SubGraphOp::InvariantInputDescription::get_type_info_static()) {
             return equal_type_and_partial_shape(*m_parameter, m_input);
         }
 
@@ -223,7 +223,7 @@ public:
             return false;
         }
 
-        if (lhs->get_type_info() == SubGraphOp::ConcatOutputDescription::type_info) {
+        if (lhs->get_type_info() == SubGraphOp::ConcatOutputDescription::get_type_info_static()) {
             using OutDesc = SubGraphOp::ConcatOutputDescription;
             const OutDesc *l_output = static_cast<const OutDesc *>(lhs);
             const OutDesc *r_output = static_cast<const OutDesc *>(rhs);
@@ -231,7 +231,7 @@ public:
                    l_output->m_stride == r_output->m_stride &&
                    l_output->m_part_size == r_output->m_part_size &&
                    l_output->m_end == r_output->m_end && l_output->m_axis == r_output->m_axis;
-        } else if (lhs->get_type_info() == SubGraphOp::BodyOutputDescription::type_info) {
+        } else if (lhs->get_type_info() == SubGraphOp::BodyOutputDescription::get_type_info_static()) {
             using OutDesc = SubGraphOp::BodyOutputDescription;
             const OutDesc *l_output = static_cast<const OutDesc *>(lhs);
             const OutDesc *r_output = static_cast<const OutDesc *>(rhs);
@@ -270,7 +270,7 @@ public:
                 }
             }
             return true;
-        } else if (m_description->get_type_info() == SubGraphOp::BodyOutputDescription::type_info) {
+        } else if (m_description->get_type_info() == SubGraphOp::BodyOutputDescription::get_type_info_static()) {
             return equal_type_and_partial_shape(m_result->output(0), m_output);
         }
 
