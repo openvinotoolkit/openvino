@@ -86,6 +86,7 @@
 #include <low_precision/network_helper.hpp>
 
 #include <ie_algorithm.hpp>
+#include "performance_heuristics.hpp"
 
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
@@ -388,123 +389,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT) {
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
-Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network,
-        const float L2_cache_size, const float L3_cache_size, const float memThresholdAssumeLimited) {
-    const auto nGraphFunc = network.getFunction();
-    int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
-            total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0;
-    auto memLimitedFactor = [&] (int size_data_moved, int datatype_size = 4) -> float { return  (L2_cache_size * 1.0f/*util factor, tbd */
-                                                                                                 / (size_data_moved * datatype_size));};
-    auto isLowPrecision = [&] (ngraph::element::Type type) -> bool {
-        return (type == ngraph::element::i8) || (type == ngraph::element::u8);
-    };
-    auto isHalfPrecision = [&] (ngraph::element::Type type) -> bool {
-        return (type == ngraph::element::bf16) || (type == ngraph::element::f16);
-    };
-
-    float worst_case = NetworkPerfStats::memThresholdUnknown;
-    // Traverse nGraph Function in topological order
-    for (auto & node : nGraphFunc->get_ordered_ops()) {
-        const auto node_name = node->get_type_info().name;
-        if (std::strcmp("MatMul", node_name) && std::strcmp("Convolution", node_name)
-            && std::strcmp("ConvolutionBackpropData", node_name)) {
-                if (!std::strcmp("GRUSequence", node_name)
-                    || !std::strcmp("TensorIterator", node_name)) {
-                    NetworkPerfStats res;
-                    res.maxMemTolerance = NetworkPerfStats::memThresholdUnknown;
-                    return res;
-                }
-            continue;
-        }
-        auto type1 = node->input_value(1).get_element_type(); //weights
-        const bool isINT8 = isLowPrecision(type1);
-        const bool isBF16orFP16 = isHalfPrecision(type1);
-        const int data_type_size = isINT8 ? 1 : isBF16orFP16 ? 2 : 4;
-
-        int dataSizeInput = 0, dataSizeOutput = 0;
-        if (!std::strcmp("MatMul", node_name)) {
-            ngraph::Input<ngraph::Node> input0 = node->input(0);
-            ngraph::Input<ngraph::Node> input1 = node->input(1);
-            ngraph::Output<ngraph::Node> output = node->output(0);
-            // Check that input and output shape a fully defined (not dynamic)
-            if (input0.get_partial_shape().is_static() && input1.get_partial_shape().is_static()
-                && output.get_partial_shape().is_static()) {
-                const auto shapeInput0 = input0.get_shape();
-                const auto shapeInput1 = input1.get_shape();
-                const auto non_const  = !get_constant_from_source(node->input_value(1));
-                const auto shapeOutput = output.get_shape();
-                const auto dataSizeInput0 = std::accumulate(shapeInput0.begin(), shapeInput0.end(), 1,
-                                                            std::multiplies<int>());
-                const auto dataSizeInput1 = std::accumulate(shapeInput1.begin(), shapeInput1.end(), 1,
-                                                            std::multiplies<int>());
-                dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
-                                                 std::multiplies<int>());
-                const auto total_data = dataSizeInput0 + non_const*dataSizeInput1 + dataSizeOutput;
-                total_gemms++;
-                const auto factor = memLimitedFactor(total_data, data_type_size);
-                mem_limited_gemms += factor < memThresholdAssumeLimited;
-                worst_case = std::min(factor, worst_case);
-            }
-        } else if (!std::strcmp("Convolution", node_name)) {
-            // Check that input and output shape a fully defined (not dynamic)
-            ngraph::Input<ngraph::Node> input = node->input(0);
-            ngraph::Output<ngraph::Node> output = node->output(0);
-            ngraph::Input<ngraph::Node> kernels = node->input(1);
-            const auto shape = kernels.get_shape();
-            total_convs++;
-            if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
-                compute_convs++;
-                continue;
-            }
-            if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
-                const auto shapeInput = input.get_shape();
-                const auto shapeOutput = output.get_shape();
-                if (shapeInput.size() > 4/*5D*/ && isINT8) {
-                    compute_convs++;
-                    continue;
-                }
-                dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
-                                                std::multiplies<int>());
-                dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
-                                                 std::multiplies<int>());
-                const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
-                mem_limited_convs += factor < memThresholdAssumeLimited;
-                worst_case = std::min(factor, worst_case);
-            }
-        } else if (!std::strcmp("ConvolutionBackpropData", node_name)) {
-            // Check that input and output shape a fully defined (not dynamic)
-            ngraph::Input<ngraph::Node> input = node->input(0);
-            ngraph::Output<ngraph::Node> output = node->output(0);
-            ngraph::Input<ngraph::Node> kernels = node->input(1);
-            const auto shape = kernels.get_shape();
-            total_deconvs++;
-
-            if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
-                const auto shapeInput = input.get_shape();
-                const auto shapeOutput = output.get_shape();
-                if (shapeInput.size() > 4/*5D*/ && isINT8) {
-                    compute_deconvs++;
-                    continue;
-                }
-                dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
-                                                std::multiplies<int>());
-                dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
-                                                 std::multiplies<int>());
-                const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
-                mem_limited_deconvs += factor < memThresholdAssumeLimited;
-                worst_case = std::min(factor, worst_case);
-            }
-        }
-    }
-    NetworkPerfStats res;
-    res.maxMemTolerance = worst_case;
-    res.ratio_mem_limited_convs = total_convs ? static_cast<float>(mem_limited_convs)/total_convs : 0;
-    res.ratio_compute_convs = total_convs ? static_cast<float>(compute_convs)/total_convs : 0;
-    res.ratio_compute_deconvs = total_deconvs ? static_cast<float>(compute_deconvs)/total_deconvs : 0;
-    return res;
-}
-
-
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
@@ -569,12 +453,13 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                         isaSpecificThreshold = 1.0f;
                 }
                 // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
-                const float memThresholdAssumeLimitedForISA = NetworkPerfStats::memThresholdAssumeLimited/isaSpecificThreshold;
+                const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED/isaSpecificThreshold;
                 const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
                 const float L3_cache_size = mkldnn::utils::get_cache_size(3, false);
-
-                Engine::NetworkPerfStats NetworkToleranceForLowCache = NetworkMemBandwidthTolerance(clonedNetwork,
-                        L2_cache_size, L3_cache_size, memThresholdAssumeLimitedForISA);
+                ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
+                        clonedNetwork.getFunction(),
+                        L2_cache_size, L3_cache_size,
+                        memThresholdAssumeLimitedForISA);
                 // num of phys CPU cores (most aggressive value for #streams)
                 const auto num_cores = getNumberOfCPUCores();
                 // less aggressive
@@ -582,16 +467,16 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 // default #streams value (most conservative)
                 const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
                 int num_streams = default_num_streams;
-                if (NetworkToleranceForLowCache.maxMemTolerance == NetworkPerfStats::memThresholdUnknown) {
-                    if ((NetworkToleranceForLowCache.ratio_compute_convs == NetworkPerfStats::ALL)
-                        || (NetworkToleranceForLowCache.ratio_compute_deconvs == NetworkPerfStats::ALL)) {
+                if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+                    if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
+                        || (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
                         // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                         num_streams = num_cores;
                     }   // otherwise (no recognized layers) falling back to the default value
-                } else if (NetworkToleranceForLowCache.maxMemTolerance > memThresholdAssumeLimitedForISA) {
+                } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
                     // network is below the ISA-specific threshold
                     num_streams = num_cores;
-                } else if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimited) {
+                } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
                     // network is below general threshold
                     num_streams = std::max(default_num_streams, num_streams_less_aggressive);
                 }
