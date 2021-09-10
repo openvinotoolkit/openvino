@@ -18,6 +18,7 @@
 #include "transformations/common_optimizations/softplus_fusion.hpp"
 #include "transformations/common_optimizations/softplus_to_mish_fusion.hpp"
 #include "transformations/common_optimizations/swish_fusion.hpp"
+#include "transformations/common_optimizations/space_to_depth_fusion.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 #include "transformations/common_optimizations/leaky_relu_fusion.hpp"
@@ -116,6 +117,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     common_fusions->add_matcher<ngraph::pass::ConvertScatterElementsToScatter>();
     common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
+    common_fusions->add_matcher<ngraph::pass::SpaceToDepthFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
     common_fusions->add_matcher<ngraph::pass::SwishFusion>();
