@@ -74,7 +74,10 @@ ov::pass::ReplaceInputsOutputsWithMemory::InOutPairs ov::pass::ReplaceInputsOutp
         auto param = std::find_if(params.begin(), params.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
             return node->get_friendly_name().find(param_name) != std::string::npos;
         });
-        NGRAPH_CHECK(param != params.end(), "Parameter node with name = ", param_name, "doesn't belong to the function");
+        NGRAPH_CHECK(param != params.end(),
+                     "Parameter node with name = ",
+                     param_name,
+                     "doesn't belong to the function");
 
         auto res = std::find_if(results.begin(), results.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
             return node->get_friendly_name().find(res_name) != std::string::npos;

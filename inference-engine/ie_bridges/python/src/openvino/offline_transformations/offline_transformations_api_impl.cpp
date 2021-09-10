@@ -4,12 +4,13 @@
 
 #include "offline_transformations_api_impl.hpp"
 
+#include <openvino/pass/replace_inputs_outputs_with_memory.h>
+
 #include <generate_mapping_file.hpp>
 #include <moc_transformations.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/low_latency.hpp>
-#include <openvino/pass/replace_inputs_outputs_with_memory.h>
 #include <ngraph/pass/manager.hpp>
 #include <pot_transformations.hpp>
 #include <pruning.hpp>
@@ -34,9 +35,11 @@ void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython:
     manager.run_passes(network.actual->getFunction());
 }
 
-void ApplyReplaceInputsOutputsWithMemoryTransformation(InferenceEnginePython::IENetwork network, std::vector<std::pair<std::string, std::string>>& in_out_names) {
+void ApplyReplaceInputsOutputsWithMemoryTransformation(InferenceEnginePython::IENetwork network,
+                                                       std::vector<std::pair<std::string, std::string>>& in_out_names) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ov::pass::ReplaceInputsOutputsWithMemory>(ov::pass::ReplaceInputsOutputsWithMemory::findInputsOutputsByName(in_out_names));
+    manager.register_pass<ov::pass::ReplaceInputsOutputsWithMemory>(
+        ov::pass::ReplaceInputsOutputsWithMemory::findInputsOutputsByName(in_out_names));
     manager.run_passes(network.actual->getFunction());
 }
 
