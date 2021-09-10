@@ -57,21 +57,29 @@ class Select(Op):
         node.out_port(0).data.set_shape(output_shape)
 
         if condition_value is not None:
-            if condition_value.size == 1:
-                # in some graphsSelect  contains single element condition and one of the branches is None
+            if resulting_tensors[0] is None or resulting_tensors[1] is None:
+                assert np.all(condition_value == condition_value[0])
+                # in some graphs Select condition is always True[False] and
+                # one of the branches is None (which is not selected)
                 # if we use np.where for such cases then dtype of output_value will be object (non numeric type)
                 # and subsequent numpy operation on a such tensors will fail
-                selected_branch_index = not np.bool(condition_value.item(0))
-                if resulting_tensors[not selected_branch_index] is None:
-                    node.out_port(0).data.set_value(resulting_tensors[selected_branch_index])
-                    return
+                output_value = resulting_tensors[not np.bool(condition_value.item(0))]
 
-            output_value = np.ma.where(condition_value, resulting_tensors[0], resulting_tensors[1])
-            # If any element of output value is None that means that we use the value from the 'then' or the
-            # 'else' tensor which is not defined, this means that we cannot perform value propagation.
-            if np.any(output_value == None):
+                if broadcast_rule == 'numpy':
+                    output_value = bi_directional_broadcasting(output_value, output_shape)
+                elif broadcast_rule == 'pdpd':
+                    # todo: add pdpd broadcasting rule
+                    raise Error("PDPD broadcasting rule is not implemented yet")
+
+                node.out_port(0).data.set_value(output_value)
                 return
-            node.out_port(0).data.set_value(output_value)
+            else:
+                output_value = np.ma.where(condition_value, resulting_tensors[0], resulting_tensors[1])
+                # If any element of output value is None that means that we use the value from the 'then' or the
+                # 'else' tensor which is not defined, this means that we cannot perform value propagation.
+                if np.any(output_value == None):
+                    return
+                node.out_port(0).data.set_value(output_value)
 
     @staticmethod
     def type_infer(node: Node):
