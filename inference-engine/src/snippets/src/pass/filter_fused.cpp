@@ -40,7 +40,7 @@ bool hasIgnoredParent(std::shared_ptr<Node> node) {
 bool hasParameterParent(std::shared_ptr<Node> node) {
     for (const auto& input : node->inputs()) {
         const auto parent = input.get_source_output().get_node_shared_ptr();
-        if (!!ov::as_type_ptr<ngraph::op::Parameter>(parent))
+        if (ov::is_type<ngraph::op::Parameter>(parent))
             return true;
     }
     return false;
@@ -59,7 +59,7 @@ int getNumNonConstInputs(std::shared_ptr<Node> node) {
     int num_non_const_inputs = 0;
     for (const auto &parent_out : node->input_values()) {
         const auto parent = parent_out.get_node_shared_ptr();
-        if (!!ov::as_type_ptr<ngraph::op::v1::Reshape>(parent)) {
+        if (ov::is_type<ngraph::op::v1::Reshape>(parent)) {
             for (const auto &grandparent_out : parent->input_values()) {
                 const auto grandparent = grandparent_out.get_node_shared_ptr();
                 if (!ngraph::op::is_constant(grandparent))
@@ -74,50 +74,51 @@ int getNumNonConstInputs(std::shared_ptr<Node> node) {
 bool SupportsFusingWithConvolution_SumActivation(std::shared_ptr<Node> node) {
     // todo: Do all PReLUs are fused? Not sure about round and softRelu
     // EltwiseRoundHalfToEven, EltwiseRoundHalfAwayFromZero, EltwiseSoftRelu
-    return  !!ov::as_type_ptr<ngraph::op::Relu>(node) ||
-            !!ov::as_type_ptr<ngraph::op::PRelu>(node) ||
-            !!ov::as_type_ptr<ngraph::op::Elu>(node) ||
-            !!ov::as_type_ptr<ngraph::op::Sigmoid>(node) ||
-            !!ov::as_type_ptr<ngraph::op::v5::HSigmoid>(node) ||
-            !!ov::as_type_ptr<ngraph::op::Clamp>(node) ||
-            !!ov::as_type_ptr<ngraph::op::v4::Swish>(node) ||
-            !!ov::as_type_ptr<ngraph::op::v4::HSwish>(node) ||
-            !!ov::as_type_ptr<ngraph::op::v4::Mish>(node) ||
-            !!ov::as_type_ptr<ngraph::op::v5::Round>(node);
+    return  ov::is_type<ngraph::op::Relu>(node) ||
+            ov::is_type<ngraph::op::PRelu>(node) ||
+            ov::is_type<ngraph::op::Elu>(node) ||
+            ov::is_type<ngraph::op::Sigmoid>(node) ||
+            ov::is_type<ngraph::op::v5::HSigmoid>(node) ||
+            ov::is_type<ngraph::op::Clamp>(node) ||
+            ov::is_type<ngraph::op::v4::Swish>(node) ||
+            ov::is_type<ngraph::op::v4::HSwish>(node) ||
+            ov::is_type<ngraph::op::v4::Mish>(node) ||
+            ov::is_type<ngraph::op::v5::Round>(node);
 }
 bool SupportsFusingWithConvolution_Simple(std::shared_ptr<Node> node) {
     //  This is an approximate solution. Do ann bynaries are supported?
     //   node->canBePerformedAsScaleShift(this);
     if (ngraph::op::is_binary_elementwise_arithmetic(node) ||
         SupportsFusingWithConvolution_SumActivation(node) ||
-        !!ov::as_type_ptr<ngraph::op::Tanh>(node) ||
-        !!ov::as_type_ptr<ngraph::op::Gelu>(node) ||
-        !!ov::as_type_ptr<ngraph::op::Abs>(node) ||
-        !!ov::as_type_ptr<ngraph::op::Sqrt>(node))
+        ov::is_type<ngraph::op::Tanh>(node) ||
+        ov::is_type<ngraph::op::Gelu>(node) ||
+        ov::is_type<ngraph::op::Abs>(node) ||
+        ov::is_type<ngraph::op::Sqrt>(node))
         return true;
     else
         return false;
 }
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(std::shared_ptr<Node> node) {
-    const bool is_suitable_node = !!ov::as_type_ptr<ngraph::op::v1::Convolution>(node) ||
-                                  !!ov::as_type_ptr<ngraph::op::v1::GroupConvolution>(node) ||
-                                  !!ov::as_type_ptr<ngraph::op::v1::BinaryConvolution>(node);
+    const bool is_suitable_node = ov::is_type<ngraph::op::v1::Convolution>(node) ||
+                                  ov::is_type<ngraph::op::v1::GroupConvolution>(node) ||
+                                  ov::is_type<ngraph::op::v1::BinaryConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
 bool isSuitableMiscParent(std::shared_ptr<Node> node) {
-    const bool is_suitable_node = !!ov::as_type_ptr<ngraph::op::v0::MVN>(node) ||
-                                  !!ov::as_type_ptr<ngraph::op::v0::NormalizeL2>(node) ||
-                                  !!ov::as_type_ptr<ngraph::op::v0::Interpolate>(node) ||
-                                  !!ov::as_type_ptr<ngraph::op::v0::LSTMCell>(node) ||
-                                  !!ov::as_type_ptr<ngraph::op::v4::LSTMCell>(node) ||
+    const bool is_suitable_node = ov::is_type<ngraph::op::v0::MVN>(node) ||
+                                  ov::is_type<ngraph::op::v6::MVN>(node) ||
+                                  ov::is_type<ngraph::op::v0::NormalizeL2>(node) ||
+                                  ov::is_type<ngraph::op::v0::Interpolate>(node) ||
+                                  ov::is_type<ngraph::op::v0::LSTMCell>(node) ||
+                                  ov::is_type<ngraph::op::v4::LSTMCell>(node) ||
                                   // FullyConnected has a special shape restriction
                                   // Plus Matmul is converted to FC in convert_to_cpu_specific_opset
-                                  ( (!!ov::as_type_ptr<ngraph::op::FullyConnected>(node)
-                                     || !!ov::as_type_ptr<ngraph::op::MatMul>(node)) &&
+                                  ( (ov::is_type<ngraph::op::FullyConnected>(node)
+                                     || ov::is_type<ngraph::op::MatMul>(node)) &&
                                     node->input_value(0).get_shape().size() != 3);
     // has a single output, connected to a single child
     const auto out = node->outputs();
@@ -125,7 +126,7 @@ bool isSuitableMiscParent(std::shared_ptr<Node> node) {
     return is_suitable_node && has_only_child;
 }
 bool isSuitablePoolChild(std::shared_ptr<Node> node) {
-    const bool is_suitable_node = !!ov::as_type_ptr<ngraph::op::v1::MaxPool>(node);
+    const bool is_suitable_node = ov::is_type<ngraph::op::v1::MaxPool>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
