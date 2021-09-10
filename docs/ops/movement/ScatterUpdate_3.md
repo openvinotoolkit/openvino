@@ -37,7 +37,7 @@ tensor element or is negative, then an exception is raised. **Required.**
 *   **3**: `updates` tensor of type *T_NUMERIC* and rank equal to `rank(indices) + rank(data) - 1` **Required.**
 
 *   **4**: `axis` tensor with scalar or 1D tensor with one element of type *T_AXIS* specifying axis for scatter.
-The value can be in range `[ -r, r - 1]` where `r` is the rank of `data`. **Required.**
+The value can be in the range `[ -r, r - 1]`, where `r` is the rank of `data`. **Required.**
 
 **Outputs**:
 
