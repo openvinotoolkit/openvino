@@ -22,19 +22,19 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/lib/libinference_engine.so",
-        "runtime/lib/libinference_engine_transformations.so",
-        "runtime/lib/libinference_engine_preproc.so",
-        "runtime/lib/libinference_engine_ir_reader.so",
-        "runtime/lib/libinference_engine_c_api.so",
-        "runtime/lib/libHeteroPlugin.so",
-        "runtime/lib/libMultiDevicePlugin.so",
-        "runtime/lib/libngraph.so",
-        "runtime/lib/libfrontend_manager.so",
-        "runtime/lib/libir_ngraph_frontend.so",
-        "runtime/lib/libonnx_ngraph_frontend.so",
-        "runtime/lib/libpaddlepaddle_ngraph_frontend.so",
-        "runtime/lib/plugins.xml",
+        "runtime/lib/intel64/libinference_engine.so",
+        "runtime/lib/intel64/libinference_engine_transformations.so",
+        "runtime/lib/intel64/libinference_engine_preproc.so",
+        "runtime/lib/intel64/libinference_engine_ir_reader.so",
+        "runtime/lib/intel64/libinference_engine_c_api.so",
+        "runtime/lib/intel64/libHeteroPlugin.so",
+        "runtime/lib/intel64/libMultiDevicePlugin.so",
+        "runtime/lib/intel64/libngraph.so",
+        "runtime/lib/intel64/libfrontend_manager.so",
+        "runtime/lib/intel64/libir_ngraph_frontend.so",
+        "runtime/lib/intel64/libonnx_ngraph_frontend.so",
+        "runtime/lib/intel64/libpaddlepaddle_ngraph_frontend.so",
+        "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
     },
@@ -43,8 +43,8 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/libinference_engine_lp_transformations.so",
-        "runtime/lib/libMKLDNNPlugin.so"
+        "runtime/lib/intel64/libinference_engine_lp_transformations.so",
+        "runtime/lib/intel64/libMKLDNNPlugin.so"
       ]
     },
     "gpu": {
@@ -52,9 +52,9 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/cache.json",
-        "runtime/lib/libclDNNPlugin.so",
-        "runtime/lib/libinference_engine_lp_transformations.so",
+        "runtime/lib/intel64/cache.json",
+        "runtime/lib/intel64/libclDNNPlugin.so",
+        "runtime/lib/intel64/libinference_engine_lp_transformations.so",
         "install_dependencies/install_NEO_OCL_driver.sh"
       ]
     },
@@ -64,11 +64,11 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/3rdparty/97-myriad-usbboot.rules",
-        "runtime/lib/usb-ma2x8x.mvcmd",
-        "runtime/lib/pcie-ma2x8x.mvcmd",
-        "runtime/lib/libmyriadPlugin.so",
-        "runtime/lib/vpu_custom_kernels",
-        "runtime/lib/libinference_engine_legacy.so",
+        "runtime/lib/intel64/usb-ma2x8x.mvcmd",
+        "runtime/lib/intel64/pcie-ma2x8x.mvcmd",
+        "runtime/lib/intel64/libmyriadPlugin.so",
+        "runtime/lib/intel64/vpu_custom_kernels",
+        "runtime/lib/intel64/libinference_engine_legacy.so",
         "install_dependencies/install_NCS_udev_rules.sh"
       ]
     },
@@ -77,11 +77,11 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/libgna.so",
-        "runtime/lib/libgna.so.2",
-        "runtime/lib/libgna.so.2.0.0.1226",
-        "runtime/lib/libinference_engine_legacy.so",
-        "runtime/lib/libGNAPlugin.so"
+        "runtime/lib/intel64/libgna.so",
+        "runtime/lib/intel64/libgna.so.2",
+        "runtime/lib/intel64/libgna.so.2.0.0.1226",
+        "runtime/lib/intel64/libinference_engine_legacy.so",
+        "runtime/lib/intel64/libGNAPlugin.so"
       ]
     },
     "hddl": {
@@ -89,8 +89,8 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/libHDDLPlugin.so",
-        "runtime/lib/libinference_engine_legacy.so",
+        "runtime/lib/intel64/libHDDLPlugin.so",
+        "runtime/lib/intel64/libinference_engine_legacy.so",
         "runtime/3rdparty/hddl"
       ]
     },

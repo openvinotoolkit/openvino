@@ -16,19 +16,19 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/bin/Release/inference_engine.dll",
-        "runtime/bin/Release/inference_engine_transformations.dll",
-        "runtime/bin/Release/inference_engine_preproc.dll",
-        "runtime/bin/Release/inference_engine_ir_reader.dll",
-        "runtime/bin/Release/inference_engine_c_api.dll",
-        "runtime/bin/Release/HeteroPlugin.dll",
-        "runtime/bin/Release/MultiDevicePlugin.dll",
-        "runtime/bin/Release/ngraph.dll",
-        "runtime/bin/Release/frontend_manager.dll",
-        "runtime/bin/Release/ir_ngraph_frontend.dll",
-        "runtime/bin/Release/onnx_ngraph_frontend.dll",
-        "runtime/bin/Release/paddlepaddle_ngraph_frontend.dll",
-        "runtime/bin/Release/plugins.xml",
+        "runtime/bin/intel64/Release/inference_engine.dll",
+        "runtime/bin/intel64/Release/inference_engine_transformations.dll",
+        "runtime/bin/intel64/Release/inference_engine_preproc.dll",
+        "runtime/bin/intel64/Release/inference_engine_ir_reader.dll",
+        "runtime/bin/intel64/Release/inference_engine_c_api.dll",
+        "runtime/bin/intel64/Release/HeteroPlugin.dll",
+        "runtime/bin/intel64/Release/MultiDevicePlugin.dll",
+        "runtime/bin/intel64/Release/ngraph.dll",
+        "runtime/bin/intel64/Release/frontend_manager.dll",
+        "runtime/bin/intel64/Release/ir_ngraph_frontend.dll",
+        "runtime/bin/intel64/Release/onnx_ngraph_frontend.dll",
+        "runtime/bin/intel64/Release/paddlepaddle_ngraph_frontend.dll",
+        "runtime/bin/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
     },
@@ -37,8 +37,8 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/Release/inference_engine_lp_transformations.dll",
-        "runtime/bin/Release/MKLDNNPlugin.dll"
+        "runtime/bin/intel64/Release/inference_engine_lp_transformations.dll",
+        "runtime/bin/intel64/Release/MKLDNNPlugin.dll"
       ]
     },
     "gpu": {
@@ -46,9 +46,9 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/Release/cache.json",
-        "runtime/bin/Release/inference_engine_lp_transformations.dll",
-        "runtime/bin/Release/clDNNPlugin.dll"
+        "runtime/bin/intel64/Release/cache.json",
+        "runtime/bin/intel64/Release/inference_engine_lp_transformations.dll",
+        "runtime/bin/intel64/Release/clDNNPlugin.dll"
       ]
     },
     "vpu": {
@@ -56,10 +56,10 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/Release/usb-ma2x8x.mvcmd",
-        "runtime/bin/Release/pcie-ma2x8x.elf",
-        "runtime/bin/Release/myriadPlugin.dll",
-        "runtime/bin/Release/inference_engine_legacy.dll"
+        "runtime/bin/intel64/Release/usb-ma2x8x.mvcmd",
+        "runtime/bin/intel64/Release/pcie-ma2x8x.elf",
+        "runtime/bin/intel64/Release/myriadPlugin.dll",
+        "runtime/bin/intel64/Release/inference_engine_legacy.dll"
       ]
     },
     "gna": {
@@ -67,9 +67,9 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/Release/gna.dll",
-        "runtime/bin/Release/inference_engine_legacy.dll",
-        "runtime/bin/Release/GNAPlugin.dll"
+        "runtime/bin/intel64/Release/gna.dll",
+        "runtime/bin/intel64/Release/inference_engine_legacy.dll",
+        "runtime/bin/intel64/Release/GNAPlugin.dll"
       ]
     },
     "hddl": {
@@ -77,9 +77,9 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/Release/HDDLPlugin.dll",
-        "runtime/bin/Release/inference_engine_legacy.dll",
-        "runtime/bin/Release/hddl_perfcheck.exe",
+        "runtime/bin/intel64/Release/HDDLPlugin.dll",
+        "runtime/bin/intel64/Release/inference_engine_legacy.dll",
+        "runtime/bin/intel64/Release/hddl_perfcheck.exe",
         "runtime/3rdparty/MovidiusDriver",
         "runtime/3rdparty/hddl"
       ]
