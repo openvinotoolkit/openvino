@@ -6,17 +6,14 @@ import ngraph as ng
 from ngraph.impl.op import Parameter
 from ngraph.impl import Function, Shape, Type
 
-from conftest import model_path
+from conftest import model_path, create_ngraph_function
 
 
 test_net_xml, test_net_bin = model_path()
 
 
 def test_create_IENetwork_from_nGraph():
-    element_type = Type.f32
-    param = Parameter(element_type, Shape([1, 3, 22, 22]))
-    relu = ng.relu(param)
-    func = Function([relu], [param], 'test')
+    func = create_ngraph_function([1, 3, 22, 22])
     caps = Function.to_capsule(func)
     cnnNetwork = IENetwork(caps)
     assert cnnNetwork != None
@@ -26,10 +23,7 @@ def test_create_IENetwork_from_nGraph():
 
 
 def test_get_IENetwork_from_nGraph():
-    element_type = Type.f32
-    param = Parameter(element_type, Shape([1, 3, 22, 22]))
-    relu = ng.relu(param)
-    func = Function([relu], [param], 'test')
+    func = create_ngraph_function([1, 3, 22, 22])
     caps = Function.to_capsule(func)
     cnnNetwork = IENetwork(caps)
     assert cnnNetwork != None
