@@ -18,10 +18,9 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-58963: Not implemented yet
         R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
         //Not Implemented
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetAndCheckConfigAndCheck).*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
     };
 }

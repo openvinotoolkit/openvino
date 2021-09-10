@@ -44,8 +44,8 @@
 [submodule "thirdparty/protobuf"]
 	path = thirdparty/protobuf/protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
-[submodule "ngraph/python/pybind11"]
-	path = ngraph/python/pybind11
+[submodule "runtime/bindings/python/thirdparty/pybind11"]
+	path = runtime/bindings/python/thirdparty/pybind11
 	url = https://github.com/pybind/pybind11.git
 [submodule "thirdparty/ittapi/ittapi"]
 	path = thirdparty/ittapi/ittapi
