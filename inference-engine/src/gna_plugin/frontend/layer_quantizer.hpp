@@ -232,7 +232,7 @@ inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::
         }
 
         f32Value = f32Value * scale_factor;
-        if (f32Value > std::numeric_limits<T>::max()) {
+        if (f32Value > static_cast<float>(std::numeric_limits<T>::max())) {
             precValue = std::numeric_limits<T>::max();
         } else if (f32Value < std::numeric_limits<T>::min()) {
             precValue = std::numeric_limits<T>::min();
