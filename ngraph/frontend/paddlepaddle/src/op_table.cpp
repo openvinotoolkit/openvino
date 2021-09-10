@@ -28,6 +28,7 @@ OP_CONVERTER(elementwise_min);
 OP_CONVERTER(elementwise_mul);
 OP_CONVERTER(elementwise_pow);
 OP_CONVERTER(elementwise_sub);
+OP_CONVERTER(embedding);
 OP_CONVERTER(expand_v2);
 OP_CONVERTER(fill_constant_batch_size_like);
 OP_CONVERTER(fill_constant);
@@ -103,6 +104,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"leaky_relu", op::leaky_relu},
             {"log", op::log},
             {"logical_not", op::logical_not},
+            {"lookup_table_v2", op::embedding},
             {"matmul", op::matmul},
             {"max_pool2d_with_index", op::pool2d},
             {"mul", op::mul},
