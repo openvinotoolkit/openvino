@@ -12,47 +12,43 @@ using namespace std;
 
 class OpType : public ngraph::op::Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("OpType");
     OpType() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
         return nullptr;
     }
 };
-OPENVINO_RTTI_DEFINITION(OpType, "OpType");
 
 class OpTypeVersion : public ngraph::op::Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("OpTypeVersion", "my_version");
     OpTypeVersion() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
         return nullptr;
     }
 };
-OPENVINO_RTTI_DEFINITION(OpTypeVersion, "OpTypeVersion", "my_version");
 
 class OpTypeVersionParent : public OpType {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("OpTypeVersionParent", "my_version", OpType);
     OpTypeVersionParent() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
         return nullptr;
     }
 };
-OPENVINO_RTTI_DEFINITION(OpTypeVersionParent, "OpTypeVersionParent", "my_version", OpType);
 
 class OpTypeVersionParentOld : public OpType {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("OpTypeVersionParentOld", "my_version", OpType, 1);
     OpTypeVersionParentOld() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
         return nullptr;
     }
 };
-OPENVINO_RTTI_DEFINITION(OpTypeVersionParentOld, "OpTypeVersionParentOld", "my_version1", OpType, 1);
 
 TEST(rtti, op_with_type) {
     auto op = OpType();

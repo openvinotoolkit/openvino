@@ -90,7 +90,7 @@ const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info() 
 
 template <typename BaseNmsOp>
 const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_static() {
-    auto BaseNmsOpTypeInfoPtr = &BaseNmsOp::type_info;
+    auto BaseNmsOpTypeInfoPtr = &BaseNmsOp::get_type_info_static();
 
     // TODO: it should be static const std::string name = std::string("NmsStaticShapeIE_") + BaseNmsOpTypeInfoPtr->name;
     //       but currently it will not pass conversion ot Legacy Opset correctly

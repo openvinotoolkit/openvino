@@ -109,7 +109,7 @@ public:
     ///
     template <typename T, class... Args>
     void set_callback(const param_callback& callback) {
-        m_callback_map[T::type_info] = callback;
+        m_callback_map[T::get_type_info_static()] = callback;
         set_callback<Args...>(callback);
     }
 
