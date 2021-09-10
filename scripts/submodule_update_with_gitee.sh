@@ -53,7 +53,7 @@ SCRIPT_SH=$(cd "$(dirname "${0}")" && pwd -P)/$(basename "${0}")
 
 pushd ${REPO_DIR} >/dev/null
 
-# Step 0: Check if .gitmodules file exsit
+# Step 0: Check if .gitmodules file exsit, otherwise no submodule update for this repo
 [ -f ".gitmodules" ] || exit 0
 
 # Step 1: Init git submodule
@@ -75,7 +75,7 @@ done
 if check_git_version; then
     git submodule update --progress || exit $ERR_CANNOT_UPDATE
 else
-    git submodule update || exit $ERR_CANNOT_UPDAT
+    git submodule update || exit $ERR_CANNOT_UPDATE
 fi
 
 # Step 4: Replacing URLs for each sub-submodule. The script runs recursively
