@@ -595,6 +595,56 @@ def test_get_place_by_tensor_name():
     place3 = model.get_place_by_tensor_name(tensorName="in1")
     assert place3
 
-    with pytest.raises(Exception) as e:
-        model.get_place_by_tensor_name(tensorName="0:add_out")
-    assert "The tensor with name: 0:add_out does not exist in the graph" in str(e)
+    assert not model.get_place_by_tensor_name(tensorName="0:add_out")
+
+
+def test_get_place_by_operation_name():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    place1 = model.get_place_by_operation_name(operationName="split1")
+    assert place1
+
+    place2 = model.get_place_by_operation_name(operationName="not_existed")
+    assert not place2
+
+
+def test_get_output_port():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split1")
+    place1 = split_op.get_output_port(outputPortIndex=0)
+    place2 = split_op.get_output_port(outputName="out2")
+
+    assert place1.get_target_tensor().get_names()[0] == "out1"
+    assert place2.get_target_tensor().get_names()[0] == "out2"
+
+    assert not split_op.get_output_port()
+    assert not split_op.get_output_port(outputPortIndex=3)
+    assert not split_op.get_output_port(outputName="not_existed")
+
+
+def test_get_input_port():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split1")
+    place1 = split_op.get_input_port(inputPortIndex=0)
+    assert place1.get_source_tensor().get_names()[0] == "add_out"
+
+    place2 = split_op.get_input_port()
+    assert place1.is_equal(place2)
+
+    assert not split_op.get_input_port(inputPortIndex=1)
+    assert not split_op.get_input_port(inputName="not_existed")
