@@ -14,70 +14,6 @@
 
 namespace ov {
 
-/// \brief Layout rank. Usually represents number of layout dimensions.
-/// Can be static, e.g. for 'NCHW' or 'N???' rank is 4
-/// Or can be dynamic for layouts like 'N..."
-class OPENVINO_API LayoutRank {
-public:
-    using value_type = int64_t;
-
-    LayoutRank() = default;
-
-    /// \brief Comparison operator
-    bool operator==(const LayoutRank& rhs) const {
-        return m_dynamic == rhs.m_dynamic && m_right == rhs.m_right && m_left == rhs.m_left && m_size == rhs.m_size;
-    }
-
-    /// \brief Comparison operator
-    bool operator!=(const LayoutRank& rhs) const {
-        return !(*this == rhs);
-    }
-
-    /// \brief Create static rank with defined size
-    static LayoutRank create_static(value_type size) {
-        return LayoutRank(size);
-    }
-
-    /// \brief Create dynamic rank with defined 'left' and 'right' dimensions
-    ///
-    /// E.g. Layout("?N...C") has rank with left=2 (length of '?N') and right=1 (length of 'C')
-    static LayoutRank create_dynamic(value_type left = 0, value_type right = 0) {
-        return {left, right};
-    }
-
-    /// \brief Return 'true' if layout rank is dynamic (has ...)
-    bool is_dynamic() const {
-        return m_dynamic;
-    }
-
-    /// \brief Return size of rank. Return 'no_size' for dynamic rank
-    value_type size() const {
-        return m_size;
-    }
-
-    /// \brief Return left size of dynamic rank. Returns 'no_size' for static rank
-    value_type size_left() const {
-        return m_left;
-    }
-
-    /// \brief Return right size of dynamic rank. Returns 'no_size' for static rank
-    value_type size_right() const {
-        return m_right;
-    }
-
-    static const value_type no_size = static_cast<value_type>(-1);
-
-private:
-    LayoutRank(value_type left, value_type right) : m_dynamic(true), m_left(left), m_right(right) {}
-
-    explicit LayoutRank(value_type size) : m_dynamic(false), m_left(no_size), m_right(no_size), m_size(size) {}
-
-    bool m_dynamic = true;
-    value_type m_left = 0;
-    value_type m_right = 0;
-    value_type m_size = no_size;
-};
-
 class OPENVINO_API Layout {
 public:
     /// \brief Constructs a dynamic Layout with no layout information.
@@ -99,7 +35,9 @@ public:
     ///   defined
     /// - only order of dimensions "adbc" (0312)
     /// - Advanced syntax can be used for multi-character names like "[N,C,H,W,...,CustomName]"
-    Layout(const std::string& layoutStr);
+    Layout(const char* layoutStr) : Layout(std::string(layoutStr)) {}
+
+    explicit Layout(const std::string& layoutStr);
 
     /// \brief Comparison operator (equal)
     bool operator==(const Layout& rhs) const;
@@ -115,59 +53,23 @@ public:
     /// \return Index of given dimension name
     std::int64_t get_index_by_name(const std::string& dimensionName) const;
 
-    /// \brief Gets name of dimension at specified index
-    ///
-    /// \note: For layouts with dynamic rank, like 'NC...HW' negative index specifies position of dimension on the
-    /// right.
-    ///
-    /// \code{.cpp} auto name = Layout("NC...HW).get_name_by_index(-2); //returns "H" \endcode
-    ///
-    /// \throw ov::AssertFailure if dimension is neither defined, not specified as '?'
-    ///
-    /// \return Index of given dimension name. Empty string if dimension name is not defined, e.g. "?"
-    std::string get_name_by_index(std::int64_t index) const;
-
-    /// \brief Sets index of dimension by a specified name
-    void set_name_for_index(const std::string& dimensionName, std::int64_t index);
-
-    /// \brief Checks whether layout is scalar
-    /// \return `true` if layout is scalar
-    bool is_scalar() const;
-
-    /// \brief Returns rank/size of layout. E.g. for Layout("NCHW").rank() returns 4
-    LayoutRank rank() const;
-
     /// \brief String representation of Layout
     std::string to_string() const;
 
 private:
     /// stores dimension names map to index in a layout
     std::unordered_map<std::string, std::int64_t> m_names;
+    std::unordered_map<std::int64_t, std::string> m_index_map;
 
     /// special case for scalar
     bool m_scalar = false;
 
-    /// layout rank
-    LayoutRank m_rank;
+    bool m_dynamic = false;
+    int64_t m_left_size = 0;
+    int64_t m_right_size = 0;
 };
 
 namespace layouts {
-
-/// \brief Predefined layout dimension names
-enum class PredefinedDim {
-    UNDEFINED,  /// \brief undefined standard name
-    BATCH,      /// \brief Batch dimension, related to name 'N'
-    CHANNELS,   /// \brief Channels dimension, related to name 'C'
-    DEPTH,      /// \brief Depth dimension, related to name 'D'
-    WIDTH,      /// \brief Width dimension, related to name 'W'
-    HEIGHT      /// \brief Height dimension, related to name 'H'
-};
-
-/// \brief Returns one-character string representing standard dimension name
-OPENVINO_API std::string predefined_name(PredefinedDim dim);
-
-/// \brief Converts dimension name to predefined enum. Returns 'UNDEFINED' if no match is found
-OPENVINO_API PredefinedDim to_predefined_dim(const std::string& predef_name);
 
 /// \brief Checks if layout has 'batch' dimension
 OPENVINO_API bool has_batch(const Layout& layout);
@@ -175,17 +77,11 @@ OPENVINO_API bool has_batch(const Layout& layout);
 /// \brief Returns 'batch' dimension index. Throws if dimension doesn't exist
 OPENVINO_API std::int64_t batch(const Layout& layout);
 
-/// \brief Sets 'batch' dimension index to layout
-OPENVINO_API void set_batch(Layout& layout, std::int64_t index);
-
 /// \brief Checks if layout has 'channels' dimension
 OPENVINO_API bool has_channels(const Layout& layout);
 
 /// \brief Returns 'channels' dimension index. Throws if dimension doesn't exist
 OPENVINO_API std::int64_t channels(const Layout& layout);
-
-/// \brief Sets 'channels' dimension index to layout
-OPENVINO_API void set_channels(Layout& layout, std::int64_t index);
 
 /// \brief Checks if layout has 'depth' dimension
 OPENVINO_API bool has_depth(const Layout& layout);
@@ -193,17 +89,11 @@ OPENVINO_API bool has_depth(const Layout& layout);
 /// \brief Returns 'depth' dimension index. Throws if dimension doesn't exist
 OPENVINO_API std::int64_t depth(const Layout& layout);
 
-/// \brief Sets 'depth' dimension index to layout
-OPENVINO_API void set_depth(Layout& layout, std::int64_t index);
-
 /// \brief Checks if layout has 'height' dimension
 OPENVINO_API bool has_height(const Layout& layout);
 
 /// \brief Returns 'height' dimension index. Throws if dimension doesn't exist
 OPENVINO_API std::int64_t height(const Layout& layout);
-
-/// \brief Sets 'height' dimension index to layout
-OPENVINO_API void set_height(Layout& layout, std::int64_t index);
 
 /// \brief Checks if layout has 'width' dimension
 OPENVINO_API bool has_width(const Layout& layout);
@@ -211,8 +101,6 @@ OPENVINO_API bool has_width(const Layout& layout);
 /// \brief Returns 'width' dimension index. Throws if dimension doesn't exist
 OPENVINO_API std::int64_t width(const Layout& layout);
 
-/// \brief Sets 'width' dimension index to layout
-OPENVINO_API void set_width(Layout& layout, std::int64_t index);
 }  // namespace layouts
 
 template <>

@@ -22,20 +22,15 @@ static constexpr char SCALAR[] = "**SCALAR**";
 static constexpr char ELLIPSIS[] = "...";
 static constexpr int ELLIPSIS_LEN = 3;
 
-static const std::map<std::string, layouts::PredefinedDim>& dim_aliases() {
-    static const std::map<std::string, layouts::PredefinedDim> DIM_ALIASES = {
-        {BATCH, layouts::PredefinedDim::BATCH},
-        {"BATCH", layouts::PredefinedDim::BATCH},
-        {"B", layouts::PredefinedDim::BATCH},
-        {CHANNELS, layouts::PredefinedDim::CHANNELS},
-        {"CHANNELS", layouts::PredefinedDim::CHANNELS},
-        {"CHANNEL", layouts::PredefinedDim::CHANNELS},
-        {HEIGHT, layouts::PredefinedDim::HEIGHT},
-        {"HEIGHT", layouts::PredefinedDim::HEIGHT},
-        {WIDTH, layouts::PredefinedDim::WIDTH},
-        {"WIDTH", layouts::PredefinedDim::WIDTH},
-        {DEPTH, layouts::PredefinedDim::DEPTH},
-        {"DEPTH", layouts::PredefinedDim::DEPTH}};
+static const std::map<std::string, std::string>& dim_aliases() {
+    static const std::map<std::string, std::string> DIM_ALIASES = {{BATCH, BATCH},
+                                                                   {"BATCH", BATCH},
+                                                                   {"B", BATCH},
+                                                                   {"CHANNELS", CHANNELS},
+                                                                   {"CHANNEL", CHANNELS},
+                                                                   {"HEIGHT", HEIGHT},
+                                                                   {"WIDTH", WIDTH},
+                                                                   {"DEPTH", DEPTH}};
     return DIM_ALIASES;
 }
 
@@ -43,7 +38,7 @@ static std::string to_internal_name(const std::string& dim_name) {
     auto name = ngraph::to_upper(dim_name);
     auto it = dim_aliases().find(name);
     if (it != dim_aliases().end()) {
-        name = layouts::predefined_name(it->second);
+        name = it->second;
     }
     return name;
 }
@@ -61,10 +56,10 @@ static void validate_name(const std::string& dim_name) {
                     "Layout name is invalid (" + dim_name + "). Name shall have alphanumeric characters");
 }
 
-Layout::Layout() : m_rank(LayoutRank::create_dynamic()) {}
+Layout::Layout() : m_dynamic(true), m_left_size(0), m_right_size(0) {}
 
 Layout Layout::scalar() {
-    return Layout(SCALAR);
+    return SCALAR;
 }
 
 // 1. only order of dimensions "adbc" (0312)
@@ -75,7 +70,7 @@ Layout::Layout(const std::string& layout_str) {
     OPENVINO_ASSERT(layout.length() > 0, "Cannot parse ov::Layout from an empty string");
     if (layout == SCALAR) {
         m_scalar = true;
-        rank() = LayoutRank::create_static(0);
+        m_dynamic = false;
         return;
     }
     auto is_advanced_syntax = [](const std::string& layout) {
@@ -88,6 +83,7 @@ Layout::Layout(const std::string& layout_str) {
         OPENVINO_ASSERT(m_names.count(dim_name) == 0,
                         "Dimension (" + dim_name + ") is defined multiple times in layout");
         m_names[dim_name] = index;
+        m_index_map[index] = dim_name;
     };
 
     if (is_advanced_syntax(layout)) {
@@ -109,7 +105,8 @@ Layout::Layout(const std::string& layout_str) {
         auto ellipsis = layout.find(ELLIPSIS);
         if (ellipsis == std::string::npos) {
             auto last_index = parse_commas(layout);
-            m_rank = LayoutRank::create_static(last_index);
+            m_dynamic = false;
+            m_left_size = last_index;
         } else {
             int64_t left_index = 0, right_index = 0;
             // Parse left and right parts
@@ -127,7 +124,9 @@ Layout::Layout(const std::string& layout_str) {
                 right_index = std::count(right_layout.begin(), right_layout.end(), ',') + 1;
                 parse_commas(right_layout, -right_index);
             }
-            m_rank = LayoutRank::create_dynamic(left_index, right_index);
+            m_dynamic = true;
+            m_left_size = left_index;
+            m_right_size = right_index;
         }
         return;
     }
@@ -153,19 +152,18 @@ Layout::Layout(const std::string& layout_str) {
         assign_name(std::string(1, static_cast<char>(c)), index);
     }
     if (dynamic_start != std::string::npos) {
-        m_rank = LayoutRank::create_dynamic(
-            static_cast<LayoutRank::value_type>(dynamic_start),
-            static_cast<LayoutRank::value_type>(layout.length() - dynamic_start - ELLIPSIS_LEN));
+        m_dynamic = true;
+        m_left_size = static_cast<int64_t>(dynamic_start);
+        m_right_size = static_cast<int64_t>(layout.length() - dynamic_start - ELLIPSIS_LEN);
     } else {
-        m_rank = LayoutRank::create_static(static_cast<LayoutRank::value_type>(layout.length()));
+        m_dynamic = false;
+        m_left_size = static_cast<int64_t>(layout.length());
     }
 }
 
 bool Layout::operator==(const Layout& rhs) const {
-    if (m_rank != rhs.m_rank) {
-        return false;
-    }
-    if (m_scalar != rhs.m_scalar) {
+    if (m_scalar != rhs.m_scalar || m_dynamic != rhs.m_dynamic || m_left_size != rhs.m_left_size ||
+        m_right_size != rhs.m_right_size) {
         return false;
     }
     for (const auto& item : m_names) {
@@ -200,138 +198,49 @@ std::int64_t Layout::get_index_by_name(const std::string& dimension_name) const 
     return it->second;
 }
 
-std::string Layout::get_name_by_index(std::int64_t index) const {
-    for (const auto& item : m_names) {
-        if (item.second == index) {
-            return item.first;
-        }
-    }
-    if (rank().is_dynamic()) {
-        if (index >= 0) {
-            OPENVINO_ASSERT(index < rank().size_left(),
-                            "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
-        } else {
-            OPENVINO_ASSERT(-index <= rank().size_right(),
-                            "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
-        }
-    } else {
-        OPENVINO_ASSERT(index >= 0 && index < rank().size(),
-                        "Layout::get_name_by_index: Index is out of bounds " + std::to_string(index));
-    }
-    return {};
-}
-
-void Layout::set_name_for_index(const std::string& dimension_name, std::int64_t index) {
-    auto name = to_internal_name(dimension_name);
-    validate_name(name);
-    auto it = m_names.find(name);
-    OPENVINO_ASSERT(it == m_names.end() || it->second == index, "Cannot change " + dimension_name + " dimension index");
-    if (it != m_names.end()) {
-        return;  // Name is already in layout at exactly this place
-    }
-    // Verify that 'index' is also free
-    for (const auto& item : m_names) {
-        OPENVINO_ASSERT(item.second != index,
-                        "Index " + std::to_string(index) + " is already occupied with " + item.first);
-    }
-
-    auto new_rank = m_rank;
-    if (!m_rank.is_dynamic()) {
-        OPENVINO_ASSERT(index >= 0 && index < m_rank.size(), "Layout index is out of bounds");
-    } else {
-        if (index >= 0 && rank().size_left() <= index) {
-            new_rank = LayoutRank::create_dynamic(index + 1, rank().size_right());
-        } else if (index < 0 && index <= -rank().size_right()) {
-            new_rank = LayoutRank::create_dynamic(rank().size_left(), -index);
-        }
-    }
-    // Update internal data here, should be exception-safe
-    m_names[name] = index;
-    m_rank = new_rank;  // trivial, noexcept
-}
-
-bool Layout::is_scalar() const {
-    return m_scalar;
-}
-
-LayoutRank Layout::rank() const {
-    return m_rank;
-}
-
 std::string Layout::to_string() const {
-    if (is_scalar()) {
+    if (m_scalar) {
         return SCALAR;
     }
     std::stringstream res;
-    int64_t left_size = rank().is_dynamic() ? left_size = rank().size_left() : left_size = rank().size();
     res << "[";
-    auto add_dim = [&](const std::string& name) {
-        if (name.empty()) {
+    auto add_dim = [&](int64_t index) {
+        auto it = m_index_map.find(index);
+        if (it == m_index_map.end()) {
             res << "?";
         } else {
-            res << name;
+            res << it->second;
         }
     };
 
-    if (left_size > 0) {
-        add_dim(get_name_by_index(0));
+    if (m_left_size > 0) {
+        add_dim(0);
     }
-    for (int64_t i = 1; i < left_size; i++) {
+    for (int64_t i = 1; i < m_left_size; i++) {
         res << ",";
-        add_dim(get_name_by_index(i));
+        add_dim(i);
     }
-    if (rank().is_dynamic()) {
-        if (left_size > 0) {
+    if (m_dynamic) {
+        if (m_left_size > 0) {
             res << ",";
         }
         res << "...";
-        for (int64_t i = -rank().size_right(); i < 0; i++) {
+        for (int64_t i = -m_right_size; i < 0; i++) {
             res << ",";
-            add_dim(get_name_by_index(i));
+            add_dim(i);
         }
     }
     res << "]";
     return res.str();
 }
 
-std::string layouts::predefined_name(layouts::PredefinedDim dim) {
-    switch (dim) {
-    case PredefinedDim::BATCH:
-        return BATCH;
-    case PredefinedDim::CHANNELS:
-        return CHANNELS;
-    case PredefinedDim::WIDTH:
-        return WIDTH;
-    case PredefinedDim::HEIGHT:
-        return HEIGHT;
-    case PredefinedDim::DEPTH:
-        return DEPTH;
-    case PredefinedDim::UNDEFINED:
-        break;
-    }
-    return {};
-}
-
-layouts::PredefinedDim layouts::to_predefined_dim(const std::string& predef_name) {
-    auto name = ngraph::to_upper(predef_name);
-    auto it = dim_aliases().find(name);
-    if (it != dim_aliases().end()) {
-        return it->second;
-    }
-    return PredefinedDim::UNDEFINED;
-}
-
-#define DEFINE_NAMED_DIMENSION(NAME, name)                         \
-    bool layouts::has_##name(const Layout& layout) {               \
-        return layout.has_name(NAME);                              \
-    }                                                              \
-                                                                   \
-    std::int64_t layouts::name(const Layout& layout) {             \
-        return layout.get_index_by_name(NAME);                     \
-    }                                                              \
-                                                                   \
-    void layouts::set_##name(Layout& layout, std::int64_t index) { \
-        layout.set_name_for_index(NAME, index);                    \
+#define DEFINE_NAMED_DIMENSION(NAME, name)             \
+    bool layouts::has_##name(const Layout& layout) {   \
+        return layout.has_name(NAME);                  \
+    }                                                  \
+                                                       \
+    std::int64_t layouts::name(const Layout& layout) { \
+        return layout.get_index_by_name(NAME);         \
     }
 
 DEFINE_NAMED_DIMENSION(BATCH, batch)

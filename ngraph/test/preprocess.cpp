@@ -160,7 +160,7 @@ TEST(pre_post_process, test_lvalue) {
         auto inputTensorInfo2 = std::move(inputTensorInfo);
         inputTensorInfo = std::move(inputTensorInfo2);
         auto& same = inputTensorInfo.set_element_type(element::f32);
-        same.set_layout(Layout("?CHW"));
+        same.set_layout("?CHW");
         inputInfo.tensor(std::move(same));
     }
     {
@@ -212,7 +212,7 @@ TEST(pre_post_process, mean_scale_vector_tensor_layout) {
     ASSERT_EQ(f->get_output_element_type(0), element::f32);
     f = PrePostProcessor()
             .input(InputInfo()
-                       .tensor(InputTensorInfo().set_layout(Layout("NC??")))
+                       .tensor(InputTensorInfo().set_layout("NC??"))
                        .preprocess(PreProcessSteps().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f})))
             .build(f);
 
@@ -228,7 +228,7 @@ TEST(pre_post_process, scale_vector_no_channels_layout) {
     ASSERT_EQ(f->get_output_element_type(0), element::f32);
     ASSERT_ANY_THROW(f = PrePostProcessor()
                              .input(InputInfo()
-                                        .tensor(InputTensorInfo().set_layout(Layout("N?HW")))
+                                        .tensor(InputTensorInfo().set_layout("N?HW"))
                                         .preprocess(PreProcessSteps().scale({0.1f, 0.2f, 0.3f})))
                              .build(f));
 }
