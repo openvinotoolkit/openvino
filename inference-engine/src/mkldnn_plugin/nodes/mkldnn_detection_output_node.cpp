@@ -819,8 +819,9 @@ inline void MKLDNNDetectionOutputNode::NMSMX(int* indicesIn,
 
 inline void MKLDNNDetectionOutputNode::generateOutput(float* reorderedConfData, int* indicesData, int* detectionsData, float* decodedBboxesData,
     float* dstData) {
-    const int numResults = getChildEdgesAtPort(0)[0]->getShape().getStaticDims()[2];
-    const int DETECTION_SIZE = getChildEdgesAtPort(0)[0]->getShape().getStaticDims()[3];
+    const auto outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const int numResults = outDims[2];
+    const int DETECTION_SIZE = outDims[3];
     if (DETECTION_SIZE != 7) {
         IE_THROW() << errorPrefix << NOT_IMPLEMENTED;
     }
