@@ -321,7 +321,7 @@ install(EXPORT InferenceEngineTargets
 install(EXPORT OpenVINOTargets
         FILE OpenVINOTargets.cmake
         NAMESPACE openvino::
-        DESTINATION ${IE_CPACK_IE_DIR}/share
+        DESTINATION runtime/cmake
         COMPONENT core_dev)
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
@@ -366,5 +366,5 @@ install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
 
 install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
               "${CMAKE_BINARY_DIR}/OpenVINOConfig-version.cmake"
-        DESTINATION ${IE_CPACK_IE_DIR}/share
+        DESTINATION runtime/cmake
         COMPONENT core_dev)
