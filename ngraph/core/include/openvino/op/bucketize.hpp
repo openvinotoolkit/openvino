@@ -12,7 +12,7 @@ namespace v3 {
 /// \brief Operation that bucketizes the input based on boundaries
 class OPENVINO_API Bucketize : public Op {
 public:
-    OPENVINO_OPERATION("Bucketize", "opset3", op::Op, 3);
+    OPENVINO_OP("Bucketize", "opset3", op::Op, 3);
     BWDCMP_RTTI_DECLARATION;
 
     Bucketize() = default;

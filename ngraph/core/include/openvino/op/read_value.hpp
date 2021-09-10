@@ -14,7 +14,7 @@ namespace v3 {
 /// of this variable.
 class OPENVINO_API ReadValue : public util::ReadValueBase {
 public:
-    OPENVINO_OPERATION("ReadValue", "opset3", util::ReadValueBase, 3);
+    OPENVINO_OP("ReadValue", "opset3", util::ReadValueBase, 3);
     BWDCMP_RTTI_DECLARATION;
     ReadValue() = default;
 
@@ -44,7 +44,7 @@ namespace v6 {
 /// and returns it as an output.
 class OPENVINO_API ReadValue : public util::ReadValueBase {
 public:
-    OPENVINO_OPERATION("ReadValue", "opset6", util::ReadValueBase, 6);
+    OPENVINO_OP("ReadValue", "opset6", util::ReadValueBase, 6);
     BWDCMP_RTTI_DECLARATION;
     ReadValue() = default;
 

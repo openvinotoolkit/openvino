@@ -15,7 +15,7 @@ namespace v0 {
 ///
 class OPENVINO_API Elu : public Op {
 public:
-    OPENVINO_OPERATION("Elu", "opset1");
+    OPENVINO_OP("Elu", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     Elu() = default;

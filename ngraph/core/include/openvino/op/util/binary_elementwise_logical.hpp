@@ -37,7 +37,7 @@ namespace util {
 // clang-format on
 class OPENVINO_API BinaryElementwiseLogical : public Op {
 protected:
-    OPENVINO_OPERATION("BinaryElementwiseLogical", "util");
+    OPENVINO_OP("BinaryElementwiseLogical", "util");
     BWDCMP_RTTI_DECLARATION;
 
     BinaryElementwiseLogical();

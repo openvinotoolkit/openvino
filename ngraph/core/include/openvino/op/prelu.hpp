@@ -15,7 +15,7 @@ namespace v0 {
 ///
 class OPENVINO_API PRelu : public Op {
 public:
-    OPENVINO_OPERATION("PRelu", "opset1");
+    OPENVINO_OP("PRelu", "opset1");
     BWDCMP_RTTI_DECLARATION;
     PRelu();
     /// \brief Constructs a PRelu operation.

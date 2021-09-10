@@ -11,7 +11,7 @@ namespace op {
 namespace v0 {
 class OPENVINO_API ROIPooling : public Op {
 public:
-    OPENVINO_OPERATION("ROIPooling", "opset2");
+    OPENVINO_OP("ROIPooling", "opset2");
     BWDCMP_RTTI_DECLARATION;
 
     ROIPooling() = default;

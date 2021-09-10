@@ -12,7 +12,7 @@ namespace v1 {
 /// \brief Gather slices from axis of data according to indices
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
-    OPENVINO_OPERATION("Gather", "opset1", op::util::GatherBase, 1);
+    OPENVINO_OP("Gather", "opset1", op::util::GatherBase, 1);
     BWDCMP_RTTI_DECLARATION;
     static const int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
     Gather() = default;
@@ -32,7 +32,7 @@ namespace v7 {
 /// \brief Gather slices from axis of data according to indices
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
-    OPENVINO_OPERATION("Gather", "opset7", op::util::GatherBase, 7);
+    OPENVINO_OP("Gather", "opset7", op::util::GatherBase, 7);
     BWDCMP_RTTI_DECLARATION;
     Gather() = default;
 
@@ -59,7 +59,7 @@ namespace v8 {
 /// are supported and indicate reverse indexing from the end
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
-    OPENVINO_OPERATION("Gather", "opset8", op::util::GatherBase, 8);
+    OPENVINO_OP("Gather", "opset8", op::util::GatherBase, 8);
     Gather() = default;
 
     /// \param data The tensor from which slices are gathered

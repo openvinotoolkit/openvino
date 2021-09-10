@@ -14,7 +14,7 @@ namespace v0 {
 ///
 class OPENVINO_API HardSigmoid : public Op {
 public:
-    OPENVINO_OPERATION("HardSigmoid", "opset1");
+    OPENVINO_OP("HardSigmoid", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     HardSigmoid();

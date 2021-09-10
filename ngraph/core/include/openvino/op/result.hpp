@@ -11,7 +11,7 @@ namespace op {
 namespace v0 {
 class OPENVINO_API Result : public Op {
 public:
-    OPENVINO_OPERATION("Result", "opset1");
+    OPENVINO_OP("Result", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Allows a value to be used as a function result.

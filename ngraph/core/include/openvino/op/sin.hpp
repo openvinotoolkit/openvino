@@ -26,7 +26,7 @@ namespace v0 {
 // clang-format on
 class OPENVINO_API Sin : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Sin", "opset1", util::UnaryElementwiseArithmetic);
+    OPENVINO_OP("Sin", "opset1", util::UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a sine operation.
     ///

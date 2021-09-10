@@ -51,7 +51,7 @@ protected:
                                 const AutoBroadcastSpec& autob = AutoBroadcastSpec());
 
 public:
-    OPENVINO_OPERATION("BinaryElementwiseComparison", "util");
+    OPENVINO_OP("BinaryElementwiseComparison", "util");
     BWDCMP_RTTI_DECLARATION;
 
     void validate_and_infer_types() override;

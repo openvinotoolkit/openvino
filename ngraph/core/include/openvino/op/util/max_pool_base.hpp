@@ -12,7 +12,7 @@ namespace op {
 namespace util {
 class OPENVINO_API MaxPoolBase : public Op {
 public:
-    OPENVINO_OPERATION("MaxPoolBase", "util");
+    OPENVINO_OP("MaxPoolBase", "util");
     BWDCMP_RTTI_DECLARATION;
     MaxPoolBase() = default;
 

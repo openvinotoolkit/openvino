@@ -11,7 +11,7 @@ namespace op {
 namespace v3 {
 class OPENVINO_API ROIAlign : public Op {
 public:
-    OPENVINO_OPERATION("ROIAlign", "opset3", op::Op, 3);
+    OPENVINO_OP("ROIAlign", "opset3", op::Op, 3);
     BWDCMP_RTTI_DECLARATION;
     enum class PoolingMode { AVG, MAX };
 

@@ -12,7 +12,7 @@ namespace v1 {
 /// \brief Elementwise multiplication operation.
 class OPENVINO_API Multiply : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Multiply", "opset1", util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("Multiply", "opset1", util::BinaryElementwiseArithmetic, 1);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a multiplication operation.

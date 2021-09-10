@@ -14,7 +14,7 @@ namespace v4 {
 ///
 class OPENVINO_API SoftPlus : public Op {
 public:
-    OPENVINO_OPERATION("SoftPlus", "opset4", op::Op, 4);
+    OPENVINO_OP("SoftPlus", "opset4", op::Op, 4);
     BWDCMP_RTTI_DECLARATION;
 
     SoftPlus() = default;

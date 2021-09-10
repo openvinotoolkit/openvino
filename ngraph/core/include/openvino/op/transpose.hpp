@@ -12,7 +12,7 @@ namespace v1 {
 /// \brief Tensor transpose operation.
 class OPENVINO_API Transpose : public Op {
 public:
-    OPENVINO_OPERATION("Transpose", "opset1", op::Op, 1);
+    OPENVINO_OP("Transpose", "opset1", op::Op, 1);
     BWDCMP_RTTI_DECLARATION;
 
     Transpose() = default;

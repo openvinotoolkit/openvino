@@ -30,7 +30,7 @@ namespace v0 {
 ///
 class OPENVINO_API LSTMSequence : public Op {
 public:
-    OPENVINO_OPERATION("LSTMSequence", "opset1");
+    OPENVINO_OP("LSTMSequence", "opset1");
     BWDCMP_RTTI_DECLARATION;
     LSTMSequence();
 
@@ -149,7 +149,7 @@ namespace v5 {
 ///
 class OPENVINO_API LSTMSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OPERATION("LSTMSequence", "opset5", util::RNNCellBase, 5);
+    OPENVINO_OP("LSTMSequence", "opset5", util::RNNCellBase, 5);
     BWDCMP_RTTI_DECLARATION;
     LSTMSequence() = default;
 

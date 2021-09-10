@@ -15,7 +15,7 @@ namespace v1 {
 /// \brief Splits the input tensor into a list of equal sized tensors
 class OPENVINO_API Split : public Op {
 public:
-    OPENVINO_OPERATION("Split", "opset1", op::Op, 1);
+    OPENVINO_OP("Split", "opset1", op::Op, 1);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a split operation.

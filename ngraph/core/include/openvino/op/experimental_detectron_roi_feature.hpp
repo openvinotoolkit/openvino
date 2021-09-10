@@ -19,7 +19,7 @@ namespace v6 {
 /// is the ROIAlign operation applied over a feature pyramid.
 class OPENVINO_API ExperimentalDetectronROIFeatureExtractor : public Op {
 public:
-    OPENVINO_OPERATION("ExperimentalDetectronROIFeatureExtractor", "opset6", op::Op, 6);
+    OPENVINO_OP("ExperimentalDetectronROIFeatureExtractor", "opset6", op::Op, 6);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation

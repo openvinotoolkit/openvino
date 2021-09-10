@@ -17,7 +17,7 @@ namespace v5 {
 class OPENVINO_API Round : public Op {
 public:
     enum class RoundMode { HALF_TO_EVEN, HALF_AWAY_FROM_ZERO };
-    OPENVINO_OPERATION("Round", "opset5", op::Op, 5);
+    OPENVINO_OP("Round", "opset5", op::Op, 5);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a round operation.

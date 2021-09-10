@@ -18,7 +18,7 @@ namespace v6 {
 /// computes ROIs and their scores based on input data.
 class OPENVINO_API ExperimentalDetectronGenerateProposalsSingleImage : public Op {
 public:
-    OPENVINO_OPERATION("ExperimentalDetectronGenerateProposalsSingleImage", "opset6", op::Op, 6);
+    OPENVINO_OP("ExperimentalDetectronGenerateProposalsSingleImage", "opset6", op::Op, 6);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation

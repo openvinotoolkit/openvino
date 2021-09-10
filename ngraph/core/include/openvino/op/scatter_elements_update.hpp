@@ -11,7 +11,7 @@ namespace op {
 namespace v3 {
 class OPENVINO_API ScatterElementsUpdate : public Op {
 public:
-    OPENVINO_OPERATION("ScatterElementsUpdate", "opset3", op::Op, 3);
+    OPENVINO_OP("ScatterElementsUpdate", "opset3", op::Op, 3);
     BWDCMP_RTTI_DECLARATION;
 
     ScatterElementsUpdate() = default;

@@ -18,7 +18,7 @@ namespace v6 {
 /// grids of specified sizes.
 class OPENVINO_API ExperimentalDetectronPriorGridGenerator : public Op {
 public:
-    OPENVINO_OPERATION("ExperimentalDetectronPriorGridGenerator", "opset6", op::Op, 6);
+    OPENVINO_OP("ExperimentalDetectronPriorGridGenerator", "opset6", op::Op, 6);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation

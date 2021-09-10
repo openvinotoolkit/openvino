@@ -14,7 +14,7 @@ namespace v1 {
 /// \brief Batched convolution operation, with optional window dilation and stride.
 class OPENVINO_API GroupConvolution : public Op {
 public:
-    OPENVINO_OPERATION("GroupConvolution", "opset1", op::Op, 1);
+    OPENVINO_OP("GroupConvolution", "opset1", op::Op, 1);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched convolution operation.
@@ -101,7 +101,7 @@ protected:
 /// \brief Data batch backprop for batched convolution operation.
 class OPENVINO_API GroupConvolutionBackpropData : public Op {
 public:
-    OPENVINO_OPERATION("GroupConvolutionBackpropData", "opset1", op::Op, 1);
+    OPENVINO_OP("GroupConvolutionBackpropData", "opset1", op::Op, 1);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched-convolution data batch-backprop operation.

@@ -20,7 +20,7 @@ namespace v0 {
 ///        [N, C/(blocksize * blocksize), H * blocksize, W * blocksize]
 class OPENVINO_API DepthToSpace : public Op {
 public:
-    OPENVINO_OPERATION("DepthToSpace", "opset1");
+    OPENVINO_OP("DepthToSpace", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     enum class DepthToSpaceMode {

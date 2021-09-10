@@ -13,7 +13,7 @@ namespace v1 {
 /// ids.
 class OPENVINO_API GatherTree : public Op {
 public:
-    OPENVINO_OPERATION("GatherTree", "opset1", op::Op, 1);
+    OPENVINO_OP("GatherTree", "opset1", op::Op, 1);
     BWDCMP_RTTI_DECLARATION;
 
     GatherTree() = default;

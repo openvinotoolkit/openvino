@@ -16,7 +16,7 @@ namespace v0 {
 ///
 class OPENVINO_API MVN : public Op {
 public:
-    OPENVINO_OPERATION("MVN", "opset2");
+    OPENVINO_OP("MVN", "opset2");
     BWDCMP_RTTI_DECLARATION;
 
     MVN() = default;
@@ -89,7 +89,7 @@ namespace v6 {
 ///
 class OPENVINO_API MVN : public Op {
 public:
-    OPENVINO_OPERATION("MVN", "opset6", op::Op, 6);
+    OPENVINO_OP("MVN", "opset6", op::Op, 6);
     BWDCMP_RTTI_DECLARATION;
 
     MVN() = default;

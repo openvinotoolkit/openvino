@@ -12,7 +12,7 @@ namespace v1 {
 /// \brief Elementwise less-than-or-equal operation.
 class OPENVINO_API LessEqual : public util::BinaryElementwiseComparison {
 public:
-    OPENVINO_OPERATION("LessEqual", "opset1", op::util::BinaryElementwiseComparison, 1);
+    OPENVINO_OP("LessEqual", "opset1", op::util::BinaryElementwiseComparison, 1);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a less-than-or-equal operation.
     LessEqual() : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY) {}

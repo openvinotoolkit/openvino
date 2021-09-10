@@ -27,7 +27,7 @@ namespace v1 {
 // clang-format on
 class OPENVINO_API Power : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Power", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("Power", "opset1", op::util::BinaryElementwiseArithmetic, 1);
     BWDCMP_RTTI_DECLARATION;
 
     Power() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}

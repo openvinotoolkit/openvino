@@ -14,7 +14,7 @@
 #define _OPENVINO_RTTI_OP_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME) \
     _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, ::ov::op::Op)
 
-#define OPENVINO_OPERATION(...)                                                                        \
+#define OPENVINO_OP(...)                                                                               \
     _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                              \
                                                              _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT, \
                                                              _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT,  \

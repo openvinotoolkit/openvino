@@ -14,7 +14,7 @@ namespace v0 {
 /// \brief Concatenation operation.
 class OPENVINO_API Concat : public Op {
 public:
-    OPENVINO_OPERATION("Concat", "opset1");
+    OPENVINO_OP("Concat", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a concatenation operation.

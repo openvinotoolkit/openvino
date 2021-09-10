@@ -12,7 +12,7 @@ namespace v1 {
 /// \brief Elementwise subtraction operation.
 class OPENVINO_API Subtract : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Subtract", "opset1", util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("Subtract", "opset1", util::BinaryElementwiseArithmetic, 1);
     BWDCMP_RTTI_DECLARATION;
 
     Subtract() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}

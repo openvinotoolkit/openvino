@@ -18,7 +18,7 @@ namespace v6 {
 /// is TopK operation applied to probabilities of input ROIs.
 class OPENVINO_API ExperimentalDetectronTopKROIs : public Op {
 public:
-    OPENVINO_OPERATION("ExperimentalDetectronTopKROIs", "opset6", op::Op, 6);
+    OPENVINO_OP("ExperimentalDetectronTopKROIs", "opset6", op::Op, 6);
     BWDCMP_RTTI_DECLARATION;
 
     ExperimentalDetectronTopKROIs() = default;

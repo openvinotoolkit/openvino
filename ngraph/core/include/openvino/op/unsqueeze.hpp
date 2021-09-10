@@ -13,7 +13,7 @@ namespace op {
 namespace v0 {
 class OPENVINO_API Unsqueeze : public Op {
 public:
-    OPENVINO_OPERATION("Unsqueeze", "opset1");
+    OPENVINO_OP("Unsqueeze", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     Unsqueeze() = default;

@@ -16,7 +16,7 @@ namespace v0 {
 ///
 class OPENVINO_API CumSum : public Op {
 public:
-    OPENVINO_OPERATION("CumSum", "opset3");
+    OPENVINO_OP("CumSum", "opset3");
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a cumulative summation operation.

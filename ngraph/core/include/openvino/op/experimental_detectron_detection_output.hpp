@@ -19,7 +19,7 @@ namespace v6 {
 /// information on location and score predictions.
 class OPENVINO_API ExperimentalDetectronDetectionOutput : public Op {
 public:
-    OPENVINO_OPERATION("ExperimentalDetectronDetectionOutput", "opset6", op::Op, 6);
+    OPENVINO_OP("ExperimentalDetectronDetectionOutput", "opset6", op::Op, 6);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation

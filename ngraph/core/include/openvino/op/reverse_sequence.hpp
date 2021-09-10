@@ -11,7 +11,7 @@ namespace op {
 namespace v0 {
 class OPENVINO_API ReverseSequence : public Op {
 public:
-    OPENVINO_OPERATION("ReverseSequence", "opset1");
+    OPENVINO_OP("ReverseSequence", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     ReverseSequence() = default;

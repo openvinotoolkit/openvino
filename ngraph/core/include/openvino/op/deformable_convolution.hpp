@@ -15,7 +15,7 @@ namespace v1 {
 /// \brief DeformableConvolution operation.
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
-    OPENVINO_OPERATION("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase, 1);
+    OPENVINO_OP("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase, 1);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
@@ -59,7 +59,7 @@ public:
 namespace v8 {
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
-    OPENVINO_OPERATION("DeformableConvolution", "opset8", op::util::DeformableConvolutionBase, 8);
+    OPENVINO_OP("DeformableConvolution", "opset8", op::util::DeformableConvolutionBase, 8);
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;

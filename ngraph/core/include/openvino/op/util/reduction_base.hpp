@@ -29,7 +29,7 @@ protected:
     Shape infer_reduction_output_shape(const bool keep_dims);
 
 public:
-    OPENVINO_OPERATION("ReductionBase", "util");
+    OPENVINO_OP("ReductionBase", "util");
     BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace util

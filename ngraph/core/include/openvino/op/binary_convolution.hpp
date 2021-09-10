@@ -13,7 +13,7 @@ namespace op {
 namespace v1 {
 class OPENVINO_API BinaryConvolution : public Op {
 public:
-    OPENVINO_OPERATION("BinaryConvolution", "opset1", op::Op, 1);
+    OPENVINO_OP("BinaryConvolution", "opset1", op::Op, 1);
     BWDCMP_RTTI_DECLARATION;
 
     enum class BinaryConvolutionMode {

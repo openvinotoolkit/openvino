@@ -12,7 +12,7 @@ namespace v3 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
 class OPENVINO_API ShapeOf : public Op {
 public:
-    OPENVINO_OPERATION("ShapeOf", "opset3", op::Op, 3);
+    OPENVINO_OP("ShapeOf", "opset3", op::Op, 3);
     BWDCMP_RTTI_DECLARATION;
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
@@ -47,7 +47,7 @@ namespace v0 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
 class OPENVINO_API ShapeOf : public Op {
 public:
-    OPENVINO_OPERATION("ShapeOf", "opset1");
+    OPENVINO_OP("ShapeOf", "opset1");
     BWDCMP_RTTI_DECLARATION;
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.

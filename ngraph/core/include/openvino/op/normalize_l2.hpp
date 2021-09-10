@@ -16,7 +16,7 @@ namespace v0 {
 ///
 class OPENVINO_API NormalizeL2 : public Op {
 public:
-    OPENVINO_OPERATION("NormalizeL2", "opset1");
+    OPENVINO_OP("NormalizeL2", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     NormalizeL2() = default;

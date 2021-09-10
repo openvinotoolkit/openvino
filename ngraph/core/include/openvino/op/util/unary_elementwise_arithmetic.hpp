@@ -40,7 +40,7 @@ protected:
     UnaryElementwiseArithmetic(const Output<Node>& arg);
 
 public:
-    OPENVINO_OPERATION("UnaryElementwiseArithmetic", "util");
+    OPENVINO_OP("UnaryElementwiseArithmetic", "util");
     BWDCMP_RTTI_DECLARATION;
 
     void validate_and_infer_types() override;

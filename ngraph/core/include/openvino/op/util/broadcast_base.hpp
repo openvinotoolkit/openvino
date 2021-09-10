@@ -39,7 +39,7 @@ protected:
                   const BroadcastModeSpec& broadcast_mode = BroadcastType::NUMPY);
 
 public:
-    OPENVINO_OPERATION("BroadcastBase", "util");
+    OPENVINO_OP("BroadcastBase", "util");
     BWDCMP_RTTI_DECLARATION;
 
     void validate_and_infer_types() override;

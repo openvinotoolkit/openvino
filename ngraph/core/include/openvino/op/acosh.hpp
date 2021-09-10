@@ -15,7 +15,7 @@ namespace v3 {
 ///
 class OPENVINO_API Acosh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Acosh", "opset4", util::UnaryElementwiseArithmetic, 3);
+    OPENVINO_OP("Acosh", "opset4", util::UnaryElementwiseArithmetic, 3);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an Acosh operation.

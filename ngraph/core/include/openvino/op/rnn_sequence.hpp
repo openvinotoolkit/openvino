@@ -15,7 +15,7 @@ namespace op {
 namespace v5 {
 class OPENVINO_API RNNSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OPERATION("RNNSequence", "opset5", util::RNNCellBase, 4);
+    OPENVINO_OP("RNNSequence", "opset5", util::RNNCellBase, 4);
     BWDCMP_RTTI_DECLARATION;
 
     RNNSequence();

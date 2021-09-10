@@ -25,7 +25,7 @@ protected:
     ArithmeticReduction(const Output<Node>& arg, const Output<Node>& reduction_axes);
 
 public:
-    OPENVINO_OPERATION("ArithmeticReduction", "util");
+    OPENVINO_OP("ArithmeticReduction", "util");
     BWDCMP_RTTI_DECLARATION;
     void validate_and_infer_types() override;
 

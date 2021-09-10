@@ -11,7 +11,7 @@ namespace op {
 namespace v0 {
 class OPENVINO_API Squeeze : public Op {
 public:
-    OPENVINO_OPERATION("Squeeze", "opset1");
+    OPENVINO_OP("Squeeze", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     Squeeze();

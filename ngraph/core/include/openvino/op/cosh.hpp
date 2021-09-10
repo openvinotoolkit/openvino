@@ -12,7 +12,7 @@ namespace v0 {
 /// \brief Elementwise hyperbolic cosine (cosh) operation.
 class OPENVINO_API Cosh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Cosh", "opset1", util::UnaryElementwiseArithmetic);
+    OPENVINO_OP("Cosh", "opset1", util::UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a hyperbolic cosine operation.

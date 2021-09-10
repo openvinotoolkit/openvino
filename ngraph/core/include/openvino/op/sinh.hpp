@@ -12,7 +12,7 @@ namespace v0 {
 /// \brief Elementwise hyperbolic sine (sinh) operation.
 class OPENVINO_API Sinh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Sinh", "opset1", util::UnaryElementwiseArithmetic);
+    OPENVINO_OP("Sinh", "opset1", util::UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a hyperbolic sine operation.
     ///

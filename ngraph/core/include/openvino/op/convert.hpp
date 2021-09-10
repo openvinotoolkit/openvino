@@ -12,7 +12,7 @@ namespace v0 {
 /// \brief Elementwise type conversion operation.
 class OPENVINO_API Convert : public Op {
 public:
-    OPENVINO_OPERATION("Convert", "opset1");
+    OPENVINO_OP("Convert", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.

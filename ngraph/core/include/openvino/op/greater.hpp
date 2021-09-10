@@ -12,7 +12,7 @@ namespace v1 {
 /// \brief Elementwise greater-than operation.
 class OPENVINO_API Greater : public util::BinaryElementwiseComparison {
 public:
-    OPENVINO_OPERATION("Greater", "opset1", op::util::BinaryElementwiseComparison, 1);
+    OPENVINO_OP("Greater", "opset1", op::util::BinaryElementwiseComparison, 1);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a greater-than operation.
     Greater() : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY) {}

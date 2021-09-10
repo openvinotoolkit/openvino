@@ -47,7 +47,7 @@ protected:
     BinaryElementwiseArithmetic(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& autob);
 
 public:
-    OPENVINO_OPERATION("BinaryElementwiseArithmetic", "util");
+    OPENVINO_OP("BinaryElementwiseArithmetic", "util");
     BWDCMP_RTTI_DECLARATION;
 
     void validate_and_infer_types() override;

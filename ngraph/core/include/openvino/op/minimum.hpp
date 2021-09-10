@@ -12,7 +12,7 @@ namespace v1 {
 /// \brief Elementwise minimum operation.
 class OPENVINO_API Minimum : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Minimum", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("Minimum", "opset1", op::util::BinaryElementwiseArithmetic, 1);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a minimum operation.

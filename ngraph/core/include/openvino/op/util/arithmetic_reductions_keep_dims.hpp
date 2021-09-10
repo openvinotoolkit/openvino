@@ -21,7 +21,7 @@ protected:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 public:
-    OPENVINO_OPERATION("ArithmeticReductionKeepDims", "util");
+    OPENVINO_OP("ArithmeticReductionKeepDims", "util");
     BWDCMP_RTTI_DECLARATION;
     void validate_and_infer_types() override;
 

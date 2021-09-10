@@ -16,7 +16,7 @@ namespace op {
 namespace v5 {
 class OPENVINO_API GRUSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OPERATION("GRUSequence", "opset5", op::Op, 5);
+    OPENVINO_OP("GRUSequence", "opset5", op::Op, 5);
     BWDCMP_RTTI_DECLARATION;
     GRUSequence();
 

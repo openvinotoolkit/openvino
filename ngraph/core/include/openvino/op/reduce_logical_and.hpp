@@ -15,7 +15,7 @@ namespace v1 {
 /// on the values passed to the second input - the axes.
 class OPENVINO_API ReduceLogicalAnd : public util::LogicalReductionKeepDims {
 public:
-    OPENVINO_OPERATION("ReduceLogicalAnd", "opset1", util::LogicalReductionKeepDims, 1);
+    OPENVINO_OP("ReduceLogicalAnd", "opset1", util::LogicalReductionKeepDims, 1);
     BWDCMP_RTTI_DECLARATION;
     ReduceLogicalAnd() = default;
     /// \brief Constructs a ReduceLogicalAnd node.

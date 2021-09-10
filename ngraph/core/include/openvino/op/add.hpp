@@ -15,7 +15,7 @@ namespace v1 {
 ///
 class OPENVINO_API Add : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Add", "opset1", util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("Add", "opset1", util::BinaryElementwiseArithmetic, 1);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an uninitialized addition operation

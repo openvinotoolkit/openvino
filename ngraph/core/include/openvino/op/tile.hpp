@@ -13,7 +13,7 @@ namespace v0 {
 ///        along each dimension
 class OPENVINO_API Tile : public Op {
 public:
-    OPENVINO_OPERATION("Tile", "opset1");
+    OPENVINO_OP("Tile", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     Tile() = default;

@@ -12,7 +12,7 @@ namespace v0 {
 /// \brief Elementwise natural exponential (exp) operation.
 class OPENVINO_API Exp : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Exp", "opset1", UnaryElementwiseArithmetic);
+    OPENVINO_OP("Exp", "opset1", UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an exponential operation.

@@ -12,7 +12,7 @@ namespace v1 {
 /// \brief Elementwise not-equal operation.
 class OPENVINO_API NotEqual : public util::BinaryElementwiseComparison {
 public:
-    OPENVINO_OPERATION("NotEqual", "opset1", op::util::BinaryElementwiseComparison, 1);
+    OPENVINO_OP("NotEqual", "opset1", op::util::BinaryElementwiseComparison, 1);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a not-equal operation.
     NotEqual() : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY) {}

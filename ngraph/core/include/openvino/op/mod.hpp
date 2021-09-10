@@ -13,7 +13,7 @@ namespace v1 {
 /// multi-directional broadcast rules.
 class OPENVINO_API Mod : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Mod", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("Mod", "opset1", op::util::BinaryElementwiseArithmetic, 1);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a Mod node.

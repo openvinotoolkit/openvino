@@ -15,7 +15,7 @@ namespace v0 {
 ///
 class OPENVINO_API GRN : public Op {
 public:
-    OPENVINO_OPERATION("GRN", "opset1");
+    OPENVINO_OP("GRN", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     GRN() = default;

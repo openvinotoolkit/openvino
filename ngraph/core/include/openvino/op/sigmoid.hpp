@@ -11,7 +11,7 @@ namespace op {
 namespace v0 {
 class OPENVINO_API Sigmoid : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Sigmoid", "opset1", util::UnaryElementwiseArithmetic);
+    OPENVINO_OP("Sigmoid", "opset1", util::UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
     Sigmoid(const Output<Node>& arg);
     Sigmoid() = default;

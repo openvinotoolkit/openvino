@@ -12,7 +12,7 @@ namespace v7 {
 /// \brief Tensor roll operation.
 class OPENVINO_API Roll : public Op {
 public:
-    OPENVINO_OPERATION("Roll", "opset7", op::Op, 7);
+    OPENVINO_OP("Roll", "opset7", op::Op, 7);
     BWDCMP_RTTI_DECLARATION;
 
     Roll() = default;

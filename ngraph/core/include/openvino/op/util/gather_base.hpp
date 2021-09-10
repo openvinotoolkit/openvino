@@ -12,7 +12,7 @@ namespace util {
 /// \brief GatherBase basic class for Gather v1 and v7
 class OPENVINO_API GatherBase : public Op {
 public:
-    OPENVINO_OPERATION("GatherBase", "util");
+    OPENVINO_OP("GatherBase", "util");
     BWDCMP_RTTI_DECLARATION;
     GatherBase() = default;
 

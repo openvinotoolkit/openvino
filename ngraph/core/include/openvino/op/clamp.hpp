@@ -16,7 +16,7 @@ namespace v0 {
 /// this range remain unchanged.
 class OPENVINO_API Clamp : public Op {
 public:
-    OPENVINO_OPERATION("Clamp", "opset1");
+    OPENVINO_OP("Clamp", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     Clamp();

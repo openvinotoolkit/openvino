@@ -12,7 +12,7 @@ namespace v3 {
 /// \brief Add updates to slices from inputs addressed by indices
 class OPENVINO_API ScatterNDUpdate : public util::ScatterNDBase {
 public:
-    OPENVINO_OPERATION("ScatterNDUpdate", "opset4", util::ScatterNDBase, 3);
+    OPENVINO_OP("ScatterNDUpdate", "opset4", util::ScatterNDBase, 3);
     BWDCMP_RTTI_DECLARATION;
     ScatterNDUpdate() = default;
     /// \param inputs Tensor

@@ -12,7 +12,7 @@ namespace v0 {
 /// \brief Elementwise ceiling operation.
 class OPENVINO_API Ceiling : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Ceiling", "opset1", util::UnaryElementwiseArithmetic);
+    OPENVINO_OP("Ceiling", "opset1", util::UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a ceiling operation.
     Ceiling() = default;

@@ -14,7 +14,7 @@ namespace v0 {
 /// \brief Permutes data in the channel dimension of the input
 class OPENVINO_API ShuffleChannels : public Op {
 public:
-    OPENVINO_OPERATION("ShuffleChannels", "opset1");
+    OPENVINO_OP("ShuffleChannels", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     ShuffleChannels() = default;

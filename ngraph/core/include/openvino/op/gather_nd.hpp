@@ -13,7 +13,7 @@ namespace v5 {
 ///
 class OPENVINO_API GatherND : public Op {
 public:
-    OPENVINO_OPERATION("GatherND", "opset5", op::Op, 5);
+    OPENVINO_OP("GatherND", "opset5", op::Op, 5);
     BWDCMP_RTTI_DECLARATION;
     GatherND() = default;
 

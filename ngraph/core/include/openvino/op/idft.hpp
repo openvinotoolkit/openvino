@@ -16,7 +16,7 @@ namespace v7 {
 /// \brief An operation IDFT that computes the inverse discrete Fourier transformation.
 class OPENVINO_API IDFT : public util::FFTBase {
 public:
-    OPENVINO_OPERATION("IDFT", "opset7", util::FFTBase, 7);
+    OPENVINO_OP("IDFT", "opset7", util::FFTBase, 7);
     BWDCMP_RTTI_DECLARATION;
     IDFT() = default;
 

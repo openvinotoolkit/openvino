@@ -49,7 +49,7 @@ std::shared_ptr<Node> OPENVINO_API convert_lstm_node_format(const Output<Node>& 
 ///
 class OPENVINO_API RNNCellBase : public Op {
 public:
-    OPENVINO_OPERATION("RNNCellBase", "util");
+    OPENVINO_OP("RNNCellBase", "util");
     BWDCMP_RTTI_DECLARATION;
 
     ///

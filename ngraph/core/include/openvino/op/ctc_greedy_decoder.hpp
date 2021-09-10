@@ -11,7 +11,7 @@ namespace op {
 namespace v0 {
 class OPENVINO_API CTCGreedyDecoder : public Op {
 public:
-    OPENVINO_OPERATION("CTCGreedyDecoder", "opset1");
+    OPENVINO_OP("CTCGreedyDecoder", "opset1");
     BWDCMP_RTTI_DECLARATION;
 
     CTCGreedyDecoder() = default;

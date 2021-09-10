@@ -11,7 +11,7 @@ namespace op {
 namespace v1 {
 class OPENVINO_API Softmax : public Op {
 public:
-    OPENVINO_OPERATION("Softmax", "opset1", op::Op, 1);
+    OPENVINO_OP("Softmax", "opset1", op::Op, 1);
     BWDCMP_RTTI_DECLARATION;
 
     Softmax() = default;

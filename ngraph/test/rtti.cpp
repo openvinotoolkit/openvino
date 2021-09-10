@@ -12,7 +12,7 @@ using namespace std;
 
 class OpType : public ngraph::op::Op {
 public:
-    OPENVINO_OPERATION("OpType");
+    OPENVINO_OP("OpType");
     OpType() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
@@ -22,7 +22,7 @@ public:
 
 class OpTypeVersion : public ngraph::op::Op {
 public:
-    OPENVINO_OPERATION("OpTypeVersion", "my_version");
+    OPENVINO_OP("OpTypeVersion", "my_version");
     OpTypeVersion() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
@@ -32,7 +32,7 @@ public:
 
 class OpTypeVersionParent : public OpType {
 public:
-    OPENVINO_OPERATION("OpTypeVersionParent", "my_version", OpType);
+    OPENVINO_OP("OpTypeVersionParent", "my_version", OpType);
     OpTypeVersionParent() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
@@ -42,7 +42,7 @@ public:
 
 class OpTypeVersionParentOld : public OpType {
 public:
-    OPENVINO_OPERATION("OpTypeVersionParentOld", "my_version", OpType, 1);
+    OPENVINO_OP("OpTypeVersionParentOld", "my_version", OpType, 1);
     OpTypeVersionParentOld() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {

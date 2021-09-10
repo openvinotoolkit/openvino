@@ -14,7 +14,7 @@ namespace v0 {
 /// normalized to input image size
 class OPENVINO_API PriorBoxClustered : public Op {
 public:
-    OPENVINO_OPERATION("PriorBoxClustered", "opset1");
+    OPENVINO_OP("PriorBoxClustered", "opset1");
     BWDCMP_RTTI_DECLARATION;
     struct Attributes {
         // widths         Desired widths of prior boxes

@@ -18,7 +18,7 @@ namespace v0 {
 /// \brief Layer which performs bilinear interpolation
 class OPENVINO_API Interpolate : public Op {
 public:
-    OPENVINO_OPERATION("Interpolate", "opset1");
+    OPENVINO_OP("Interpolate", "opset1");
     BWDCMP_RTTI_DECLARATION;
     /// \brief Structure that specifies attributes for interpolation
     struct Attributes {
@@ -78,7 +78,7 @@ private:
 namespace v4 {
 class OPENVINO_API Interpolate : public Op {
 public:
-    OPENVINO_OPERATION("Interpolate", "opset4", op::Op, 4);
+    OPENVINO_OP("Interpolate", "opset4", op::Op, 4);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Shape calculation mode

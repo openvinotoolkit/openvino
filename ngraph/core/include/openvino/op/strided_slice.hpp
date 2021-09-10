@@ -17,7 +17,7 @@ namespace v1 {
 ///        bounding box, optionally with stride.
 class OPENVINO_API StridedSlice : public Op {
 public:
-    OPENVINO_OPERATION("StridedSlice", "opset1", op::Op, 1);
+    OPENVINO_OP("StridedSlice", "opset1", op::Op, 1);
     BWDCMP_RTTI_DECLARATION;
 
     StridedSlice() = default;

@@ -16,7 +16,7 @@ namespace v4 {
 ///
 class OPENVINO_API HSwish : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("HSwish", "opset4", op::util::UnaryElementwiseArithmetic, 4);
+    OPENVINO_OP("HSwish", "opset4", op::util::UnaryElementwiseArithmetic, 4);
     BWDCMP_RTTI_DECLARATION;
     HSwish() = default;
 

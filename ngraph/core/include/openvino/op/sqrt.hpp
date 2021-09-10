@@ -26,7 +26,7 @@ namespace v0 {
 // clang-format on
 class OPENVINO_API Sqrt : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OPERATION("Sqrt", "opset1", util::UnaryElementwiseArithmetic);
+    OPENVINO_OP("Sqrt", "opset1", util::UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a square operation.
