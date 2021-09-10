@@ -182,7 +182,7 @@ class InstallCMakeLibs(install_lib):
 
         root_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
         if os.environ.get("OpenVINO_DIR") is not None:
-            root_dir = pathlib.Path(self.build_temp)
+            root_dir = pathlib.Path(PYNGRAPH_ROOT_DIR)
 
         lib_ext = ""
         if "linux" in sys.platform:
