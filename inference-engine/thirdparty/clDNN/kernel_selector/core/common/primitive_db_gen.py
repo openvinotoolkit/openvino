@@ -14,10 +14,11 @@ import re
 
 class OpenCL2CHeaders(object):
 
-    def __init__(self, kernels_folder, out_path, out_file_name):
+    def __init__(self, kernels_folder, out_path, out_file_name_prim_db, out_file_name_batch_headers):
         self.kernels_folder = os.path.abspath(kernels_folder)
         self.out_path = os.path.abspath(out_path)
-        self.out_file_name = out_file_name
+        self.out_file_name_prim_db = out_file_name_prim_db
+        self.out_file_name_batch_headers = out_file_name_batch_headers
         self.include_files = {}
         self.batch_headers = []
         self.find_and_set_batch_headers()
@@ -62,15 +63,15 @@ class OpenCL2CHeaders(object):
                 res += self.cl_file_to_str(filename)
             #except:
             #    pass
-        out_file_name = os.path.join(self.out_path, self.out_file_name)
-        with open(out_file_name, 'w') as out_file:
+        out_file_name_prim_db = os.path.join(self.out_path, self.out_file_name_prim_db)
+        with open(out_file_name_prim_db, 'w') as out_file:
             out_file.write(res)
 
         # write batch_header_str
-        res = self.batch_headers_to_str()
-        out_file_name = os.path.join(self.out_path, "ks_primitive_db_batch_headers.inc")
-        with open(out_file_name, 'w') as out_file:
-            out_file.write(res)
+        batch_headers = self.batch_headers_to_str()
+        out_file_name_batch_headers = os.path.join(self.out_path, self.out_file_name_batch_headers)
+        with open(out_file_name_batch_headers, 'w') as out_file:
+            out_file.write(batch_headers)
 
     def append_undefs(self, filename):
         undefs = ""
@@ -245,10 +246,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('-kernels', required=True, metavar='PATH', help='The absolute path to OpenCL kernels folder')
     ap.add_argument('-out_path', required=True, metavar='PATH', help='The absolute path to dump file')
-    ap.add_argument('-out_file_name', required=True, metavar='PATH', help='dump file name')
+    ap.add_argument('-out_file_name_prim_db', required=True, metavar='PATH', help='dump file name')
+    ap.add_argument('-out_file_name_batch_headers', required=True, metavar='PATH', help='dump file name')
     args = ap.parse_args()
 
-    converter = OpenCL2CHeaders(args.kernels, args.out_path, args.out_file_name)
+    converter = OpenCL2CHeaders(args.kernels, args.out_path, args.out_file_name_prim_db, args.out_file_name_batch_headers)
     converter.convert()
 
 if __name__ == '__main__':

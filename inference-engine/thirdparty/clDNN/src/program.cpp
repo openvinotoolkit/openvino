@@ -101,6 +101,7 @@ program::program(engine& engine_ref,
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
+    _kernels_cache->set_batch_header_str(kernel_selector::KernelBase::get_db().get_batch_header_str());
     if (no_optimizations) {
         init_graph();
     } else {
@@ -119,6 +120,7 @@ program::program(engine& engine_ref,
       tuning_cache(nullptr) {
     init_primitives();
     set_options();
+    _kernels_cache->set_batch_header_str(kernel_selector::KernelBase::get_db().get_batch_header_str());
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);

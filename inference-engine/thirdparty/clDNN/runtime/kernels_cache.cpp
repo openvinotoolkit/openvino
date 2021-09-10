@@ -6,7 +6,6 @@
 #include "kernels_cache.hpp"
 #include "ocl/ocl_engine.hpp"
 #include "cldnn/runtime/debug_configuration.hpp"
-#include "kernel_selector/core/common/primitive_db.h"
 
 #include <algorithm>
 #include <cassert>
@@ -56,7 +55,6 @@
 namespace {
 std::mutex cacheAccessMutex;
 
-static const kernel_selector::gpu::cache::primitive_db db;
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 std::wstring multiByteCharToWString(const char* str) {
 #ifdef _WIN32
@@ -168,7 +166,6 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::vector<batch_program>> program_buckets;
-    const std::string batch_header_str = db.get_batch_header_str();
 
     for (const auto& code : kernels_source_code) {
         std::string full_code = code.kernel_strings->jit + code.kernel_strings->str + code.kernel_strings->undefs;
