@@ -51,8 +51,8 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
         const auto& transposeConsumers = matchedTranspose.get_target_inputs();
 
         const auto isShapeOfOrGatherElements = [](const ngraph::Input<ngraph::Node>& consumer) {
-            return consumer.get_node()->get_type_info().is_castable(ngraph::opset6::ShapeOf::type_info) ||
-                   consumer.get_node()->get_type_info().is_castable(ngraph::opset6::GatherElements::type_info);
+            return consumer.get_node()->get_type_info().is_castable(ngraph::opset6::ShapeOf::get_type_info_static()) ||
+                   consumer.get_node()->get_type_info().is_castable(ngraph::opset6::GatherElements::get_type_info_static());
         };
 
         if (!std::all_of(transposeConsumers.cbegin(), transposeConsumers.cend(), isShapeOfOrGatherElements)) {
@@ -60,9 +60,9 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
         }
 
         for (const auto& transposeConsumer : transposeConsumers) {
-            if (transposeConsumer.get_node()->get_type_info().is_castable(ngraph::opset6::ShapeOf::type_info)) {
+            if (transposeConsumer.get_node()->get_type_info().is_castable(ngraph::opset6::ShapeOf::get_type_info_static())) {
                 shapeOfs.push_back(transposeConsumer.get_node());
-            } else if (transposeConsumer.get_node()->get_type_info().is_castable(ngraph::opset6::GatherElements::type_info)) {
+            } else if (transposeConsumer.get_node()->get_type_info().is_castable(ngraph::opset6::GatherElements::get_type_info_static())) {
                 gatherElements.push_back(transposeConsumer.get_node());
             }
         }

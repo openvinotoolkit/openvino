@@ -79,7 +79,7 @@ void processBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise, size_t lhsIndex
 } // namespace
 
 void dynamicToStaticShapeBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise) {
-    if (eltwise->get_type_info() == ngraph::opset6::Select::type_info) {
+    if (eltwise->get_type_info() == ngraph::opset6::Select::get_type_info_static()) {
         processBinaryEltwise(eltwise, 1, 2);
     } else {
         VPU_THROW_UNLESS(eltwise->get_input_size() == 2,

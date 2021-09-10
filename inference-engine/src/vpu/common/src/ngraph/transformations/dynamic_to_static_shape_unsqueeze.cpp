@@ -22,16 +22,16 @@ namespace vpu {
 void dynamicToStaticShapeUnsqueeze(std::shared_ptr<ngraph::Node> target) {
     const auto unsqueeze = ngraph::as_type_ptr<ngraph::opset3::Unsqueeze>(target);
     VPU_THROW_UNLESS(unsqueeze, "dynamicToStaticShapeUnsqueeze transformation is not applicable for {}, it should be {} instead",
-                     target, ngraph::opset3::Unsqueeze::type_info);
+                     target, ngraph::opset3::Unsqueeze::get_type_info_static());
 
     const auto dsr = target->input_value(0).get_node_shared_ptr();
     VPU_THROW_UNLESS(std::dynamic_pointer_cast<ngraph::vpu::op::DynamicShapeResolver>(dsr),
         "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
-        target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
+        target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::get_type_info_static(), 0);
 
     const auto axes = std::dynamic_pointer_cast<ngraph::opset3::Constant>(target->input_value(1).get_node_shared_ptr());
     VPU_THROW_UNLESS(axes, "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
-        target->get_friendly_name(), target->get_type_info(), ngraph::op::Constant::type_info, 1);
+        target->get_friendly_name(), target->get_type_info(), ngraph::op::Constant::get_type_info_static(), 1);
 
     const auto copied = unsqueeze->clone_with_new_inputs(target->input_values());
     const auto shape = dsr->input(1).get_source_output();
