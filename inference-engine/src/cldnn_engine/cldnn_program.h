@@ -127,8 +127,8 @@ public:
     static void RegisterFactory(factory_t func) {
         static std::mutex m;
         std::lock_guard<std::mutex> lock(m);
-        if (Program::factories_map.find(OpType::type_info) == Program::factories_map.end())
-            Program::factories_map.insert({OpType::type_info, func});
+        if (Program::factories_map.find(OpType::get_type_info_static()) == Program::factories_map.end())
+            Program::factories_map.insert({OpType::get_type_info_static(), func});
     }
 
     template<typename PType>
