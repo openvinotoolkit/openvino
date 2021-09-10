@@ -25,10 +25,9 @@ class RNNCell(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
-            'version': 'experimental',
-            'infer': __class__.infer,
+            'type': self.op,
+            'op': self.op,
+            'infer': self.infer,
             'in_ports_count': 4,
             'out_ports_count': 1,
             'version': 'opset3',
