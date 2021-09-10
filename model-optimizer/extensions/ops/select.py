@@ -7,7 +7,7 @@ from mo.front.common.partial_infer.utils import is_fully_defined
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.broadcasting import bi_directional_shape_broadcasting, bi_directional_broadcasting
-
+from mo.graph.graph import Error
 
 class Select(Op):
     op = 'Select'
@@ -39,28 +39,39 @@ class Select(Op):
 
         a_shape = node.in_port(1).data.get_shape()
         b_shape = node.in_port(2).data.get_shape()
-        output_shape = bi_directional_shape_broadcasting(a_shape, b_shape)
+        broadcast_rule = node.soft_get('auto_broadcast', 'numpy')
+        if broadcast_rule == 'numpy':
+            output_shape = bi_directional_shape_broadcasting(a_shape, b_shape)
+        elif broadcast_rule == 'pdpd':
+            # todo: add pdpd broadcasting rule
+            # note that additionally to output_shape resulting_tensors must be broadcasted as well
+            raise Error("PDPD broadcasting rule is not implemented yet")
+        else:  # broadcasting is not allowed
+            assert np.array_equal(a_shape, b_shape) and condition_value is not None and np.array_equal(condition_value.shape, a_shape), \
+                'In node \'{}\' For Select operation when broadcasting is off all inputs must be of the same shape. ' \
+                'But instead got: cond_shape={}, then_shape={}, else_shape={}'.format(
+                    node_name, condition_value.shape, a_shape, b_shape)
+            output_shape = a_shape
+
         assert output_shape is not None, 'Input shapes for node {} are not broadcast-able'.format(node_name)
         node.out_port(0).data.set_shape(output_shape)
 
         if condition_value is not None:
-            if resulting_tensors[0] is not None:
-                resulting_tensors[0] = bi_directional_broadcasting(resulting_tensors[0], b_shape)
-            if resulting_tensors[1] is not None:
-                resulting_tensors[1] = bi_directional_broadcasting(resulting_tensors[1], a_shape)
-            condition_value = bi_directional_broadcasting(condition_value, output_shape)
+            if condition_value.size == 1:
+                # in some graphsSelect  contains single element condition and one of the branches is None
+                # if we use np.where for such cases then dtype of output_value will be object (non numeric type)
+                # and subsequent numpy operation on a such tensors will fail
+                selected_branch_index = not np.bool(condition_value.item(0))
+                if resulting_tensors[not selected_branch_index] is None:
+                    node.out_port(0).data.set_value(resulting_tensors[selected_branch_index])
+                    return
 
             output_value = np.ma.where(condition_value, resulting_tensors[0], resulting_tensors[1])
-            if condition_value.size != 1:
-                if np.any(output_value == None):
-                    # If any element of output value is None that means that we use the value from the 'then' or the
-                    # 'else' tensor which is not defined, this means that we cannot perform value propagation.
-                    output_value = None
-            else:
-                output_value = output_value.astype(resulting_tensors[not np.bool(condition_value.item(0))].dtype)
-
-            if output_value is not None:
-                node.out_port(0).data.set_value(output_value)
+            # If any element of output value is None that means that we use the value from the 'then' or the
+            # 'else' tensor which is not defined, this means that we cannot perform value propagation.
+            if np.any(output_value == None):
+                return
+            node.out_port(0).data.set_value(output_value)
 
     @staticmethod
     def type_infer(node: Node):

@@ -15,8 +15,8 @@ from unit_tests.utils.graph import build_graph_with_attrs
 @generator
 class TestSelect(unittest.TestCase):
     nodes = [
-        ('than', {'kind': 'op'}),
-        ('than_data', {'value': np.ones((2, 2)), 'kind': 'data', 'executable': True, 'shape': np.array([2, 2])}),
+        ('then', {'kind': 'op'}),
+        ('then_data', {'value': np.ones((2, 2)), 'kind': 'data', 'executable': True, 'shape': np.array([2, 2])}),
         ('else', {'kind': 'op'}),
         ('else_data', {'value': np.zeros((2, 2)), 'kind': 'data', 'executable': True, 'shape': np.array([2, 2])}),
         ('condition', {'value': None, 'kind': 'op'}),
@@ -27,8 +27,8 @@ class TestSelect(unittest.TestCase):
     edges = [
         ('condition', 'condition_data'),
         ('condition_data', 'select', {'in': 0}),
-        ('than', 'than_data'),
-        ('than_data', 'select', {'in': 1}),
+        ('then', 'then_data'),
+        ('then_data', 'select', {'in': 1}),
         ('else', 'else_data'),
         ('else_data', 'select', {'in': 2}),
         ('select', 'select_output', {'out': 0}),
@@ -50,7 +50,7 @@ class TestSelect(unittest.TestCase):
 
     def test_select_infer_condition_true(self):
         graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
-                                       update_nodes_attributes=[('condition', {'value': np.array([True])}),
+                                       update_nodes_attributes=[('condition_data', {'value': np.array([True])}),
                                                                 ('select_output', {'shape': np.array([2, 2]),
                                                                                    'value': np.ones((2, 2))})
                                                                 ])
@@ -79,6 +79,56 @@ class TestSelect(unittest.TestCase):
                                            edges_with_attrs=self.edges,
                                            update_nodes_attributes=[('select_output', {'shape': np.array([2, 2]),
                                                                                        'value': np.zeros((2, 2))})])
+        node = Node(graph, 'select')
+        node.infer(node)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'select_output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    # if one of the branches is None then np.where shouldn't be used to avoid object dtype in output
+    # res = np.where(condition, None, numpy_array_of_int[float]_dtype)
+    # print(res.dtype) => object which is not compatible with other numeric dtypes, will fail further without
+    # clear explanation, need to catch such cases as soon as possible
+    def test_select_infer_None_then_branch(self):
+        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
+                                       update_nodes_attributes=[('condition_data', {'value': np.array([False])}),
+                                                                ('select_output', {'shape': np.array([2, 2]),
+                                                                                   'value': np.zeros((2, 2))}),
+                                                                ('then_data', {'value': None, 'shape': np.array([2, 2])})
+                                                                ])
+
+        # We should propagate shapes and values
+        graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes,
+                                           edges_with_attrs=self.edges,
+                                           update_nodes_attributes=[('select_output', {'shape': np.array([2, 2]),
+                                                                                       'value': np.zeros((2, 2))}),
+                                                                    ('then_data',
+                                                                     {'value': None, 'shape': np.array([2, 2])})])
+        node = Node(graph, 'select')
+        node.infer(node)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'select_output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    # if one of the branches is None then np.where shouldn't be used to avoid object dtype in output
+    # res = np.where(condition, numpy_array_of_int[float]_dtype, None)
+    # print(res.dtype) => object which is not compatible with other numeric dtypes, will fail further without
+    # clear explanation, need to catch such cases as soon as possible
+    def test_select_infer_None_else_branch(self):
+        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
+                                       update_nodes_attributes=[('condition_data', {'value': np.array([True])}),
+                                                                ('select_output', {'shape': np.array([2, 2]),
+                                                                                   'value': np.ones((2, 2))}),
+                                                                (
+                                                                'else_data', {'value': None, 'shape': np.array([2, 2])})
+                                                                ])
+
+        # We should propagate shapes and values
+        graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes,
+                                           edges_with_attrs=self.edges,
+                                           update_nodes_attributes=[('select_output', {'shape': np.array([2, 2]),
+                                                                                       'value': np.ones((2, 2))}),
+                                                                    ('else_data',
+                                                                     {'value': None, 'shape': np.array([2, 2])})])
 
         node = Node(graph, 'select')
         node.infer(node)
@@ -105,13 +155,13 @@ class TestSelect(unittest.TestCase):
         ([2, 3, 4, 5], [2, 1, 1, 5], [2, 3, 4, 5]),
         ([2, 3, 4, 5], [1, 3, 1, 5], [2, 3, 4, 5]),
     ])
-    def test_select_infer_condition_shapes_broadcast(self, else_data_shape, than_data_shape, select_output_shape):
+    def test_select_infer_condition_shapes_broadcast(self, else_data_shape, then_data_shape, select_output_shape):
         graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
                                        update_nodes_attributes=
                                        [('else_data', {'shape': np.array(else_data_shape),
                                                        'value': np.zeros(else_data_shape, dtype=np.float)}),
-                                        ('than_data', {'shape': np.array(than_data_shape),
-                                                       'value': np.zeros(than_data_shape, dtype=np.float)}),
+                                        ('then_data', {'shape': np.array(then_data_shape),
+                                                       'value': np.zeros(then_data_shape, dtype=np.float)}),
                                         ('select_output', {'shape': None, 'value': None})
                                         ])
 
@@ -154,8 +204,8 @@ class TestSelect(unittest.TestCase):
          lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
          lambda x: np.ones(x, dtype=np.float)),
     ])
-    def test_select_infer_condition_with_value(self, condition_shape, else_data_shape, than_data_shape,
-                                               select_output_shape, condition_value, else_value, than_value,
+    def test_select_infer_condition_with_value(self, condition_shape, else_data_shape, then_data_shape,
+                                               select_output_shape, condition_value, else_value, then_value,
                                                output_value):
         """
         Unit tests generator can sporadic throw exception if we try
@@ -164,15 +214,15 @@ class TestSelect(unittest.TestCase):
         """
         condition_value = condition_value(condition_shape)
         else_value = else_value(else_data_shape)
-        than_value = than_value(than_data_shape)
+        then_value = then_value(then_data_shape)
         output_value = output_value(select_output_shape)
         graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
                                        update_nodes_attributes=[('condition_data', {'shape': np.array(condition_shape),
                                                                                     'value': condition_value}),
                                                                 ('else_data', {'shape': np.array(else_data_shape),
                                                                                'value': else_value}),
-                                                                ('than_data', {'shape': np.array(than_data_shape),
-                                                                               'value': than_value}),
+                                                                ('then_data', {'shape': np.array(then_data_shape),
+                                                                               'value': then_value}),
                                                                 ('select_output',
                                                                  {'shape': np.array(select_output_shape),
                                                                   'value': None})
