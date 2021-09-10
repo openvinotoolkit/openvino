@@ -16,6 +16,16 @@
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "ngraph/shape.hpp"
 
+#define GNU_COMPILER (defined(__GNUC__) && !defined(__clang__))
+
+#if GNU_COMPILER
+# define NEEDED_LINUX (defined(__linux__) && defined(__i386__))
+# define NEEDED_COMPILER_VER (__GNUC__ == 7 && __GNUC_MINOR__ == 5 && __GNUC_PATCHLEVEL__ == 0)
+# define NEED_FIX (NEEDED_LINUX && NEEDED_COMPILER_VER)
+#else
+# define NEED_FIX 0
+#endif
+
 namespace {
 constexpr int64_t input_rois_port = 0;
 constexpr int64_t input_features_start_port = 1;
@@ -88,6 +98,13 @@ struct PreCalc {
     T w4;
 };
 
+// The function pre_calc_for_bilinear_interpolate() gives incorrect results for -O3 optimization level, when IE
+// is compiled using GCC 7.5.0 on Ubuntu 18.04 32-bit. But results are correct, for example, if we use Clang 10.0
+// on Ubuntu 18.04 32-bit with -O3 optimization level.
+#if NEED_FIX
+# pragma GCC push_options
+# pragma GCC optimize("-O2")
+#endif
 template <typename T>
 void pre_calc_for_bilinear_interpolate(const int64_t height,
                                        const int64_t width,
@@ -199,6 +216,9 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
         }
     }
 }
+#if NEED_FIX
+# pragma GCC pop_options
+#endif
 
 template <typename T>
 void ROIAlignForward_cpu_kernel(const int64_t nthreads,
