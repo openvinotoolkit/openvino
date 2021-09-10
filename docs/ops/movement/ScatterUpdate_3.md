@@ -27,7 +27,7 @@ Several examples for case when `axis = 0`:
 
 **Inputs**:
 
-*   **1**: `data` tensor of arbitrary rank `r` and of type *T_NUMERIC*. **Required.**
+*   **1**: `data` tensor of arbitrary rank `r` and type *T_NUMERIC*. **Required.**
 
 *   **2**: `indices` tensor with indices of type *T_IND*.
 All index values are expected to be within bounds `[0, s - 1]` along axis of size `s`. If multiple indices point to the
