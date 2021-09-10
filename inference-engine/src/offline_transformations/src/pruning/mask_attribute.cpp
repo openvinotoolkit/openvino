@@ -59,6 +59,6 @@ namespace ov {
 
 template class ngraph::VariantImpl<ngraph::Mask::Ptr>;
 
-BWDCMP_RTTI_DECLARATION(VariantWrapper<ngraph::Mask::Ptr>);
+BWDCMP_RTTI_DEFINITION(VariantWrapper<ngraph::Mask::Ptr>);
 
 }  // namespace ov
