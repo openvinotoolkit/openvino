@@ -24,6 +24,9 @@ class Blob;
 
 namespace ov {
 namespace runtime {
+
+class ExecutableNetwork;
+
 /**
  * @brief This is an interface of asynchronous infer request
  *
@@ -40,7 +43,7 @@ class INFERENCE_ENGINE_API_CLASS(InferRequest) {
      * @param impl Initialized shared pointer
      */
     InferRequest(const std::shared_ptr<SharedObject>& so, const std::shared_ptr<ie::IInferRequestInternal>& impl);
-    friend class ExecutableNetwork;
+    friend class ov::runtime::ExecutableNetwork;
 
 public:
     /**
