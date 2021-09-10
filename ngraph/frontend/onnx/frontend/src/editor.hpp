@@ -204,6 +204,20 @@ public:
     ///
     bool is_correct_tensor_name(const std::string& name) const;
 
+    /// \brief     Get names of input ports of given node.
+    ///
+    /// \param node An EditorNode helper structure created based on a node name
+    ///             or a node output name.
+    ///
+    std::vector<std::string> get_input_ports(const EditorNode& node) const;
+
+    /// \brief     Get names of output ports of given node.
+    ///
+    /// \param node An EditorNode helper structure created based on a node name
+    ///             or a node output name.
+    ///
+    std::vector<std::string> get_output_ports(const EditorNode& node) const;
+
     /// \brief Returns a nGraph function based on edited model
     ///        decoded to framework nodes
     ///

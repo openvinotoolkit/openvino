@@ -133,3 +133,59 @@ bool PlaceTensorONNX::is_equal_data(Place::Ptr another) const {
     return is_equal(another) || (is_input() ? false : get_producing_port()->is_equal(another)) ||
            eq_to_consuming_port(another);
 }
+
+PlaceOpONNX::PlaceOpONNX(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
+    : m_node{node},
+      m_editor{editor} {}
+
+std::vector<std::string> PlaceOpONNX::get_names() const {
+    return {m_node.m_node_name};
+}
+
+Place::Ptr PlaceOpONNX::get_output_port() const {
+    if (m_editor->get_output_ports(m_node).size() == 1) {
+        return get_output_port(0);
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_output_port(int output_port_index) const {
+    if (output_port_index < m_editor->get_output_ports(m_node).size()) {
+        const auto output_edge = m_editor->find_output_edge(m_node, onnx_editor::EditorOutput{output_port_index});
+        return std::make_shared<PlaceOutputEdgeONNX>(output_edge, m_editor);
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_output_port(const std::string& output_port_name) const {
+    const auto output_ports = m_editor->get_output_ports(m_node);
+    if (std::count(std::begin(output_ports), std::end(output_ports), output_port_name) == 1) {
+        const auto output_edge = m_editor->find_output_edge(m_node, onnx_editor::EditorOutput{output_port_name});
+        return std::make_shared<PlaceOutputEdgeONNX>(output_edge, m_editor);
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_input_port() const {
+    if (m_editor->get_input_ports(m_node).size() == 1) {
+        return get_input_port(0);
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_input_port(int input_port_index) const {
+    if (input_port_index < m_editor->get_input_ports(m_node).size()) {
+        const auto input_edge = m_editor->find_input_edge(m_node, onnx_editor::EditorInput{input_port_index});
+        return std::make_shared<PlaceInputEdgeONNX>(input_edge, m_editor);
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_input_port(const std::string& input_name) const {
+    const auto input_ports = m_editor->get_input_ports(m_node);
+    if (std::count(std::begin(input_ports), std::end(input_ports), input_name) == 1) {
+        const auto input_edge = m_editor->find_input_edge(m_node, onnx_editor::EditorInput{input_name});
+        return std::make_shared<PlaceInputEdgeONNX>(input_edge, m_editor);
+    }
+    return nullptr;
+}
