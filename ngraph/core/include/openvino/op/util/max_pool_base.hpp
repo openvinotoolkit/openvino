@@ -12,7 +12,8 @@ namespace op {
 namespace util {
 class OPENVINO_API MaxPoolBase : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("MaxPoolBase", "util");
+    BWDCMP_RTTI_DECLARATION;
     MaxPoolBase() = default;
 
     /// \param arg The node producing the input data batch tensor.

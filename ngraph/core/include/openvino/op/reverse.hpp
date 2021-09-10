@@ -11,7 +11,8 @@ namespace op {
 namespace v1 {
 class OPENVINO_API Reverse : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("Reverse", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     enum class Mode { INDEX, MASK };
 

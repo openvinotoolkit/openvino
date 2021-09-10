@@ -13,11 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v6::ExperimentalDetectronDetectionOutput,
-                         "ExperimentalDetectronDetectionOutput",
-                         "opset6",
-                         op::Op,
-                         6);
+BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronDetectionOutput);
 
 op::v6::ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const Output<Node>& input_rois,
                                                                                    const Output<Node>& input_deltas,

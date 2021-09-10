@@ -12,11 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v6::ExperimentalDetectronGenerateProposalsSingleImage,
-                         "ExperimentalDetectronGenerateProposalsSingleImage",
-                         "opset6",
-                         op::Op,
-                         6);
+BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronGenerateProposalsSingleImage);
 
 op::v6::ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
     const Output<Node>& im_info,

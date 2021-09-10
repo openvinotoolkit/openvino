@@ -17,7 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::Broadcast, "Broadcast", "opset3", op::util::BroadcastBase, 3);
+BWDCMP_RTTI_DEFINITION(op::v3::Broadcast);
 
 op::v3::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
@@ -206,7 +206,7 @@ BroadcastModeSpec to_broadcast_mode(const AutoBroadcastSpec& bs) {
 }
 }  // namespace
 
-OPENVINO_RTTI_DEFINITION(op::v1::Broadcast, "Broadcast", "opset1", op::util::BroadcastBase, 1);
+BWDCMP_RTTI_DEFINITION(op::v1::Broadcast);
 
 op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,

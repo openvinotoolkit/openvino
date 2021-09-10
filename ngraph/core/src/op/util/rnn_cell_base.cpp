@@ -19,7 +19,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::RNNCellBase, "RNNCellBase");
+BWDCMP_RTTI_DEFINITION(ov::op::util::RNNCellBase);
 
 std::shared_ptr<ov::Node> ov::op::util::convert_lstm_node_format(const Output<Node>& node,
                                                                  LSTMWeightsFormat from_format,

@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ov;
 
-OPENVINO_RTTI_DEFINITION(op::util::LogicalReduction, "LogicalReduction");
+BWDCMP_RTTI_DEFINITION(op::util::LogicalReduction);
 
 op::util::LogicalReduction::LogicalReduction() = default;
 

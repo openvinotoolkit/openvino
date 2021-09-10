@@ -49,7 +49,7 @@ bool evaluate_softmax(const HostTensorPtr& arg, const HostTensorPtr& out, const 
 }  // namespace
 
 // *** SOFTMAX OP SET V1 ***
-OPENVINO_RTTI_DEFINITION(op::v1::Softmax, "Softmax", "opset1", op::Op, 1);
+BWDCMP_RTTI_DEFINITION(op::v1::Softmax);
 
 op::v1::Softmax::Softmax(const Output<Node>& arg, const size_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();

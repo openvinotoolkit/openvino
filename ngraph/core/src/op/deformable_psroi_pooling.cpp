@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::DeformablePSROIPooling, "DeformablePSROIPooling", "opset1", op::Op, 1);
+BWDCMP_RTTI_DEFINITION(op::v1::DeformablePSROIPooling);
 
 op::v1::DeformablePSROIPooling::DeformablePSROIPooling(const Output<Node>& input,
                                                        const Output<Node>& coords,

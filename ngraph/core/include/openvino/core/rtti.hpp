@@ -9,23 +9,6 @@
 #define _OPENVINO_RTTI_EXPAND(X)                                      X
 #define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
 
-#define _OPENVINO_RTTI_DEF_WITH_TYPE(CLASS, TYPE_NAME) _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION(CLASS, TYPE_NAME, "util")
-
-#define _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION(CLASS, TYPE_NAME, VERSION_NAME) \
-    _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION_PARENT(CLASS, TYPE_NAME, VERSION_NAME, ::ov::op::Op)
-
-#define _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION_PARENT(CLASS, TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
-    _OPENVINO_RTTI_DEF_WITH_TYPE_VERSIONS_PARENT(CLASS, TYPE_NAME, VERSION_NAME, PARENT_CLASS, 0)
-
-#define _OPENVINO_RTTI_DEF_WITH_TYPE_VERSIONS_PARENT(CLASS, TYPE_NAME, VERSION_NAME, PARENT_CLASS, OLD_VERSION) \
-    const ov::DiscreteTypeInfo CLASS::type_info{TYPE_NAME,                                                      \
-                                                OLD_VERSION,                                                    \
-                                                VERSION_NAME,                                                   \
-                                                &PARENT_CLASS::get_type_info_static()};                         \
-    const ov::DiscreteTypeInfo& CLASS::get_type_info() const {                                                  \
-        return type_info;                                                                                       \
-    }
-
 #define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "util")
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                  \
@@ -68,35 +51,22 @@
 ///
 /// Use this macro as a public part of the class definition:
 ///
-///     class MyOp : public Node
+///     class MyClass
 ///     {
 ///         public:
-///             // Don't use Node as a parent for type_info, it doesn't have any value and
-///             prohibited
-///             OPENVINO_RTTI_DECLARATION;
+///             OPENVINO_RTTI("MyClass", "my_version");
 ///
 ///             ...
 ///     };
 ///
-///     class MyInheritedOp : public MyOp
+///     class MyClass2: public MyClass
 ///     {
 ///         public:
-///             OPENVINO_RTTI_DECLARATION;
+///             OPENVINO_RTTI("MyClass2", "my_version2", MyClass);
 ///
 ///             ...
 ///     };
 ///
-/// To complete type identification for a class, use OPENVINO_RTTI_DEFINITION.
-///
-#define OPENVINO_RTTI_DECLARATION                \
-    static const ov::DiscreteTypeInfo type_info; \
-    const ov::DiscreteTypeInfo& get_type_info() const override;
-
-/// Complementary to OPENVINO_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
-/// OPENVINO_RTTI_DECLARATION.
-/// Should be used outside the class definition scope in place where ODR is ensured.
-///
-/// \param CLASS is a C++ name of the class where corresponding OPENVINO_RTTI_DECLARATION was applied.
 /// \param TYPE_NAME a string literal of type const char* that names your class in type
 /// identification namespace;
 ///        It is your choice how to name it, but it should be unique among all
@@ -113,13 +83,6 @@
 ///        macros.
 /// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
 ///        operations that shares the same TYPE_NAME (for backward compatibility)
-///
-/// Examples (see corresponding declarations in OPENVINO_RTTI_DECLARATION description):
-///
-///     OPENVINO_RTTI_DEFINITION(MyOp,"MyOp", 1);
-///     OPENVINO_RTTI_DEFINITION(MyInheritedOp, "MyInheritedOp", 1, MyOp)
-///
-/// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
 ///
 /// OPENVINO_RTTI(name)
 /// OPENVINO_RTTI(name, version_id)

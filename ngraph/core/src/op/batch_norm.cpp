@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::BatchNormInference, "BatchNormInference", "opset1");
+BWDCMP_RTTI_DEFINITION(op::v0::BatchNormInference);
 
 op::v0::BatchNormInference::BatchNormInference(const Output<Node>& input,
                                                const Output<Node>& gamma,
@@ -71,7 +71,7 @@ std::shared_ptr<Node> op::v0::BatchNormInference::clone_with_new_inputs(const Ou
                                                 m_epsilon);
 }
 
-OPENVINO_RTTI_DEFINITION(op::v5::BatchNormInference, "BatchNormInference", "opset5", op::Op, 5);
+BWDCMP_RTTI_DEFINITION(op::v5::BatchNormInference);
 
 op::v5::BatchNormInference::BatchNormInference(const Output<Node>& input,
                                                const Output<Node>& gamma,

@@ -13,7 +13,7 @@ using namespace ngraph;
 
 // ---------------------------------- v1 ---------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::LessEqual, "LessEqual", "opset1", op::util::BinaryElementwiseComparison, 1);
+BWDCMP_RTTI_DEFINITION(op::v1::LessEqual);
 
 op::v1::LessEqual::LessEqual(const Output<Node>& arg0,
                              const Output<Node>& arg1,

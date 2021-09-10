@@ -16,7 +16,8 @@ namespace v0 {
 /// Basic graph operations do not need parameters attached to a function.
 class OPENVINO_API Parameter : public op::Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("Parameter", "opset1");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructions a tensor-typed parameter node.
     Parameter() = default;
     /// \brief Constructions a tensor-typed parameter node.

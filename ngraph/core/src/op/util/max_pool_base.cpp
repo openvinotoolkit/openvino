@@ -11,7 +11,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::MaxPoolBase, "MaxPoolBase");
+BWDCMP_RTTI_DEFINITION(ov::op::util::MaxPoolBase);
 
 ov::op::util::MaxPoolBase::MaxPoolBase(const Output<Node>& arg,
                                        const Strides& strides,

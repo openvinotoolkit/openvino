@@ -11,7 +11,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::FFTBase, "FFTBase");
+BWDCMP_RTTI_DEFINITION(ov::op::util::FFTBase);
 
 ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {}
 

@@ -62,9 +62,7 @@ public:
     /// \brief Disable transformation by its class type (based on type_info)
     template <typename T>
     void disable() {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        disable(T::type_info);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        disable(T::get_type_info_static());
     }
 
     /// \brief Enable transformation by its type_info
@@ -159,7 +157,7 @@ public:
     /// \return true if transformation type was force enabled and false otherwise
     template <typename T>
     bool is_enabled() const {
-        return is_enabled(T::type_info);
+        return is_enabled(T::get_type_info_static());
     }
 
     void add_disabled_passes(const PassConfig& rhs);

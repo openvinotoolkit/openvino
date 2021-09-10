@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Parameter, "Parameter", "opset1");
+BWDCMP_RTTI_DEFINITION(op::v0::Parameter);
 
 op::Parameter::Parameter(const element::Type& element_type, const ov::Shape& pshape)
     : m_partial_shape(pshape),

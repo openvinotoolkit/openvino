@@ -14,16 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::DeformableConvolution,
-                         "DeformableConvolution",
-                         "opset1",
-                         op::util::DeformableConvolutionBase,
-                         1);
-OPENVINO_RTTI_DEFINITION(op::v8::DeformableConvolution,
-                         "DeformableConvolution",
-                         "opset8",
-                         op::util::DeformableConvolutionBase,
-                         8);
+BWDCMP_RTTI_DEFINITION(op::v1::DeformableConvolution);
 
 op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,

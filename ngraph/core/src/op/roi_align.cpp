@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::ROIAlign, "ROIAlign", "opset3", op::Op, 3);
+BWDCMP_RTTI_DEFINITION(op::v3::ROIAlign);
 
 op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,

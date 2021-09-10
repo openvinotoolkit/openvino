@@ -10,7 +10,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::ReductionBase, "ReductionBase");
+BWDCMP_RTTI_DEFINITION(ov::op::util::ReductionBase);
 
 ov::op::util::ReductionBase::ReductionBase() = default;
 

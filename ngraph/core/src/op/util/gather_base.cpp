@@ -16,7 +16,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::GatherBase, "GatherBase");
+BWDCMP_RTTI_DEFINITION(ov::op::util::GatherBase);
 
 ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
                                      const Output<Node>& indices,

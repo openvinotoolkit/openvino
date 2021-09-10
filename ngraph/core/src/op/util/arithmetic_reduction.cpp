@@ -10,7 +10,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::ArithmeticReduction, "ArithmeticReduction");
+BWDCMP_RTTI_DEFINITION(ov::op::util::ArithmeticReduction);
 
 ov::op::util::ArithmeticReduction::ArithmeticReduction() = default;
 

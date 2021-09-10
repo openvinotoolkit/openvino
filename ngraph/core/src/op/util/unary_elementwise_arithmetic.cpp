@@ -7,7 +7,7 @@
 #include "itt.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::UnaryElementwiseArithmetic, "UnaryElementwiseArithmetic");
+BWDCMP_RTTI_DEFINITION(ov::op::util::UnaryElementwiseArithmetic);
 
 ov::op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic() : Op() {}
 

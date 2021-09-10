@@ -11,7 +11,8 @@ namespace op {
 namespace v0 {
 class OPENVINO_API RegionYolo : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("RegionYolo", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     RegionYolo() = default;
     ///

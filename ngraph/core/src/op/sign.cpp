@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Sign, "Sign", "opset1", util::UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v0::Sign);
 
 op::Sign::Sign(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

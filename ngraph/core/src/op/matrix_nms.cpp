@@ -18,8 +18,6 @@
 
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v8::MatrixNms, "MatrixNms", "opset8", op::util::NmsBase, 8);
-
 op::v8::MatrixNms::MatrixNms() : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
 
 op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)

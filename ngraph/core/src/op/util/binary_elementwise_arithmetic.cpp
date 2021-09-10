@@ -12,7 +12,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::BinaryElementwiseArithmetic, "BinaryElementwiseArithmetic");
+BWDCMP_RTTI_DEFINITION(ov::op::util::BinaryElementwiseArithmetic);
 
 ov::op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob)
     : m_autob(autob) {}

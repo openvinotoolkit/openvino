@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::Gather, "Gather", "opset1", op::util::GatherBase, 1);
+BWDCMP_RTTI_DEFINITION(op::v1::Gather);
 
 op::v1::Gather::Gather(const Output<Node>& params, const Output<Node>& indices, const Output<Node>& axes)
     : GatherBase(params, indices, axes) {
@@ -36,7 +36,7 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::Gather>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
 
-OPENVINO_RTTI_DEFINITION(op::v7::Gather, "Gather", "opset7", op::util::GatherBase, 7);
+BWDCMP_RTTI_DEFINITION(op::v7::Gather);
 
 op::v7::Gather::Gather(const Output<Node>& data,
                        const Output<Node>& indices,
@@ -77,8 +77,6 @@ shared_ptr<Node> op::v7::Gather::clone_with_new_inputs(const OutputVector& new_a
     check_new_args_count(this, new_args);
     return make_shared<v7::Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
 }
-
-OPENVINO_RTTI_DEFINITION(op::v8::Gather, "Gather", "opset8", op::util::GatherBase, 8);
 
 op::v8::Gather::Gather(const Output<Node>& data,
                        const Output<Node>& indices,

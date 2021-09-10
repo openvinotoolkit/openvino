@@ -4,4 +4,4 @@
 
 #include "openvino/op/util/read_value_base.hpp"
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::ReadValueBase, "ReadValueBase");
+BWDCMP_RTTI_DEFINITION(ov::op::util::ReadValueBase);

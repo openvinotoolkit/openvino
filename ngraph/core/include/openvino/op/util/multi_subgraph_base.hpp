@@ -16,7 +16,7 @@ namespace util {
 ///
 class OPENVINO_API MultiSubGraphOp : public Op {
 public:
-    OPENVINO_RTTI("MultiSubGraphOp");
+    OPENVINO_RTTI("MultiSubGraphOp", "util");
     BWDCMP_RTTI_DECLARATION;
     /// \brief Abstract class describes a connection between a MultiSubGraphOp input and
     /// the body.

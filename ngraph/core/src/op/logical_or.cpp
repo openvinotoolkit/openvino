@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::LogicalOr, "LogicalOr", "opset1", util::BinaryElementwiseLogical, 1);
+BWDCMP_RTTI_DEFINITION(op::v1::LogicalOr);
 
 op::v1::LogicalOr::LogicalOr(const Output<Node>& arg0,
                              const Output<Node>& arg1,

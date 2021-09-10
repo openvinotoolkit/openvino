@@ -15,7 +15,8 @@ class OPENVINO_API NonMaxSuppression : public Op {
 public:
     enum class BoxEncodingType { CORNER, CENTER };
 
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("NonMaxSuppression", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     NonMaxSuppression() = default;
 
@@ -84,7 +85,8 @@ class OPENVINO_API NonMaxSuppression : public Op {
 public:
     enum class BoxEncodingType { CORNER, CENTER };
 
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("NonMaxSuppression", "opset3", op::Op, 3);
+    BWDCMP_RTTI_DECLARATION;
     NonMaxSuppression() = default;
 
     /// \brief Constructs a NonMaxSuppression operation.
@@ -163,7 +165,8 @@ namespace v4 {
 ///
 class OPENVINO_API NonMaxSuppression : public op::v3::NonMaxSuppression {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("NonMaxSuppression", "opset4", op::v3::NonMaxSuppression, 4);
+    BWDCMP_RTTI_DECLARATION;
     NonMaxSuppression() = default;
 
     /// \brief Constructs a NonMaxSuppression operation.
@@ -213,7 +216,8 @@ namespace v5 {
 ///
 class OPENVINO_API NonMaxSuppression : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("NonMaxSuppression", "opset5", op::Op, 5);
+    BWDCMP_RTTI_DECLARATION;
     enum class BoxEncodingType { CORNER, CENTER };
 
     NonMaxSuppression() = default;

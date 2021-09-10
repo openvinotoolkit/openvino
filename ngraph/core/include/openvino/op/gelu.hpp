@@ -14,7 +14,8 @@ namespace v0 {
 /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) )
 class OPENVINO_API Gelu : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("Gelu", "opset2", op::Op, 0);
+    BWDCMP_RTTI_DECLARATION;
 
     Gelu();
     /// \brief Constructs a Gelu operation.
@@ -41,7 +42,8 @@ namespace v7 {
 /// "tanh"
 class OPENVINO_API Gelu : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("Gelu", "opset7", op::Op, 7);
+    BWDCMP_RTTI_DECLARATION;
 
     Gelu() = default;
     /// \brief Constructs a Gelu operation.

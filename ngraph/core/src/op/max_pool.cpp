@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::MaxPool, "MaxPool", "opset1", op::util::MaxPoolBase, 1);
+BWDCMP_RTTI_DEFINITION(op::v1::MaxPool);
 
 op::v1::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,
@@ -249,8 +249,6 @@ bool evaluate_maxpool(const HostTensorPtr& data,
     return rc;
 }
 }  // namespace maxpool_v8
-
-OPENVINO_RTTI_DEFINITION(op::v8::MaxPool, "MaxPool", "opset8", op::util::MaxPoolBase, 8);
 
 op::v8::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,

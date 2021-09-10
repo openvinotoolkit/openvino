@@ -13,11 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator,
-                         "ExperimentalDetectronPriorGridGenerator",
-                         "opset6",
-                         op::Op,
-                         6);
+BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator);
 
 op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
     const Output<Node>& priors,

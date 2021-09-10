@@ -12,8 +12,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
 
-OPENVINO_RTTI_DEFINITION(ov::pass::LowLatency2, "LowLatency2");
-
 NGRAPH_SUPPRESS_DEPRECATED_START
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
 

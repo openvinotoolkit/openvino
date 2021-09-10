@@ -6,6 +6,6 @@
 
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::Sink, "Sink");
+BWDCMP_RTTI_DEFINITION(op::Sink);
 
 op::Sink::~Sink() = default;

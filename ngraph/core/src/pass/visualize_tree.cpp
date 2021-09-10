@@ -172,8 +172,6 @@ static std::string get_attribute_values(const std::map<std::string, std::shared_
     return ss.str();
 }
 
-OPENVINO_RTTI_DEFINITION(ngraph::pass::VisualizeTree, "ngraph::pass::VisualizeTree");
-
 bool pass::VisualizeTree::run_on_function(std::shared_ptr<ngraph::Function> f) {
     unordered_map<Node*, HeightMap> height_maps;
 

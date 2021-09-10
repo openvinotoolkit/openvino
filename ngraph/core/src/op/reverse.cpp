@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::Reverse, "Reverse", "opset1");
+BWDCMP_RTTI_DEFINITION(op::v1::Reverse);
 
 op::v1::Reverse::Reverse(const Output<Node>& data, const Output<Node>& reversed_axes, const std::string& mode)
     : Op({data, reversed_axes}),

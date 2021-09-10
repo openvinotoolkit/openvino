@@ -18,7 +18,7 @@
 
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v7::IDFT, "IDFT", "opset7", util::FFTBase, 7);
+BWDCMP_RTTI_DEFINITION(op::v7::IDFT);
 
 op::v7::IDFT::IDFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();

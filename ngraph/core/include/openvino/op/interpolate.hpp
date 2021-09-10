@@ -18,7 +18,8 @@ namespace v0 {
 /// \brief Layer which performs bilinear interpolation
 class OPENVINO_API Interpolate : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("Interpolate", "opset1");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Structure that specifies attributes for interpolation
     struct Attributes {
         // specify dimension indices where interpolation is applied, and `axes` is any
@@ -77,7 +78,8 @@ private:
 namespace v4 {
 class OPENVINO_API Interpolate : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("Interpolate", "opset4", op::Op, 4);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Shape calculation mode
     ///

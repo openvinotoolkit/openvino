@@ -16,7 +16,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v4::ReduceL2, "ReduceL2", "opset4", util::ArithmeticReductionKeepDims, 4);
+BWDCMP_RTTI_DEFINITION(op::v4::ReduceL2);
 
 op::v4::ReduceL2::ReduceL2(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {

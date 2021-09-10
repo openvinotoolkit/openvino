@@ -10,7 +10,7 @@ namespace ov {
 namespace pass {
 class OPENVINO_API ConvertFP32ToFP16 : public FunctionPass {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertFP32ToFP16");
     bool run_on_function(std::shared_ptr<ngraph::Function>) override;
 };
 }  // namespace pass

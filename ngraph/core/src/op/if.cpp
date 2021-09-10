@@ -18,8 +18,6 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ngraph::op::v8::If, "If", "opset8", MultiSubGraphOp, 8);
-
 op::v8::If::If() : MultiSubGraphOp(2) {}
 
 op::v8::If::If(const Output<Node>& execution_condition) : If() {

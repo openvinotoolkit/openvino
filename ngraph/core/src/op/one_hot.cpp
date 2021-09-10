@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::OneHot, "OneHot", "opset1", op::Op, 1);
+BWDCMP_RTTI_DEFINITION(op::v1::OneHot);
 
 op::v1::OneHot::OneHot(const Output<Node>& indices,
                        const Output<Node>& depth,

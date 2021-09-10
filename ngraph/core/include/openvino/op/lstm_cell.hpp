@@ -52,7 +52,8 @@ namespace v0 {
 ///
 class OPENVINO_API LSTMCell : public util::RNNCellBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("LSTMCell", "opset1", op::util::RNNCellBase);
+    BWDCMP_RTTI_DECLARATION;
 
     LSTMCell();
     ///
@@ -272,7 +273,8 @@ namespace v4 {
 ///
 class OPENVINO_API LSTMCell : public util::RNNCellBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("LSTMCell", "opset4", op::util::RNNCellBase, 4);
+    BWDCMP_RTTI_DECLARATION;
 
     LSTMCell();
     ///

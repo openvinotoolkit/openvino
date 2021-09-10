@@ -15,7 +15,7 @@ namespace pass {
  */
 class OPENVINO_API ConstantFolding : public FunctionPass {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConstantFolding");
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
 private:

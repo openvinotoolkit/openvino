@@ -13,7 +13,7 @@ namespace v8 {
 ///
 class OPENVINO_API MatrixNms : public util::NmsBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("MatrixNms", "opset8", op::util::NmsBase, 8);
 
     enum class DecayFunction { GAUSSIAN, LINEAR };
 

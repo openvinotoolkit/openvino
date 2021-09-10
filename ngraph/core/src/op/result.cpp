@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Result, "Result", "opset1");
+BWDCMP_RTTI_DEFINITION(op::v0::Result);
 
 op::Result::Result(const Output<Node>& arg, bool needs_default_layout)
     : Op({arg}),

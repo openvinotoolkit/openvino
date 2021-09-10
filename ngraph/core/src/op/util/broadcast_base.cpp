@@ -17,7 +17,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::BroadcastBase, "BroadcastBase");
+BWDCMP_RTTI_DEFINITION(ov::op::util::BroadcastBase);
 
 ov::op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
                                            const Output<Node>& target_shape,

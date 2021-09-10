@@ -30,7 +30,8 @@ public:
         int64_t body_condition_output_idx = -1;
     };
 
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OPERATION("Loop", "opset5", op::util::SubGraphOp, 5);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a Loop operation.
     Loop() = default;
