@@ -56,7 +56,7 @@ The **runtime package** includes the following components installed by default:
    ```sh
    conda install openvino-ie4py-ubuntu20 -c intel
    ```
- - Ubuntu* 18.04 
+ - Ubuntu* 18.04
    ```sh
    conda install openvino-ie4py-ubuntu18 -c intel
    ```
