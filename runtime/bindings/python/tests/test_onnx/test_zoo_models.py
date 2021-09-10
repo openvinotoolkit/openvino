@@ -77,6 +77,7 @@ tolerance_map = {
     "resnet34-v2-7": {"atol": 0.001, "rtol": 0.001},
     "vgg16-7": {"atol": 0.001, "rtol": 0.001},
     "vgg19-bn-7": {"atol": 0.001, "rtol": 0.001},
+    "vgg19-7": {"atol": 0.001, "rtol": 0.001},
     "tinyyolov2-7": {"atol": 0.001, "rtol": 0.001},
     "tinyyolov2-8": {"atol": 0.001, "rtol": 0.001},
     "candy-8": {"atol": 0.001, "rtol": 0.001},
