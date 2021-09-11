@@ -9,7 +9,7 @@
 #include "ie_common.h"
 #include "utils/blob_dump.h"
 #include "utils/debug_capabilities.h"
-#include "cpu_memory_desc_utils.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 
 #include <array>
 #include <regex>
@@ -66,7 +66,7 @@ void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
         auto dump_file = dumpDirName + "/#" + exec_order + "_" + file_name;
         std::cout << "Dump inputs: " << dump_file << std::endl;
 
-        auto& desc = prEdge->getMemory().GetDesc();
+        auto& desc = prEdge->getMemory().getDesc();
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
@@ -99,7 +99,7 @@ void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node) const {
         auto dump_file = dumpDirName + "/#" + exec_order + "_" + file_name;
         std::cout << "Dump outputs:  " << dump_file << std::endl;
 
-        auto& desc = childEdge->getMemory().GetDesc();
+        auto& desc = childEdge->getMemory().getDesc();
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
@@ -122,7 +122,7 @@ void NodeDumper::dumpInternalBlobs(const MKLDNNNodePtr& node) const {
             continue;
 
         MKLDNNMemoryPtr memory = std::make_shared<MKLDNNMemory>(node->getEngine());
-        memory->Create(MemoryDescUtils::convertToMKLDNNMemoryDesc(desc), blb->buffer());
+        memory->Create(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(desc), blb->buffer());
         BlobDumper dumper(memory);
         dump(dumper, dump_file);
     }

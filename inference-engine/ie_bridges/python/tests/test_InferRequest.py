@@ -17,9 +17,8 @@ path_to_img = image_path()
 
 
 def create_function_with_memory(input_shape, data_type):
-    import ngraph as ng
     from ngraph.impl import Function, Type
-
+    import ngraph as ng
     input_data = ng.parameter(input_shape, name="input_data", dtype=data_type)
     rv = ng.read_value(input_data, "var_id_667")
     add = ng.add(rv, input_data, name="MemoryAdd")
@@ -362,11 +361,9 @@ def test_async_infer_callback_wait_in_callback(device):
     del ie_core
 
 
+@pytest.mark.ngraph_dependent_test
 def test_get_perf_counts(device):
     ie_core = ie.IECore()
-    if device == "CPU":
-        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to ngraph")
     net = ie_core.read_network(test_net_xml, test_net_bin)
     ie_core.set_config({"PERF_COUNT": "YES"}, device)
     exec_net = ie_core.load_network(net, device)
@@ -513,6 +510,7 @@ def test_resize_algorithm_work(device):
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
 
+@pytest.mark.ngraph_dependent_test
 @pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
 @pytest.mark.parametrize("data_type", ["FP32", "FP16", "I32"])
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
@@ -565,3 +563,220 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
 
         assert np.allclose(res['MemoryAdd'], expected_res, atol=1e-6), \
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+@pytest.mark.parametrize("shape, p_shape, ref_shape", [
+    ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
+    ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [2, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [6, 4, 20, 20]),
+])
+def test_infer_dynamic_network_with_set_shape(shape, p_shape, ref_shape):
+    from conftest import create_ngraph_function
+    import ngraph as ng
+    function = create_ngraph_function(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": p_shape})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    exec_net.requests[0].input_blobs["data"].set_shape(ref_shape)
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape
+    exec_net.infer({"data": np.ones(ref_shape)})
+    request = exec_net.requests[0]
+    request.async_infer({"data": np.ones(ref_shape)})
+    status = request.wait(ie.WaitMode.RESULT_READY)
+    assert status == ie.StatusCode.OK
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+@pytest.mark.parametrize("shape, p_shape, ref_shape", [
+    ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
+    ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [2, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [6, 4, 20, 20]),
+])
+def test_infer_dynamic_network_without_set_shape(shape, p_shape, ref_shape):
+    from conftest import create_ngraph_function
+    import ngraph as ng
+    function = create_ngraph_function(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": p_shape})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    exec_net.infer({"data": np.ones(ref_shape)})
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape
+    request = exec_net.requests[0]
+    request.async_infer({"data": np.ones(ref_shape)})
+    status = request.wait(ie.WaitMode.RESULT_READY)
+    assert status == ie.StatusCode.OK
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+@pytest.mark.parametrize("shape, p_shape, ref_shape", [
+    ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
+    ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [2, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [6, 4, 20, 20]),
+])
+def test_infer_dynamic_network_with_set_blob(shape, p_shape, ref_shape):
+    from conftest import create_ngraph_function
+    import ngraph as ng
+    function = create_ngraph_function(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": p_shape})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
+    tensor_desc.dims = ref_shape
+    blob = ie.Blob(tensor_desc)
+    exec_net.requests[0].set_blob("data", blob)
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape
+    request = exec_net.requests[0]
+    request.infer({"data": np.ones(ref_shape)})
+    request.async_infer({"data": np.ones(ref_shape)})
+    status = request.wait(ie.WaitMode.RESULT_READY)
+    assert status == ie.StatusCode.OK
+    assert request.output_blobs["out"].tensor_desc.dims == ref_shape
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_infer_dynamic_network_twice():
+    from conftest import create_ngraph_function
+    import ngraph as ng
+    shape, p_shape = [1, 4, 20, 20], [(0,5), 4, 20, 20]
+    ref_shape1, ref_shape2 = [2, 4, 20, 20], [3, 4, 20, 20]
+    function = create_ngraph_function(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": p_shape})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    request = exec_net.requests[0]
+    request.infer({"data": np.ones(ref_shape1)})
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape1
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape1
+    request.infer({"data": np.ones(ref_shape2)})
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape2
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape2
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_infer_dynamic_network_with_set_blob_twice():
+    from conftest import create_ngraph_function
+    import ngraph as ng
+    shape, p_shape = [1, 4, 20, 20], [(0,5), 4, 20, 20]
+    ref_shape1, ref_shape2 = [2, 4, 20, 20], [3, 4, 20, 20]
+    function = create_ngraph_function(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": p_shape})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    request = exec_net.requests[0]
+    td = request.input_blobs['data'].tensor_desc
+    td.dims = ref_shape1
+    blob = ie.Blob(td)
+    request.set_blob("data", blob)
+    request.infer({"data": np.ones(ref_shape1)})
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape1
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape1
+    td = request.input_blobs['data'].tensor_desc
+    td.dims = ref_shape2
+    blob = ie.Blob(td)
+    request.set_blob("data", blob)
+    request.infer({"data": np.ones(ref_shape2)})
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape2
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape2
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+@pytest.mark.parametrize("shapes", [
+    ([3, 4, 20, 20], [3, 4, 20, 20], [3, 4, 20, 20]),
+    ([3, 4, 20, 20], [3, 6, 20, 20], [3, 8, 20, 20]),
+])
+def test_async_infer_dynamic_network_3_requests(shapes):
+    from conftest import create_ngraph_function
+    import ngraph as ng
+    function = create_ngraph_function([3, 4, 20, 20])
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": [3, (2, 10), 20, 20]})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE", num_requests=3)
+    for i,request in enumerate(exec_net.requests):
+        request.async_infer({"data": np.ones(shapes[i])})
+    for i,request in enumerate(exec_net.requests):
+        status = request.wait(ie.WaitMode.RESULT_READY)
+        assert status == ie.StatusCode.OK
+        assert request.output_blobs['out'].tensor_desc.dims == shapes[i]
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_set_blob_with_incorrect_name():
+    from conftest import create_ngraph_function
+    import ngraph as ng
+    function = create_ngraph_function([4, 4, 20, 20])
+    net = ng.function_to_cnn(function)
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
+    tensor_desc.dims = [4, 4, 20, 20]
+    blob = ie.Blob(tensor_desc)
+    with pytest.raises(RuntimeError) as e:
+        exec_net.requests[0].set_blob("incorrect_name", blob)
+    assert f"Failed to find input or output with name: 'incorrect_name'" in str(e.value)
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_set_blob_with_incorrect_size():
+    from conftest import create_ngraph_function
+    import ngraph as ng
+    function = create_ngraph_function([4, 4, 20, 20])
+    net = ng.function_to_cnn(function)
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
+    tensor_desc.dims = [tensor_desc.dims[0]*2, 4, 20, 20]
+    blob = ie.Blob(tensor_desc)
+    with pytest.raises(RuntimeError) as e:
+        exec_net.requests[0].set_blob("data", blob)
+    assert f"Input blob size is not equal network input size" in str(e.value)
+    with pytest.raises(RuntimeError) as e:
+        exec_net.requests[0].set_blob("out", blob)
+    assert f"Output blob size is not equal network output size" in str(e.value)
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_set_blob_after_async_infer():
+    from conftest import create_ngraph_function
+    import ngraph as ng
+    function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
+    net = ng.function_to_cnn(function)
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    request = exec_net.requests[0]
+    tensor_desc = request.input_blobs['data'].tensor_desc
+    tensor_desc.dims = [2, 4, 20, 20]
+    blob = ie.Blob(tensor_desc)
+    request.async_infer({"data": np.ones([4, 4, 20, 20])})
+    with pytest.raises(RuntimeError) as e:
+        request.set_blob("data", blob)
+    assert "REQUEST_BUSY" in str(e.value)
