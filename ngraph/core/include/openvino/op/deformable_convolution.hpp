@@ -60,6 +60,7 @@ namespace v8 {
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
     OPENVINO_OP("DeformableConvolution", "opset8", op::util::DeformableConvolutionBase, 8);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;

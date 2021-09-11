@@ -42,7 +42,7 @@ public:
 
 class OpTypeVersionParentOld : public OpType {
 public:
-    OPENVINO_OP("OpTypeVersionParentOld", "my_version", OpType, 1);
+    OPENVINO_OP("OpTypeVersionParentOld", "my_version1", OpType, 1);
     OpTypeVersionParentOld() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {

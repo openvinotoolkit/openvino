@@ -16,3 +16,11 @@ size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTyp
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace std
+
+namespace ov {
+std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
+    s << "DiscreteTypeInfo{name: " << info.name << ", version: " << info.version_id << ", old_version: " << info.version
+      << "}";
+    return s;
+}
+}  // namespace ov

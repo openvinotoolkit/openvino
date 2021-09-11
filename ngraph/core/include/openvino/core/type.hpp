@@ -7,14 +7,21 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "ngraph/compatibility.hpp"
 #include "openvino/core/core_visibility.hpp"
 
 namespace ov {
+
+class DiscreteTypeInfo;
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 /// Supports three functions, ov::is_type<Type>, ov::as_type<Type>, and ov::as_type_ptr<Type> for type-safe
 /// dynamic conversions via static_cast/static_ptr_cast without using C++ RTTI.
 /// Type must have a static type_info member and a virtual get_type_info() member that
@@ -53,29 +60,22 @@ struct OPENVINO_API DiscreteTypeInfo {
 
     // For use as a key
     bool operator<(const DiscreteTypeInfo& b) const {
-        if (version_id == nullptr || b.version_id == nullptr)
-            return version < b.version || (version == b.version && strcmp(name, b.name) < 0);
-        else
-            return strcmp(version_id, b.version_id) < 0 ||
-                   (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) < 0);
+        return version < b.version || (version == b.version && strcmp(name, b.name) < 0);
     }
     bool operator<=(const DiscreteTypeInfo& b) const {
-        return *this < b || *this == b;
+        return version < b.version || (version == b.version && strcmp(name, b.name) <= 0);
     }
     bool operator>(const DiscreteTypeInfo& b) const {
-        return !(*this <= b);
+        return version < b.version || (version == b.version && strcmp(name, b.name) > 0);
     }
     bool operator>=(const DiscreteTypeInfo& b) const {
-        return !(*this < b);
+        return version < b.version || (version == b.version && strcmp(name, b.name) >= 0);
     }
     bool operator==(const DiscreteTypeInfo& b) const {
-        if (version_id == nullptr || b.version_id == nullptr)
-            return version == b.version && strcmp(name, b.name) == 0;
-        else
-            return (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0);
+        return version == b.version && strcmp(name, b.name) == 0;
     }
     bool operator!=(const DiscreteTypeInfo& b) const {
-        return !(*this == b);
+        return version != b.version || strcmp(name, b.name) != 0;
     }
 };
 
@@ -84,7 +84,20 @@ struct OPENVINO_API DiscreteTypeInfo {
 template <typename Type, typename Value>
 typename std::enable_if<
     std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
-                        bool>::value,
+                        bool>::value &&
+        ngraph::HasTypeInfoMember<Type>::value,
+    bool>::type
+is_type(Value value) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return value->get_type_info().is_castable(Type::type_info);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+template <typename Type, typename Value>
+typename std::enable_if<
+    std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
+                        bool>::value &&
+        !ngraph::HasTypeInfoMember<Type>::value,
     bool>::type
 is_type(Value value) {
     return value->get_type_info().is_castable(Type::get_type_info_static());

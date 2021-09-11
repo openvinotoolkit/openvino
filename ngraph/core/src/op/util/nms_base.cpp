@@ -15,8 +15,6 @@
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::NmsBase);
-
 ov::op::util::NmsBase::NmsBase(ngraph::element::Type& output_type, int& nms_top_k, int& keep_top_k)
     : m_output_type(output_type),
       m_nms_top_k(nms_top_k),

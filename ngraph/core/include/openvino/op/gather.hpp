@@ -60,6 +60,7 @@ namespace v8 {
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
     OPENVINO_OP("Gather", "opset8", op::util::GatherBase, 8);
+    BWDCMP_RTTI_DECLARATION;
     Gather() = default;
 
     /// \param data The tensor from which slices are gathered

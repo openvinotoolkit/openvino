@@ -11,8 +11,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::MaxPoolBase);
-
 ov::op::util::MaxPoolBase::MaxPoolBase(const Output<Node>& arg,
                                        const Strides& strides,
                                        const ngraph::Shape& pads_begin,

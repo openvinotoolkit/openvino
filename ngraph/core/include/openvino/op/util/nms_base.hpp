@@ -14,7 +14,6 @@ namespace util {
 class OPENVINO_API NmsBase : public Op {
 public:
     OPENVINO_OP("NmsBase", "util");
-    BWDCMP_RTTI_DECLARATION;
     enum class SortResultType {
         CLASSID,  // sort selected boxes by class id (ascending) in each batch element
         SCORE,    // sort selected boxes by score (descending) in each batch element

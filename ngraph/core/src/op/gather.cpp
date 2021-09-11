@@ -13,6 +13,7 @@ using namespace std;
 using namespace ngraph;
 
 BWDCMP_RTTI_DEFINITION(op::v1::Gather);
+BWDCMP_RTTI_DEFINITION(op::v8::Gather);
 
 op::v1::Gather::Gather(const Output<Node>& params, const Output<Node>& indices, const Output<Node>& axes)
     : GatherBase(params, indices, axes) {
