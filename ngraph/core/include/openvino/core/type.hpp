@@ -18,10 +18,6 @@
 
 namespace ov {
 
-class DiscreteTypeInfo;
-
-OPENVINO_API
-std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 /// Supports three functions, ov::is_type<Type>, ov::as_type<Type>, and ov::as_type_ptr<Type> for type-safe
 /// dynamic conversions via static_cast/static_ptr_cast without using C++ RTTI.
 /// Type must have a static type_info member and a virtual get_type_info() member that
@@ -59,25 +55,16 @@ struct OPENVINO_API DiscreteTypeInfo {
     }
 
     // For use as a key
-    bool operator<(const DiscreteTypeInfo& b) const {
-        return version < b.version || (version == b.version && strcmp(name, b.name) < 0);
-    }
-    bool operator<=(const DiscreteTypeInfo& b) const {
-        return version < b.version || (version == b.version && strcmp(name, b.name) <= 0);
-    }
-    bool operator>(const DiscreteTypeInfo& b) const {
-        return version < b.version || (version == b.version && strcmp(name, b.name) > 0);
-    }
-    bool operator>=(const DiscreteTypeInfo& b) const {
-        return version < b.version || (version == b.version && strcmp(name, b.name) >= 0);
-    }
-    bool operator==(const DiscreteTypeInfo& b) const {
-        return version == b.version && strcmp(name, b.name) == 0;
-    }
-    bool operator!=(const DiscreteTypeInfo& b) const {
-        return version != b.version || strcmp(name, b.name) != 0;
-    }
+    bool operator<(const DiscreteTypeInfo& b) const;
+    bool operator<=(const DiscreteTypeInfo& b) const;
+    bool operator>(const DiscreteTypeInfo& b) const;
+    bool operator>=(const DiscreteTypeInfo& b) const;
+    bool operator==(const DiscreteTypeInfo& b) const;
+    bool operator!=(const DiscreteTypeInfo& b) const;
 };
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
 /// Type*/shared_ptr<Type>
