@@ -23,7 +23,7 @@ if(ENABLE_SAMPLES)
                    object_detection_sample_ssd_c hello_nv12_input_classification_c)
         if(TARGET ${sample})
         install(TARGRTS ${sample}
-                RUNTIME DESTINATION tests
+                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
                 COMPONENT tests
                 EXCLUDE_FROM_ALL)
 endif()
