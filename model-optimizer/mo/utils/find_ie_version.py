@@ -88,11 +88,10 @@ def find_ie_version(silent=False):
     bindings_paths_windows = [
         # Package
         {
-            "module": os.path.join(script_path, '../../../../python/', python_version),
+            "module": os.path.join(script_path, '../../../python/', python_version),
             "libs": [
-                os.path.join(script_path, '../../../inference_engine/bin/intel64/Release'),
-                os.path.join(script_path, '../../../inference_engine/external/tbb/bin'),
-                os.path.join(script_path, '../../../ngraph/lib'),
+                os.path.join(script_path, '../../../runtime/bin/intel64/Release'),
+                os.path.join(script_path, '../../../runtime/3rdparty/tbb/bin'),
             ],
         },
         # Local builds
@@ -118,11 +117,10 @@ def find_ie_version(silent=False):
     bindings_paths_linux = [
         # Package
         {
-            "module": os.path.join(script_path, '../../../../python/', python_version),
+            "module": os.path.join(script_path, '../../../python/', python_version),
             "libs": [
-                os.path.join(script_path, '../../../inference_engine/lib/intel64'),
-                os.path.join(script_path, '../../../inference_engine/external/tbb/lib'),
-                os.path.join(script_path, '../../../ngraph/lib'),
+                os.path.join(script_path, '../../../runtime/lib/intel64'),
+                os.path.join(script_path, '../../../runtime/3rdparty/tbb/lib'),
             ],
         },
         # Local builds
