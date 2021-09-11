@@ -44,8 +44,9 @@ std::shared_ptr<ngraph::op::v0::Constant> get_default_const_axes(const Output<No
         std::vector<int64_t> axes(axes_length);
         std::iota(axes.begin(), axes.end(), 0);
         return op::v0::Constant::create(element::i64, Shape{axes_length}, axes);
-    } else  // Dynamic case
-        return nullptr;
+    }
+    // Dynamic case
+    return nullptr;
 }
 
 int64_t get_sliced_dim_size(int64_t start, int64_t stop, int64_t step, int64_t dim_size) {
@@ -86,72 +87,134 @@ void op::v8::Slice::validate_and_infer_types() {
                           inputs_size);
 
     const PartialShape& data_shape = get_input_partial_shape(0);
-    PartialShape output_shape(data_shape);
+    const auto& data_rank = data_shape.rank();
 
-    const auto& start_rank = get_input_partial_shape(1).rank();
-    const auto& stop_rank = get_input_partial_shape(2).rank();
-    const auto& step_rank = get_input_partial_shape(3).rank();
+    NODE_VALIDATION_CHECK(this,
+                          data_rank.is_dynamic() || data_rank.get_length() > 0,
+                          "Slice `data` input can't be a scalar.");
 
-    NODE_VALIDATION_CHECK(this, start_rank.compatible(1), "Start input must be a 1D tensor. Got: ", start_rank);
-    NODE_VALIDATION_CHECK(this, stop_rank.compatible(1), "Stop input must be a 1D tensor. Got: ", stop_rank);
-    NODE_VALIDATION_CHECK(this, step_rank.compatible(1), "Step input must be a 1D tensor. Got: ", step_rank);
+    const auto start_const = get_constant_from_source(input_value(1));
+    const auto stop_const = get_constant_from_source(input_value(2));
+    const auto step_const = get_constant_from_source(input_value(3));
 
-    const auto& start_input = input_value(1);
-    const auto& stop_input = input_value(2);
-    const auto& step_input = input_value(3);
+    const auto& start_input = start_const ? start_const : input_value(1);
+    const auto& stop_input = stop_const ? stop_const : input_value(2);
+    const auto& step_input = step_const ? step_const : input_value(3);
 
     NODE_VALIDATION_CHECK(this,
                           start_input.get_element_type().is_integral_number(),
-                          "Slice `start` input type must be integral.");
+                          "Slice `start` input type must be integer.");
     NODE_VALIDATION_CHECK(this,
                           stop_input.get_element_type().is_integral_number(),
-                          "Slice `stop` input type must be integral.");
+                          "Slice `stop` input type must be integer.");
     NODE_VALIDATION_CHECK(this,
                           step_input.get_element_type().is_integral_number(),
-                          "Slice `step` input type must be integral.");
+                          "Slice `step` input type must be integer.");
+
+    const auto& start_shape = start_input.get_partial_shape();
+    const auto& stop_shape = stop_input.get_partial_shape();
+    const auto& step_shape = step_input.get_partial_shape();
+
+    const auto& start_rank = start_shape.rank();
+    const auto& stop_rank = stop_shape.rank();
+    const auto& step_rank = step_shape.rank();
+
+    NODE_VALIDATION_CHECK(this,
+                          start_rank.compatible(1),
+                          "Slice `start` input must be a 1D tensor. Got rank: ",
+                          start_rank);
+    NODE_VALIDATION_CHECK(this,
+                          stop_rank.compatible(1),
+                          "Slice `stop` input must be a 1D tensor. Got rank: ",
+                          stop_rank);
+    NODE_VALIDATION_CHECK(this,
+                          step_rank.compatible(1),
+                          "Slice `step` input must be a 1D tensor. Got rank: ",
+                          step_rank);
+
+    if (data_rank.is_static()) {
+        const auto data_rank_length = data_rank.get_length();
+        NODE_VALIDATION_CHECK(this,
+                              start_rank.is_dynamic() || start_shape[0].get_max_length() <= data_rank_length,
+                              "Slice `start` input dim size can't be bigger than `data` rank.");
+        NODE_VALIDATION_CHECK(this,
+                              stop_rank.is_dynamic() || stop_shape[0].get_max_length() <= data_rank_length,
+                              "Slice `stop` input dim size can't be bigger than `data` rank.");
+        NODE_VALIDATION_CHECK(this,
+                              step_rank.is_dynamic() || step_shape[0].get_max_length() <= data_rank_length,
+                              "Slice `step` input dim size can't be bigger than `data` rank.");
+    }
+
+    NODE_VALIDATION_CHECK(
+        this,
+        start_shape.compatible(stop_shape) && start_shape.compatible(step_shape) && stop_shape.compatible(step_shape),
+        "Slice `start`, `stop`, `step` inputs must have compatible shapes.");
 
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    const auto start_const = get_constant_from_source(start_input);
-    const auto stop_const = get_constant_from_source(stop_input);
-    const auto step_const = get_constant_from_source(step_input);
-
     std::shared_ptr<ngraph::op::v0::Constant> axes_const;
     if (get_input_size() > 4) {
         set_input_is_relevant_to_shape(4);
         axes_const = get_constant_from_source(input_value(4));
+        const auto& axes_input = axes_const ? axes_const : input_value(4);
+        const auto& axes_rank = axes_input.get_partial_shape().rank();
+        NODE_VALIDATION_CHECK(this,
+                              axes_rank.compatible(1),
+                              "Slice `axes` input must be a 1D tensor. Got rank: ",
+                              axes_rank);
+        NODE_VALIDATION_CHECK(this,
+                              axes_rank.is_dynamic() || axes_input.get_partial_shape()[0].get_max_length() <=
+                                                            data_rank.get_interval().get_max_val(),
+                              "Slice `axes` input dim size can't be bigger than `data` rank.");
+        NODE_VALIDATION_CHECK(this,
+                              axes_input.get_partial_shape().compatible(start_shape),
+                              "Slice `axes` input must have compatible shape with `start`, `stop`, `step` inputs.");
+        NODE_VALIDATION_CHECK(this,
+                              axes_input.get_element_type().is_integral_number(),
+                              "Slice `axes` input type must be integer.");
     } else {
-        axes_const = get_default_const_axes(input_value(1));
+        axes_const = get_default_const_axes(start_input);
     }
+
+    PartialShape output_shape(data_shape);
 
     // If data_shape rank is dynamic we can't calulate output shape.
     // Even with const start/stop/step/axes, we don't know how many axes should be copied
     // as "unspefified" in the final output shape, so the output shape rank is also dynamic.
-    if (data_shape.rank().is_dynamic()) {
+    if (data_rank.is_dynamic()) {
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
     }
+    const auto data_static_rank = data_shape.rank().get_length();
 
     if (start_const && stop_const && step_const && axes_const) {
-        const std::vector<int64_t> starts = start_const->cast_vector<int64_t>();
-        const std::vector<int64_t> stops = stop_const->cast_vector<int64_t>();
-        const std::vector<int64_t> steps = step_const->cast_vector<int64_t>();
-        const std::vector<int64_t> axes = axes_const->cast_vector<int64_t>();
+        const auto& starts = start_const->cast_vector<int64_t>();
+        const auto& stops = stop_const->cast_vector<int64_t>();
+        const auto& steps = step_const->cast_vector<int64_t>();
+        const auto& axes = axes_const->cast_vector<int64_t>();
 
         std::unordered_set<int64_t> axes_set(axes.begin(), axes.end());
         NODE_VALIDATION_CHECK(this, axes_set.size() == axes.size(), "Slice values in `axes` input must be unique.");
 
-        for (size_t i = 0; i < starts.size(); ++i) {
-            const auto norm_axis = ngraph::normalize_axis(this, axes[i], data_shape.rank());
+        for (size_t i = 0; i < axes.size(); ++i) {
+            const auto norm_axis = axes[i] < 0 ? data_static_rank + axes[i] : axes[i];
+            NODE_VALIDATION_CHECK(this,
+                                  norm_axis >= 0 && norm_axis < data_static_rank,
+                                  "Values in the `axes` input must be in range of the `data` input rank: [-",
+                                  data_static_rank,
+                                  ", ",
+                                  data_static_rank - 1,
+                                  "]. Got: ",
+                                  axes[i]);
 
             auto start = starts[i];
             auto stop = stops[i];
             auto step = steps[i];
 
-            NODE_VALIDATION_CHECK(this, step != 0, "Sllice 'step' value can't be zero.");
+            NODE_VALIDATION_CHECK(this, step != 0, "Slice 'step' value can't be zero.");
 
             const auto& axis_dim = data_shape[norm_axis];
             const auto axis_min_dim_length = axis_dim.get_min_length();
@@ -183,17 +246,22 @@ void op::v8::Slice::validate_and_infer_types() {
         }
     } else {
         if (axes_const) {
-            // If we know only axes values, we should update lower_bound to 0 value,
+            // If we know only `axes` values, we should update lower_bound to 0 value,
             // for the specified dims by the axes. For unspecified dims, bounds as in data_shape.
             for (const auto& axis : axes_const->cast_vector<int64_t>()) {
+                const auto norm_axis = axis < 0 ? data_static_rank + axis : axis;
                 NODE_VALIDATION_CHECK(this,
-                                      axis < data_shape.rank().get_length(),
-                                      "Provided axis value must be in range of the data input rank. Got: ",
+                                      norm_axis >= 0 && norm_axis < data_static_rank,
+                                      "Values in the `axes` input must be in range of the `data` input rank: [-",
+                                      data_static_rank,
+                                      ", ",
+                                      data_static_rank - 1,
+                                      "]. Got: ",
                                       axis);
                 output_shape[axis] = Dimension(0, data_shape[axis].get_max_length());
             }
         } else {
-            // Otherwise axes values are also unknown,
+            // Otherwise `axes` values are also unknown,
             // then all of the output dims can be 0, so have lower bound = 0.
             for (size_t i = 0; i < data_shape.rank().get_length(); ++i) {
                 output_shape[i] = Dimension(0, data_shape[i].get_max_length());
