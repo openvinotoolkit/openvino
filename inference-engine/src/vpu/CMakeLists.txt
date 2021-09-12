@@ -26,6 +26,7 @@ if(ENABLE_MYRIAD)
         install(DIRECTORY ${VPU_CLC_MA2X8X_ROOT}/
                 DESTINATION tools/cl_compiler
                 COMPONENT myriad
+                USE_SOURCE_PERMISSIONS
                 PATTERN ie_dependency.info EXCLUDE)
     endif()
 endif()

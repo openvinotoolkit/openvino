@@ -49,12 +49,16 @@ if(ENABLE_PYTHON)
     # install cross_check_tool tool
     install(DIRECTORY cross_check_tool
             DESTINATION tools
+            USE_SOURCE_PERMISSIONS
             COMPONENT python_tools)
 
     # install benchmark_app tool
-    install(FILES benchmark_tool/benchmark_app.py
-                  benchmark_tool/README.md
+    install(FILES benchmark_tool/README.md
                   benchmark_tool/requirements.txt
+            DESTINATION tools/benchmark_tool
+            COMPONENT python_tools)
+
+    install(PROGRAMS benchmark_tool/benchmark_app.py
             DESTINATION tools/benchmark_tool
             COMPONENT python_tools)
 
