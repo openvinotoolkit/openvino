@@ -238,10 +238,8 @@ TEST(TransformationTests, ReshapePReluTest9) {
         auto slope = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
 
         auto shape_of = std::make_shared<ngraph::opset1::ShapeOf>(slope);
-        auto const_first = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
-        auto const_last = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { 1, 1 });
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ const_first, shape_of, const_last }, 0);
-        auto reshape = std::make_shared<ngraph::opset1::Reshape>(slope, concat, true);
+        auto reshape_const = ngraph::opset1::Constant::create(ngraph::element::i64, { 4 }, { 1, -1, 1, 1 });
+        auto reshape = std::make_shared<ngraph::opset1::Reshape>(slope, reshape_const, true);
         auto prelu = std::make_shared<ngraph::opset1::PRelu>(input, reshape);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input, slope });
