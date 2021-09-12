@@ -60,6 +60,8 @@ def try_to_import_ie(module="", libs=[], silent=False):
         cmd_args.append("--silent")
 
     status = subprocess.run(cmd_args, env=os.environ)
+    print(status.stderr)
+    print(status.stdout)
     if status.returncode == 0:
         return True
     else:
