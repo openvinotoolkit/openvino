@@ -79,7 +79,7 @@ Options:
                         compiled model.
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
                         Optional. Specify a target device to infer on: CPU,
-                        GPU, FPGA, HDDL or MYRIAD.
+                        GPU, HDDL or MYRIAD.
                         Use "-d HETERO:<comma separated devices list>" format to specify HETERO plugin.
                         Use "-d MULTI:<comma separated devices list>" format to specify MULTI plugin.
                         The application looks for a suitable plugin for the specified device.
@@ -149,7 +149,7 @@ To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's]
 
 ## Examples of Running the Tool
 
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or FPGA devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.
 
 > **NOTE:** The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
@@ -167,22 +167,22 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    ```sh
    python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
-3. Run the tool with specifying the `<INSTALL_DIR>/deployment_tools/demo/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and FPGA devices:
+3. Run the tool with specifying the `<INSTALL_DIR>/deployment_tools/demo/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
 
    * On CPU:
    ```sh
     python3 benchmark_app.py -m <ir_dir>/googlenet-v1.xml -d CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true -b 1
    ```
-   * On FPGA:
+   * On GPU:
    ```sh
-   python3 benchmark_app.py -m <ir_dir>/googlenet-v1.xml -d HETERO:FPGA,CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true -b 1
+   python3 benchmark_app.py -m <ir_dir>/googlenet-v1.xml -d GPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true -b 1
    ```
 
 The application outputs number of executed iterations, total duration of execution, latency and throughput.
 Additionally, if you set the `-pc` parameter, the application outputs performance counters.
 If you set `-exec_graph_path`, the application reports executable graph information serialized.
 
-Below are fragments of sample output for CPU and FPGA devices:
+Below are fragments of sample output for CPU and GPU devices:
 * For CPU:
    ```
    [Step 8/9] Measuring performance (Start inference asynchronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
@@ -196,7 +196,7 @@ Below are fragments of sample output for CPU and FPGA devices:
    Latency:    51.8244 ms
    Throughput: 73.28 FPS
    ```
-* For FPGA:
+* For GPU:
    ```
    [Step 10/11] Measuring performance (Start inference asynchronously, 5 inference requests using 1 streams for CPU, limits: 120000 ms duration)
    Progress: |................................| 100%
