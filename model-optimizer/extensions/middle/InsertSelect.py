@@ -81,9 +81,13 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
             if node.frame_time < 0:
                 # Splice increases frame delay
                 if node.op == "Splice":
+                    if node.in_port(0).get_source().node.frame_time == -1:
+                        continue
                     node.frame_time = node.in_port(0).get_source().node.frame_time + len(node.context) - 1
                 # crop often used to get concrete time frame, set frame_time correctly for this case
                 elif node.op == 'Crop':
+                    if node.in_port(0).get_source().node.frame_time == -1:
+                        continue
                     if node.in_port(0).get_connection().get_source().node.op == 'Splice':
                         splice_node = node.in_port(0).get_source().node
                         assert len(node.offset) == 1
@@ -202,9 +206,13 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
             return
 
         nx.set_node_attributes(G=graph, name='frame_time', values=-1)
-        self.calculate_frame_time(graph)
-
-        self.calculate_frame_time(graph)
+        should_continue = True
+        while should_continue:
+            self.calculate_frame_time(graph)
+            should_continue = False
+            for node in graph.get_op_nodes(op='Assign'):
+                if node.frame_time == -1:
+                    should_continue = True
 
         for node in graph.get_op_nodes(op='Assign'):
             if node.soft_get('name', node.id) == 'iteration_number_out':
