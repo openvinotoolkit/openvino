@@ -94,7 +94,7 @@ public:
 std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> items);
 std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks();
 std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj);
-std::string getTestCaseName(const testing::TestParamInfo<MemLeaksTestCase> &obj);
+std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<MemLeaksTestCase> &obj);
 
 void runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
 void _runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);

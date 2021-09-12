@@ -182,13 +182,13 @@ TEST_P(MemLeaksTestSuite, inference_with_streams) {
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuiteNoModel,
                          ::testing::ValuesIn(generateTestsParamsMemLeaks()),
-                         getTestCaseName);
+                         getTestCaseNameMemLeaks);
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuiteNoDevice,
                         ::testing::ValuesIn(generateTestsParamsMemLeaks()),
-                        getTestCaseName);
+                        getTestCaseNameMemLeaks);
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuite,
                         ::testing::ValuesIn(generateTestsParamsMemLeaks()),
-                        getTestCaseName);
+                        getTestCaseNameMemLeaks);
 

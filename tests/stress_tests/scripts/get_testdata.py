@@ -108,7 +108,7 @@ def main():
                         help='Path to a test config .xml file containing models '
                              'which will be downloaded and converted to IRs via OMZ.')
     parser.add_argument('--test_framework', required=False, default=None,
-                        help='Test config framework.')
+                        help='Test framework name. Test config file format depends on the test framework.')
     parser.add_argument('--omz_repo', required=False,
                         help='Path to Open Model Zoo (OMZ) repository. It will be used to skip cloning step.')
     parser.add_argument('--mo_tool', type=Path,
