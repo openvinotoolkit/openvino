@@ -296,7 +296,7 @@ const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
     static const std::string name = baseOpTypeInfoPtr->name;
 
     static const ::ngraph::Node::type_info_t type_info_static{
-        name.c_str(), baseOpTypeInfoPtr->version, baseOpTypeInfoPtr};
+        name.c_str(), baseOpTypeInfoPtr->version, baseOpTypeInfoPtr->version_id, baseOpTypeInfoPtr};
     return type_info_static;
 }
 

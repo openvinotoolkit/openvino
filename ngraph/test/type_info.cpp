@@ -20,8 +20,8 @@ TEST(type_info, compare_old_type) {
     ASSERT_TRUE(type1 <= type1);
     ASSERT_TRUE(type3 >= type1);
     ASSERT_TRUE(type1 <= type3);
-    ASSERT_TRUE(type4 != type5);
-    ASSERT_TRUE(type4 < type5);
+    ASSERT_FALSE(type4 != type5);
+    ASSERT_FALSE(type4 < type5);
 }
 
 TEST(type_info, compare_new_type) {
@@ -38,8 +38,8 @@ TEST(type_info, compare_new_type) {
     ASSERT_TRUE(type1 <= type1);
     ASSERT_TRUE(type3 >= type1);
     ASSERT_TRUE(type1 <= type3);
-    ASSERT_TRUE(type4 != type5);
-    ASSERT_TRUE(type4 < type5);
+    ASSERT_FALSE(type4 != type5);
+    ASSERT_FALSE(type4 < type5);
 }
 
 TEST(type_info, compare_new_with_old_type) {
