@@ -1,21 +1,14 @@
-<attributes>
-    <processes>
-        <value>1</value>
-    </processes>
-    <threads>
-        <value>1</value>
-    </threads>
-    <iterations>
-        <value>1000</value>
-    </iterations>
-    <devices>
-        <value>CPU</value>
-        <value>GPU</value>
-    </devices>
-    <models>
-        <!-- Alexnet model contains MatMul node which is needed to cover *-52623 -->
-        <model name="alexnet" precision="FP32" source="omz" />
-        <model name="mobilenet-ssd" precision="FP32" source="omz" />
-        <model name="mtcnn-r" precision="FP32" source="omz" />
-    </models>
-</attributes>
+<cases>
+    <device iterations="1000" name="CPU" processes="1" threads="1">
+        
+        <model framework="caffe" full_path="/home/my/Desktop/repos/openvino-as-fork/tests/stress_tests/_omz_out/irs/public/alexnet/FP32/alexnet.xml" name="alexnet" path="public/alexnet/FP32/alexnet.xml" precision="FP32" source="omz" subdirectory="public/alexnet" />
+        <model framework="caffe" full_path="/home/my/Desktop/repos/openvino-as-fork/tests/stress_tests/_omz_out/irs/public/mobilenet-ssd/FP32/mobilenet-ssd.xml" name="mobilenet-ssd" path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" precision="FP32" source="omz" subdirectory="public/mobilenet-ssd" />
+        <model framework="caffe" full_path="/home/my/Desktop/repos/openvino-as-fork/tests/stress_tests/_omz_out/irs/public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" name="mtcnn-r" path="public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" precision="FP32" source="omz" subdirectory="public/mtcnn/mtcnn-r" />
+    </device>
+    <device iterations="1000" name="GPU" processes="1" threads="1">
+        
+        <model framework="caffe" full_path="/home/my/Desktop/repos/openvino-as-fork/tests/stress_tests/_omz_out/irs/public/alexnet/FP32/alexnet.xml" name="alexnet" path="public/alexnet/FP32/alexnet.xml" precision="FP32" source="omz" subdirectory="public/alexnet" />
+        <model framework="caffe" full_path="/home/my/Desktop/repos/openvino-as-fork/tests/stress_tests/_omz_out/irs/public/mobilenet-ssd/FP32/mobilenet-ssd.xml" name="mobilenet-ssd" path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" precision="FP32" source="omz" subdirectory="public/mobilenet-ssd" />
+        <model framework="caffe" full_path="/home/my/Desktop/repos/openvino-as-fork/tests/stress_tests/_omz_out/irs/public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" name="mtcnn-r" path="public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" precision="FP32" source="omz" subdirectory="public/mtcnn/mtcnn-r" />
+    </device>
+</cases>
