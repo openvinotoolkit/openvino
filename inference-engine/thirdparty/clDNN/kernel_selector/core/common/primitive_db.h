@@ -22,7 +22,7 @@ struct primitive_db {
     primitive_db();
 
     std::vector<code> get(const primitive_id& id) const;
-    code get_batch_header_str() const { return std::move(batch_header_str); }
+    std::vector<code> get_batch_header_str() const { return std::move(batch_header_str); }
 
 private:
     struct case_insensitive_compare {
@@ -35,7 +35,7 @@ private:
         }
     };
     std::multimap<primitive_id, code, case_insensitive_compare> primitives;
-    std::string batch_header_str;
+    std::vector<code> batch_header_str;
 };
 
 }  // namespace cache

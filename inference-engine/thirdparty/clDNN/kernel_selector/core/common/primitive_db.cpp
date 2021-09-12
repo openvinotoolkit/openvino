@@ -22,9 +22,9 @@ primitive_db::primitive_db()
     : primitives({
 #include "ks_primitive_db.inc"
       }),
-      batch_header_str(
+      batch_header_str({
 #include "ks_primitive_db_batch_headers.inc"
-      ) {
+      }) {
 }
 
 std::vector<code> primitive_db::get(const primitive_id& id) const {
