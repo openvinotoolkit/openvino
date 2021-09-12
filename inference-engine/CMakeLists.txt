@@ -22,7 +22,7 @@ foreach(sample benchmark_app classification_sample_async hello_classification
                 object_detection_sample_ssd_c hello_nv12_input_classification_c)
     if(TARGET ${sample})
         install(TARGETS ${sample}
-                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                RUNTIME DESTINATION tests
                 COMPONENT tests
                 EXCLUDE_FROM_ALL)
     endif()
