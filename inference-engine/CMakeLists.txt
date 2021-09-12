@@ -23,10 +23,8 @@ foreach(sample benchmark_app classification_sample_async hello_classification
                 opencv_c_wrapper)
     if(TARGET ${sample})
         install(TARGETS ${sample}
-                RUNTIME DESTINATION tests
-                LIBRARY DESTINATION tests
-                COMPONENT tests
-                EXCLUDE_FROM_ALL)
+                RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
+                LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
     endif()
 endforeach()
 
