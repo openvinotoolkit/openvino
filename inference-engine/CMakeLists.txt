@@ -24,6 +24,7 @@ foreach(sample benchmark_app classification_sample_async hello_classification
     if(TARGET ${sample})
         install(TARGETS ${sample}
                 RUNTIME DESTINATION tests
+                LIBRARY DESTINATION tests
                 COMPONENT tests
                 EXCLUDE_FROM_ALL)
     endif()
