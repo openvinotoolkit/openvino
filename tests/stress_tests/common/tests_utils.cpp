@@ -116,7 +116,7 @@ std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj) {
     return obj.param.test_case_name;
 }
 
-std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<MemLeaksTestCase> &obj) {
+std::string getTestCaseName(const testing::TestParamInfo<MemLeaksTestCase> &obj) {
     return obj.param.test_case_name;
 }
 
