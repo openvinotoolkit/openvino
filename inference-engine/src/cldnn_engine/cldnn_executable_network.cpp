@@ -34,11 +34,12 @@ namespace CLDNNPlugin {
 
 CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<IRemoteContext> context, Config config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]()->InferenceEngine::ITaskExecutor::Ptr {
-        if (config.throughput_streams > 1) {
+        if (config.exclusiveAsyncRequests) {
+            //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
+            return ExecutorManager::getInstance()->getExecutor("GPU");
+        }  else if (config.throughput_streams > 1) {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"CLDNNPlugin executor", config.throughput_streams});
-        } else if (config.exclusiveAsyncRequests) {
-            return ExecutorManager::getInstance()->getExecutor("GPU");
         } else {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"CLDNNPlugin executor", 1});

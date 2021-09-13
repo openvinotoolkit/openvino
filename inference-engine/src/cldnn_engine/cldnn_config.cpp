@@ -46,8 +46,10 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
     for (auto& kvp : configMap) {
         std::string key = kvp.first;
         std::string val = kvp.second;
-
-        if (key.compare(PluginConfigParams::KEY_PERF_COUNT) == 0) {
+        const auto hints = perfHintsConfig.SupportedKeys();
+        if (hints.end() != std::find(hints.begin(), hints.end(), key)) {
+            perfHintsConfig.SetConfig(key, val);
+        } else if (key.compare(PluginConfigParams::KEY_PERF_COUNT) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
                 useProfiling = true;
             } else if (val.compare(PluginConfigParams::NO) == 0) {
@@ -341,6 +343,9 @@ void Config::adjustKeyMapValues() {
         key_config_map[GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING] = PluginConfigParams::YES;
     else
         key_config_map[GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING] = PluginConfigParams::NO;
+    key_config_map.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
+    key_config_map.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
+                     std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
 }
 IE_SUPPRESS_DEPRECATED_END
 

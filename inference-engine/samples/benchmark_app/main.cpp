@@ -59,7 +59,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
-
+    if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency") {
+        throw std::logic_error("Incorrect performance hint. Please set -hint option to"
+                               "either `throughput`(tput) or `latency' value.");
+    }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
         FLAGS_report_type != detailedCntReport) {
         std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" +
@@ -208,6 +211,11 @@ int main(int argc, char* argv[]) {
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
         next_step();
+        std::string ov_perf_hint;
+        if (FLAGS_hint == "throughput" || FLAGS_hint == "tput")
+            ov_perf_hint = CONFIG_VALUE(THROUGHPUT);
+        else if (FLAGS_hint == "latency")
+            ov_perf_hint = CONFIG_VALUE(LATENCY);
 
         bool perf_counts = false;
         // Update config per device according to command line parameters
@@ -218,6 +226,13 @@ int main(int argc, char* argv[]) {
             if (!config.count(device))
                 config[device] = {};
             std::map<std::string, std::string>& device_config = config.at(device);
+
+            // high-level performance modes
+            if (!ov_perf_hint.empty()) {
+                device_config[CONFIG_KEY(PERFORMANCE_HINT)] = ov_perf_hint;
+                if (FLAGS_nireq != 0)
+                    device_config[CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)] = std::to_string(FLAGS_nireq);
+            }
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
@@ -241,6 +256,7 @@ int main(int argc, char* argv[]) {
             }
             perf_counts = (device_config.at(CONFIG_KEY(PERF_COUNT)) == CONFIG_VALUE(YES)) ? true : perf_counts;
 
+            // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&]() {
                 const std::string key = device + "_THROUGHPUT_STREAMS";
                 if (device_nstreams.count(device)) {
@@ -255,7 +271,7 @@ int main(int argc, char* argv[]) {
                                                " or via configuration file.");
                     }
                     device_config[key] = device_nstreams.at(device);
-                } else if (!device_config.count(key) && (FLAGS_api == "async")) {
+                } else if (ov_perf_hint.empty() && !device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "
@@ -484,9 +500,24 @@ int main(int argc, char* argv[]) {
                 batchSize = 1;
             }
         }
-        // ----------------- 8. Setting optimal runtime parameters
+        // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
+        // output of the actual settings that the device selected based on the hint
+        if (!ov_perf_hint.empty()) {
+            for (const auto& device : devices) {
+                std::vector<std::string> supported_config_keys =
+                    ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                slog::info << "Device: " << device << slog::endl;
+                for (const auto& cfg : supported_config_keys) {
+                    try {
+                        slog::info << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
+                    } catch (...) {
+                    };
+                    slog::info << " }" << slog::endl;
+                }
+            }
+        }
 
         // Update number of streams
         for (auto&& ds : device_nstreams) {

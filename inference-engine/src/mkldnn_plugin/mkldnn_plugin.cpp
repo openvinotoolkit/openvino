@@ -11,6 +11,7 @@
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
 #include <ie_plugin_config.hpp>
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <vector>
 #include <tuple>
 #include <unordered_set>
@@ -85,6 +86,7 @@
 #include <low_precision/network_helper.hpp>
 
 #include <ie_algorithm.hpp>
+#include "performance_heuristics.hpp"
 
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
@@ -114,14 +116,12 @@ Engine::~Engine() {
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
 
-static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
-    auto nGraphFunc = clonedNetwork.getFunction();
-
+static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
     const bool useLpt =
-        (conf.lpTransformsMode == Config::LPTransformsMode::On) &&
+            _enableLPT &&
         ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
     if (useLpt) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
@@ -394,12 +394,16 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     });
 
     postLPTPassManager.run_passes(nGraphFunc);
+}
 
+static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT) {
+    auto nGraphFunc = clonedNetwork.getFunction();
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT);
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr
-Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config) {
+Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
 
     // verification of supported input
@@ -421,25 +425,97 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
-    // TODO: handle input precision differently - per input and not one per network...
+    auto config = orig_config;
+    CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+    const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+    const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
+            || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
+    auto nGraphFunc = clonedNetwork.getFunction();
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT);
 
+    // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
+    const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
+    // the mode may have just arrived to the LoadNetwork, or was set with the plugins' SetConfig
+    if (mode != config.end() || !engConfig.perfHintsConfig.ovPerfHint.empty()) {
+        const auto mode_name = (mode != config.end())
+                               ? PerfHintsConfig::CheckPerformanceHintValue(mode->second) : engConfig.perfHintsConfig.ovPerfHint;
+        //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+        const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
+        if (streams == config.end() && !streamsSet) {
+            if (mode_name == CONFIG_VALUE(LATENCY)) {
+                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+                const auto isa = dnnl::get_effective_cpu_isa();
+                float isaSpecificThreshold = 1.0f;
+                switch (isa) {
+                    case dnnl::cpu_isa::sse41 :
+                        isaSpecificThreshold = 0.5f;
+                        break;
+                    case dnnl::cpu_isa::avx2:
+                    case dnnl::cpu_isa::avx512_core:
+                        isaSpecificThreshold = 1.0f;
+                        break;
+                    case dnnl::cpu_isa::avx512_core_vnni:
+                    case dnnl::cpu_isa::avx2_vnni:
+                        isaSpecificThreshold = 2.0f;
+                        break;
+                    case dnnl::cpu_isa::avx512_core_amx:
+                        isaSpecificThreshold = 4.0f;
+                        break;
+                    default:
+                        isaSpecificThreshold = 1.0f;
+                }
+                // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
+                const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED/isaSpecificThreshold;
+                const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
+                const float L3_cache_size = mkldnn::utils::get_cache_size(3, false);
+                ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
+                        clonedNetwork.getFunction(),
+                        L2_cache_size, L3_cache_size,
+                        memThresholdAssumeLimitedForISA);
+                // num of phys CPU cores (most aggressive value for #streams)
+                const auto num_cores = getNumberOfCPUCores();
+                // less aggressive
+                const auto num_streams_less_aggressive = num_cores / 2;
+                // default #streams value (most conservative)
+                const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
+                int num_streams = default_num_streams;
+                if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+                    if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
+                        || (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
+                        // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
+                        num_streams = num_cores;
+                    }   // otherwise (no recognized layers) falling back to the default value
+                } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
+                    // network is below the ISA-specific threshold
+                    num_streams = num_cores;
+                } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
+                    // network is below general threshold
+                    num_streams = std::max(default_num_streams, num_streams_less_aggressive);
+                }
+                auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
+                if (num_requests != config.end())
+                    num_streams = std::min(num_streams, PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
+                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
+           }
+        }
+    }
+    ConvertToCPUSpecificOpset(nGraphFunc);
+
+    // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
     conf.readProperties(config);
-
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
-
-    CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-
-    Transformation(clonedNetwork, conf);
 
     return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     // accumulate config parameters on engine level
+    streamsSet = (config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) != config.end());
     engConfig.readProperties(config);
 }
 
@@ -554,7 +630,10 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 
         auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
         auto ops = clonedNetwork.getFunction()->get_ordered_ops();
-        Transformation(clonedNetwork, conf);
+        const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+        const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
+                               || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
+        Transformation(clonedNetwork, enableLPT);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
         for (auto op : ops) {

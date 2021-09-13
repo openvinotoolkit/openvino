@@ -20,6 +20,7 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
                     public InferenceEngine::gpu::details::param_map_obj_getter {
     struct impl;
     std::shared_ptr<impl> _impl;
+    bool streamsSet = false;
 
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;
@@ -30,6 +31,9 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
     cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
     InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                          const CLDNNPlugin::Config& config) const;
+
+    std::map<std::string, std::string> ConvertPerfHintsToConfig(const std::map<std::string, std::string>& network_config,
+                                                               const CLDNNPlugin::Config& plugin_config) const;
 
     void RegisterPrimitives();
     void UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const;
