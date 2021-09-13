@@ -84,12 +84,6 @@ target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
 # Export for build tree
 #-----------------------------------------------------------------------------------------------
 
-export(TARGETS ngraph NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
-
-# WA for cmake
-export(TARGETS ngraph NAMESPACE IE::
-       APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
-
 set_target_properties(ngraph PROPERTIES EXPORT_NAME core)
 export(TARGETS ngraph NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
@@ -97,20 +91,6 @@ export(TARGETS ngraph NAMESPACE openvino::
 #-----------------------------------------------------------------------------------------------
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
-
-install(TARGETS ngraph EXPORT ngraphTargets
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        INCLUDES DESTINATION ${NGRAPH_INSTALL_INCLUDE})
-
-# because ngraph is exported in multiple export list
-# it needs to be exported in each list it's used
-install(TARGETS ngraph EXPORT InferenceEngineTargets
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        INCLUDES DESTINATION ${NGRAPH_INSTALL_INCLUDE})
 
 install(TARGETS ngraph EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
@@ -128,12 +108,6 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/ngraph/version.hpp
         DESTINATION ${NGRAPH_INSTALL_INCLUDE}/ngraph
-        COMPONENT ngraph_dev)
-
-install(EXPORT ngraphTargets
-        FILE ngraphTargets.cmake
-        NAMESPACE ngraph::
-        DESTINATION "deployment_tools/ngraph/cmake"
         COMPONENT ngraph_dev)
 
 configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
