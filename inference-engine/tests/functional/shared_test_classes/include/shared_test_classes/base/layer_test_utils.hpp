@@ -65,6 +65,14 @@ public:
                         const InferenceEngine::Blob::Ptr &actual,
                         float threshold, float absThreshold);
 
+    static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
+                        const std::vector<InferenceEngine::Blob::Ptr> &actual,
+                        float threshold);
+
+    static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
+                        const InferenceEngine::Blob::Ptr &actual,
+                        float threshold);
+
     virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
 
@@ -73,14 +81,6 @@ public:
     virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
 
     virtual void Compare(const InferenceEngine::TensorDesc &actualDesc, const InferenceEngine::TensorDesc &expectedDesc);
-
-    virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
-                        const std::vector<InferenceEngine::Blob::Ptr> &actual,
-                        float threshold);
-
-    virtual void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
-                        const InferenceEngine::Blob::Ptr &actual,
-                        float threshold);
 
     virtual void SetRefMode(RefMode mode);
 

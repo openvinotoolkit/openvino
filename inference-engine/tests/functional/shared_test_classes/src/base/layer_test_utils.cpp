@@ -425,16 +425,20 @@ void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type
     Compare(expectedOutputs, actualOutputs, threshold, absThreshold);
 }
 
-void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
-                        const std::vector<InferenceEngine::Blob::Ptr> &actual,
+void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                        const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs,
                         float threshold) {
-    Compare(expected, actual, threshold, absThreshold);
+    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
+        const auto &expected = expectedOutputs[outputIndex];
+        const auto &actual = actualOutputs[outputIndex];
+        Compare(expected, actual, threshold, -1);
+    }
 }
 
 void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                         const InferenceEngine::Blob::Ptr &actual,
                         float threshold) {
-    Compare(expected, actual, threshold, absThreshold);
+    Compare(expected, actual, threshold, -1);
 }
 
 void LayerTestsCommon::Validate() {
