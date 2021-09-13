@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string GemmTransformation::getTestCaseName(testing::TestParamInfo<GemmTransformationParams> obj) {
+std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<GemmTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;

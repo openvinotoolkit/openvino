@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string SplitConvConcat::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj) {
+std::string SplitConvConcat::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::basicParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;
