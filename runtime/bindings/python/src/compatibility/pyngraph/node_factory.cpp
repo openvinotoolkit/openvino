@@ -19,6 +19,7 @@
 #include "dict_attribute_visitor.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/except.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/util/variable.hpp"
@@ -47,6 +48,19 @@ public:
         op_node->set_arguments(arguments);
         op_node->visit_attributes(visitor);
         op_node->constructor_validate_and_infer_types();
+
+        return op_node;
+    }
+
+    std::shared_ptr<ngraph::Node> create(const std::string op_type_name) {
+        std::shared_ptr<ngraph::Node> op_node = std::shared_ptr<ngraph::Node>(m_opset.create(op_type_name));
+
+        NGRAPH_CHECK(op_node != nullptr, "Couldn't create operator: ", op_type_name);
+        NGRAPH_CHECK(!ngraph::op::is_constant(op_node),
+                     "Currently NodeFactory doesn't support Constant node: ",
+                     op_type_name);
+
+        NGRAPH_WARN << "Empty op created! Please assign inputs and attributes and run validate() before op is used.";
 
         return op_node;
     }
@@ -90,7 +104,16 @@ void regclass_pyngraph_NodeFactory(py::module m) {
     node_factory.def(py::init());
     node_factory.def(py::init<std::string>());
 
-    node_factory.def("create", &NodeFactory::create);
+    node_factory.def("create", [](NodeFactory& self, const std::string name) {
+        return self.create(name);
+    });
+    node_factory.def("create",
+                     [](NodeFactory& self,
+                        const std::string name,
+                        const ngraph::OutputVector& arguments,
+                        const py::dict& attributes) {
+                         return self.create(name, arguments, attributes);
+                     });
 
     node_factory.def("__repr__", [](const NodeFactory& self) {
         return "<NodeFactory>";
