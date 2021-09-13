@@ -81,9 +81,9 @@ void op::v8::DeformableConvolution::validate_and_infer_types() {
 
     DeformableConvolutionBase::validate_and_infer_types();
     if (inputs().size() == 4) {
-        const ov::Shape& data_pshape = get_input_partial_shape(0);
-        const ov::Shape& filters_pshape = get_input_partial_shape(2);
-        const ov::Shape& mask_pshape = get_input_partial_shape(3);
+        const ov::PartialShape& data_pshape = get_input_partial_shape(0);
+        const ov::PartialShape& filters_pshape = get_input_partial_shape(2);
+        const ov::PartialShape& mask_pshape = get_input_partial_shape(3);
         element::Type mask_et = get_input_element_type(3);
 
         NODE_VALIDATION_CHECK(this,
@@ -132,7 +132,7 @@ void op::v8::DeformableConvolution::validate_and_infer_types() {
             }
         }
 
-        ov::Shape result_pshape = get_output_partial_shape(0);
+        ov::PartialShape result_pshape = get_output_partial_shape(0);
         if (result_pshape.rank().is_static() && mask_pshape.rank().is_static()) {
             NODE_VALIDATION_CHECK(
                 this,

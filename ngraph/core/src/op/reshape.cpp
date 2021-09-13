@@ -54,11 +54,13 @@ void op::v1::Reshape::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Reshape_validate_and_infer_types);
     auto shape_pattern_et = get_input_element_type(1);
     // check data types
-    NODE_VALIDATION_CHECK(this, shape_pattern_et.is_integral_number(), "Shape pattern must be an integral number.");
+    NODE_VALIDATION_CHECK(this,
+                          shape_pattern_et.is_integral_number(),
+                          "PartialShape pattern must be an integral number.");
 
     // check shapes
-    const ov::Shape& input_pshape = get_input_partial_shape(0);
-    const ov::Shape& shape_pattern_shape = get_input_partial_shape(1);
+    const ov::PartialShape& input_pshape = get_input_partial_shape(0);
+    const ov::PartialShape& shape_pattern_shape = get_input_partial_shape(1);
     NODE_VALIDATION_CHECK(this,
                           shape_pattern_shape.rank().compatible(1) ||
                               (shape_pattern_shape.rank().is_static() && shape_pattern_shape.rank().get_length() == 0),
@@ -68,7 +70,7 @@ void op::v1::Reshape::validate_and_infer_types() {
     Rank output_rank = shape_pattern_shape.rank().is_dynamic()
                            ? Rank::dynamic()
                            : shape_pattern_shape.rank().get_length() == 0 ? 0 : shape_pattern_shape[0];
-    set_output_type(0, get_input_element_type(0), ov::Shape::dynamic(output_rank));
+    set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(output_rank));
     set_input_is_relevant_to_shape(1);
 
     std::vector<Dimension> reshape_pattern;
@@ -155,8 +157,8 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
 
     std::vector<Dimension> output_shape(out_shape_val.size());
     calculate_output_shape(reshape_pattern, minus_one_idx, inputs[0]->get_partial_shape(), output_shape);
-    NGRAPH_CHECK(ov::Shape(output_shape).is_static());
-    outputs[0]->set_shape(ov::Shape(output_shape).to_shape());
+    NGRAPH_CHECK(ov::PartialShape(output_shape).is_static());
+    outputs[0]->set_shape(ov::PartialShape(output_shape).to_shape());
 
     const AxisVector order = get_default_order(inputs[0]->get_shape());
     return reshapeop::evaluate_reshape(inputs[0], outputs[0], order);
@@ -215,7 +217,7 @@ bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVec
 
 void op::v1::Reshape::calculate_output_shape(vector<Dimension>& reshape_pattern,
                                              const int64_t& minus_one_idx,
-                                             const ov::Shape& input_pshape,
+                                             const ov::PartialShape& input_pshape,
                                              vector<Dimension>& output_shape) const {
     Dimension output_product(1);
     for (int64_t i = 0; i < static_cast<int64_t>(reshape_pattern.size()); ++i) {
@@ -303,7 +305,7 @@ void op::v1::Reshape::calculate_output_shape(vector<Dimension>& reshape_pattern,
             }
         }
     }
-    ov::Shape output_pshape(output_shape);
+    ov::PartialShape output_pshape(output_shape);
     if (input_pshape.is_static() && output_pshape.is_static()) {
         size_t zero_dims = std::count_if(reshape_pattern.begin(), reshape_pattern.end(), [](Dimension dim) {
             return dim.get_max_length() == 0 && dim.get_min_length() == 0;

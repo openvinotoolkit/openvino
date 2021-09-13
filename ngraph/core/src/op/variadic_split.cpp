@@ -101,11 +101,11 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
                     split_lengths.at(output) == -1 ? Dimension::dynamic() : split_lengths.at(output);
                 auto tmp_shape = data_shape_dims;
                 tmp_shape.at(axis) = output_split_dim;
-                set_output_type(output, data_type, ov::Shape{tmp_shape});
+                set_output_type(output, data_type, ov::PartialShape{tmp_shape});
             }
         } else {
             for (int64_t output{0}; output < num_outputs; ++output) {
-                set_output_type(output, data_type, ov::Shape::dynamic());
+                set_output_type(output, data_type, ov::PartialShape::dynamic());
             }
         }
     }

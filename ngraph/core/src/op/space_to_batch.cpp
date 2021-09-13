@@ -33,7 +33,7 @@ ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& d
 
 void op::v1::SpaceToBatch::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_SpaceToBatch_validate_and_infer_types);
-    ov::Shape data_pshape = get_input_partial_shape(0);
+    ov::PartialShape data_pshape = get_input_partial_shape(0);
     const auto& data_type = get_input_element_type(0);
     const auto& block_shape_type = get_input_element_type(1);
     const auto& pads_begin_type = get_input_element_type(2);
@@ -102,7 +102,7 @@ void op::v1::SpaceToBatch::validate_and_infer_types() {
         set_output_size(1);
         set_output_type(0, data_type, output_shape);
     } else {
-        set_output_type(0, data_type, ov::Shape::dynamic(data_pshape.rank()));
+        set_output_type(0, data_type, ov::PartialShape::dynamic(data_pshape.rank()));
     }
 }
 

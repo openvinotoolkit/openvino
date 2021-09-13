@@ -68,14 +68,14 @@ std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const {
 }
 
 namespace {
-ov::Shape get_result_shape_bidirectional(const Node* this_ptr,
-                                         const ov::Shape& arg_shape,
-                                         ov::StaticShape& target_shape) {
+ov::PartialShape get_result_shape_bidirectional(const Node* this_ptr,
+                                                const ov::PartialShape& arg_shape,
+                                                ov::StaticShape& target_shape) {
     if (arg_shape.rank().is_dynamic()) {
-        return ov::Shape::dynamic();
+        return ov::PartialShape::dynamic();
     }
     auto arg_shape_vec = static_cast<std::vector<Dimension>>(arg_shape);
-    ov::Shape result_shape;
+    ov::PartialShape result_shape;
     // Add left padding to shorter target or argument shape
     const auto target_padded_rank = std::max(arg_shape_vec.size(), target_shape.size());
     while (arg_shape_vec.size() < target_padded_rank) {
@@ -113,7 +113,7 @@ bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs, cons
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL) {
         auto arg_shape = inputs[0]->get_shape();
         ov::StaticShape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
-        ov::Shape result_shape = get_result_shape_bidirectional(this, ov::Shape{arg_shape}, target_shape);
+        ov::PartialShape result_shape = get_result_shape_bidirectional(this, ov::PartialShape{arg_shape}, target_shape);
         auto pair_broadcast_axes = get_broadcast_axes_bidirectional(arg_shape, result_shape.to_shape());
         return op::util::BroadcastBase::evaluate_broadcast(inputs[0],
                                                            outputs[0],

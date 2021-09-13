@@ -20,14 +20,14 @@ struct AutoBroadcastSpec;
 /// \brief Class representing a shape that may be partially or totally dynamic.
 ///
 ///
-/// A Shape may have:
+/// A PartialShape may have:
 ///
 /// \li Dynamic rank. (Informal notation: `?`)
 /// \li Static rank, but dynamic dimensions on some or all axes.
 ///     (Informal notation examples: `{1,2,?,4}`, `{?,?,?}`)
 /// \li Static rank, and static dimensions on all axes.
 ///     (Informal notation examples: `{1,2,3,4}`, `{6}`, `{}`)
-class OPENVINO_API Shape {
+class OPENVINO_API PartialShape {
     using Dimensions = std::vector<Dimension>;
 
 public:
@@ -42,26 +42,26 @@ public:
     /// Examples:
     ///
     /// \code{.cpp}
-    /// Shape s{2,3,4};                     // rank=3, all dimensions static
-    /// Shape s{};                          // rank=0
-    /// Shape s{2,Dimension::dynamic(),3};  // rank=3, dimension 1 dynamic
+    /// PartialShape s{2,3,4};                     // rank=3, all dimensions static
+    /// PartialShape s{};                          // rank=0
+    /// PartialShape s{2,Dimension::dynamic(),3};  // rank=3, dimension 1 dynamic
     /// \endcode
-    Shape(std::initializer_list<Dimension> init);
+    PartialShape(std::initializer_list<Dimension> init);
 
-    /// \brief Constructs a Shape with static rank from a vector of Dimension.
+    /// \brief Constructs a PartialShape with static rank from a vector of Dimension.
     /// \param dimensions The Dimension values for the constructed shape.
-    Shape(std::vector<Dimension> dimensions);
+    PartialShape(std::vector<Dimension> dimensions);
 
-    /// \brief Constructs a Shape with static rank from a vector of dimensions values.
+    /// \brief Constructs a PartialShape with static rank from a vector of dimensions values.
     /// \param dimensions The Dimension values for the constructed shape.
-    Shape(const std::vector<Dimension::value_type>& dimensions);
+    PartialShape(const std::vector<Dimension::value_type>& dimensions);
 
-    /// \brief Constructs a static Shape with zero rank (the shape of a scalar).
-    Shape();
+    /// \brief Constructs a static PartialShape with zero rank (the shape of a scalar).
+    PartialShape();
 
-    /// \brief Constructs a static Shape from a Shape.
-    /// \param shape The Shape to convert into Shape.
-    Shape(const StaticShape& shape);
+    /// \brief Constructs a static PartialShape from a PartialShape.
+    /// \param shape The PartialShape to convert into PartialShape.
+    PartialShape(const StaticShape& shape);
 
     /// \brief Check if this shape is static.
     /// \return `true` if this shape is static, else `false`.
@@ -84,9 +84,9 @@ public:
     Rank rank() const {
         return m_rank_is_static ? Rank(m_dimensions.size()) : Rank::dynamic();
     }
-    /// \brief Construct a Shape with the given rank and all dimensions (if any) dynamic.
-    /// \return A Shape with the given rank, and all dimensions (if any) dynamic.
-    static Shape dynamic(Rank r = Rank::dynamic());
+    /// \brief Construct a PartialShape with the given rank and all dimensions (if any) dynamic.
+    /// \return A PartialShape with the given rank, and all dimensions (if any) dynamic.
+    static PartialShape dynamic(Rank r = Rank::dynamic());
     /// \brief Check whether this shape is compatible with the argument, i.e., whether it is
     ///        possible to merge them.
     /// \param s The shape to be checked for compatibility with this shape.
@@ -96,7 +96,7 @@ public:
     /// \li one or both of them has dynamic rank, or
     /// \li both shapes have dynamic and equal rank, and their dimensions are elementwise
     ///     compatible (see Dimension::compatible()).
-    bool compatible(const Shape& s) const;
+    bool compatible(const PartialShape& s) const;
 
     /// \brief Check whether this shape represents the same scheme as the argument.
     /// \param s The shape whose scheme is being compared with this shape.
@@ -106,13 +106,13 @@ public:
     /// \li they both have dynamic rank, or
     /// \li they both have static and equal rank `r`, and for every `i` from `0` to `r-1`,
     ///     `s1[i]` represents the same scheme as `s2[i]` (see Dimension::same_scheme()).
-    bool same_scheme(const Shape& s) const;
+    bool same_scheme(const PartialShape& s) const;
 
     /// \brief Check whether this shape is a relaxation of the argument.
     /// \param s The shape which is being compared against this shape.
     /// \return `true` if this shape relaxes `s`, else `false`.
     ///
-    /// Intuitively, a Shape `s1` is said to _relax_ `s2` (or _is a
+    /// Intuitively, a PartialShape `s1` is said to _relax_ `s2` (or _is a
     /// relaxation_ of `s2`) if it is "more permissive" than `s2`. In other
     /// words, `s1` is a relaxation of `s2` if anything you can form by
     /// plugging things into the dynamic dimensions of `s2` is also
@@ -121,17 +121,17 @@ public:
     ///
     /// `s1.relaxes(s2)` is equivalent to `s2.refines(s1)`.
     ///
-    /// Formally, Shape `s1` is said to _relax_ Shape `s2`
+    /// Formally, PartialShape `s1` is said to _relax_ PartialShape `s2`
     /// if:
     /// \li For every `i` from `0` to `r-1`,
     ///      either `s1[i]` contains s2[i].
-    bool relaxes(const Shape& s) const;
+    bool relaxes(const PartialShape& s) const;
 
     /// \brief Check whether this shape is a refinement of the argument.
     /// \param s The shape which is being compared against this shape.
     /// \return `true` if this shape refines `s`, else `false`.
     ///
-    /// Intuitively, a Shape `s1` is said to _relax_ `s2` (or _is a
+    /// Intuitively, a PartialShape `s1` is said to _relax_ `s2` (or _is a
     /// relaxation_ of `s2`) if it is "less permissive" than `s2`. In other
     /// words, `s1` is a relaxation of `s2` if anything you can form by
     /// plugging things into the dynamic dimensions of `s1` is also
@@ -140,12 +140,12 @@ public:
     ///
     /// `s1.refines(s2)` is equivalent to `s2.relaxes(s1)`.
     ///
-    /// Formally, Shape `s1` is said to _refine_ Shape `s2`
+    /// Formally, PartialShape `s1` is said to _refine_ PartialShape `s2`
     /// if:
     /// \li `s2` has dynamic rank, or
     /// \li `s1` and `s2` both have static rank `r`, and for every `i` from `0` to `r-1`,
     ///      either `s2[i]` is dynamic, or `s1[i]` == `s2[i]`.
-    bool refines(const Shape& s) const;
+    bool refines(const PartialShape& s) const;
 
     /// \brief Checks that this shape's rank is compatible with `r`, and, if this shape's
     ///        rank is dynamic and `r` is static, updates this shape to have a rank of `r`
@@ -153,20 +153,20 @@ public:
     /// \return `true` if this shape's rank is compatible with `r`, else `false`.
     bool merge_rank(Rank r);
 
-    /// \brief Convert a static Shape to a Shape.
-    /// \return A new Shape `s` where `s[i] = size_t((*this)[i])`.
-    /// \throws std::invalid_argument If this Shape is dynamic.
+    /// \brief Convert a static PartialShape to a PartialShape.
+    /// \return A new PartialShape `s` where `s[i] = size_t((*this)[i])`.
+    /// \throws std::invalid_argument If this PartialShape is dynamic.
     StaticShape to_shape() const;
 
     /// \brief Returns `true` if all static dimensions of the tensor are non-negative, else
     ///        `false`.
     bool all_non_negative() const;
 
-    /// \brief Index operator for Shape.
+    /// \brief Index operator for PartialShape.
     /// \param i The index of the dimension being selected.
     /// \return A reference to the `i`th Dimension of this shape.
     const Dimension& operator[](size_t i) const;
-    /// \brief Index operator for Shape.
+    /// \brief Index operator for PartialShape.
     /// \param i The index of the dimension being selected.
     /// \return A reference to the `i`th Dimension of this shape.
     Dimension& operator[](size_t i);
@@ -174,10 +174,10 @@ public:
     explicit operator std::vector<Dimension>() const {
         return m_dimensions;
     }
-    friend OPENVINO_API std::ostream& operator<<(std::ostream& str, const Shape& shape);
-    friend Shape operator+(const Shape& s1, const Shape& s2);
-    bool operator==(const Shape& partial_shape) const;
-    bool operator!=(const Shape& partial_shape) const;
+    friend OPENVINO_API std::ostream& operator<<(std::ostream& str, const PartialShape& shape);
+    friend PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
+    bool operator==(const PartialShape& partial_shape) const;
+    bool operator!=(const PartialShape& partial_shape) const;
     /// Get the max bounding shape
     StaticShape get_max_shape() const;
     /// Get the min bounding shape
@@ -213,10 +213,12 @@ public:
     /// `src`, but overwrites `dst` with the result and returns `true` if merging is
     /// successful; if merging is unsuccessful, the function returns `false` and may make
     /// unspecified changes to `dst`.
-    static bool merge_into(Shape& dst, const Shape& src);
+    static bool merge_into(PartialShape& dst, const PartialShape& src);
 
     /// \brief Try to merge one shape into another along with implicit broadcasting
-    static bool broadcast_merge_into(Shape& dst, const Shape& src, const ngraph::op::AutoBroadcastSpec& autob);
+    static bool broadcast_merge_into(PartialShape& dst,
+                                     const PartialShape& src,
+                                     const ngraph::op::AutoBroadcastSpec& autob);
 
     /// \brief Returns a read/write iterator that points to the first
     ///        element in the shape. Iteration is done in ordinary
@@ -292,13 +294,13 @@ public:
     }
 
 private:
-    // Private constructor for Shape::dynamic().
-    Shape(bool rank_is_static, std::vector<Dimension> dimensions);
+    // Private constructor for PartialShape::dynamic().
+    PartialShape(bool rank_is_static, std::vector<Dimension> dimensions);
 
     // True if the shape's rank is static.
     bool m_rank_is_static;
 
-    /// \brief Shape types. The shape type is lazily evaluated by calling the is_static()
+    /// \brief PartialShape types. The shape type is lazily evaluated by calling the is_static()
     /// method.
     ///
     /// \details It is highly recommended to avoid using the Dimension& operator[](size_t)
@@ -317,24 +319,24 @@ private:
                            // by non-constant reference.
     } m_shape_type{ShapeType::SHAPE_IS_UNKNOWN};
 
-    // Shape dimensions. This has no meaning if m_rank_is_static is false.
+    // PartialShape dimensions. This has no meaning if m_rank_is_static is false.
     Dimensions m_dimensions;
 };
 
-/// \brief Elementwise addition of two Shape objects.
+/// \brief Elementwise addition of two PartialShape objects.
 /// \param s1 Left operand for addition.
 /// \param s2 Right operand for addition.
 /// \return The result of elementwise adding `s1` to `s2` (see description).
 /// \throws std::invalid_argument If `s1` and `s2` have inconsistent ranks.
 ///
-/// \li If `s1` or `s2` has dynamic rank, returns Shape::dynamic().
+/// \li If `s1` or `s2` has dynamic rank, returns PartialShape::dynamic().
 /// \li If `s1 and `s2` both have static rank, and their ranks are unequal, throws
 ///     std::invalid_argument.
 /// \li If `s1` and `s2` both have static rank, and their ranks are equal,
 ///     returns a new shape whose `i`th dimension is `s1[i] + s2[i]`.
-Shape operator+(const Shape& s1, const Shape& s2);
+PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
 
-/// \brief Inserts a human-readable representation of a Shape into an output stream.
+/// \brief Inserts a human-readable representation of a PartialShape into an output stream.
 /// \param str The output stream targeted for insertion.
 /// \param shape The shape to be inserted into `str`.
 /// \return A reference to `str` after insertion.
@@ -348,10 +350,10 @@ Shape operator+(const Shape& s1, const Shape& s2);
 /// Example:
 ///
 /// \code{.cpp}
-/// Shape s1{Shape::dynamic())};
-/// Shape s2{};
-/// Shape s3{1,Dimension::dynamic(),2,3};
-/// Shape s4{2,3,4};
+/// PartialShape s1{PartialShape::dynamic())};
+/// PartialShape s2{};
+/// PartialShape s3{1,Dimension::dynamic(),2,3};
+/// PartialShape s4{2,3,4};
 /// std::cout << s1 << std::endl
 ///           << s2 << std::endl
 ///           << s3 << std::endl
@@ -367,25 +369,25 @@ Shape operator+(const Shape& s1, const Shape& s2);
 /// {2,3,4}
 /// \endcode
 OPENVINO_API
-std::ostream& operator<<(std::ostream& str, const Shape& shape);
+std::ostream& operator<<(std::ostream& str, const PartialShape& shape);
 
 template <>
-class OPENVINO_API AttributeAdapter<ov::Shape> : public ValueAccessor<std::vector<int64_t>> {
+class OPENVINO_API AttributeAdapter<ov::PartialShape> : public ValueAccessor<std::vector<int64_t>> {
 public:
-    AttributeAdapter(ov::Shape& value) : m_ref(value) {}
+    AttributeAdapter(ov::PartialShape& value) : m_ref(value) {}
 
     const std::vector<int64_t>& get() override;
     void set(const std::vector<int64_t>& value) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Shape>", 0};
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<PartialShape>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
-    operator ov::Shape&() {
+    operator ov::PartialShape&() {
         return m_ref;
     }
 
 protected:
-    ov::Shape& m_ref;
+    ov::PartialShape& m_ref;
     std::vector<int64_t> m_buffer;
     bool m_buffer_valid{false};
 };

@@ -80,7 +80,7 @@ void op::v1::Pad::validate_and_infer_types() {
                               ").");
 
         NODE_VALIDATION_CHECK(this,
-                              arg_pad_shape.compatible(ov::Shape{}),
+                              arg_pad_shape.compatible(ov::PartialShape{}),
                               "Argument for padding value is not a scalar (shape: ",
                               arg_pad_shape,
                               ").");
@@ -158,7 +158,7 @@ void op::v1::Pad::validate_and_infer_types() {
         }
         set_output_type(0, get_input_element_type(0), result_dims);
     } else {
-        set_output_type(0, get_input_element_type(0), ov::Shape::dynamic(arg_shape_rank));
+        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(arg_shape_rank));
     }
 }
 

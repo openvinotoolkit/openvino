@@ -22,7 +22,7 @@ const element::Type& Input<Node>::get_element_type() const {
 const StaticShape& Input<Node>::get_shape() const {
     return m_node->get_input_shape(m_index);
 }
-const Shape& Input<Node>::get_partial_shape() const {
+const PartialShape& Input<Node>::get_partial_shape() const {
     return m_node->get_input_partial_shape(m_index);
 }
 
@@ -98,7 +98,7 @@ const element::Type& Input<const Node>::get_element_type() const {
 const StaticShape& Input<const Node>::get_shape() const {
     return m_node->get_input_shape(m_index);
 }
-const Shape& Input<const Node>::get_partial_shape() const {
+const PartialShape& Input<const Node>::get_partial_shape() const {
     return m_node->get_input_partial_shape(m_index);
 }
 

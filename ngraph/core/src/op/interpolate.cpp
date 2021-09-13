@@ -43,7 +43,7 @@ void op::v0::Interpolate::validate_and_infer_types() {
                           "output shape must be an integral number.");
     set_input_is_relevant_to_shape(1);
 
-    ov::Shape output_shape = ov::Shape(get_input_partial_shape(0));
+    ov::PartialShape output_shape = ov::PartialShape(get_input_partial_shape(0));
     if (output_shape.rank().is_static()) {
         for (auto axis : m_attrs.axes) {
             NGRAPH_CHECK(static_cast<int64_t>(axis) < output_shape.rank().get_length());
@@ -127,7 +127,7 @@ bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor) {
 std::vector<int64_t> op::v4::Interpolate::get_axes() const {
     auto inputs = input_values();
     if (inputs.size() <= 3) {
-        ov::Shape input_shape = ov::Shape(get_input_partial_shape(0));
+        ov::PartialShape input_shape = ov::PartialShape(get_input_partial_shape(0));
         NODE_VALIDATION_CHECK(this,
                               input_shape.rank().is_static(),
                               "Could not define axes of interpolation because there are "
@@ -157,10 +157,10 @@ int64_t multiply_bound_and_scale(int64_t bound, float scale) {
 }
 }  // namespace
 
-void op::v4::Interpolate::infer_using_scales(ov::Shape& output_shape,
+void op::v4::Interpolate::infer_using_scales(ov::PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const std::vector<float>& scales,
-                                             const ov::Shape& padded_input_shape) const {
+                                             const ov::PartialShape& padded_input_shape) const {
     size_t i = 0;
     for (auto axis : axes) {
         const auto& current_dim = padded_input_shape[axis];
@@ -174,7 +174,7 @@ void op::v4::Interpolate::infer_using_scales(ov::Shape& output_shape,
     }
 }
 
-void op::v4::Interpolate::infer_using_shapes(ov::Shape& output_shape,
+void op::v4::Interpolate::infer_using_shapes(ov::PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const std::vector<int64_t>& sizes) const {
     size_t i = 0;
@@ -183,10 +183,10 @@ void op::v4::Interpolate::infer_using_shapes(ov::Shape& output_shape,
     }
 }
 
-ov::Shape op::v4::Interpolate::get_padded_input_shape(const ov::Shape& input_shape) const {
+ov::PartialShape op::v4::Interpolate::get_padded_input_shape(const ov::PartialShape& input_shape) const {
     const auto input_rank = input_shape.rank().get_length();
 
-    ov::Shape padded_input_shape = input_shape;
+    ov::PartialShape padded_input_shape = input_shape;
 
     for (int64_t i = 0; i < input_rank; ++i) {
         if (input_shape[i].is_static()) {
@@ -225,7 +225,7 @@ void op::v4::Interpolate::validate_and_infer_types() {
             "Axes element type must be i32, i64, u32 or u64");
     }
 
-    ov::Shape input_shape = ov::Shape(get_input_partial_shape(0));
+    ov::PartialShape input_shape = ov::PartialShape(get_input_partial_shape(0));
 
     if (!input_shape.rank().is_static()) {
         set_output_type(0, get_input_element_type(0), input_shape);
@@ -237,7 +237,7 @@ void op::v4::Interpolate::validate_and_infer_types() {
     // If the input 'axes' is given and this input is not Constant, we cannot infer any elements
     // of the output shape. Hence, all components of the output shape should be dynamic.
     if (input_values().size() == 4 && !has_and_set_equal_bounds(input_value(3))) {
-        ov::Shape output_shape = std::vector<Dimension>(input_rank, Dimension::dynamic());
+        ov::PartialShape output_shape = std::vector<Dimension>(input_rank, Dimension::dynamic());
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
     }
@@ -245,8 +245,8 @@ void op::v4::Interpolate::validate_and_infer_types() {
     auto axes = get_axes();
     correct_pads();
 
-    ov::Shape padded_input_shape = get_padded_input_shape(input_shape);
-    ov::Shape output_shape = padded_input_shape;
+    ov::PartialShape padded_input_shape = get_padded_input_shape(input_shape);
+    ov::PartialShape output_shape = padded_input_shape;
 
     if (output_shape.rank().is_static()) {
         for (auto axis : axes) {
@@ -358,7 +358,7 @@ std::vector<T> correct_pad(const std::vector<T>& p, size_t rank) {
 }  // namespace
 
 void op::v4::Interpolate::correct_pads() {
-    ov::Shape input_shape = ov::Shape(get_input_partial_shape(0));
+    ov::PartialShape input_shape = ov::PartialShape(get_input_partial_shape(0));
     if (input_shape.rank().is_dynamic()) {
         return;
     }
@@ -404,7 +404,7 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
 
     auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes);
 
-    ov::Shape output_shape{padded_input_shape};
+    ov::PartialShape output_shape{padded_input_shape};
 
     if (m_attrs.shape_calculation_mode == ShapeCalcMode::SCALES) {
         infer_using_scales(output_shape, axes, scales, padded_input_shape);

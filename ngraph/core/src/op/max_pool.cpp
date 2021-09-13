@@ -44,7 +44,7 @@ void op::v1::MaxPool::validate_and_infer_types() {
 
     MaxPoolBase::validate_and_infer_types();
 
-    const ov::Shape output_shape = infer_output_shape(Strides{});  // no dilations of the filter window
+    const ov::PartialShape output_shape = infer_output_shape(Strides{});  // no dilations of the filter window
 
     set_output_type(0, get_input_element_type(0), output_shape);
 }
@@ -293,7 +293,7 @@ void op::v8::MaxPool::validate_and_infer_types() {
         m_axis = ngraph::normalize_axis(this, m_axis, input_shape.rank());
     }
 
-    const ov::Shape output_shape = infer_output_shape(m_dilations);
+    const ov::PartialShape output_shape = infer_output_shape(m_dilations);
 
     set_output_type(0, get_input_element_type(0), output_shape);
     set_output_type(1, m_index_element_type, output_shape);

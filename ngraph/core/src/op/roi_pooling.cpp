@@ -87,10 +87,10 @@ void op::ROIPooling::validate_and_infer_types() {
     }
 
     // output shape should be {NUM_ROIS, C, pooled_h, pooled_w}
-    auto output_shape = ov::Shape{{Dimension::dynamic(),
-                                   Dimension::dynamic(),
-                                   Dimension{static_cast<int64_t>(m_output_size[0])},
-                                   Dimension{static_cast<int64_t>(m_output_size[1])}}};
+    auto output_shape = ov::PartialShape{{Dimension::dynamic(),
+                                          Dimension::dynamic(),
+                                          Dimension{static_cast<int64_t>(m_output_size[0])},
+                                          Dimension{static_cast<int64_t>(m_output_size[1])}}};
 
     if (coords_ps.rank().is_static() && coords_ps[0].is_static()) {
         output_shape[0] = coords_ps[0];

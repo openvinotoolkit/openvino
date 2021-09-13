@@ -239,7 +239,7 @@ public:
     /// Sets/replaces the arguments with new arguments.
     void set_argument(size_t position, const Output<Node>& argument);
 
-    void set_output_type(size_t i, const element::Type& element_type, const Shape& pshape);
+    void set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape);
 
     /// Sets the number of outputs
     void set_output_size(size_t output_size);
@@ -321,7 +321,7 @@ public:
     const StaticShape& get_output_shape(size_t i) const;
 
     /// Returns the partial shape for output i
-    const Shape& get_output_partial_shape(size_t i) const;
+    const PartialShape& get_output_partial_shape(size_t i) const;
 
     /// Return the output to use when converting to an Output<Node> with no index specified.
     /// Throws when not supported.
@@ -362,7 +362,7 @@ public:
 
     /// Returns the partial shape of input i
     // TODO: deprecate in favor of node->get_input_partial_shape(i)
-    const Shape& get_input_partial_shape(size_t i) const;
+    const PartialShape& get_input_partial_shape(size_t i) const;
 
     /// Returns the tensor name for input i
     OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")

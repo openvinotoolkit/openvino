@@ -60,11 +60,11 @@ protected:
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
 
-    Shape get_result_shape_pdpd(const Shape& arg0_shape,
-                                const Shape& target_shape,
-                                const op::BroadcastModeSpec& broadcast_spec) const;
+    PartialShape get_result_shape_pdpd(const PartialShape& arg0_shape,
+                                       const PartialShape& target_shape,
+                                       const op::BroadcastModeSpec& broadcast_spec) const;
 
-    void validate_target_shape_numpy(const Shape& arg_shape, const Shape& target_shape) const;
+    void validate_target_shape_numpy(const PartialShape& arg_shape, const PartialShape& target_shape) const;
 
     static std::pair<bool, AxisSet> get_broadcast_axes_numpy_pdpd(const StaticShape& arg_shape,
                                                                   const StaticShape& result_shape,
@@ -73,9 +73,9 @@ protected:
     static std::pair<bool, AxisSet> get_broadcast_axes_none(const AxisVector& axes_mapping_val,
                                                             const size_t target_shape);
 
-    void validate_target_shape_none(const Shape& arg_shape,
+    void validate_target_shape_none(const PartialShape& arg_shape,
                                     const AxisVector& axes_mapping_val,
-                                    const Shape& target_shape) const;
+                                    const PartialShape& target_shape) const;
 
     StaticShape get_target_shape(const HostTensorPtr& input1) const;
 };

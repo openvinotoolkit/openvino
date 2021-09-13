@@ -89,7 +89,7 @@ void op::v3::GRUCell::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_GRUCell_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
+            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
             return;
         }
     }

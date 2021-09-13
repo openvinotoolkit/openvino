@@ -174,7 +174,7 @@ ov::descriptor::Input& ov::Node::get_input_descriptor(size_t position) {
 ov::descriptor::Output& ov::Node::get_output_descriptor(size_t position) {
     while (m_outputs.size() <= position) {
         size_t i = m_outputs.size();
-        auto tensor_descriptor = make_shared<descriptor::Tensor>(element::dynamic, Shape::dynamic(), this, i);
+        auto tensor_descriptor = make_shared<descriptor::Tensor>(element::dynamic, PartialShape::dynamic(), this, i);
         m_outputs.emplace_back(this, i, tensor_descriptor);
     }
     return m_outputs[position];
@@ -221,7 +221,7 @@ void ov::Node::set_input_is_relevant_to_value(size_t i, bool relevant) {
     m_inputs[i].m_is_relevant_to_value = relevant;
 }
 
-void ov::Node::set_output_type(size_t i, const element::Type& element_type, const Shape& pshape) {
+void ov::Node::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape) {
     get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
 }
 
@@ -502,7 +502,7 @@ const ov::StaticShape& ov::Node::get_output_shape(size_t i) const {
     return m_outputs[i].get_shape();
 }
 
-const ov::Shape& ov::Node::get_output_partial_shape(size_t i) const {
+const ov::PartialShape& ov::Node::get_output_partial_shape(size_t i) const {
     NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_partial_shape(size_t i)");
     return m_outputs[i].get_partial_shape();
 }
@@ -547,7 +547,7 @@ const ov::StaticShape& ov::Node::get_input_shape(size_t i) const {
     return m_inputs[i].get_shape();
 }
 
-const ov::Shape& ov::Node::get_input_partial_shape(size_t i) const {
+const ov::PartialShape& ov::Node::get_input_partial_shape(size_t i) const {
     NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_partial_shape(size_t i)");
     return m_inputs[i].get_partial_shape();
 }

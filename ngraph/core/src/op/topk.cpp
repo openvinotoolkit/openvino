@@ -201,12 +201,12 @@ void op::v1::TopK::validate_and_infer_types() {
         read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
     }
 
-    ov::Shape output_shape{input_partial_shape};
+    ov::PartialShape output_shape{input_partial_shape};
 
     if (output_shape.rank().is_static()) {
         m_normalized_axis = ngraph::normalize_axis(this, m_axis, output_shape.rank());
 
-        ov::Shape k_as_shape;
+        ov::PartialShape k_as_shape;
         if (evaluate_as_partial_shape(input_value(1), k_as_shape)) {
             if (k_as_shape.is_static()) {
                 output_shape[m_normalized_axis] = k_as_shape[0];
@@ -233,9 +233,9 @@ void op::v1::TopK::validate_and_infer_types() {
 }
 
 ov::StaticShape op::v1::TopK::compute_output_shape(const std::string& node_description,
-                                                   const ov::Shape input_partial_shape,
+                                                   const ov::PartialShape input_partial_shape,
                                                    const int64_t k) const {
-    ov::Shape output_shape{input_partial_shape};
+    ov::PartialShape output_shape{input_partial_shape};
 
     auto normalized_axis = ngraph::normalize_axis(node_description, m_axis, output_shape.rank());
     if (k != 0) {

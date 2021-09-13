@@ -100,7 +100,7 @@ public:
     const StaticShape& get_output_shape(size_t i) const;
 
     /// Return the partial shape of element i
-    const Shape& get_output_partial_shape(size_t i) const;
+    const PartialShape& get_output_partial_shape(size_t i) const;
 
     /// Check that there is a single result and return it.
     std::shared_ptr<ngraph::Node> get_result() const;

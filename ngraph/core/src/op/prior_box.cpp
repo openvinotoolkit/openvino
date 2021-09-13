@@ -63,7 +63,7 @@ void op::PriorBox::validate_and_infer_types() {
             element::f32,
             ov::StaticShape{2, 4 * layer_shape[0] * layer_shape[1] * static_cast<size_t>(number_of_priors(m_attrs))});
     } else {
-        set_output_type(0, element::f32, ov::Shape{2, Dimension::dynamic()});
+        set_output_type(0, element::f32, ov::PartialShape{2, Dimension::dynamic()});
     }
 }
 

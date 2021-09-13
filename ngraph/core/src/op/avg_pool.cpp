@@ -59,7 +59,7 @@ void ov::op::v1::AvgPool::validate_and_infer_types() {
         m_pads_end = StaticShape(m_kernel.size(), 0);
     }
 
-    const ov::Shape& arg_shape = get_input_partial_shape(0);
+    const ov::PartialShape& arg_shape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(
         this,
@@ -87,7 +87,7 @@ void ov::op::v1::AvgPool::validate_and_infer_types() {
                               m_kernel.size());
     }
 
-    auto output_shape = ov::Shape::dynamic();
+    auto output_shape = ov::PartialShape::dynamic();
     if (arg_shape.rank().is_static()) {
         output_shape = std::vector<Dimension>(arg_shape.rank().get_max_length(), Dimension::dynamic());
         if (arg_shape[0].is_static()) {

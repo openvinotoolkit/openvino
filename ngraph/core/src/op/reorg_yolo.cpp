@@ -50,7 +50,7 @@ void op::ReorgYolo::validate_and_infer_types() {
         }
         set_output_type(0, input_et, output_shape);
     } else {
-        set_output_type(0, input_et, ov::Shape::dynamic());
+        set_output_type(0, input_et, ov::PartialShape::dynamic());
     }
 }
 

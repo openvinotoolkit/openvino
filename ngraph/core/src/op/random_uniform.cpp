@@ -35,14 +35,14 @@ void op::v8::RandomUniform::validate_and_infer_types() {
                           shape_et.is_dynamic() || shape_et == element::i32 || shape_et == element::i64,
                           "Type of the input should be int32 or int64.");
 
-    ov::Shape output_shape = ov::Shape::dynamic();
+    ov::PartialShape output_shape = ov::PartialShape::dynamic();
     const auto& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,
                               input_shape.rank() == 1,
                               "The rank of the tensor defining output shape must be equal to 1.");
         if (const auto& const_shape = get_constant_from_source(input_value(0))) {
-            output_shape = ov::Shape(const_shape->cast_vector<int64_t>());
+            output_shape = ov::PartialShape(const_shape->cast_vector<int64_t>());
         }
     }
 

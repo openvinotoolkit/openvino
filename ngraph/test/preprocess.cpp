@@ -14,7 +14,7 @@ using namespace ov;
 using namespace ov::preprocess;
 using namespace ngraph::test;
 
-static std::shared_ptr<Function> create_simple_function(element::Type type, const Shape& shape) {
+static std::shared_ptr<Function> create_simple_function(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     auto res = std::make_shared<op::v0::Result>(data1);
@@ -22,7 +22,7 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     return std::make_shared<Function>(ResultVector{res}, ParameterVector{data1});
 }
 
-static std::shared_ptr<Function> create_2inputs(element::Type type, const Shape& shape) {
+static std::shared_ptr<Function> create_2inputs(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     auto data2 = std::make_shared<op::v0::Parameter>(type, shape);

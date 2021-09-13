@@ -90,7 +90,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types() {
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
-    ov::Shape out_shape = {Dimension::dynamic(), 3};
+    ov::PartialShape out_shape = {Dimension::dynamic(), 3};
 
     if (boxes_ps.is_dynamic() || scores_ps.is_dynamic()) {
         set_output_type(0, output_element_type, out_shape);
@@ -336,7 +336,7 @@ void op::v3::NonMaxSuppression::validate_and_infer_types() {
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
-    ov::Shape out_shape = {Dimension::dynamic(), 3};
+    ov::PartialShape out_shape = {Dimension::dynamic(), 3};
 
     validate();
 
@@ -450,7 +450,7 @@ void op::v4::NonMaxSuppression::validate_and_infer_types() {
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
-    ov::Shape out_shape = {Dimension::dynamic(), 3};
+    ov::PartialShape out_shape = {Dimension::dynamic(), 3};
 
     op::v3::NonMaxSuppression::validate();
 
@@ -609,7 +609,7 @@ inline bool is_float_type_admissible(const element::Type& t) {
     return t == element::f32 || t == element::f16 || t == element::bf16;
 }
 
-inline bool is_scalar_or_1d_tensor_with_1_element(const ov::Shape& p) {
+inline bool is_scalar_or_1d_tensor_with_1_element(const ov::PartialShape& p) {
     if (p.is_dynamic()) {
         return false;
     }
@@ -797,7 +797,7 @@ void op::v5::NonMaxSuppression::validate_and_infer_types() {
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
-    ov::Shape out_shape = {Dimension::dynamic(), 3};
+    ov::PartialShape out_shape = {Dimension::dynamic(), 3};
 
     validate();
 

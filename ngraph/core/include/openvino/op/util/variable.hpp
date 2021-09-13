@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-#include "openvino/core/shape.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -15,7 +15,7 @@ namespace ov {
 namespace op {
 namespace util {
 struct VariableInfo {
-    Shape data_shape;
+    PartialShape data_shape;
     element::Type data_type;
     std::string variable_id;
 

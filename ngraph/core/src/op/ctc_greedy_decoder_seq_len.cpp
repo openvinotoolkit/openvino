@@ -100,8 +100,8 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
         batch_size = seq_len_pshape[0] & logits_pshape[0];
     }
 
-    set_output_type(0, m_classes_index_type, ov::Shape{batch_size, time_size});
-    set_output_type(1, m_sequence_length_type, ov::Shape{batch_size});
+    set_output_type(0, m_classes_index_type, ov::PartialShape{batch_size, time_size});
+    set_output_type(1, m_sequence_length_type, ov::PartialShape{batch_size});
 }
 
 bool op::v6::CTCGreedyDecoderSeqLen::visit_attributes(AttributeVisitor& visitor) {

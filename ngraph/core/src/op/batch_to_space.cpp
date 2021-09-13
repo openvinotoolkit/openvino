@@ -57,16 +57,16 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
                           "block_shape and crops inputs must have integer element type. Got: ",
                           inputs_integer_et);
 
-    const ov::Shape& data_pshape = get_input_partial_shape(0);
-    const ov::Shape& block_shape_ps = get_input_partial_shape(1);
-    const ov::Shape& crops_begin_ps = get_input_partial_shape(2);
-    const ov::Shape& crops_end_ps = get_input_partial_shape(3);
+    const ov::PartialShape& data_pshape = get_input_partial_shape(0);
+    const ov::PartialShape& block_shape_ps = get_input_partial_shape(1);
+    const ov::PartialShape& crops_begin_ps = get_input_partial_shape(2);
+    const ov::PartialShape& crops_end_ps = get_input_partial_shape(3);
 
-    ov::Shape inputs_same_ps{ov::Shape::dynamic()};
+    ov::PartialShape inputs_same_ps{ov::PartialShape::dynamic()};
     NODE_VALIDATION_CHECK(this,
-                          ov::Shape::merge_into(inputs_same_ps, crops_begin_ps) &&
-                              ov::Shape::merge_into(inputs_same_ps, crops_end_ps) &&
-                              ov::Shape::merge_into(inputs_same_ps, block_shape_ps),
+                          ov::PartialShape::merge_into(inputs_same_ps, crops_begin_ps) &&
+                              ov::PartialShape::merge_into(inputs_same_ps, crops_end_ps) &&
+                              ov::PartialShape::merge_into(inputs_same_ps, block_shape_ps),
                           "block_shape, crops_begin and crops_end inputs must have the same shape. Got: ",
                           block_shape_ps,
                           ", ",
@@ -152,7 +152,7 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
         set_output_size(1);
         set_output_type(0, data_et, output_sshape);
     } else {
-        set_output_type(0, data_et, ov::Shape::dynamic(data_rank));
+        set_output_type(0, data_et, ov::PartialShape::dynamic(data_rank));
     }
 }
 

@@ -77,12 +77,12 @@ public:
     }
 
 protected:
-    bool update_auto_padding(const Shape& in_shape,
+    bool update_auto_padding(const PartialShape& in_shape,
                              const Strides& filter_dilations,
                              StaticShape& new_pads_end,
                              StaticShape& new_pads_begin) const;
 
-    Shape infer_output_shape(const Strides& dilations);
+    PartialShape infer_output_shape(const Strides& dilations);
 
     StaticShape m_kernel;
     Strides m_strides;

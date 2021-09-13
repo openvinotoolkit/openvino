@@ -103,7 +103,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                 out_shape[axis] = part_size;
                 body_parameter->set_partial_shape(out_shape);
             } else {
-                body_parameter->set_partial_shape(ov::Shape::dynamic(input_partial_shape.rank()));
+                body_parameter->set_partial_shape(ov::PartialShape::dynamic(input_partial_shape.rank()));
             }
         } else if (auto merged_input_description = ov::as_type_ptr<MergedInputDescription>(input_description)) {
             auto body_value = m_bodies[0]->get_results().at(merged_input_description->m_body_value_index)->input(0);
@@ -136,7 +136,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
 
         if (auto concat_output_description = ov::as_type_ptr<ConcatOutputDescription>(output_description)) {
             const auto& body_value_partial_shape = body_value.get_partial_shape();
-            set_output_type(index, body_value.get_element_type(), ov::Shape::dynamic());
+            set_output_type(index, body_value.get_element_type(), ov::PartialShape::dynamic());
             if (body_value_partial_shape.is_static()) {
                 auto body_value_shape = body_value_partial_shape.to_shape();
                 auto part_size = concat_output_description->m_part_size;
@@ -162,7 +162,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
             } else {
                 set_output_type(index,
                                 body_value.get_element_type(),
-                                ov::Shape::dynamic(body_value.get_partial_shape().rank()));
+                                ov::PartialShape::dynamic(body_value.get_partial_shape().rank()));
             }
         } else if (auto body_output_description = ov::as_type_ptr<BodyOutputDescription>(output_description)) {
             set_output_type(index, body_value.get_element_type(), body_value.get_partial_shape());
@@ -204,7 +204,7 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
     op->set_output_size(m_output_descriptions[0].size());
 
     std::vector<::ngraph::element::Type> types(m_bodies[0]->get_parameters().size());
-    std::vector<ov::Shape> new_shapes(m_bodies[0]->get_parameters().size());
+    std::vector<ov::PartialShape> new_shapes(m_bodies[0]->get_parameters().size());
 
     for (size_t input_index = 0; input_index < new_args.size(); ++input_index) {
         for (auto& input_description : m_input_descriptions[0]) {

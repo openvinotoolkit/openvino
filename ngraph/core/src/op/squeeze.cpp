@@ -78,7 +78,7 @@ void op::Squeeze::validate_and_infer_types() {
             }
         }
 
-        set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
+        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
         return;
     }
 
@@ -116,7 +116,7 @@ void op::Squeeze::validate_and_infer_types() {
             output_data_shape.push_back(data_partial_shape[idx]);
         }
     }
-    set_output_type(0, get_input_element_type(0), ov::Shape(output_data_shape));
+    set_output_type(0, get_input_element_type(0), ov::PartialShape(output_data_shape));
 }
 
 bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor) {

@@ -47,13 +47,13 @@ void op::v3::NonZero::validate_and_infer_types() {
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
     // For scalar non-zero value case, onnx test case expects output shape {1, 1}
-    const ov::Shape& input_shape = get_input_partial_shape(0);
+    const ov::PartialShape& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().compatible(0)) {
-        set_output_type(0, m_output_type, ov::Shape{Dimension::dynamic(), Dimension::dynamic()});
+        set_output_type(0, m_output_type, ov::PartialShape{Dimension::dynamic(), Dimension::dynamic()});
     } else {
         const Dimension dim =
             std::accumulate(begin(input_shape), end(input_shape), Dimension(0, 1), std::multiplies<Dimension>());
-        set_output_type(0, m_output_type, ov::Shape{input_shape.rank(), dim});
+        set_output_type(0, m_output_type, ov::PartialShape{input_shape.rank(), dim});
     }
 
     set_input_is_relevant_to_shape(0);

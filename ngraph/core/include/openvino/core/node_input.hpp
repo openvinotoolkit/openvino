@@ -10,7 +10,7 @@
 #include "ngraph/shape.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
-#include "openvino/core/shape.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/variant.hpp"
 
@@ -41,7 +41,7 @@ public:
     /// \return The shape of the input referred to by this input handle.
     const StaticShape& get_shape() const;
     /// \return The partial shape of the input referred to by this input handle.
-    const Shape& get_partial_shape() const;
+    const PartialShape& get_partial_shape() const;
     /// \return A handle to the output that is connected to this input.
     Output<Node> get_source_output() const;
     /// \return A reference to the tensor descriptor for this input.
@@ -92,7 +92,7 @@ public:
     /// \return The shape of the input referred to by this input handle.
     const StaticShape& get_shape() const;
     /// \return The partial shape of the input referred to by this input handle.
-    const Shape& get_partial_shape() const;
+    const PartialShape& get_partial_shape() const;
     /// \return A handle to the output that is connected to this input.
     Output<Node> get_source_output() const;
     /// \return A reference to the tensor descriptor for this input.

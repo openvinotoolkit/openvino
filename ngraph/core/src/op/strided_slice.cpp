@@ -173,7 +173,7 @@ void op::v1::StridedSlice::validate_and_infer_types() {
                                           convert_mask_to_axis_set(get_shrink_axis_mask()),
                                           convert_mask_to_axis_set(get_ellipsis_mask())));
     } else {
-        set_output_type(0, get_input_element_type(0), ov::Shape::dynamic(data_rank));
+        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(data_rank));
     }
 }
 
