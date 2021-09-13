@@ -5,14 +5,12 @@
 #ifndef SWAP_INPUT_MATMUL_GNA_HPP
 #define SWAP_INPUT_MATMUL_GNA_HPP
 
-//#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace GNAPluginNS {
 // @brief Swaps and transposes inputs of MatMul if
 // 1. its first input is const and its batch size isn't supported by GNA
-// 2. its first input non-const and its batch size isn't supported by GNA
-// 3. its second input is const and its input batch size less than or equal to 8
+// 2. its first input is non-const and its batch size isn't supported by GNA
 class SwapInputMatMul: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;

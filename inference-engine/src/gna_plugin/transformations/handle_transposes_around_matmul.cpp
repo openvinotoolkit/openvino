@@ -74,24 +74,39 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
     auto reshape = ngraph::pattern::wrap_type<ngraph::opset8::Reshape>({}, VerifyReshape);
     auto transpose = ngraph::pattern::wrap_type<ngraph::opset8::Transpose>({reshape,
         ngraph::pattern::any_input()});
-    auto matmul_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{reshape, transpose, constant, fq});
-    auto matmul = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({matmul_input, ngraph::pattern::any_input()});
+    auto matmul1 = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{reshape, transpose}),
+        ngraph::pattern::any_input()});
+    auto matmul2 = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{constant, fq}),
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{reshape, transpose, ngraph::pattern::any_input()})});
+    auto matmul = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{matmul1, matmul2});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &matcher) {
         const auto& pattern_map = matcher.get_pattern_value_map();
-        auto transpose_it = pattern_map.find(transpose);
-        if (transpose_it != std::end(pattern_map)) {
-            ReplaceTransposeWithReshape(transpose_it->second.get_node_shared_ptr());
-        } else {
-            auto iter = pattern_map.find(reshape);
-            if (iter == pattern_map.end() &&
-                (iter = pattern_map.find(fq)) == pattern_map.end() &&
-                (iter = pattern_map.find(constant)) == pattern_map.end()) {
-                return false;
+        auto matmul_iter = pattern_map.find(matmul1);
+        if (matmul_iter == std::end(pattern_map) &&
+            (matmul_iter = pattern_map.find(matmul2)) == std::end(pattern_map)) {
+            return false;
+        }
+
+        auto transpose_reshape_it = pattern_map.find(transpose);
+        if (transpose_reshape_it != std::end(pattern_map)) {
+            ReplaceTransposeWithReshape(transpose_reshape_it->second.get_node_shared_ptr());
+        } else if ((transpose_reshape_it = pattern_map.find(reshape)) != std::end(pattern_map)) {
+            auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
+            if (GNALimitations::IsTransposeSupported(reshape_node->get_output_shape(0))) {
+                auto matmul_node = matmul_iter->second.get_node_shared_ptr();
+                InsertTranspose(reshape_node, matmul_node->get_friendly_name());
             }
+        }
+
+        auto iter = pattern_map.find(fq);
+        if (iter != pattern_map.end() ||
+            (iter = pattern_map.find(constant)) != pattern_map.end()) {
             auto prev_node = iter->second.get_node_shared_ptr();
             if (!GNALimitations::IsTransposeSupported(prev_node->get_output_shape(0))) return false;
-            auto matmul_node = pattern_map.at(matmul).get_node_shared_ptr();
+            auto matmul_node = iter->second.get_node_shared_ptr();
             InsertTranspose(prev_node, matmul_node->get_friendly_name());
         }
         return true;
