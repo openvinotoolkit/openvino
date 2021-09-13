@@ -354,9 +354,15 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
 
         travel_direction_wrapper<dir>::first(in_layout, out_layout).format = fmt;
 
+        // When the input is fed into different convolutions, create separate cache entry
+        bool needs_split_reorder = false;
+        if (node->is_type<convolution>())
+            needs_split_reorder = node->as<convolution>().get_primitive()->needs_onednn_bfyx_to_fsv16(in_layout.format, out_layout.format,
+                                                                                                      in_layout, current_layout);
+
         auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
                                            in_layout,
-                                           out_layout);
+                                           out_layout, needs_split_reorder);
         auto reorder = reorder_pair.first;
 
         if (reorder) {

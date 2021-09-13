@@ -787,6 +787,16 @@ struct convolution : public primitive_base<convolution> {
     /// @brief On how many cards split the computation to.
     int32_t split() const { return static_cast<int32_t>(weights.size()); }
 
+    /// @brief Check if this convolution needs mixed format execution
+    bool needs_onednn_bfyx_to_fsv16(format fmt_prev, format fmt_next, layout& prev_output_layout, layout& next_output_layout) const {
+        if (fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16 &&
+            next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] <= 4 && prev_output_layout.size.feature[0] >= 2 &&
+            activations_zero_points.empty() && weights_zero_points.empty())
+            return true;
+
+        return false;
+    }
+
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.reserve(weights.size() + bias.size() + weights_zero_points.size() +

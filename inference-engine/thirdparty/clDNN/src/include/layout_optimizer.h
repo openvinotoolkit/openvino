@@ -50,7 +50,8 @@ public:
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
     std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
                                                           const layout& in_layout,
-                                                          const layout& out_layout);
+                                                          const layout& out_layout,
+                                                          bool needs_split_reorder = false);
 
     std::vector<std::pair<std::shared_ptr<primitive>, bool>> get_weights_reorder(
         primitive_id input_id,
@@ -61,9 +62,11 @@ private:
     struct cache_key {
         primitive_id data_source;
         layout expected_layout;
+        bool   needs_split_reorder;
 
         friend bool operator==(cache_key const& lhs, cache_key const& rhs) {
-            return lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout;
+            return lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
+                    lhs.needs_split_reorder == rhs.needs_split_reorder;
         }
 
         friend bool operator!=(cache_key const& lhs, cache_key const& rhs) { return !(lhs == rhs); }
@@ -71,7 +74,9 @@ private:
         friend bool operator<(cache_key const& lhs, cache_key const& rhs) {
             if (lhs.data_source != rhs.data_source)
                 return (lhs.data_source < rhs.data_source);
-            return lhs.expected_layout < rhs.expected_layout;
+            else if (lhs.expected_layout != rhs.expected_layout)
+                return (lhs.expected_layout < rhs.expected_layout);
+            return lhs.needs_split_reorder < rhs.needs_split_reorder;
         }
     };
 

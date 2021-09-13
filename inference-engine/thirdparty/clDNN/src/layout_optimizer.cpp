@@ -26,12 +26,13 @@ using namespace cldnn;
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
                                                                        const layout& in_layout,
-                                                                       const layout& out_layout
+                                                                       const layout& out_layout,
+                                                                       bool needs_split_reorder
 ) {
     if (in_layout == out_layout)
         return std::make_pair(nullptr, true);
 
-    cache_key ckey{ src_id, out_layout };
+    cache_key ckey{ src_id, out_layout, needs_split_reorder };
     auto itr = _cached_reorders.find(ckey);
     if (itr != _cached_reorders.end())
         return std::make_pair(itr->second, true);
@@ -75,7 +76,7 @@ std::vector<std::pair<std::shared_ptr<primitive>, bool>> reorder_factory::get_we
 
     layout expected_layout = from_weights_tensor(reorder_params.dest);
 
-    cache_key ckey{ input_id, expected_layout };
+    cache_key ckey{ input_id, expected_layout, false };
     auto itr = _cached_generic_reorders.find(ckey);
     if (itr != _cached_generic_reorders.end()) {
         ret.push_back(std::make_pair(itr->second, true));
@@ -134,8 +135,17 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return false;
     };
 
-    if (next.is_type<reorder>())
+    if (next.is_type<reorder>()) {
+        if (next.get_users().size() == 1 && next.get_users().front()->is_type<convolution>()) {
+            auto& conv = next.get_users().front()->as<convolution>();
+            auto reorder_input_layout = next.get_dependencies().front()->get_output_layout();
+            auto conv_output_layout = conv.get_output_layout();
+            if (conv.get_primitive()->needs_onednn_bfyx_to_fsv16(reorder_input_layout.format, conv_output_layout.format,
+                                                                 next_output_layout, conv_output_layout))
+                return false;
+        }
         return true;
+    }
 
     if (next.is_type<pooling>() &&
         ((prev_simple && next_simple) ||
