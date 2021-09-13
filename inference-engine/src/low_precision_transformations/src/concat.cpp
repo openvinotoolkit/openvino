@@ -182,22 +182,45 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    const auto axis = concat->get_axis();
-    const auto outPShape = concat->get_output_partial_shape(0);
-    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outPShape.rank());
+    const auto& axis = concat->get_axis();
+    const auto& outPShape = concat->get_output_partial_shape(0);
+    const auto& outRank = outPShape.rank();
+    if (outRank.is_dynamic()) {
+        return false;
+    }
+
+    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outRank);
 
     if (normalizedAxis != 1ul) {
         return false;
     }
 
-    if (outPShape.rank().is_dynamic() || outPShape[normalizedAxis].is_dynamic()) {
+    if (outPShape[normalizedAxis].is_dynamic()) {
         return false;
     }
+
+    auto checkConstShape = [&normalizedAxis, &outRank](const std::shared_ptr<opset1::Constant>& constant) {
+        const size_t rankValue = outRank.get_length();
+        Shape constantShape = constant->get_shape();
+
+        while (constantShape.size() < rankValue) {
+            constantShape.insert(constantShape.begin(), 1ul);
+        }
+
+        const auto dqDimensionsCount = std::count_if(constantShape.begin(), constantShape.end(), [](size_t elem) { return elem > 1; });
+        const bool dqOnlyByConcatAxis = (dqDimensionsCount == 0) || (dqDimensionsCount == 1 && constantShape[normalizedAxis] != 1ul);
+        return dqOnlyByConcatAxis;
+    };
 
     element::Type precision;
     for (size_t i = 0ul; i < concat->get_input_size(); i++) {
         const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, i);
         if (dequantization.empty() || (updatePrecisions && !dequantization.isLowPrecision())) {
+            return false;
+        }
+
+        if (((dequantization.subtract != nullptr) && (!checkConstShape(dequantization.subtractConstant))) ||
+            ((dequantization.multiply != nullptr) && (!checkConstShape(dequantization.multiplyConstant)))) {
             return false;
         }
 
