@@ -62,7 +62,6 @@
         "custom_attributes": {
             "clip_before_nms": true,
             "clip_after_nms": false,
-            "coordinates_swap_method": "add_convolution",
             "swap_proposals": true
         },
         "id": "ObjectDetectionAPIDetectionOutputReplacement",

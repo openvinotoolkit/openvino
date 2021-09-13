@@ -40,7 +40,7 @@ typedef std::tuple<
 class ConvolutionBackpropLayerTest : public testing::WithParamInterface<convBackpropLayerTestParamsSet>,
                                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<convBackpropLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<convBackpropLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

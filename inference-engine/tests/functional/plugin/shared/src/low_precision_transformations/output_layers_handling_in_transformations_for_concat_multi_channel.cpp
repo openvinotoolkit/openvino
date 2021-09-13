@@ -29,7 +29,7 @@ std::pair<float, float> outputLayersHandlingInTransformationsForConcatMultiChann
 }
 
 std::string OutputLayersHandlingInTransformationsForConcatMultiChannel::getTestCaseName(
-    testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
+    const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;

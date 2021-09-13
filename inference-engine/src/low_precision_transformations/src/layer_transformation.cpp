@@ -171,11 +171,14 @@ std::stringstream toStream(const std::vector<float>& dequantizationValues) {
 }
 
 void LayerTransformation::printDequantizationInfo(const std::shared_ptr<Node>& layer) {
-    const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(ov::as_type_ptr<opset1::FakeQuantize>(layer));
-    std::cout <<
-        layer->get_type_name() << (NetworkHelper::isConstantPath(layer) ? " on weights " : " on activations ") <<
-        layer->get_friendly_name() << ":" << std::endl <<
-        "   details  : " << quantizationDetails << std::endl;
+    auto fq = as_type_ptr<opset1::FakeQuantize>(layer);
+    if (fq) {
+        const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(ov::as_type_ptr<opset1::FakeQuantize>(layer));
+        std::cout <<
+            layer->get_type_name() << (NetworkHelper::isConstantPath(layer) ? " on weights " : " on activations ") <<
+            layer->get_friendly_name() << ":" << std::endl <<
+            "   details  : " << quantizationDetails << std::endl;
+    }
 }
 
 void LayerTransformation::printDequantizationInfo(const DataPrecision& dataPrecision) {

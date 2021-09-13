@@ -10,47 +10,8 @@
 
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/ngraph_visibility.hpp"
+#include "openvino/core/strides.hpp"
 
 namespace ngraph {
-/// \brief Strides for a tensor.
-class Strides : public std::vector<size_t> {
-public:
-    NGRAPH_API Strides();
-
-    NGRAPH_API Strides(const std::initializer_list<size_t>& axis_strides);
-
-    NGRAPH_API Strides(const std::vector<size_t>& axis_strides);
-
-    NGRAPH_API Strides(const Strides& axis_strides);
-
-    NGRAPH_API explicit Strides(size_t n, size_t initial_value = 0);
-
-    template <class InputIterator>
-    Strides(InputIterator first, InputIterator last) : std::vector<size_t>(first, last) {}
-
-    NGRAPH_API Strides& operator=(const Strides& v);
-
-    NGRAPH_API Strides& operator=(Strides&& v) noexcept;
-};
-
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const Strides& strides);
+using ov::Strides;
 }  // namespace ngraph
-
-namespace ov {
-
-template <>
-class NGRAPH_API AttributeAdapter<ngraph::Strides>
-    : public IndirectVectorValueAccessor<ngraph::Strides, std::vector<int64_t>>
-
-{
-public:
-    AttributeAdapter(ngraph::Strides& value)
-        : IndirectVectorValueAccessor<ngraph::Strides, std::vector<int64_t>>(value) {}
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Strides>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
-}  // namespace ov
