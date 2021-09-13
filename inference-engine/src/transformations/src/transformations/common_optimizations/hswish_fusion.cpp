@@ -148,25 +148,25 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithClampMul, "HSwishFusionWith
 ngraph::pass::HSwishFusionWithClampMul::HSwishFusionWithClampMul() {
     MATCHER_SCOPE(HSwishFusionWithClampMul);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) * x) with a HSwish * 6.
-    auto input = ngraph::pattern::any_input();
-    auto add_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({input, add_constant});
-    auto clamp = ngraph::pattern::wrap_type<ngraph::op::v0::Clamp>({add});
-    auto mul = ngraph::pattern::wrap_type<ngraph::opset7::Multiply>({clamp, input});
+    const auto input = ngraph::pattern::any_input();
+    const auto add_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    const auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({input, add_constant});
+    const auto clamp = ngraph::pattern::wrap_type<ngraph::op::v0::Clamp>({add});
+    const auto mul = ngraph::pattern::wrap_type<ngraph::opset7::Multiply>({clamp, input});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
-        auto x_output = pattern_to_output.at(input);
+        const auto &pattern_to_output = m.get_pattern_value_map();
+        const auto x_output = pattern_to_output.at(input);
 
-        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        const auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = op::util::has_constant_value(add_const_value, 3.0);
+        const bool valid_constant_values = op::util::has_constant_value(add_const_value, 3.0);
 
         if (!valid_constant_values) {
             return false;
         }
 
-        auto clamp_node = std::dynamic_pointer_cast<ngraph::opset7::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
+        const auto clamp_node = std::dynamic_pointer_cast<ngraph::opset7::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
         if (!clamp_node || clamp_node->get_min() != 0 || clamp_node->get_max() != 6)
             return false;
 
