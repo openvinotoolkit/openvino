@@ -13,9 +13,7 @@ using namespace ngraph;
 
 // ------------------------------ V0 ------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v0::MVN, "MVN", 0);
-
-op::v0::MVN::MVN() : Op(), m_across_channels(), m_normalize_variance(), m_reduction_axes() {}
+OPENVINO_RTTI_DEFINITION(op::v0::MVN, "MVN", 0);
 
 op::v0::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
     : Op({data}),
@@ -72,23 +70,24 @@ bool op::v0::MVN::visit_attributes(AttributeVisitor& visitor) {
 
 // ------------------------------ V6 ------------------------------
 
-namespace ngraph {
+namespace ov {
 template <>
-NGRAPH_API EnumNames<op::MVNEpsMode>& EnumNames<op::MVNEpsMode>::get() {
-    static auto enum_names = EnumNames<op::MVNEpsMode>(
+NGRAPH_API EnumNames<ngraph::op::MVNEpsMode>& EnumNames<ngraph::op::MVNEpsMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::MVNEpsMode>(
         "op::MVNEpsMode",
-        {{"OUTSIDE_SQRT", op::MVNEpsMode::OUTSIDE_SQRT}, {"INSIDE_SQRT", op::MVNEpsMode::INSIDE_SQRT}});
+        {{"OUTSIDE_SQRT", ngraph::op::MVNEpsMode::OUTSIDE_SQRT}, {"INSIDE_SQRT", ngraph::op::MVNEpsMode::INSIDE_SQRT}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::MVNEpsMode>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::MVNEpsMode>::type_info;
 
-std::ostream& op::operator<<(std::ostream& s, const op::MVNEpsMode& type) {
+}  // namespace ov
+
+std::ostream& ov::op::operator<<(std::ostream& s, const ngraph::op::MVNEpsMode& type) {
     return s << as_string(type);
 }
-}  // namespace ngraph
 
-NGRAPH_RTTI_DEFINITION(op::v6::MVN, "MVN", 6);
+OPENVINO_RTTI_DEFINITION(op::v6::MVN, "MVN", 6);
 
 op::v6::MVN::MVN(const Output<Node>& data,
                  const Output<Node>& reduction_axes,

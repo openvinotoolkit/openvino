@@ -390,8 +390,7 @@ TEST_P(InferRequestTests, CorrectOneAsyncInferWithGetInOutWithInfWait) {
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+    InferenceEngine::Blob::Ptr blob;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     req.Infer();

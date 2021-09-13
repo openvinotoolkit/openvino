@@ -12,7 +12,7 @@ using namespace ngraph;
 
 // ------------------------------ V6 ------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v6::GatherElements, "GatherElements", 6);
+OPENVINO_RTTI_DEFINITION(op::v6::GatherElements, "GatherElements", 6);
 
 op::v6::GatherElements::GatherElements(const Output<Node>& data, const Output<Node>& indices, const int64_t axis)
     : Op({data, indices}),
@@ -54,7 +54,7 @@ void op::v6::GatherElements::validate_and_infer_types() {
                           "indices rank must be >= 1.");
 
     if (data_rank.is_static() && indices_rank.is_dynamic()) {
-        PartialShape out_shape_info(data_pshape);
+        ov::Shape out_shape_info(data_pshape);
         out_shape_info[axis] = Dimension::dynamic();
         set_output_type(0, data_type, out_shape_info);
         return;
@@ -62,7 +62,7 @@ void op::v6::GatherElements::validate_and_infer_types() {
 
     if (data_rank.is_dynamic()) {
         if (indices_rank.is_dynamic())
-            set_output_type(0, data_type, PartialShape::dynamic());
+            set_output_type(0, data_type, ov::Shape::dynamic());
         return;
     }
 
@@ -74,7 +74,7 @@ void op::v6::GatherElements::validate_and_infer_types() {
                           " and ",
                           indices_rank.get_length());
 
-    PartialShape output_pshape(indices_pshape);
+    ov::Shape output_pshape(indices_pshape);
     for (int i = 0; i < indices_rank.get_length(); i++) {
         if (i != axis) {
             // if size of the current dimension of indices is unknown it will be retrieved from data

@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionBackpropLayerTest::getTestCaseName(testing::TestParamInfo<convBackpropLayerTestParamsSet> obj) {
+std::string ConvolutionBackpropLayerTest::getTestCaseName(const testing::TestParamInfo<convBackpropLayerTestParamsSet>& obj) {
     convBackpropSpecificParams convBackpropDataParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;

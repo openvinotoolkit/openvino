@@ -3,14 +3,17 @@
 //
 
 /**
- * @brief This is a header file for the OpenVINO Runtime common aliases that depend only from external API
+ * @brief This is a header file for the OpenVINO Runtime common aliases and data types
  *
  * @file openvino/runtime/common.hpp
  */
 #pragma once
 
+#include <chrono>
 #include <map>
 #include <string>
+
+namespace InferenceEngine {}
 
 namespace ov {
 namespace ie = InferenceEngine;

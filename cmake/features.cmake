@@ -98,8 +98,6 @@ ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS
 
 ie_dependent_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON "NOT MINGW" OFF)
 
-ie_dependent_option (ENABLE_SPEECH_DEMO "enable speech demo integration" ON "NOT APPLE;NOT ANDROID;X86_64" OFF)
-
 ie_option (ENABLE_OPENCV "enables OpenCV" ON)
 
 ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
@@ -124,6 +122,7 @@ endif()
 
 ie_dependent_option(NGRAPH_ONNX_FRONTEND_ENABLE "Enable ONNX FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
+ie_option(IR_FRONTEND_ENABLE "Enable IR FrontEnd" ON)
 ie_dependent_option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" ON
     "NGRAPH_ONNX_FRONTEND_ENABLE" OFF)
 ie_dependent_option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system protobuf" OFF
@@ -131,8 +130,8 @@ ie_dependent_option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system protobuf" OFF
 ie_dependent_option(NGRAPH_UNIT_TEST_ENABLE "Enables ngraph unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)
 ie_dependent_option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of unit tests using backends" ON
     "NGRAPH_UNIT_TEST_ENABLE" OFF)
-option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
-option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON)
+ie_option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
+ie_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON)
 
 # WA for ngraph python build on Windows debug
 list(REMOVE_ITEM IE_OPTIONS NGRAPH_UNIT_TEST_ENABLE NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
