@@ -29,7 +29,7 @@ class ClampTransformation :
     public testing::WithParamInterface<ClampTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ClampTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ClampTransformationParams>& obj);
 protected:
     void SetUp() override;
 };
