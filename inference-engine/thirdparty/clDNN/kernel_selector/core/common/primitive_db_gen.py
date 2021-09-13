@@ -122,11 +122,11 @@ class OpenCL2CHeaders(object):
             len_str2 = 1
         return potential_macro_user_exist, (len_str1 + len_str2 + 4)
 
-    def found_potential_macro_user(self, macro, start_idx, contents_list):
-        for line in contents_list[start_idx : -1]:
-            if line.find(macro) > 0:
+    def found_potential_macro_user(self, macro, contents_list):
+        for line in contents_list:
+            if line.find(macro) >= 0:
                 return True
-            if line.find("CAT") > 0:
+            if line.find("CAT") >= 0:
                 words = ' '.join(re.split("(\W)", line)).split()
                 iter_w = 0
                 while iter_w < len(words):
@@ -147,11 +147,12 @@ class OpenCL2CHeaders(object):
             line = contents_list[idx]
             is_macro = re.search('#\s*define', line)
             macro = ""
+
             if is_macro:
                 words = ' '.join(re.split("(\W)", line)).split()
-                macro = words[2]
+                macro = words[words.index("define") + 1]
 
-            if len(macro) == 0 or self.found_potential_macro_user(macro, idx + 1, contents_list):
+            if len(macro) == 0 or self.found_potential_macro_user(macro, contents_list):
                 new_contents += (line.rstrip() + "\n")
                 idx += 1
             else:
