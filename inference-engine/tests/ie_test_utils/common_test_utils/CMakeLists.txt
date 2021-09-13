@@ -19,6 +19,8 @@ function(add_common_utils ADD_TARGET_NAME)
                     gtest
                     gtest_main
                     inference_engine_transformations
+                PRIVATE
+                    openvino::util
     )
 
     # USE_STATIC_IE is passed

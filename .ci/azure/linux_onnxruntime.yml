@@ -94,7 +94,7 @@ jobs:
         -DENABLE_PROFILING_ITT=OFF
         -DENABLE_SAMPLES=OFF
         -DNGRAPH_ONNX_FRONTEND_ENABLE=ON
-        -DNGRAPH_DEBUG_ENABLE=OFF
+        -DOPENVINO_DEBUG_ENABLE=OFF
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 

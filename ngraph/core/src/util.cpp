@@ -21,6 +21,7 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/util/common_util.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
@@ -61,54 +62,19 @@ void ngraph::dump(ostream& out, const void* _data, size_t _size) {
 }
 
 std::string ngraph::to_lower(const std::string& s) {
-    std::string rc = s;
-    std::transform(rc.begin(), rc.end(), rc.begin(), ::tolower);
-    return rc;
+    return ov::util::to_lower(s);
 }
 
 std::string ngraph::to_upper(const std::string& s) {
-    std::string rc = s;
-    std::transform(rc.begin(), rc.end(), rc.begin(), ::toupper);
-    return rc;
+    return ov::util::to_upper(s);
 }
 
 string ngraph::trim(const string& s) {
-    string rc = s;
-    // trim trailing spaces
-    size_t pos = rc.find_last_not_of(" \t");
-    if (string::npos != pos) {
-        rc = rc.substr(0, pos + 1);
-    }
-
-    // trim leading spaces
-    pos = rc.find_first_not_of(" \t");
-    if (string::npos != pos) {
-        rc = rc.substr(pos);
-    }
-    return rc;
+    return ov::util::trim(s);
 }
 
 vector<string> ngraph::split(const string& src, char delimiter, bool do_trim) {
-    size_t pos;
-    string token;
-    size_t start = 0;
-    vector<string> rc;
-    while ((pos = src.find(delimiter, start)) != std::string::npos) {
-        token = src.substr(start, pos - start);
-        start = pos + 1;
-        if (do_trim) {
-            token = trim(token);
-        }
-        rc.push_back(token);
-    }
-    if (start <= src.size()) {
-        token = src.substr(start);
-        if (do_trim) {
-            token = trim(token);
-        }
-        rc.push_back(token);
-    }
-    return rc;
+    return ov::util::split(src, delimiter, do_trim);
 }
 
 size_t ngraph::hash_combine(const std::vector<size_t>& list) {
