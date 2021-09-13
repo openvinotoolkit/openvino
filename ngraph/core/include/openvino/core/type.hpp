@@ -68,23 +68,22 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
 /// Type*/shared_ptr<Type>
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename Type, typename Value>
 typename std::enable_if<
-    std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
-                        bool>::value &&
-        ngraph::HasTypeInfoMember<Type>::value,
+    ngraph::HasTypeInfoMember<Type>::value &&
+        std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::type_info)), bool>::value,
     bool>::type
 is_type(Value value) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     return value->get_type_info().is_castable(Type::type_info);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename Type, typename Value>
 typename std::enable_if<
-    std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
-                        bool>::value &&
-        !ngraph::HasTypeInfoMember<Type>::value,
+    !ngraph::HasTypeInfoMember<Type>::value &&
+        std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
+                            bool>::value,
     bool>::type
 is_type(Value value) {
     return value->get_type_info().is_castable(Type::get_type_info_static());
