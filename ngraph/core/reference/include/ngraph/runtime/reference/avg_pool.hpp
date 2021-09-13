@@ -215,15 +215,11 @@ void avg_pool(const T* arg,
             }
         }
 
-        if (n_elements == 0) {
-            throw std::runtime_error("AvgPool elements == 0, must be non-zero");
-        }
-
         if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value) {
             out[output_transform.index(out_coord)] =
                 static_cast<T>(std::nearbyint(static_cast<float>(result) / n_elements));
         } else {
-            out[output_transform.index(out_coord)] = result / n_elements;
+            out[output_transform.index(out_coord)] = n_elements != 0 ? result / n_elements : static_cast<T>(0);
         }
         std::fesetround(old_mode);
     }
