@@ -29,8 +29,6 @@ The function returns list of available devices, for example:
 ```
 MYRIAD.1.2-ma2480
 MYRIAD.1.4-ma2480
-FPGA.0
-FPGA.1
 CPU
 GPU.0
 GPU.1
