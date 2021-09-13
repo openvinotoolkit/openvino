@@ -12,11 +12,13 @@
 The generation algorithm is based on underlying random integer generator that uses Philox algorithm. Philox algorithm 
 is a counter-based pseudo-random generator, which produces uint32 values. Single invocation of Philox algorithm returns 
 four result random values, depending on the given *key* and *counter* values. *Key* and *counter* are initialized 
-with *seed* and *seed2* attributes respectively.
+with *global_seed* and *op_seed* attributes respectively.
+
+If both seed values equal to zero, RandomUniform generates non-deterministic sequence.
 
 \f[
-key = seed\\
-counter = seed2
+key = global_seed\\
+counter = op_seed
 \f]
 
 Link to the original paper [Parallel Random Numbers: As Easy as 1, 2, 3](https://www.thesalmons.org/john/random123/papers/random123sc11.pdf)
@@ -130,7 +132,7 @@ result = x \mod (maxval - minval) + minval,
 where *x* is uint32 random value.
 
 
-Example 1. *RandomUniform* output with `seed` = 150, `seed2` = 10, `output_type` = f32:
+Example 1. *RandomUniform* output with `global_seed` = 150, `op_seed` = 10, `output_type` = f32:
 
 ``` 
 input_shape    = [ 3, 3 ]
@@ -139,7 +141,7 @@ output  = [[0.7011236  0.30539632 0.93931055]
           [0.5197197   0.22727466 0.991374  ]]
 ```
 
-Example 2. *RandomUniform* output with `seed` = 80, `seed2` = 100, `output_type` = double:
+Example 2. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `output_type` = double:
 
 ``` 
 input_shape    = [ 2, 2 ]
@@ -152,7 +154,7 @@ output  = [[5.65927959 4.23122376]
           [2.67008206 2.36423758]]
 ```
 
-Example 3. *RandomUniform* output with `seed` = 80, `seed2` = 100, `output_type` = i32:
+Example 3. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `output_type` = i32:
 
 ``` 
 input_shape    = [ 2, 3 ]
@@ -175,18 +177,20 @@ output  = [[65 70 56]
     * **Type**: string
     * **Required**: *Yes*
 
-* *seed*
+* *global_seed*
 
     * **Description**: global seed value.
     * **Range of values**: positive integers
     * **Type**: `int`
+    * **Default value**: 0
     * **Required**: *Yes*
 
-* *seed2*
+* *op_seed*
 
     * **Description**: operational seed value.
     * **Range of values**: positive integers
     * **Type**: `int`
+    * **Default value**: 0
     * **Required**: *Yes*
 
 **Inputs**:
@@ -212,7 +216,7 @@ output  = [[65 70 56]
 
 ```xml
 <layer ... name="RandomUniform" type="RandomUniform">
-    <data output_type="f32" seed="234" seed2="148"/>
+    <data output_type="f32" global_seed="234" op_seed="148"/>
     <input>
         <port id="0" precision="I32">  <!-- shape value: [2, 3, 10] -->
             <dim>3</dim>
