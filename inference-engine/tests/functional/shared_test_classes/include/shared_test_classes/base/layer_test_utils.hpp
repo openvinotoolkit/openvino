@@ -97,6 +97,8 @@ public:
 
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
+        Compare(expected, actual, size, threshold, -1);
+/*
         // Only use relative threshold for legacy call
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
@@ -119,6 +121,7 @@ public:
                            << " failed";
             }
         }
+*/        
     }
 
     template<class T_IE, class T_NGRAPH>
@@ -126,31 +129,58 @@ public:
         if ((threshold < 0) && (absThreshold < 0)) {
             IE_THROW() << "Both relative threshold and absolute threshold aren't set properly";
         }
+        std::vector<double> absoluteDifferences;
+        std::vector<double> relativeDifferences;
+        int absoluteErrorCount = 0;
+        int relativeErrorCount = 0;
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
-            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
-            if ((absoluteDifference > absThreshold) && (absThreshold >= 0)) {
-                IE_THROW() << "Absolute comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
-                           << " at index " << i << " with threshold " << absThreshold
-                           << " failed";
+            const float diff = static_cast<float>(CommonTestUtils::ie_abs(res - ref));
+
+            absoluteDifferences.push_back(diff);
+
+            if (absThreshold >= 0) {
+                if (diff > absThreshold)
+                    absoluteErrorCount++;
             }
-            double max;
-            if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
-                max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
-            } else {
-                max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
+
+            if (threshold >= 0) {
+                double max;
+                double relDiff;
+                if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
+                    max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
+                } else {
+                    max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
+                }
+
+                if (max == 0) {
+                    relativeDifferences.push_back(0); // only both res and ref are 0
+                } else {
+                    relDiff = (diff / max);
+                    relativeDifferences.push_back(relDiff);
+                }
+
+                if (relDiff > static_cast<float>(threshold))
+                    relativeErrorCount++;
+
+                if (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref))) {
+                    IE_THROW() << "One of return values is NaN.  Expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                            << " at index " << i << " failed";
+                }
             }
-            double diff = static_cast<float>(absoluteDifference) / max;
-            if (max == 0) {
-                continue; // only both res and ref are 0
-            }
-            if (((diff > static_cast<float>(threshold)) ||
-                (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref)))) && (threshold >= 0)) {
-                IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
-                           << " at index " << i << " with threshold " << threshold
-                           << " failed";
-            }
+        }
+
+        if ((absoluteErrorCount > 0) || (relativeErrorCount > 0)) {
+            double relDiffMean = std::accumulate(relativeDifferences.begin(), relativeDifferences.end(), 0.0)/relativeDifferences.size();
+            double relDiffMax = *std::max_element(relativeDifferences.begin(), relativeDifferences.end());
+            double absDiffMean = std::accumulate(absoluteDifferences.begin(), absoluteDifferences.end(), 0.0)/absoluteDifferences.size();
+            double absDiffMax = *std::max_element(absoluteDifferences.begin(), absoluteDifferences.end());
+
+            IE_THROW() << "Relative comparison diff tensor mean: " << relDiffMean << ", max: " << relDiffMax << ", # failure(" << relativeErrorCount
+                       << "/" << relativeDifferences.size() << "), "
+                       << "Absolute comparison diff tensor mean: " << absDiffMean << ", max: " << absDiffMax << ", # failure(" << absoluteErrorCount
+                       << "/" << absoluteDifferences.size() << ")\n";
         }
     }
 
