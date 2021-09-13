@@ -2,8 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
+
 import numpy as np
+
 from extensions.ops.space_to_depth import SpaceToDepth
+from mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
@@ -18,6 +21,7 @@ edges = [
     ('in_data_node', 'StD'),
     ('StD', 'out_data_node')
 ]
+
 
 class TestSpaceToDepthPartialInfer(unittest.TestCase):
     def test_tf_space_to_depth_infer_nhwc(self):
@@ -38,6 +42,16 @@ class TestSpaceToDepthPartialInfer(unittest.TestCase):
         exp_shape = np.array([1, 256, 1024, 576])
         res_shape = graph.node['out_data_node']['shape']
         self.assertTrue(np.array_equal(exp_shape, res_shape))
+
+    def test_tf_space_to_depth_infer_nchw_dynamic(self):
+        graph = build_graph(nodes, edges)
+        graph.graph['layout'] = 'NCHW'
+        graph.node['in_data_node']['shape'] = shape_array([1, 64, dynamic_dimension_value, 1152])
+        std_node = Node(graph, 'StD')
+        SpaceToDepth.infer(std_node)
+        exp_shape = shape_array([1, 256, dynamic_dimension_value, 576])
+        res_shape = graph.node['out_data_node']['shape']
+        self.assertTrue(strict_compare_tensors(exp_shape, res_shape))
 
     def test_tf_space_to_depth_infer_shape_error(self):
         graph = build_graph(nodes, edges)

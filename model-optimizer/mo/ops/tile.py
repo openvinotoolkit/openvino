@@ -3,7 +3,8 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, dynamic_dimension, \
+    is_fully_defined, shape_array, shape_insert
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
@@ -41,12 +42,13 @@ class Tile(Op):
 
         # align ranks of the tile_array tensor and input shape node
         if shape.size < tile_array.size:
-            shape = np.insert(shape, 0, [1] * (tile_array.size - shape.size))
+            shape = shape_insert(shape, 0, [1] * (tile_array.size - shape.size))
         elif shape.size > tile_array.size:
-            tile_array = np.insert(tile_array, 0, [1] * (shape.size - tile_array.size))
+            tile_array = shape_insert(tile_array, 0, [1] * (shape.size - tile_array.size))
 
-        if node.in_port(0).data.get_value() is not None:
-            node.out_port(0).data.set_value(np.tile(node.in_port(0).data.get_value().reshape(shape), tile_array))
+        input_value = node.in_port(0).data.get_value()
+        if input_value is not None and is_fully_defined(shape) and is_fully_defined(tile_array):
+            node.out_port(0).data.set_value(np.tile(input_value.reshape(shape), tile_array))
         else:
             node.out_port(0).data.set_shape(shape * tile_array)
 

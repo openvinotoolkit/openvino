@@ -176,15 +176,16 @@ int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const {
 
 namespace ov {
 template <>
-EnumNames<op::v1::NonMaxSuppression::BoxEncodingType>& EnumNames<op::v1::NonMaxSuppression::BoxEncodingType>::get() {
-    static auto enum_names = EnumNames<op::v1::NonMaxSuppression::BoxEncodingType>(
+EnumNames<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>&
+EnumNames<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>(
         "op::v1::NonMaxSuppression::BoxEncodingType",
-        {{"corner", op::v1::NonMaxSuppression::BoxEncodingType::CORNER},
-         {"center", op::v1::NonMaxSuppression::BoxEncodingType::CENTER}});
+        {{"corner", ngraph::op::v1::NonMaxSuppression::BoxEncodingType::CORNER},
+         {"center", ngraph::op::v1::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>::type_info;
 
 }  // namespace ov
 
@@ -363,15 +364,16 @@ int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const {
 
 namespace ov {
 template <>
-EnumNames<op::v3::NonMaxSuppression::BoxEncodingType>& EnumNames<op::v3::NonMaxSuppression::BoxEncodingType>::get() {
-    static auto enum_names = EnumNames<op::v3::NonMaxSuppression::BoxEncodingType>(
+EnumNames<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>&
+EnumNames<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>(
         "op::v3::NonMaxSuppression::BoxEncodingType",
-        {{"corner", op::v3::NonMaxSuppression::BoxEncodingType::CORNER},
-         {"center", op::v3::NonMaxSuppression::BoxEncodingType::CENTER}});
+        {{"corner", ngraph::op::v3::NonMaxSuppression::BoxEncodingType::CORNER},
+         {"center", ngraph::op::v3::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>::type_info;
 
 }  // namespace ov
 
@@ -821,14 +823,15 @@ std::ostream& ngraph::operator<<(std::ostream& s, const op::v5::NonMaxSuppressio
 
 namespace ov {
 template <>
-EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>& EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>::get() {
-    static auto enum_names = EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>(
+EnumNames<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>&
+EnumNames<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>(
         "op::v5::NonMaxSuppression::BoxEncodingType",
-        {{"corner", op::v5::NonMaxSuppression::BoxEncodingType::CORNER},
-         {"center", op::v5::NonMaxSuppression::BoxEncodingType::CENTER}});
+        {{"corner", ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CORNER},
+         {"center", ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>::type_info;
 
 }  // namespace ov

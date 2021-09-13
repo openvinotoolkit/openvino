@@ -30,8 +30,7 @@ typedef std::tuple<bool,                               // SpecialZero
 class ReshapeLayerTest : public testing::WithParamInterface<reshapeParams>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(
-        testing::TestParamInfo<reshapeParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<reshapeParams> &obj);
 
 protected:
     void SetUp() override;
