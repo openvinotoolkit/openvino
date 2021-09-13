@@ -17,7 +17,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string SubtractTransformation::getTestCaseName(testing::TestParamInfo<SubtractTransformationParams> obj) {
+std::string SubtractTransformation::getTestCaseName(const testing::TestParamInfo<SubtractTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
