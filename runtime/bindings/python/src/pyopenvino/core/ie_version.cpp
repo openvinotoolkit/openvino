@@ -4,7 +4,7 @@
 
 #include <ie_version.hpp>
 
-#include "pyopenvino/inference_engine/ie_version.hpp"
+#include "pyopenvino/core/ie_version.hpp"
 
 namespace py = pybind11;
 

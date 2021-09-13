@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <pybind11/pybind11.h>
-#include "inference_engine/ie_blob.hpp"
-#include "inference_engine/ie_core.hpp"
-#include "inference_engine/ie_data.hpp"
-#include "inference_engine/ie_executable_network.hpp"
-#include "inference_engine/ie_infer_queue.hpp"
-#include "inference_engine/ie_infer_request.hpp"
-#include "inference_engine/ie_input_info.hpp"
-#include "inference_engine/ie_network.hpp"
-#include "inference_engine/ie_parameter.hpp"
-#include "inference_engine/ie_preprocess_info.hpp"
-#include "inference_engine/ie_version.hpp"
-#include "inference_engine/tensor_description.hpp"
-#include "inference_engine/containers.hpp"
+#include "core/ie_blob.hpp"
+#include "core/ie_core.hpp"
+#include "core/ie_data.hpp"
+#include "core/ie_executable_network.hpp"
+#include "core/ie_infer_queue.hpp"
+#include "core/ie_infer_request.hpp"
+#include "core/ie_input_info.hpp"
+#include "core/ie_network.hpp"
+#include "core/ie_parameter.hpp"
+#include "core/ie_preprocess_info.hpp"
+#include "core/ie_version.hpp"
+#include "core/tensor_description.hpp"
+#include "core/containers.hpp"
 
 #include <ie_common.h>
 #include <ie_iinfer_request.hpp>

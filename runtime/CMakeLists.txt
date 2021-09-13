@@ -2,6 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_PYTHON)
+if(ENABLE_PYTHON OR NGRAPH_PYTHON_BUILD_ENABLE)
     add_subdirectory(bindings/python)
 endif()

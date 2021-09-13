@@ -6,7 +6,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "pyopenvino/inference_engine/containers.hpp"
+#include "pyopenvino/core/containers.hpp"
 
 PYBIND11_MAKE_OPAQUE(Containers::PyConstInputsDataMap);
 PYBIND11_MAKE_OPAQUE(Containers::PyOutputsDataMap);
