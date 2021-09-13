@@ -19,7 +19,6 @@ Glossary {#openvino_docs_IE_DG_Glossary}
 | ELU               | Exponential Linear rectification Unit |
 | FCN               | Fully Convolutional Network |
 | FP                | Floating Point |
-| FPGA              | Field-Programmable Gate Array |
 | GCC               | GNU Compiler Collection |
 | GPU               | Graphics Processing Unit |
 | HD                | High Definition |
