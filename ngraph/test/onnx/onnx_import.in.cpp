@@ -4168,5 +4168,5 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
     test_case.add_input<float>({0.79172504, 0.5288949, 0.56804454, 0.92559665, 0.07103606});
     test_case.add_expected_output<float>(
         {1.2198428, 1.1112978, 1.0293297, 1.366493, 0.3411342, 1.329408, 0.8051748, 1.354462, 1.8336612, 0.3068893});
-    test_case.run(2);
+    test_case.run();
 }
