@@ -1,6 +1,6 @@
 pymongo>=3.12.0
-Jinja2>=3.0.1
-PyYAML==5.4.1
+Jinja2>=2.11.2
+PyYAML>=5.4.1
 fastjsonschema~=2.15.1
-pandas~=1.1.5
+pandas>=1.1.5
 h5py>=3.1.0

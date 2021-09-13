@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-    std::string ClampFakeQuantizeSubgraphTest::getTestCaseName(testing::TestParamInfo<fqSubgraphTestParamsSet> obj) {
+    std::string ClampFakeQuantizeSubgraphTest::getTestCaseName(const testing::TestParamInfo<fqSubgraphTestParamsSet>& obj) {
         fqSpecificParams fqParams;
         InferenceEngine::Precision netPrecision;
         InferenceEngine::Precision inPrc, outPrc;
