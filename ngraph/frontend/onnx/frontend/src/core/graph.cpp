@@ -209,15 +209,15 @@ void Graph::decode_to_framework_nodes() {
         if (node.has_subgraphs()) {
             const auto& subgraphs = node.get_subgraphs();
             auto inputs = node.get_ng_inputs();
-            std::unordered_map<const char*, bool> inputs_map;
             for (const auto& kv : subgraphs) {
                 auto& subgraph = kv.second;
                 subgraph->decode();
                 for (const auto& input : subgraph->get_inputs_from_parent()) {
                     const auto& name = input.get_node()->get_friendly_name();
-                    if (inputs_map.count(name.c_str()) == 0) {
+                    if (std::find_if(inputs.begin(), inputs.end(), [&name](const Output<ngraph::Node>& n) -> bool {
+                            return name == n.get_node()->get_friendly_name();
+                        }) == inputs.end()) {
                         inputs.push_back(input);
-                        inputs_map.insert(std::make_pair(name.c_str(), true));
                     }
                 }
             }
@@ -380,8 +380,7 @@ void Subgraph::find_inputs_from_parent() {
         for (const auto& out_name : node_proto.output()) {
             if (m_cache->contains(out_name)) {
                 auto node_to_replace_input = m_cache->get_node(out_name).get_node();
-                if (!dynamic_cast<op::util::SubGraphOp*>(node_to_replace_input) &&
-                    !dynamic_cast<op::util::MultiSubGraphOp*>(node_to_replace_input))
+                if (!dynamic_cast<op::util::MultiSubGraphOp*>(node_to_replace_input))
                     continue;
                 auto inputs = node_to_replace_input->input_values();
                 for (size_t i = 0; i < inputs.size(); i++) {
