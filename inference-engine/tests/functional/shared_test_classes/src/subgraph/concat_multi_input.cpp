@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ConcatMultiInput::getTestCaseName(testing::TestParamInfo<concatMultiParams> obj) {
+std::string ConcatMultiInput::getTestCaseName(const testing::TestParamInfo<concatMultiParams>& obj) {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;

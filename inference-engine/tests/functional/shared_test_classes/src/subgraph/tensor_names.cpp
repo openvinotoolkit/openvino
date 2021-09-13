@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string TensorNamesTest::getTestCaseName(testing::TestParamInfo<constResultParams> obj) {
+std::string TensorNamesTest::getTestCaseName(const testing::TestParamInfo<constResultParams>& obj) {
     std::string targetDevice;
     std::tie(targetDevice) = obj.param;
     std::ostringstream result;

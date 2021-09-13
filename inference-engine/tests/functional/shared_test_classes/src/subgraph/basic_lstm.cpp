@@ -9,7 +9,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string Basic_LSTM_S::getTestCaseName(testing::TestParamInfo<basicLstmParams> obj) {
+std::string Basic_LSTM_S::getTestCaseName(const testing::TestParamInfo<basicLstmParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;

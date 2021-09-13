@@ -21,7 +21,7 @@ namespace SubgraphTestsDefinitions {
 class RangeAddSubgraphTest : public testing::WithParamInterface<LayerTestsDefinitions::RangeParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::RangeParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::RangeParams>& obj);
 protected:
     void SetUp() override;
 };
@@ -31,7 +31,7 @@ protected:
 class RangeNumpyAddSubgraphTest : public testing::WithParamInterface<LayerTestsDefinitions::RangeParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::RangeParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::RangeParams>& obj);
 protected:
     void SetUp() override;
 };

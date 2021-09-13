@@ -39,7 +39,7 @@ typedef std::tuple<
 class ConvFqEltwiseTest : public testing::WithParamInterface<ConvFqEltwiseTestParamsSet>,
                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvFqEltwiseTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvFqEltwiseTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

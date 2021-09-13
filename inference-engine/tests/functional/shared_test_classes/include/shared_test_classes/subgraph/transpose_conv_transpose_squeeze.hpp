@@ -33,7 +33,7 @@ typedef std::tuple<
 class TransposeConvTest : public testing::WithParamInterface<TransposeConvTestParams>,
                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposeConvTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeConvTestParams>& obj);
 
 protected:
     void SetUp() override;

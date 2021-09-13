@@ -8,7 +8,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string SoftsignTest::getTestCaseName(testing::TestParamInfo<softsignParams> obj) {
+std::string SoftsignTest::getTestCaseName(const testing::TestParamInfo<softsignParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::vector<size_t> inputShape;
     std::string targetDevice;

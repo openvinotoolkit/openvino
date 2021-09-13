@@ -9,7 +9,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ParameterShapeOfResultSubgraphTest::getTestCaseName(testing::TestParamInfo<parameterShapeOfResultParams> obj) {
+std::string ParameterShapeOfResultSubgraphTest::getTestCaseName(const testing::TestParamInfo<parameterShapeOfResultParams>& obj) {
     ngraph::element::Type inType;
     std::string targetDevice;
     std::tie(inType, targetDevice) = obj.param;

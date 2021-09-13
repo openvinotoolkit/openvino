@@ -31,8 +31,8 @@ typedef std::tuple <
 class ConstantResultSubgraphTest : public testing::WithParamInterface<constResultParams>,
                                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<constResultParams> obj);
-    void createGraph(ConstantSubgraphType type, const InferenceEngine::SizeVector &inputShape, const InferenceEngine::Precision &inputPrecision);
+    static std::string getTestCaseName(const testing::TestParamInfo<constResultParams>& obj);
+    void createGraph(const ConstantSubgraphType& type, const InferenceEngine::SizeVector &inputShape, const InferenceEngine::Precision &inputPrecision);
 protected:
     void SetUp() override;
 };

@@ -21,7 +21,7 @@ using SplitConcatMemoryParamsTuple = typename std::tuple<
 class SplitConcatMemory : public testing::WithParamInterface<SplitConcatMemoryParamsTuple>,
                           public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ParamType> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ParamType>& obj);
 
 protected:
     void SetUp() override;

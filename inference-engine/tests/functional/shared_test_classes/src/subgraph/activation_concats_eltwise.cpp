@@ -10,7 +10,7 @@ namespace SubgraphTestsDefinitions {
 using namespace CommonTestUtils;
 using namespace InferenceEngine;
 
-std::string ActivationConcatsEltwise::getTestCaseName(testing::TestParamInfo<ParamType> obj) {
+std::string ActivationConcatsEltwise::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
     InferenceEngine::Precision netPrecision;
     size_t inputSize;
     size_t concatSize;

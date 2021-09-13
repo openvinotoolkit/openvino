@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ConvFqReluTest::getTestCaseName(testing::TestParamInfo<ConvFqReluTestParamsSet> obj) {
+std::string ConvFqReluTest::getTestCaseName(const testing::TestParamInfo<ConvFqReluTestParamsSet>& obj) {
     FqSpecificParams fqParams;
     ConvParams convParams;
     InferenceEngine::Precision netPrecision;
