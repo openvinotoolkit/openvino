@@ -23,13 +23,11 @@ The "demo" folder contains three scripts:
 
 1. Classification demo using public SqueezeNet topology (demo_squeezenet_download_convert_run.sh|bat)
 
-2. Security barrier camera demo that showcases three models coming with the product (demo_squeezenet_download_convert_run.sh|bat)
+2. Benchmark demo using public SqueezeNet topology (demo_benchmark_app.sh|bat) 
 
-3. Benchmark demo using public SqueezeNet topology (demo_benchmark_app.sh|bat) 
+3. Speech recognition demo utilizing models trained on open LibriSpeech dataset
 
-4. Speech recognition demo utilizing models trained on open LibriSpeech dataset
-
-To run the demos, run demo_squeezenet_download_convert_run.sh or demo_security_barrier_camera.sh or demo_benchmark_app.sh or demo_speech_recognition.sh (*.bat on Windows) scripts from the console without parameters, for example:
+To run the demos, run demo_squeezenet_download_convert_run.sh or demo_benchmark_app.sh or demo_speech_recognition.sh (*.bat on Windows) scripts from the console without parameters, for example:
 
 ./demo_squeezenet_download_convert_run.sh
 
@@ -49,23 +47,6 @@ The demo illustrates the general workflow of using the Intel(R) Deep Learning De
 The sample application prints top-10 inference results for the picture.
  
 For more information about the Inference Engine classification sample, refer to the documentation available in the sample folder.
-
-
-Security Barrier Camera Demo
-============================
-
-The demo illustrates using the Inference Engine with pre-trained models to perform vehicle detection, vehicle attributes and license-plate recognition tasks. 
-As the sample produces visual output, it should be run in GUI mode.  
-
-The demo script does the following:
-
-- Builds the Inference Engine security barrier camera sample (inference_engine\samples\security_barrier_camera_sample)
-- Runs the sample with the car_1.bmp located in the demo folder
-
-The sample application displays the resulting frame with detections rendered as bounding boxes and text.
-
-For more information about the Inference Engine security barrier camera sample, refer to the documentation available in the sample folder.
-
 
 Benchmark Demo Using SqueezeNet
 ===============================

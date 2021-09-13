@@ -139,35 +139,6 @@ Throughput: 375.3339402 FPS
 
 </details>
 
-### Inference Pipeline Demo Script
-The `demo_security_barrier_camera` uses vehicle recognition in which vehicle attributes build on each other to narrow in on a specific attribute.
-
-The script:
-1. Downloads three pre-trained model IRs.
-2. Builds the Security Barrier Camera Demo application.
-3. Runs the application with the downloaded models and the `car_1.bmp` image from the `demo` directory to show an inference pipeline. 
-
-This application:
-
-1. Identifies an object identified as a vehicle. 
-2. Uses the vehicle identification as input to the second model, which identifies specific vehicle attributes, including the license plate.
-3. Uses the the license plate as input to the third model, which recognizes specific characters in the license plate.
-
-<details>
-    <summary><strong>Click for an example of Running the Pipeline demo script</strong></summary>
-    
-To run the script performing inference on Intel® Processor Graphics:
-
-```sh
-./demo_security_barrier_camera.sh -d GPU
-```
-
-When the verification script completes, you see an image that displays the resulting frame with detections rendered as bounding boxes, and text:
-
-![](../img/inference_pipeline_script_lnx.png)
-
-</details>
-
 ### Benchmark Demo Script
 The `demo_benchmark_app` script illustrates how to use the Benchmark Application to estimate deep learning inference performance on supported devices. 
 
@@ -215,7 +186,7 @@ Inputs you'll need to specify:
 
 ### Build the Code Samples and Demo Applications 
 
-To perform sample inference, run the Image Classification code sample and Security Barrier Camera demo application that were automatically compiled when you ran the Image Classification and Inference Pipeline demo scripts. The binary files are in the `~/inference_engine_cpp_samples_build/intel64/Release` and `~/inference_engine_demos_build/intel64/Release` directories, respectively.
+The Image Classification Sample that was automatically compiled when you ran the Image Classification demo script. The binary file is in the `~/inference_engine_cpp_samples_build/intel64/Release` directory.
 
 To run other sample code or demo applications, build them from the source files delivered as part of the OpenVINO toolkit. To learn how to build these, see the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.md) and [Demo Applications Overview](@ref omz_demos) sections.
 
@@ -388,7 +359,7 @@ To run the **Image Classification** code sample with an input image on the IR:
    ``` 
 2. Go to the code samples build directory:
    ```sh
-   cd ~/inference_engine_samples_build/intel64/Release
+   cd ~/inference_engine_cpp_samples_build/intel64/Release
    ```
 3. Run the code sample executable, specifying the input media file, the IR of your model, and a target device on which you want to perform inference:
    ```sh
@@ -457,7 +428,7 @@ Throughput: 375.3339402 FPS
 
 ### <a name="run-security-barrier"></a>Step 5: Run the Security Barrier Camera Demo Application
 
-> **NOTE**: The Security Barrier Camera Demo Application is automatically compiled when you ran the Inference Pipeline demo scripts. If you want to build it manually, see the [Demo Applications Overview](@ref omz_demos) section.
+> **NOTE**: To build the Security Barrier Camera Demo Application, see the [Demo Applications Overview](@ref omz_demos) section.
 
 To run the **Security Barrier Camera Demo Application** using an input image on the prepared IRs:
 
@@ -494,14 +465,14 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
    
 > **NOTE**: Running inference on the Intel® Neural Compute Stick 2 device with the MYRIAD plugin requires additional hardware configuration steps. For details, see the Steps for Intel® Neural Compute Stick 2 section in the [installation instructions](../install_guides/installing-openvino-linux.md).
 ```sh   
-./classification_sample_async -i <DLDT_DIR>/inference-engine/samples/sample_data/car.png -m <ir_dir>/squeezenet1.1.xml -d MYRIAD
+./security_barrier_camera_demo -i /opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d MYRIAD
 ```
 
 **HDDL:**
 
 > **NOTE**: Running inference on the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs device with the HDDL plugin requires additional hardware configuration steps. For details, see the Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs section in the [installation instructions](../install_guides/installing-openvino-linux.md).
 ```sh   
-./classification_sample_async -i <DLDT_DIR>/inference-engine/samples/sample_data/car.png -m <ir_dir>/squeezenet1.1.xml -d HDDL
+./security_barrier_camera_demo -i /opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d HDDL
 ```
 
 </details>
