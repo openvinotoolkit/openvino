@@ -320,7 +320,6 @@ void LayerTestsCommon::ConfigureNetwork() {
     std::map<std::string, ngraph::PartialShape> inputShapes;
     auto inputsDataMap = cnnNetwork.getInputsInfo();
     for (auto&& inputDataMap : inputsDataMap) {
-        inputShapes[inputDataMap.first] = inputsDataMap[inputDataMap.first]->getInputData()->getPartialShape();
         inputShapes[inputDataMap.first] = std::vector<ngraph::Dimension>(inputDynamicShape);
     }
     cnnNetwork.reshape(inputShapes);
