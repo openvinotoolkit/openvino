@@ -113,13 +113,13 @@ bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
             extFactory = extMgr->CreateExtensionFactory(ngraphOp);
 
             if (!extFactory)
-                IE_THROW(NotImplemented);
+                return false;
 
             std::vector<InferenceEngine::ILayerImpl::Ptr> impls_no_exec;
             InferenceEngine::ResponseDesc resp;
             InferenceEngine::StatusCode rc = extFactory->getImplementations(impls_no_exec, &resp);
             if (rc == InferenceEngine::NOT_IMPLEMENTED) {
-                IE_THROW(NotImplemented) << resp.msg;
+                return false;
             } else if (rc != InferenceEngine::OK) {
                 IE_THROW() << resp.msg;
             }
@@ -131,8 +131,7 @@ bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
             }
         }
 
-        if (extFactory || !impls.empty())
-            setType(Generic);
+        setType(Generic);
     }
     return created();
 }
