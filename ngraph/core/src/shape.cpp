@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/shape.hpp"
+
 #include "ngraph/util.hpp"
 
 using namespace std;
