@@ -1,4 +1,5 @@
+pytest>=6.2.1
 pytest-dependency==0.5.1
-PyYAML
-numpy
-pytest-html
+PyYAML>=5.4.1
+numpy>=1.16.6
+pytest-html>=1.19.0
