@@ -52,4 +52,3 @@ ov::util::LogHelper::~LogHelper() {
     }
     // Logger::log_item(m_stream.str());
 }
-

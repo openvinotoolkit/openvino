@@ -32,4 +32,3 @@ int32_t getenv_int(const char* env_var, int32_t default_value = -1);
 bool getenv_bool(const char* env_var, bool default_value = false);
 }  // namespace util
 }  // namespace ov
-

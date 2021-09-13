@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <regex>
 
-#include "openvino/util/env_util.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "openvino/util/env_util.hpp"
 
 namespace ov {
 namespace pass {

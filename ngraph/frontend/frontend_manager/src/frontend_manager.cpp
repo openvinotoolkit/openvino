@@ -5,8 +5,8 @@
 #include "frontend_manager/frontend_manager.hpp"
 
 #include <frontend_manager/place.hpp>
-#include <openvino/util/env_util.hpp>
 #include <ngraph/except.hpp>
+#include <openvino/util/env_util.hpp>
 
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "plugin_loader.hpp"

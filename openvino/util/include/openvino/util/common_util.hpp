@@ -45,4 +45,3 @@ T ceil_div(const T& x, const T& y) {
 }
 }  // namespace util
 }  // namespace ov
-

@@ -63,4 +63,3 @@ bool ov::util::getenv_bool(const char* env_var, bool default_value) {
     }
     return rc;
 }
-

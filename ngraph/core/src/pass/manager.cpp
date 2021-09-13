@@ -12,7 +12,6 @@
 #include <unordered_map>
 
 #include "itt.hpp"
-#include "openvino/util/env_util.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
@@ -21,6 +20,7 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/util/env_util.hpp"
 #include "perf_counters.hpp"
 
 using namespace std;
