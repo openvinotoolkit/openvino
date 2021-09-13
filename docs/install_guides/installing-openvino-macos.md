@@ -279,7 +279,7 @@ Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Tool
 
 ## Additional Resources
 
-- To learn more about the verification applications, see `README.txt` in `/opt/intel/openvino_2022/extras/open_model_zoo/demo/`.
+- To learn more about the verification applications, see `README.txt` in `/opt/intel/openvino_2022/samples/scripts/`.
 
 - For detailed description of the pre-trained models, go to the [Overview of OpenVINO toolkit Pre-Trained Models](@ref omz_models_group_intel) page.
 

@@ -55,8 +55,8 @@ target_image_path="$ROOT_DIR/car_1.bmp"
 
 run_again="Then run the script again\n\n"
 
-if [ -e "$ROOT_DIR/../../../setupvars.sh" ]; then
-    setupvars_path="$ROOT_DIR/../../../setupvars.sh"
+if [ -e "$ROOT_DIR/../../setupvars.sh" ]; then
+    setupvars_path="$ROOT_DIR/../../setupvars.sh"
 else
     echo -ne "Error: setupvars.sh is not found\n"
 fi
@@ -143,7 +143,7 @@ done < "$ROOT_DIR/demo_security_barrier_camera.conf"
 # Step 2. Build samples
 echo -ne "\n###############|| Build Inference Engine demos ||###############\n\n"
 
-demos_path="${INTEL_OPENVINO_DIR}/extras/open_model_zoo/demos"
+demos_path="${INTEL_OPENVINO_DIR}/samples/scriptss"
 
 if ! command -v cmake &>/dev/null; then
     echo -ne "\n\nCMAKE is not installed. It is required to build Inference Engine demos. Please install it. ${run_again}"

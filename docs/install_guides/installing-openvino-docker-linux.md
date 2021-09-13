@@ -329,28 +329,28 @@ To run the Security Barrier Camera Demo on a specific inference device, run the 
 
 ```sh
 docker run -itu root:root --rm <image_name>
-/bin/bash -c "apt update && apt install sudo && extras/open_model_zoo/demo/demo_security_barrier_camera.sh -d CPU -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/demo_security_barrier_camera.sh -d CPU -sample-options -no_show"
 ```
 
 **GPU**:
 
 ```sh
 docker run -itu root:root --rm --device /dev/dri:/dev/dri <image_name>
-/bin/bash -c "apt update && apt install sudo && extras/open_model_zoo/demo/demo_security_barrier_camera.sh -d GPU -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/demo_security_barrier_camera.sh -d GPU -sample-options -no_show"
 ```
 
 **MYRIAD**:
 
 ```sh
 docker run -itu root:root --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && extras/open_model_zoo/demo/demo_security_barrier_camera.sh -d MYRIAD -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/demo_security_barrier_camera.sh -d MYRIAD -sample-options -no_show"
 ```
 
 **HDDL**:
 
 ```sh
 docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
-/bin/bash -c "apt update && apt install sudo && extras/open_model_zoo/demo/demo_security_barrier_camera.sh -d HDDL -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/demo_security_barrier_camera.sh -d HDDL -sample-options -no_show"
 ```
 
 ## Troubleshooting

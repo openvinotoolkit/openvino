@@ -53,14 +53,14 @@ ie_cpack_add_component(demo_scripts DEPENDS core)
 
 if(UNIX)
     install(DIRECTORY demo/
-            DESTINATION extras/open_model_zoo/demo
+            DESTINATION samples/scripts
             COMPONENT demo_scripts
             USE_SOURCE_PERMISSIONS
             PATTERN demo_security_barrier_camera.* EXCLUDE
             PATTERN *.bat EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY demo/
-            DESTINATION extras/open_model_zoo/demo
+            DESTINATION samples/scripts
             COMPONENT demo_scripts
             USE_SOURCE_PERMISSIONS
             PATTERN demo_security_barrier_camera.* EXCLUDE
