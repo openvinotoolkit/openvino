@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
+#include "include/acc_type.cl"
 
 #define ACTIVATION_LOGISTIC(input)        (UNIT_VAL_ONE/(UNIT_VAL_ONE + exp(-input)))
 #define ACTIVATION_HYPERBOLIC_TAN(input)  (tanh(input))

@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
+#include "include/acc_type.cl"
 
 #ifndef DIRECTION
 #define DIRECTION 0

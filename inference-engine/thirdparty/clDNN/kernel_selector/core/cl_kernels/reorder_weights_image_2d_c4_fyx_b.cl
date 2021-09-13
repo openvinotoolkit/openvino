@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
+#include "include/image_data.cl"
 
 KERNEL (reorder_weights_image_2d_c4_fyx_b)(const __global INPUT0_TYPE* input, write_only image2d_t output)
 {

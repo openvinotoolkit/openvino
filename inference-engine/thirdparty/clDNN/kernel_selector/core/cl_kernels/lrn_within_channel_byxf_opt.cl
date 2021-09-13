@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
+#include "include/acc_type.cl"
 
 #define VECTOR_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
 #define ACCUMULATOR_VECTOR_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)

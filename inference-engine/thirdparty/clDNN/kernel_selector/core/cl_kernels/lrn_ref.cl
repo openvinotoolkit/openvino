@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/data_types.cl"
+#include "include/acc_type.cl"
 
 KERNEL(normalization)(
     __global const INPUT0_TYPE* input,
