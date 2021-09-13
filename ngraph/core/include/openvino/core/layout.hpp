@@ -50,6 +50,9 @@ public:
     bool has_name(const std::string& dimensionName) const;
 
     /// \brief Gets index of dimension with a specified name
+    ///
+    /// \throws ov::AssertFailure if dimension name is not found in a layout
+    ///
     /// \return Index of given dimension name
     std::int64_t get_index_by_name(const std::string& dimensionName) const;
 
@@ -69,39 +72,57 @@ private:
     int64_t m_right_size = 0;
 };
 
-namespace layouts {
+namespace layout {
 
 /// \brief Checks if layout has 'batch' dimension
 OPENVINO_API bool has_batch(const Layout& layout);
 
-/// \brief Returns 'batch' dimension index. Throws if dimension doesn't exist
+/// \brief Returns 'batch' dimension index.
+///
+/// \throws ov::AssertFailure if dimension doesn't exist.
+///
 OPENVINO_API std::int64_t batch(const Layout& layout);
 
 /// \brief Checks if layout has 'channels' dimension
+///
+/// \throws ov::AssertFailure if dimension doesn't exist.
+///
 OPENVINO_API bool has_channels(const Layout& layout);
 
-/// \brief Returns 'channels' dimension index. Throws if dimension doesn't exist
+/// \brief Returns 'channels' dimension index.
+///
+/// \throws ov::AssertFailure if dimension doesn't exist.
+///
 OPENVINO_API std::int64_t channels(const Layout& layout);
 
 /// \brief Checks if layout has 'depth' dimension
 OPENVINO_API bool has_depth(const Layout& layout);
 
-/// \brief Returns 'depth' dimension index. Throws if dimension doesn't exist
+/// \brief Returns 'depth' dimension index.
+///
+/// \throws ov::AssertFailure if dimension doesn't exist.
+///
 OPENVINO_API std::int64_t depth(const Layout& layout);
 
 /// \brief Checks if layout has 'height' dimension
 OPENVINO_API bool has_height(const Layout& layout);
 
-/// \brief Returns 'height' dimension index. Throws if dimension doesn't exist
+/// \brief Returns 'height' dimension index.
+///
+/// \throws ov::AssertFailure if dimension doesn't exist.
+///
 OPENVINO_API std::int64_t height(const Layout& layout);
 
 /// \brief Checks if layout has 'width' dimension
 OPENVINO_API bool has_width(const Layout& layout);
 
-/// \brief Returns 'width' dimension index. Throws if dimension doesn't exist
+/// \brief Returns 'width' dimension index.
+///
+/// \throws ov::AssertFailure if dimension doesn't exist.
+///
 OPENVINO_API std::int64_t width(const Layout& layout);
 
-}  // namespace layouts
+}  // namespace layout
 
 template <>
 class OPENVINO_API AttributeAdapter<Layout> : public ValueAccessor<std::string> {
@@ -131,7 +152,7 @@ public:
         return type_info;
     }
 
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
+    explicit VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
 }  // namespace ov

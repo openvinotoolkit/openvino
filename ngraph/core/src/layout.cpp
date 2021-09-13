@@ -192,9 +192,7 @@ bool Layout::has_name(const std::string& dimension_name) const {
 std::int64_t Layout::get_index_by_name(const std::string& dimension_name) const {
     auto name = to_internal_name(dimension_name);
     auto it = m_names.find(name);
-    if (it == m_names.end()) {
-        throw ngraph::ngraph_error(dimension_name + " dimension index is not defined");
-    }
+    OPENVINO_ASSERT(it != m_names.end(), dimension_name + " dimension index is not defined");
     return it->second;
 }
 
@@ -234,13 +232,13 @@ std::string Layout::to_string() const {
     return res.str();
 }
 
-#define DEFINE_NAMED_DIMENSION(NAME, name)             \
-    bool layouts::has_##name(const Layout& layout) {   \
-        return layout.has_name(NAME);                  \
-    }                                                  \
-                                                       \
-    std::int64_t layouts::name(const Layout& layout) { \
-        return layout.get_index_by_name(NAME);         \
+#define DEFINE_NAMED_DIMENSION(NAME, name)            \
+    bool layout::has_##name(const Layout& layout) {   \
+        return layout.has_name(NAME);                 \
+    }                                                 \
+                                                      \
+    std::int64_t layout::name(const Layout& layout) { \
+        return layout.get_index_by_name(NAME);        \
     }
 
 DEFINE_NAMED_DIMENSION(BATCH, batch)

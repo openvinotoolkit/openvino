@@ -26,10 +26,10 @@ static int64_t get_channels_helper(const std::shared_ptr<Node>& node) {
     }
     auto layout = std::dynamic_pointer_cast<VariantWrapper<Layout>>(it->second);
     OPENVINO_ASSERT(layout, "Layout runtime info for node is invalid");
-    if (!layouts::has_channels(layout->get())) {
+    if (!layout::has_channels(layout->get())) {
         return -1;
     }
-    return layouts::channels(layout->get());
+    return layout::channels(layout->get());
 }
 
 static StaticShape construct_mean_scale_shape(const std::shared_ptr<Node>& node, size_t values_size) {
