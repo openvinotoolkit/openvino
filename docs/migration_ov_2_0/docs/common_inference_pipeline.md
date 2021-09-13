@@ -15,40 +15,40 @@ Code snippets below cover these steps and show how application code should be ch
 
 Inference Engine API:
 
-@snippet migration_ov_2_0/snippets/ie_api/ie_common.cpp ie:create_core
+@snippet snippets/ie_common.cpp ie:create_core
 
 OpenVINO™ 2.0 API:
 
-@snippet migration_ov_2_0/snippets/ov_api/ov_common.cpp ov_api_2_0:create_core
+@snippet snippets/ov_common.cpp ov_api_2_0:create_core
 
 ## 2. Read model
 
 Inference Engine API:
 
-@snippet migration_ov_2_0/snippets/ie_api/ie_common.cpp ie:read_model
+@snippet snippets/ie_common.cpp ie:read_model
 
 OpenVINO™ 2.0 API:
 
-@snippet migration_ov_2_0/snippets/ov_api/ov_common.cpp ov_api_2_0:read_model
+@snippet snippets/ov_common.cpp ov_api_2_0:read_model
 
 ## 3. Get model inputs and outputs
 
 Inference Engine API:
 
-@snippet migration_ov_2_0/snippets/ie_api/ie_common.cpp ie:get_inputs_outputs
+@snippet snippets/ie_common.cpp ie:get_inputs_outputs
 
 OpenVINO™ 2.0 API:
 
-@snippet migration_ov_2_0/snippets/ov_api/ov_common.cpp ov_api_2_0:get_inputs_outputs
+@snippet snippets/ov_common.cpp ov_api_2_0:get_inputs_outputs
 
 ## 4. Compile model
 
 Inference Engine API:
 
-@snippet migration_ov_2_0/snippets/ie_api/ie_common.cpp ie:compile_model
+@snippet snippets/ie_common.cpp ie:compile_model
 
 OpenVINO™ 2.0 API:
 
-@snippet migration_ov_2_0/snippets/ov_api/ov_common.cpp ov_api_2_0:compile_model
+@snippet snippets/ov_common.cpp ov_api_2_0:compile_model
 
 ## 5. TBD

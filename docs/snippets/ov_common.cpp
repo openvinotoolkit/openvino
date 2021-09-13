@@ -14,15 +14,15 @@ int main() {
     //! [ov_api_2_0:read_model]
 
     //! [ov_api_2_0:get_inputs_outputs]
-    ngraph::ParameterVector inputs = network->get_parameters();
-    ngraph::ResultVector outputs = network->get_results();
+    ov::ParameterVector inputs = network->get_parameters();
+    ov::ResultVector outputs = network->get_results();
     //! [ov_api_2_0:get_inputs_outputs]
 
     //! [ov_api_2_0:compile_model]
-    InferenceEngine::ExecutableNetwork exec_network = core.compile_model(network, "CPU");
+    ov::runtime::ExecutableNetwork exec_network = core.compile_model(network, "CPU");
     //! [ov_api_2_0:compile_model]
 
-    InferenceEngine::InferRequest infer_request = exec_network.CreateInferRequest();
+    ov::runtime::InferRequest infer_request = exec_network.create_infer_request();
     //
     // InferenceEngine::Blob::Ptr input_blob = infer_request.GetBlob(inputs.begin()->first);
     // // fill input blob
