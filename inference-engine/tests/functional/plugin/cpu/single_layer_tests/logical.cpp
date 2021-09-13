@@ -51,7 +51,7 @@ protected:
         std::tie(inputShapes, logicalOpType, secondInputType, netPrecision, inPrc, outPrc,
                  inLayout, outLayout, targetDevice, additional_config) = basicParamsSet;
 
-        selectedType = getPrimitiveType() + "_" + inPrc.name();
+        selectedType = getPrimitiveType() + "_I8";
 
         auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::BOOL); // Because ngraph supports only boolean input for logical ops
         configuration.insert(additional_config.begin(), additional_config.end());

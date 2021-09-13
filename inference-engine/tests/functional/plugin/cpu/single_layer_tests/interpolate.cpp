@@ -103,10 +103,12 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType.push_back('_');
-        if (additionalConfig.count(PluginConfigParams::KEY_ENFORCE_BF16) && additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
+        if (additionalConfig.count(PluginConfigParams::KEY_ENFORCE_BF16) && additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
             selectedType += "BF16";
-        else
+            inPrc = InferenceEngine::Precision::BF16;
+        } else {
             selectedType += netPrecision.name();
+        }
     }
 };
 
