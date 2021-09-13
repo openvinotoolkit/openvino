@@ -541,7 +541,7 @@ cdef class IECore:
     def get_config(self, device_name: str, config_name: str):
         return self.impl.getConfig(device_name.encode(), config_name.encode())
 
-    ## A list of devices. The devices are returned as \[CPU, FPGA.0, FPGA.1, MYRIAD\].
+    ## A list of devices. The devices are returned as \[CPU, GPU.0, GPU.1, MYRIAD\].
     # If there are more than one device of a specific type, they all are listed followed by a dot and a number.
     @property
     def available_devices(self):
