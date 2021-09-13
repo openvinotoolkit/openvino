@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.inference_engine import IENetwork, Core
+from openvino.inference_engine import IENetwork,IECore
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
@@ -413,7 +413,7 @@ def get_batch_size(inputs_info):
     return batch_size
 
 def show_available_devices():
-    ie = Core()
+    ie = IECore()
     print("\nAvailable target devices:  ", ("  ".join(ie.available_devices)))
 
 def dump_config(filename, config):

@@ -2,11 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-<<<<<<< HEAD
-
-if(ENABLE_PYTHON OR NGRAPH_PYTHON_BUILD_ENABLE)
-=======
 if(ENABLE_PYTHON)
->>>>>>> refs/rewritten/mk/ov_pybind_poc-7
     add_subdirectory(bindings/python)
 endif()
