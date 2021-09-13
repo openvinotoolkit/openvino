@@ -10,7 +10,7 @@
 #include <openvino/op/util/variable.hpp>
 #include <openvino/opsets/opset8.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::pass::ReplaceInputsOutputsWithMemory, "ReplaceInputsOutputsWithMemory", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::MakeStateful, "MakeStateful", 0);
 
 using namespace std;
 using namespace ngraph;
@@ -24,7 +24,7 @@ string generate_variable_name(const shared_ptr<Parameter>& param, const shared_p
 }
 }  // namespace
 
-bool ov::pass::ReplaceInputsOutputsWithMemory::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f) {
     VariableVector variables;
     SinkVector sinks;
     for (const auto& pair : m_pairs_to_replace) {
@@ -37,15 +37,15 @@ bool ov::pass::ReplaceInputsOutputsWithMemory::run_on_function(std::shared_ptr<n
         variables.push_back(variable);
 
         // create ReadValue
-        auto const_zero = make_shared<Constant>(param->get_element_type(), ngraph::Shape{1}, 0);
+/*        auto const_zero = make_shared<Constant>(param->get_element_type(), ngraph::Shape{1}, 0);
         auto shape_of = make_shared<ShapeOf>(param);
 
-        auto broadcast = make_shared<Broadcast>(const_zero, shape_of);
-        auto read_val = make_shared<ReadValue>(broadcast, variable);
+        auto broadcast = make_shared<Broadcast>(const_zero, shape_of);*/
+        auto read_val = make_shared<ReadValue>(param, variable);
         for (const auto& target_in : target_inputs) {
             target_in.replace_source_output(read_val->output(0));
         }
-        copy_runtime_info(param, {const_zero, shape_of, broadcast, read_val});
+        copy_runtime_info(param, read_val);
 
         // create Assign
         auto assign = make_shared<Assign>(res->input_value(0), variable);
@@ -59,7 +59,7 @@ bool ov::pass::ReplaceInputsOutputsWithMemory::run_on_function(std::shared_ptr<n
     return true;
 }
 
-ov::pass::ReplaceInputsOutputsWithMemory::InOutPairs ov::pass::ReplaceInputsOutputsWithMemory::findInputsOutputsByName(
+ov::pass::MakeStateful::InOutPairs ov::pass::MakeStateful::findInputsOutputsByName(
     const shared_ptr<ngraph::Function>& func,
     const vector<std::pair<std::string, std::string>>& param_res_names) {
     InOutPairs pairs_to_replace;

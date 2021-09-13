@@ -14,6 +14,7 @@
 
 #include <transformations/init_node_info.hpp>
 #include <transformations/common_optimizations/replace_inputs_outputs_with_memory.h>
+#include <transformations/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -42,7 +43,8 @@ TEST(TransformationTests, replace_in_out_with_memory_by_name) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::ReplaceInputsOutputsWithMemory>(ov::pass::ReplaceInputsOutputsWithMemory::findInputsOutputsByName(f, pair_names));
+        manager.register_pass<ov::pass::MakeStateful>(ov::pass::MakeStateful::findInputsOutputsByName(f, pair_names));
+
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -103,7 +105,7 @@ TEST(TransformationTests, replace_in_out_with_memory_direct_param_res) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::ReplaceInputsOutputsWithMemory>(ov::pass::ReplaceInputsOutputsWithMemory::InOutPairs{{X, result0}, {Y, result1}});
+        manager.register_pass<ov::pass::MakeStateful>(ov::pass::MakeStateful::InOutPairs{{X, result0}, {Y, result1}});
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

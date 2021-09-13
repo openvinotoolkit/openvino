@@ -92,6 +92,6 @@ INFERENCE_ENGINE_API_CPP(void) lowLatency2(InferenceEngine::CNNNetwork& network,
  * @param in_out_names Parameter/Result node names to replace.
  */
 INFERENCE_ENGINE_API_CPP(void)
-replaceInputsOutputsWithMemory(InferenceEngine::CNNNetwork& network,
+MakeStateful(InferenceEngine::CNNNetwork& network,
                                std::vector<std::pair<std::string, std::string>>& in_out_names);
 }  // namespace InferenceEngine

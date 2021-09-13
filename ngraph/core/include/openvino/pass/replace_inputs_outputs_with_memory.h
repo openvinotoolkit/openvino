@@ -16,7 +16,7 @@ namespace ov {
          * @brief The transformation replaces the provided pairs Parameter and Result with ngraph Memory layers
          * ReadValue and Assign
          */
-        class OPENVINO_API ReplaceInputsOutputsWithMemory : public FunctionPass {
+        class OPENVINO_API MakeStateful : public FunctionPass {
         public:
             OPENVINO_RTTI_DECLARATION;
 
@@ -25,7 +25,7 @@ namespace ov {
 
             static InOutPairs findInputsOutputsByName(const std::shared_ptr<ngraph::Function>& func, const
                                                std::vector<std::pair<std::string, std::string>>& param_res_names);
-            explicit ReplaceInputsOutputsWithMemory(const InOutPairs& pairs_to_replace) : m_pairs_to_replace(pairs_to_replace) {}
+            explicit MakeStateful(const InOutPairs& pairs_to_replace) : m_pairs_to_replace(pairs_to_replace) {}
             bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
         private:
             InOutPairs m_pairs_to_replace;
