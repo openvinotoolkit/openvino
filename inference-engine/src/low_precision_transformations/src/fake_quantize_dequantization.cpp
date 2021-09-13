@@ -34,7 +34,7 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
 }
 
 bool FakeQuantizeDequantization::empty() const {
-    return (convert == nullptr) && (subtract == nullptr) && (multiply == nullptr);
+    return (subtract == nullptr) && (multiply == nullptr);
 }
 
 bool FakeQuantizeDequantization::multiplyHasZeroOrDenormal() const {

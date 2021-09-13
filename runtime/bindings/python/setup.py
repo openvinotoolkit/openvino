@@ -18,9 +18,8 @@ from distutils.command.build import build as _build
 
 __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
 PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
-NGRAPH_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, ".."))
-OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../.."))
-# Change current working dircectory to ngraph/python
+OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../../.."))
+# Change current working directory to runtime/bindings/python
 os.chdir(PYNGRAPH_ROOT_DIR)
 
 NGRAPH_LIBS = ["ngraph", "onnx_importer", "inference_engine"]
@@ -151,16 +150,17 @@ class BuildCMakeExt(build_ext):
         os.makedirs(build_dir, exist_ok=True)
         os.makedirs(extension_path.parent.absolute(), exist_ok=True)
 
-        # If ngraph_DIR is not set try to build from OpenVINO root
+        # If OpenVINO_DIR is set, try to build Python only,
+        # otherwise build from scratch using OpenVINO root
         root_dir = OPENVINO_ROOT_DIR
         bin_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
-        if os.environ.get("ngraph_DIR") is not None:
+        if os.environ.get("OpenVINO_DIR") is not None:
             root_dir = PYNGRAPH_ROOT_DIR
             bin_dir = build_dir
 
         self.announce("Configuring cmake project", level=3)
         ext_args = self.cmake_args.split() if self.cmake_args else []
-        self.spawn(["cmake", "-H" + root_dir, "-B" + self.build_temp,
+        self.spawn(["cmake", "-S" + root_dir, "-B" + self.build_temp,
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
                     "-DPYTHON_EXECUTABLE={}".format(sys.executable),
                     "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
@@ -188,8 +188,8 @@ class InstallCMakeLibs(install_lib):
         self.announce("Adding library files", level=3)
 
         root_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
-        if os.environ.get("ngraph_DIR") is not None:
-            root_dir = pathlib.Path(os.environ["ngraph_DIR"]) / ".."
+        if os.environ.get("OpenVINO_DIR") is not None:
+            root_dir = pathlib.Path(PYNGRAPH_ROOT_DIR)
 
         lib_ext = ""
         if "linux" in sys.platform:

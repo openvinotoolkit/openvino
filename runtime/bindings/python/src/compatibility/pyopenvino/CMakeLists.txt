@@ -1,0 +1,56 @@
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+project (pyopenvino)
+
+if(DEFINED IE_MAIN_SOURCE_DIR)
+    set(InferenceEngine_LIBRARIES inference_engine)
+    set(NGRAPH_LIBRARIES ngraph)
+else()
+    find_package(InferenceEngineDeveloperPackage REQUIRED)
+    find_package(ngraph QUIET)
+    set(InferenceEngine_LIBRARIES IE::inference_engine)
+    set(NGRAPH_LIBRARIES ngraph)
+endif()
+
+# create target
+
+find_package(Python COMPONENTS Interpreter Development REQUIRED)
+
+if(PYTHON_FOUND)
+    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+    message("Python version={${Python_VERSION}}")
+else()
+    message(FATAL_ERROR "Python was not found!")
+endif()
+
+file(GLOB_RECURSE SOURCES *.cpp)
+
+pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
+
+target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${NGRAPH_LIBRARIES})
+
+# perform copy
+if(OpenVINO_MAIN_SOURCE_DIR)
+    add_custom_command(TARGET ${PROJECT_NAME}
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/openvino
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.*.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/openvino
+            )
+endif()
+
+if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
+    ie_cpack_add_component(pyopenvino_${PYTHON_VERSION})
+
+    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../openvino
+            DESTINATION python/${PYTHON_VERSION}
+            COMPONENT pyopenvino_${PYTHON_VERSION}
+            USE_SOURCE_PERMISSIONS)
+
+    install(TARGETS ${PROJECT_NAME}
+            DESTINATION python/${PYTHON_VERSION}/openvino
+            COMPONENT pyopenvino_${PYTHON_VERSION})
+
+    ie_cpack(pyopenvino_${PYTHON_VERSION})
+endif()

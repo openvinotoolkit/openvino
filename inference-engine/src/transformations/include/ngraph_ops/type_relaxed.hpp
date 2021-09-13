@@ -11,6 +11,7 @@
 
 #include <transformations_visibility.hpp>
 
+#include <ngraph/op/convert.hpp>
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
@@ -84,6 +85,7 @@ protected:
     // to infer output data types
     element::TypeVector m_input_data_types;
     element::TypeVector m_output_data_types;
+    element::TypeVector m_original_output_data_types;
 };
 
 /// Set another type for a specified output for the period of time when an instance of the class exists.
@@ -161,6 +163,7 @@ public:
     }
 
     void validate_and_infer_types() override;
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -169,6 +172,61 @@ private:
         validate_and_infer_types();
     }
 };
+
+template <typename BaseOp>
+bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    std::shared_ptr<ngraph::op::v0::Convert> convert;
+    HostTensorVector casted_inputs(BaseOp::get_input_size());
+    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
+        const auto expected_input_type = get_origin_input_type(i);
+
+        if (inputs[i]->get_element_type() == expected_input_type || expected_input_type == element::undefined) {
+            casted_inputs[i] = inputs[i];
+        } else {
+            if (convert == nullptr) {
+                convert = std::make_shared<ngraph::op::v0::Convert>();
+            }
+
+            convert->set_destination_type(expected_input_type);
+            casted_inputs[i] = std::make_shared<HostTensor>(expected_input_type, inputs[i]->get_shape());
+            if (!convert->evaluate({ casted_inputs[i] }, { inputs[i] })) {
+                return false;
+            }
+        }
+    }
+
+    HostTensorVector original_outputs(BaseOp::get_output_size());
+    for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
+        const auto expected_output_type = get_overridden_output_type(i);
+        if (expected_output_type == element::undefined || expected_output_type == m_original_output_data_types[i]) {
+            original_outputs[i] = outputs[i];
+        } else {
+            original_outputs[i] = std::make_shared<HostTensor>(m_original_output_data_types[i], BaseOp::get_output_partial_shape(i));
+        }
+    }
+
+    if (!BaseOp::evaluate(original_outputs, casted_inputs)) {
+        return false;
+    }
+
+    for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
+        const auto expected_output_type = get_overridden_output_type(i);
+
+        if (expected_output_type != element::undefined && original_outputs[i]->get_element_type() != expected_output_type) {
+            if (convert == nullptr) {
+                convert = std::make_shared<ngraph::op::v0::Convert>();
+            }
+
+            convert->set_destination_type(expected_output_type);
+            const auto casted_output = std::make_shared<HostTensor>(expected_output_type, original_outputs[i]->get_shape());
+            if (!convert->evaluate({ outputs[i] }, { original_outputs[i] })) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
 
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {
@@ -195,6 +253,14 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
         BaseOp::get_input_tensor(i).set_tensor_type(old_input_types[i], BaseOp::get_input_partial_shape(i));
     }
 
+    if (m_original_output_data_types.empty()) {
+        m_original_output_data_types = element::TypeVector(BaseOp::get_output_size());
+    }
+
+    // Save inferred output types
+    for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
+        m_original_output_data_types[i] = BaseOp::get_output_element_type(i);
+    }
 
     // Override (some) output types
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
