@@ -2847,10 +2847,9 @@ void Builder::TranslateGraph(
 
 void Builder::TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
     auto type = node->get_op_type();
-    const function<ngraph::OutputVector(const NodeContext&)>* op_fun;
 
-    auto creator_it = TRANSLATE_OP_MAP.find(type);
-    FRONT_END_OP_CONVERSION_CHECK(creator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
+    auto translator_it = TRANSLATE_OP_MAP.find(type);
+    FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
     ngraph::OutputVector ng_inputs;
     for (auto& input : node->inputs()) {
@@ -2858,7 +2857,7 @@ void Builder::TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
     }
 
     NodeContext node_ctx(ng_inputs, node->get_decoder(), {}, {});
-    auto new_node_outputs = creator_it->second(node_ctx);
+    auto new_node_outputs = translator_it->second(node_ctx);
     Builder::SetTracingInfo(node_ctx.get_name(), new_node_outputs.front());
 
     auto new_output = new_node_outputs.begin();
