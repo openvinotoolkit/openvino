@@ -22,7 +22,7 @@ class FuseFakeQuantizeAndScaleShiftTransformation :
     public testing::WithParamInterface<FuseFakeQuantizeAndScaleShiftTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams>& obj);
 
 protected:
     void SetUp() override;

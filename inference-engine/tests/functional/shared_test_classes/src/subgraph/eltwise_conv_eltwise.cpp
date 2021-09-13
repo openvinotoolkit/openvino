@@ -168,7 +168,7 @@ void EltwiseBeforeConvTest::SetUp() {
     function = std::make_shared<ngraph::Function>(reshape2, params, "EltwiseBeforeConvTest");
 }
 
-std::string EltwiseWithTwoConvsAsInputsTest::getTestCaseName(testing::TestParamInfo<EltwiseConvEltwiseParams> obj) {
+std::string EltwiseWithTwoConvsAsInputsTest::getTestCaseName(const testing::TestParamInfo<EltwiseConvEltwiseParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
