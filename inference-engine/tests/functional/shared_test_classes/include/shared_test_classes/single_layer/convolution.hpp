@@ -44,7 +44,7 @@ public:
 
 protected:
     void SetUp() override;
-    void makeConvolution();
+    std::shared_ptr<ngraph::Function> makeConvolution(const std::string& name = "");
 
 private:
     InferenceEngine::Precision::ePrecision netPrecision = InferenceEngine::Precision::UNSPECIFIED;

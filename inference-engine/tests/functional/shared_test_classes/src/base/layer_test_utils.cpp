@@ -371,10 +371,10 @@ void LayerTestsCommon::Infer() {
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
     // nGraph interpreter does not support f16/bf16
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
 
-    function->validate_nodes_and_infer_types();
+    functionRefs->validate_nodes_and_infer_types();
 
     auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
     auto refInputsTypes = std::vector<ngraph::element::Type>(inputs.size());
@@ -406,11 +406,11 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
-            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, refInputsTypes);
+            expectedOutputs = ngraph::helpers::interpreterFunction(functionRefs, referenceInputs, refInputsTypes);
             break;
         }
         case CONSTANT_FOLDING: {
-            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs, refInputsTypes);
+            const auto &foldedFunc = ngraph::helpers::foldFunction(functionRefs, referenceInputs, refInputsTypes);
             expectedOutputs = ngraph::helpers::getConstData(foldedFunc);
             break;
         }

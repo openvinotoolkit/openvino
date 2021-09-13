@@ -57,10 +57,11 @@ void ConvolutionLayerTest::SetUp() {
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
     setTargetStaticShape(targetStaticShapes[0]);
-    makeConvolution();
+    function = makeConvolution();
+    functionRefs = makeConvolution();
 }
 
-void ConvolutionLayerTest::makeConvolution() {
+std::shared_ptr<ngraph::Function> ConvolutionLayerTest::makeConvolution(const std::string& name) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
@@ -75,7 +76,7 @@ void ConvolutionLayerTest::makeConvolution() {
             ngraph::builder::makeConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, false, filter_weights));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
-    function = std::make_shared<ngraph::Function>(results, params, "convolution");
+    return std::make_shared<ngraph::Function>(results, params, "convolution");
 }
 
 }  // namespace LayerTestsDefinitions
