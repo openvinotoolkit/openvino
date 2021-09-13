@@ -33,7 +33,7 @@ To run the demos, run demo_squeezenet_download_convert_run.sh or demo_security_b
 
 ./demo_squeezenet_download_convert_run.sh
 
-The script allows to specify the target device to infer on using -d <CPU|GPU|MYRIAD|FPGA> option.
+The script allows to specify the target device to infer on using -d <CPU|GPU|MYRIAD> option.
 
 Classification Demo Using SqueezeNet
 ====================================
