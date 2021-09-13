@@ -62,7 +62,6 @@ usage: benchmark_app.py [-h] [-i PATH_TO_INPUT] -m PATH_TO_MODEL
                         [-nthreads NUMBER_THREADS] [-pin {YES,NO}]
                         [--exec_graph_path EXEC_GRAPH_PATH]
                         [-pc [PERF_COUNTS]]
-                        [-mode {cython, pybind}]
 
 Options:
   -h, --help            Show this help message and exit.
@@ -148,9 +147,6 @@ Options:
   -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
                         Optional. Loads model from file directly without
                         read_network.
-  -mode {cython, pybind}
-                        Optional. Choose between old and new python api.
-                        Default: cython
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.

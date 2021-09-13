@@ -26,7 +26,7 @@ install(DIRECTORY deployment_manager/
         COMPONENT deployment_manager
         USE_SOURCE_PERMISSIONS)
 
-if(ENABLE_PYTHON OR NGRAPH_PYTHON_BUILD_ENABLE)
+if(ENABLE_PYTHON)
     find_package(PythonInterp 3 REQUIRED)
     set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 

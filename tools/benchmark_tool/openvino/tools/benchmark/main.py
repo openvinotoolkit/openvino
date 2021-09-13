@@ -61,7 +61,7 @@ def run(args):
         next_step(step_id=2)
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
-                              args.number_iterations, args.time, args.api_type, args.mode)
+                              args.number_iterations, args.time, args.api_type)
 
         ## CPU (MKLDNN) extensions
         if CPU_DEVICE_NAME in device_name and args.path_to_extension:
@@ -293,17 +293,7 @@ def run(args):
             device_number_streams[device] = benchmark.ie.get_config(device, key)
 
         # Number of requests
-        if args.mode == 'pybind':
-            if args.api_type == 'sync':
-                infer_requests = []
-                for i in range(benchmark.nireq):
-                    infer_requests.append(exe_network.create_infer_request())
-            else:
-                from openvino.inference_engine import InferQueue
-                infer_requests = InferQueue(network=exe_network, jobs=benchmark.nireq)
-                benchmark.nireq = len(infer_requests)
-        else:
-            infer_requests = exe_network.requests
+        infer_requests = exe_network.requests
 
         # Iteration limit
         benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, args.api_type)
@@ -347,26 +337,14 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
-        if args.mode == 'pybind':
-            duration_ms =  f"{benchmark.first_infer(infer_requests=infer_requests):.2f}"
-        else:
-            duration_ms =  f"{benchmark.first_infer(exe_network):.2f}"
+        duration_ms = f"{benchmark.first_infer(exe_network):.2f}"
         logger.info(f"First inference took {duration_ms} ms")
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        if args.mode == 'pybind':
-            fps, latency_ms, total_duration_sec, iteration = benchmark.infer(latency_percentile=args.latency_percentile,
-                                                                             infer_requests=infer_requests,
-                                                                             batch_size=batch_size,
-                                                                             progress_bar=progress_bar)
-        else:
-            fps, latency_ms, total_duration_sec, iteration = benchmark.infer(latency_percentile=args.latency_percentile,
-                                                                             exe_network=exe_network,
-                                                                             batch_size=batch_size,
-                                                                             progress_bar=progress_bar)
+        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, args.latency_percentile, progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()

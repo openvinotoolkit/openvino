@@ -29,22 +29,6 @@ void regclass_IENetwork(py::module m)
         return std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
     }));
 
-    cls.def(py::init([](py::object* capsule) {
-        // get the underlying PyObject* which is a PyCapsule pointer
-        auto* pybind_capsule_ptr = capsule->ptr();
-
-        // extract the pointer stored in the PyCapsule under the name "ngraph_function"
-        auto* capsule_ptr = PyCapsule_GetPointer(pybind_capsule_ptr, "ngraph_function");
-
-        auto* function_sp = static_cast<std::shared_ptr<ngraph::Function>*>(capsule_ptr);
-        if (function_sp == nullptr)
-            IE_THROW() << "Cannot create CNNNetwork from capsule! Capsule doesn't contain "
-                                  "nGraph function!";
-
-        InferenceEngine::CNNNetwork cnnNetwork(*function_sp);
-        return std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
-    }));
-
     cls.def("reshape",
             [](InferenceEngine::CNNNetwork& self,
                const std::map<std::string, std::vector<size_t>>& input_shapes) {
