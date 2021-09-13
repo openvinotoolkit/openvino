@@ -200,3 +200,27 @@ def test_blob_setter_with_preprocess(device):
     request.set_blob('data', img_blob, preprocess_info)
     pp = request.preprocess_info("data")
     assert pp.mean_variant == MeanVariant.MEAN_IMAGE
+
+
+def test_cancel(device):
+    ie_core = Core()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    exec_net = ie_core.load_network(net, device)
+    img = read_image()
+    td = TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
+    input_blob = Blob(td, img)
+    request = exec_net.create_infer_request()
+
+    def callback(req, code, array):
+        array.append(42)
+
+    data = []
+    request.set_completion_callback(callback, data)
+    request.set_input({'data': input_blob})
+    request.async_infer()
+    request.cancel()
+    with pytest.raises(RuntimeError) as e:
+        request.wait()
+    assert "[ INFER_CANCELLED ]" in str(e.value)
+    # check if callback has executed
+    assert data == [42]
