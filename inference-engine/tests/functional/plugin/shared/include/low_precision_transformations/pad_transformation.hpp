@@ -31,7 +31,7 @@ class PadTransformation :
     public testing::WithParamInterface<PadTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PadTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<PadTransformationParams>& obj);
 
 protected:
     void SetUp() override;

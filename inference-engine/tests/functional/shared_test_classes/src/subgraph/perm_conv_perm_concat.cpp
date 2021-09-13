@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/perm_conv_perm_concat.hpp"
 
 namespace SubgraphTestsDefinitions {
-std::string PermConvPermConcat::getTestCaseName(testing::TestParamInfo<PermConvPermConcatParams> obj) {
+std::string PermConvPermConcat::getTestCaseName(const testing::TestParamInfo<PermConvPermConcatParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetName;
     std::array<size_t, 4> input_shape;
