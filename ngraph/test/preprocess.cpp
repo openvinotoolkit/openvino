@@ -160,6 +160,7 @@ TEST(pre_post_process, test_lvalue) {
         auto inputTensorInfo2 = std::move(inputTensorInfo);
         inputTensorInfo = std::move(inputTensorInfo2);
         auto& same = inputTensorInfo.set_element_type(element::f32);
+        same.set_layout("?CHW");
         inputInfo.tensor(std::move(same));
     }
     {
@@ -168,6 +169,8 @@ TEST(pre_post_process, test_lvalue) {
         preprocessSteps = std::move(preprocessSteps2);
         preprocessSteps.mean(1.f);
         preprocessSteps.scale(2.f);
+        preprocessSteps.mean({1.f, 2.f, 3.f});
+        preprocessSteps.scale({2.f, 3.f, 4.f});
         preprocessSteps.custom([](const std::shared_ptr<Node>& node) {
             auto abs = std::make_shared<op::v0::Abs>(node);
             abs->set_friendly_name(node->get_friendly_name() + "/abs");
@@ -180,9 +183,9 @@ TEST(pre_post_process, test_lvalue) {
     f = p.build(f);
 
     auto result = std::make_shared<HostTensor>();
-    f->evaluate({result}, {make_host_tensor<element::f32>(StaticShape{1, 3, 1, 1}, {-3., 5., 7.})});
+    f->evaluate({result}, {make_host_tensor<element::f32>(StaticShape{1, 3, 1, 1}, {-9., 17., -1.})});
     auto result_val = read_vector<int8_t>(result);
-    EXPECT_TRUE(all_close(std::vector<int8_t>{2, 2, 3}, result_val));
+    EXPECT_TRUE(all_close(std::vector<int8_t>{3, 2, 1}, result_val));
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
 
     ASSERT_EQ(f->get_output_element_type(0), element::i8);
@@ -202,4 +205,37 @@ TEST(pre_post_process, test_2_inputs_basic) {
 
     auto result2_val = read_vector<float>(result2);
     EXPECT_TRUE(all_close_f(std::vector<float>{1, 2, 3}, result2_val));
+}
+
+TEST(pre_post_process, mean_scale_vector_tensor_layout) {
+    auto f = create_simple_function(element::f32, Shape{Dimension::dynamic(), 3, 2, 1});
+    ASSERT_EQ(f->get_output_element_type(0), element::f32);
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_layout("NC??"))
+                       .preprocess(PreProcessSteps().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f})))
+            .build(f);
+
+    auto result = std::make_shared<HostTensor>();
+    f->evaluate({result},
+                {make_host_tensor<ngraph::element::f32>(StaticShape{1, 3, 2, 1}, {5., 1., 5., 11., 11., -1.})});
+    auto result_val = read_vector<float>(result);
+    EXPECT_TRUE(all_close_f(std::vector<float>{2., 0., 1., 3., 2., -1.}, result_val));
+}
+
+TEST(pre_post_process, scale_vector_no_channels_layout) {
+    auto f = create_simple_function(element::f32, StaticShape{1, 3, 224, 224});
+    ASSERT_EQ(f->get_output_element_type(0), element::f32);
+    ASSERT_ANY_THROW(f = PrePostProcessor()
+                             .input(InputInfo()
+                                        .tensor(InputTensorInfo().set_layout("N?HW"))
+                                        .preprocess(PreProcessSteps().scale({0.1f, 0.2f, 0.3f})))
+                             .build(f));
+}
+
+TEST(pre_post_process, mean_vector_no_layout) {
+    auto f = create_simple_function(element::f32, Shape{Dimension::dynamic(), 3, 224, 224});
+    ASSERT_EQ(f->get_output_element_type(0), element::f32);
+    ASSERT_ANY_THROW(
+        f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().mean({0.1f, 0.2f, 0.3f}))).build(f));
 }

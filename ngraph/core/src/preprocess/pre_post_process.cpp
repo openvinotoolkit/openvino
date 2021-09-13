@@ -16,24 +16,59 @@ struct InputTensorInfo::InputTensorInfoImpl {
     explicit InputTensorInfoImpl(const element::Type& type) : m_type(type) {}
 
     element::Type m_type = element::dynamic;
+    Layout m_layout = Layout();
 };
+
+static int64_t get_channels_helper(const std::shared_ptr<Node>& node) {
+    auto it = node->get_rt_info().find("LAYOUT");
+    if (it == node->get_rt_info().end()) {
+        return -1;
+    }
+    auto layout = std::dynamic_pointer_cast<VariantWrapper<Layout>>(it->second);
+    OPENVINO_ASSERT(layout, "Layout runtime info for node is invalid");
+    if (!layout::has_channels(layout->get())) {
+        return -1;
+    }
+    return layout::channels(layout->get());
+}
+
+static StaticShape construct_mean_scale_shape(const std::shared_ptr<Node>& node, size_t values_size) {
+    // TODO: support also Mean/Scale image case
+    auto channels = get_channels_helper(node);
+    OPENVINO_ASSERT(channels >= 0, "Channels dimension is not specified in layout");
+    auto node_shape = node->get_output_partial_shape(0);
+    auto node_rank = node->get_output_partial_shape(0).rank();
+    OPENVINO_ASSERT(node_rank.is_static(), "Mean/scale vector operation is not supported for fully dynamic shape");
+    OPENVINO_ASSERT(node_rank.get_length() > channels, "Channels dimension is out of bounds");
+    OPENVINO_ASSERT(node_shape[channels] == values_size, "Number of channels and mean/values size mismatch");
+    std::vector<std::size_t> v(node_rank.get_length(), 1);
+    v[channels] = values_size;
+    return {v};
+}
+
+static void propagate_layout(const std::shared_ptr<Node>& src, const std::shared_ptr<Node>& dst) {
+    if (src->get_rt_info().count("LAYOUT")) {
+        dst->get_rt_info()["LAYOUT"] = src->get_rt_info()["LAYOUT"];
+    }
+}
 
 /// \brief PreProcessStepsImpl - internal data structure
 struct PreProcessSteps::PreProcessStepsImpl {
     void add_scale_impl(const std::vector<float>& values) {
         m_actions.emplace_back(std::make_tuple(
             [values](const std::shared_ptr<Node>& node) {
-                ngraph::Shape shape;
+                StaticShape shape;
                 if (values.size() == 1) {
-                    shape = ngraph::Shape{1};
+                    shape = StaticShape{1};
                 } else {
-                    // TODO: implement when Layout API is available
+                    shape = construct_mean_scale_shape(node, values.size());
                 }
                 auto constant = op::v0::Constant::create(element::f32, shape, values);
                 constant->set_friendly_name(node->get_friendly_name() + "/scale/Divide_Factor");
 
                 auto new_op = std::make_shared<op::v1::Divide>(node, constant);
                 new_op->set_friendly_name(node->get_friendly_name() + "/scale/Divide");
+                propagate_layout(node, new_op);
                 return new_op;
             },
             false));
@@ -42,17 +77,18 @@ struct PreProcessSteps::PreProcessStepsImpl {
     void add_mean_impl(const std::vector<float>& values) {
         m_actions.emplace_back(std::make_tuple(
             [values](const std::shared_ptr<Node>& node) {
-                ngraph::Shape shape;
+                StaticShape shape;
                 if (values.size() == 1) {
-                    shape = ngraph::Shape{1};
+                    shape = StaticShape{1};
                 } else {
-                    // TODO: implement when Layout API is available
+                    shape = construct_mean_scale_shape(node, values.size());
                 }
                 auto constant = op::v0::Constant::create(element::f32, shape, values);
                 constant->set_friendly_name(node->get_friendly_name() + "/mean/Mean_Const");
 
                 auto new_op = std::make_shared<op::v1::Subtract>(node, constant);
                 new_op->set_friendly_name(node->get_friendly_name() + "/mean/Subtract");
+                propagate_layout(node, new_op);
                 return new_op;
             },
             false));
@@ -66,6 +102,7 @@ struct PreProcessSteps::PreProcessStepsImpl {
                 }
                 auto convert = std::make_shared<op::v0::Convert>(node, type);
                 convert->set_friendly_name(node->get_friendly_name() + "/convert_element_type");
+                propagate_layout(node, convert);
                 return convert;
             },
             true));
@@ -163,6 +200,10 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         }
         auto new_param_shape = param->get_partial_shape();
         auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->m_type, new_param_shape);
+        if (input->m_tensor_data->m_layout != Layout()) {
+            new_param->get_rt_info()["LAYOUT"] =
+                std::make_shared<VariantWrapper<Layout>>(input->m_tensor_data->m_layout);
+        }
         // Old param will be removed, so friendly name can be reused
         new_param->set_friendly_name(param->get_friendly_name());
         std::shared_ptr<Node> node = new_param;
@@ -213,6 +254,16 @@ InputTensorInfo&& InputTensorInfo::set_element_type(const element::Type& type) &
     return std::move(*this);
 }
 
+InputTensorInfo& InputTensorInfo::set_layout(const Layout& layout) & {
+    m_impl->m_layout = layout;
+    return *this;
+}
+
+InputTensorInfo&& InputTensorInfo::set_layout(const Layout& layout) && {
+    m_impl->m_layout = layout;
+    return std::move(*this);
+}
+
 // --------------------- PreProcessSteps ------------------
 
 PreProcessSteps::PreProcessSteps() : m_impl(std::unique_ptr<PreProcessStepsImpl>(new PreProcessStepsImpl())) {}
@@ -230,6 +281,16 @@ PreProcessSteps&& PreProcessSteps::scale(float value) && {
     return std::move(*this);
 }
 
+PreProcessSteps& PreProcessSteps::scale(const std::vector<float>& values) & {
+    m_impl->add_scale_impl(values);
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::scale(const std::vector<float>& values) && {
+    m_impl->add_scale_impl(values);
+    return std::move(*this);
+}
+
 PreProcessSteps& PreProcessSteps::mean(float value) & {
     m_impl->add_mean_impl(std::vector<float>{value});
     return *this;
@@ -237,6 +298,16 @@ PreProcessSteps& PreProcessSteps::mean(float value) & {
 
 PreProcessSteps&& PreProcessSteps::mean(float value) && {
     m_impl->add_mean_impl(std::vector<float>{value});
+    return std::move(*this);
+}
+
+PreProcessSteps& PreProcessSteps::mean(const std::vector<float>& values) & {
+    m_impl->add_mean_impl(values);
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::mean(const std::vector<float>& values) && {
+    m_impl->add_mean_impl(values);
     return std::move(*this);
 }
 
