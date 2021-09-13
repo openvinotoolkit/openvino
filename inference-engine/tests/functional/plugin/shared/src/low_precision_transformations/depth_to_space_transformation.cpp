@@ -32,7 +32,7 @@ using namespace ngraph::opset1;
 
 namespace LayerTestsDefinitions {
 
-std::string DepthToSpaceTransformation::getTestCaseName(testing::TestParamInfo<DepthToSpaceTransformationParams> obj) {
+std::string DepthToSpaceTransformation::getTestCaseName(const testing::TestParamInfo<DepthToSpaceTransformationParams>& obj) {
     static std::map<DepthToSpace::DepthToSpaceMode, std::string> names = {
         {DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, "BLOCKS_FIRST"},
         {DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},

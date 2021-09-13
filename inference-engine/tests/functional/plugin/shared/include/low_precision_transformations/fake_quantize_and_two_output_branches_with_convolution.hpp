@@ -32,7 +32,7 @@ class FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation :
     public testing::WithParamInterface<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams>& obj);
 
 protected:
     void SetUp() override;

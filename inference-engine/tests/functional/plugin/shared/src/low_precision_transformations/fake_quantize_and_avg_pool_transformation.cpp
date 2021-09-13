@@ -16,7 +16,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeAndAvgPoolTransformationParams> obj) {
+std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeAndAvgPoolTransformationParams>& obj) {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;

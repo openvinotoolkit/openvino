@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FullyConnectedTransformation::getTestCaseName(testing::TestParamInfo<FullyConnectedTransformationParams> obj) {
+std::string FullyConnectedTransformation::getTestCaseName(const testing::TestParamInfo<FullyConnectedTransformationParams>& obj) {
     ngraph::element::Type precision;
     MatMulShapes shapes;
     std::string targetDevice;

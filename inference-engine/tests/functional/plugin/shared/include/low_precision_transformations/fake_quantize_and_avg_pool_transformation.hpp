@@ -23,7 +23,7 @@ class FakeQuantizeAndAvgPoolTransformation :
     public testing::WithParamInterface<FakeQuantizeAndAvgPoolTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeAndAvgPoolTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeAndAvgPoolTransformationParams>& obj);
 
 protected:
     void SetUp() override;

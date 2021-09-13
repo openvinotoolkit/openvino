@@ -29,7 +29,7 @@ class ReduceMeanTransformation :
     public testing::WithParamInterface<ReduceMeanTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReduceMeanTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReduceMeanTransformationParams>& obj);
 
 protected:
     void SetUp() override;

@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FuseConvertTransformation::getTestCaseName(testing::TestParamInfo<FuseConvertTransformationParams> obj) {
+std::string FuseConvertTransformation::getTestCaseName(const testing::TestParamInfo<FuseConvertTransformationParams>& obj) {
     std::string targetDevice;
     ngraph::PartialShape shape;
     ngraph::element::Type precision;

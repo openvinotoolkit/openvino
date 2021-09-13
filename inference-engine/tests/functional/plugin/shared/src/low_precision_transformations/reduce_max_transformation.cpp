@@ -12,7 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ReduceMaxTransformation::getTestCaseName(testing::TestParamInfo<ReduceMaxTransformationParams> obj) {
+std::string ReduceMaxTransformation::getTestCaseName(const testing::TestParamInfo<ReduceMaxTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;

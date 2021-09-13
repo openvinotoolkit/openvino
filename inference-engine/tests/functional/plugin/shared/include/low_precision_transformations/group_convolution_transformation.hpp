@@ -37,7 +37,7 @@ class GroupConvolutionTransformation :
     public testing::WithParamInterface<GroupConvolutionTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GroupConvolutionTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<GroupConvolutionTransformationParams>& obj);
 
 protected:
     void SetUp() override;

@@ -20,7 +20,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams> obj) {
+std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;

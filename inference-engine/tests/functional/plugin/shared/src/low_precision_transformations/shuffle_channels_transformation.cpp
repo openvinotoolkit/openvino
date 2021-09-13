@@ -18,7 +18,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ShuffleChannelsTransformation::getTestCaseName(testing::TestParamInfo<ShuffleChannelsTransformationParams> obj) {
+std::string ShuffleChannelsTransformation::getTestCaseName(const testing::TestParamInfo<ShuffleChannelsTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;

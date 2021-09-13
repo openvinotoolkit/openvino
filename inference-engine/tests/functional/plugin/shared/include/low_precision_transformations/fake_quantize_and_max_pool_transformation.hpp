@@ -23,7 +23,7 @@ class FakeQuantizeAndMaxPoolTransformation :
     public testing::WithParamInterface<FakeQuantizeAndMaxPoolTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeAndMaxPoolTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeAndMaxPoolTransformationParams>& obj);
 
 protected:
     void SetUp() override;

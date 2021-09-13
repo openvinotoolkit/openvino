@@ -34,7 +34,7 @@ class StridedSliceTransformation :
     public testing::WithParamInterface<StridedSliceTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<StridedSliceTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceTransformationParams>& obj);
 
 protected:
     void SetUp() override;

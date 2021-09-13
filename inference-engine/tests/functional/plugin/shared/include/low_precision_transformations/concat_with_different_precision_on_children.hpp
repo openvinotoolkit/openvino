@@ -30,7 +30,7 @@ class ConcatWithDifferentChildrenTransformation :
     public testing::WithParamInterface<ConcatWithDifferentChildrenTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConcatWithDifferentChildrenTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConcatWithDifferentChildrenTransformationParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:

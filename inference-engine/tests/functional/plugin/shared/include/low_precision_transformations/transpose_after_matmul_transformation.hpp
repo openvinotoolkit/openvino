@@ -23,7 +23,7 @@ class TransposeAfterMatMulTransformation :
     public testing::WithParamInterface<TransposeAfterMatMulTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposeAfterMatMulTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeAfterMatMulTransformationParams>& obj);
 
 protected:
     void SetUp() override;

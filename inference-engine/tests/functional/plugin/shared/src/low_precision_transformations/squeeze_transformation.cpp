@@ -46,7 +46,7 @@ InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceE
         1ul);
 }
 
-std::string SqueezeTransformation::getTestCaseName(testing::TestParamInfo<SqueezeTransformationParams> obj) {
+std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::string targetDevice;
