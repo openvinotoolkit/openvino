@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ie_blob.h"
+
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_layouts.h>
+
 #include <ie_precision.hpp>
 
-#include "ie_blob.h"
 #include "pyopenvino/core/ie_blob.hpp"
 #include "pyopenvino/core/tensor_description.hpp"
 

@@ -1,7 +1,14 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+#include <ie_common.h>
 #include <pybind11/pybind11.h>
+
+#include <ie_iinfer_request.hpp>
+#include <ie_version.hpp>
+#include <string>
+
+#include "core/containers.hpp"
 #include "core/ie_blob.hpp"
 #include "core/ie_core.hpp"
 #include "core/ie_data.hpp"
@@ -14,17 +21,10 @@
 #include "core/ie_preprocess_info.hpp"
 #include "core/ie_version.hpp"
 #include "core/tensor_description.hpp"
-#include "core/containers.hpp"
-
-#include <ie_common.h>
-#include <ie_iinfer_request.hpp>
-#include <ie_version.hpp>
-#include <string>
 
 namespace py = pybind11;
 
-std::string get_version()
-{
+std::string get_version() {
     auto version = InferenceEngine::GetInferenceEngineVersion();
     std::string version_str = std::to_string(version->apiVersion.major) + ".";
     version_str += std::to_string(version->apiVersion.minor) + ".";
@@ -32,8 +32,7 @@ std::string get_version()
     return version_str;
 }
 
-PYBIND11_MODULE(pyopenvino, m)
-{
+PYBIND11_MODULE(pyopenvino, m) {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
     m.def("get_version", &get_version);
     py::enum_<InferenceEngine::StatusCode>(m, "StatusCode")

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_version.hpp>
-
 #include "pyopenvino/core/ie_version.hpp"
+
+#include <ie_version.hpp>
 
 namespace py = pybind11;
 
@@ -20,11 +20,11 @@ void regclass_Version(py::module m) {
     strct.def_readwrite("major", &ApiVersionType::major);
     strct.def_readwrite("minor", &ApiVersionType::minor);
 
-    cls.def_property_readonly("major", [](InferenceEngine::Version& self){
-       return self.apiVersion.major;
+    cls.def_property_readonly("major", [](InferenceEngine::Version& self) {
+        return self.apiVersion.major;
     });
 
-    cls.def_property_readonly("minor", [](InferenceEngine::Version& self){
+    cls.def_property_readonly("minor", [](InferenceEngine::Version& self) {
         return self.apiVersion.minor;
     });
 }
