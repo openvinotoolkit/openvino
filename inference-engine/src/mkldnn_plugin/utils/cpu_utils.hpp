@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include "nodes/common/cpu_convert.h"
+#include "nodes/common/cpu_memcpy.h"
+
 namespace MKLDNNPlugin {
 
 /**
@@ -90,18 +93,25 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
     return precision;
 }
 
+/**
+* @brief Performs data conversion from input memory precision to output memory precision
+* if after precision conversion output memory equal converted memory, data copied to output memory
+* @param input memory from which data will be converted
+* @param output memory to which precision data will be converted
+* @return pair of true and nullptr if data was copied into output memory
+*         pair of false and pointer to MKLDNNMemory if data can't be copied to output memory
+*/
 inline std::pair<bool, MKLDNNMemoryPtr> convertMemoryByPrecision(const MKLDNNMemory &input, const MKLDNNMemory &output) {
     const auto outPrc = MKLDNNExtensionUtils::DataTypeToIEPrecision(output.GetDataType());
-    auto newDesc = input.GetDesc().clone();
-    newDesc->setPrecision(outPrc);
+    auto newDesc = MemoryDescUtils::cloneWithNewPrecision(input.getDesc(), outPrc);
 
     auto convertedMem = std::make_shared<MKLDNNMemory>(input.getEngine());
     convertedMem->Create(*newDesc, nullptr, false);
 
     cpu_convert(input.GetPtr(), convertedMem->GetPtr(), MKLDNNExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
-                outPrc, input.GetElementsCount());
+                outPrc, input.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount());
 
-    if (newDesc->isCompatible(output.GetDesc())) {
+    if (newDesc->isCompatible(output.getDesc())) {
         cpu_memcpy(output.GetPtr(), convertedMem->GetPtr(), output.GetSize());
         return {true, nullptr};
     }

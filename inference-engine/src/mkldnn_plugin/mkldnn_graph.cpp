@@ -728,7 +728,7 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
             // WA: reorder node perform saturation when convert float -> int
             // but conversion should be perform according to Convert op, which truncates the fractional part
             std::pair<bool, MKLDNNMemoryPtr> result{false, ext_mem};
-            if (ext_tdesc.getPrecision().is_float() && !mem.GetDesc().getPrecision().is_float()) {
+            if (ext_tdesc.getPrecision().is_float() && !mem.getDesc().getPrecision().is_float()) {
                 result = convertMemoryByPrecision(*ext_mem, mem);
             }
 
@@ -765,7 +765,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
         }
 
-        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
+        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob->getDesc());
         const auto &expectedDesc = ext_blob->second->getTensorDesc();
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
@@ -781,27 +781,27 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
                              std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
         }
 
-        if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
+        if (out[name]->getTensorDesc().getDims() != intr_blob->getStaticDims() && !isScalarOutput) {
             if (!node->isDynamicNode())
                 IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
-            out[name]->setShape(intr_blob.getStaticDims());
+            out[name]->setShape(intr_blob->getStaticDims());
         }
 
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
-        if (srcPrec == dstPrec && ext_blob->second->byteSize() != intr_blob.GetSize())
+        if (srcPrec == dstPrec && ext_blob->second->byteSize() != intr_blob->GetSize())
                 IE_THROW() << "Output blob byte size is not equal network output byte size ("
-                                   << ext_blob->second->byteSize() << "!=" << intr_blob.GetSize() << ").";
+                                   << ext_blob->second->byteSize() << "!=" << intr_blob->GetSize() << ").";
 
         void *ext_blob_ptr = ext_blob->second->buffer();
-        void *intr_blob_ptr = intr_blob.GetData();
+        void *intr_blob_ptr = intr_blob->GetData();
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        const auto &outDims = intr_blob.getStaticDims();
-        size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        const auto &outDims = intr_blob->getStaticDims();
+        size_t size_to_copy = intr_blob->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
         // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
         if (config.batchLimit) {
@@ -820,7 +820,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             // WA: reorder node perform saturation when convert float -> int
             // but conversion should be perform according to Convert op, which truncates the fractional part
             std::pair<bool, MKLDNNMemoryPtr> result{false, intr_blob};
-            if (intr_blob->GetDesc().getPrecision().is_float() && !outBloMem.GetDesc().getPrecision().is_float()) {
+            if (intr_blob->getDesc().getPrecision().is_float() && !outBloMem.getDesc().getPrecision().is_float()) {
                 result = convertMemoryByPrecision(*intr_blob, outBloMem);
             }
 

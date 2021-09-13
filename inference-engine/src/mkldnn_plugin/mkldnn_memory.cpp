@@ -19,7 +19,6 @@
 #include "mkldnn/ie_mkldnn.h"
 #include "cpu_shape.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/cpu_utils.hpp"
 #include "nodes/mkldnn_reorder_node.h"
 #include "memory_desc/cpu_memory_desc.h"
 

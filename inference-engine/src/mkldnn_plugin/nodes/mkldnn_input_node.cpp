@@ -18,7 +18,6 @@
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"
 #include "common/cpu_convert.h"
-#include "utils/cpu_utils.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 

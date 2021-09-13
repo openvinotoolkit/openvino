@@ -7,7 +7,6 @@
 #include "mkldnn_memory.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/general_utils.h"
-#include "utils/cpu_utils.hpp"
 #include <limits>
 #include <vector>
 #include <numeric>
