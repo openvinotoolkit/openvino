@@ -91,7 +91,7 @@ namespace
 
         if (computed_precision != expected_precision)
         {
-            return testing::AssertionFailure();
+            return testing::AssertionFailure() << "Blob precisions mismatch";
         }
 
         switch (static_cast<InferenceEngine::Precision::ePrecision>(computed_precision))

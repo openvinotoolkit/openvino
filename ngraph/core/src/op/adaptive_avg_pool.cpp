@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v8::AdaptiveAvgPool, "AdaptiveAvgPool", 8);
+OPENVINO_RTTI_DEFINITION(ov::op::v8::AdaptiveAvgPool, "AdaptiveAvgPool", 8);
 
 op::v8::AdaptiveAvgPool::AdaptiveAvgPool(const Output<Node>& data, const Output<Node>& output_shape)
     : Op({data, output_shape}) {
@@ -27,7 +27,7 @@ bool op::v8::AdaptiveAvgPool::visit_attributes(AttributeVisitor& visitor) {
 void op::v8::AdaptiveAvgPool::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v8_AdaptiveAvgPool_validate_and_infer_types);
 
-    const PartialShape& data_shape = get_input_partial_shape(0);
+    const ov::Shape& data_shape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(
         this,
@@ -35,7 +35,7 @@ void op::v8::AdaptiveAvgPool::validate_and_infer_types() {
         "Expected a 3D, 4D or 5D tensor for the input. Got: ",
         data_shape);
 
-    auto output_shape = PartialShape::dynamic(data_shape.rank());
+    auto output_shape = ov::Shape::dynamic(data_shape.rank());
     if (data_shape.rank().is_static()) {
         if (data_shape[0].is_static()) {
             output_shape[0] = data_shape[0];  // batch size

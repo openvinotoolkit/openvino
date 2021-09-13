@@ -26,7 +26,7 @@ typedef std::tuple<
 class MatmulSqueezeAddTest : public testing::WithParamInterface<matmulSqueezeAddParams>,
                      public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<matmulSqueezeAddParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<matmulSqueezeAddParams>& obj);
 
 protected:
     void SetUp() override;

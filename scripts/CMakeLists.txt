@@ -10,14 +10,14 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                       SKIP "${OpenVINO_SOURCE_DIR}/bin"
                            "${OpenVINO_SOURCE_DIR}/build"
                            "${OpenVINO_SOURCE_DIR}/thirdparty"
-                           "${OpenVINO_SOURCE_DIR}/ngraph/python/pybind11"
+                           "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/thirdparty/pybind11"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
                            "${TEMP}"
                            # TODO fix and enable back:
                            "${OpenVINO_SOURCE_DIR}/inference-engine/scripts/dependencies.sh"
                            "${OpenVINO_SOURCE_DIR}/scripts/install_dependencies/install_NEO_OCL_driver.sh"
                            "${OpenVINO_SOURCE_DIR}/scripts/install_dependencies/install_openvino_dependencies.sh"
-                           "${OpenVINO_SOURCE_DIR}/ngraph/python/tests/test_onnx/model_zoo_preprocess.sh"
+                           "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/tests/test_onnx/model_zoo_preprocess.sh"
                            )
 
 #
@@ -46,14 +46,6 @@ if(UNIX)
             DESTINATION install_dependencies
             COMPONENT install_dependencies)
 endif()
-
-# install DeploymentManager
-
-ie_cpack_add_component(deployment_manager REQUIRED)
-install(DIRECTORY deployment_manager/
-        DESTINATION deployment_tools/tools/deployment_manager
-        COMPONENT deployment_manager
-        USE_SOURCE_PERMISSIONS)
 
 # install files for demo
 

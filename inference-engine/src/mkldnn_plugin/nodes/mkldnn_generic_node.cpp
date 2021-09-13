@@ -8,7 +8,8 @@
 #include <vector>
 #include <string>
 #include <blob_factory.hpp>
-#include "cpu_memory_desc_utils.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -30,13 +31,13 @@ NodeConfig MKLDNNGenericNode::convertLayerToNodeConfig(const InferenceEngine::La
     for (size_t i = 0; i < layerConfig.inConfs.size(); i++) {
         config.inConfs[i].inPlace = layerConfig.inConfs[i].inPlace;
         config.inConfs[i].constant = layerConfig.inConfs[i].constant;
-        config.inConfs[i].desc = MemoryDescUtils::convertToMKLDNNMemoryDesc(layerConfig.inConfs[i].desc).clone();
+        config.inConfs[i].desc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(layerConfig.inConfs[i].desc).clone();
     }
     config.outConfs.resize(layerConfig.outConfs.size());
     for (size_t i = 0; i < layerConfig.outConfs.size(); i++) {
         config.outConfs[i].inPlace = layerConfig.outConfs[i].inPlace;
         config.outConfs[i].constant = layerConfig.outConfs[i].constant;
-        config.outConfs[i].desc = MemoryDescUtils::convertToMKLDNNMemoryDesc(layerConfig.outConfs[i].desc).clone();
+        config.outConfs[i].desc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(layerConfig.outConfs[i].desc).clone();
     }
     return config;
 }
@@ -112,13 +113,13 @@ bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
             extFactory = extMgr->CreateExtensionFactory(ngraphOp);
 
             if (!extFactory)
-                IE_THROW(NotImplemented);
+                return false;
 
             std::vector<InferenceEngine::ILayerImpl::Ptr> impls_no_exec;
             InferenceEngine::ResponseDesc resp;
             InferenceEngine::StatusCode rc = extFactory->getImplementations(impls_no_exec, &resp);
             if (rc == InferenceEngine::NOT_IMPLEMENTED) {
-                IE_THROW(NotImplemented) << resp.msg;
+                return false;
             } else if (rc != InferenceEngine::OK) {
                 IE_THROW() << resp.msg;
             }
@@ -130,8 +131,7 @@ bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
             }
         }
 
-        if (extFactory || !impls.empty())
-            setType(Generic);
+        setType(Generic);
     }
     return created();
 }
@@ -177,7 +177,7 @@ void MKLDNNGenericNode::execLayer() {
     for (size_t i = 0; i < outputShapes.size(); i++) {
         if (isDynBatch) {
             auto out_edge = getChildEdgesAtPort(i)[0];
-            auto td = MemoryDescUtils::convertToTensorDesc(out_edge->getMemory().GetDesc());
+            auto td = MemoryDescUtils::convertToTensorDesc(out_edge->getMemory().getDesc());
             td.setDims(execOutputShapes[i]);
             outputs.push_back(make_blob_with_precision(td, out_edge->getMemory().GetData()));
         } else {

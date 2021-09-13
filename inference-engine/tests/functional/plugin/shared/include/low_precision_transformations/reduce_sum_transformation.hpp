@@ -30,7 +30,7 @@ class ReduceSumTransformation :
     public testing::WithParamInterface<ReduceSumTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReduceSumTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReduceSumTransformationParams>& obj);
 
 protected:
     void SetUp() override;
