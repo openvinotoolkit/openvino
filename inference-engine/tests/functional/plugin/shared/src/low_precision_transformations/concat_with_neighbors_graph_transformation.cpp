@@ -16,7 +16,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(testing::TestParamInfo<ConcatNeighboringGraphTransformationParams> obj) {
+std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(const testing::TestParamInfo<ConcatNeighboringGraphTransformationParams>& obj) {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;

@@ -54,7 +54,7 @@ class ConvolutionBackpropDataTransformation :
     public testing::WithParamInterface<ConvolutionBackpropDataTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvolutionBackpropDataTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvolutionBackpropDataTransformationParams>& obj);
 
 protected:
     void SetUp() override;
