@@ -18,6 +18,7 @@ This plugin adds the following command-line options:
 import hashlib
 import json
 import logging
+import tempfile
 # pylint:disable=import-error
 import os
 import sys
@@ -33,7 +34,6 @@ from jsonschema import validate, ValidationError
 UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
 sys.path.insert(0, str(UTILS_DIR))
 
-from plugins.conftest import *
 from path_utils import check_positive_int
 from proc_utils import cmd_exec
 from platform_utils import get_os_name, get_os_version, get_cpu_info
@@ -42,7 +42,7 @@ from utils import metadata_from_manifest, DATABASES, DB_COLLECTIONS
 MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(MEMORY_TESTS_DIR)
 
-from test_runner.utils import query_memory_timeline, REFS_FACTOR
+from test_runner.utils import upload_data, query_memory_timeline, REFS_FACTOR
 
 
 OMZ_NUM_ATTEMPTS = 6
@@ -56,8 +56,6 @@ def abs_path(relative_path):
 
 
 # -------------------- CLI options --------------------
-
-
 def pytest_addoption(parser):
     """Specify command-line options for all plugins"""
     test_args_parser = parser.getgroup("test run")
@@ -177,9 +175,17 @@ def executable(request):
 def niter(request):
     """Fixture function for command-line option."""
     return request.config.getoption('niter')
-
-
 # -------------------- CLI options --------------------
+
+
+@pytest.fixture(scope="function")
+def temp_dir(pytestconfig):
+    """Create temporary directory for test purposes.
+    It will be cleaned up after every test run.
+    """
+    temp_dir = tempfile.TemporaryDirectory()
+    yield Path(temp_dir.name)
+    temp_dir.cleanup()
 
 
 @pytest.fixture(scope="function")
@@ -541,5 +547,4 @@ def pytest_runtest_makereport(item, call):
         instance["db"]["raw_results"] = instance["raw_results"]
         logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, db_name, db_collection, instance["db"]))
 
-        # TODO: upload to new DB (memcheck -> memory_tests)
-        # upload_data(data, db_url, db_name, db_collection)
+        upload_data(instance["db"], db_url, db_name, db_collection)
