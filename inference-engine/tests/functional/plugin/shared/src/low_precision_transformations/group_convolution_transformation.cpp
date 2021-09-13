@@ -20,7 +20,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string GroupConvolutionTransformation::getTestCaseName(testing::TestParamInfo<GroupConvolutionTransformationParams> obj) {
+std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;

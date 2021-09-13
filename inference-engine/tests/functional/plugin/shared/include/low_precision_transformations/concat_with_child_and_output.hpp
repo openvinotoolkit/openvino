@@ -29,7 +29,7 @@ class ConcatWithChildAndOutputTransformation :
     public testing::WithParamInterface<ConcatWithChildAndOutputTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConcatWithChildAndOutputTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConcatWithChildAndOutputTransformationParams>& obj);
 
 protected:
     void SetUp() override;
