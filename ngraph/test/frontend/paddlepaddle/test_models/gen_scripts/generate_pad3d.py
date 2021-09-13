@@ -57,6 +57,12 @@ def main():
     input_data = np.random.rand(*input_shape).astype(np.float32)
     pad3d("pad3d_test3", input_data, in_dtype, pad, data_format, mode)
 
+    input_shape = (2, 3, 4, 5, 6)
+    pad = [1, 2, 1, 1, 1, 2]
+    mode = "circular"
+    data_format = 'NDHWC'
+    input_data = np.random.rand(*input_shape).astype(np.float32)
+    pad3d("throw_in_conversion", input_data, in_dtype, pad, data_format, mode)
     # padding of type int feature only supported by PaddlePaddle 'develop' version(>=2.1.0)
 #    input_shape = (1, 2, 3, 4, 5)
 #    pad_int = 1

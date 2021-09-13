@@ -25,7 +25,7 @@ typedef std::tuple<
 class InputSplitConcatTest : public testing::WithParamInterface<InputSplitConcatParams>,
                              public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<InputSplitConcatParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<InputSplitConcatParams>& obj);
 
 protected:
     void SetUp() override;
