@@ -99,6 +99,11 @@ void regclass_InferRequest(py::module m)
         py::arg("inputs"),
         py::arg("userdata"));
 
+    cls.def("cancel", [](InferRequestWrapper& self) {
+        py::gil_scoped_release release;
+        self._request.Cancel();
+    });
+
     cls.def(
         "wait",
         [](InferRequestWrapper& self, int64_t millis_timeout) {
@@ -154,9 +159,12 @@ void regclass_InferRequest(py::module m)
         return perf_map;
     });
 
-    cls.def("preprocess_info", [](InferRequestWrapper& self, const std::string& name) {
-        return self._request.GetPreProcess(name);
-    }, py::arg("name"));
+    cls.def(
+        "preprocess_info",
+        [](InferRequestWrapper& self, const std::string& name) {
+            return self._request.GetPreProcess(name);
+        },
+        py::arg("name"));
 
     //    cls.def_property_readonly("preprocess_info", [](InferRequestWrapper& self) {
     //
