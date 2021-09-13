@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "behavior/infer_request_dynamic.hpp"
+#include "behavior/infer_request/infer_request_dynamic.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
