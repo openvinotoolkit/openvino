@@ -95,8 +95,8 @@ shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args)
 namespace {
 bool evaluate_concat(const HostTensorVector& args, const HostTensorPtr& out, int64_t concatenation_axis) {
     std::vector<const char*> arg_bufs;
-    std::vector<ov::StaticShape> arg_shapes;
-    ov::StaticShape out_shape(args[0]->get_shape());
+    std::vector<ov::Shape> arg_shapes;
+    ov::Shape out_shape(args[0]->get_shape());
     out_shape[concatenation_axis] = 0;
     for (auto& input : args) {
         arg_bufs.push_back(input->get_data_ptr<char>());

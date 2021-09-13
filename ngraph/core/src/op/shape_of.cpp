@@ -51,15 +51,15 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 
 namespace shape_of {
 template <element::Type_t ET>
-inline bool evaluate(const ov::StaticShape& shape, const HostTensorPtr& output_value) {
+inline bool evaluate(const ov::Shape& shape, const HostTensorPtr& output_value) {
     runtime::reference::shape_of(shape, output_value->get_data_ptr<ET>());
     return true;
 }
 
 bool evaluate_shape_of(const HostTensorPtr& output_value, const HostTensorPtr& input_value) {
     bool rc = true;
-    ov::StaticShape shape = input_value->get_shape();
-    output_value->set_shape(ov::StaticShape{shape.size()});
+    ov::Shape shape = input_value->get_shape();
+    output_value->set_shape(ov::Shape{shape.size()});
     switch (output_value->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_shape_of, i32, shape, output_value);
         NGRAPH_TYPE_CASE(evaluate_shape_of, i64, shape, output_value);

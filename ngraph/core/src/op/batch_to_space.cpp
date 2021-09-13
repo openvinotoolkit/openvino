@@ -103,7 +103,7 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
     const auto crops_end_const = get_constant_from_source(input_value(3));
 
     if (block_const && crops_begin_const && crops_end_const && data_pshape.is_static()) {
-        const ov::StaticShape& data_sshape = data_pshape.to_shape();
+        const ov::Shape& data_sshape = data_pshape.to_shape();
 
         auto block_val = block_const->cast_vector<int64_t>();
         auto crops_begin_val = crops_begin_const->cast_vector<int64_t>();
@@ -143,7 +143,7 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
                                   "block_shape[i] * input_shape[i]");
         }
 
-        ov::StaticShape output_sshape = {static_cast<size_t>(data_sshape[0] / block_prod)};
+        ov::Shape output_sshape = {static_cast<size_t>(data_sshape[0] / block_prod)};
         for (size_t idx = 1; idx < data_sshape.size(); ++idx) {
             output_sshape.push_back(
                 static_cast<size_t>(data_sshape[idx] * block_val[idx] - crops_begin_val[idx] - crops_end_val[idx]));
@@ -219,12 +219,12 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
                      "Invalid crops values (out of bounds) with respect to the shape of data input");
     }
 
-    ov::StaticShape dispersed_shape(1);
+    ov::Shape dispersed_shape(1);
     dispersed_shape.insert(dispersed_shape.end(), data_shape.begin(), data_shape.end());
     std::vector<size_t> axes_order(block_values_size + 1);
     std::vector<size_t> plain_axes_order(block_values_size + 1);
     std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
-    ov::StaticShape squeezed_shape(data_shape.begin(), data_shape.end());
+    ov::Shape squeezed_shape(data_shape.begin(), data_shape.end());
     if (squeezed_shape.size() > block_values_size) {
         return false;
     }
@@ -232,7 +232,7 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
     auto* flat_data = data->get_data_ptr<char>();
     std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
 
-    ov::StaticShape post_transpose_shape(axes_order.size());
+    ov::Shape post_transpose_shape(axes_order.size());
     std::vector<char> post_transpose_data(shape_size(data_shape) * elem_size);
 
     for (size_t block_idx = 1; block_idx < block_values_size; ++block_idx) {

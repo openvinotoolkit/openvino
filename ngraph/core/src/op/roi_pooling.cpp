@@ -13,7 +13,7 @@ OPENVINO_RTTI_DEFINITION(op::v0::ROIPooling, "ROIPooling", 0);
 
 op::ROIPooling::ROIPooling(const Output<Node>& input,
                            const Output<Node>& coords,
-                           const ov::StaticShape& output_size,
+                           const ov::Shape& output_size,
                            const float spatial_scale,
                            const string& method)
     : Op({input, coords}),

@@ -65,7 +65,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
 
         const auto& blank_index_partial_shape = get_input_partial_shape(2);
         if (blank_index_partial_shape.is_static()) {
-            ov::StaticShape blank_index_shape = blank_index_partial_shape.to_shape();
+            ov::Shape blank_index_shape = blank_index_partial_shape.to_shape();
             NODE_VALIDATION_CHECK(
                 this,
                 ngraph::is_scalar(blank_index_shape) || (is_vector(blank_index_shape) && (blank_index_shape[0] == 1)),

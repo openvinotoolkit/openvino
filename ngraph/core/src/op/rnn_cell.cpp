@@ -148,7 +148,7 @@ void op::v0::RNNCell::validate_and_infer_types() {
 
 Output<Node> op::v0::RNNCell::get_default_bias_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
-                                                 ov::StaticShape{s_gates_count * get_hidden_size()},
+                                                 ov::Shape{s_gates_count * get_hidden_size()},
                                                  vector<float>(s_gates_count * get_hidden_size(), 0.f))};
 }
 

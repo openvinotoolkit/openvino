@@ -99,7 +99,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                 // +1 because the left and right borders are included [start, end]
                 m_num_iterations = (abs(end - start) + 1) / part_size;
                 // infer type for m_body_parameter
-                ov::StaticShape out_shape{input_shape};
+                ov::Shape out_shape{input_shape};
                 out_shape[axis] = part_size;
                 body_parameter->set_partial_shape(out_shape);
             } else {
@@ -142,7 +142,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                 auto part_size = concat_output_description->m_part_size;
                 auto axis = concat_output_description->m_axis;
 
-                ov::StaticShape out_shape{body_value_shape};
+                ov::Shape out_shape{body_value_shape};
 
                 if (body_value_shape.empty()) {
                     NODE_VALIDATION_CHECK(this,
@@ -151,7 +151,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                                           "tensor slices are scalars. "
                                           "TensorIterator output index: ",
                                           index);
-                    out_shape = ov::StaticShape(1);
+                    out_shape = ov::Shape(1);
                 }
 
                 if (m_num_iterations != -1) {

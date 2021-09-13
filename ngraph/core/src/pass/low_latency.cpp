@@ -120,7 +120,7 @@ void UnrollSingleIteration(const shared_ptr<ngraph::op::util::SubGraphOp>& sub_g
 
             // IECompatibility: insert identity (Unsqueeze + Squeeze) to store the TensorIterator
             // output names
-            auto axis_1 = Constant::create(ov::element::i64, ov::StaticShape{1}, {1});
+            auto axis_1 = Constant::create(ov::element::i64, ov::Shape{1}, {1});
             auto identity_1 = std::make_shared<Unsqueeze>(connect_to, axis_1);
             auto identity_2 = std::make_shared<Squeeze>(identity_1, axis_1);
             identity_2->set_friendly_name(out_name);
@@ -139,7 +139,7 @@ ngraph::Output<ngraph::Node> create_init_subgraph(const shared_ptr<ngraph::op::u
                                                   const ngraph::Output<ngraph::Node>& in_node) {
     using namespace ngraph::opset7;
 
-    auto const_zero = make_shared<Constant>(in_node.get_element_type(), ov::StaticShape{1}, 0);
+    auto const_zero = make_shared<Constant>(in_node.get_element_type(), ov::Shape{1}, 0);
     auto shape_of = make_shared<ShapeOf>(in_node);
     auto broadcast = make_shared<Broadcast>(const_zero, shape_of);
     copy_runtime_info(sub_graph_op, {const_zero, shape_of, broadcast});

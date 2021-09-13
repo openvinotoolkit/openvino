@@ -189,7 +189,7 @@ bool evaluate(const HostTensorPtr& feature_maps,
               const int sampling_ratio,
               const float spatial_scale,
               const op::v3::ROIAlign::PoolingMode& pooling_mode,
-              const ov::StaticShape& batch_indices_shape) {
+              const ov::Shape& batch_indices_shape) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::roi_align<T>(feature_maps->get_data_ptr<ET>(),
                                      rois->get_data_ptr<ET>(),

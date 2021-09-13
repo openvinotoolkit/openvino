@@ -27,7 +27,7 @@ public:
     /// \param pattern the destinationing pattern
     /// \param labels Labels where the destination may occur
     Branch() : Pattern(OutputVector{}) {
-        set_output_type(0, element::f32, StaticShape{});
+        set_output_type(0, element::f32, Shape{});
     }
 
     void set_destination(const Output<Node>& destination) {

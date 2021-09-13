@@ -53,7 +53,7 @@ void op::v8::RandomUniform::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this, min_rank <= 1, "Min value must be a scalar or 1D tensor.");
 
         if (min_rank == 1) {
-            NODE_VALIDATION_CHECK(this, min_pshape.compatible(ov::StaticShape{1}), "'min_val' should have 1 element.");
+            NODE_VALIDATION_CHECK(this, min_pshape.compatible(ov::Shape{1}), "'min_val' should have 1 element.");
         }
     }
 
@@ -62,7 +62,7 @@ void op::v8::RandomUniform::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this, max_rank <= 1, "Max value must be a scalar or 1D tensor.");
 
         if (max_rank == 1) {
-            NODE_VALIDATION_CHECK(this, max_pshape.compatible(ov::StaticShape{1}), "'max_val' should have 1 element.");
+            NODE_VALIDATION_CHECK(this, max_pshape.compatible(ov::Shape{1}), "'max_val' should have 1 element.");
         }
     }
 

@@ -42,7 +42,7 @@ void op::Squeeze::validate_and_infer_types() {
     if (get_input_size() == 1) {
         // Handling the case when Squeeze op is created with a single input - data.
         // This way the following code (validation, shape inference) can be used in both cases.
-        axes_constant = make_shared<op::v0::Constant>(element::i64, ov::StaticShape{0}, vector<int64_t>{});
+        axes_constant = make_shared<op::v0::Constant>(element::i64, ov::Shape{0}, vector<int64_t>{});
     } else {
         auto axes_node = input_value(1).get_node_shared_ptr();
         auto axes_pshape = get_input_partial_shape(1);

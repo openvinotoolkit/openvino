@@ -497,7 +497,7 @@ const ov::element::Type& ov::Node::get_element_type() const {
     return get_output_element_type(0);
 }
 
-const ov::StaticShape& ov::Node::get_output_shape(size_t i) const {
+const ov::Shape& ov::Node::get_output_shape(size_t i) const {
     NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_shape(size_t i)");
     return m_outputs[i].get_shape();
 }
@@ -507,7 +507,7 @@ const ov::PartialShape& ov::Node::get_output_partial_shape(size_t i) const {
     return m_outputs[i].get_partial_shape();
 }
 
-const ov::StaticShape& ov::Node::get_shape() const {
+const ov::Shape& ov::Node::get_shape() const {
     NODE_VALIDATION_CHECK(this, get_output_size() == 1, "get_shape() must be called on a node with exactly one output");
     return get_output_shape(0);
 }
@@ -542,7 +542,7 @@ const ov::element::Type& ov::Node::get_input_element_type(size_t i) const {
     return m_inputs[i].get_element_type();
 }
 
-const ov::StaticShape& ov::Node::get_input_shape(size_t i) const {
+const ov::Shape& ov::Node::get_input_shape(size_t i) const {
     NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_shape(size_t i)");
     return m_inputs[i].get_shape();
 }

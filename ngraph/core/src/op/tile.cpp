@@ -75,7 +75,7 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     auto& output = outputs[0];
     auto repeats_val = read_index_vector(axis);
     auto repeats_rank = repeats_val.size();
-    ov::StaticShape data_shape = data->get_shape();
+    ov::Shape data_shape = data->get_shape();
     auto data_rank = data_shape.size();
     auto output_rank = std::max(data_rank, repeats_rank);
 
@@ -83,7 +83,7 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
     repeats_val.insert(repeats_val.begin(), output_rank - repeats_rank, 1);
 
-    ov::StaticShape output_shape(output_rank);
+    ov::Shape output_shape(output_rank);
     for (size_t i = 0; i < output_rank; i++) {
         output_shape[i] = data_shape[i] * repeats_val[i];
     }

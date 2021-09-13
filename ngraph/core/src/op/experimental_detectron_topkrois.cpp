@@ -39,7 +39,7 @@ void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types() {
     const auto input_rois_shape = get_input_partial_shape(0);
     const auto rois_probs_shape = get_input_partial_shape(1);
 
-    set_output_type(0, get_input_element_type(0), ov::StaticShape{m_max_rois, 4});
+    set_output_type(0, get_input_element_type(0), ov::Shape{m_max_rois, 4});
 
     if (input_rois_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,

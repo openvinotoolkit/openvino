@@ -33,7 +33,7 @@ void op::v0::GRN::validate_and_infer_types() {
     const auto& data_pshape = get_input_partial_shape(0);
 
     if (data_pshape.is_static()) {
-        const ov::StaticShape& data_shape{data_pshape.to_shape()};
+        const ov::Shape& data_shape{data_pshape.to_shape()};
 
         // Input data must be 2, 3 or 4D tensor.
         NODE_VALIDATION_CHECK(this,

@@ -15,9 +15,9 @@ using namespace ngraph;
 OPENVINO_RTTI_DEFINITION(op::v3::ExtractImagePatches, "ExtractImagePatches", 3);
 
 op::v3::ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
-                                                 const ov::StaticShape& sizes,
+                                                 const ov::Shape& sizes,
                                                  const Strides& strides,
-                                                 const ov::StaticShape& rates,
+                                                 const ov::Shape& rates,
                                                  const PadType& auto_pad)
     : Op({image}),
       m_patch_sizes(sizes),

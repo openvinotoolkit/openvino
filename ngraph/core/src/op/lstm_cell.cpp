@@ -274,13 +274,13 @@ void op::v0::LSTMCell::validate_and_infer_types() {
 
 Output<Node> op::v0::LSTMCell::get_default_bias_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
-                                                 StaticShape{s_gates_count * get_hidden_size()},
+                                                 Shape{s_gates_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }
 
 Output<Node> op::v0::LSTMCell::get_default_peepholes_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
-                                                 StaticShape{s_peepholes_count * get_hidden_size()},
+                                                 Shape{s_peepholes_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }
 
@@ -513,7 +513,7 @@ void op::v4::LSTMCell::validate_and_infer_types() {
 
 Output<Node> op::v4::LSTMCell::get_default_bias_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
-                                                 StaticShape{s_gates_count * get_hidden_size()},
+                                                 Shape{s_gates_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }
 

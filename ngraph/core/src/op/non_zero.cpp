@@ -82,16 +82,16 @@ bool evaluate_nonzero_execute(const HostTensorPtr& input, const HostTensorPtr& o
     using IN_T = typename element_type_traits<INPUT_ET>::value_type;
     using OUT_T = typename element_type_traits<OUT_ET>::value_type;
 
-    ov::StaticShape input_shape = input->get_shape();
+    ov::Shape input_shape = input->get_shape();
     size_t input_rank = input_shape.size();
 
     size_t non_zero_count = runtime::reference::non_zero_get_count<IN_T>(input->get_data_ptr<INPUT_ET>(), input_shape);
 
-    ov::StaticShape out_shape;
+    ov::Shape out_shape;
     if (input_rank == 0 && non_zero_count > 0) {
-        out_shape = ov::StaticShape{1, 1};
+        out_shape = ov::Shape{1, 1};
     } else {
-        out_shape = ov::StaticShape{input_rank, non_zero_count};
+        out_shape = ov::Shape{input_rank, non_zero_count};
     }
 
     output->set_shape(out_shape);

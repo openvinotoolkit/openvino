@@ -61,7 +61,7 @@ shared_ptr<Node> calculate_default_strides(const Output<Node>& begin, const Outp
                                                    std::make_shared<op::ShapeOf>(begin));
     }
 
-    return op::Constant::create(element::i64, ov::StaticShape{strides_length}, vector<int64_t>(strides_length, 1));
+    return op::Constant::create(element::i64, ov::Shape{strides_length}, vector<int64_t>(strides_length, 1));
 }
 }  // namespace
 

@@ -15,9 +15,9 @@ NGRAPH_RTTI_DEFINITION(ov::op::util::MaxPoolBase, "MaxPoolBase", 8);
 
 ov::op::util::MaxPoolBase::MaxPoolBase(const Output<Node>& arg,
                                        const Strides& strides,
-                                       const ov::StaticShape& pads_begin,
-                                       const ov::StaticShape& pads_end,
-                                       const ov::StaticShape& kernel,
+                                       const ov::Shape& pads_begin,
+                                       const ov::Shape& pads_end,
+                                       const ov::Shape& kernel,
                                        const op::RoundingType rounding_type,
                                        const op::PadType auto_pad)
     : Op({arg}),
@@ -38,11 +38,11 @@ void ov::op::util::MaxPoolBase::validate_and_infer_types() {
     }
 
     if (0 == m_pads_begin.size()) {
-        m_pads_begin = ov::StaticShape(m_kernel.size(), 0);
+        m_pads_begin = ov::Shape(m_kernel.size(), 0);
     }
 
     if (0 == m_pads_end.size()) {
-        m_pads_end = ov::StaticShape(m_kernel.size(), 0);
+        m_pads_end = ov::Shape(m_kernel.size(), 0);
     }
 
     const PartialShape& arg_shape = get_input_partial_shape(0);
@@ -86,8 +86,8 @@ ov::PartialShape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& di
         update_auto_padding_succeed = update_auto_padding(arg_shape, filter_dilations, m_pads_end, m_pads_begin);
     }
     if (m_auto_pad == PadType::VALID) {
-        m_pads_end = ov::StaticShape(m_pads_end.size(), 0);
-        m_pads_begin = ov::StaticShape(m_pads_begin.size(), 0);
+        m_pads_end = ov::Shape(m_pads_end.size(), 0);
+        m_pads_begin = ov::Shape(m_pads_begin.size(), 0);
     }
 
     auto output_shape = PartialShape::dynamic();
@@ -120,8 +120,8 @@ ov::PartialShape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& di
 
 bool ov::op::util::MaxPoolBase::update_auto_padding(const PartialShape& in_shape,
                                                     const Strides& filter_dilations,
-                                                    ov::StaticShape& new_pads_end,
-                                                    ov::StaticShape& new_pads_begin) const {
+                                                    ov::Shape& new_pads_end,
+                                                    ov::Shape& new_pads_begin) const {
     bool update_auto_padding_succeed = true;
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER) {
         CoordinateDiff pads_end, pads_begin;
@@ -132,8 +132,8 @@ bool ov::op::util::MaxPoolBase::update_auto_padding(const PartialShape& in_shape
                                                                      m_auto_pad,
                                                                      pads_end,
                                                                      pads_begin);
-        new_pads_end = ov::StaticShape(pads_end.begin(), pads_end.end());
-        new_pads_begin = ov::StaticShape(pads_begin.begin(), pads_begin.end());
+        new_pads_end = ov::Shape(pads_end.begin(), pads_end.end());
+        new_pads_begin = ov::Shape(pads_begin.begin(), pads_begin.end());
     }
     return update_auto_padding_succeed;
 }

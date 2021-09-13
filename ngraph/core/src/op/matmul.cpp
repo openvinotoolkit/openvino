@@ -180,14 +180,14 @@ bool evaluate(const HostTensorPtr& arg0,
               bool transpose_b) {
     using T = typename element_type_traits<ET>::value_type;
 
-    ov::StaticShape arg0_shape = arg0->get_shape();
-    ov::StaticShape arg1_shape = arg1->get_shape();
+    ov::Shape arg0_shape = arg0->get_shape();
+    ov::Shape arg1_shape = arg1->get_shape();
 
     ov::PartialShape output_partial_shape = validate_matmul_output_shape(ov::PartialShape(arg0_shape),
                                                                          ov::PartialShape(arg1_shape),
                                                                          transpose_a,
                                                                          transpose_b);
-    ov::StaticShape output_shape = output_partial_shape.to_shape();
+    ov::Shape output_shape = output_partial_shape.to_shape();
     output->set_element_type(arg0->get_element_type());
     output->set_shape(output_shape);
 

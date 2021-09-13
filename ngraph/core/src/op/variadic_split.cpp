@@ -159,7 +159,7 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
         split_lengths[std::distance(std::begin(split_lengths), neg_one)] = data_shape[axis] - sum_of_known_splits;
     }
 
-    ov::StaticShape output_shape = data_shape;
+    ov::Shape output_shape = data_shape;
     std::vector<size_t> lower_bounds(data_shape.size(), 0);
     std::vector<size_t> upper_bounds = data_shape;
     upper_bounds.at(axis) = split_lengths[0];

@@ -108,7 +108,7 @@ inline bool evaluate(const HostTensorPtr& data_tensor,
                      const HostTensorVector& outputs,
                      const int64_t axis,
                      const int64_t num_splits) {
-    ov::StaticShape output_shape = data_tensor->get_shape();
+    ov::Shape output_shape = data_tensor->get_shape();
     std::vector<char*> outputs_data(num_splits);
     output_shape.at(axis) /= num_splits;
     for (size_t i = 0; i < outputs.size(); ++i) {

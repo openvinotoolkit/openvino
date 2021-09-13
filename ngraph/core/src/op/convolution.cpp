@@ -183,9 +183,9 @@ const ov::PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const
     return shape;
 }
 
-void op::v1::ConvolutionBackpropData::set_output_shape(const ov::StaticShape& shape) {
+void op::v1::ConvolutionBackpropData::set_output_shape(const ov::Shape& shape) {
     this->input(2).replace_source_output(
-        op::v0::Constant::create(this->get_input_element_type(2), ov::StaticShape{shape.size()}, shape)->output(0));
+        op::v0::Constant::create(this->get_input_element_type(2), ov::Shape{shape.size()}, shape)->output(0));
 }
 
 void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
@@ -316,7 +316,7 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
                               "spatial features.");
 
         if (is_output_shape_present && output_spatial_pshape.is_static()) {
-            ov::StaticShape output_shape = output_spatial_pshape.to_shape();
+            ov::Shape output_shape = output_spatial_pshape.to_shape();
             NODE_VALIDATION_CHECK(this,
                                   static_cast<int64_t>(output_shape.size()) == num_spatial_dims,
                                   "Output shape should be specified only and for "

@@ -43,7 +43,7 @@ void op::ReorgYolo::validate_and_infer_types() {
                               input_shape[1] >= (m_strides[0] * m_strides[0]),
                               "For [N, C, H, W] input shape, C >= (stride*stride) is required.");
 
-        ov::StaticShape output_shape{input_shape[0], input_shape[1]};
+        ov::Shape output_shape{input_shape[0], input_shape[1]};
         for (size_t i = 2; i < input_shape.size(); i++) {
             output_shape.push_back(input_shape[i] / m_strides[0]);
             output_shape[1] *= m_strides[0];

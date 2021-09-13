@@ -18,7 +18,7 @@ ov::PartialShape::PartialShape(const std::vector<Dimension::value_type>& dimensi
     : m_rank_is_static(true),
       m_dimensions(dimensions.begin(), dimensions.end()) {}
 
-ov::PartialShape::PartialShape(const StaticShape& shape)
+ov::PartialShape::PartialShape(const Shape& shape)
     : m_rank_is_static(true),
       m_shape_type(ShapeType::SHAPE_IS_STATIC),
       m_dimensions(shape.begin(), shape.end()) {}
@@ -69,11 +69,11 @@ bool ov::PartialShape::operator!=(const PartialShape& partial_shape) const {
     return !(*this == partial_shape);
 }
 
-ov::StaticShape ov::PartialShape::get_max_shape() const {
+ov::Shape ov::PartialShape::get_max_shape() const {
     if (rank().is_dynamic()) {
-        return StaticShape();
+        return Shape();
     } else {
-        StaticShape shape;
+        Shape shape;
         for (auto dimension : m_dimensions) {
             shape.push_back(dimension.get_interval().get_max_val());
         }
@@ -81,11 +81,11 @@ ov::StaticShape ov::PartialShape::get_max_shape() const {
     }
 }
 
-ov::StaticShape ov::PartialShape::get_min_shape() const {
+ov::Shape ov::PartialShape::get_min_shape() const {
     if (rank().is_dynamic()) {
-        return StaticShape();
+        return Shape();
     } else {
-        StaticShape shape;
+        Shape shape;
         for (auto dimension : m_dimensions) {
             shape.push_back(dimension.get_interval().get_min_val());
         }
@@ -93,9 +93,9 @@ ov::StaticShape ov::PartialShape::get_min_shape() const {
     }
 }
 
-ov::StaticShape ov::PartialShape::get_shape() const {
+ov::Shape ov::PartialShape::get_shape() const {
     NGRAPH_CHECK(rank().is_static(), "get_shape() must be called on a static shape");
-    StaticShape shape;
+    Shape shape;
     for (auto dimension : m_dimensions) {
         auto min_val = dimension.get_interval().get_min_val();
         auto max_val = dimension.get_interval().get_max_val();
@@ -232,7 +232,7 @@ bool ov::PartialShape::merge_rank(Rank r) {
     }
 }
 
-ov::StaticShape ov::PartialShape::to_shape() const {
+ov::Shape ov::PartialShape::to_shape() const {
     if (is_dynamic()) {
         throw std::invalid_argument("to_shape was called on a dynamic shape.");
     }

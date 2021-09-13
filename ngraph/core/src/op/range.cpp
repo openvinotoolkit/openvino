@@ -71,15 +71,9 @@ void op::v4::Range::validate_and_infer_types() {
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(0).compatible(ov::StaticShape{}),
-                          "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(1).compatible(ov::StaticShape{}),
-                          "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(2).compatible(ov::StaticShape{}),
-                          "'step' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).compatible(ov::Shape{}), "'start' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).compatible(ov::Shape{}), "'stop' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(2).compatible(ov::Shape{}), "'step' input is not a scalar");
 
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_integral_number() || get_input_element_type(0).is_real(),
@@ -227,7 +221,7 @@ bool evaluate(const HostTensorPtr& out,
     if (steps > 0) {
         out_size = steps;
     }
-    ov::StaticShape out_shape = ov::StaticShape({static_cast<size_t>(out_size)});
+    ov::Shape out_shape = ov::Shape({static_cast<size_t>(out_size)});
     out->set_shape(out_shape);
     runtime::reference::range(&start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
     return true;
@@ -404,15 +398,9 @@ void op::v0::Range::validate_and_infer_types() {
                           result_et != element::boolean,
                           "Element type for start, stop, and step, must not be boolean.");
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(0).compatible(ov::StaticShape{}),
-                          "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(1).compatible(ov::StaticShape{}),
-                          "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(2).compatible(ov::StaticShape{}),
-                          "'step' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).compatible(ov::Shape{}), "'start' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).compatible(ov::Shape{}), "'stop' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(2).compatible(ov::Shape{}), "'step' input is not a scalar");
 
     ov::PartialShape result_shape;
 

@@ -10,7 +10,7 @@
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rank.hpp"
-#include "openvino/core/static_shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace op {
@@ -61,7 +61,7 @@ public:
 
     /// \brief Constructs a static PartialShape from a PartialShape.
     /// \param shape The PartialShape to convert into PartialShape.
-    PartialShape(const StaticShape& shape);
+    PartialShape(const Shape& shape);
 
     /// \brief Check if this shape is static.
     /// \return `true` if this shape is static, else `false`.
@@ -156,7 +156,7 @@ public:
     /// \brief Convert a static PartialShape to a PartialShape.
     /// \return A new PartialShape `s` where `s[i] = size_t((*this)[i])`.
     /// \throws std::invalid_argument If this PartialShape is dynamic.
-    StaticShape to_shape() const;
+    Shape to_shape() const;
 
     /// \brief Returns `true` if all static dimensions of the tensor are non-negative, else
     ///        `false`.
@@ -179,11 +179,11 @@ public:
     bool operator==(const PartialShape& partial_shape) const;
     bool operator!=(const PartialShape& partial_shape) const;
     /// Get the max bounding shape
-    StaticShape get_max_shape() const;
+    Shape get_max_shape() const;
     /// Get the min bounding shape
-    StaticShape get_min_shape() const;
+    Shape get_min_shape() const;
     /// Get the unique shape
-    StaticShape get_shape() const;
+    Shape get_shape() const;
 
     /// \brief Try to merge one shape into another.
     /// \param[in,out] dst The shape that `src` will be merged into.

@@ -287,7 +287,7 @@ static constexpr size_t axes_port = 3;
 static constexpr size_t max_num_of_ports = 4;
 
 std::vector<int64_t> get_axes_vector(const HostTensorVector& args) {
-    ov::StaticShape input_shape{args[data_port]->get_shape()};
+    ov::Shape input_shape{args[data_port]->get_shape()};
     size_t input_rank = input_shape.size();
     size_t num_of_inputs = args.size();
 
@@ -316,7 +316,7 @@ std::vector<int64_t> get_target_shape_vector(const HostTensorVector& args, size_
 }
 
 std::vector<float> get_scales_vector(const HostTensorVector& args,
-                                     const ov::StaticShape& input_shape,
+                                     const ov::Shape& input_shape,
                                      const op::v4::Interpolate::InterpolateAttrs& attrs,
                                      std::vector<int64_t> axes) {
     using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
@@ -371,8 +371,8 @@ void op::v4::Interpolate::correct_pads() {
 static void pad_input_data(const uint8_t* data_ptr,
                            uint8_t* padded_data_ptr,
                            size_t type_size,
-                           const ov::StaticShape& input_shape,
-                           const ov::StaticShape& padded_input_shape,
+                           const ov::Shape& input_shape,
+                           const ov::Shape& padded_input_shape,
                            const std::vector<size_t>& pads_begin) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     CoordinateTransform input_transform(input_shape);
@@ -396,8 +396,8 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
     element::Type input_et = get_input_element_type(0);
     size_t type_size = input_et.size();
 
-    ov::StaticShape input_shape{inputs[data_port]->get_shape()};
-    ov::StaticShape padded_input_shape = get_padded_input_shape(input_shape).to_shape();
+    ov::Shape input_shape{inputs[data_port]->get_shape()};
+    ov::Shape padded_input_shape = get_padded_input_shape(input_shape).to_shape();
 
     auto axes = get_axes_vector(inputs);
     size_t num_of_axes = axes.size();
@@ -413,7 +413,7 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
         infer_using_shapes(output_shape, axes, sizes);
     }
 
-    ov::StaticShape out_shape = output_shape.to_shape();
+    ov::Shape out_shape = output_shape.to_shape();
 
     outputs[0]->set_element_type(inputs[0]->get_element_type());
     outputs[0]->set_shape(out_shape);

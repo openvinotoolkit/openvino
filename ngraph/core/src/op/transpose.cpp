@@ -74,7 +74,7 @@ bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, co
                  "Transpose axis element type has to be integral data type.");
 
     std::vector<int64_t> axes_order = host_tensor_2_vector<int64_t>(arg2);
-    ov::StaticShape in_shape = arg1->get_shape();
+    ov::Shape in_shape = arg1->get_shape();
     if (shape_size(arg2->get_shape()) == 0) {
         axes_order.resize(in_shape.size());
         std::iota(axes_order.begin(), axes_order.end(), 0);
@@ -85,7 +85,7 @@ bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, co
         NGRAPH_CHECK(is_unique_order, "Transpose axes order values must be unique.");
     }
 
-    ov::StaticShape out_shape(in_shape.size());
+    ov::Shape out_shape(in_shape.size());
     std::transform(axes_order.begin(), axes_order.end(), out_shape.begin(), [&](const int64_t& v) {
         NGRAPH_CHECK(v >= 0, "Negative values for transpose axes order are not supported.");
         NGRAPH_CHECK(v < int64_t(in_shape.size()), "Transpose axis ", v, " is out of shape range.");

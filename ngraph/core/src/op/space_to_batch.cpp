@@ -83,7 +83,7 @@ void op::v1::SpaceToBatch::validate_and_infer_types() {
         for (long idx : block_val)
             block_prod *= idx;
 
-        ov::StaticShape output_shape = {static_cast<size_t>(data_shape[0] * block_prod)};
+        ov::Shape output_shape = {static_cast<size_t>(data_shape[0] * block_prod)};
         for (size_t idx = 1; idx < data_shape.size(); ++idx) {
             NODE_VALIDATION_CHECK(this, block_val.at(idx) > 0, "block_shape values must be greater than 0");
             NODE_VALIDATION_CHECK(
@@ -149,7 +149,7 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
     CoordinateDiff pads_end_vec(shape_size(inputs[2]->get_shape()));
     pads_end_vec.assign(pads_end, pads_end + shape_size(inputs[2]->get_shape()));
 
-    ov::StaticShape padded_shape(data_shape.size());
+    ov::Shape padded_shape(data_shape.size());
     for (size_t i = 0; i < data_shape.size(); ++i) {
         padded_shape[i] = data_shape[i] + pads_begin_vec[i] + pads_end_vec[i];
     }
@@ -166,9 +166,9 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
                                     ngraph::op::PadMode::CONSTANT);
     data_shape = padded_shape;
 
-    ov::StaticShape dispersed_shape(block_values_size + 1);
+    ov::Shape dispersed_shape(block_values_size + 1);
     std::vector<size_t> axes_order(block_values_size + 1);
-    ov::StaticShape squeezed_shape(data_shape.begin(), data_shape.end());
+    ov::Shape squeezed_shape(data_shape.begin(), data_shape.end());
     std::vector<size_t> plain_axes_order(block_values_size + 1);
     std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
 
@@ -202,7 +202,7 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
                                      plain_axes_order,
                                      dispersed_shape,
                                      elem_size);
-        ov::StaticShape post_transpose_shape(axes_order.size());
+        ov::Shape post_transpose_shape(axes_order.size());
         for (size_t i = 0; i < axes_order.size(); ++i) {
             post_transpose_shape[i] = dispersed_shape[axes_order[i]];
         }

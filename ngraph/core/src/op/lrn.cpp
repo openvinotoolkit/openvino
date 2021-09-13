@@ -17,7 +17,7 @@ using namespace ngraph;
 OPENVINO_RTTI_DEFINITION(op::v0::LRN, "LRN", 0);
 
 op::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)
-    : LRN(arg, op::v0::Constant::create(element::i64, ov::StaticShape{1}, {1}), alpha, beta, bias, size) {
+    : LRN(arg, op::v0::Constant::create(element::i64, ov::Shape{1}, {1}), alpha, beta, bias, size) {
     add_provenance_group_member(input_value(1).get_node_shared_ptr());
 }
 

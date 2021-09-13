@@ -24,14 +24,14 @@ template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
 inline bool evaluate_execute(const HostTensorPtr& arg0,
                              const HostTensorPtr& out_indices,
                              const HostTensorPtr& out_values,
-                             const ov::StaticShape out_shape,
+                             const ov::Shape out_shape,
                              const size_t axis,
                              const size_t k,
                              const bool compute_max,
                              const op::v1::TopK::SortType sort) {
     using T = typename element_type_traits<INPUT_ET>::value_type;
     using U = typename element_type_traits<INDEX_ET>::value_type;
-    const ov::StaticShape in_shape = arg0->get_shape();
+    const ov::Shape in_shape = arg0->get_shape();
     out_indices->set_shape(out_shape);
     out_indices->set_element_type(INDEX_ET);
 
@@ -60,7 +60,7 @@ template <element::Type_t INPUT_ET>
 bool evaluate(const HostTensorPtr& arg,
               const HostTensorPtr& out_indices,
               const HostTensorPtr& out_values,
-              const ov::StaticShape out_shape,
+              const ov::Shape out_shape,
               const size_t axis,
               const size_t k,
               const bool max,
@@ -80,7 +80,7 @@ bool evaluate(const HostTensorPtr& arg,
 bool evaluate_topk(const HostTensorPtr& arg,
                    const HostTensorPtr& out_indices,
                    const HostTensorPtr& out_values,
-                   const ov::StaticShape out_shape,
+                   const ov::Shape out_shape,
                    const size_t axis,
                    const size_t k,
                    const bool max,
@@ -232,9 +232,9 @@ void op::v1::TopK::validate_and_infer_types() {
     set_output_type(1, m_index_element_type, output_shape);
 }
 
-ov::StaticShape op::v1::TopK::compute_output_shape(const std::string& node_description,
-                                                   const ov::PartialShape input_partial_shape,
-                                                   const int64_t k) const {
+ov::Shape op::v1::TopK::compute_output_shape(const std::string& node_description,
+                                             const ov::PartialShape input_partial_shape,
+                                             const int64_t k) const {
     ov::PartialShape output_shape{input_partial_shape};
 
     auto normalized_axis = ngraph::normalize_axis(node_description, m_axis, output_shape.rank());
@@ -345,12 +345,12 @@ size_t op::v1::TopK::get_k() const {
 }
 
 void op::v1::TopK::set_k(size_t k) {
-    this->input(1).replace_source_output(op::v0::Constant::create(element::i64, ov::StaticShape{}, {k})->output(0));
+    this->input(1).replace_source_output(op::v0::Constant::create(element::i64, ov::Shape{}, {k})->output(0));
 }
 
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_TopK_evaluate);
-    ov::StaticShape arg_shape = inputs[0]->get_shape();
+    ov::Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
     size_t axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
     bool compute_max = get_mode() == TopKMode::MAX ? true : false;

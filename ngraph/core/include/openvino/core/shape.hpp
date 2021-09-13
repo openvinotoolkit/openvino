@@ -14,26 +14,26 @@
 #include "openvino/core/strides.hpp"
 
 namespace ov {
-/// \brief StaticShape for a tensor.
-class StaticShape : public std::vector<size_t> {
+/// \brief Shape for a tensor.
+class Shape : public std::vector<size_t> {
 public:
-    OPENVINO_API StaticShape();
+    OPENVINO_API Shape();
 
-    OPENVINO_API StaticShape(const std::initializer_list<size_t>& axis_lengths);
+    OPENVINO_API Shape(const std::initializer_list<size_t>& axis_lengths);
 
-    OPENVINO_API StaticShape(const std::vector<size_t>& axis_lengths);
+    OPENVINO_API Shape(const std::vector<size_t>& axis_lengths);
 
-    OPENVINO_API StaticShape(const StaticShape& axis_lengths);
+    OPENVINO_API Shape(const Shape& axis_lengths);
 
-    OPENVINO_API explicit StaticShape(size_t n, size_t initial_value = 0);
+    OPENVINO_API explicit Shape(size_t n, size_t initial_value = 0);
 
-    OPENVINO_API ~StaticShape();
+    OPENVINO_API ~Shape();
 
     template <class InputIterator>
-    StaticShape(InputIterator first, InputIterator last) : std::vector<size_t>(first, last) {}
+    Shape(InputIterator first, InputIterator last) : std::vector<size_t>(first, last) {}
 
-    OPENVINO_API StaticShape& operator=(const StaticShape& v);
-    OPENVINO_API StaticShape& operator=(StaticShape&& v) noexcept;
+    OPENVINO_API Shape& operator=(const Shape& v);
+    OPENVINO_API Shape& operator=(Shape&& v) noexcept;
 };
 
 /// Number of elements in spanned by a shape
@@ -93,17 +93,15 @@ inline bool is_vector(const SHAPE_TYPE& shape) {
 }
 
 OPENVINO_API
-std::ostream& operator<<(std::ostream& s, const StaticShape& shape);
+std::ostream& operator<<(std::ostream& s, const Shape& shape);
 
 template <>
-class OPENVINO_API AttributeAdapter<ov::StaticShape>
-    : public IndirectVectorValueAccessor<ov::StaticShape, std::vector<int64_t>>
+class OPENVINO_API AttributeAdapter<ov::Shape> : public IndirectVectorValueAccessor<ov::Shape, std::vector<int64_t>>
 
 {
 public:
-    AttributeAdapter(ov::StaticShape& value)
-        : IndirectVectorValueAccessor<ov::StaticShape, std::vector<int64_t>>(value) {}
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<StaticShape>", 0};
+    AttributeAdapter(ov::Shape& value) : IndirectVectorValueAccessor<ov::Shape, std::vector<int64_t>>(value) {}
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Shape>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
