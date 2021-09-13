@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PriorBoxClusteredIE::type_info;
-
 op::PriorBoxClusteredIE::PriorBoxClusteredIE(const Output<Node>& input, const Output<Node>& image,
                                              const PriorBoxClusteredAttrs& attrs)
     : Op({input, image}), m_attrs(attrs) {

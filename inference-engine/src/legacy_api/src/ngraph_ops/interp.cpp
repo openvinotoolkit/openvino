@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Interp::type_info;
-
 op::Interp::Interp(const Output<Node>& image, const InterpolateIEAttrs& attrs)
     : Op({image}), m_attrs(attrs) {
     constructor_validate_and_infer_types();
@@ -75,8 +73,6 @@ bool op::Interp::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("pad_end", m_attrs.pad_end);
     return true;
 }
-
-constexpr NodeTypeInfo op::ResampleV2::type_info;
 
 op::ResampleV2::ResampleV2(const Output<Node>& image, const Output<Node>& output_shape,
                            const ResampleIEAttrs& attrs)

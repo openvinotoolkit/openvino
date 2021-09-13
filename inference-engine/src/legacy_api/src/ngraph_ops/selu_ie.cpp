@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::SeluIE::type_info;
-
 op::SeluIE::SeluIE(const Output<Node> & input,
                    const float alpha,
                    const float gamma)

@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PadIE::type_info;
-
 op::PadIE::PadIE(const std::shared_ptr<op::v1::Pad>& pad)
     : Op({pad->input(0).get_source_output()}),
       m_pad_mode(pad->get_pad_mode()),

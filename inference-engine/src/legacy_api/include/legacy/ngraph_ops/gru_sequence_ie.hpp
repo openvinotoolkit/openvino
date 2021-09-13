@@ -19,7 +19,7 @@ namespace ngraph {
 namespace op {
 class INFERENCE_ENGINE_API_CLASS(GRUSequenceIE) : public ngraph::op::util::RNNCellBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("GRUSequenceIE", "legacy");
 
     GRUSequenceIE(const Output <Node> &X,
                   const Output <Node> &H_t,
@@ -59,5 +59,5 @@ protected:
     int64_t m_seq_axis;
 };
 
-    }  // namespace op
+}  // namespace op
 }  // namespace ngraph

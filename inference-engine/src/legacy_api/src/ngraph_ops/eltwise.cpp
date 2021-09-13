@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Eltwise::type_info;
-
 op::Eltwise::Eltwise(const Output<Node>& data1, const Output<Node>& data2, const ELTWISE_TYPE eltwise_type, const element::Type output_type)
     : Op({data1, data2}), eltwise_type(eltwise_type), m_output_type(output_type) {
     constructor_validate_and_infer_types();

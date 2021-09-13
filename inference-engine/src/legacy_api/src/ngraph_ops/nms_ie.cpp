@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::NonMaxSuppressionIE::type_info;
-
 op::NonMaxSuppressionIE::NonMaxSuppressionIE(const Output<Node> &boxes,
                                              const Output<Node> &scores,
                                              const Output<Node> &max_output_boxes_per_class,
@@ -61,8 +59,6 @@ bool op::NonMaxSuppressionIE::visit_attributes(AttributeVisitor& visitor) {
 }
 
 // The second version of the operation is different just in the shape infer function (uses v4::NMS)
-constexpr NodeTypeInfo op::NonMaxSuppressionIE2::type_info;
-
 op::NonMaxSuppressionIE2::NonMaxSuppressionIE2(const Output<Node> &boxes,
                                                const Output<Node> &scores,
                                                const Output<Node> &max_output_boxes_per_class,
@@ -101,8 +97,6 @@ void op::NonMaxSuppressionIE2::validate_and_infer_types() {
                                                            m_output_type);
     set_output_type(0, nms->output(0).get_element_type(), nms->output(0).get_partial_shape());
 }
-
-NGRAPH_RTTI_DEFINITION(op::NonMaxSuppressionIE3, "NonMaxSuppressionIE3", 3);
 
 op::NonMaxSuppressionIE3::NonMaxSuppressionIE3(const Output<Node>& boxes,
                                                const Output<Node>& scores,

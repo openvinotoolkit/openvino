@@ -16,8 +16,7 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(Eltwise) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"Eltwise", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("Eltwise", "legacy");
 
     Eltwise(const Output<Node>& data1,
             const Output<Node>& data2,

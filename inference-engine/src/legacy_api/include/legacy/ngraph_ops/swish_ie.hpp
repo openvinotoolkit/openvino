@@ -14,8 +14,7 @@ namespace ngraph {
 namespace op {
 class INFERENCE_ENGINE_API_CLASS(SwishIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"SwishIE", 1};
-    const NodeTypeInfo &get_type_info() const override { return type_info; }
+    OPENVINO_OP("SwishIE", "legacy");
 
     explicit SwishIE(const Output<Node> &input, float alpha = 1.0);
 

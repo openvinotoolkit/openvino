@@ -16,8 +16,7 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(LRN_IE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"LRN_IE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("LRN_IE", "legacy");
 
     LRN_IE() = default;
 

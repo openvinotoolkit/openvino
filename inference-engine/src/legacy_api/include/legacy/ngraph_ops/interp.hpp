@@ -30,8 +30,7 @@ struct InterpolateIEAttrs {
 
 class INFERENCE_ENGINE_API_CLASS(Interp) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"Interp", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("Interp", "legacy");
 
     Interp(const Output<Node>& image, const InterpolateIEAttrs& attrs);
 
@@ -55,8 +54,7 @@ struct ResampleIEAttrs {
 
 class INFERENCE_ENGINE_API_CLASS(ResampleV2) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"ResampleV2", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("ResampleV2", "legacy");
 
     ResampleV2(const Output<Node>& image,
                const Output<Node>& output_shape,

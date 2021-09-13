@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::HardSigmoid_IE::type_info;
-
 op::HardSigmoid_IE::HardSigmoid_IE(const ngraph::Output<ngraph::Node> &arg,
                    float alpha,
                    float beta)

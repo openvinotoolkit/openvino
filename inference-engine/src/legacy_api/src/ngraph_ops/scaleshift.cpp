@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ScaleShiftIE::type_info;
-
 element::Type getMaxBitwidth(const std::vector<element::Type>& types) {
     if (types.empty()) {
         return element::undefined;

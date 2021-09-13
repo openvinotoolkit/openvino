@@ -15,8 +15,7 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(SeluIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"SeluIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("SeluIE", "legacy");
 
     SeluIE(const Output<Node> & input,
            const float alpha,

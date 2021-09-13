@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::SwishIE::type_info;
-
 op::SwishIE::SwishIE(const Output<Node> & input, const float alpha)
         : Op({input}), m_alpha(alpha) {
     constructor_validate_and_infer_types();

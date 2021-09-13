@@ -10,8 +10,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::GatherTreeIE::type_info;
-
 op::GatherTreeIE::GatherTreeIE(const Output<Node>& step_ids,
                                const Output<Node>& parent_idx,
                                const Output<Node>& max_seq_len,

@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::LSTMSequenceIE, "LSTMSequenceIE", 5);
-
 op::LSTMSequenceIE::LSTMSequenceIE(const Output<Node> &X,
                                    const Output<Node> &H_t,
                                    const Output<Node> &C_t,

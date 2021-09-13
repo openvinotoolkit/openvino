@@ -16,8 +16,7 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(PriorBoxClusteredIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"PriorBoxClusteredIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("PriorBoxClusteredIE", "legacy");
 
     /// \brief Constructs a PriorBoxClusteredIE operation
     ///

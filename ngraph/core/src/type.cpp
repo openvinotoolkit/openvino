@@ -33,19 +33,21 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
 // parent is commented to fix type relaxed operations
 bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
     if (version_id == nullptr || b.version_id == nullptr)
-        return version < b.version || (version == b.version && strcmp(name, b.name) < 0); // ||
-               // (version == b.version && strcmp(name, b.name) == 0 && parent && b.parent && *parent < *b.parent);
+        return version < b.version ||
+               (version == b.version && strcmp(name, b.name) < 0);  // ||
+                                                                    // (version == b.version && strcmp(name, b.name) ==
+                                                                    // 0 && parent && b.parent && *parent < *b.parent);
     else
         return strcmp(version_id, b.version_id) < 0 ||
-               (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) < 0); // ||
-               // (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0 && parent && b.parent &&
-               //  *parent < *b.parent);
+               (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) < 0);  // ||
+    // (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0 && parent && b.parent &&
+    //  *parent < *b.parent);
 }
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
     if (version_id == nullptr || b.version_id == nullptr)
-        return version == b.version && strcmp(name, b.name) == 0; // && parent == b.parent;
+        return version == b.version && strcmp(name, b.name) == 0;  // && parent == b.parent;
     else
-        return strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0; // && parent == b.parent;
+        return strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0;  // && parent == b.parent;
 }
 bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
     return *this == b || *this < b;

@@ -10,8 +10,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::FullyConnected::type_info;
-
 op::FullyConnected::FullyConnected(
     const Output<Node>& A,
     const Output<Node>& B,

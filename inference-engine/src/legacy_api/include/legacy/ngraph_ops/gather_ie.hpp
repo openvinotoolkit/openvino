@@ -16,8 +16,7 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(GatherIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"GatherIE", 0};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("GatherIE", "legacy");
     GatherIE() = default;
 
     GatherIE(const Output<Node>& params, const Output<Node>& indices, int64_t axis);

@@ -17,8 +17,7 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(GRUCellIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"GRUCellIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("GRUCellIE", "legacy");
 
     GRUCellIE(const Output<Node> &X,
               const Output<Node> &H_t,
