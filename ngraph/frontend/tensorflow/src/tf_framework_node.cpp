@@ -10,7 +10,7 @@ NGRAPH_RTTI_DEFINITION(TFFrameworkNode, "TFFrameworkNode", 1);
 
 void TFFrameworkNode::validate_and_infer_types() {
     for (size_t i = 0; i < get_output_size(); ++i) {
-        set_output_type(i, ov::element::f32, PartialShape::dynamic());
+        set_output_type(i, ov::element::dynamic, PartialShape::dynamic());
     }
 }
 
