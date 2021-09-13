@@ -26,14 +26,13 @@ class Blob;
 namespace ov {
 namespace runtime {
 
-class SharedObject;
 class InferRequest;
 
 /**
  * @brief VariableState class
  */
 class INFERENCE_ENGINE_API_CLASS(VariableState) {
-    std::shared_ptr<SharedObject> _so;
+    std::shared_ptr<void> _so;
     std::shared_ptr<ie::IVariableStateInternal> _impl;
 
     /**
@@ -42,7 +41,7 @@ class INFERENCE_ENGINE_API_CLASS(VariableState) {
      * @param so Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin
      * object is destroyed.
      */
-    VariableState(const std::shared_ptr<SharedObject>& so, const std::shared_ptr<ie::IVariableStateInternal>& impl);
+    VariableState(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IVariableStateInternal>& impl);
 
     friend class ov::runtime::InferRequest;
 

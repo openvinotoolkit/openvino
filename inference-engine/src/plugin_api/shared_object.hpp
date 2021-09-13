@@ -13,32 +13,28 @@
 
 namespace ov {
 namespace runtime {
-struct INFERENCE_ENGINE_API_CLASS(SharedObject) {
-    void* shared_object = nullptr;
-
-    /**
-     * @brief Loads a library with the name specified.
-     * @param path Full or relative path to the plugin library
-     */
-    explicit SharedObject(const char* path);
+/**
+ * @brief Loads a library with the name specified.
+ * @param path Full or relative path to the plugin library
+ * @return Reference to shared object
+ */
+INFERENCE_ENGINE_API_CPP(std::shared_ptr<void>) load_shared_object(const char* path);
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-    /**
-     * @brief Loads a library with the wide char name specified.
-     * @param path Full or relative path to the plugin library
-     */
-    explicit SharedObject(const wchar_t* path);
+/**
+ * @brief Loads a library with the wide char name specified.
+ * @param path Full or relative path to the plugin library
+ * @return Reference to shared object
+ */
+INFERENCE_ENGINE_API_CPP(std::shared_ptr<void>) load_shared_object(const wchar_t* path);
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
-
-    ~SharedObject();
-
-    /**
-     * @brief Searches for a function symbol in the loaded module
-     * @param symbolName Name of the function to find
-     * @return A pointer to the function if found
-     * @throws Exception if the function is not found
-     */
-    void* get_symbol(const char* symbolName) const;
-};
+/**
+ * @brief Searches for a function symbol in the loaded module
+ * @param shared_object shared object reference
+ * @param symbolName Name of the function to find
+ * @return A pointer to the function if found
+ * @throws Exception if the function is not found
+ */
+INFERENCE_ENGINE_API_CPP(void*) get_symbol(const std::shared_ptr<void>& shared_object, const char* symbolName);
 }  // namespace runtime
 }  // namespace ov
