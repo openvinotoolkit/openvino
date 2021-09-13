@@ -46,6 +46,7 @@ set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader;
 
 :: Inference Engine
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\share"
+set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\share"
 set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\hddl"
 set "OPENMP_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\omp\lib"
 set "GNA_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\gna\lib"
