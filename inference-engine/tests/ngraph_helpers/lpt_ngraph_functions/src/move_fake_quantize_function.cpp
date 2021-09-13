@@ -28,7 +28,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
     const FakeQuantizeOnDataWithConstant& fqOnData2,
     const DequantizationOperations::Convert& convert2,
     const DequantizationOperations& dequantization2,
-    const std::string operation,
+    const std::string& operation,
     const FakeQuantizeOnDataWithConstant& fqOnData3,
     const DequantizationOperations::Convert& convert3,
     const DequantizationOperations& dequantization3,
