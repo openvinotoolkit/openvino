@@ -111,7 +111,7 @@ ExecutableNetwork::operator bool() const noexcept {
 
 namespace ov {
 namespace runtime {
-ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<SharedObject>& so,
+ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<void>& so,
                                      const std::shared_ptr<ie::IExecutableNetworkInternal>& impl)
     : _so{so},
       _impl{impl} {

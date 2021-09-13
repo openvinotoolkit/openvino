@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string SliceConvTest::getTestCaseName(testing::TestParamInfo<SliceConvParams> obj) {
+std::string SliceConvTest::getTestCaseName(const testing::TestParamInfo<SliceConvParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
