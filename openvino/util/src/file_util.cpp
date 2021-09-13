@@ -3,6 +3,8 @@
 //
 #include "openvino/util/file_util.hpp"
 
+#include <algorithm>
+
 #ifdef _WIN32
 #    ifndef NOMINMAX
 #        define NOMINMAX

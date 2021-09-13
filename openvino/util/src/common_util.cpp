@@ -4,6 +4,8 @@
 
 #include "openvino/util/common_util.hpp"
 
+#include <algorithm>
+
 std::string ov::util::to_lower(const std::string& s) {
     std::string rc = s;
     std::transform(rc.begin(), rc.end(), rc.begin(), ::tolower);
