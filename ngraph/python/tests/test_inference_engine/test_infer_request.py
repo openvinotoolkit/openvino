@@ -5,7 +5,7 @@ import numpy as np
 import os
 import pytest
 
-from openvino.inference_engine import Core, Blob, TensorDesc, PreProcessInfo, MeanVariant, ResizeAlgorithm
+from openvino.inference_engine import Core, Blob, TensorDesc, PreProcessInfo, MeanVariant, ResizeAlgorithm, StatusCode
 
 def image_path():
     path_to_repo = os.environ["DATA_PATH"]
@@ -224,3 +224,8 @@ def test_cancel(device):
     assert "[ INFER_CANCELLED ]" in str(e.value)
     # check if callback has executed
     assert data == [42]
+
+    request.async_infer()
+    status = request.wait()
+    assert status == StatusCode.OK
+    assert data == [42, 42]

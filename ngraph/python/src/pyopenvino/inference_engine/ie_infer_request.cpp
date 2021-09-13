@@ -100,7 +100,6 @@ void regclass_InferRequest(py::module m)
         py::arg("userdata"));
 
     cls.def("cancel", [](InferRequestWrapper& self) {
-        py::gil_scoped_release release;
         self._request.Cancel();
     });
 
