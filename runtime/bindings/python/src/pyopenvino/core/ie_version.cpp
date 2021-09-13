@@ -15,16 +15,11 @@ void regclass_Version(py::module m) {
     cls.def_readonly("description", &InferenceEngine::Version::description);
     cls.def_readwrite("api_version", &InferenceEngine::Version::apiVersion);
 
-    using ApiVersionType = decltype(InferenceEngine::Version::apiVersion);
-    py::class_<ApiVersionType> strct(m, "apiVersion");
-    strct.def_readwrite("major", &ApiVersionType::major);
-    strct.def_readwrite("minor", &ApiVersionType::minor);
-
     cls.def_property_readonly("major", [](InferenceEngine::Version& self) {
-        return self.apiVersion.major;
+        return IE_VERSION_MAJOR;
     });
 
     cls.def_property_readonly("minor", [](InferenceEngine::Version& self) {
-        return self.apiVersion.minor;
+        return IE_VERSION_MINOR;
     });
 }
