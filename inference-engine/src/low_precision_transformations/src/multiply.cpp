@@ -159,17 +159,17 @@ bool MultiplyTransformation::canBeTransformed(const TransformationContext& conte
     FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, 0ul);
     FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
 
-    if ((dequantization1.data.get_node() == nullptr) ||
-        (dequantization1.empty() && !ov::is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
-                                    !ov::is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
+    if (dequantization1.data.get_node() == nullptr || dequantization2.data.get_node() == nullptr) {
         return false;
     }
 
-    if ((dequantization2.data.get_node() == nullptr) ||
-        (dequantization2.empty() && !ov::is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()) &&
-                                    !ov::is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
+    const bool nonConstantData = !ov::is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
+                                 !ov::is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr());
+
+    if (((dequantization1.empty() || dequantization2.empty()) && nonConstantData)) {
         return false;
     }
+
     return EltwiseBaseTransformation::canBeTransformed(context, layer);
 }
 
