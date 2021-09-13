@@ -2,23 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "pyopenvino/core/ie_executable_network.hpp"
+
 #include <cpp/ie_executable_network.hpp>
 #include <ie_input_info.hpp>
 
 #include "common.hpp"
 
-#include "pyopenvino/core/ie_executable_network.hpp"
+#include "common.hpp"
+#include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/ie_infer_request.hpp"
 #include "pyopenvino/core/ie_input_info.hpp"
-#include "pyopenvino/core/containers.hpp"
 
 namespace py = pybind11;
 
-void regclass_ExecutableNetwork(py::module m)
-{
-    py::class_<InferenceEngine::ExecutableNetwork,
-               std::shared_ptr<InferenceEngine::ExecutableNetwork>>
-        cls(m, "ExecutableNetwork");
+void regclass_ExecutableNetwork(py::module m) {
+    py::class_<InferenceEngine::ExecutableNetwork, std::shared_ptr<InferenceEngine::ExecutableNetwork>> cls(
+        m,
+        "ExecutableNetwork");
 
     cls.def("create_infer_request", [](InferenceEngine::ExecutableNetwork& self) {
         auto request = InferRequestWrapper(self.CreateInferRequest());
@@ -29,24 +30,26 @@ void regclass_ExecutableNetwork(py::module m)
         return request;
     });
 
-    cls.def("_infer", [](InferenceEngine::ExecutableNetwork& self, const py::dict& inputs) {
-        // Create temporary InferRequest
-        auto request = self.CreateInferRequest();
-        // Update inputs if there are any
-        if (!inputs.empty()) {
-            Common::set_request_blobs(request, inputs); //, self.GetInputsInfo());
-        }
-        // Call Infer function
-        request.Infer();
-        // Get output Blobs and return
-        Containers::PyResults results;
-        InferenceEngine::ConstOutputsDataMap outputsInfo = self.GetOutputsInfo();
-        for (auto& out : outputsInfo)
-        {
-            results[out.first] = request.GetBlob(out.first);
-        }
-        return results;
-    }, py::arg("inputs"));
+    cls.def(
+        "_infer",
+        [](InferenceEngine::ExecutableNetwork& self, const py::dict& inputs) {
+            // Create temporary InferRequest
+            auto request = self.CreateInferRequest();
+            // Update inputs if there are any
+            if (!inputs.empty()) {
+                Common::set_request_blobs(request, inputs);  //, self.GetInputsInfo());
+            }
+            // Call Infer function
+            request.Infer();
+            // Get output Blobs and return
+            Containers::PyResults results;
+            InferenceEngine::ConstOutputsDataMap outputsInfo = self.GetOutputsInfo();
+            for (auto& out : outputsInfo) {
+                results[out.first] = request.GetBlob(out.first);
+            }
+            return results;
+        },
+        py::arg("inputs"));
 
     cls.def("get_exec_graph_info", &InferenceEngine::ExecutableNetwork::GetExecGraphInfo);
 
@@ -68,8 +71,7 @@ void regclass_ExecutableNetwork(py::module m)
     cls.def_property_readonly("input_info", [](InferenceEngine::ExecutableNetwork& self) {
         Containers::PyConstInputsDataMap inputs;
         const InferenceEngine::ConstInputsDataMap& inputsInfo = self.GetInputsInfo();
-        for (const auto& in : inputsInfo)
-        {
+        for (const auto& in : inputsInfo) {
             inputs[in.first] = in.second;
         }
         return inputs;
@@ -78,8 +80,7 @@ void regclass_ExecutableNetwork(py::module m)
     cls.def_property_readonly("output_info", [](InferenceEngine::ExecutableNetwork& self) {
         Containers::PyOutputsDataMap outputs;
         InferenceEngine::ConstOutputsDataMap outputsInfo = self.GetOutputsInfo();
-        for (auto& out : outputsInfo)
-        {
+        for (auto& out : outputsInfo) {
             outputs[out.first] = out.second;
         }
         return outputs;
