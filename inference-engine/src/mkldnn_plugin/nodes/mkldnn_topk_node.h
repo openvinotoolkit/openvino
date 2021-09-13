@@ -25,7 +25,7 @@ public:
 
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node> &op, std::string &errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node> &op, std::string &errorMessage) noexcept;
 
 #if defined(HAVE_AVX512F)
     const int block_size = 16;

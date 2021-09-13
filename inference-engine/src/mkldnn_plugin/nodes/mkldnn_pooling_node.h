@@ -16,8 +16,8 @@ class MKLDNNPoolingNode : public MKLDNNNode {
 public:
     MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
-                          const std::vector<const MemoryDesc*>& outputDesc) override;
+    void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                          const std::vector<MemoryDescPtr>& outputDesc) override;
     std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -27,6 +27,8 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);

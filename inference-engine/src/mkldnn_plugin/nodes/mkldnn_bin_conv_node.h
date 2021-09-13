@@ -87,7 +87,7 @@ public:
     void setPostOps(mkldnn::primitive_attr &attr);
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     impl_desc_type getImplType() { return implType; }
 
