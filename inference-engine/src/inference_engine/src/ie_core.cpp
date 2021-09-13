@@ -598,7 +598,7 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> GetAvailableDevices() const override {
@@ -766,7 +766,7 @@ public:
      * @brief Sets config values for a plugin or set of plugins
      * @param deviceName A device name to set config to
      *        If empty, config is set for all the plugins / plugin's meta-data
-     * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:FPGA,CPU, AUTO:CPU
+     * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
      *        just simple forms like CPU, GPU, MULTU, GPU.0, etc
      */
     void SetConfigForPlugins(const std::map<std::string, std::string>& configMap, const std::string& deviceName) {
@@ -1132,7 +1132,7 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
                       "You can configure the devices with SetConfig before creating the AUTO on top.";
     }
 
-    // GPU.0, FPGA.1 cases
+    // GPU.0, GPU.1 cases
     if (deviceName.find(".") != std::string::npos) {
         IE_THROW()
             << "SetConfig is supported only for device family itself (without particular device .#). "
@@ -1314,7 +1314,7 @@ void Core::set_config(const ConfigMap& config, const std::string& deviceName) {
                       "You can configure the devices with SetConfig before creating the AUTO on top.";
     }
 
-    // GPU.0, FPGA.1 cases
+    // GPU.0, GPU.1 cases
     if (deviceName.find(".") != std::string::npos) {
         IE_THROW()
             << "SetConfig is supported only for device family itself (without particular device .#). "

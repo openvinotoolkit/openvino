@@ -23,7 +23,7 @@ If transmitting data from one part of a network to another part in heterogeneous
 In this case, you can define heaviest part manually and set the affinity to avoid sending data back and forth many times during one inference.
 
 ## Annotation of Layers per Device and Default Fallback Policy
-Default fallback policy decides which layer goes to which device automatically according to the support in dedicated plugins (FPGA, GPU, CPU, MYRIAD).
+Default fallback policy decides which layer goes to which device automatically according to the support in dedicated plugins (GPU, CPU, MYRIAD).
 
 Another way to annotate a network is to set affinity manually using <code>ngraph::Node::get_rt_info</code> with key `"affinity"`:
 
@@ -46,25 +46,16 @@ If you rely on the default affinity distribution, you can avoid calling <code>In
 During loading of the network to heterogeneous plugin, network is divided to separate parts and loaded to dedicated plugins.
 Intermediate blobs between these sub graphs are allocated automatically in the most efficient way.
 
-## Execution Precision
-Precision for inference in heterogeneous plugin is defined by
-* Precision of IR.
-* Ability of final plugins to execute in precision defined in IR
-
-Examples:
-* If you want to execute GPU with CPU fallback with FP16 on GPU, you need to use only FP16 IR.
-* If you want to execute on FPGA with CPU fallback, you can use any precision for IR. The execution on FPGA is defined by bitstream, the execution on CPU happens in FP32.
-
 Samples can be used with the following command:
 
 ```sh
-./object_detection_sample_ssd -m  <path_to_model>/ModelSSD.xml -i <path_to_pictures>/picture.jpg -d HETERO:FPGA,CPU
+./object_detection_sample_ssd -m  <path_to_model>/ModelSSD.xml -i <path_to_pictures>/picture.jpg -d HETERO:GPU,CPU
 ```
 where:
 - `HETERO` stands for heterogeneous plugin
-- `FPGA,CPU` points to fallback policy with priority on FPGA and fallback to CPU
+- `GPU,CPU` points to fallback policy with priority on GPU and fallback to CPU
 
-You can point more than two devices: `-d HETERO:FPGA,GPU,CPU`
+You can point more than two devices: `-d HETERO:GPU,GPU,CPU`
 
 ## Analyzing Heterogeneous Execution
 After enabling of <code>KEY_HETERO_DUMP_GRAPH_DOT</code> config key, you can dump GraphViz* `.dot` files with annotations of devices per layer.

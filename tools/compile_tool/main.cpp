@@ -83,10 +83,6 @@ static constexpr char tiling_cmx_limit_message[] =
 "                                             Value should be equal or greater than -1.\n"
 "                                             Overwrites value from config.";
 
-// FPGA-specific
-static constexpr char dla_arch_name[] =
-                                             "Optional. Specify architecture name used to compile executable network for FPGA device.";
-
 DEFINE_bool(h, false, help_message);
 DEFINE_string(m, "", model_message);
 DEFINE_string(d, "", targetDeviceMessage);
@@ -102,7 +98,6 @@ DEFINE_string(iol, "", iol_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
-DEFINE_string(DLA_ARCH_NAME, "", dla_arch_name);
 
 static void showUsage() {
     std::cout << "compile_tool [OPTIONS]" << std::endl;
@@ -124,9 +119,6 @@ static void showUsage() {
     std::cout << "      -VPU_NUMBER_OF_SHAVES      <value>     "   << number_of_shaves_message     << std::endl;
     std::cout << "      -VPU_NUMBER_OF_CMX_SLICES  <value>     "   << number_of_cmx_slices_message << std::endl;
     std::cout << "      -VPU_TILING_CMX_LIMIT_KB   <value>     "   << tiling_cmx_limit_message     << std::endl;
-    std::cout                                                                                      << std::endl;
-    std::cout << " FPGA-specific options:                      "                                   << std::endl;
-    std::cout << "      -DLA_ARCH_NAME             <value>     "   << dla_arch_name                << std::endl;
     std::cout << std::endl;
 }
 
@@ -179,7 +171,6 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
 
 static std::map<std::string, std::string> configure() {
     const bool isMYRIAD = FLAGS_d.find("MYRIAD") != std::string::npos;
-    const bool isFPGA = FLAGS_d.find("FPGA") != std::string::npos;
 
     auto config = parseConfigFile();
 
@@ -194,12 +185,6 @@ static std::map<std::string, std::string> configure() {
 
         if (!FLAGS_VPU_TILING_CMX_LIMIT_KB.empty()) {
             config[InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB] = FLAGS_VPU_TILING_CMX_LIMIT_KB;
-        }
-    }
-
-    if (isFPGA) {
-        if (!FLAGS_DLA_ARCH_NAME.empty()) {
-            config["DLIA_ARCH_NAME"] = FLAGS_DLA_ARCH_NAME;
         }
     }
 

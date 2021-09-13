@@ -230,7 +230,7 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> get_available_devices() const;

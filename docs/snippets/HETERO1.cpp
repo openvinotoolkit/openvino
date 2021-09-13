@@ -12,7 +12,7 @@ auto function = network.getFunction();
 
 // This example demonstrates how to perform default affinity initialization and then
 // correct affinity manually for some layers
-const std::string device = "HETERO:FPGA,CPU";
+const std::string device = "HETERO:GPU,CPU";
 
 // QueryNetworkResult object contains map layer -> device
 InferenceEngine::QueryNetworkResult res = core.QueryNetwork(network, device, { });
