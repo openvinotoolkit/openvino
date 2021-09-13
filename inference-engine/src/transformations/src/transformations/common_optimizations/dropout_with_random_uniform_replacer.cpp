@@ -5,7 +5,6 @@
 #include "transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp"
 
 #include <memory>
-#include <cmath>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -62,8 +61,7 @@ ngraph::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer
             return false;
 
         // Add const should have zero fractional part
-        double int_part;
-        if (std::modf(add_const_vector[0], &int_part) != 0.0)
+        if (add_const_vector[0] - std::round(add_const_vector[0]) != 0.0)
             return false;
 
         const auto broadcast_const = opset8::Constant::create(ru->get_out_type(), Shape{}, {0.5});
