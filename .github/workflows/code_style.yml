@@ -10,10 +10,13 @@ jobs:
           submodules: recursive
 
       - name: Install clang-format-9
-        run: sudo apt --assume-yes install clang-format-9
+        run: |
+          sudo apt update
+          sudo apt --assume-yes install clang-format-9
 
       - name: Install dependencies
         run: |
+          sudo apt update
           sudo apt --assume-yes install libusb-1.0-0-dev
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
@@ -50,7 +53,9 @@ jobs:
           submodules: recursive
 
       - name: Install ShellCheck
-        run: sudo apt --assume-yes install shellcheck
+        run: |
+          sudo apt update
+          sudo apt --assume-yes install shellcheck
 
       - name: Install dependencies
         run: |
