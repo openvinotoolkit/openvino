@@ -177,10 +177,10 @@ public:
             double absDiffMean = std::accumulate(absoluteDifferences.begin(), absoluteDifferences.end(), 0.0)/absoluteDifferences.size();
             double absDiffMax = *std::max_element(absoluteDifferences.begin(), absoluteDifferences.end());
 
-            IE_THROW() << "Relative comparison diff tensor mean: " << relDiffMean << ", max: " << relDiffMax << ", # failure(" << relativeErrorCount
-                       << "/" << relativeDifferences.size() << "), "
-                       << "Absolute comparison diff tensor mean: " << absDiffMean << ", max: " << absDiffMax << ", # failure(" << absoluteErrorCount
-                       << "/" << absoluteDifferences.size() << ")\n";
+            IE_THROW() << "\nRelative comparison diff tensor mean: " << relDiffMean << ", \tmax: " << relDiffMax << ", \t# failure(" << relativeErrorCount
+                       << "/" << relativeDifferences.size() << ") of threshold: " << threshold << "\n"
+                       << "Absolute comparison diff tensor mean: " << absDiffMean << ", \tmax: " << absDiffMax << ", \t# failure(" << absoluteErrorCount
+                       << "/" << absoluteDifferences.size() << ") of threshold: " << absThreshold << "\n";
         }
     }
 
