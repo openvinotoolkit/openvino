@@ -223,3 +223,29 @@ NGRAPH_TEST(${BACKEND_NAME}, avg_pool_2d_same_lower) {
     test_case.add_expected_output<float>(out_shape, result);
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, avg_pool_2d_padding) {
+    Shape in_shape{1, 1, 3, 3};
+    Shape out_shape{1, 1, 3, 3};
+    const Strides& strides{2, 2};
+    const Shape& pads_begin{1, 1};
+    const Shape& pads_end{1, 1};
+    const Shape& kernel{2, 2};
+    const bool exclude_pad = true;
+    const op::RoundingType rounding_type = op::RoundingType::CEIL;
+    const op::PadType pad_type = op::PadType::NOTSET;
+
+    auto A = make_shared<op::Parameter>(element::f32, in_shape);
+    auto avgPool =
+        make_shared<op::v1::AvgPool>(A, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_type, pad_type);
+    auto f = make_shared<Function>(avgPool, ParameterVector{A});
+
+    std::vector<float> a(1 * 1 * 3 * 3);
+    std::iota(std::begin(a), std::end(a), 1);
+    std::vector<float> result{1.0f, 2.5f, 0, 5.5f, 7.0f, 0, 0, 0, 0};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(out_shape, result);
+    test_case.run();
+}
