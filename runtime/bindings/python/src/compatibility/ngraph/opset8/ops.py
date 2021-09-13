@@ -356,10 +356,10 @@ def random_uniform(
     inputs = as_nodes(output_shape, min_val, max_val)
 
     if global_seed < 0:
-        raise RuntimeError('global_seed should be positive or 0. Got: {}'.format(global_seed))
+        raise RuntimeError("global_seed should be positive or 0. Got: {}".format(global_seed))
 
     if op_seed < 0:
-        raise RuntimeError('op_seed should be positive or 0. Got: {}'.format(op_seed))
+        raise RuntimeError("op_seed should be positive or 0. Got: {}".format(op_seed))
 
     attributes = {
         "output_type": output_type,
