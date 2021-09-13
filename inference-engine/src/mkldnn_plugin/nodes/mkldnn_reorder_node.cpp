@@ -243,8 +243,8 @@ void MKLDNNReorderNode::optimizedNcsp2Nspc() {
     auto dst_data = reinterpret_cast<uint8_t *>(childEdge->getMemoryPtr()->GetPtr());
 
     const size_t src_batch_stride = DIM1 * DIM2 * DIM3 * DIM4;
-    const size_t dst_batch_stride = childEdge->getChild()->isInplace() ? dstStrides[0] : src_batch_stride;
-    const size_t dst_channel_stride = childEdge->getChild()->isInplace() ? dstStrides[ndims-2] : DIM1;
+    const size_t dst_batch_stride = dstStrides[0];
+    const size_t dst_channel_stride = dstStrides[ndims-2];
     const size_t stride1 = DIM2 * DIM3 * DIM4;
     const size_t stride2 = DIM2 * DIM3;
 
@@ -275,10 +275,10 @@ void MKLDNNReorderNode::optimizedNspc2Ncsp() {
     auto src_data = reinterpret_cast<const float *>(parentEdge->getMemoryPtr()->GetPtr());
     auto dst_data = reinterpret_cast<float *>(childEdge->getMemoryPtr()->GetPtr());
 
-    const auto dstStrides = childEdge->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>().getStrides();
+    const auto dstStrides = childEdge->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getStrides();
     const size_t block_size = DIM2 * DIM3 * DIM4;
     const size_t src_batch_stride = block_size * DIM1;
-    const size_t dst_batch_stride = childEdge->getChild()->isInplace() ? dstStrides[0] : src_batch_stride;
+    const size_t dst_batch_stride = dstStrides[0];
     parallel_for2d(DIM0, block_size, [&](size_t b, size_t j) {
         auto src_off = b * src_batch_stride + j * DIM1;
         auto dst_off = b * dst_batch_stride + j;
