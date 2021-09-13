@@ -50,11 +50,6 @@ endif()
 
 # Installation rules for shared version only
 
-install(TARGETS ${TARGET_NAME} EXPORT ngraphTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
-
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::manager)
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
@@ -66,6 +61,5 @@ install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/frontend_manager
         COMPONENT ngraph_dev
         FILES_MATCHING PATTERN "*.hpp")
 
-export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

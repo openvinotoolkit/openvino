@@ -61,7 +61,7 @@ class GroupConvolutionQDqTransformation :
     public testing::WithParamInterface<GroupConvolutionQDqTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GroupConvolutionQDqTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<GroupConvolutionQDqTransformationParams>& obj);
 
 protected:
     void SetUp() override;
