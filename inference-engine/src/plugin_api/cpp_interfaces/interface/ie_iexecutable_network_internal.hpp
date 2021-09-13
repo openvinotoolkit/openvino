@@ -22,7 +22,7 @@ namespace InferenceEngine {
 
 class IInferencePlugin;
 class IInferRequestInternal;
-class IRemoteContext;
+class RemoteContext;
 class IVariableStateInternal;
 
 /**
@@ -134,7 +134,7 @@ public:
      * @brief Gets the remote context.
      * @return A reference to a context
      */
-    virtual std::shared_ptr<IRemoteContext> GetContext() const;
+    virtual std::shared_ptr<RemoteContext> GetContext() const;
 
 protected:
     ~IExecutableNetworkInternal() = default;

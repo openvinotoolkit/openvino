@@ -4,8 +4,8 @@
 
 #include "openvino/runtime/remote_context.hpp"
 
-#include "cpp_interfaces/interface/ie_iremote_context.hpp"
 #include "ie_remote_blob.hpp"
+#include "ie_remote_context.hpp"
 
 #define REMOTE_CONTEXT_STATEMENT(...)                                   \
     if (_impl == nullptr)                                               \
@@ -19,7 +19,7 @@
 namespace ov {
 namespace runtime {
 
-RemoteContext::RemoteContext(const std::shared_ptr<void>& so, const ie::IRemoteContext::Ptr& impl)
+RemoteContext::RemoteContext(const std::shared_ptr<void>& so, const ie::RemoteContext::Ptr& impl)
     : _so(so),
       _impl(impl) {
     if (_impl == nullptr)

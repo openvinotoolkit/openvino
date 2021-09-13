@@ -8,7 +8,7 @@
 #include <cldnn/runtime/engine.hpp>
 #include <ie_parameter.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <cpp_interfaces/interface/ie_iremote_context.hpp>
+#include <ie_remote_context.hpp>
 #include "cldnn_config.h"
 #include "cldnn_common_utils.h"
 
@@ -54,7 +54,7 @@ public:
     bool deallocate() noexcept;
     InferenceEngine::ParamMap getParams() const;
     std::string getDeviceName() const noexcept;
-    std::shared_ptr<InferenceEngine::IRemoteContext> getContext() const noexcept;
+    std::shared_ptr<InferenceEngine::RemoteContext> getContext() const noexcept;
     InferenceEngine::LockedMemory<void> buffer() noexcept;
     InferenceEngine::LockedMemory<const void> cbuffer() const noexcept;
     InferenceEngine::LockedMemory<void> rwmap()noexcept;
