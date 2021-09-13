@@ -57,8 +57,8 @@ void ConvolutionLayerTest::SetUp() {
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
     setTargetStaticShape(targetStaticShapes[0]);
-    function = makeConvolution();
-    functionRefs = makeConvolution();
+    function = makeConvolution("convolution");
+    functionRefs = makeConvolution("convolutionRefs");
 }
 
 std::shared_ptr<ngraph::Function> ConvolutionLayerTest::makeConvolution(const std::string& name) {
@@ -76,7 +76,48 @@ std::shared_ptr<ngraph::Function> ConvolutionLayerTest::makeConvolution(const st
             ngraph::builder::makeConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, false, filter_weights));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
-    return std::make_shared<ngraph::Function>(results, params, "convolution");
+    return std::make_shared<ngraph::Function>(results, params, name);
+}
+
+void ConvolutionLayerTest::Run() {
+    auto crashHandler = [](int errCode) {
+        auto &s = LayerTestsUtils::Summary::getInstance();
+        s.saveReport();
+        std::cout << "Unexpected application crash!" << std::endl;
+        std::abort();
+    };
+    signal(SIGSEGV, crashHandler);
+
+    auto &s = LayerTestsUtils::Summary::getInstance();
+    s.setDeviceName(targetDevice);
+
+    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        s.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::SKIPPED);
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    } else {
+        s.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::CRASHED);
+    }
+
+    try {
+        LoadNetwork();
+        for (auto&& tss : targetStaticShapes) {
+            setTargetStaticShape(tss);
+            GenerateInputs();
+            Infer();
+            Validate();
+            s.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::PASSED);
+        }
+    }
+    catch (const std::runtime_error &re) {
+        s.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_(re.what());
+    } catch (const std::exception &ex) {
+        s.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_(ex.what());
+    } catch (...) {
+        s.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::FAILED);
+        GTEST_FATAL_FAILURE_("Unknown failure occurred.");
+    }
 }
 
 }  // namespace LayerTestsDefinitions
