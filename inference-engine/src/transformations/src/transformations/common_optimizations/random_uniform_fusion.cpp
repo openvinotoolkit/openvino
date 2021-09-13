@@ -13,11 +13,11 @@
 #include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::RandomUniformFusion, "RandomUniformFusion", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::RandomUniformMaxValFusion, "RandomUniformMaxValFusion", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::RandomUniformMinValFusion, "RandomUniformMinValFusion", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::RandomUniformMulFusion, "RandomUniformMulFusion", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::RandomUniformAddFusion, "RandomUniformAddFusion", 0);
 
-ngraph::pass::RandomUniformMaxValFusion::RandomUniformMaxValFusion() {
-    MATCHER_SCOPE(RandomUniformMaxValFusion);
+ngraph::pass::RandomUniformMulFusion::RandomUniformMulFusion() {
+    MATCHER_SCOPE(RandomUniformMulFusion);
     const auto data_pattern = ngraph::pattern::any_input();
     const auto ru_min_input_pattern = ngraph::pattern::any_input();
     const auto ru_max_input_pattern = ngraph::pattern::any_input();
@@ -41,9 +41,13 @@ ngraph::pass::RandomUniformMaxValFusion::RandomUniformMaxValFusion() {
         const auto ru = std::dynamic_pointer_cast<opset8::RandomUniform>(random_uniform.get_node_shared_ptr());
         if (!ru)
             return false;
+        if (!ru->get_out_type().is_real())
+            return false;
 
         const auto mul_const = std::dynamic_pointer_cast<opset8::Constant>(mul_constant.get_node_shared_ptr());
         if (!mul_const)
+            return false;
+        if (!mul_const->get_element_type().is_real())
             return false;
 
         auto const_shape = mul_const->get_shape();
@@ -63,6 +67,8 @@ ngraph::pass::RandomUniformMaxValFusion::RandomUniformMaxValFusion() {
             const auto& convert = pattern_map.at(convert_pattern);
             const auto cvt = std::dynamic_pointer_cast<opset8::Convert>(convert.get_node_shared_ptr());
             if (!cvt)
+                return false;
+            if (!cvt->get_element_type().is_real())
                 return false;
             const auto new_mul1 = ml->clone_with_new_inputs({ru->input_value(1), new_mul_const});
             const auto new_mul2 = ml->clone_with_new_inputs({ru->input_value(2), new_mul_const});
@@ -92,8 +98,8 @@ ngraph::pass::RandomUniformMaxValFusion::RandomUniformMaxValFusion() {
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::RandomUniformMinValFusion::RandomUniformMinValFusion() {
-    MATCHER_SCOPE(RandomUniformMinValFusion);
+ngraph::pass::RandomUniformAddFusion::RandomUniformAddFusion() {
+    MATCHER_SCOPE(RandomUniformAddFusion);
     const auto data_pattern = ngraph::pattern::any_input();
     const auto ru_min_input_pattern = ngraph::pattern::any_input();
     const auto ru_max_input_pattern = ngraph::pattern::any_input();
@@ -121,6 +127,8 @@ ngraph::pass::RandomUniformMinValFusion::RandomUniformMinValFusion() {
         const auto add_const = std::dynamic_pointer_cast<opset8::Constant>(add_constant.get_node_shared_ptr());
         if (!add_const)
             return false;
+        if (!add_const->get_element_type().is_real())
+            return false;
 
         auto const_shape = add_const->get_shape();
         size_t const_shape_size = shape_size(const_shape);
@@ -132,11 +140,15 @@ ngraph::pass::RandomUniformMinValFusion::RandomUniformMinValFusion() {
 
         if (!ru)
             return false;
+        if (!ru->get_out_type().is_real())
+            return false;
 
         if (pattern_map.count(convert_pattern)) {
             const auto& convert = pattern_map.at(convert_pattern);
             const auto cvt = std::dynamic_pointer_cast<opset8::Convert>(convert.get_node_shared_ptr());
             if (!cvt)
+                return false;
+            if (!cvt->get_element_type().is_real())
                 return false;
             const auto add1 = std::make_shared<ngraph::opset8::Add>(ru_min_input, new_add_const);
             const auto add2 = std::make_shared<ngraph::opset8::Add>(ru_max_input, new_add_const);

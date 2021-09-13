@@ -17,7 +17,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, RandomUniformMaxValFusing) {
+TEST(TransformationTests, RandomUniformMulFusing) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
@@ -37,7 +37,7 @@ TEST(TransformationTests, RandomUniformMaxValFusing) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::RandomUniformMaxValFusion>();
+        manager.register_pass<ngraph::pass::RandomUniformMulFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -60,7 +60,7 @@ TEST(TransformationTests, RandomUniformMaxValFusing) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, RandomUniformMinValFusing) {
+TEST(TransformationTests, RandomUniformAddFusing) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
@@ -80,7 +80,7 @@ TEST(TransformationTests, RandomUniformMinValFusing) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::RandomUniformMinValFusion>();
+        manager.register_pass<ngraph::pass::RandomUniformAddFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -101,7 +101,7 @@ TEST(TransformationTests, RandomUniformMinValFusing) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, RandomUniformWithConvertMaxValFusing) {
+TEST(TransformationTests, RandomUniformWithConvertMulFusing) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
@@ -122,7 +122,7 @@ TEST(TransformationTests, RandomUniformWithConvertMaxValFusing) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::RandomUniformMaxValFusion>();
+        manager.register_pass<ngraph::pass::RandomUniformMulFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -148,7 +148,7 @@ TEST(TransformationTests, RandomUniformWithConvertMaxValFusing) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, RandomUniformWithConvertMinValFusing) {
+TEST(TransformationTests, RandomUniformWithConvertAddFusing) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
@@ -169,7 +169,7 @@ TEST(TransformationTests, RandomUniformWithConvertMinValFusing) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::RandomUniformMinValFusion>();
+        manager.register_pass<ngraph::pass::RandomUniformAddFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
