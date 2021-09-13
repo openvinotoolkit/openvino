@@ -11,23 +11,6 @@
 
 namespace LayerTestsDefinitions {
 
-// DEPRECATED, remove MvnLayerTest when KMB and ARM plugin will switch to use Mvn1LayerTest (#60420)
-typedef std::tuple<
-        InferenceEngine::SizeVector, // Input shapes
-        InferenceEngine::Precision,  // Input precision
-        bool,                        // Across channels
-        bool,                        // Normalize variance
-        double,                      // Epsilon
-        std::string> mvnParams;      // Device name
-
-class MvnLayerTest : public testing::WithParamInterface<mvnParams>, virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<mvnParams>& obj);
-
-protected:
-    void SetUp() override;
-};
-
 typedef std::tuple<
         InferenceEngine::SizeVector, // Input shapes
         InferenceEngine::Precision,  // Input precision
