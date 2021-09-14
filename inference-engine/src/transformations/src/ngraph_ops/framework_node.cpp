@@ -8,6 +8,8 @@
 using namespace std;
 using namespace ngraph;
 
+BWDCMP_RTTI_DEFINITION(op::FrameworkNode);
+
 op::FrameworkNode::FrameworkNode(const OutputVector& inputs, size_t output_size)
     : Op(inputs) {
     set_output_size(output_size);

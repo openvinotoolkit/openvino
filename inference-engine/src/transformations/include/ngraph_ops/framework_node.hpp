@@ -53,7 +53,8 @@ private:
 
 class TRANSFORMATIONS_API FrameworkNode : public Op {
 public:
-    OPENVINO_RTTI("FrameworkNode");
+    OPENVINO_OP("FrameworkNode", "util");
+    BWDCMP_RTTI_DECLARATION;
 
     explicit FrameworkNode(const OutputVector& inputs, size_t output_size = 1);
 

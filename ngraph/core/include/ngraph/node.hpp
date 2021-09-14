@@ -129,30 +129,30 @@ using ov::check_new_args_count;
 ///
 /// To complete type identification for a class, use NGRAPH_RTTI_DEFINITION.
 ///
-#define NGRAPH_RTTI_DECLARATION                                    \
-    static const ::ov::Node::type_info_t type_info;                \
-    const ::ov::Node::type_info_t& get_type_info() const override; \
-    static const ::ov::Node::type_info_t& get_type_info_static()
+#define NGRAPH_RTTI_DECLARATION                                        \
+    static const ::ngraph::Node::type_info_t type_info;                \
+    const ::ngraph::Node::type_info_t& get_type_info() const override; \
+    static const ::ngraph::Node::type_info_t& get_type_info_static()
 
-#define _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)                     \
-    const ::ov::Node::type_info_t& CLASS::get_type_info() const { \
-        return get_type_info_static();                            \
-    }                                                             \
-    const ::ov::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
-#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)           \
-    const ::ov::Node::type_info_t& CLASS::get_type_info_static() {                                    \
-        static const ::ov::Node::type_info_t type_info_static{TYPE_NAME,                              \
-                                                              _VERSION_INDEX,                         \
-                                                              &PARENT_CLASS::get_type_info_static()}; \
-        return type_info_static;                                                                      \
-    }                                                                                                 \
+#define _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)                         \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info() const { \
+        return get_type_info_static();                                \
+    }                                                                 \
+    const ::ngraph::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
+#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)               \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                                    \
+        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME,                              \
+                                                                  _VERSION_INDEX,                         \
+                                                                  &PARENT_CLASS::get_type_info_static()}; \
+        return type_info_static;                                                                          \
+    }                                                                                                     \
     _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
 
-#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)               \
-    const ::ov::Node::type_info_t& CLASS::get_type_info_static() {                        \
-        static const ::ov::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX}; \
-        return type_info_static;                                                          \
-    }                                                                                     \
+#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)                   \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                        \
+        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX}; \
+        return type_info_static;                                                              \
+    }                                                                                         \
     _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
 #define NGRAPH_RTTI_DEFINITION(...)                                                               \
     _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                         \

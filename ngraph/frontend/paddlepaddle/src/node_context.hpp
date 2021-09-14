@@ -12,7 +12,6 @@
     class VariantWrapper<TYPE> : public VariantImpl<TYPE> {                               \
     public:                                                                               \
         OPENVINO_RTTI(info);                                                              \
-        BWDCMP_RTTI_DECLARATION;                                                          \
         VariantWrapper<TYPE>(const value_type& value) : VariantImpl<value_type>(value) {} \
     }
 

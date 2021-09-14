@@ -9,7 +9,7 @@
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/rtti.hpp"
-#include "openvino/core/static_shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 /// \brief Coordinates for a tensor element

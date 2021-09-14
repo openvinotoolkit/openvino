@@ -18,6 +18,8 @@
 using namespace std;
 using namespace ngraph;
 
+BWDCMP_RTTI_DEFINITION(op::DeconvolutionIE);
+
 op::DeconvolutionIE::DeconvolutionIE(const Output<Node>& data,
                                      const Output<Node>& filters,
                                      const Strides& strides,
