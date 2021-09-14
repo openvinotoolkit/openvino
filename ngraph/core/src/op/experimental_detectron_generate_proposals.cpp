@@ -53,8 +53,8 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
     auto input_et = get_input_element_type(0);
 
     set_output_size(2);
-    set_output_type(0, input_et, ov::StaticShape{post_nms_count, 4});
-    set_output_type(1, input_et, ov::StaticShape{post_nms_count});
+    set_output_type(0, input_et, ov::Shape{post_nms_count, 4});
+    set_output_type(1, input_et, ov::Shape{post_nms_count});
 
     auto im_info_shape = get_input_partial_shape(0);
     auto anchors_shape = get_input_partial_shape(1);
