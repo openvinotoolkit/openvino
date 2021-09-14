@@ -102,7 +102,7 @@ def get_moc_frontends(argv: argparse.Namespace):
     moc_front_end = None
 
     # TODO: in future, check of 'use_legacy_frontend' in argv can be added here (issue 61973)
-    force_use_legacy_frontend = False
+    force_use_legacy_frontend = argv.use_legacy_frontend
 
     if fem and not force_use_legacy_frontend:
         available_moc_front_ends = fem.get_available_front_ends()

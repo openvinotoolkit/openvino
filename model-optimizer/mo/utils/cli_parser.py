@@ -357,6 +357,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                           action=CanonicalizePathCheckExistenceAction)
     common_group.add_argument('--legacy_ir_generation',
                               help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
+    common_group.add_argument('--use_legacy_frontend',
+                              help='use legacy frontend.',
+                              action='store_true', default=False)
     return parser
 
 
