@@ -16,8 +16,6 @@ option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF
 cmake_dependent_option(ENABLE_WHEEL "Create wheel package" OFF
     "PYTHONINTERP_FOUND;NOT CMAKE_SOURCE_DIR STREQUAL ie_python_api_SOURCE_DIR" OFF)
 
-set(PYTHON_BRIDGE_CPACK_PATH "python")
-
 if(UNIX)
     # cython generated files requires public visibility. Force visibility required.
     set(CMAKE_CXX_VISIBILITY_PRESET default)
@@ -31,12 +29,6 @@ if(CYTHON_VERSION VERSION_LESS "0.29")
     message(FATAL_ERROR "OpenVINO Python API needs at least Cython version 0.29, found version ${CYTHON_VERSION}")
 else()
     message(STATUS "Found Cython version ${CYTHON_VERSION}")
-endif()
-
-if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
-    set(PYTHON_VERSION python${CMAKE_MATCH_1}.${CMAKE_MATCH_2})
-else()
-    message(FATAL_ERROR "Failed to extract python major.minor from ${PYTHONLIBS_VERSION_STRING}")
 endif()
 
 if(ENABLE_CONDA_FOLDER)
