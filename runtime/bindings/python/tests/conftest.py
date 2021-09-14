@@ -32,12 +32,6 @@ def model_onnx_path():
     return test_onnx
 
 
-def model_prototxt_path():
-    path_to_repo = os.environ["MODELS_PATH"]
-    test_prototxt = os.path.join(path_to_repo, "models", "test_model", 'test_model.prototxt')
-    return test_prototxt
-
-
 def plugins_path():
     path_to_repo = os.environ["DATA_PATH"]
     plugins_xml = os.path.join(path_to_repo, 'ie_class', 'plugins.xml')
