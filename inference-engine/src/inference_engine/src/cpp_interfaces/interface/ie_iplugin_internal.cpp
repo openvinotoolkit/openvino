@@ -118,7 +118,7 @@ std::map<std::string, std::shared_ptr<const T>> const_map_cast(const std::map<st
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     const CNNNetwork& network,
     const std::map<std::string, std::string>& config,
-    const std::shared_ptr<IRemoteContext>& context) {
+    const std::shared_ptr<RemoteContext>& context) {
     std::shared_ptr<IExecutableNetworkInternal> impl;
     if (nullptr == context) {
         impl = LoadExeNetworkImpl(network, config);
@@ -158,11 +158,11 @@ Parameter IInferencePlugin::GetMetric(const std::string&, const std::map<std::st
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IRemoteContext> IInferencePlugin::CreateContext(const ParamMap&) {
+std::shared_ptr<RemoteContext> IInferencePlugin::CreateContext(const ParamMap&) {
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IRemoteContext> IInferencePlugin::GetDefaultContext(const ParamMap&) {
+std::shared_ptr<RemoteContext> IInferencePlugin::GetDefaultContext(const ParamMap&) {
     IE_THROW(NotImplemented);
 }
 
@@ -186,7 +186,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
     std::istream& networkModel,
-    const std::shared_ptr<IRemoteContext>& context,
+    const std::shared_ptr<RemoteContext>& context,
     const std::map<std::string, std::string>& config) {
     IE_THROW(NotImplemented);
 }
@@ -213,7 +213,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl(
     const CNNNetwork&,
-    const std::shared_ptr<IRemoteContext>&,
+    const std::shared_ptr<RemoteContext>&,
     const std::map<std::string, std::string>&) {
     IE_THROW(NotImplemented);
 }
