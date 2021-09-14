@@ -11,6 +11,10 @@ set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
 add_subdirectory(src/compatibility)
 
+if(ENABLE_WHEEL)
+    add_subdirectory(wheel)
+endif()
+
 if(NGRAPH_UNIT_TEST_ENABLE)
     add_subdirectory(tests/mock/mock_py_ngraph_frontend)
     add_dependencies(_pyngraph mock_py_ngraph_frontend)
