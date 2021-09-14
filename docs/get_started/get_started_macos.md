@@ -83,7 +83,7 @@ Before running the sample or demo applications on Intel® Neural Compute Stick 2
 
 The following paragraphs describe each sample script.
 
-### Image Classification Demo Script
+### Image Classification Sample Script
 The `run_sample_squeezenet` script illustrates the image classification pipeline.
 
 The script:

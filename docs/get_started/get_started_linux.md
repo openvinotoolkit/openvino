@@ -186,7 +186,7 @@ Inputs you'll need to specify:
 
 ### Build the Code Samples and Demo Applications 
 
-The Image Classification Sample that was automatically compiled when you ran the Image Classification demo script. The binary file is in the `~/inference_engine_cpp_samples_build/intel64/Release` directory.
+The Image Classification Sample that was automatically compiled when you ran the Image Classification sample script. The binary file is in the `~/inference_engine_cpp_samples_build/intel64/Release` directory.
 
 To run other sample code or demo applications, build them from the source files delivered as part of the OpenVINO toolkit. To learn how to build these, see the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.md) and [Demo Applications Overview](@ref omz_demos) sections.
 

@@ -83,7 +83,7 @@ docker run -it --rm <image_name>
 If you want to try some demos then run image with the root privileges (some additional 3-rd party dependencies will be installed):
 
 ```bat
-docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd deployment_tools\demo && demo_squeezenet_download_convert_run.bat -d CPU"
+docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd deployment_tools\demo && run_sample_squeezenet.bat -d CPU"
 ```
 
 ## Configure and Run the Docker* Image for GPU
@@ -138,9 +138,9 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    ```bat
    copy C:\tmp\OpenCL.dll C:\Windows\System32\ && reg add "HKLM\SOFTWARE\Khronos\OpenCL\Vendors" /v "C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409\ocl\bin\x64\intelocl64.dll" /t REG_DWORD /d 0
    ```
-3. For example, run the `demo_squeezenet_download_convert_run` demo with the command below:
+3. For example, run the `run_sample_squeezenet` demo with the command below:
    ```bat
-   cd bin && setupvars.bat && cd ../ && cd deployment_tools\demo && demo_squeezenet_download_convert_run.bat -d GPU
+   cd bin && setupvars.bat && cd ../ && cd deployment_tools\demo && run_sample_squeezenet.bat -d GPU
    ```
    > **NOTE**: Addittional third-party dependencies will be installed.
 
