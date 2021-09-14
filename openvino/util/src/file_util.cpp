@@ -25,6 +25,8 @@
 #    define stat _stat
 /// @brief Windows-specific 'mkdir' wrapper
 #    define makedir(dir) _mkdir(dir)
+// Copied from linux libc sys/stat.h:
+#    define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
 #else
 #    include <dirent.h>
 #    include <dlfcn.h>
