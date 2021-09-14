@@ -3,6 +3,7 @@
 //
 
 #include <tensorflow_frontend/frontend.hpp>
+#include <tensorflow_frontend/model.hpp>
 
 //#include <ngraph/pass/transpose_sinking.h>
 #include <ngraph/pass/constant_folding.hpp>
@@ -38,14 +39,14 @@ InputModel::Ptr FrontEndTensorflow::load_impl(const std::vector<std::shared_ptr<
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
             std::string m_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
-            return std::make_shared<InputModelTensorflow>(m_path);
+            return std::make_shared<InputModelTF>(m_path);
         }
     }
     return nullptr;
 }
 
 std::shared_ptr<ngraph::Function> FrontEndTensorflow::convert(InputModel::Ptr model) const {
-    auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTensorflow>(model);
+    auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTF>(model);
     std::cout << "[ INFO ] FrontEndTensorflow::convert invoked\n";
 
     std::shared_ptr<ngraph::Function> f;
@@ -61,7 +62,7 @@ std::shared_ptr<ngraph::Function> FrontEndTensorflow::convert(InputModel::Ptr mo
 }
 
 std::shared_ptr<ngraph::Function> FrontEndTensorflow::convert_partially(InputModel::Ptr model) const {
-    auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTensorflow>(model);
+    auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTF>(model);
     std::cout << "[ INFO ] FrontEndTensorflow::convert_partially invoked\n";
 
     std::shared_ptr<ngraph::Function> f;
@@ -74,7 +75,7 @@ std::shared_ptr<ngraph::Function> FrontEndTensorflow::convert_partially(InputMod
 }
 
 std::shared_ptr<ngraph::Function> FrontEndTensorflow::decode(InputModel::Ptr model) const {
-    auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTensorflow>(model);
+    auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTF>(model);
     std::cout << "[ INFO ] FrontEndTensorflow::decode invoked\n";
 
     std::shared_ptr<ngraph::Function> f;

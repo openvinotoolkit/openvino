@@ -2741,7 +2741,7 @@ static void extract_operation_name_and_port(const std::string& port_name, std::s
 }
 
 void Builder::TranslateGraph(
-    const std::shared_ptr<ngraph::frontend::InputModelTensorflow>& tf_model,
+    const std::shared_ptr<ngraph::frontend::InputModelTF>& tf_model,
     const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
     const std::string name,
     bool fail_fast,
@@ -2788,7 +2788,8 @@ void Builder::TranslateGraph(
         ng_op_map[input_name] = {input_output};
     }
 
-    // create the nGraph ops from TensorFlow ops    for (auto& op_place : ops) {
+    // create the nGraph ops from TensorFlow ops    
+    for (auto& op_place : ops) {
         auto op = op_place->get_desc();
         auto op_name = op_place->get_names()[0];
 
@@ -2839,7 +2840,7 @@ void Builder::TranslateGraph(
                 throw;
             }
         }
-]
+
         ngraph::OutputVector outputs;
         try {
             if (op->IsControlFlow()) {

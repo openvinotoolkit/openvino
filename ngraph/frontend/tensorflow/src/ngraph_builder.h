@@ -58,7 +58,7 @@ namespace ngraph_bridge {
 class Builder {
  public:
     static void TranslateGraph(
-        const std::shared_ptr<ngraph::frontend::InputModelTensorflow>& tf_model,
+        const std::shared_ptr<ngraph::frontend::InputModelTF>& tf_model,
         const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
         const std::string name,
         bool fail_fast,
