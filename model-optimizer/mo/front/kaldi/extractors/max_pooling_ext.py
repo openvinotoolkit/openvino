@@ -42,6 +42,7 @@ class MaxPoolingComponentFrontExtractor(FrontExtractorOp):
             'pad': np.array([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=np.int64),
             'pad_spatial_shape': np.array([[0, 0], [0, 0]], dtype=np.int64),
             'pool_method': 'max',
+            'remove_values_output': True
         }
         mapping_rule.update(layout_attrs())
         Pooling.update_node_stat(node, mapping_rule)

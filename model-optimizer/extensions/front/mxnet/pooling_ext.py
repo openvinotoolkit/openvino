@@ -35,6 +35,7 @@ class PoolingFrontExtractor(FrontExtractorOp):
             'batch_dims': np.array([0], dtype=np.int64),
             'layout': 'NCHW',
             'rounding_type': rt,
+            'remove_values_output': True
         }
 
         pooling_conv = attrs.str("pooling_convention", 'valid')
