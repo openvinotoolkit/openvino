@@ -62,8 +62,8 @@ ngraph::pass::RandomUniformMulAddFusion::RandomUniformMulAddFusion() {
         const auto new_mul_add1 = mul_add_ptr->clone_with_new_inputs({ru->input_value(1), new_const});
         const auto new_mul_add2 = mul_add_ptr->clone_with_new_inputs({ru->input_value(2), new_const});
 
-        auto folded_const1 = ngraph::get_constant_from_source(new_mul_add1);
-        auto folded_const2 = ngraph::get_constant_from_source(new_mul_add2);
+        const auto& folded_const1 = ngraph::get_constant_from_source(new_mul_add1);
+        const auto& folded_const2 = ngraph::get_constant_from_source(new_mul_add2);
 
         const auto new_ru = ru->clone_with_new_inputs({data,
                                                        folded_const1 ? folded_const1 : new_mul_add1,
