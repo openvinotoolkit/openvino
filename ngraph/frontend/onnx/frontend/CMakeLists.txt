@@ -46,7 +46,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph ONNX frontend library")
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC ngraph PRIVATE frontend_manager ngraph::builder onnx_common inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PUBLIC ngraph PRIVATE frontend_manager ngraph::builder openvino::util onnx_common inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_FRONTEND_INCLUDE_DIR}>
                                                 $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)

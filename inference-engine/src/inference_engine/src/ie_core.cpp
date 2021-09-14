@@ -30,6 +30,7 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/executable_network.hpp"
+#include "openvino/util/file_util.hpp"
 #include "xml_parse_utils.h"
 
 using namespace InferenceEngine::PluginConfigParams;
@@ -962,7 +963,7 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
 CNNNetwork Core::ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath) const {
-    return ReadNetwork(FileUtils::wStringtoMBCSstringChar(modelPath), FileUtils::wStringtoMBCSstringChar(binPath));
+    return ReadNetwork(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath));
 }
 
 #endif
@@ -1216,8 +1217,7 @@ std::map<std::string, ie::Version> Core::get_versions(const std::string& deviceN
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ngraph::Function> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
-    return _impl
-        ->ReadNetwork(FileUtils::wStringtoMBCSstringChar(modelPath), FileUtils::wStringtoMBCSstringChar(binPath))
+    return _impl->ReadNetwork(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath))
         .getFunction();
 }
 #endif

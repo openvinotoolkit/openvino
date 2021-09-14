@@ -22,5 +22,7 @@ add_library(openvino::util ALIAS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PUBLIC ${UTIL_INCLUDE_DIR})
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    INCLUDE_DIRECTORY ${UTIL_INCLUDE_DIR})
 
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS ${TARGET_NAME})

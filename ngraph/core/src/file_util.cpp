@@ -57,6 +57,6 @@ std::string file_util::wstring_to_string(const std::wstring& wstr) {
 }
 
 std::wstring file_util::multi_byte_char_to_wstring(const char* str) {
-    return ov::util::multi_byte_char_to_wstring(str);
+    return ov::util::string_to_wstring(str);
 }
 #endif  // ENABLE_UNICODE_PATH_SUPPORT

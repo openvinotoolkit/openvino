@@ -15,6 +15,7 @@
 #include "ie_ir_version.hpp"
 #include "ie_itt.hpp"
 #include "ie_reader.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace InferenceEngine {
 
@@ -45,14 +46,14 @@ class Reader : public IReader {
 
     InferenceEngine::details::SOPointer<IReader> getReaderPtr() {
         std::call_once(readFlag, [&]() {
-            FileUtils::FilePath libraryName = FileUtils::toFilePath(location);
-            FileUtils::FilePath readersLibraryPath =
-                FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
+            ov::util::FilePath libraryName = ov::util::to_file_path(location);
+            ov::util::FilePath readersLibraryPath =
+                ov::util::make_plugin_library_name(ov::util::get_ov_library_path(), libraryName);
 
-            if (!FileUtils::fileExist(readersLibraryPath)) {
+            if (!ov::util::file_exists(readersLibraryPath)) {
                 IE_THROW() << "Please, make sure that Inference Engine ONNX reader library "
-                           << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
-                           << getIELibraryPath();
+                           << ov::util::from_file_path(::ov::util::make_plugin_library_name({}, libraryName))
+                           << " is in " << ov::util::get_ov_lib_path();
             }
             ptr = {readersLibraryPath};
         });
@@ -111,11 +112,11 @@ void registerReaders() {
 
     // TODO: Read readers info from XML
     auto create_if_exists = [](const std::string name, const std::string library_name) {
-        FileUtils::FilePath libraryName = FileUtils::toFilePath(library_name);
-        FileUtils::FilePath readersLibraryPath =
-            FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
+        ov::util::FilePath libraryName = ov::util::to_file_path(library_name);
+        ov::util::FilePath readersLibraryPath =
+            ov::util::make_plugin_library_name(getInferenceEngineLibraryPath(), libraryName);
 
-        if (!FileUtils::fileExist(readersLibraryPath))
+        if (!ov::util::file_exists(readersLibraryPath))
             return std::shared_ptr<Reader>();
         return std::make_shared<Reader>(name, library_name);
     };
@@ -165,7 +166,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     // Fix unicode name
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring model_path = FileUtils::multiByteCharToWString(modelPath.c_str());
+    std::wstring model_path = ov::util::multiByteCharToWString(modelPath.c_str());
 #else
     std::string model_path = modelPath;
 #endif
@@ -191,7 +192,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                     pathWoExt = modelPath.substr(0, pos);
                 for (const auto& ext : reader->getDataFileExtensions()) {
                     bPath = pathWoExt + "." + ext;
-                    if (!FileUtils::fileExist(bPath)) {
+                    if (!ov::util::file_exists(bPath)) {
                         bPath.clear();
                     } else {
                         break;
@@ -201,7 +202,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
             if (!bPath.empty()) {
                 // Open weights file
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                std::wstring weights_path = FileUtils::multiByteCharToWString(bPath.c_str());
+                std::wstring weights_path = ov::util::multiByteCharToWString(bPath.c_str());
 #else
                 std::string weights_path = bPath;
 #endif
@@ -238,7 +239,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     ngraph::frontend::InputModel::Ptr inputModel;
     if (!binPath.empty()) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        std::wstring weights_path = FileUtils::multiByteCharToWString(binPath.c_str());
+        std::wstring weights_path = ov::util::multiByteCharToWString(binPath.c_str());
 #else
         std::string weights_path = binPath;
 #endif

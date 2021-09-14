@@ -3,15 +3,30 @@
 //
 #include "openvino/util/file_util.hpp"
 
+#include <sys/stat.h>
+
 #include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
 
 #ifdef _WIN32
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
+#    include <direct.h>
 #    include <windows.h>
+/// @brief Max length of absolute file path
+#    define MAX_ABS_PATH _MAX_PATH
+/// @brief Get absolute file path, returns NULL in case of error
+#    define get_absolute_path(result, path) _fullpath(result, path.c_str(), MAX_ABS_PATH)
+/// @brief Windows-specific 'stat' wrapper
+#    define stat _stat
+/// @brief Windows-specific 'mkdir' wrapper
+#    define makedir(dir) _mkdir(dir)
 #else
 #    include <dirent.h>
+#    include <dlfcn.h>
 #    include <ftw.h>
 #    include <sys/file.h>
 #    include <sys/time.h>
@@ -19,6 +34,13 @@
 
 #    include <codecvt>
 #    include <locale>
+
+/// @brief Max length of absolute file path
+#    define MAX_ABS_PATH                    PATH_MAX
+/// @brief Get absolute file path, returns NULL in case of error
+#    define get_absolute_path(result, path) realpath(path.c_str(), result)
+/// @brief mkdir wrapper
+#    define makedir(dir)                    mkdir(dir, 0755)
 #endif
 
 std::string ov::util::get_file_name(const std::string& s) {
@@ -145,7 +167,7 @@ void ov::util::iterate_files(const std::string& path,
     std::vector<std::string> files;
     std::vector<std::string> dirs;
 #ifdef _WIN32
-    std::string file_match = path_join(path, "*");
+    std::string file_match = path_join({path, "*"});
     WIN32_FIND_DATAA data;
     HANDLE hFind = FindFirstFileA(file_match.c_str(), &data);
     if (hFind != INVALID_HANDLE_VALUE) {
@@ -153,14 +175,14 @@ void ov::util::iterate_files(const std::string& path,
             bool is_dir = data.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY;
             if (is_dir) {
                 if (string(data.cFileName) != "." && string(data.cFileName) != "..") {
-                    string dir_path = path_join(path, data.cFileName);
+                    string dir_path = path_join({path, data.cFileName});
                     if (recurse) {
                         iterate_files(dir_path, func, recurse);
                     }
                     func(dir_path, true);
                 }
             } else {
-                string file_name = path_join(path, data.cFileName);
+                string file_name = path_join({path, data.cFileName});
                 func(file_name, false);
             }
         } while (FindNextFileA(hFind, &data));
@@ -202,9 +224,9 @@ void ov::util::convert_path_win_style(std::string& path) {
 
 std::string ov::util::wstring_to_string(const std::wstring& wstr) {
 #ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);  // NOLINT
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
     std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);  // NOLINT
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
     return strTo;
 #else
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
@@ -212,7 +234,8 @@ std::string ov::util::wstring_to_string(const std::wstring& wstr) {
 #endif
 }
 
-std::wstring ov::util::multi_byte_char_to_wstring(const char* str) {
+std::wstring ov::util::string_to_wstring(const std::string& string) {
+    const char* str = string.c_str();
 #ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
     int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
@@ -225,3 +248,126 @@ std::wstring ov::util::multi_byte_char_to_wstring(const char* str) {
     return result;
 #endif
 }
+
+std::string ov::util::get_absolute_file_path(const std::string& path) {
+    std::string absolutePath;
+    absolutePath.resize(MAX_ABS_PATH);
+    auto absPath = get_absolute_path(&absolutePath[0], path);
+    if (!absPath) {
+        std::stringstream ss;
+        ss << "Can't get absolute file path for [" << path << "], err = " << strerror(errno);
+        throw std::runtime_error(ss.str());
+    }
+    absolutePath.resize(strlen(absPath));
+    return absolutePath;
+}
+
+void ov::util::create_directory_recursive(const std::string& path) {
+    if (path.empty() || directory_exists(path)) {
+        return;
+    }
+
+    std::size_t pos = path.rfind(ov::util::FileTraits<char>::file_separator);
+    if (pos != std::string::npos) {
+        create_directory_recursive(path.substr(0, pos));
+    }
+
+    int err = makedir(path.c_str());
+    if (err != 0 && errno != EEXIST) {
+        std::stringstream ss;
+        // TODO: in case of exception it may be needed to remove all created sub-directories
+        ss << "Couldn't create directory [" << path << "], err=" << strerror(errno) << ")";
+        throw std::runtime_error(ss.str());
+    }
+}
+
+bool ov::util::directory_exists(const std::string& path) {
+    struct stat sb;
+
+    if (stat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
+        return true;
+    }
+    return false;
+}
+
+namespace {
+
+template <typename C,
+          typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>
+std::basic_string<C> get_path_name(const std::basic_string<C>& s) {
+    size_t i = s.rfind(ov::util::FileTraits<C>::file_separator, s.length());
+    if (i != std::string::npos) {
+        return (s.substr(0, i));
+    }
+
+    return {};
+}
+
+static std::string get_ov_library_path_a() {
+#ifdef _WIN32
+    CHAR ov_library_path[MAX_PATH];
+    HMODULE hm = NULL;
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            reinterpret_cast<LPSTR>(ov::util::get_ov_lib_path),
+                            &hm)) {
+        std::stringstream ss;
+        ss << "GetModuleHandle returned " << GetLastError();
+        throw std::runtime_error(ss.str());
+    }
+    GetModuleFileNameA(hm, (LPSTR)ov_library_path, sizeof(ov_library_path));
+    return get_path_name(std::string(ov_library_path));
+#elif defined(__APPLE__) || defined(__linux__)
+#    ifdef USE_STATIC_IE
+#        ifdef __APPLE__
+    Dl_info info;
+    dladdr(reinterpret_cast<void*>(ov::util::get_ov_lib_path), &info);
+    std::string path = get_path_name(std::string(info.dli_fname)).c_str();
+#        else
+    char result[PATH_MAX];
+    ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
+    std::string path = get_path_name(std::string(result, (count > 0) ? count : 0));
+#        endif  // __APPLE__
+    return FileUtils::makePath(path, std::string("lib"));
+#    else
+    Dl_info info;
+    dladdr(reinterpret_cast<void*>(ov::util::get_ov_lib_path), &info);
+    return get_path_name(std::string(info.dli_fname)).c_str();
+#    endif  // USE_STATIC_IE
+#else
+#    error "Unsupported OS"
+#endif  // _WIN32
+}
+
+}  // namespace
+
+std::string ov::util::get_ov_lib_path() {
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    return ov::util::wstring_to_string(ov::util::get_ov_lib_path_w());
+#else
+    return get_ov_library_path_a();
+#endif
+}
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+std::wstring ov::util::get_ov_lib_path_w() {
+#    ifdef _WIN32
+    WCHAR ov_library_path[MAX_PATH];
+    HMODULE hm = NULL;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            reinterpret_cast<LPCWSTR>(get_ov_lib_path),
+                            &hm)) {
+        std::stringstream ss;
+        ss << "GetModuleHandle returned " << GetLastError();
+        throw std::runtime_error(ss.str());
+    }
+    GetModuleFileNameW(hm, (LPWSTR)ov_library_path, sizeof(ov_library_path) / sizeof(ov_library_path[0]));
+    return get_path_name(std::wstring(ov_library_path));
+#    elif defined(__linux__) || defined(__APPLE__)
+    return ov::util::string_to_wstring(get_ov_library_path_a());
+#    else
+#        error "Unsupported OS"
+#    endif
+}
+
+#endif  // ENABLE_UNICODE_PATH_SUPPORT

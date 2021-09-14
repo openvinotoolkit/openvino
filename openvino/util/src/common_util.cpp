@@ -18,22 +18,6 @@ std::string ov::util::to_upper(const std::string& s) {
     return rc;
 }
 
-std::string ov::util::trim(const std::string& s) {
-    std::string rc = s;
-    // trim trailing spaces
-    size_t pos = rc.find_last_not_of(" \t");
-    if (std::string::npos != pos) {
-        rc = rc.substr(0, pos + 1);
-    }
-
-    // trim leading spaces
-    pos = rc.find_first_not_of(" \t");
-    if (std::string::npos != pos) {
-        rc = rc.substr(pos);
-    }
-    return rc;
-}
-
 std::vector<std::string> ov::util::split(const std::string& src, char delimiter, bool do_trim) {
     size_t pos;
     std::string token;
