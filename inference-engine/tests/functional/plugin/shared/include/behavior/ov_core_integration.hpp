@@ -29,7 +29,7 @@
 
 #endif
 
-using namespace InferenceEngine::PluginConfigParams;
+//using namespace InferenceEngine::PluginConfigParams;
 
 namespace BehaviorTestsDefinitions {
 
@@ -362,18 +362,20 @@ TEST_P(OVClassBasicTestP, SetConfigForUnRegisteredDeviceThrows) {
 
 TEST_P(OVClassBasicTestP, SetConfigNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    ASSERT_NO_THROW(ie.set_config({{KEY_PERF_COUNT, YES}}, deviceName));
+    ASSERT_NO_THROW(ie.set_config({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}},
+                                  deviceName));
 }
 
 TEST_P(OVClassBasicTestP, SetConfigAllNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    ASSERT_NO_THROW(ie.set_config({{KEY_PERF_COUNT, YES}}));
+    ASSERT_NO_THROW(ie.set_config({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}}));
     ASSERT_NO_THROW(ie.get_versions(deviceName));
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigHeteroThrows) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    ASSERT_NO_THROW(ie.set_config({{KEY_PERF_COUNT, YES}}, CommonTestUtils::DEVICE_HETERO));
+    ASSERT_NO_THROW(ie.set_config({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}},
+                                  CommonTestUtils::DEVICE_HETERO));
 }
 
 TEST_P(OVClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
@@ -385,11 +387,13 @@ TEST(OVClassBasicTest, smoke_SetConfigHeteroNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
     bool value = false;
 
-    ASSERT_NO_THROW(ie.set_config({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), YES}}, CommonTestUtils::DEVICE_HETERO));
+    ASSERT_NO_THROW(ie.set_config({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), InferenceEngine::PluginConfigParams::YES}},
+                                  CommonTestUtils::DEVICE_HETERO));
     ASSERT_NO_THROW(value = ie.get_config("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)).as<bool>());
     ASSERT_TRUE(value);
 
-    ASSERT_NO_THROW(ie.set_config({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), NO}}, CommonTestUtils::DEVICE_HETERO));
+    ASSERT_NO_THROW(ie.set_config({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), InferenceEngine::PluginConfigParams::NO}},
+                                  CommonTestUtils::DEVICE_HETERO));
     ASSERT_NO_THROW(value = ie.get_config("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)).as<bool>());
     ASSERT_FALSE(value);
 }
