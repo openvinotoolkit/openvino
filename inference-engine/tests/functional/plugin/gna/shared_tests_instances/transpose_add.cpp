@@ -8,7 +8,9 @@
 namespace {
 std::vector<std::vector<size_t>> input_shapes {
     {1, 4, 32},
-    {1, 8, 8}
+    {1, 8, 8},
+    {1, 7, 8},
+    {1, 40, 3}
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {

@@ -11,7 +11,6 @@ std::string TransposeAdd::getTestCaseName(testing::TestParamInfo<TransposeAddPar
     std::vector<size_t> input_shape;
     std::map<std::string, std::string> configuration;
 
-
     std::tie(netPrecision, targetName, input_shape, configuration) = obj.param;
     std::ostringstream results;
 
@@ -27,6 +26,7 @@ void TransposeAdd::SetUp() {
     std::map<std::string, std::string> additional_config;
 
     std::tie(netPrecision, targetDevice, input_shape, additional_config) = this->GetParam();
+    GTEST_ASSERT_GE(input_shape.size(), 2);
 
     configuration.insert(additional_config.begin(), additional_config.end());
 
