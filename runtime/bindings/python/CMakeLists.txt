@@ -34,3 +34,13 @@ if(NGRAPH_UNIT_TEST_ENABLE)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
     add_dependencies(_pyngraph pybind_mock_frontend)
 endif()
+
+# install Python samples
+
+ie_cpack_add_component(python_samples)
+
+install(DIRECTORY sample/
+        DESTINATION ${IE_CPACK_IE_DIR}/samples/python
+        COMPONENT python_samples)
+
+ie_cpack(${PYTHON_COMPONENT} python_samples)
