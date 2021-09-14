@@ -291,10 +291,10 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
     m_outputs.clear();
     for (auto& out_name : names_without_consumers) {
         std::vector<std::string> names = {out_name};
-        m_outputs.push_back(std::make_shared<TensorPlaceTF>(m_input_model,
-                                                            ngraph::PartialShape({}),
-                                                            ngraph::element::undefined,
-                                                            names));
+        auto output_place = std::make_shared<TensorPlaceTF>(m_input_model, ngraph::PartialShape({}),
+            ngraph::element::undefined, names);
+        m_var_places[out_name] = output_place;
+        m_outputs.push_back(output_place);
     }
 }
 
