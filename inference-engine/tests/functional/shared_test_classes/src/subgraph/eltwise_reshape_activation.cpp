@@ -9,7 +9,7 @@ namespace SubgraphTestsDefinitions {
 using namespace CommonTestUtils;
 using namespace InferenceEngine;
 
-std::string EltwiseReshapeActivation::getTestCaseName(testing::TestParamInfo<ParamType> obj) {
+std::string EltwiseReshapeActivation::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
     InferenceEngine::Precision netPrecision;
     std::vector<std::vector<size_t>> shapes;
     std::string targetDevice;

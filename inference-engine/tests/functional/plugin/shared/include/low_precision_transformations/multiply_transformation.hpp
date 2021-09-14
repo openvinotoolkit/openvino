@@ -32,7 +32,7 @@ class MultiplyTransformation :
     public testing::WithParamInterface<MultiplyTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MultiplyTransformationParams>& obj);
 
 protected:
     void SetUp() override;

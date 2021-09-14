@@ -1254,22 +1254,30 @@ InferenceEngine::Precision MKLDNNNode::getRuntimePrecision() const {
 
 MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
                                              const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
+    // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
+    // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
+    // An example for gather node:
+    // /path-to-openVino-root/inference-engine/src/mkldnn_plugin/nodes/mkldnn_gather_node.cpp:42 [ NOT_IMPLEMENTED ] Only opset7 Gather operation is supported
+    // The most important part of the message is the reason, so the lambda trims everything up to "]"
+    // Note that the op type and its friendly name will also be provided if we fail to create the node.
+    auto getExceptionDescWithoutStatus = [](const InferenceEngine::Exception& ex) {
+        std::string desc = ex.what();
+        size_t pos = desc.find("]");
+        if (pos != std::string::npos) {
+            if (desc.size() == pos + 1) {
+                desc.erase(0, pos + 1);
+            } else {
+                desc.erase(0, pos + 2);
+            }
+        }
+        return desc;
+    };
     MKLDNNNode *newNode = nullptr;
     std::string errorMessage;
-    try {
+    {
         std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, Generic, op, eng, w_cache));
         if (ol != nullptr && ol->created(extMgr))
             newNode = ol.release();
-    } catch (const InferenceEngine::Exception& ex) {
-        IE_SUPPRESS_DEPRECATED_START
-        if (ex.getStatus() != NOT_IMPLEMENTED) {
-            throw;
-        } else {
-            const auto currErrorMess = getExceptionDescWithoutStatus(ex);
-            if (!currErrorMess.empty())
-                errorMessage += "\n" + currErrorMess;
-        }
-        IE_SUPPRESS_DEPRECATED_END
     }
 
     if (newNode == nullptr) {
@@ -1278,15 +1286,11 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            IE_SUPPRESS_DEPRECATED_START
-            if (ex.getStatus() != NOT_IMPLEMENTED) {
-                throw;
+            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
+                errorMessage += getExceptionDescWithoutStatus(ex);
             } else {
-                const auto currErrorMess = getExceptionDescWithoutStatus(ex);
-                if (!currErrorMess.empty())
-                    errorMessage += "\n" + currErrorMess;
+                throw;
             }
-            IE_SUPPRESS_DEPRECATED_END
         }
     }
 
@@ -1296,15 +1300,13 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            IE_SUPPRESS_DEPRECATED_START
-            if (ex.getStatus() != NOT_IMPLEMENTED) {
-                throw;
-            } else {
+            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
                 const auto currErrorMess = getExceptionDescWithoutStatus(ex);
                 if (!currErrorMess.empty())
-                    errorMessage += "\n" + currErrorMess;
+                    errorMessage += errorMessage.empty() ? currErrorMess : "\n" + currErrorMess;
+            } else {
+                throw;
             }
-            IE_SUPPRESS_DEPRECATED_END
         }
     }
 
@@ -1318,7 +1320,7 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
     if (!newNode) {
         std::string errorDetails;
         if (!errorMessage.empty()) {
-            errorDetails = "\nDetails: " + errorMessage;
+            errorDetails = "\nDetails:\n" + errorMessage;
         }
         IE_THROW() << "Unsupported operation of type: " << op->get_type_name() << " name: " << op->get_friendly_name() << errorDetails;
     }
