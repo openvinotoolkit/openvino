@@ -154,7 +154,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     _workerRequests.clear();
 }
 
-std::shared_ptr<InferenceEngine::IRemoteContext> MultiDeviceExecutableNetwork::GetContext() const {
+std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::GetContext() const {
     auto devices = [&] {
         std::lock_guard<std::mutex> lock(_mutex);
         return _devicePriorities;
@@ -237,6 +237,16 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
     if (it != _config.end()) {
         return it->second;
     } else {
+        // find config key among networks config keys
+        for (const auto& desc : _networksPerDevice) {
+            const auto& execNetwork = desc.second;
+            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            for (auto &&configKey : param.as<std::vector<std::string>>()) {
+                if (configKey == name) {
+                    return execNetwork->GetConfig(configKey);
+                }
+            }
+        }
         IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
     }
 }
