@@ -39,9 +39,9 @@ public:
     ///
     AvgPool(const Output<Node>& arg,
             const Strides& strides,
-            const StaticShape& pads_begin,
-            const StaticShape& pads_end,
-            const StaticShape& kernel,
+            const Shape& pads_begin,
+            const Shape& pads_end,
+            const Shape& kernel,
             bool exclude_pad,
             op::RoundingType rounding_type = op::RoundingType::FLOOR,
             const PadType& auto_pad = op::PadType::EXPLICIT);
@@ -52,17 +52,17 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return The kernel shape.
-    const StaticShape& get_kernel() const;
-    void set_kernel(const StaticShape& kernel);
+    const Shape& get_kernel() const;
+    void set_kernel(const Shape& kernel);
     /// \return The strides.
     const Strides& get_strides() const;
     void set_strides(const Strides& strides);
     /// \return The beginning of padding shape.
-    const StaticShape& get_pads_begin() const;
-    void set_pads_begin(const StaticShape& pads_begin);
+    const Shape& get_pads_begin() const;
+    void set_pads_begin(const Shape& pads_begin);
     /// \return The end of padding shape.
-    const StaticShape& get_pads_end() const;
-    void set_pads_end(const StaticShape& pads_end);
+    const Shape& get_pads_end() const;
+    void set_pads_end(const Shape& pads_end);
     bool get_exclude_pad() const;
     void set_exclude_pad(bool exclude_pad);
     /// \return The pad type for pooling.
@@ -76,10 +76,10 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
-    StaticShape m_kernel;
+    Shape m_kernel;
     Strides m_strides;
-    StaticShape m_pads_begin;
-    StaticShape m_pads_end;
+    Shape m_pads_begin;
+    Shape m_pads_end;
     bool m_exclude_pad{true};
     PadType m_auto_pad{PadType::EXPLICIT};
     op::RoundingType m_rounding_type{op::RoundingType::FLOOR};

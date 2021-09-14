@@ -37,8 +37,8 @@ void op::v0::Tile::validate_and_infer_types() {
 
     auto arg_shape = get_input_partial_shape(0);
     auto repeats_shape = get_input_partial_shape(1);
-    NODE_VALIDATION_CHECK(this, repeats_shape.rank().compatible(1), "Shape of repeats must be of rank 1");
-    ov::Shape repeats_as_pshape;
+    NODE_VALIDATION_CHECK(this, repeats_shape.rank().compatible(1), "PartialShape of repeats must be of rank 1");
+    ov::PartialShape repeats_as_pshape;
     bool repeats_are_known = evaluate_as_partial_shape(get_input_source_output(1), repeats_as_pshape);
     std::vector<Dimension> repeats_value(repeats_as_pshape);
     if (repeats_are_known && !repeats_value.empty() && arg_shape.rank().is_static()) {
@@ -51,12 +51,12 @@ void op::v0::Tile::validate_and_infer_types() {
         data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
         repeats_value.insert(repeats_value.begin(), output_rank - repeats_rank, 1);
 
-        auto output_shape = ov::Shape::dynamic(output_rank);
+        auto output_shape = ov::PartialShape::dynamic(output_rank);
         for (size_t i = 0; i < output_rank; i++)
             output_shape[i] = data_shape[i] * repeats_value[i];
         set_output_type(0, arg_et, output_shape);
     } else {
-        set_output_type(0, arg_et, ov::Shape::dynamic());
+        set_output_type(0, arg_et, ov::PartialShape::dynamic());
     }
 
     set_input_is_relevant_to_shape(0);
@@ -75,7 +75,7 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     auto& output = outputs[0];
     auto repeats_val = read_index_vector(axis);
     auto repeats_rank = repeats_val.size();
-    ov::StaticShape data_shape = data->get_shape();
+    ov::Shape data_shape = data->get_shape();
     auto data_rank = data_shape.size();
     auto output_rank = std::max(data_rank, repeats_rank);
 
@@ -83,7 +83,7 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
     repeats_val.insert(repeats_val.begin(), output_rank - repeats_rank, 1);
 
-    ov::StaticShape output_shape(output_rank);
+    ov::Shape output_shape(output_rank);
     for (size_t i = 0; i < output_rank; i++) {
         output_shape[i] = data_shape[i] * repeats_val[i];
     }

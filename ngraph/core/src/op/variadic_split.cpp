@@ -101,11 +101,11 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
                     split_lengths.at(output) == -1 ? Dimension::dynamic() : split_lengths.at(output);
                 auto tmp_shape = data_shape_dims;
                 tmp_shape.at(axis) = output_split_dim;
-                set_output_type(output, data_type, ov::Shape{tmp_shape});
+                set_output_type(output, data_type, ov::PartialShape{tmp_shape});
             }
         } else {
             for (int64_t output{0}; output < num_outputs; ++output) {
-                set_output_type(output, data_type, ov::Shape::dynamic());
+                set_output_type(output, data_type, ov::PartialShape::dynamic());
             }
         }
     }
@@ -159,7 +159,7 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
         split_lengths[std::distance(std::begin(split_lengths), neg_one)] = data_shape[axis] - sum_of_known_splits;
     }
 
-    ov::StaticShape output_shape = data_shape;
+    ov::Shape output_shape = data_shape;
     std::vector<size_t> lower_bounds(data_shape.size(), 0);
     std::vector<size_t> upper_bounds = data_shape;
     upper_bounds.at(axis) = split_lengths[0];

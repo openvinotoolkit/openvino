@@ -45,5 +45,5 @@ std::shared_ptr<ov::Node> ov::pass::pattern::any_input() {
 }
 
 std::shared_ptr<ov::Node> ov::pass::pattern::any_input(const ov::pass::pattern::op::ValuePredicate& pred) {
-    return std::make_shared<pattern::op::Label>(element::dynamic, Shape::dynamic(), pred);
+    return std::make_shared<pattern::op::Label>(element::dynamic, PartialShape::dynamic(), pred);
 }

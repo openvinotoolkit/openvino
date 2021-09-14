@@ -81,7 +81,7 @@ public:
     OPENVINO_OP("Interpolate", "opset4", op::Op, 4);
     BWDCMP_RTTI_DECLARATION;
 
-    /// \brief Shape calculation mode
+    /// \brief PartialShape calculation mode
     ///
     /// sizes  - output shape for interpolated axes is calculated using input `sizes`
     /// scales - output shape for interpolated axes is calculated using input `scales`
@@ -250,10 +250,10 @@ private:
 
     /// \brief Calculates input shape after padding.
     ///
-    /// \param input_shape Shape of input data.
+    /// \param input_shape PartialShape of input data.
     ///
     /// \return Padded input shape, i.e. input_shape + pads_begin + pads_end
-    Shape get_padded_input_shape(const Shape& input_shape) const;
+    PartialShape get_padded_input_shape(const PartialShape& input_shape) const;
 
     /// \brief Infers output shape using scales.
     ///
@@ -261,17 +261,17 @@ private:
     /// \param axes Interpolation axes
     /// \param scales Scales for interpolated axes
     /// \param padded_input_shape input shape after padding
-    void infer_using_scales(Shape& output_shape,
+    void infer_using_scales(PartialShape& output_shape,
                             const std::vector<int64_t>& axes,
                             const std::vector<float>& scales,
-                            const Shape& padded_input_shape) const;
+                            const PartialShape& padded_input_shape) const;
 
     /// \brief Infers output shape using sizes.
     ///
     /// \param output_shape[in,out] output shape
     /// \param axes Interpolation axes
     /// \param sizes sizes for interpolated axes
-    void infer_using_shapes(Shape& output_shape,
+    void infer_using_shapes(PartialShape& output_shape,
                             const std::vector<int64_t>& axes,
                             const std::vector<int64_t>& sizes) const;
 };

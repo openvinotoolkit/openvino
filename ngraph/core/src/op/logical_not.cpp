@@ -28,7 +28,7 @@ void op::v1::LogicalNot::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_LogicalNot_validate_and_infer_types);
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);
-    ov::Shape& args_pshape = std::get<1>(args_et_pshape);
+    ov::PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
     set_output_type(0, args_et, args_pshape);
 }

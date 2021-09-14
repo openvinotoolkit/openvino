@@ -18,7 +18,7 @@ op::util::LogicalReduction::LogicalReduction() = default;
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const AxisSet& reduction_axes)
     : ReductionBase(
           arg,
-          ngraph::op::Constant::create(element::i64, ngraph::Shape{reduction_axes.size()}, reduction_axes.to_vector())
+          ngraph::op::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())
               ->output(0)) {
     add_provenance_group_member(input_value(1).get_node_shared_ptr());
 }
@@ -40,7 +40,7 @@ const AxisSet op::util::LogicalReduction::get_reduction_axes() const {
 
 void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axes) {
     this->input(1).replace_source_output(
-        ngraph::op::Constant::create(element::i64, ngraph::Shape{reduction_axes.size()}, reduction_axes.to_vector())
+        ngraph::op::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())
             ->output(0));
 }
 
@@ -48,7 +48,7 @@ void op::util::LogicalReduction::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_LogicalReduction_validate_and_infer_types);
 
     const element::Type& data_et = get_input_element_type(0);
-    const Shape& axes_shape = get_input_partial_shape(1);
+    const PartialShape& axes_shape = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this, data_et.compatible(element::boolean), "Element type of data input must be boolean.");
 
@@ -58,7 +58,7 @@ void op::util::LogicalReduction::validate_and_infer_types() {
                           "Axes input must be a scalar or 1D input. Got: ",
                           axes_shape);
 
-    Shape result_shape = infer_reduction_output_shape(false);
+    PartialShape result_shape = infer_reduction_output_shape(false);
     set_input_is_relevant_to_shape(1);
     set_output_type(0, data_et, result_shape);
 }

@@ -18,7 +18,7 @@ public:
     OPENVINO_API Coordinate();
     OPENVINO_API Coordinate(const std::initializer_list<size_t>& axes);
 
-    OPENVINO_API Coordinate(const StaticShape& shape);
+    OPENVINO_API Coordinate(const Shape& shape);
 
     OPENVINO_API Coordinate(const std::vector<size_t>& axes);
 

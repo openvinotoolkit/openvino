@@ -14,7 +14,7 @@ using namespace ngraph;
 
 BWDCMP_RTTI_DEFINITION(op::v0::Parameter);
 
-op::Parameter::Parameter(const element::Type& element_type, const ov::Shape& pshape)
+op::Parameter::Parameter(const element::Type& element_type, const ov::PartialShape& pshape)
     : m_partial_shape(pshape),
       m_element_type(element_type),
       m_is_relevant_to_shapes(false) {

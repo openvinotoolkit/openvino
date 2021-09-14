@@ -105,9 +105,9 @@ void op::v5::GatherND::validate_and_infer_types() {
             output_shape[output_indices_length + dim + delta_output_rank] =
                 data_pshape[m_batch_dims + indices_tuple_length + dim];
         }
-        set_output_type(0, data_type, ov::Shape(output_shape));
+        set_output_type(0, data_type, ov::PartialShape(output_shape));
     } else {
-        set_output_type(0, data_type, ov::Shape::dynamic());
+        set_output_type(0, data_type, ov::PartialShape::dynamic());
     }
 }
 

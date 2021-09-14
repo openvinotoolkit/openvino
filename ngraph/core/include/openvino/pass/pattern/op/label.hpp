@@ -33,16 +33,19 @@ public:
     /// \code{.cpp}
     /// auto add = a + b; // a and b are op::Parameter in this example
     /// auto label = std::make_shared<pattern::op::Label>(element::f32,
-    ///                                                   Shape{2,2},
+    ///                                                   PartialShape{2,2},
     ///                                                   nullptr,
     ///                                                   OutputVector{add});
     /// \endcode
-    Label(const element::Type& type, const Shape& s, const ValuePredicate pred, const OutputVector& wrapped_values)
+    Label(const element::Type& type,
+          const PartialShape& s,
+          const ValuePredicate pred,
+          const OutputVector& wrapped_values)
         : Pattern(OutputVector{wrap_values(wrapped_values)}, pred) {
         set_output_type(0, type, s);
     }
 
-    explicit Label(const element::Type& type = element::dynamic, const Shape& s = Shape::dynamic())
+    explicit Label(const element::Type& type = element::dynamic, const PartialShape& s = PartialShape::dynamic())
         : Label(
               type,
               s,
@@ -51,12 +54,13 @@ public:
               },
               OutputVector()) {}
 
-    Label(const element::Type& type, const Shape& s, ValuePredicate pred) : Label(type, s, pred, OutputVector{}) {}
+    Label(const element::Type& type, const PartialShape& s, ValuePredicate pred)
+        : Label(type, s, pred, OutputVector{}) {}
 
-    Label(const element::Type& type, const Shape& s, NodePredicate pred)
+    Label(const element::Type& type, const PartialShape& s, NodePredicate pred)
         : Label(type, s, as_value_predicate(pred), OutputVector{}) {}
 
-    Label(const element::Type& type, const Shape& s, const NodePredicate pred, const NodeVector& wrapped_values)
+    Label(const element::Type& type, const PartialShape& s, const NodePredicate pred, const NodeVector& wrapped_values)
         : Label(type, s, as_value_predicate(pred), as_output_vector(wrapped_values)) {}
 
     /// \brief creates a Label node containing a sub-pattern described by the type and

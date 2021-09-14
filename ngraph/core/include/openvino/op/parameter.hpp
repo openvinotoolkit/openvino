@@ -24,7 +24,7 @@ public:
     ///
     /// \param element_type The element type of the parameter.
     /// \param pshape The partial shape of the parameter.
-    Parameter(const ngraph::element::Type& element_type, const Shape& pshape);
+    Parameter(const ngraph::element::Type& element_type, const PartialShape& pshape);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -35,13 +35,13 @@ public:
     bool is_relevant_to_shapes() const;
     void set_is_relevant_to_shapes(bool is_relevant);
 
-    const Shape& get_partial_shape() const {
+    const PartialShape& get_partial_shape() const {
         return m_partial_shape;
     }
-    Shape& get_partial_shape() {
+    PartialShape& get_partial_shape() {
         return m_partial_shape;
     }
-    void set_partial_shape(const Shape& partial_shape) {
+    void set_partial_shape(const PartialShape& partial_shape) {
         m_partial_shape = partial_shape;
     }
     const element::Type& get_element_type() const {
@@ -52,7 +52,7 @@ public:
     }
 
 protected:
-    Shape m_partial_shape;
+    PartialShape m_partial_shape;
     element::Type m_element_type;
     bool m_is_relevant_to_shapes{false};
 };
