@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME conformanceTests)
+set(TARGET_NAME conformanceTestsInfra)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
+        TYPE STATIC
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
