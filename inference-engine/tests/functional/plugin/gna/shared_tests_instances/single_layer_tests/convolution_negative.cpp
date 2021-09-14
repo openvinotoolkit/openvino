@@ -151,7 +151,7 @@ struct GnaConv2DNegativeTest##whats_wrong : GnaConv2DNegativeTest {             
 TEST_P(GnaConv2DNegativeTest##whats_wrong, ThrowAsNotSupported) {                                               \
     Run();                                                                                                      \
 }                                                                                                               \
-INSTANTIATE_TEST_SUITE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaConv2DNegativeTest##whats_wrong,    \
+INSTANTIATE_TEST_SUITE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaConv2DNegativeTest##whats_wrong,   \
 ::testing::Combine(                                                                                             \
     conv2DParameters##suffix_params,                                                                            \
     ::testing::ValuesIn(netPrecisions),                                                                         \
@@ -159,6 +159,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaCon
     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),                                                 \
     ::testing::Values(InferenceEngine::Layout::ANY),                                                            \
     ::testing::Values(InferenceEngine::Layout::ANY),                                                            \
+    ::testing::Values(std::vector<std::pair<size_t, size_t>>(NULL_RANGE)),                                      \
     ::testing::ValuesIn(input2DNCHW##suffix_input),                                                             \
     ::testing::Values(CommonTestUtils::DEVICE_GNA)),                                                            \
     GnaConv2DNegativeTest##whats_wrong::getTestCaseName);

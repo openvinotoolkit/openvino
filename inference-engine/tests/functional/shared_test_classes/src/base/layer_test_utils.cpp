@@ -47,13 +47,10 @@ void LayerTestsCommon::Run() {
 
     try {
         LoadNetwork();
-        for (auto&& tss : targetStaticShapes) {
-            setTargetStaticShape(tss);
-            GenerateInputs();
-            Infer();
-            Validate();
-            s.updateOPsStats(function, PassRate::Statuses::PASSED);
-        }
+        GenerateInputs();
+        Infer();
+        Validate();
+        s.updateOPsStats(function, PassRate::Statuses::PASSED);
     }
     catch (const std::runtime_error &re) {
         s.updateOPsStats(function, PassRate::Statuses::FAILED);
@@ -371,10 +368,10 @@ void LayerTestsCommon::Infer() {
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
     // nGraph interpreter does not support f16/bf16
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
 
-    function->validate_nodes_and_infer_types();
+    functionRefs->validate_nodes_and_infer_types();
 
     auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
     auto refInputsTypes = std::vector<ngraph::element::Type>(inputs.size());
@@ -406,11 +403,11 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
-            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, refInputsTypes);
+            expectedOutputs = ngraph::helpers::interpreterFunction(functionRefs, referenceInputs, refInputsTypes);
             break;
         }
         case CONSTANT_FOLDING: {
-            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs, refInputsTypes);
+            const auto &foldedFunc = ngraph::helpers::foldFunction(functionRefs, referenceInputs, refInputsTypes);
             expectedOutputs = ngraph::helpers::getConstData(foldedFunc);
             break;
         }
@@ -523,10 +520,6 @@ std::shared_ptr<ngraph::Function> LayerTestsCommon::GetFunction() {
 
 std::map<std::string, std::string> &LayerTestsCommon::GetConfiguration() {
     return configuration;
-}
-
-void LayerTestsCommon::setTargetStaticShape(ngraph::Shape& desiredTargetStaticShape) {
-    targetStaticShape = desiredTargetStaticShape;
 }
 
 }  // namespace LayerTestsUtils

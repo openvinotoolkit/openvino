@@ -28,10 +28,10 @@ const std::vector<std::vector<std::pair<size_t, size_t>>> inputShape2D = {
     {{1, 200}, {1, 200}}
 };
 
-const std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes2D = {
-    {InferenceEngine::SizeVector {1, 100}},
-    {InferenceEngine::SizeVector {100, 1}},
-    {InferenceEngine::SizeVector {10, 10}},
+const std::vector<InferenceEngine::SizeVector> targetShapes2D = {
+    InferenceEngine::SizeVector {1, 100},
+    InferenceEngine::SizeVector {100, 1},
+    InferenceEngine::SizeVector {10, 10},
 };
 
 const std::vector<size_t> axis2D = {
@@ -86,10 +86,10 @@ const std::vector<std::vector<std::pair<size_t, size_t>>> inputShape4D = {
     {{1, 200}, {1, 200}, {1, 200}, {1, 200}}
 };
 
-const std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes4D = {
-    {InferenceEngine::SizeVector {1, 100, 1, 1}},
-    {InferenceEngine::SizeVector {1, 3, 4, 3}},
-    {InferenceEngine::SizeVector {2, 3, 4, 5}},
+const std::vector<InferenceEngine::SizeVector> targetShapes4D = {
+    InferenceEngine::SizeVector {1, 100, 1, 1},
+    InferenceEngine::SizeVector {1, 3, 4, 3},
+    InferenceEngine::SizeVector {2, 3, 4, 5},
 };
 
 const std::vector<size_t> axis4D = {0, 1, 2, 3};

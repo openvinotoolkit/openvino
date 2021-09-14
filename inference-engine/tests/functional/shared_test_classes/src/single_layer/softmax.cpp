@@ -12,11 +12,11 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
     std::vector<std::pair<size_t, size_t>> inputShape;
-    std::vector<InferenceEngine::SizeVector> targetShapes;
+    InferenceEngine::SizeVector targetShape;
     size_t axis;
     std::string targetDevice;
     std::map<std::string, std::string> config;
-    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, axis, targetDevice, config) = obj.param;
+    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, axis, targetDevice, config) = obj.param;
 
     std::ostringstream result;
     result << "netPRC=" << netPrecision.name() << "_";
@@ -25,7 +25,7 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
+    result << "TS=" << CommonTestUtils::vec2str(targetShape) << "_";
     result << "axis=" << axis << "_";
     result << "trgDev=" << targetDevice;
 
@@ -34,16 +34,11 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
 
 void SoftMaxLayerTest::SetUp() {
     std::vector<std::pair<size_t, size_t>> inputShape;
-    std::vector<InferenceEngine::SizeVector> targetShapes;
 
-    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, axis, targetDevice, configuration) = GetParam();
+    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetStaticShape, axis, targetDevice, configuration) = GetParam();
     outLayout = inLayout;
 
-    for (auto&& targetShape : targetShapes) {
-        targetStaticShapes.emplace_back(targetShape);
-    }
-
-    inputDynamicShape = FuncTestUtils::PartialShapeUtils::vec2partialshape(inputShape, targetStaticShapes[0]);
+    inputDynamicShape = FuncTestUtils::PartialShapeUtils::vec2partialshape(inputShape, targetStaticShape);
 
     makeSoftMax();
 }

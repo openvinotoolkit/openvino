@@ -23,7 +23,7 @@ using softMaxLayerTestParams = std::tuple<
         InferenceEngine::Layout,                // Input layout
         InferenceEngine::Layout,                // Output layout
         std::vector<std::pair<size_t, size_t>>, // Input shape
-        std::vector<std::vector<size_t>>,       // Target shapes
+        std::vector<size_t>,                    // Target shape
         size_t,                                 // axis
         std::string,                            // targetDevice
         std::map<std::string, std::string>      // config
