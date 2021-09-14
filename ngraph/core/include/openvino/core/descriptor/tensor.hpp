@@ -88,7 +88,7 @@ protected:
     // const Shape& descriptor::Tensor::get_shape() const
     // It was decided to move m_shape and m_partial_shape synchronization point there and
     // to keep methods signature backward compatible.
-    mutable std::mutex shape_mutex;
+    mutable std::mutex m_mutex;
     mutable std::atomic_bool m_shape_changed;
     mutable StaticShape m_shape;
     // TODO: end

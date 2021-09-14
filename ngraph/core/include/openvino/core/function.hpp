@@ -92,19 +92,13 @@ public:
     std::shared_ptr<ngraph::Node> get_output_op(size_t i) const;
 
     /// Output functions
+    ov::Output<ov::Node> output() const;
     ov::Output<ov::Node> output(size_t i) const;
     ov::Output<ov::Node> output(const std::string& tensor_name) const;
-    const ov::element::Type& output_element_type(size_t i) const;
-    const ov::element::Type& output_element_type(const std::string& tensor_name) const;
-    const ov::Shape& output_shape(size_t i) const;
-    const ov::Shape& output_shape(const std::string& tensor_name) const;
     /// Input functions
+    ov::Output<ov::Node> input() const;
     ov::Output<ov::Node> input(size_t i) const;
     ov::Output<ov::Node> input(const std::string& tensor_name) const;
-    const ov::element::Type& input_element_type(size_t i) const;
-    const ov::element::Type& input_element_type(const std::string& tensor_name) const;
-    const ov::Shape& input_shape(size_t i) const;
-    const ov::Shape& input_shape(const std::string& tensor_name) const;
 
     /// Return the element type of output i
     const ngraph::element::Type& get_output_element_type(size_t i) const;

@@ -518,6 +518,12 @@ ov::op::util::Variable::Ptr ov::Function::get_variable_by_id(const string& varia
 constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<shared_ptr<ov::Function>>::type_info;
 
 /// Output functions
+ov::Output<ov::Node> ov::Function::output() const {
+    if (m_results.size() != 1) {
+        throw ov::Exception("output() must be called on a function with exactly one result.");
+    }
+    return m_results.at(0);
+}
 ov::Output<ov::Node> ov::Function::output(size_t i) const {
     return m_results.at(i);
 }
@@ -530,31 +536,14 @@ ov::Output<ov::Node> ov::Function::output(const std::string& tensor_name) const 
     }
     throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
 }
-const ov::element::Type& ov::Function::output_element_type(size_t i) const {
-    return m_results.at(i)->get_output_element_type(0);
-}
-const ov::element::Type& ov::Function::output_element_type(const std::string& tensor_name) const {
-    for (const auto& res : m_results) {
-        for (const auto& name : res->get_input_tensor(0).get_names()) {
-            if (name == tensor_name)
-                return res->get_output_element_type(0);
-        }
-    }
-    throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
-}
-const ov::Shape& ov::Function::output_shape(size_t i) const {
-    return m_results.at(i)->get_output_partial_shape(0);
-}
-const ov::Shape& ov::Function::output_shape(const std::string& tensor_name) const {
-    for (const auto& res : m_results) {
-        for (const auto& name : res->get_input_tensor(0).get_names()) {
-            if (name == tensor_name)
-                return res->get_output_partial_shape(0);
-        }
-    }
-    throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
-}
+
 /// Input functions
+ov::Output<ov::Node> ov::Function::input() const {
+    if (m_parameters.size() != 1) {
+        throw ov::Exception("input() must be called on a function with exactly one parameter.");
+    }
+    return m_parameters.at(0);
+}
 ov::Output<ov::Node> ov::Function::input(size_t i) const {
     return m_parameters.at(i);
 }
@@ -563,30 +552,6 @@ ov::Output<ov::Node> ov::Function::input(const std::string& tensor_name) const {
         for (const auto& name : param->get_output_tensor(0).get_names()) {
             if (name == tensor_name)
                 return param;
-        }
-    }
-    throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
-}
-const ov::element::Type& ov::Function::input_element_type(size_t i) const {
-    return m_parameters.at(i)->get_output_element_type(0);
-}
-const ov::element::Type& ov::Function::input_element_type(const std::string& tensor_name) const {
-    for (const auto& param : m_parameters) {
-        for (const auto& name : param->get_output_tensor(0).get_names()) {
-            if (name == tensor_name)
-                return param->get_output_element_type(0);
-        }
-    }
-    throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
-}
-const ov::Shape& ov::Function::input_shape(size_t i) const {
-    return m_parameters.at(i)->get_output_partial_shape(0);
-}
-const ov::Shape& ov::Function::input_shape(const std::string& tensor_name) const {
-    for (const auto& param : m_parameters) {
-        for (const auto& name : param->get_output_tensor(0).get_names()) {
-            if (name == tensor_name)
-                return param->get_output_partial_shape(0);
         }
     }
     throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");

@@ -4,8 +4,6 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 
-#include <mutex>
-
 #include "ngraph/node.hpp"
 
 using namespace std;
@@ -61,7 +59,7 @@ void ov::descriptor::Tensor::set_upper_value(const ngraph::HostTensorPtr& value)
 const ngraph::Shape& ov::descriptor::Tensor::get_shape() const {
     if (m_partial_shape.is_static()) {
         if (m_shape_changed.load(std::memory_order_relaxed)) {
-            std::lock_guard<std::mutex> guard(shape_mutex);
+            std::lock_guard<std::mutex> guard(m_mutex);
             if (m_shape_changed)  // double check after mutex lock
             {
                 m_shape = m_partial_shape.to_shape();
@@ -93,9 +91,8 @@ const std::string& ov::descriptor::Tensor::get_name() const {
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {
-    static std::mutex m;
     if (m_names.empty()) {
-        std::lock_guard<std::mutex> lock(m);
+        std::lock_guard<std::mutex> lock(m_mutex);
         if (m_names.empty()) {
             const_cast<ov::descriptor::Tensor*>(this)->m_names.insert("Tensor_" + to_string(m_instance_id));
         }
