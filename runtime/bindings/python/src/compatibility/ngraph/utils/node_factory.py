@@ -10,6 +10,8 @@ from _pyngraph import NodeFactory as _NodeFactory
 
 from ngraph.impl import Node, Output
 
+from ngraph.exceptions import UserInputError
+
 DEFAULT_OPSET = "opset8"
 
 
@@ -26,7 +28,7 @@ class NodeFactory(object):
     def create(
         self,
         op_type_name: str,
-        arguments: List[Union[Node, Output]],
+        arguments: Optional[List[Union[Node, Output]]] = None,
         attributes: Optional[Dict[str, Any]] = None,
     ) -> Node:
         """Create node object from provided description.
@@ -39,8 +41,23 @@ class NodeFactory(object):
 
         @return   Node object representing requested operator with attributes set.
         """
+        if arguments is None and attributes is None:
+            node = self.factory.create(op_type_name)
+            node._attr_cache = {}
+            node._attr_cache_valid = False
+            return node
+
+        if arguments is None and attributes is not None:
+            raise UserInputError(
+                'Error: cannot create "{}" op without arguments.'.format(
+                    op_type_name
+                )
+            )
+
         if attributes is None:
             attributes = {}
+
+        assert arguments is not None
 
         arguments = self._arguments_as_outputs(arguments)
         node = self.factory.create(op_type_name, arguments, attributes)
@@ -57,7 +74,7 @@ class NodeFactory(object):
         #   node.get_some_metric_attr_name()
         #   node.set_some_metric_attr_name()
         # Please see test_dyn_attributes.py for more usage examples.
-        all_attributes = node._get_attributes()
+        all_attributes = node.get_attributes()
         for attr_name in all_attributes.keys():
             setattr(
                 node,
@@ -134,7 +151,7 @@ class NodeFactory(object):
         @return   The node attribute value.
         """
         if not node._attr_cache_valid:
-            node._attr_cache = node._get_attributes()
+            node._attr_cache = node.get_attributes()
             node._attr_cache_valid = True
         return node._attr_cache[attr_name]
 
@@ -146,5 +163,5 @@ class NodeFactory(object):
         @param      attr_name:  The attribute name.
         @param      value:      The new attribute value.
         """
-        node._set_attribute(attr_name, value)
+        node.set_attribute(attr_name, value)
         node._attr_cache[attr_name] = value

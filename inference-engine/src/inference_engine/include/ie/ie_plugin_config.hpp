@@ -230,6 +230,21 @@ namespace PluginConfigParams {
 #define DECLARE_CONFIG_VALUE(name) static constexpr auto name = #name
 
 /**
+ * @brief High-level OpenVINO Performance Hints
+ * unlike low-level config keys that are individual (per-device), the hints are smth that every device accepts
+ * and turns into device-specific settings
+ */
+DECLARE_CONFIG_KEY(PERFORMANCE_HINT);
+DECLARE_CONFIG_VALUE(LATENCY);
+DECLARE_CONFIG_VALUE(THROUGHPUT);
+/**
+ * @brief (Optional) config key that backs the (above) Performance Hints
+ * by giving additional information on how many inference requests the application will be keeping in flight
+ * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)
+ */
+DECLARE_CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS);
+
+/**
  * @brief generic boolean values
  */
 DECLARE_CONFIG_VALUE(YES);
