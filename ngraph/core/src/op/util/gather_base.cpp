@@ -15,20 +15,19 @@
 #include "ngraph/shape.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::util::GatherBase, "GatherBase", 7);
+NGRAPH_RTTI_DEFINITION(ov::op::util::GatherBase, "GatherBase", 7);
 
-op::util::GatherBase::GatherBase(const Output<Node>& data,
-                                 const Output<Node>& indices,
-                                 const Output<Node>& axis,
-                                 const int64_t batch_dims)
+ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
+                                     const Output<Node>& indices,
+                                     const Output<Node>& axis,
+                                     const int64_t batch_dims)
     : Op({data, indices, axis}),
       m_batch_dims(batch_dims) {
     constructor_validate_and_infer_types();
 }
 
-void op::util::GatherBase::validate_and_infer_types() {
+void ov::op::util::GatherBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_GatherBase_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
 
@@ -89,7 +88,7 @@ void op::util::GatherBase::validate_and_infer_types() {
 
     if (data_rank.is_static() && indices_rank.is_static()) {
         auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
-        PartialShape output_pshape = PartialShape::dynamic(out_rank);
+        Shape output_pshape = Shape::dynamic(out_rank);
 
         // implementation of out_shape formula
         // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
@@ -125,14 +124,14 @@ void op::util::GatherBase::validate_and_infer_types() {
         Rank out_rank = data_rank + indices_rank - 1 - batch_dims;
         if (batch_dims < 0)
             out_rank = out_rank - indices_rank.get_max_length();
-        set_output_type(0, data_type, PartialShape::dynamic(out_rank));
+        set_output_type(0, data_type, Shape::dynamic(out_rank));
     }
 }
 
-int64_t op::util::GatherBase::get_axis() const {
+int64_t ov::op::util::GatherBase::get_axis() const {
     const auto& const_op = get_constant_from_source(input_value(2));
     if (!const_op)
-        throw ngraph_error("axis value is not set");
+        throw ov::Exception("axis value is not set");
 
     int64_t axis = const_op->cast_vector<int64_t>()[0];
     if (axis < 0) {
@@ -145,16 +144,16 @@ int64_t op::util::GatherBase::get_axis() const {
 }
 
 namespace gather {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& out,
+template <ov::element::Type_t ET>
+bool evaluate(const ngraph::HostTensorPtr& arg0,
+              const ngraph::HostTensorPtr& arg1,
+              const ngraph::HostTensorPtr& out,
               int64_t axis,
               int64_t batch_dims) {
-    using T = typename element_type_traits<ET>::value_type;
-    Shape params_shape = arg0->get_shape();
-    Shape indices_shape = arg1->get_shape();
-    Shape out_shape(params_shape.size() + indices_shape.size() - 1 - batch_dims);
+    using T = typename ov::element_type_traits<ET>::value_type;
+    ngraph::Shape params_shape = arg0->get_shape();
+    ngraph::Shape indices_shape = arg1->get_shape();
+    ngraph::Shape out_shape(params_shape.size() + indices_shape.size() - 1 - batch_dims);
     int64_t i = 0;
     for (; i < axis; i++) {
         out_shape[i] = params_shape[i];
@@ -168,34 +167,34 @@ bool evaluate(const HostTensorPtr& arg0,
 
     out->set_shape(out_shape);
 
-    if (arg1->get_element_type() == element::i64) {
-        runtime::reference::gather<T, int64_t>(arg0->get_data_ptr<ET>(),
-                                               arg1->get_data_ptr<int64_t>(),
-                                               out->get_data_ptr<ET>(),
-                                               arg0->get_shape(),
-                                               arg1->get_shape(),
-                                               out->get_shape(),
-                                               axis,
-                                               batch_dims);
-    } else if (arg1->get_element_type() == element::i32) {
-        runtime::reference::gather<T, int32_t>(arg0->get_data_ptr<ET>(),
-                                               arg1->get_data_ptr<int32_t>(),
-                                               out->get_data_ptr<ET>(),
-                                               arg0->get_shape(),
-                                               arg1->get_shape(),
-                                               out->get_shape(),
-                                               axis,
-                                               batch_dims);
+    if (arg1->get_element_type() == ov::element::i64) {
+        ngraph::runtime::reference::gather<T, int64_t>(arg0->get_data_ptr<ET>(),
+                                                       arg1->get_data_ptr<int64_t>(),
+                                                       out->get_data_ptr<ET>(),
+                                                       arg0->get_shape(),
+                                                       arg1->get_shape(),
+                                                       out->get_shape(),
+                                                       axis,
+                                                       batch_dims);
+    } else if (arg1->get_element_type() == ov::element::i32) {
+        ngraph::runtime::reference::gather<T, int32_t>(arg0->get_data_ptr<ET>(),
+                                                       arg1->get_data_ptr<int32_t>(),
+                                                       out->get_data_ptr<ET>(),
+                                                       arg0->get_shape(),
+                                                       arg1->get_shape(),
+                                                       out->get_shape(),
+                                                       axis,
+                                                       batch_dims);
     } else {
-        throw ngraph_error("Unexpected type");
+        throw ov::Exception("Unexpected type");
     }
 
     return true;
 }
 
-bool evaluate_gather(const HostTensorPtr& arg0,
-                     const HostTensorPtr& arg1,
-                     const HostTensorPtr& out,
+bool evaluate_gather(const ngraph::HostTensorPtr& arg0,
+                     const ngraph::HostTensorPtr& arg1,
+                     const ngraph::HostTensorPtr& out,
                      int64_t axis,
                      int64_t batch_dims = 0) {
     bool rc = true;
@@ -217,16 +216,16 @@ bool evaluate_gather(const HostTensorPtr& arg0,
     return rc;
 }
 
-bool cf_gather_with_subgraph(OutputVector& output_values,
-                             const OutputVector& input_values,
-                             const PartialShape& gather_ps) {
+bool cf_gather_with_subgraph(ov::OutputVector& output_values,
+                             const ov::OutputVector& input_values,
+                             const ov::Shape& gather_ps) {
     if (gather_ps.is_dynamic() || input_values.size() != 3) {
         return false;
     }
 
-    const auto concat = std::dynamic_pointer_cast<op::Concat>(input_values[0].get_node_shared_ptr());
-    const auto indices = std::dynamic_pointer_cast<op::Constant>(input_values[1].get_node_shared_ptr());
-    const auto axis = std::dynamic_pointer_cast<op::Constant>(input_values[2].get_node_shared_ptr());
+    const auto concat = std::dynamic_pointer_cast<ngraph::op::Concat>(input_values[0].get_node_shared_ptr());
+    const auto indices = std::dynamic_pointer_cast<ngraph::op::Constant>(input_values[1].get_node_shared_ptr());
+    const auto axis = std::dynamic_pointer_cast<ngraph::op::Constant>(input_values[2].get_node_shared_ptr());
 
     if (!concat || !indices || !axis) {
         return false;
@@ -262,8 +261,8 @@ bool cf_gather_with_subgraph(OutputVector& output_values,
     auto gathered = gathered_concat_input;
     if (indices_shape.empty()) {
         // gathering a scalar
-        const auto axis_const = op::Constant::create(element::i64, Shape{1}, {0});
-        gathered = make_shared<op::v0::Squeeze>(gathered_concat_input, axis_const);
+        const auto axis_const = ngraph::op::Constant::create(ov::element::i64, ngraph::Shape{1}, {0});
+        gathered = make_shared<ngraph::op::v0::Squeeze>(gathered_concat_input, axis_const);
     }
 
     output_values[0] = gathered;
@@ -272,10 +271,10 @@ bool cf_gather_with_subgraph(OutputVector& output_values,
 }
 }  // namespace gather
 
-bool op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(util_GatherBase_evaluate);
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
 
     int64_t axis = 0;
     switch (inputs[2]->get_element_type()) {
@@ -304,7 +303,7 @@ bool op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostT
         axis = inputs[2]->get_data_ptr<element::Type_t::u64>()[0];
         break;
     default:
-        throw ngraph_error("axis must be of integral data type.");
+        throw ov::Exception("axis must be of integral data type.");
     }
 
     if (axis < 0) {
@@ -322,19 +321,19 @@ bool op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostT
     return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, batch_dims);
 }
 
-bool op::util::GatherBase::evaluate_lower(const HostTensorVector& output_values) const {
+bool ov::op::util::GatherBase::evaluate_lower(const HostTensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound() || !input_value(2).get_tensor().has_and_set_bound())
         return false;
-    return default_lower_bound_evaluator(this, output_values);
+    return ngraph::default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::util::GatherBase::evaluate_upper(const HostTensorVector& output_values) const {
+bool ov::op::util::GatherBase::evaluate_upper(const HostTensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound() || !input_value(2).get_tensor().has_and_set_bound())
         return false;
-    return default_upper_bound_evaluator(this, output_values);
+    return ngraph::default_upper_bound_evaluator(this, output_values);
 }
 
-bool op::util::GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
+bool ov::op::util::GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     // try the regular constant folding just for the Gather node
     if (Node::constant_fold(output_values, input_values)) {
         return true;

@@ -15,7 +15,7 @@ add_library(${TARGET_FE_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 
 target_include_directories(${TARGET_FE_NAME} PRIVATE ".")
 
-target_link_libraries(${TARGET_FE_NAME} PRIVATE ngraph::frontend_manager::static)
+target_link_libraries(${TARGET_FE_NAME} PRIVATE frontend_manager::static)
 target_link_libraries(${TARGET_FE_NAME} PUBLIC ngraph PRIVATE ngraph::builder)
 
 add_clang_format_target(${TARGET_FE_NAME}_clang FOR_TARGETS ${TARGET_FE_NAME})

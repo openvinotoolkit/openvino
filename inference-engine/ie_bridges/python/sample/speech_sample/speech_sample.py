@@ -2,15 +2,21 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import argparse
 import logging as log
 import re
 import sys
 from timeit import default_timer
+from typing import Union
 
 import numpy as np
 from arg_parser import parse_args
 from file_options import read_utterance_file, write_utterance_file
-from openvino.inference_engine import ExecutableNetwork, IECore
+from openvino.inference_engine import ExecutableNetwork, IECore, IENetwork
+
+# Operating Frequency for GNA HW devices for Core and Atom architecture
+GNA_CORE_FREQUENCY = 400
+GNA_ATOM_FREQUENCY = 200
 
 
 def get_scale_factor(matrix: np.ndarray) -> float:
@@ -75,6 +81,28 @@ def compare_with_reference(result: np.ndarray, reference: np.ndarray):
     log.info(f'stdev error: {stdev_error:.7f}')
 
 
+def get_input_layer_list(net: Union[IENetwork, ExecutableNetwork], args: argparse.Namespace) -> list:
+    """Get a list of input layer names"""
+    return re.split(', |,', args.input_layers) if args.input_layers else [next(iter(net.input_info))]
+
+
+def get_output_layer_list(net: Union[IENetwork, ExecutableNetwork],
+                          args: argparse.Namespace, with_ports: bool) -> list:
+    """Get a list of output layer names"""
+    if args.output_layers:
+        output_name_port = [output.split(':') for output in re.split(', |,', args.output_layers)]
+        if with_ports:
+            try:
+                return [(blob_name, int(port)) for blob_name, port in output_name_port]
+            except ValueError:
+                log.error('Incorrect value for -oname/--output_layers option, please specify a port for output layer.')
+                sys.exit(-4)
+        else:
+            return [blob_name for blob_name, _ in output_name_port]
+    else:
+        return [list(net.outputs.keys())[-1]]
+
+
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
@@ -91,25 +119,13 @@ def main():
 
 # ---------------------------Step 3. Configure input & output----------------------------------------------------------
         log.info('Configuring input and output blobs')
-        # Get names of input and output blobs
-        if args.input_layers:
-            input_blobs = re.split(', |,', args.input_layers)
-        else:
-            input_blobs = [next(iter(net.input_info))]
-
+        # Mark layers from args.output_layers as outputs
         if args.output_layers:
-            output_name_port = [output.split(':') for output in re.split(', |,', args.output_layers)]
-            try:
-                output_name_port = [(blob_name, int(port)) for blob_name, port in output_name_port]
-            except ValueError:
-                log.error('Output Parameter does not have a port.')
-                sys.exit(-4)
+            net.add_outputs(get_output_layer_list(net, args, with_ports=True))
 
-            net.add_outputs(output_name_port)
-
-            output_blobs = [blob_name for blob_name, port in output_name_port]
-        else:
-            output_blobs = [list(net.outputs.keys())[-1]]
+        # Get names of input and output blobs
+        input_blobs = get_input_layer_list(net, args)
+        output_blobs = get_output_layer_list(net, args, with_ports=False)
 
         # Set input and output precision manually
         for blob_name in input_blobs:
@@ -131,20 +147,25 @@ def main():
         plugin_config['GNA_DEVICE_MODE'] = gna_device_mode
         plugin_config['GNA_PRECISION'] = f'I{args.quantization_bits}'
 
-        # Get a GNA scale factor
+        # Set a GNA scale factor
         if args.import_gna_model:
             log.info(f'Using scale factor from the imported GNA model: {args.import_gna_model}')
+        elif args.scale_factor:
+            log.info(f'Using scale factor of {args.scale_factor:.7f} specified by user.')
+            plugin_config['GNA_SCALE_FACTOR'] = str(args.scale_factor)
         else:
             utterances = read_utterance_file(args.input.split(',')[0])
             key = sorted(utterances)[0]
             scale_factor = get_scale_factor(utterances[key])
             log.info(f'Using scale factor of {scale_factor:.7f} calculated from first utterance.')
-
             plugin_config['GNA_SCALE_FACTOR'] = str(scale_factor)
 
         if args.export_embedded_gna_model:
             plugin_config['GNA_FIRMWARE_MODEL_IMAGE'] = args.export_embedded_gna_model
             plugin_config['GNA_FIRMWARE_MODEL_IMAGE_GENERATION'] = args.embedded_gna_configuration
+
+        if args.performance_counter:
+            plugin_config['PERF_COUNT'] = 'YES'
 
     device_str = f'HETERO:{",".join(devices)}' if 'HETERO' in args.device else devices[0]
 
@@ -153,8 +174,8 @@ def main():
         exec_net = ie.load_network(net, device_str, plugin_config)
     else:
         exec_net = ie.import_network(args.import_gna_model, device_str, plugin_config)
-        input_blobs = [next(iter(exec_net.input_info))]
-        output_blobs = [list(exec_net.outputs.keys())[-1]]
+        input_blobs = get_input_layer_list(exec_net, args)
+        output_blobs = get_output_layer_list(exec_net, args, with_ports=False)
 
     if args.input:
         input_files = re.split(', |,', args.input)
@@ -208,6 +229,7 @@ def main():
     log.info('Starting inference in synchronous mode')
     results = {blob_name: {} for blob_name in output_blobs}
     infer_times = []
+    perf_counters = []
 
     for key in sorted(input_data):
         start_infer_time = default_timer()
@@ -223,6 +245,7 @@ def main():
             results[blob_name][key] = result[blob_name]
 
         infer_times.append(default_timer() - start_infer_time)
+        perf_counters.append(exec_net.requests[0].get_perf_counts())
 
 # ---------------------------Step 8. Process output--------------------------------------------------------------------
     for blob_name in output_blobs:
@@ -234,6 +257,26 @@ def main():
 
             if args.reference:
                 compare_with_reference(results[blob_name][key], references[blob_name][key])
+
+            if args.performance_counter:
+                if 'GNA' in args.device:
+                    pc = perf_counters[i]
+                    total_cycles = int(pc['1.1 Total scoring time in HW']['real_time'])
+                    stall_cycles = int(pc['1.2 Stall scoring time in HW']['real_time'])
+                    active_cycles = total_cycles - stall_cycles
+                    frequency = 10**6
+                    if args.arch == 'CORE':
+                        frequency *= GNA_CORE_FREQUENCY
+                    else:
+                        frequency *= GNA_ATOM_FREQUENCY
+                    total_inference_time = total_cycles / frequency
+                    active_time = active_cycles / frequency
+                    stall_time = stall_cycles / frequency
+                    log.info('')
+                    log.info('Performance Statistics of GNA Hardware')
+                    log.info(f'   Total Inference Time: {(total_inference_time * 1000):.4f} ms')
+                    log.info(f'   Active Time: {(active_time * 1000):.4f} ms')
+                    log.info(f'   Stall Time:  {(stall_time * 1000):.4f} ms')
 
             log.info('')
 

@@ -25,6 +25,12 @@ public:
     void withMeanImage();
     MKLDNNMemoryCPtr getMemoryPtr() const;
 
+    void executeDynamicImpl(mkldnn::stream strm) override {}
+
+    std::vector<VectorDims> shapeInfer() const override {
+        return std::vector<VectorDims>();
+    }
+
 private:
     void cloneBlobIfRequired();
 

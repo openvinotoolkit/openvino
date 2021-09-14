@@ -49,8 +49,15 @@ NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
             named_inputs[input_port.parameter()].push_back(node_it->second);
         }
     }
+    NamedOutputs outputs;
+    // In case the conversion function throws exception
+    try {
+        outputs = creator_it->second(NodeContext(DecoderPDPDProto(op_place), named_inputs));
+    } catch (std::exception& ex) {
+        FRONT_END_OP_CONVERSION_CHECK(false, "Fail to convert " + op_desc.type() + " Exception " + ex.what());
+    }
 
-    return creator_it->second(NodeContext(DecoderPDPDProto(op_place), named_inputs));
+    return outputs;
 }
 
 NamedOutputs make_framework_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,

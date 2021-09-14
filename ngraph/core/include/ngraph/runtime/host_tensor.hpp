@@ -7,17 +7,23 @@
 #include <memory>
 
 #include "ngraph/descriptor/output.hpp"
+#include "ngraph/partial_shape.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
 namespace ov {
 class Node;
-}
-namespace ngraph {
 namespace op {
 namespace v0 {
 class Constant;
+}
+}  // namespace op
+}  // namespace ov
+namespace ngraph {
+namespace op {
+namespace v0 {
+using ov::op::v0::Constant;
 }
 }  // namespace op
 namespace runtime {

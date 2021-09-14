@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::ReorgYolo, "ReorgYolo", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::ReorgYolo, "ReorgYolo", 0);
 
 op::ReorgYolo::ReorgYolo(const Output<Node>& input, const Strides& strides) : Op({input}), m_strides(strides) {
     constructor_validate_and_infer_types();
@@ -43,14 +43,14 @@ void op::ReorgYolo::validate_and_infer_types() {
                               input_shape[1] >= (m_strides[0] * m_strides[0]),
                               "For [N, C, H, W] input shape, C >= (stride*stride) is required.");
 
-        Shape output_shape{input_shape[0], input_shape[1]};
+        ov::StaticShape output_shape{input_shape[0], input_shape[1]};
         for (size_t i = 2; i < input_shape.size(); i++) {
             output_shape.push_back(input_shape[i] / m_strides[0]);
             output_shape[1] *= m_strides[0];
         }
         set_output_type(0, input_et, output_shape);
     } else {
-        set_output_type(0, input_et, PartialShape::dynamic());
+        set_output_type(0, input_et, ov::Shape::dynamic());
     }
 }
 

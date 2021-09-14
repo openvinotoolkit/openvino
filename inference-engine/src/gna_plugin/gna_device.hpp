@@ -176,6 +176,7 @@ public:
     void getGnaPerfCounters(std::map<std::string,
                         InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
+    std::string getEffectiveGnaCompileTarget() const;
  private:
     void open(uint8_t const n_threads);
 
@@ -190,6 +191,7 @@ public:
     static const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string > operandTypes;
 
     static void enforceLegacyCnns(Gna2Model& gnaModel);
+    static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
     Gna2DeviceVersion parseDeclaredTarget(std::string target, const bool execTarget) const;
     Gna2DeviceVersion getDefaultTarget() const;
     Gna2DeviceVersion getTargetDevice(bool execTarget) const;

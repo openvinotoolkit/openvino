@@ -103,6 +103,7 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
+    # Should be after 'Install dependencies' because Git lfs is not installed
   - checkout: testdata
     clean: true
     lfs: true
@@ -140,18 +141,18 @@ jobs:
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
-  
+
   - task: CMake@1
     inputs:
       cmakeArgs: >
         -GNinja
         $(REPO_DIR)/tests/layer_tests
       workingDirectory: $(BUILD_LAYER_TESTS_DIR)
-      
+
   - script: ninja
     workingDirectory: $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
-    
+
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Install Layer Tests'
@@ -166,7 +167,7 @@ jobs:
       cp -R $(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
-    
+
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
@@ -177,7 +178,7 @@ jobs:
   - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
-  
+
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
     continueOnError: false
@@ -253,7 +254,7 @@ jobs:
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
     displayName: 'Python API Tests'
     continueOnError: false
-    
+
   - script: |
       . $(SETUPVARS)
       python3 -m pip install -r requirements.txt

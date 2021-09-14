@@ -130,7 +130,6 @@ onnx_model_scatterND_param_i64_indices
 IE_CPU.onnx_constant_sparse_tensor_int64_3x4
 IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
 
-
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
 onnx_model_argmin_int32
@@ -241,6 +240,9 @@ onnx_size_op_single
 onnx_size_op_graph_end
 onnx_size_op_graph_middle
 
+# /openvino/inference-engine/src/mkldnn_plugin/mkldnn_graph.cpp:747
+# Output blob byte size is not equal network output byte size (64!=216)." thrown in the test body.
+onnx_model_quant_conv_linear_3d
 
 #-------------------------------------------------------------------------------
 #
@@ -288,7 +290,6 @@ zero_sized_lesseq
 zero_sized_maximum
 zero_sized_minimum
 zero_sized_multiply
-zero_sized_not_equal
 zero_sized_power
 zero_sized_subtract
 sum_trivial
@@ -360,28 +361,6 @@ any_2x0_to_scalar
 all_trivial
 all_2x0_to_scalar
 all_dynamic
-
-# Reduce ops disabled/accuracy: 56520
-# disabled reference implementation
-reduce_max_to_scalar_int8
-reduce_max_keep_to_scalar_int8
-reduce_mean_to_scalar_int8
-reduce_mean_keep_to_scalar_int8
-reduce_sum_keep_2d_to_scalar_int8
-reduce_sum_2d_to_scalar_int8
-reduce_product_to_scalar_int8
-reduce_product_keep_to_scalar_int8
-reduce_min_to_scalar_int8
-reduce_min_keep_to_scalar_int8
-# accuracy
-reduce_mean_matrix_rows_int32
-reduce_mean_keep_matrix_rows_int32
-reduce_sum_keep_stable_acc
-reduce_sum_keep_3d_to_scalar_int32
-reduce_sum_keep_large_1d_to_scalar
-reduce_sum_stable_acc
-reduce_sum_3d_to_scalar_int32
-reduce_sum_large_1d_to_scalar
 
 # Doesn't throw expected exception type.
 unhandled_op
@@ -664,11 +643,6 @@ gemm_broadcast_axes_0_input_C
 gemm_broadcast_axes_1_input_C
 scale_shift_no_broadcast
 scale_shift
-
-# Detected op not belonging to opset1!
-onnx_model_quant_conv_linear
-onnx_model_quant_conv_linear_2d
-onnx_model_quant_conv_linear_3d
 
 # Cannot cast ngraph node Dot to CNNLayer!
 dot_4d_5d_multi_axis

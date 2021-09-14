@@ -8,35 +8,34 @@
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-constexpr NodeTypeInfo op::util::EmbeddingBagOffsetsBase::type_info;
+OPENVINO_RTTI_DEFINITION(ov::op::util::EmbeddingBagOffsetsBase, "EmbeddingBagOffsetsBase", 3);
 
-op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
-                                                           const Output<Node>& indices,
-                                                           const Output<Node>& offsets,
-                                                           const Output<Node>& default_index,
-                                                           const Output<Node>& per_sample_weights)
+ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
+                                                               const Output<Node>& indices,
+                                                               const Output<Node>& offsets,
+                                                               const Output<Node>& default_index,
+                                                               const Output<Node>& per_sample_weights)
     : Op({emb_table, indices, offsets, default_index, per_sample_weights}) {
     constructor_validate_and_infer_types();
 }
 
-op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
-                                                           const Output<Node>& indices,
-                                                           const Output<Node>& offsets,
-                                                           const Output<Node>& default_index)
+ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
+                                                               const Output<Node>& indices,
+                                                               const Output<Node>& offsets,
+                                                               const Output<Node>& default_index)
     : Op({emb_table, indices, offsets, default_index}) {
     constructor_validate_and_infer_types();
 }
 
-op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
-                                                           const Output<Node>& indices,
-                                                           const Output<Node>& offsets)
+ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
+                                                               const Output<Node>& indices,
+                                                               const Output<Node>& offsets)
     : Op({emb_table, indices, offsets}) {
     constructor_validate_and_infer_types();
 }
 
-void op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
+void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_EmbeddingBagOffsetsBase_validate_and_infer_types);
     NODE_VALIDATION_CHECK(
         this,
@@ -81,7 +80,7 @@ void op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
                               ")");
 
         NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(DEFAULT_INDEX).compatible(PartialShape{}),
+                              get_input_partial_shape(DEFAULT_INDEX).compatible(Shape{}),
                               "DEFAULT_INDEX must be a scalar");
     }
 
@@ -106,21 +105,21 @@ void op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
 
     element::Type result_et = get_input_element_type(EMB_TABLE);
 
-    const PartialShape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
-    const PartialShape& offsets_shape = get_input_partial_shape(OFFSETS);
+    const Shape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
+    const Shape& offsets_shape = get_input_partial_shape(OFFSETS);
 
-    PartialShape result_shape;
+    Shape result_shape;
     if (emb_table_shape.rank().is_static()) {
         result_shape = emb_table_shape;
         result_shape[0] = offsets_shape.rank().is_static() ? offsets_shape[0] : Dimension::dynamic();
     } else {
-        result_shape = PartialShape::dynamic();
+        result_shape = Shape::dynamic();
     }
 
     set_output_type(0, result_et, result_shape);
 }
 
-bool op::util::EmbeddingBagOffsetsBase::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::EmbeddingBagOffsetsBase::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_EmbeddingBagOffsetsBase_visit_attributes);
     return true;
 }

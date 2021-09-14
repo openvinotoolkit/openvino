@@ -9,22 +9,21 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::util::ReductionBase, "ReductionBase", 0);
+NGRAPH_RTTI_DEFINITION(ov::op::util::ReductionBase, "ReductionBase", 0);
 
-op::util::ReductionBase::ReductionBase() {}
+ov::op::util::ReductionBase::ReductionBase() = default;
 
-op::util::ReductionBase::ReductionBase(const Output<Node>& arg, const Output<Node>& reduction_axes)
+ov::op::util::ReductionBase::ReductionBase(const Output<Node>& arg, const Output<Node>& reduction_axes)
     : Op({arg, reduction_axes}) {}
 
-PartialShape op::util::ReductionBase::infer_reduction_output_shape(const bool keep_dims) {
-    const PartialShape& data_ps = get_input_partial_shape(0);
-    PartialShape result_ps{PartialShape::dynamic()};
+ov::Shape ov::op::util::ReductionBase::infer_reduction_output_shape(const bool keep_dims) {
+    const Shape& data_ps = get_input_partial_shape(0);
+    Shape result_ps{Shape::dynamic()};
     Rank data_rank = data_ps.rank();
 
     if (data_rank.is_static() && keep_dims) {
-        result_ps = PartialShape::dynamic(data_rank);
+        result_ps = Shape::dynamic(data_rank);
     }
 
     const auto& axes = get_constant_from_source(input_value(1));
@@ -33,8 +32,8 @@ PartialShape op::util::ReductionBase::infer_reduction_output_shape(const bool ke
         auto reduction_axes_val = axes->cast_vector<int64_t>();
         for (auto axis : reduction_axes_val) {
             try {
-                axis = normalize_axis(this, axis, data_rank);
-            } catch (const ngraph_error&) {
+                axis = ngraph::normalize_axis(this, axis, data_rank);
+            } catch (const ov::Exception&) {
                 NODE_VALIDATION_CHECK(this,
                                       false,
                                       "Reduction axis (",
@@ -56,7 +55,7 @@ PartialShape op::util::ReductionBase::infer_reduction_output_shape(const bool ke
                 dims.emplace_back(Dimension{1});
             }
         }
-        result_ps = PartialShape(dims);
+        result_ps = Shape(dims);
     }
     return result_ps;
 }

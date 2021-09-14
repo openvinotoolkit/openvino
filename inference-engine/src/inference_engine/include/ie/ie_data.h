@@ -11,6 +11,7 @@
 
 #include <map>
 #include <memory>
+#include <ngraph/ngraph.hpp>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,16 @@ public:
      * @param layout Data layout
      */
     Data(const std::string& name, Precision _precision, Layout layout = NCHW);
+
+    /**
+     * @brief A constructor with partial shape
+     *
+     * @param name Name of the data node
+     * @param _precision Precision of the data
+     * @param shape Partial shape of the data
+     * @param layout Data layout
+     */
+    Data(const std::string& name, Precision _precision, const ngraph::PartialShape& shape, Layout layout = BLOCKED);
 
     /**
      * @brief A constructor with tensor descriptor
@@ -91,6 +102,20 @@ public:
      * @param layout new layout
      */
     void reshape(const SizeVector& dims, Layout layout);
+    /**
+     * @brief changes dims and layout at same time
+     *
+     * @param dims new dimensions
+     * @param layout new layout
+     */
+    void reshape(const std::initializer_list<size_t>& dims, Layout layout);
+    /**
+     * @brief changes dims and layout at same time
+     *
+     * @param dims new dimensions
+     * @param layout new layout
+     */
+    void reshape(const ngraph::PartialShape& dims, Layout layout);
 
     /**
      * @brief Gets the layout value for this Data instance
@@ -143,6 +168,18 @@ public:
     const UserValue& getUserObject() const;
 
     /**
+     * @brief Checks if current data has dynamic shapes
+     * @return true if data has dynamic shapes
+     */
+    bool isDynamic() const;
+
+    /**
+     * @brief Returns partial shapes
+     * @return shapes which can have dynamic dimensions
+     */
+    const ngraph::PartialShape& getPartialShape() const;
+
+    /**
      * @private
      * @brief Don't touch this field. An implementation details for Data object.
      */
@@ -163,5 +200,7 @@ private:
      * @brief A tensor descriptor
      */
     mutable TensorDesc tensorDesc;
+
+    ngraph::PartialShape pShape;
 };
 }  // namespace InferenceEngine

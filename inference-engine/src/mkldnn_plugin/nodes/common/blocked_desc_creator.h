@@ -6,7 +6,7 @@
 
 #include <functional>
 #include "cpu_shape.h"
-#include "cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
@@ -27,10 +27,12 @@ public:
     makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<LayoutType>& supportedTypes);
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
     makeFilteredRange(const CreatorsMap& map, Predicate predicate);
-    virtual BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const = 0;
-    std::unique_ptr<BlockedMemoryDesc> createUniqueDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const {
-        return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(createDesc(precision, srcDims));
+    virtual CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const = 0;
+
+    std::shared_ptr<CpuBlockedMemoryDesc> createSharedDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const {
+        return std::make_shared<CpuBlockedMemoryDesc>(createDesc(precision, srcShape));
     }
+
     virtual size_t getMinimalRank() const = 0;
     virtual ~BlockedDescCreator() = default;
 };

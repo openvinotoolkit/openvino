@@ -8,11 +8,6 @@
 
 namespace LayerTestsDefinitions {
 
-// DEPRECATED, remove MvnLayerTest when KMB and ARM plugin will switch to use Mvn1LayerTest (#60420)
-TEST_P(MvnLayerTest, CompareWithRefs) {
-    Run();
-};
-
 TEST_P(Mvn1LayerTest, CompareWithRefs) {
     Run();
 };

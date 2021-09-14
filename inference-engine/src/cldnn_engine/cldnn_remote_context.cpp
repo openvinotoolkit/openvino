@@ -134,7 +134,7 @@ std::string CLDNNRemoteBlobImpl::getDeviceName() const noexcept {
     return getContextImpl(m_context.lock())->getDeviceName();
 };
 
-std::shared_ptr<IRemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept {
+std::shared_ptr<RemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept {
     return m_context.lock();
 }
 
