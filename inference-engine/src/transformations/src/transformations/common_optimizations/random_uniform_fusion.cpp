@@ -14,10 +14,9 @@
 #include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::RandomUniformFusion, "RandomUniformFusion", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::RandomUniformMulAddFusion, "RandomUniformMulAddFusion", 0);
 
-ngraph::pass::RandomUniformMulAddFusion::RandomUniformMulAddFusion() {
-    MATCHER_SCOPE(RandomUniformMulAddFusion);
+ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
+    MATCHER_SCOPE(RandomUniformFusion);
     const auto data_pattern = ngraph::pattern::any_input();
     const auto ru_min_input_pattern = ngraph::pattern::any_input();
     const auto ru_max_input_pattern = ngraph::pattern::any_input();
