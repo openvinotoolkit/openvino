@@ -32,6 +32,7 @@ public:
     std::string model_name;
     std::string device;
 protected:
+    // Swap non-alphabetic/numeric symbols with "_" to prevent logging errors
     std::string update_item_for_name(const std::string &item) {
         std::string _item(item);
         for (std::string::size_type index = 0; index < _item.size(); ++index) {

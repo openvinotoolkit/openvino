@@ -77,10 +77,8 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
     return tests_cases;
 }
 
+// Generate multi-model test cases from config file with static test definition.
 std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
-    /*
-     * Generate multi-model test cases from config file with static test definition.
-     */
     std::vector<MemLeaksTestCase> tests_cases;
     const pugi::xml_document &test_config = Environment::Instance().getTestConfig();
 
