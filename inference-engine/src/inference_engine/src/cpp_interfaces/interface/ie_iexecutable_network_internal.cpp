@@ -90,7 +90,7 @@ Parameter IExecutableNetworkInternal::GetMetric(const std::string&) const {
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IRemoteContext> IExecutableNetworkInternal::GetContext() const {
+std::shared_ptr<RemoteContext> IExecutableNetworkInternal::GetContext() const {
     IE_THROW(NotImplemented);
 }
 

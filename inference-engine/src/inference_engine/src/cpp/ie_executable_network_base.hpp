@@ -17,7 +17,7 @@
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "cpp_interfaces/interface/ie_iremote_context.hpp"
+#include "ie_remote_context.hpp"
 #include "ie_iexecutable_network.hpp"
 #include "ie_infer_async_request_base.hpp"
 

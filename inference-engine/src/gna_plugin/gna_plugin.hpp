@@ -114,10 +114,10 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;
-    std::shared_ptr<InferenceEngine::IRemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override {
+    std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
-    std::shared_ptr<InferenceEngine::IRemoteContext> GetDefaultContext(const InferenceEngine::ParamMap&) override {
+    std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(const InferenceEngine::ParamMap&) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
@@ -130,7 +130,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
-                                                     const std::shared_ptr<InferenceEngine::IRemoteContext>& context,
+                                                     const std::shared_ptr<InferenceEngine::RemoteContext>& context,
                                                      const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
