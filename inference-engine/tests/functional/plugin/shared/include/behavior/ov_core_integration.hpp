@@ -452,9 +452,10 @@ TEST_P(OVClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
 //
 
 TEST_P(OVClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
     std::stringstream strm;
-    InferenceEngine::ExecutableNetwork executableNetwork;
+    ov::runtime::ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.compile_model(actualNetwork, deviceName));
     ASSERT_NO_THROW(executableNetwork.export_model(strm));
     ASSERT_NO_THROW(executableNetwork = ie.import_model(strm, deviceName));
@@ -948,7 +949,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) 
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
-    ASSERT_THROW(p = exeNetwork.get_metric("unsupported_metric"), Exception);
+    ASSERT_THROW(p = exeNetwork.get_metric("unsupported_metric"), InferenceEngine::Exception);
 }
 
 TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
@@ -975,7 +976,7 @@ TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigThrows) {
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
-    ASSERT_THROW(p = exeNetwork.get_config("unsupported_config"), Exception);
+    ASSERT_THROW(p = exeNetwork.get_config("unsupported_config"), InferenceEngine::Exception);
 }
 
 TEST_P(OVClassExecutableNetworkSetConfigTest, SetConfigThrows) {
@@ -985,7 +986,7 @@ TEST_P(OVClassExecutableNetworkSetConfigTest, SetConfigThrows) {
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
-    ASSERT_THROW(exeNetwork.set_config({{"unsupported_config", "some_value"}}), Exception);
+    ASSERT_THROW(exeNetwork.set_config({{"unsupported_config", "some_value"}}), InferenceEngine::Exception);
 }
 
 TEST_P(OVClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
@@ -1006,7 +1007,7 @@ TEST_P(OVClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
-    ASSERT_THROW(exeNetwork.set_config({{configKey, configValue}}), Exception);
+    ASSERT_THROW(exeNetwork.set_config({{configKey, configValue}}), InferenceEngine::Exception);
 }
 
 TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
@@ -1056,8 +1057,8 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
         auto it = std::find(heteroConfigValues.begin(), heteroConfigValues.end(), deviceConf);
         ASSERT_TRUE(it != heteroConfigValues.end());
 
-        Parameter heteroConfigValue = heteroExeNetwork.get_config(deviceConf);
-        Parameter deviceConfigValue = deviceExeNetwork.get_config(deviceConf);
+        InferenceEngine::Parameter heteroConfigValue = heteroExeNetwork.get_config(deviceConf);
+        InferenceEngine::Parameter deviceConfigValue = deviceExeNetwork.get_config(deviceConf);
 
         // HETERO returns EXCLUSIVE_ASYNC_REQUESTS as a boolean value
         if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf) {
@@ -1093,8 +1094,8 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
         auto it = std::find(heteroMetricValues.begin(), heteroMetricValues.end(), deviceMetricName);
         ASSERT_TRUE(it != heteroMetricValues.end());
 
-        Parameter heteroMetricValue = heteroExeNetwork.get_metric(deviceMetricName);
-        Parameter deviceMetricValue = deviceExeNetwork.get_metric(deviceMetricName);
+        InferenceEngine::Parameter heteroMetricValue = heteroExeNetwork.get_metric(deviceMetricName);
+        InferenceEngine::Parameter deviceMetricValue = deviceExeNetwork.get_metric(deviceMetricName);
 
         if (std::find(heteroSpecificMetrics.begin(), heteroSpecificMetrics.end(), deviceMetricName) ==
             heteroSpecificMetrics.end()) {
