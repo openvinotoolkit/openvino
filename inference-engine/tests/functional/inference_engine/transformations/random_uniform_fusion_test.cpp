@@ -45,13 +45,13 @@ TEST(TransformationTests, RandomUniformMulFusing) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
-        auto max_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.0});
-
-        auto mul_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {30.0});
-        auto mul1 = std::make_shared<ngraph::opset8::Multiply>(min_const, mul_const);
-        auto mul2 = std::make_shared<ngraph::opset8::Multiply>(max_const, mul_const);
-        auto ru =
-            std::make_shared<ngraph::opset8::RandomUniform>(input, mul1, mul2, ngraph::element::f32, 100, 200);
+        auto max_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {30.0});
+        auto ru = std::make_shared<ngraph::opset8::RandomUniform>(input,
+                                                                  min_const,
+                                                                  max_const,
+                                                                  ngraph::element::f32,
+                                                                  100,
+                                                                  200);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ru}, ngraph::ParameterVector{input});
     }
@@ -87,12 +87,14 @@ TEST(TransformationTests, RandomUniformAddFusing) {
 
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
-        auto ru_max_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {30.0});
-        auto ru_min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
-        auto add2_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-10.0});
-        auto add1 = std::make_shared<ngraph::opset8::Add>(add2_const, ru_min_const);
-        auto add2 = std::make_shared<ngraph::opset8::Add>(add2_const, ru_max_const);
-        auto ru = std::make_shared<ngraph::opset8::RandomUniform>(input, add1, add2, ngraph::element::f32, 100, 200);
+        auto ru_max_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {20.0});
+        auto ru_min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-10.0});
+        auto ru = std::make_shared<ngraph::opset8::RandomUniform>(input,
+                                                                  ru_min_const,
+                                                                  ru_max_const,
+                                                                  ngraph::element::f32,
+                                                                  100,
+                                                                  200);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ru}, ngraph::ParameterVector{input});
     }
@@ -130,15 +132,14 @@ TEST(TransformationTests, RandomUniformWithConvertMulFusing) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
-        auto max_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.0});
+        auto max_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {30.0});
 
-        auto mul_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {30.0});
-
-        auto mul1 = std::make_shared<ngraph::opset8::Multiply>(min_const, mul_const);
-        auto mul2 = std::make_shared<ngraph::opset8::Multiply>(max_const, mul_const);
-
-        auto ru =
-            std::make_shared<ngraph::opset8::RandomUniform>(input, mul1, mul2, ngraph::element::f32, 100, 200);
+        auto ru = std::make_shared<ngraph::opset8::RandomUniform>(input,
+                                                                  min_const,
+                                                                  max_const,
+                                                                  ngraph::element::f32,
+                                                                  100,
+                                                                  200);
         auto conv = std::make_shared<ngraph::opset8::Convert>(ru, ngraph::element::f16);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
@@ -176,13 +177,15 @@ TEST(TransformationTests, RandomUniformWithConvertAddFusing) {
 
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
-        auto add_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-10.0});
-        auto ru_min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
-        auto ru_max_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {30.0});
-        auto add1 = std::make_shared<ngraph::opset8::Add>(add_const, ru_min_const);
-        auto add2 = std::make_shared<ngraph::opset8::Add>(add_const, ru_max_const);
+        auto ru_min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-10.0});
+        auto ru_max_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {20.0});
 
-        auto ru = std::make_shared<ngraph::opset8::RandomUniform>(input, add1, add2, ngraph::element::f32, 100, 200);
+        auto ru = std::make_shared<ngraph::opset8::RandomUniform>(input,
+                                                                  ru_min_const,
+                                                                  ru_max_const,
+                                                                  ngraph::element::f32,
+                                                                  100,
+                                                                  200);
         auto conv = std::make_shared<ngraph::opset8::Convert>(ru, ngraph::element::f16);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});

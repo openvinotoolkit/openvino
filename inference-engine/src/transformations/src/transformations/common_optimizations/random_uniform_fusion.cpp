@@ -9,6 +9,7 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/ngraph.hpp>
 
 #include "itt.hpp"
 
@@ -53,14 +54,20 @@ ngraph::pass::RandomUniformMulAddFusion::RandomUniformMulAddFusion() {
         if (shape_size(const_shape) != 1)
             return false;
 
-        const auto value = old_const->cast_vector<double>();
+        const auto& value = old_const->cast_vector<double>();
         auto new_const = op::Constant::create(ru->get_out_type(), Shape{}, value);
 
         const auto& mul_add = pattern_map.at(mul_add_pattern);
         const auto mul_add_ptr = std::dynamic_pointer_cast<ngraph::Node>(mul_add.get_node_shared_ptr());
         const auto new_mul_add1 = mul_add_ptr->clone_with_new_inputs({ru->input_value(1), new_const});
         const auto new_mul_add2 = mul_add_ptr->clone_with_new_inputs({ru->input_value(2), new_const});
-        const auto new_ru = ru->clone_with_new_inputs({data, new_mul_add1, new_mul_add2});
+
+        auto folded_const1 = ngraph::get_constant_from_source(new_mul_add1);
+        auto folded_const2 = ngraph::get_constant_from_source(new_mul_add2);
+
+        const auto new_ru = ru->clone_with_new_inputs({data,
+                                                       folded_const1 ? folded_const1 : new_mul_add1,
+                                                       folded_const2 ? folded_const2 : new_mul_add2});
         new_ru->set_friendly_name(m.get_match_root()->get_friendly_name());
 
         if (pattern_map.count(convert_pattern)) {
