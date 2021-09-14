@@ -126,7 +126,7 @@ bool directory_exists(const std::string& path);
  */
 inline uint64_t file_size(const char* path) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = FileUtils::multiByteCharToWString(charfilepath);
+    std::wstring widefilename = ov::util::string_to_wstring(path);
     const wchar_t* file_name = widefilename.c_str();
 #elif defined(__ANDROID__) || defined(ANDROID)
     std::string file_name = path;
