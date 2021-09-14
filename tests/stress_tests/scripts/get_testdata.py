@@ -85,11 +85,14 @@ def run_in_subprocess(cmd, check_call=True):
         subprocess.call(cmd, shell=True)
 
 
-def get_model_recs(test_conf_root, test_framework):
-    """Parse models from test config."""
-    if test_framework == "memleak":
+def get_model_recs(test_conf_root):
+    """Parse models from test config.
+       Model records in multi-model configs with static test definition are members of "device" sections
+    """
+    device_recs = test_conf_root.findall("device")
+    if device_recs:
         model_recs = []
-        for device_rec in test_conf_root.findall("device"):
+        for device_rec in device_recs:
             for model_rec in device_rec.findall("model"):
                 model_recs.append(model_rec)
 
@@ -107,9 +110,6 @@ def main():
     parser.add_argument('--test_conf', required=True, type=Path,
                         help='Path to a test config .xml file containing models '
                              'which will be downloaded and converted to IRs via OMZ.')
-    parser.add_argument('--test_framework', required=False, default=None,
-                        help='Test framework name.'
-                             'Set the "memleak" value to preprocess memLeakTest configs and skip in other cases.')
     parser.add_argument('--omz_repo', required=False,
                         help='Path to Open Model Zoo (OMZ) repository. It will be used to skip cloning step.')
     parser.add_argument('--mo_tool', type=Path,
@@ -158,7 +158,7 @@ def main():
 
     test_conf_obj = ET.parse(str(args.test_conf))
     test_conf_root = test_conf_obj.getroot()
-    model_recs = get_model_recs(test_conf_root, args.test_framework)
+    model_recs = get_model_recs(test_conf_root)
 
     for model_rec in model_recs:
         if "name" not in model_rec.attrib or model_rec.attrib.get("source") != "omz":
