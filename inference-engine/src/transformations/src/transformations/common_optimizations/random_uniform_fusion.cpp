@@ -51,11 +51,9 @@ ngraph::pass::RandomUniformMulFusion::RandomUniformMulFusion() {
             return false;
 
         auto const_shape = mul_const->get_shape();
-        size_t const_shape_size = shape_size(const_shape);
-
-        if (const_shape_size != 1)
+        if (shape_size(const_shape) != 1)
             return false;
-        const auto value = mul_const->cast_vector<double>();
+        const auto & value = mul_const->cast_vector<double>();
         auto new_mul_const = op::Constant::create(ru->get_out_type(), Shape{}, value);
 
         if (pattern_map.count(convert_pattern)) {
