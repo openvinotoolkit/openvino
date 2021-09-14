@@ -235,7 +235,7 @@ This guide uses the Model Downloader to get pre-trained models. You can use one 
 
 * **List the models available in the downloader**: 
 ```sh
-cd /opt/intel/openvino_2022/extras/open_model_zoo/extras/open_model_zoo/tools/downloader/
+cd /opt/intel/openvino_2022/extras/open_model_zoo/tools/downloader/
 ```
 ```sh
 python3 info_dumper.py --print_all
