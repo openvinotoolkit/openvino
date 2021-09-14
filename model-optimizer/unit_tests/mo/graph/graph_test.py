@@ -430,77 +430,18 @@ class TestNewGraphAPIMiddle(unittest.TestCase):
     }
 
     nodes_10_in_10_out = {
-        'in_0': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'in_0_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'in_1': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'in_1_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'in_2': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'in_2_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'in_3': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'in_3_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'in_4': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'in_4_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'in_5': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'in_5_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'in_6': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'in_6_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'in_7': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'in_7_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'in_8': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'in_8_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'in_9': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'in_9_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'in_10': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'in_10_data': {'value': None, 'shape': None, 'kind': 'data'},
-
         'op_concat': {'type': 'Concat', 'value': None, 'kind': 'op', 'op': 'Concat'},
         'op_concat_data': {'value': None, 'shape': None, 'kind': 'data'},
 
         'op_split': {'type': 'Split', 'value': None, 'kind': 'op', 'op': 'Split'},
-
-        'out_0': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'op_split_0_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'out_1': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'op_split_1_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'out_2': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'op_split_2_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'out_3': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'op_split_3_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'out_4': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'op_split_4_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'out_5': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'op_split_5_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'out_6': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'op_split_6_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'out_7': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'op_split_7_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'out_8': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'op_split_8_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'out_9': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'op_split_9_data': {'value': None, 'shape': None, 'kind': 'data'},
-
-        'out_10': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
-        'op_split_10_data': {'value': None, 'shape': None, 'kind': 'data'},
     }
+
+    # Filling nodes list
+    for idx in range(11):
+        nodes_10_in_10_out.update({'in_{}'.format(idx): {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'}})
+        nodes_10_in_10_out.update({'in_{}_data'.format(idx): {'value': None, 'shape': None, 'kind': 'data'}})
+        nodes_10_in_10_out.update({'out_{}'.format(idx): {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'}})
+        nodes_10_in_10_out.update({'op_split_{}_data'.format(idx): {'value': None, 'shape': None, 'kind': 'data'}})
 
       ###########################################
      ###### TESTS FOR PORT CLASS METHODS #######
