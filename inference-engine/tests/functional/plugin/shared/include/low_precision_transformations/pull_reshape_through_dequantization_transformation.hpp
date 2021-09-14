@@ -46,7 +46,7 @@ class PullReshapeThroughDequantizationTransformation :
     public testing::WithParamInterface<PullReshapeThroughDequantizationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PullReshapeThroughDequantizationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<PullReshapeThroughDequantizationParams>& obj);
 
 protected:
     void SetUp() override;
