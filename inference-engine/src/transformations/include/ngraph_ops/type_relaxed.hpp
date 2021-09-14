@@ -13,6 +13,7 @@
 
 #include <ngraph/op/convert.hpp>
 #include "ngraph/op/op.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph {
 namespace op {
@@ -78,6 +79,60 @@ public:
             m_input_data_types.resize(inputIndex + 1, element::undefined);
         }
         m_input_data_types[inputIndex] = element_type;
+    }
+
+protected:
+    void remember_input_data_types(Node &node, element::TypeVector &old_input_types) {
+        // Remember all input data types
+        for (size_t i = 0; i < node.get_input_size(); ++i) {
+            old_input_types.push_back(node.get_input_element_type(i));
+        }
+
+        // Reset input data types to m_output_data_type.
+        for (size_t i = 0; i < node.get_input_size(); ++i) {
+            auto origin_input_type = get_origin_input_type(i);
+            if (origin_input_type != element::undefined) {
+                node.get_input_tensor(i).set_tensor_type(origin_input_type, node.get_input_partial_shape(i));
+            }
+        }
+    }
+
+    void restore_input_data_types(Node &node, const element::TypeVector &old_input_types) {
+        // Restore original input data types
+        for (size_t i = 0; i < node.get_input_size(); ++i) {
+            node.get_input_tensor(i).set_tensor_type(old_input_types[i], node.get_input_partial_shape(i));
+        }
+
+        if (m_original_output_data_types.empty()) {
+            m_original_output_data_types = element::TypeVector(node.get_output_size());
+        }
+
+        // Save inferred output types
+        for (size_t i = 0; i < node.get_output_size(); ++i) {
+            m_original_output_data_types[i] = node.get_output_element_type(i);
+        }
+
+        // Override (some) output types
+        for (size_t i = 0; i < node.get_output_size(); ++i) {
+            auto overridden_output_type = get_overridden_output_type(i);
+            if (overridden_output_type != element::undefined) {
+                node.set_output_type(0, overridden_output_type, node.get_output_partial_shape(i));
+            }
+        }
+    }
+
+    void visit_attributes(AttributeVisitor& visitor) {
+        bool type_relax = true;
+        visitor.on_attribute("type_relax", type_relax);
+        visitor.on_attribute("input_data_types", m_input_data_types);
+        visitor.on_attribute("output_data_types", m_output_data_types);
+    }
+
+    typedef struct {} init_rt_result;
+
+    init_rt_result init_rt_info(Node &node) const {
+        node.get_rt_info()["opset"] = std::make_shared<ngraph::VariantWrapper<std::string>>("type_relaxed_opset");
+        return {};
     }
 
 protected:
@@ -167,10 +222,14 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 private:
     void init() {
         validate_and_infer_types();
     }
+
+    init_rt_result init_rt = init_rt_info(*this);
 };
 
 template <typename BaseOp>
@@ -230,45 +289,15 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
 
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {
-    // Remember all input data types
     element::TypeVector old_input_types;
-    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
-        old_input_types.push_back(BaseOp::get_input_element_type(i));
-    }
 
-    // Reset input data types to m_output_data_type.
-    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
-        auto origin_input_type = get_origin_input_type(i);
-        if (origin_input_type != element::undefined) {
-            BaseOp::get_input_tensor(i).set_tensor_type(origin_input_type, BaseOp::get_input_partial_shape(i));
-        }
-    }
+    remember_input_data_types(*this, old_input_types);
 
     NGRAPH_SUPPRESS_DEPRECATED_START
     BaseOp::validate_and_infer_types();
     NGRAPH_SUPPRESS_DEPRECATED_END
 
-    // Restore original input data types
-    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
-        BaseOp::get_input_tensor(i).set_tensor_type(old_input_types[i], BaseOp::get_input_partial_shape(i));
-    }
-
-    if (m_original_output_data_types.empty()) {
-        m_original_output_data_types = element::TypeVector(BaseOp::get_output_size());
-    }
-
-    // Save inferred output types
-    for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
-        m_original_output_data_types[i] = BaseOp::get_output_element_type(i);
-    }
-
-    // Override (some) output types
-    for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
-        auto overridden_output_type = get_overridden_output_type(i);
-        if (overridden_output_type != element::undefined) {
-            BaseOp::set_output_type(0, overridden_output_type, BaseOp::get_output_partial_shape(i));
-        }
-    }
+    restore_input_data_types(*this, old_input_types);
 }
 
 
@@ -285,18 +314,20 @@ std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVec
 }
 
 template <typename BaseOp>
+bool TypeRelaxed<BaseOp>::visit_attributes(AttributeVisitor& visitor) {
+    TypeRelaxedBase::visit_attributes(visitor);
+    BaseOp::visit_attributes(visitor);
+    return true;
+}
+
+template <typename BaseOp>
 const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const { return get_type_info_static(); }
 
 template <typename BaseOp>
 const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
     auto baseOpTypeInfoPtr = &BaseOp::get_type_info_static();
-
-    // TODO: it should be static const std::string name = std::string("TypeRelaxed_") + baseOpTypeInfoPtr->name;
-    //       but currently it will not pass conversion ot Legacy Opset correctly
-    static const std::string name = baseOpTypeInfoPtr->name;
-
     static const ::ngraph::Node::type_info_t type_info_static{
-        name.c_str(), baseOpTypeInfoPtr->version, baseOpTypeInfoPtr};
+        baseOpTypeInfoPtr->name, baseOpTypeInfoPtr->version, baseOpTypeInfoPtr};
     return type_info_static;
 }
 

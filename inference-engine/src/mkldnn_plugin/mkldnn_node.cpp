@@ -233,13 +233,12 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "MulticlassNms", MulticlassNms}
 };
 
-Type TypeFromName(const std::string type) {
+Type TypeFromName(const std::string & type) {
     auto itType = type_to_name_tbl.find(type);
     if (type_to_name_tbl.end() != itType) {
         return itType->second;
-    } else {
-        return Unknown;
     }
+    return Unknown;
 }
 
 template<>
@@ -260,6 +259,173 @@ DnnlMemoryDescPtr MKLDNNNode::getOutputMemDescAtPort<DnnlMemoryDesc, 0, 0>(size_
 template<>
 BlockedMemoryDescPtr MKLDNNNode::getOutputMemDescAtPort<BlockedMemoryDesc, 0, 0>(size_t portNum) const {
     return MemoryDescUtils::convertToBlockedMemoryDesc(getBaseMemDescAtOutputPort(portNum));
+}
+
+std::string NameFromType(Type type) {
+    switch (type) {
+        case Generic:
+            return "Generic";
+        case Reorder:
+            return "Reorder";
+        case Input:
+            return "Input";
+        case Output:
+            return "Output";
+        case Convolution:
+            return "Convolution";
+        case Deconvolution:
+            return "Deconvolution";
+        case Lrn:
+            return "Lrn";
+        case Pooling:
+            return "Pooling";
+        case AdaptivePooling:
+            return "AdaptivePooling";
+        case FullyConnected:
+            return "FullyConnected";
+        case MatMul:
+            return "MatMul";
+        case Softmax:
+            return "Softmax";
+        case Split:
+            return "Split";
+        case Concatenation:
+            return "Concatenation";
+        case StridedSlice:
+            return "StridedSlice";
+        case Reshape:
+            return "Reshape";
+        case Tile:
+            return "Tile";
+        case ROIAlign:
+            return "ROIAlign";
+        case ROIPooling:
+            return "ROIPooling";
+        case PSROIPooling:
+            return "PSROIPooling";
+        case DepthToSpace:
+            return "DepthToSpace";
+        case BatchToSpace:
+            return "BatchToSpace";
+        case Pad:
+            return "Pad";
+        case Transpose:
+            return "Transpose";
+        case SpaceToDepth:
+            return "SpaceToDepth";
+        case SpaceToBatch:
+            return "SpaceToBatch";
+        case MemoryOutput:
+            return "MemoryOutput";
+        case MemoryInput:
+            return "MemoryInput";
+        case RNNSeq:
+            return "RNNSeq";
+        case RNNCell:
+            return "RNNCell";
+        case Eltwise:
+            return "Eltwise";
+        case FakeQuantize:
+            return "FakeQuantize";
+        case BinaryConvolution:
+            return "BinaryConvolution";
+        case DeformableConvolution:
+            return "DeformableConvolution";
+        case MVN:
+            return "MVN";
+        case TensorIterator:
+            return "TensorIterator";
+        case Convert:
+            return "Convert";
+        case NormalizeL2:
+            return "NormalizeL2";
+        case ScatterUpdate:
+            return "ScatterUpdate";
+        case ScatterElementsUpdate:
+            return "ScatterElementsUpdate";
+        case ScatterNDUpdate:
+            return "ScatterNDUpdate";
+        case Interpolate:
+            return "Interpolate";
+        case Reduce:
+            return "Reduce";
+        case Broadcast:
+            return "Broadcast";
+        case EmbeddingSegmentsSum:
+            return "EmbeddingSegmentsSum";
+        case EmbeddingBagPackedSum:
+            return "EmbeddingBagPackedSum";
+        case EmbeddingBagOffsetsSum:
+            return "EmbeddingBagOffsetsSum";
+        case Gather:
+            return "Gather";
+        case GatherElements:
+            return "GatherElements";
+        case GatherND:
+            return "GatherND";
+        case OneHot:
+            return "OneHot";
+        case RegionYolo:
+            return "RegionYolo";
+        case Select:
+            return "Select";
+        case Roll:
+            return "Roll";
+        case ShuffleChannels:
+            return "ShuffleChannels";
+        case DFT:
+            return "DFT";
+        case Math:
+            return "Math";
+        case CTCLoss:
+            return "CTCLoss";
+        case Bucketize:
+            return "Bucketize";
+        case CTCGreedyDecoder:
+            return "CTCGreedyDecoder";
+        case CTCGreedyDecoderSeqLen:
+            return "CTCGreedyDecoderSeqLen";
+        case CumSum:
+            return "CumSum";
+        case DetectionOutput:
+            return "DetectionOutput";
+        case ExperimentalDetectronDetectionOutput:
+            return "ExperimentalDetectronDetectionOutput";
+        case LogSoftmax:
+            return "LogSoftmax";
+        case TopK:
+            return "TopK";
+        case GatherTree:
+            return "GatherTree";
+        case GRN:
+            return "GRN";
+        case Range:
+            return "Range";
+        case Proposal:
+            return "Proposal";
+        case ReorgYolo:
+            return "ReorgYolo";
+        case ReverseSequence:
+            return "ReverseSequence";
+        case ExperimentalDetectronTopKROIs:
+            return "ExperimentalDetectronTopKROIs";
+        case ExperimentalDetectronROIFeatureExtractor:
+            return "ExperimentalDetectronROIFeatureExtractor";
+        case ExperimentalDetectronPriorGridGenerator:
+            return "ExperimentalDetectronPriorGridGenerator";
+        case ExperimentalDetectronGenerateProposalsSingleImage:
+            return "ExperimentalDetectronGenerateProposalsSingleImage";
+        case ExtractImagePatches:
+            return "ExtractImagePatches";
+        case NonMaxSuppression:
+            return "NonMaxSuppression";
+        case MatrixNms:
+            return "MatrixNms";
+        case MulticlassNms:
+            return "MulticlassNms";
+        default:
+            return "Unknown";
+    }
 }
 
 }  //  namespace MKLDNNPlugin

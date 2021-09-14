@@ -22,6 +22,8 @@
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
+
 namespace {
 inline namespace tools {
 bool isTypeRelaxed(const std::string &type) {
@@ -43,20 +45,29 @@ bool compareTypeInfo(const ngraph::DiscreteTypeInfo &info1, const ngraph::Discre
 
 template<typename Node>
 bool compare_rt_keys(const Node &node1, const Node &node2) {
+    // The "opset" parameter in RT info is optional
+    // and mandatory only for TypeRelaxed operations.
+    // Therefore, we ignore this key when comparing RT keys.
+
     const auto &first_node_rt_info = node1->get_rt_info();
     const auto &second_node_rt_info = node2->get_rt_info();
 
-    if (first_node_rt_info.empty() && second_node_rt_info.empty()) {
-        return true;
-    }
-
-    if (first_node_rt_info.size() != second_node_rt_info.size()) {
-        return false;
-    }
-
     auto first_node_rt_info_it = first_node_rt_info.begin();
     auto second_node_rt_info_it = second_node_rt_info.begin();
-    while (first_node_rt_info_it != first_node_rt_info.end()) {
+
+    while (first_node_rt_info_it != first_node_rt_info.end()
+        && second_node_rt_info_it != second_node_rt_info.end()) {
+        bool is_continue = false;
+        if (first_node_rt_info_it->first == "opset") {
+            ++first_node_rt_info_it;
+            is_continue = true;
+        }
+        if (second_node_rt_info_it->first == "opset") {
+            ++second_node_rt_info_it;
+            is_continue = true;
+        }
+        if (is_continue)
+            continue;
         if (first_node_rt_info_it->first != second_node_rt_info_it->first) {
             return false;
         }
@@ -64,7 +75,16 @@ bool compare_rt_keys(const Node &node1, const Node &node2) {
         ++second_node_rt_info_it;
     }
 
-    return true;
+    if (first_node_rt_info_it != first_node_rt_info.end()
+        && first_node_rt_info_it->first == "opset") {
+        ++first_node_rt_info_it;
+    }
+    if (second_node_rt_info_it != second_node_rt_info.end()
+        && second_node_rt_info_it->first == "opset") {
+        ++second_node_rt_info_it;
+    }
+    return first_node_rt_info_it == first_node_rt_info.end()
+        && second_node_rt_info_it == second_node_rt_info.end();
 }
 
 bool less_by_name(

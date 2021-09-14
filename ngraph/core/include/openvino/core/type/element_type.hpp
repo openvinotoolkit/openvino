@@ -195,4 +195,15 @@ public:
 protected:
     ov::element::Type& m_ref;
 };
+
+template <>
+class NGRAPH_API AttributeAdapter<ov::element::TypeVector> : public DirectValueAccessor<ov::element::TypeVector> {
+public:
+    AttributeAdapter(ov::element::TypeVector& value) : DirectValueAccessor<ov::element::TypeVector>(value) {}
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<element::Type>>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+};
+
 }  // namespace ov

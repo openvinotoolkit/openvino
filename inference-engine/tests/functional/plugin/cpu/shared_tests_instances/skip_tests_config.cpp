@@ -89,7 +89,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*/NmsLayerTest.*)",
         // TODO: 56520 Accuracy mismatch
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
-        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)"
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
+
+        // Issue: 62746
+        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)"
     };
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))

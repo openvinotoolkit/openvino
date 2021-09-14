@@ -10,6 +10,7 @@
 #include "mkldnn_infer_request.h"
 #include "mkldnn_memory_state.h"
 #include "mkldnn_itt.h"
+#include "mkldnn_serialize.h"
 #include "nodes/mkldnn_memory_node.hpp"
 #include <threading/ie_executor_manager.hpp>
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
@@ -297,3 +298,8 @@ std::vector<IVariableStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
     return memoryStates;
 }
 IE_SUPPRESS_DEPRECATED_END
+
+void MKLDNNExecNetwork::Export(std::ostream& modelStream) {
+    CNNNetworkSerializer serializer(modelStream, extensionManager);
+    serializer <<_network;
+}
