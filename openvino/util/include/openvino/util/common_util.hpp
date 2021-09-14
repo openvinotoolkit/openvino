@@ -81,7 +81,7 @@ inline std::string trim(const std::string& s) {
  * @param with - given substring
  * @return true if string end with given substring
  */
-inline bool endsWith(const std::string& src, const char* with) {
+inline bool ends_with(const std::string& src, const char* with) {
     int wl = static_cast<int>(strlen(with));
     int so = static_cast<int>(src.length()) - wl;
     if (so < 0)
