@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/layout.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
@@ -52,10 +53,26 @@ public:
     /// \brief Set element type for user's input tensor
     /// This version allows chaining for Rvalue objects
     ///
-    /// \param builder Pre-processing data for input tensor of model.
+    /// \param type Element type for user's input tensor.
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     InputTensorInfo&& set_element_type(const ov::element::Type& type) &&;
+
+    /// \brief Set layout for user's input tensor
+    /// This version allows chaining for Lvalue objects
+    ///
+    /// \param layout Layout for user's input tensor.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    InputTensorInfo& set_layout(const ov::Layout& layout) &;
+
+    /// \briefSet layout for user's input tensor
+    /// This version allows chaining for Rvalue objects
+    ///
+    /// \param layout Layout for user's input tensor.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
+    InputTensorInfo&& set_layout(const ov::Layout& layout) &&;
 };
 
 }  // namespace preprocess
