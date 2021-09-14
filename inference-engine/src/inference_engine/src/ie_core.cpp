@@ -16,7 +16,6 @@
 #include "cpp/ie_plugin.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "cpp_interfaces/interface/ie_iremote_context.hpp"
 #include "file_utils.h"
 #include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
@@ -24,6 +23,7 @@
 #include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
 #include "ie_plugin_config.hpp"
+#include "ie_remote_context.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset.hpp"
@@ -171,8 +171,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         std::vector<FileUtils::FilePath> listOfExtentions;
     };
 
-    std::unordered_set<std::string> opsetNames;
-    std::vector<ie::IExtensionPtr> extensions;
+    mutable std::unordered_set<std::string> opsetNames;
+    mutable std::vector<ie::IExtensionPtr> extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -210,15 +210,15 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return supported;
     }
 
-    ov::runtime::SoPtr<ie::IExecutableNetworkInternal> LoadNetworkImpl(
-        const ie::CNNNetwork& network,
-        ov::runtime::InferencePlugin& plugin,
+    ov::runtime::SoPtr<ie::IExecutableNetworkInternal> load_model_impl(
+        const InferenceEngine::CNNNetwork& network,
+        InferencePlugin& plugin,
         const std::map<std::string, std::string>& parsedConfig,
-        const ie::IRemoteContext::Ptr& context,
+        const ie::RemoteContext::Ptr& context,
         const std::string& blobID,
         const std::string& modelPath = std::string(),
         bool forceDisableCache = false) {
-        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::LoadNetworkImpl");
+        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::load_model_impl");
         ov::runtime::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
         execNetwork =
             context ? plugin.load_model(network, context, parsedConfig) : plugin.load_model(network, parsedConfig);
@@ -246,7 +246,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         const std::string& blobId,
         ov::runtime::InferencePlugin& plugin,
         const std::map<std::string, std::string>& config,
-        const std::shared_ptr<ie::IRemoteContext>& context,
+        const std::shared_ptr<ie::RemoteContext>& context,
         bool& networkIsImported,
         const std::string& modelPath = std::string()) {
         ov::runtime::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
@@ -444,7 +444,7 @@ public:
 
     // TODO: In future this method can be added to ICore interface
     ov::runtime::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
-                                                                   const std::shared_ptr<ie::IRemoteContext>& context,
+                                                                   const std::shared_ptr<ie::RemoteContext>& context,
                                                                    const std::map<std::string, std::string>& config) {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
@@ -460,10 +460,10 @@ public:
             auto lock = cacheGuard.getHashLock(hash);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, context, loadedFromCache);
             if (!loadedFromCache) {
-                res = LoadNetworkImpl(network, plugin, parsed._config, context, hash);
+                res = load_model_impl(network, plugin, parsed._config, context, hash);
             }
         } else {
-            res = LoadNetworkImpl(network, plugin, parsed._config, context, {});
+            res = load_model_impl(network, plugin, parsed._config, context, {});
         }
         return res;
     }
@@ -487,10 +487,10 @@ public:
             auto lock = cacheGuard.getHashLock(hash);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache);
             if (!loadedFromCache) {
-                res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
+                res = load_model_impl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
             }
         } else {
-            res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);
+            res = load_model_impl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);
         }
         return {{res._so}, res._ptr};
     }
@@ -510,13 +510,13 @@ public:
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache, modelPath);
             if (!loadedFromCache) {
                 auto cnnNetwork = ReadNetwork(modelPath, std::string());
-                res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
+                res = load_model_impl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
             }
         } else if (cacheManager) {
             res = plugin.load_model(modelPath, parsed._config);
         } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
-            res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
+            res = load_model_impl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
         }
         return {{res._so}, res._ptr};
     }
@@ -690,7 +690,11 @@ public:
                     });
                 }
 
-                return plugins.emplace(deviceName, plugin).first->second;
+                auto result = plugins.emplace(deviceName, plugin).first->second;
+
+                TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
+
+                return result;
             } catch (const ie::Exception& ex) {
                 IE_THROW() << "Failed to create plugin " << FileUtils::fromFilePath(desc.libraryLocation)
                            << " for device " << deviceName << "\n"
@@ -815,23 +819,7 @@ public:
      */
     void AddExtension(const ie::IExtensionPtr& extension) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
-
-        std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
-        for (const auto& it : opsets) {
-            if (opsetNames.find(it.first) != opsetNames.end())
-                IE_THROW() << "Cannot add opset with name: " << it.first
-                           << ". Opset with the same name already exists.";
-            opsetNames.insert(it.first);
-        }
-
-        // add extensions for already created plugins
-        for (auto& plugin : plugins) {
-            try {
-                plugin.second.add_extension(extension);
-            } catch (...) {
-            }
-        }
-        extensions.emplace_back(extension);
+        AddExtensionUnsafe(extension);
     }
 
     /**
@@ -881,6 +869,36 @@ public:
         }
 
         return versions;
+    }
+
+private:
+    void AddExtensionUnsafe(const ie::IExtensionPtr& extension) const {
+        std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
+        for (const auto& it : opsets) {
+            if (opsetNames.find(it.first) != opsetNames.end())
+                IE_THROW() << "Cannot add opset with name: " << it.first
+                           << ". Opset with the same name already exists.";
+            opsetNames.insert(it.first);
+        }
+
+        // add extensions for already created plugins
+        for (auto& plugin : plugins) {
+            try {
+                plugin.second.add_extension(extension);
+            } catch (...) {
+            }
+        }
+        extensions.emplace_back(extension);
+    }
+
+    template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
+    void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) const {
+        try {
+            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(path);
+            AddExtensionUnsafe(extension_ptr);
+        } catch (const InferenceEngine::NotFound&) {
+        } catch (const InferenceEngine::GeneralError&) {
+        }
     }
 };
 
@@ -986,7 +1004,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
-    auto exec = _impl->LoadNetwork(network, std::dynamic_pointer_cast<IRemoteContext>(context), config);
+    auto exec = _impl->LoadNetwork(network, std::dynamic_pointer_cast<RemoteContext>(context), config);
     return {{exec._so}, exec._ptr};
 }
 
@@ -1099,7 +1117,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
 
     auto parsed = ov::runtime::parseDeviceNameIntoConfig(deviceName, config);
     auto exec = _impl->GetCPPPluginByName(deviceName)
-                    .import_model(networkModel, std::dynamic_pointer_cast<IRemoteContext>(context), parsed._config);
+                    .import_model(networkModel, std::dynamic_pointer_cast<RemoteContext>(context), parsed._config);
     return {{exec._so}, exec._ptr};
 }
 
