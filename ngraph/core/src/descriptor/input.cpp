@@ -78,11 +78,11 @@ std::shared_ptr<ov::descriptor::Tensor> ov::descriptor::Input::get_tensor_ptr() 
     return m_output->get_tensor_ptr();
 }
 
-const ov::StaticShape& ov::descriptor::Input::get_shape() const {
+const ov::Shape& ov::descriptor::Input::get_shape() const {
     return m_output->get_shape();
 }
 
-const ov::Shape& ov::descriptor::Input::get_partial_shape() const {
+const ov::PartialShape& ov::descriptor::Input::get_partial_shape() const {
     return m_output->get_partial_shape();
 }
 

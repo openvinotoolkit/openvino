@@ -32,17 +32,17 @@ ov::op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
     : Op({arg, target_shape}),
       m_mode{broadcast_mode} {}
 
-ov::Shape ov::op::util::BroadcastBase::get_result_shape_pdpd(const Shape& arg0_shape,
-                                                             const Shape& target_pshape,
-                                                             const op::BroadcastModeSpec& broadcast_spec) const {
+ov::PartialShape ov::op::util::BroadcastBase::get_result_shape_pdpd(const PartialShape& arg0_shape,
+                                                                    const PartialShape& target_pshape,
+                                                                    const op::BroadcastModeSpec& broadcast_spec) const {
     if (target_pshape.is_dynamic())
-        return Shape::dynamic(target_pshape.rank());
-    StaticShape target_shape = target_pshape.to_shape();
+        return PartialShape::dynamic(target_pshape.rank());
+    Shape target_shape = target_pshape.to_shape();
     if (arg0_shape.rank().is_dynamic()) {
-        return Shape::dynamic(target_shape.size());
+        return PartialShape::dynamic(target_shape.size());
     }
     const auto arg_rank_length = arg0_shape.rank().get_length();
-    Shape result_shape = target_shape;
+    PartialShape result_shape = target_shape;
     auto start_axis = broadcast_spec.m_axis;
 
     NODE_VALIDATION_CHECK(this,
@@ -68,7 +68,8 @@ ov::Shape ov::op::util::BroadcastBase::get_result_shape_pdpd(const Shape& arg0_s
     return result_shape;
 }
 
-void ov::op::util::BroadcastBase::validate_target_shape_numpy(const Shape& arg_shape, const Shape& target_shape) const {
+void ov::op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape& arg_shape,
+                                                              const PartialShape& target_shape) const {
     if (arg_shape.rank().is_dynamic() || target_shape.rank().is_dynamic()) {
         return;
     }
@@ -96,9 +97,9 @@ void ov::op::util::BroadcastBase::validate_target_shape_numpy(const Shape& arg_s
     }
 }
 
-void ov::op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
+void ov::op::util::BroadcastBase::validate_target_shape_none(const PartialShape& arg_shape,
                                                              const AxisVector& axes_mapping_val,
-                                                             const Shape& target_shape) const {
+                                                             const PartialShape& target_shape) const {
     if (arg_shape.rank().is_dynamic() || target_shape.rank().is_dynamic()) {
         return;
     }
@@ -172,7 +173,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
                               axes_shape_rank);
     }
 
-    Shape result_shape{Shape::dynamic()};
+    PartialShape result_shape{PartialShape::dynamic()};
     const auto& input_shape = get_input_partial_shape(0);
     const auto input_rank = input_shape.rank();
     const auto& target_shape = input_value(1).get_partial_shape();
@@ -180,15 +181,15 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
 
     if (m_mode.m_type == BroadcastType::BIDIRECTIONAL) {
         if (input_rank.is_static() && is_target_shape_known) {
-            result_shape = Shape::dynamic(std::max(input_rank.get_length(), target_shape[0].get_length()));
+            result_shape = PartialShape::dynamic(std::max(input_rank.get_length(), target_shape[0].get_length()));
         }
     } else {
         if (is_target_shape_known) {
-            result_shape = Shape::dynamic(target_shape[0].get_length());
+            result_shape = PartialShape::dynamic(target_shape[0].get_length());
         }
     }
 
-    Shape output_shape;
+    PartialShape output_shape;
     bool output_shape_defined = ngraph::evaluate_as_partial_shape(get_input_source_output(1), output_shape);
 
     if (auto concat = ov::as_type_ptr<ngraph::op::v0::Concat>(input_value(1).get_node_shared_ptr())) {
@@ -206,7 +207,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
                 }
             }
             output_shape_defined = true;
-            output_shape = Shape(output_partial_shape);
+            output_shape = PartialShape(output_partial_shape);
         }
     }
 
@@ -248,8 +249,8 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
 }
 
 std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes_numpy_pdpd(
-    const StaticShape& arg_shape,
-    const StaticShape& result_shape,
+    const Shape& arg_shape,
+    const Shape& result_shape,
     const op::BroadcastModeSpec& broadcast_spec) {
     AxisSet broadcast_axes;
     bool axes_known = false;
@@ -312,7 +313,7 @@ bool ov::op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
     NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes);
     auto arg0_shape = arg0->get_shape();
     if (arg0_shape.size() == 0) {
-        arg0_shape = StaticShape{1};
+        arg0_shape = Shape{1};
     }
     ngraph::runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
                                           out->get_data_ptr<char>(),
@@ -339,7 +340,7 @@ void get_axis_vector_from_hosttensor(const ngraph::HostTensorPtr& arg, ov::AxisV
 
 void get_axis_vector_from_ht(const ngraph::HostTensorPtr& arg,
                              ov::AxisVector& axis_vector,
-                             const ov::StaticShape& arg_shape) {
+                             const ov::Shape& arg_shape) {
     switch (arg->get_element_type()) {
         GET_AXIS_VECTOR(i8)(arg, axis_vector);
         break;
@@ -370,20 +371,20 @@ void get_axis_vector_from_ht(const ngraph::HostTensorPtr& arg,
 }
 
 template <ov::element::Type_t ET>
-void get_shape_from_hosttensor(const ngraph::HostTensorPtr& input1, ov::StaticShape& target_shape) {
+void get_shape_from_hosttensor(const ngraph::HostTensorPtr& input1, ov::Shape& target_shape) {
     using T = typename ov::element_type_traits<ET>::value_type;
     auto rank = input1->get_shape().at(0);
     std::vector<T> target_shape_vec(rank);
     input1->read(target_shape_vec.data(), rank * sizeof(T));
-    target_shape = ov::StaticShape(target_shape_vec.begin(), target_shape_vec.end());
+    target_shape = ov::Shape(target_shape_vec.begin(), target_shape_vec.end());
 }
 
 #define CASE_GET_SHAPE(a)        \
     case ov::element::Type_t::a: \
         get_shape_from_hosttensor<ov::element::Type_t::a>
 
-ov::StaticShape get_target_shape_from_ht(const ngraph::HostTensorPtr& input1) {
-    ov::StaticShape target_shape;
+ov::Shape get_target_shape_from_ht(const ngraph::HostTensorPtr& input1) {
+    ov::Shape target_shape;
     switch (input1->get_element_type()) {
         CASE_GET_SHAPE(i8)(input1, target_shape);
         break;
@@ -412,20 +413,20 @@ ov::StaticShape get_target_shape_from_ht(const ngraph::HostTensorPtr& input1) {
 bool ov::op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
                                                      const HostTensorPtr& out,
                                                      const std::pair<bool, AxisSet>& pair_broadcast_axes,
-                                                     const StaticShape& output_shape) const {
+                                                     const Shape& output_shape) const {
     if (!pair_broadcast_axes.first) {
         // broadcast_axes not known deterministically
         return false;
     }
-    StaticShape in_shape = arg0->get_shape();
+    Shape in_shape = arg0->get_shape();
     out->set_shape(output_shape);
     out->set_element_type(arg0->get_element_type());
 
     return evaluate_broadcast(arg0, out, pair_broadcast_axes.second);
 }
 
-ov::StaticShape ov::op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const {
-    StaticShape target_shape;
+ov::Shape ov::op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const {
+    Shape target_shape;
     const auto shape_constant = ov::as_type_ptr<ngraph::op::v0::Constant>(input_value(1).get_node_shared_ptr());
     if (shape_constant) {
         target_shape = shape_constant->get_shape_val();
@@ -440,9 +441,9 @@ bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, cons
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 2) || ngraph::validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
 
-    StaticShape target_shape = get_target_shape(inputs[1]);
+    Shape target_shape = get_target_shape(inputs[1]);
 
-    Shape result_shape;
+    PartialShape result_shape;
     std::pair<bool, AxisSet> pair_broadcast_axes;
     auto arg_shape = inputs[0]->get_shape();
 

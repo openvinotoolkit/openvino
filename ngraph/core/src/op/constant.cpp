@@ -54,7 +54,7 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
 }
 
 ov::op::v0::Constant::Constant(const element::Type& type,
-                               const ov::StaticShape& shape,
+                               const ov::Shape& shape,
                                const std::vector<std::string>& values)
     : Constant(type, shape) {
     NGRAPH_SUPPRESS_DEPRECATED_START
@@ -187,7 +187,7 @@ ov::op::v0::Constant::Constant(const element::Type& type,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-ov::op::v0::Constant::Constant(const element::Type& type, const ov::StaticShape& shape)
+ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape)
     : m_element_type(type),
       m_shape(shape) {
     allocate_buffer();
@@ -199,7 +199,7 @@ void ov::op::v0::Constant::allocate_buffer() {
     std::memset(m_data->get_ptr(), 0, m_data->size());
 }
 
-ov::op::v0::Constant::Constant(const element::Type& type, const ov::StaticShape& shape, const void* data)
+ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape, const void* data)
     : Constant(type, shape) {
     size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
     std::memcpy(get_data_ptr_nc(), data, size);
@@ -214,9 +214,9 @@ ov::op::v0::Constant::Constant(const Constant& other) {
     constructor_validate_and_infer_types();
 }
 
-ov::op::v0::Constant::Constant(const Constant& other, const ov::StaticShape& new_shape) {
+ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape) {
     NGRAPH_CHECK(shape_size(other.m_shape) == shape_size(new_shape),
-                 "ov::StaticShape size " + std::to_string(shape_size(new_shape)) + " is not equal to " +
+                 "ov::Shape size " + std::to_string(shape_size(new_shape)) + " is not equal to " +
                      std::to_string(shape_size(other.m_shape)));
     m_element_type = other.m_element_type;
     m_shape = new_shape;
@@ -391,10 +391,10 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
     return rc;
 }
 
-ov::StaticShape ov::op::v0::Constant::get_shape_val() const {
+ov::Shape ov::op::v0::Constant::get_shape_val() const {
     NGRAPH_CHECK(m_element_type.is_integral_number());
     std::vector<int64_t> out_shape = cast_vector<int64_t>();
-    ov::StaticShape output_shape(shape_size(m_shape));
+    ov::Shape output_shape(shape_size(m_shape));
     std::transform(out_shape.begin(), out_shape.end(), output_shape.begin(), [&](const int64_t& v) {
         return (v > 0) ? v : 0;
     });
@@ -454,7 +454,7 @@ ov::AxisSet ov::op::v0::Constant::get_axis_set_val() const {
     return output_axis_set;
 }
 
-void ov::op::v0::Constant::set_data_shape(const ov::StaticShape& shape) {
+void ov::op::v0::Constant::set_data_shape(const ov::Shape& shape) {
     NGRAPH_CHECK(shape_size(shape) == shape_size(m_shape));
     m_shape = shape;
 }
@@ -528,7 +528,7 @@ bool ov::op::v0::Constant::are_all_data_elements_bitwise_identical() const {
 
 bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_Constant_visit_attributes);
-    ov::StaticShape prev_shape = m_shape;
+    ov::Shape prev_shape = m_shape;
     element::Type prev_type = m_element_type;
     visitor.on_attribute("element_type", m_element_type);
     visitor.on_attribute("shape", m_shape);

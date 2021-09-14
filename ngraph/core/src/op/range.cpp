@@ -71,15 +71,9 @@ void op::v4::Range::validate_and_infer_types() {
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(0).compatible(ov::StaticShape{}),
-                          "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(1).compatible(ov::StaticShape{}),
-                          "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(2).compatible(ov::StaticShape{}),
-                          "'step' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).compatible(ov::Shape{}), "'start' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).compatible(ov::Shape{}), "'stop' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(2).compatible(ov::Shape{}), "'step' input is not a scalar");
 
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_integral_number() || get_input_element_type(0).is_real(),
@@ -123,7 +117,7 @@ void op::v4::Range::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this, std::isfinite(step) && !std::isnan(step), "'step' cannot be nan or infinite.");
     }
 
-    ov::Shape result{ov::Shape::dynamic(1)};
+    ov::PartialShape result{ov::PartialShape::dynamic(1)};
 
     if (const_start != nullptr && const_stop != nullptr && const_step != nullptr) {
         // all inputs must be casted to output_type before
@@ -148,7 +142,7 @@ void op::v4::Range::validate_and_infer_types() {
 
         double strided = ceil(fabs(span) / fabs(step));
 
-        result = ov::Shape{Dimension(static_cast<int64_t>(strided))};
+        result = ov::PartialShape{Dimension(static_cast<int64_t>(strided))};
     }
     set_output_type(0, m_output_type, result);
 }
@@ -227,7 +221,7 @@ bool evaluate(const HostTensorPtr& out,
     if (steps > 0) {
         out_size = steps;
     }
-    ov::StaticShape out_shape = ov::StaticShape({static_cast<size_t>(out_size)});
+    ov::Shape out_shape = ov::Shape({static_cast<size_t>(out_size)});
     out->set_shape(out_shape);
     runtime::reference::range(&start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
     return true;
@@ -330,7 +324,7 @@ adjust_for_step_and_sign(T span, T step) {
 }
 
 template <typename T>
-static ov::Shape infer_output_shape(const op::v0::Range* node, const element::Type& /* et */) {
+static ov::PartialShape infer_output_shape(const op::v0::Range* node, const element::Type& /* et */) {
     auto const_start = get_constant_from_source(node->input_value(0));
     auto const_stop = get_constant_from_source(node->input_value(1));
     auto const_step = get_constant_from_source(node->input_value(2));
@@ -360,7 +354,7 @@ static ov::Shape infer_output_shape(const op::v0::Range* node, const element::Ty
         check_step<T>(node, step);
     }
 
-    ov::Shape result{ov::Shape::dynamic(1)};
+    ov::PartialShape result{ov::PartialShape::dynamic(1)};
 
     if (const_start != nullptr && const_stop != nullptr && const_step != nullptr) {
         T span;
@@ -375,7 +369,7 @@ static ov::Shape infer_output_shape(const op::v0::Range* node, const element::Ty
 
         T strided = adjust_for_step_and_sign<T>(span, step);
 
-        result = ov::Shape{Dimension(static_cast<int64_t>(strided))};
+        result = ov::PartialShape{Dimension(static_cast<int64_t>(strided))};
     }
 
     return result;
@@ -404,17 +398,11 @@ void op::v0::Range::validate_and_infer_types() {
                           result_et != element::boolean,
                           "Element type for start, stop, and step, must not be boolean.");
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(0).compatible(ov::StaticShape{}),
-                          "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(1).compatible(ov::StaticShape{}),
-                          "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(2).compatible(ov::StaticShape{}),
-                          "'step' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).compatible(ov::Shape{}), "'start' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).compatible(ov::Shape{}), "'stop' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, get_input_partial_shape(2).compatible(ov::Shape{}), "'step' input is not a scalar");
 
-    ov::Shape result_shape;
+    ov::PartialShape result_shape;
 
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic push
@@ -459,7 +447,7 @@ void op::v0::Range::validate_and_infer_types() {
         result_shape = infer_output_shape<uint64_t>(this, result_et);
         break;
     case element::Type_t::dynamic:
-        result_shape = ov::Shape::dynamic(1);
+        result_shape = ov::PartialShape::dynamic(1);
         break;
     case element::Type_t::u1:
     case element::Type_t::i4:

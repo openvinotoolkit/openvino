@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "openvino/core/shape.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 

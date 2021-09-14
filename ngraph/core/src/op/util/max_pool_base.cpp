@@ -15,9 +15,9 @@ NGRAPH_RTTI_DEFINITION(ov::op::util::MaxPoolBase, "MaxPoolBase", 8);
 
 ov::op::util::MaxPoolBase::MaxPoolBase(const Output<Node>& arg,
                                        const Strides& strides,
-                                       const ngraph::Shape& pads_begin,
-                                       const ngraph::Shape& pads_end,
-                                       const ngraph::Shape& kernel,
+                                       const ov::Shape& pads_begin,
+                                       const ov::Shape& pads_end,
+                                       const ov::Shape& kernel,
                                        const op::RoundingType rounding_type,
                                        const op::PadType auto_pad)
     : Op({arg}),
@@ -38,14 +38,14 @@ void ov::op::util::MaxPoolBase::validate_and_infer_types() {
     }
 
     if (0 == m_pads_begin.size()) {
-        m_pads_begin = ngraph::Shape(m_kernel.size(), 0);
+        m_pads_begin = ov::Shape(m_kernel.size(), 0);
     }
 
     if (0 == m_pads_end.size()) {
-        m_pads_end = ngraph::Shape(m_kernel.size(), 0);
+        m_pads_end = ov::Shape(m_kernel.size(), 0);
     }
 
-    const Shape& arg_shape = get_input_partial_shape(0);
+    const PartialShape& arg_shape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(
         this,
@@ -74,7 +74,7 @@ void ov::op::util::MaxPoolBase::validate_and_infer_types() {
     }
 }
 
-ov::Shape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& dilations) {
+ov::PartialShape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& dilations) {
     NGRAPH_OP_SCOPE(util_MaxPoolBase_infer_output_shape);
 
     const auto& arg_shape = get_input_partial_shape(0);
@@ -86,11 +86,11 @@ ov::Shape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& dilations
         update_auto_padding_succeed = update_auto_padding(arg_shape, filter_dilations, m_pads_end, m_pads_begin);
     }
     if (m_auto_pad == PadType::VALID) {
-        m_pads_end = ngraph::Shape(m_pads_end.size(), 0);
-        m_pads_begin = ngraph::Shape(m_pads_begin.size(), 0);
+        m_pads_end = ov::Shape(m_pads_end.size(), 0);
+        m_pads_begin = ov::Shape(m_pads_begin.size(), 0);
     }
 
-    auto output_shape = Shape::dynamic();
+    auto output_shape = PartialShape::dynamic();
     if (update_auto_padding_succeed) {
         CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
         CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
@@ -118,10 +118,10 @@ ov::Shape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& dilations
     return output_shape;
 }
 
-bool ov::op::util::MaxPoolBase::update_auto_padding(const Shape& in_shape,
+bool ov::op::util::MaxPoolBase::update_auto_padding(const PartialShape& in_shape,
                                                     const Strides& filter_dilations,
-                                                    ngraph::Shape& new_pads_end,
-                                                    ngraph::Shape& new_pads_begin) const {
+                                                    ov::Shape& new_pads_end,
+                                                    ov::Shape& new_pads_begin) const {
     bool update_auto_padding_succeed = true;
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER) {
         CoordinateDiff pads_end, pads_begin;
@@ -132,8 +132,8 @@ bool ov::op::util::MaxPoolBase::update_auto_padding(const Shape& in_shape,
                                                                      m_auto_pad,
                                                                      pads_end,
                                                                      pads_begin);
-        new_pads_end = ngraph::Shape(pads_end.begin(), pads_end.end());
-        new_pads_begin = ngraph::Shape(pads_begin.begin(), pads_begin.end());
+        new_pads_end = ov::Shape(pads_end.begin(), pads_end.end());
+        new_pads_begin = ov::Shape(pads_begin.begin(), pads_begin.end());
     }
     return update_auto_padding_succeed;
 }

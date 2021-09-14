@@ -8,21 +8,21 @@
 
 using namespace std;
 
-ov::descriptor::Tensor::Tensor(const element::Type& element_type, const Shape& pshape, const std::string& name)
+ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
     : m_element_type(element_type),
       m_partial_shape(pshape),
       m_name(name),
       m_shape_changed(true) {}
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
-                               const Shape& pshape,
+                               const PartialShape& pshape,
                                ngraph::Node* node,
                                size_t node_output_number)
     : m_element_type(element_type),
       m_partial_shape(pshape),
       m_shape_changed(true) {}
 
-void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const Shape& pshape) {
+void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const PartialShape& pshape) {
     set_element_type(element_type);
     set_partial_shape(pshape);
 }
@@ -31,7 +31,7 @@ void ov::descriptor::Tensor::set_element_type(const element::Type& element_type)
     m_element_type = element_type;
 }
 
-void ov::descriptor::Tensor::set_partial_shape(const Shape& partial_shape) {
+void ov::descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape) {
     m_partial_shape = partial_shape;
     m_shape_changed = true;
 }
@@ -55,7 +55,7 @@ void ov::descriptor::Tensor::set_upper_value(const ngraph::HostTensorPtr& value)
     m_upper_value = value;
 }
 
-const ngraph::Shape& ov::descriptor::Tensor::get_shape() const {
+const ov::Shape& ov::descriptor::Tensor::get_shape() const {
     if (m_partial_shape.is_static()) {
         if (m_shape_changed.load(std::memory_order_relaxed)) {
             std::lock_guard<std::mutex> guard(shape_mutex);
