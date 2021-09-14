@@ -9,7 +9,7 @@
 #include "openvino/opsets/opset8.hpp"
 
 TEST(function, get_input_by_tensor_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -22,11 +22,11 @@ TEST(function, get_input_by_tensor_name) {
     auto input = f->input("input");
     ASSERT_EQ(input.get_node(), arg0.get());
     ASSERT_EQ(input.get_element_type(), ov::element::f32);
-    ASSERT_EQ(input.get_partial_shape(), ov::Shape{1});
+    ASSERT_EQ(input.get_partial_shape(), ov::PartialShape{1});
 }
 
 TEST(function, get_output_by_tensor_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -44,11 +44,11 @@ TEST(function, get_output_by_tensor_name) {
     ASSERT_EQ(output.get_node(), result.get());
     ASSERT_EQ(f->output("identity"), output);
     ASSERT_EQ(output.get_element_type(), ov::element::f32);
-    ASSERT_EQ(output.get_partial_shape(), ov::Shape{1});
+    ASSERT_EQ(output.get_partial_shape(), ov::PartialShape{1});
 }
 
 TEST(function, get_incorrect_output_by_tensor_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -62,7 +62,7 @@ TEST(function, get_incorrect_output_by_tensor_name) {
 }
 
 TEST(function, get_incorrect_input_by_tensor_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -76,7 +76,7 @@ TEST(function, get_incorrect_input_by_tensor_name) {
 }
 
 TEST(function, get_input_by_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -89,11 +89,11 @@ TEST(function, get_input_by_index) {
     auto input = f->input(0);
     ASSERT_EQ(input.get_node(), arg0.get());
     ASSERT_EQ(input.get_element_type(), ov::element::f32);
-    ASSERT_EQ(input.get_partial_shape(), ov::Shape{1});
+    ASSERT_EQ(input.get_partial_shape(), ov::PartialShape{1});
 }
 
 TEST(function, get_output_by_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -107,11 +107,11 @@ TEST(function, get_output_by_index) {
     auto output = f->output(0);
     ASSERT_EQ(output.get_node(), result.get());
     ASSERT_EQ(output.get_element_type(), ov::element::f32);
-    ASSERT_EQ(output.get_partial_shape(), ov::Shape{1});
+    ASSERT_EQ(output.get_partial_shape(), ov::PartialShape{1});
 }
 
 TEST(function, get_input_without_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -124,11 +124,11 @@ TEST(function, get_input_without_index) {
     auto input = f->input();
     ASSERT_EQ(input.get_node(), arg0.get());
     ASSERT_EQ(input.get_element_type(), ov::element::f32);
-    ASSERT_EQ(input.get_partial_shape(), ov::Shape{1});
+    ASSERT_EQ(input.get_partial_shape(), ov::PartialShape{1});
 }
 
 TEST(function, get_output_without_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -142,11 +142,11 @@ TEST(function, get_output_without_index) {
     auto output = f->output();
     ASSERT_EQ(output.get_node(), result.get());
     ASSERT_EQ(output.get_element_type(), ov::element::f32);
-    ASSERT_EQ(output.get_partial_shape(), ov::Shape{1});
+    ASSERT_EQ(output.get_partial_shape(), ov::PartialShape{1});
 }
 
 TEST(function, get_incorrect_output_by_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -160,7 +160,7 @@ TEST(function, get_incorrect_output_by_index) {
 }
 
 TEST(function, get_incorrect_input_by_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -174,11 +174,11 @@ TEST(function, get_incorrect_input_by_index) {
 }
 
 TEST(function, incorrect_multiple_inputs_outputs_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 2, 3, 3});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
 
-    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 2, 3, 3});
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
     arg1->set_friendly_name("data1");
     arg1->get_output_tensor(0).set_names({"input2", "data1"});
 
@@ -195,16 +195,16 @@ TEST(function, incorrect_multiple_inputs_outputs_function) {
 
     f->validate_nodes_and_infer_types();
 
-    ASSERT_THROW(f->input(), std::exception);
-    ASSERT_THROW(f->output(), std::exception);
+    ASSERT_THROW(f->input(), ov::Exception);
+    ASSERT_THROW(f->output(), ov::Exception);
 }
 
 TEST(function, multiple_inputs_outputs_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 3, 3});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
 
-    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 2, 3, 3});
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
     arg1->set_friendly_name("data1");
     arg1->get_output_tensor(0).set_names({"input2", "data1"});
 
@@ -243,7 +243,7 @@ TEST(function, multiple_inputs_outputs_function) {
 }
 
 TEST(function, create_function_with_incorrect_tensor_names) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -251,5 +251,5 @@ TEST(function, create_function_with_incorrect_tensor_names) {
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"input"});
     auto f = std::make_shared<ov::Function>(relu, ov::ParameterVector{arg0});
-    ASSERT_THROW(f->validate_nodes_and_infer_types(), std::exception);
+    ASSERT_THROW(f->validate_nodes_and_infer_types(), ov::Exception);
 }
