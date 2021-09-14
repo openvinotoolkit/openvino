@@ -28,10 +28,8 @@ class TRANSFORMATIONS_API SpaceToDepthFusion;
  *          +---> StridedSlice -> StridedSlice ----+
  *          +---> StridedSlice -> StridedSlice ----+
  * 
- * to SpaceToDepth
+ * with SpaceToDepth when applicable.
  * 
- * Restrictions:
- * - input rank must be 4
  */
 
 class ngraph::pass::SpaceToDepthFusion: public ngraph::pass::MatcherPass {
