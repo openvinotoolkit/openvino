@@ -82,6 +82,11 @@ void MKLDNNConcatNode::getSupportedDescriptors() {
             IE_THROW() << "Incorrect input dimensions for concat node " << getName();
         }
     }
+
+    // we need the first dims before axis to be 1 to avoid the reorder in the edge between the first parent and this concat
+    const auto& childDims = outputShapes[0].getStaticDims();
+    if (std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) { return  dim == 1; }))
+        canBeInPlace = true;
 }
 
 void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
@@ -162,7 +167,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             return;
         }
     }
-    if (axis != channelAxis)
+    if (!canBeInPlace)
         return;
 
     // Optimized inplace case
@@ -204,24 +209,17 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
     std::vector<size_t> canSelectPrimitive;
 
-    bool canOptimize = true;
-
     // The double connection marks that some tensor should
     // be replicated. Inplace approach is not applicable
     // for that case.
     for (int i = 0; i < getParentEdges().size(); i++) {
         for (int j = i + 1; j < getParentEdges().size(); j++) {
-            if (getParentEdgeAt(i) == getParentEdgeAt(j)) canOptimize = false;
+            if (getParentEdgeAt(i) == getParentEdgeAt(j)) canBeInPlace = false;
         }
-    }
-
-    if (axis != channelAxis) {
-        canOptimize = false;
     }
 
     std::map<LayoutType, size_t> formatFrequency;
     std::vector<LayoutType> supportedLayouts = {LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp8c, LayoutType::nCsp16c};
-
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         auto parent = parentEdge->getParent();
@@ -294,7 +292,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
 
     for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
         if (supportedPrimitiveDescriptors[i].getConfig().outConfs[0].desc->hasLayoutType(convertTo)) {
-            if (IMPLICATION(supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown, canOptimize)) {
+            if (IMPLICATION(supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown, canBeInPlace)) {
                 canSelectPrimitive.push_back(i);
             }
         }
@@ -315,7 +313,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
 
     // if there are no matching data layouts, select first optimized implementation
     for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
-        if (canOptimize && supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown) {
+        if (canBeInPlace && supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown) {
             selectPrimitiveDescriptorByIndex(static_cast<int>(i));
             return;
         }

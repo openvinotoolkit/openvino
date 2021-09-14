@@ -33,7 +33,7 @@ typedef std::tuple<
 class SplitConvTest : public testing::WithParamInterface<SplitConvParams>,
                       public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SplitConvParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<SplitConvParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:
