@@ -94,9 +94,14 @@ public:
 private:
     void decode_to_framework_nodes() override;
     void find_inputs_from_parent();
+    /// \brief      Replaces current node's input with Parameter if that input comes from parent graph scope
+    ///
+    /// \param[in]  in_name                  input node name
+    /// \param[in]  from_parent_node         nGraph node from parent scope
+    /// \param[in]  node_to_replace_input    nGraph input node to be replaced
     void replace_input_from_parent_scope_with_parameter(const std::string& in_name,
                                                         const Output<ngraph::Node>& from_parent_node,
-                                                        Input<ngraph::Node>&& out_node_to_replace_input);
+                                                        Input<ngraph::Node>&& node_to_replace_input);
 
     const Graph* m_parent_graph;
     std::vector<std::string> m_inputs_from_parent;

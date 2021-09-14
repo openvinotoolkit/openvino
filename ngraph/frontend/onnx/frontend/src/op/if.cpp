@@ -33,14 +33,20 @@ OutputVector if_op(const Node& node) {
     if_node->set_else_body(else_branch);
 
     const auto then_branch_inputs_from_parent = then_subgraph->get_inputs_from_parent();
-    NGRAPH_CHECK(then_branch_inputs_from_parent.size() == then_params.size());
+    NGRAPH_CHECK(then_branch_inputs_from_parent.size() == then_params.size(),
+                 "Number of inputs to 'then_branch' is invalid. Expected " +
+                     std::to_string(then_branch_inputs_from_parent.size()) + ", actual " +
+                     std::to_string(then_params.size()));
     auto then_param = then_params.cbegin();
     for (const auto& from_parent : then_branch_inputs_from_parent) {
         if_node->set_input(from_parent, *then_param, nullptr);
         then_param++;
     }
     const auto else_branch_inputs_from_parent = else_subgraph->get_inputs_from_parent();
-    NGRAPH_CHECK(else_branch_inputs_from_parent.size() == else_params.size());
+    NGRAPH_CHECK(else_branch_inputs_from_parent.size() == else_params.size(),
+                 "Number of inputs to 'else_branch' is invalid. Expected " +
+                     std::to_string(else_branch_inputs_from_parent.size()) + ", actual " +
+                     std::to_string(else_params.size()));
     auto else_param = else_params.cbegin();
     for (const auto& from_parent : else_branch_inputs_from_parent) {
         if_node->set_input(from_parent, nullptr, *else_param);
