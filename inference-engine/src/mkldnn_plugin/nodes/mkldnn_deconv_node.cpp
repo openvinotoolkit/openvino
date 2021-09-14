@@ -152,6 +152,10 @@ InferenceEngine::Blob::Ptr MKLDNNDeconvolutionNode::createWeiBlobAsIO(InferenceE
 }
 
 bool MKLDNNDeconvolutionNode::canBeExecutedInInt8() const {
+    if (std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgeAt(1)->getParent()) == nullptr) {
+        return false;
+    }
+
     // todo: [antonvor] added these checks to fix performance problems
     if (kernel.size() == 3)
         return false;
