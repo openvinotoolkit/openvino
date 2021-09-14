@@ -215,12 +215,17 @@ void avg_pool(const T* arg,
             }
         }
 
-        if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value) {
-            out[output_transform.index(out_coord)] =
-                static_cast<T>(std::nearbyint(static_cast<float>(result) / n_elements));
+        if (n_elements != 0) {
+            if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value) {
+                out[output_transform.index(out_coord)] =
+                    static_cast<T>(std::nearbyint(static_cast<float>(result) / n_elements));
+            } else {
+                out[output_transform.index(out_coord)] = result / n_elements;
+            }
         } else {
-            out[output_transform.index(out_coord)] = n_elements != 0 ? result / n_elements : static_cast<T>(0);
+            out[output_transform.index(out_coord)] = T{0};
         }
+
         std::fesetround(old_mode);
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
