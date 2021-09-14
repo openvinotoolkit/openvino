@@ -46,6 +46,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
 std::map<std::string, std::string> additionalConfig = {};
 
 const auto elementiwiseParams = ::testing::Combine(
+        ::testing::Values(std::vector<std::pair<size_t, size_t>>(NULL_RANGE)),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(eltwiseOpTypes),
         ::testing::ValuesIn(secondaryInputTypes),
@@ -53,7 +54,6 @@ const auto elementiwiseParams = ::testing::Combine(
         ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additionalConfig));
 

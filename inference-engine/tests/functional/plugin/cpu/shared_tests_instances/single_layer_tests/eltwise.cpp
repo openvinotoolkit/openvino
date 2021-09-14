@@ -16,8 +16,8 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{1, 10, 100}},
         {{4, 4, 16}},
         {{1, 1, 1, 3}},
-        {{2, 17, 5, 4}, {1, 17, 1, 1}},
-        {{2, 17, 5, 1}, {1, 17, 1, 4}},
+        // {{2, 17, 5, 4}, {1, 17, 1, 1}},
+        // {{2, 17, 5, 1}, {1, 17, 1, 4}},
         {{1, 2, 4}},
         {{1, 4, 4}},
         {{1, 4, 4, 1}},
@@ -37,7 +37,7 @@ std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
 };
 
 std::vector<CommonTestUtils::OpType> opTypes = {
-        CommonTestUtils::OpType::SCALAR,
+        // CommonTestUtils::OpType::SCALAR,
         CommonTestUtils::OpType::VECTOR,
 };
 
@@ -55,6 +55,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
 std::map<std::string, std::string> additional_config = {};
 
 const auto multiply_params = ::testing::Combine(
+        ::testing::Values(std::vector<std::pair<size_t, size_t>>(NULL_RANGE)),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(eltwiseOpTypes),
         ::testing::ValuesIn(secondaryInputTypes),
@@ -62,7 +63,6 @@ const auto multiply_params = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
@@ -85,6 +85,7 @@ std::map<std::string, std::string> additional_config_single_thread = {
 };
 
 const auto single_thread_params = ::testing::Combine(
+        ::testing::Values(std::vector<std::pair<size_t, size_t>>(NULL_RANGE)),
         ::testing::ValuesIn(inShapesSingleThread),
         ::testing::ValuesIn(eltwiseOpTypesSingleThread),
         ::testing::ValuesIn(secondaryInputTypes),
@@ -92,11 +93,39 @@ const auto single_thread_params = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config_single_thread));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);
 
+std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDyn = {
+        ngraph::helpers::EltwiseTypes::ADD,
+        ngraph::helpers::EltwiseTypes::MULTIPLY,
+        // ngraph::helpers::EltwiseTypes::SUBTRACT,
+        // ngraph::helpers::EltwiseTypes::DIVIDE,
+        ngraph::helpers::EltwiseTypes::FLOOR_MOD,
+        // ngraph::helpers::EltwiseTypes::POWER,
+};
+
+std::vector<std::vector<std::vector<size_t>>> inShapesDynamic = {
+        {{3, 1, 1, 1}},
+        {{10, 50, 2, 75}},
+        {{5, 2, 100, 4}},
+        {{3, 10, 30, 1}},
+};
+
+const auto dynamic_params = ::testing::Combine(
+        ::testing::Values(std::vector<std::pair<size_t, size_t>>{{3, 10}, {1, 50}, UNDEFINED_RANGE, {1, 75}}),
+        ::testing::ValuesIn(inShapesDynamic),
+        ::testing::ValuesIn(eltwiseOpTypesDyn),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, EltwiseLayerTest, dynamic_params, EltwiseLayerTest::getTestCaseName);
 
 }  // namespace
