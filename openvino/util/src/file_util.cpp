@@ -175,15 +175,15 @@ void ov::util::iterate_files(const std::string& path,
         do {
             bool is_dir = data.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY;
             if (is_dir) {
-                if (string(data.cFileName) != "." && string(data.cFileName) != "..") {
-                    string dir_path = path_join({path, data.cFileName});
+                if (std::string(data.cFileName) != "." && std::string(data.cFileName) != "..") {
+                    std::string dir_path = path_join({path, data.cFileName});
                     if (recurse) {
                         iterate_files(dir_path, func, recurse);
                     }
                     func(dir_path, true);
                 }
             } else {
-                string file_name = path_join({path, data.cFileName});
+                std::string file_name = path_join({path, data.cFileName});
                 func(file_name, false);
             }
         } while (FindNextFileA(hFind, &data));
