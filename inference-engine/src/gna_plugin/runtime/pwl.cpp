@@ -549,21 +549,21 @@ void PwlDesignOpt(const DnnActivation activation_type,
             break;
         case kActLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
+            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
             pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActNegLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
+            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
             pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActNegHalfLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
+            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
             pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;

@@ -486,9 +486,6 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
                     << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
 
-            auto fp32eq = [](float p1, float p2) -> bool {
-                return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-            };
             // GNA input is always quantized to int16, so number of levels can't be greater than max uint16
             // todo: should be solved in POT (issue 63330)
             size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
