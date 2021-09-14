@@ -5,23 +5,19 @@
 #include "tests_utils.h"
 
 #include <gtest/gtest.h>
+#include <map>
 #include <pugixml.hpp>
 #include <string>
-#include <map>
 
 #define DEBUG_MODE false
 
-const pugi::xml_document & Environment::getTestConfig() {
-    return _test_config;
-}
+const pugi::xml_document &Environment::getTestConfig() { return _test_config; }
 
-void Environment::setTestConfig(const pugi::xml_document &test_config) {
-    _test_config.reset(test_config);
-}
+void Environment::setTestConfig(const pugi::xml_document &test_config) { _test_config.reset(test_config); }
 
 std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fields) {
     std::vector<TestCase> tests_cases;
-    const pugi::xml_document & test_config = Environment::Instance().getTestConfig();
+    const pugi::xml_document &test_config = Environment::Instance().getTestConfig();
 
     std::vector<int> processes, threads, iterations;
     std::vector<std::string> devices, models, models_names, precisions;
@@ -50,7 +46,8 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
                 std::string full_path = val.attribute("full_path").as_string();
                 std::string path = val.attribute("path").as_string();
                 if (full_path.empty() || path.empty())
-                    throw std::logic_error("One of the 'model' records from test config doesn't contain 'full_path' or 'path' attributes");
+                    throw std::logic_error("One of the 'model' records from test config doesn't contain 'full_path' or "
+                                           "'path' attributes");
                 else {
                     models.push_back(full_path);
                     models_names.push_back(path);
@@ -62,9 +59,9 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
     }
 
     // Initialize variables with default value if it weren't filled
-    processes = !processes.empty() ? processes: std::vector<int>{1};
-    threads = !threads.empty() ? threads: std::vector<int>{1};
-    iterations = !iterations.empty() ? iterations: std::vector<int>{1};
+    processes = !processes.empty() ? processes : std::vector<int>{1};
+    threads = !threads.empty() ? threads : std::vector<int>{1};
+    iterations = !iterations.empty() ? iterations : std::vector<int>{1};
     devices = !devices.empty() ? devices : std::vector<std::string>{"NULL"};
     models = !models.empty() ? models : std::vector<std::string>{"NULL"};
     precisions = !precisions.empty() ? precisions : std::vector<std::string>{"NULL"};
@@ -75,13 +72,14 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
             for (auto &numiters : iterations)
                 for (auto &device : devices)
                     for (int i = 0; i < models.size(); i++)
-                        tests_cases.push_back(TestCase(numprocesses, numthreads, numiters, device, models[i], models_names[i], precisions[i]));
-                    return tests_cases;
+                        tests_cases.push_back(TestCase(numprocesses, numthreads, numiters, device, models[i],
+                                                       models_names[i], precisions[i]));
+    return tests_cases;
 }
 
 std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
     std::vector<MemLeaksTestCase> tests_cases;
-    const pugi::xml_document & test_config = Environment::Instance().getTestConfig();
+    const pugi::xml_document &test_config = Environment::Instance().getTestConfig();
 
     int numprocesses, numthreads, numiterations;
     std::string device_name;
@@ -95,15 +93,16 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
         numthreads = device.attribute("threads").as_int(1);
         numiterations = device.attribute("iterations").as_int(1);
 
-        std::vector <std::map <std::string, std::string>> models;
+        std::vector<std::map<std::string, std::string>> models;
 
-        for (pugi::xml_node model = device.first_child(); model; model = model.next_sibling()){
+        for (pugi::xml_node model = device.first_child(); model; model = model.next_sibling()) {
             std::string full_path = model.attribute("full_path").as_string();
             std::string path = model.attribute("path").as_string();
             if (full_path.empty() || path.empty())
-                throw std::logic_error("One of the 'model' records from test config doesn't contain 'full_path' or 'path' attributes");
+                throw std::logic_error(
+                        "One of the 'model' records from test config doesn't contain 'full_path' or 'path' attributes");
             std::string precision = model.attribute("precision").as_string();
-            std::map<std::string, std::string> model_map { {"name", path}, {"path", full_path}, {"path", precision} };
+            std::map<std::string, std::string> model_map{{"name", path}, {"path", full_path}, {"path", precision}};
             models.push_back(model_map);
         }
         tests_cases.push_back(MemLeaksTestCase(numprocesses, numthreads, numiterations, device_name, models));
@@ -112,13 +111,9 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
     return tests_cases;
 }
 
-std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj) {
-    return obj.param.test_case_name;
-}
+std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj) { return obj.param.test_case_name; }
 
-std::string getTestCaseName(const testing::TestParamInfo<MemLeaksTestCase> &obj) {
-    return obj.param.test_case_name;
-}
+std::string getTestCaseName(const testing::TestParamInfo<MemLeaksTestCase> &obj) { return obj.param.test_case_name; }
 
 void test_wrapper(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params) {
     tests_pipeline(params.model, params.device, params.numiters);
@@ -132,8 +127,7 @@ void runTest(const std::function<void(std::string, std::string, int)> &tests_pip
 #if DEBUG_MODE
     tests_pipeline(params.model, params.device, params.numiters);
 #else
-    int status = run_in_processes(params.numprocesses, [&](){ _runTest(tests_pipeline, params); });
+    int status = run_in_processes(params.numprocesses, [&]() { _runTest(tests_pipeline, params); });
     ASSERT_EQ(status, 0) << "Test failed with exitcode " << std::to_string(status);
 #endif
 }
-
