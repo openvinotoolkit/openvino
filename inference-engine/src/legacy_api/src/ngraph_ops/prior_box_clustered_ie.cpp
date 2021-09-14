@@ -11,6 +11,8 @@
 using namespace std;
 using namespace ngraph;
 
+BWDCMP_RTTI_DEFINITION(op::PriorBoxClusteredIE);
+
 op::PriorBoxClusteredIE::PriorBoxClusteredIE(const Output<Node>& input, const Output<Node>& image,
                                              const PriorBoxClusteredAttrs& attrs)
     : Op({input, image}), m_attrs(attrs) {

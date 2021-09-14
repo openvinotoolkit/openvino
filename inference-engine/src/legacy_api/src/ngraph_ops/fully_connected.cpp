@@ -10,6 +10,8 @@
 using namespace std;
 using namespace ngraph;
 
+BWDCMP_RTTI_DEFINITION(op::FullyConnected);
+
 op::FullyConnected::FullyConnected(
     const Output<Node>& A,
     const Output<Node>& B,

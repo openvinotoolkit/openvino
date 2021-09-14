@@ -18,6 +18,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(TopKIE) : public Op {
 public:
     OPENVINO_OP("TopKIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     TopKIE(const Output<Node>& data,
            const Output<Node>& k,

@@ -17,6 +17,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(NormalizeIE) : public Op {
 public:
     OPENVINO_OP("NormalizeIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     NormalizeIE() = default;
 

@@ -19,6 +19,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(PadIE) : public Op {
 public:
     OPENVINO_OP("PadIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     explicit PadIE(const std::shared_ptr<op::v1::Pad>& pad);
 

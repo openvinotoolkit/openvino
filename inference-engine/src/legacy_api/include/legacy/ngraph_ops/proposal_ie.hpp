@@ -17,6 +17,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(ProposalIE) : public Op {
 public:
     OPENVINO_OP("ProposalIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     //  \brief Constructs a Proposal operation
     //

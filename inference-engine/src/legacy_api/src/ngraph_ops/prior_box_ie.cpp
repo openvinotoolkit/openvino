@@ -11,6 +11,8 @@
 using namespace std;
 using namespace ngraph;
 
+BWDCMP_RTTI_DEFINITION(op::PriorBoxIE);
+
 op::PriorBoxIE::PriorBoxIE(const Output<Node>& input, const Output<Node>& image, const PriorBoxAttrs& attrs)
     : Op({input, image}), m_attrs(attrs) {
     constructor_validate_and_infer_types();

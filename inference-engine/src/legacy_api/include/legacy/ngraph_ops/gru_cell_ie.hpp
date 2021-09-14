@@ -18,6 +18,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(GRUCellIE) : public Op {
 public:
     OPENVINO_OP("GRUCellIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     GRUCellIE(const Output<Node> &X,
               const Output<Node> &H_t,

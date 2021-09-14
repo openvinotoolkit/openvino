@@ -18,6 +18,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(FullyConnected) : public Op {
 public:
     OPENVINO_OP("FullyConnected", "legacy");
+    BWDCMP_RTTI_DECLARATION;
     FullyConnected() = default;
     /// \brief Constructs an FullyConnected operation.
     ///

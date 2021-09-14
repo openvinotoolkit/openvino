@@ -17,6 +17,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(GatherTreeIE) : public Op {
 public:
     OPENVINO_OP("GatherTreeIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
     GatherTreeIE() = default;
     /// \param step_ids     Tensor of shape [MAX_TIME, BATCH_SIZE, BEAM_WIDTH] with
     ///                     indices from per each step

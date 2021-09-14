@@ -17,6 +17,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(Eltwise) : public Op {
 public:
     OPENVINO_OP("Eltwise", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     Eltwise(const Output<Node>& data1,
             const Output<Node>& data2,

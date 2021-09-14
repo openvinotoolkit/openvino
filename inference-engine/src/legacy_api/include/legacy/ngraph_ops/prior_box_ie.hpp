@@ -17,6 +17,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(PriorBoxIE) : public Op {
 public:
     OPENVINO_OP("PriorBoxIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a PriorBoxIE operation
     ///

@@ -18,6 +18,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(LSTMCellIE) : public Op {
 public:
     OPENVINO_OP("LSTMCellIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     LSTMCellIE(const Output<Node> &X,
                 const Output<Node> &H_t,

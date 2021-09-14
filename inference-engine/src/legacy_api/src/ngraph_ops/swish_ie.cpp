@@ -13,6 +13,8 @@
 using namespace std;
 using namespace ngraph;
 
+BWDCMP_RTTI_DEFINITION(op::SwishIE);
+
 op::SwishIE::SwishIE(const Output<Node> & input, const float alpha)
         : Op({input}), m_alpha(alpha) {
     constructor_validate_and_infer_types();

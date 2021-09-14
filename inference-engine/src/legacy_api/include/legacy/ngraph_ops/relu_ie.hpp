@@ -16,6 +16,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(ReLUIE) : public Op {
 public:
     OPENVINO_OP("ReLUIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     ReLUIE(const Output<Node> & data, const float & negative_slope, const element::Type output_type);
 

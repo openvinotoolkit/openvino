@@ -17,6 +17,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(LRN_IE) : public Op {
 public:
     OPENVINO_OP("LRN_IE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     LRN_IE() = default;
 

@@ -16,6 +16,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(SeluIE) : public Op {
 public:
     OPENVINO_OP("SeluIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     SeluIE(const Output<Node> & input,
            const float alpha,

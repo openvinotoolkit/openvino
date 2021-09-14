@@ -17,6 +17,7 @@ namespace op {
 class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE) : public Op {
 public:
     OPENVINO_OP("NonMaxSuppressionIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     NonMaxSuppressionIE(const Output<Node>& boxes,
                         const Output<Node>& scores,
@@ -41,6 +42,7 @@ public:
 class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE2) : public NonMaxSuppressionIE {
 public:
     OPENVINO_OP("NonMaxSuppressionIE2", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     NonMaxSuppressionIE2(const Output<Node>& boxes,
                         const Output<Node>& scores,
@@ -59,6 +61,7 @@ public:
 class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE3) : public Op {
 public:
     OPENVINO_OP("NonMaxSuppressionIE3", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     NonMaxSuppressionIE3(const Output<Node>& boxes,
                          const Output<Node>& scores,
