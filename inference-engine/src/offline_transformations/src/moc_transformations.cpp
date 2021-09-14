@@ -38,6 +38,7 @@
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/common_optimizations/leaky_relu_fusion.hpp>
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
+#include "transformations/common_optimizations/mul_conv_fusion.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -106,6 +107,10 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
     conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
     conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
     conv_fusions->set_name("ngraph::pass::ConvFusions");
 
     manager.run_passes(f);
