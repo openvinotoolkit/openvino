@@ -722,9 +722,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-        manager.register_pass<ConvertDWSCBiasToScaleShifts>();
         manager.register_pass<ConvertDWSCToScaleShifts>();
-        manager.register_pass<ConvertDWSCWithFqToScaleShifts>();
         manager.register_pass<ConvertPaddedToValidConv>();
         if (config.gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
             manager.register_pass<Decompose2DConvTransposedWithBiasAF>();

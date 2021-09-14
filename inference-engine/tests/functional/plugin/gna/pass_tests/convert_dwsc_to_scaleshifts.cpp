@@ -22,8 +22,8 @@ using namespace ngraph::opset7;
 namespace LayerTestsDefinitions {
 
 enum class modelType {
-    DWSC = 0,               /* Depth-Wise Separable Convolution (represented by Group Convolution in ngraph) */
-    DWSCBias,               /* DWSC => Broadcasted Add (Bias) */
+    TranspDWSCTransp = 0,               /* Transpose(NHWC->NCHW) => DWSC (Group Convolution) => Transpose(NCHW->NHWC) */
+    TranspDWSCBiasTransp,               /* Transpose(NHWC->NCHW) => DWSC => Broadcasted Add (Bias) => Transpose(NCHW->NHWC) */
 };
 
 typedef std::tuple<
@@ -99,16 +99,21 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         auto input = builder::makeParams(ngPrc, {inputShape});
+        auto transposeInOrder = op::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+        auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(filter), std::end(filter), 1ull, std::multiplies<size_t>());
-        auto filterWeights = CommonTestUtils::generate_float_numbers(numOutChannels * (inputShape[1] / numGroups) * filterSize, -1.0f, 1.0f);
-        auto lastOp = builder::makeGroupConvolution(input[0], ngPrc, filter, stride, padBegin,
+        auto filterWeights = CommonTestUtils::generate_float_numbers(numOutChannels * (inputShape[3] / numGroups) * filterSize, -0.5f, 0.5f);
+        auto dwsc = builder::makeGroupConvolution(transposeIn, ngPrc, filter, stride, padBegin,
             padEnd, dilation, padType, numOutChannels, numGroups, false, filterWeights);
+        auto transposeOutOrder = op::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
+        auto lastOp = std::make_shared<Transpose>(dwsc, transposeOutOrder);
 
-        if (model == modelType::DWSCBias) {
+        if (model == modelType::TranspDWSCBiasTransp) {
             Shape biasShape{bias};
             auto biasWeights = CommonTestUtils::generate_float_numbers(shape_size(biasShape), -1.0f, 1.0f);
             auto biasConst = std::make_shared<Constant>(ngPrc, biasShape, biasWeights);
-            lastOp = std::make_shared<Add>(lastOp, biasConst);
+            auto bias = std::make_shared<Add>(dwsc, biasConst);
+            lastOp = std::make_shared<Transpose>(bias, transposeOutOrder);
         }
 
         auto result = std::make_shared<Result>(lastOp);
@@ -140,11 +145,11 @@ const std::vector<op::PadType> padTypes = {
 };
 
 const std::vector<modelType> models = {
-    modelType::DWSC,
-    modelType::DWSCBias
+    modelType::TranspDWSCTransp,
+    modelType::TranspDWSCBiasTransp
 };
 
-const std::vector<std::vector<size_t>> inputNCHW = {{1, 32, 1, 5}};
+const std::vector<std::vector<size_t>> inputNHWC = {{1, 1, 5, 32}};
 const std::vector<std::vector<size_t >> filters = {{1, 3}};
 const std::vector<std::vector<size_t >> strides = {{1, 1}, {1, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 1}, {0, 2}};
@@ -172,7 +177,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DWSCToScaleShifts, DWSCToScaleShiftsTest,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::ValuesIn(configs),
-        ::testing::ValuesIn(inputNCHW),
+        ::testing::ValuesIn(inputNHWC),
         ::testing::ValuesIn(models)),
     DWSCToScaleShiftsTest::getTestCaseName);
 
@@ -182,7 +187,7 @@ const std::vector<op::PadType> padTypesSD = {
     op::PadType::VALID,
 };
 
-const std::vector<std::vector<size_t>> inputNCHWSD = {{1, 32, 1, 8}};
+const std::vector<std::vector<size_t>> inputNHWCSD = {{1, 1, 8, 32}};
 const std::vector<std::vector<size_t >> dilationsSD = {{1, 1}, {1, 2}};
 
 const auto convParamsSD = ::testing::Combine(
@@ -203,7 +208,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DWSCToScaleShiftsStridesDilations, DWSCToScaleShif
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::ValuesIn(configs),
-        ::testing::ValuesIn(inputNCHWSD),
+        ::testing::ValuesIn(inputNHWCSD),
         ::testing::ValuesIn(models)),
     DWSCToScaleShiftsTest::getTestCaseName);
 

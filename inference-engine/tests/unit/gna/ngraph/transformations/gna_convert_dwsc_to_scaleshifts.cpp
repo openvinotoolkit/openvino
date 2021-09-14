@@ -19,8 +19,8 @@ namespace testing {
 namespace {
 
 enum class modelType {
-    DWSC = 0,               /* Depth-Wise Separable Convolution (represented by Group Convolution in ngraph) */
-    DWSCBias,               /* DWSC => Broadcasted Add (Bias) */
+    TranspDWSCTransp = 0,               /* Transpose(NHWC->NCHW) => DWSC (Group Convolution) => Transpose(NCHW->NHWC) */
+    TranspDWSCBiasTransp,               /* Transpose(NHWC->NCHW) => DWSC => Broadcasted Add (Bias) => Transpose(NCHW->NHWC) */
 };
 
 typedef std::tuple<
@@ -49,10 +49,9 @@ std::shared_ptr<ngraph::opset7::FakeQuantize> createFQ(std::shared_ptr<ngraph::N
 }
 
 std::shared_ptr<ngraph::Node> createBiasFQ(const std::shared_ptr<ngraph::Node>& in_node,
-    std::shared_ptr<ngraph::opset7::Constant>& bias_const, std::shared_ptr<ngraph::opset7::Add>& bias, const bool& fq) {
+    std::shared_ptr<ngraph::opset7::Constant>& bias_const, const bool& fq) {
     std::shared_ptr<ngraph::Node> node;
-    bias = std::make_shared<ngraph::opset7::Add>(in_node, bias_const);
-    node = bias;
+    node = std::make_shared<ngraph::opset7::Add>(in_node, bias_const);
 
     if (fq) {
         node = createFQ(node);
@@ -76,26 +75,30 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     std::shared_ptr<ngraph::opset7::FakeQuantize>& fq_bias) {
     std::shared_ptr<ngraph::Node> fq_filters;
 
+    auto transpose_in_order = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+    auto transpose_in = std::make_shared<ngraph::opset7::Transpose>(input_node, transpose_in_order);
+
     if (fq) {
         fq_filters = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64,
-            ngraph::Shape{input_node.get_shape()[1], 1, filters_shape[0], filters_shape[1]});
+            ngraph::Shape{input_node.get_shape()[3], 1, filters_shape[0], filters_shape[1]});
         fq_filters = createFQ(fq_filters);
         fq_filters = std::make_shared<ngraph::opset7::Reshape>(fq_filters,
             ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{5},
-                ngraph::Shape{input_node.get_shape()[1], 1, 1, filters_shape[0], filters_shape[1]}), false);
+                ngraph::Shape{input_node.get_shape()[3], 1, 1, filters_shape[0], filters_shape[1]}), false);
     } else {
         fq_filters = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64,
-            ngraph::Shape{input_node.get_shape()[1], 1, 1, filters_shape[0], filters_shape[1]});
+            ngraph::Shape{input_node.get_shape()[3], 1, 1, filters_shape[0], filters_shape[1]});
     }
 
-    dwsc = std::make_shared<ngraph::opset7::GroupConvolution>(input_node, fq_filters, conv_stride, pads_begin, pads_end, conv_dilation, pad_type);
-    std::shared_ptr<ngraph::Node> last_op = dwsc;
+    dwsc = std::make_shared<ngraph::opset7::GroupConvolution>(transpose_in, fq_filters, conv_stride, pads_begin, pads_end, conv_dilation, pad_type);
+    auto transpose_out_order = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+    auto last_op = std::make_shared<ngraph::opset7::Transpose>(dwsc, transpose_out_order);
 
-    if (model == modelType::DWSCBias || fq) {
-        std::shared_ptr<ngraph::opset7::Add> bias = nullptr;
+    if (model == modelType::TranspDWSCBiasTransp || fq) {
         bias_const = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, bias_shape);
-        last_op = createBiasFQ(dwsc, bias_const, bias, fq);
-        fq_bias = std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(last_op);
+        auto bias = createBiasFQ(dwsc, bias_const, fq);
+        fq_bias = std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(bias);
+        last_op = std::make_shared<ngraph::opset7::Transpose>(bias, transpose_out_order);
     }
 
     return std::make_shared<ngraph::opset7::Result>(last_op);
@@ -129,10 +132,10 @@ public:
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
     modelType model;
-    bool fq;
 };
 
 void ConvertDWSCToScaleShiftsTestInvalidFixture::SetUp() {
+    bool fq;
     DWSCToScaleShiftsParams params;
     ngraph::Shape input_shape;
     ngraph::Shape filters_shape, bias_shape;
@@ -174,10 +177,10 @@ public:
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
     modelType model;
-    bool fq;
 };
 
 void ConvertDWSCToScaleShiftsTestFixture::SetUp() {
+    bool fq;
     DWSCToScaleShiftsParams params;
     ngraph::Shape input_shape;
     ngraph::Shape filters_shape, bias_shape;
@@ -282,9 +285,7 @@ std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ngraph::opset7::Grou
 
     // Concat and transpose is only needed when output width > 1
     if (output_chunks.size() > 1) {
-        auto concat_output_plane = std::make_shared<ngraph::opset7::Concat>(output_chunks, 0);
-        return std::make_shared<ngraph::opset7::Transpose>(concat_output_plane,
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, 0}));
+        return std::make_shared<ngraph::opset7::Concat>(output_chunks, 0);
     }
 
     return output_chunks[0].get_node_shared_ptr();
@@ -304,20 +305,11 @@ std::shared_ptr<ngraph::Function> ConvertDWSCToScaleShiftsTestFixture::get_refer
     const std::shared_ptr<ngraph::opset7::Constant>& bias_const,
     const std::shared_ptr<ngraph::opset7::FakeQuantize>& fq_bias) {
     auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
-    auto input_channel_count = input_shape[1];
-    auto input_width = input_shape[3];
     auto output_channel_count = dwsc->get_output_shape(0)[1];
     auto output_width = dwsc->get_output_shape(0)[3];
 
     // Prepare flat input data
-    auto reshaped_input_plane = std::make_shared<ngraph::opset7::Reshape>(input_params,
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
-            ngraph::Shape{input_channel_count, input_width}), false);
-
-    auto transposed_input_plane = std::make_shared<ngraph::opset7::Transpose>(reshaped_input_plane,
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, 0}));
-
-    auto flat_input_plane = std::make_shared<ngraph::opset7::Reshape>(transposed_input_plane,
+    auto flat_input_plane = std::make_shared<ngraph::opset7::Reshape>(input_params,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
             ngraph::Shape{1, ngraph::shape_size(input_shape)}), false);
 
@@ -344,18 +336,11 @@ std::shared_ptr<ngraph::Function> ConvertDWSCToScaleShiftsTestFixture::get_refer
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-void execute_test(modelType model, bool fq, std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
+void execute_test(modelType model, std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
-    if (fq) {
-        manager.register_pass<GNAPluginNS::ConvertDWSCWithFqToScaleShifts>();
-    } else if (model == modelType::DWSCBias) {
-        manager.register_pass<GNAPluginNS::ConvertDWSCBiasToScaleShifts>();
-    } else {
-        manager.register_pass<GNAPluginNS::ConvertDWSCToScaleShifts>();
-    }
-
+    manager.register_pass<GNAPluginNS::ConvertDWSCToScaleShifts>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
@@ -363,7 +348,7 @@ void execute_test(modelType model, bool fq, std::shared_ptr<ngraph::Function> fu
 }
 
 TEST_P(ConvertDWSCToScaleShiftsTestFixture, CompareFunctions) {
-    execute_test(model, fq, function, reference_function);
+    execute_test(model, function, reference_function);
 }
 
 INSTANTIATE_TEST_SUITE_P(ConvertDWSCToScaleShiftsTestSuite, ConvertDWSCToScaleShiftsTestFixture,
@@ -371,15 +356,15 @@ INSTANTIATE_TEST_SUITE_P(ConvertDWSCToScaleShiftsTestSuite, ConvertDWSCToScaleSh
         // With / without Fake Quantize layers
         ::testing::Values(true, false),
         ::testing::Values(
-            std::make_tuple(modelType::DWSC, ngraph::Shape{1, 32, 1, 5}, ngraph::Shape{1, 3}, ngraph::Strides{1, 1},
+            std::make_tuple(modelType::TranspDWSCTransp, ngraph::Shape{1, 1, 5, 32}, ngraph::Shape{1, 3}, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{0, 1}, ngraph::CoordinateDiff{0, 1}, ngraph::Strides{1, 1},
                 ngraph::Shape{1, 32, 1, 1}, ngraph::op::PadType::VALID),
-            std::make_tuple(modelType::DWSCBias, ngraph::Shape{1, 32, 1, 5}, ngraph::Shape{1, 3}, ngraph::Strides{1, 1},
+            std::make_tuple(modelType::TranspDWSCBiasTransp, ngraph::Shape{1, 1, 5, 32}, ngraph::Shape{1, 3}, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 2}, ngraph::Strides{1, 1},
                 ngraph::Shape{1, 32, 1, 1}, ngraph::op::PadType::VALID))));
 
 TEST_P(ConvertDWSCToScaleShiftsTestInvalidFixture, CompareFunctions) {
-    execute_test(model, fq, function, reference_function);
+    execute_test(model, function, reference_function);
 }
 
 INSTANTIATE_TEST_SUITE_P(ConvertDWSCToScaleShiftsInvalidTestSuite, ConvertDWSCToScaleShiftsTestInvalidFixture,
@@ -387,10 +372,10 @@ INSTANTIATE_TEST_SUITE_P(ConvertDWSCToScaleShiftsInvalidTestSuite, ConvertDWSCTo
         // With / without Fake Quantize layers
         ::testing::Values(true, false),
         ::testing::Values(
-            std::make_tuple(modelType::DWSC, ngraph::Shape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            std::make_tuple(modelType::TranspDWSCTransp, ngraph::Shape{2, 16, 8, 1}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
                 ngraph::Shape{1, 4, 1, 1}, ngraph::op::PadType::SAME_UPPER),
-            std::make_tuple(modelType::DWSCBias, ngraph::Shape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            std::make_tuple(modelType::TranspDWSCBiasTransp, ngraph::Shape{2, 16, 8, 1}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
                 ngraph::Shape{1, 4, 1, 1}, ngraph::op::PadType::EXPLICIT))));
 

@@ -10,30 +10,12 @@ namespace GNAPluginNS {
 
 /**
  * @brief Convert a depthwise separable convolution (represented by a GroupConvolution) to a set of ScaleShift layers (MatMul + Add)
+ * Additionally supported are bias and fake quantize layers.
  */
 class ConvertDWSCToScaleShifts : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertDWSCToScaleShifts();
-};
-
-/**
- * @brief Convert a depthwise separable convolution with bias (represented by a GroupConvolution + Add) to a set of ScaleShift layers (MatMul + Add)
- */
-class ConvertDWSCBiasToScaleShifts : public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvertDWSCBiasToScaleShifts();
-};
-
-/**
- * @brief Convert a depthwise separable convolution + potential bias (represented by a GroupConvolution + Add), processed by POT,
- * to a set of ScaleShift layers (MatMul + Add)
- */
-class ConvertDWSCWithFqToScaleShifts : public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvertDWSCWithFqToScaleShifts();
 };
 
 } // namespace GNAPluginNS

@@ -8,6 +8,7 @@
 
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ie_common.h>
@@ -17,8 +18,6 @@
 using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(ConvertDWSCToScaleShifts, "ConvertDWSCToScaleShifts", 0);
-NGRAPH_RTTI_DEFINITION(ConvertDWSCBiasToScaleShifts, "ConvertDWSCBiasToScaleShifts", 0);
-NGRAPH_RTTI_DEFINITION(ConvertDWSCWithFqToScaleShifts, "ConvertDWSCWithFqToScaleShifts", 0);
 
 static bool VerifyDWSC(std::shared_ptr<ngraph::opset7::GroupConvolution> dwsc) {
     // Verify it's a 1D convolution
@@ -100,47 +99,41 @@ static std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ngraph::opset
         output_chunks.push_back(last_layer_output);
     }
 
-    // Concat and transpose is only needed when output width > 1
+    // Concat is only needed when output width > 1
     if (output_chunks.size() > 1) {
         auto concat_output_plane = std::make_shared<ngraph::opset7::Concat>(output_chunks, 0);
-        auto transposed_concat_output_plane = std::make_shared<ngraph::opset7::Transpose>(concat_output_plane,
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, 0}));
-        copy_runtime_info(dwsc, {concat_output_plane, transposed_concat_output_plane});
-        return transposed_concat_output_plane;
+        copy_runtime_info(dwsc, concat_output_plane);
+        return concat_output_plane;
     }
 
     return output_chunks[0].get_node_shared_ptr();
 }
 
-static bool Convert(std::shared_ptr<ngraph::Node> dwsc_node,
-    std::shared_ptr<ngraph::Node> reshape_filters_const_node,
-    std::shared_ptr<ngraph::Node> bias_node,
+static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
+    std::shared_ptr<ngraph::Node> dwsc_node,
     std::shared_ptr<ngraph::Node> bias_const_node,
-    std::shared_ptr<ngraph::Node> fq_bias_node) {
+    std::shared_ptr<ngraph::Node> fq_bias_node,
+    std::shared_ptr<ngraph::Node> trailing_transpose) {
     auto dwsc = std::dynamic_pointer_cast<ngraph::opset7::GroupConvolution>(dwsc_node);
-    auto reshape_filters_const = std::dynamic_pointer_cast<ngraph::opset7::Reshape>(reshape_filters_const_node);
-    auto bias = std::dynamic_pointer_cast<ngraph::opset7::Add>(bias_node);
     auto bias_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias_const_node);
     auto fq_bias = std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_bias_node);
 
     if (!VerifyDWSC(dwsc))
         return false;
 
-    auto input_channel_count = dwsc->get_input_shape(0)[1];
-    auto input_width = dwsc->get_input_shape(0)[3];
+    // We are looking for Transpose(NHWC->NCHW) => GroupConv => Transpose(NCHW->NHWC)
+    // or similar cases, so required network must be in NHWC order like in TF
+    if (!TransposeOrderMatches(std::dynamic_pointer_cast<ngraph::opset7::Transpose>(leading_transpose), {0, 3, 1, 2}))
+        return false;
+
+    if (!TransposeOrderMatches(std::dynamic_pointer_cast<ngraph::opset7::Transpose>(trailing_transpose), {0, 2, 3, 1}))
+        return false;
+
     auto output_channel_count = dwsc->get_output_shape(0)[1];
     auto output_width = dwsc->get_output_shape(0)[3];
-    auto original_last_node = (fq_bias ? fq_bias_node : (bias_const ? bias_node : dwsc_node));
 
     // Prepare flat input data
-    auto reshaped_input_plane = std::make_shared<ngraph::opset7::Reshape>(dwsc->input_value(0),
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
-            ngraph::Shape{input_channel_count, input_width}), false);
-
-    auto transposed_input_plane = std::make_shared<ngraph::opset7::Transpose>(reshaped_input_plane,
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, 0}));
-
-    auto flat_input_plane = std::make_shared<ngraph::opset7::Reshape>(transposed_input_plane,
+    auto flat_input_plane = std::make_shared<ngraph::opset7::Reshape>(leading_transpose->input_value(0),
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
             ngraph::Shape{1, shape_size(dwsc->input_value(0).get_shape())}), false);
 
@@ -154,7 +147,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> dwsc_node,
     auto flat_filters_plane = ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(transposed_filters_const,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, filters_size}), false);
 
-    copy_runtime_info(dwsc, {reshaped_input_plane, transposed_input_plane, flat_input_plane, transposed_filters_const, flat_filters_plane});
+    copy_runtime_info(dwsc, {flat_input_plane, transposed_filters_const, flat_filters_plane});
 
     // Convert DWSC to a set of diagonal layers
     auto output_plane = DecomposeDWSC(dwsc, bias_const, fq_bias, flat_input_plane, flat_filters_plane);
@@ -166,8 +159,8 @@ static bool Convert(std::shared_ptr<ngraph::Node> dwsc_node,
     copy_runtime_info(dwsc, result);
 
     // We need to put here the original Group Convolution layer name, so the new layer output can be used as a network result
-    std::string result_name = original_last_node->get_friendly_name();
-    replace_node(original_last_node, result);
+    std::string result_name = trailing_transpose->get_friendly_name();
+    replace_node(trailing_transpose, result);
     result->set_friendly_name(result_name);
 
     return true;
@@ -176,57 +169,21 @@ static bool Convert(std::shared_ptr<ngraph::Node> dwsc_node,
 ConvertDWSCToScaleShifts::ConvertDWSCToScaleShifts() {
     MATCHER_SCOPE(ConvertDWSCToScaleShifts);
 
-    auto dwsc = ngraph::pattern::wrap_type<ngraph::opset7::GroupConvolution>(
-        {ngraph::pattern::any_input(), ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(5))},
-        ngraph::pattern::rank_equals(4));
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        return Convert(pattern_map.at(dwsc).get_node_shared_ptr(), nullptr, nullptr, nullptr, nullptr);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(dwsc, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-ConvertDWSCBiasToScaleShifts::ConvertDWSCBiasToScaleShifts() {
-    MATCHER_SCOPE(ConvertDWSCBiasToScaleShifts);
-
-    auto dwsc = ngraph::pattern::wrap_type<ngraph::opset7::GroupConvolution>(
-        {ngraph::pattern::any_input(), ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(5))},
+    auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ngraph::pattern::any_input(), const_input},
         consumers_and_rank(1, 4));
-    auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({dwsc, const_input});
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto bias_it = pattern_map.find(bias);
-        auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node_shared_ptr());
-        std::shared_ptr<ngraph::Node> bias_const = nullptr;
-
-        if (bias_node && (bias_const = VerifyBiasGetConst(pattern_map.at(dwsc).get_node_shared_ptr(), bias_node)) == nullptr)
-            return false;
-
-        return Convert(pattern_map.at(dwsc).get_node_shared_ptr(), nullptr, bias_node, bias_const, nullptr);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(bias, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-ConvertDWSCWithFqToScaleShifts::ConvertDWSCWithFqToScaleShifts() {
-    MATCHER_SCOPE(ConvertDWSCWithFqToScaleShifts);
-
-    auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto filters_const_fq = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4));
     auto fq_filters_const = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({filters_const_fq, const_input, const_input, const_input, const_input},
         consumers_and_rank(1, 4));
-    auto reshape_filters_const = ngraph::pattern::wrap_type<ngraph::opset7::Reshape>({fq_filters_const, const_input});
-    auto dwsc = ngraph::pattern::wrap_type<ngraph::opset7::GroupConvolution>(
-        {ngraph::pattern::any_input(), reshape_filters_const}, consumers_and_rank(1, 4));
+    auto reshape_filters_const = ngraph::pattern::wrap_type<ngraph::opset7::Reshape>({fq_filters_const, const_input}, ngraph::pattern::rank_equals(5));
+    auto filters_const = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(5));
+    auto dwsc_filters = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{filters_const, reshape_filters_const });
+    auto dwsc = ngraph::pattern::wrap_type<ngraph::opset7::GroupConvolution>({leading_transpose, dwsc_filters}, consumers_and_rank(1, 4));
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({dwsc, const_input});
     auto fq_bias = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({bias, const_input, const_input, const_input, const_input},
         consumers_and_rank(1, 4));
+    auto transpose_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{dwsc, bias, fq_bias});
+    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({transpose_input, const_input}, consumers_and_rank(1, 4));
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -237,10 +194,14 @@ ConvertDWSCWithFqToScaleShifts::ConvertDWSCWithFqToScaleShifts() {
         if (bias_node && (bias_const = VerifyBiasGetConst(pattern_map.at(dwsc).get_node_shared_ptr(), bias_node)) == nullptr)
             return false;
 
-        return Convert(pattern_map.at(dwsc).get_node_shared_ptr(), pattern_map.at(reshape_filters_const).get_node_shared_ptr(),
-            bias_node, bias_const, pattern_map.at(fq_bias).get_node_shared_ptr());
+        auto fq_bias_it = pattern_map.find(fq_bias);
+        auto fq_bias_node = (fq_bias_it == std::end(pattern_map) ? nullptr : fq_bias_it->second.get_node_shared_ptr());
+
+        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(dwsc).get_node_shared_ptr(),
+            bias_const, fq_bias_node,
+            pattern_map.at(trailing_transpose).get_node_shared_ptr());
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fq_bias, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
     this->register_matcher(m, callback);
 }
