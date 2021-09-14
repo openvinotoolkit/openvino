@@ -78,6 +78,9 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
 }
 
 std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
+    /*
+     * Generate multi-model test cases from config file with static test definition.
+     */
     std::vector<MemLeaksTestCase> tests_cases;
     const pugi::xml_document &test_config = Environment::Instance().getTestConfig();
 
@@ -111,9 +114,13 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
     return tests_cases;
 }
 
-std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj) { return obj.param.test_case_name; }
+std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj) {
+    return obj.param.test_case_name;
+}
 
-std::string getTestCaseName(const testing::TestParamInfo<MemLeaksTestCase> &obj) { return obj.param.test_case_name; }
+std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<MemLeaksTestCase> &obj) {
+    return obj.param.test_case_name;
+}
 
 void test_wrapper(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params) {
     tests_pipeline(params.model, params.device, params.numiters);
