@@ -164,7 +164,6 @@ class OpenCL2CHeaders(object):
 
     def append_file_content(self, filename, origin_file):
         res = ""
-        new_content = []
         content = []
         with open(filename) as f:
             content += f.readlines()
