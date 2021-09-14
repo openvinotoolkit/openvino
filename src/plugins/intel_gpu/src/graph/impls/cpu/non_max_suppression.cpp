@@ -398,7 +398,7 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     static primitive_impl* create(const non_max_suppression_node&) {
         return new non_max_suppression_impl();
     }
-    void init_kernels() override {}
+    void init_kernels(const program_node&) override {}
 };
 namespace detail {
 

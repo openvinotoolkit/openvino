@@ -43,7 +43,7 @@ struct condition_impl : typed_primitive_impl<condition> {
 
     static primitive_impl* create(const condition_node& arg) { return new condition_impl(arg); }
 
-    void init_kernels() override {}
+    void init_kernels(const program_node&) override {}
 
 private:
     /*

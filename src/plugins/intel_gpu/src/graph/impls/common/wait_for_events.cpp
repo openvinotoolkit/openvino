@@ -21,7 +21,7 @@ public:
         return make_unique<wait_for_events_impl>(*this);
     }
 
-    void init_kernels() override {}
+    void init_kernels(const program_node&) override {}
     void set_arguments(primitive_inst& /*instance*/) override {}
     std::vector<layout> get_internal_buffer_layouts() const override { return {}; }
 

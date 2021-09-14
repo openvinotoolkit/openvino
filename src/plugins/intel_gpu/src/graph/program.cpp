@@ -158,7 +158,7 @@ void program::compile() {
 void program::init_kernels() {
     for (auto& n : get_processing_order()) {
         if (n->get_selected_impl())
-            n->get_selected_impl()->init_kernels();
+            n->get_selected_impl()->init_kernels(*n);
     }
 }
 

@@ -47,7 +47,7 @@ struct primitive_impl {
     kernel_selector::weights_reorder_params _weights_reorder_params;
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
-    virtual void init_kernels() = 0;
+    virtual void init_kernels(const program_node&) = 0;
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
 
 protected:

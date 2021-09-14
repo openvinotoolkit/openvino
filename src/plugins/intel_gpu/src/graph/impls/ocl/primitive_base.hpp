@@ -96,7 +96,7 @@ protected:
         return stream.enqueue_marker(events, is_output);
     }
 
-    void init_kernels() override {
+    void init_kernels(const program_node& node) override {
         if (is_cpu()) {
             return;
         }
@@ -104,7 +104,7 @@ protected:
 
         _kernels.reserve(_kernel_ids.size());
         for (size_t k = 0; k < _kernel_ids.size(); ++k) {
-            _kernels.emplace_back(std::move(_outer.get_program().get_kernel(_kernel_ids[k])));
+            _kernels.emplace_back(std::move(node.get_program().get_kernel(_kernel_ids[k])));
         }
     }
 

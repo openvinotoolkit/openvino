@@ -49,8 +49,8 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         _kernel_id = outer.get_program().add_kernel(cl_kernel->code.kernelString);
     }
 
-    void init_kernels() override {
-        _kernels.emplace_back(std::move(outer.get_program().get_kernel(_kernel_id)));
+    void init_kernels(const program_node& node) override {
+        _kernels.emplace_back(std::move(node.get_program().get_kernel(_kernel_id)));
     }
 
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
