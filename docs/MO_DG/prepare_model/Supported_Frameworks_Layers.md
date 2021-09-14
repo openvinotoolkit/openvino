@@ -67,6 +67,7 @@ Standard MXNet\* symbols:
 | _minus_scalar | No |
 | _mul_scalar | No |
 | _plus_scalar | No |
+| _random_uniform | Operation provides sequence from uniform distribution, but exact values won't match. |
 | _rnn_param_concat | No |
 | _arange | No |
 | _contrib_AdaptiveAvgPooling2D | Converted to the Average Pooling with fixed paddings |
@@ -272,6 +273,8 @@ Standard TensorFlow\* operations:
 | PlaceholderWithDefault | No |
 | Prod | No |
 | QueueDequeueUpToV2 | Supported only when it is part of a sub-graph of the special form |
+| RandomUniform | No |
+| RandomUniformInt | No |
 | Range | No |
 | Rank | No |
 | RealDiv | No |
@@ -568,6 +571,7 @@ Standard ONNX\* operators:
 | RNN | No |
 | ROIAlign | No |
 | Range | No |
+| RandomUniform | Operation provides sequence from uniform distribution, but exact values won't match. |
 | Reciprocal | No |
 | ReduceL1 | No |
 | ReduceL2 | No |
