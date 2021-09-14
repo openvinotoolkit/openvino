@@ -19,7 +19,7 @@
 namespace ov {
 namespace runtime {
 
-RemoteContext::RemoteContext(const ie::details::SharedObjectLoader& so, const ie::IRemoteContext::Ptr& impl)
+RemoteContext::RemoteContext(const std::shared_ptr<void>& so, const ie::IRemoteContext::Ptr& impl)
     : _so(so),
       _impl(impl) {
     if (_impl == nullptr)
