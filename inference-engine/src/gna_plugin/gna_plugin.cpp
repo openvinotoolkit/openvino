@@ -66,6 +66,7 @@
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/decompose_2d_conv.hpp"
 #include "transformations/convert_padded2valid_conv.hpp"
+#include "transformations/insert_reshape_around_matmul.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 
@@ -730,10 +731,14 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SplitConvolutionWithFq>();
         manager.register_pass<SplitConvolutionWithBias>();
         manager.register_pass<SplitConvolution>();
-        manager.register_pass<HandleTransposesAroundMatMul>();
+        manager.register_pass<InsertReshapeAroundMatmulWithTranspose>();
+        manager.register_pass<InsertReshapeAroundMatmulWithFq>();
+        manager.register_pass<InsertReshapeAroundMatmulWithAdd>();
+        manager.register_pass<InsertReshapeAroundMatmul>();
         manager.register_pass<SwapInputMatMulWithFq>();
         manager.register_pass<SwapInputMatMulWithBias>();
         manager.register_pass<SwapInputMatMul>();
+        manager.register_pass<HandleTransposesAroundMatMul>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
