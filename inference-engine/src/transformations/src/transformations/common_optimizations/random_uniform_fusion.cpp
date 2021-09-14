@@ -80,7 +80,6 @@ ngraph::pass::RandomUniformMulAddFusion::RandomUniformMulAddFusion() {
             const auto new_ru_conv = cvt->clone_with_new_inputs({new_ru});
             copy_runtime_info({ru, cvt, mul_add.get_node_shared_ptr()}, {new_mul_add1, new_mul_add2, new_ru, new_ru_conv});
             ngraph::replace_node(m.get_match_root(), new_ru_conv);
-
         } else {
             copy_runtime_info({ru, mul_add.get_node_shared_ptr()}, {new_mul_add1, new_mul_add2, new_ru});
             ngraph::replace_node(m.get_match_root(), new_ru);
