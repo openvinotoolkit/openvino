@@ -11,34 +11,21 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API RandomUniformFusion;
-class TRANSFORMATIONS_API RandomUniformMulFusion;
-class TRANSFORMATIONS_API RandomUniformAddFusion;
+class TRANSFORMATIONS_API RandomUniformMulAddFusion;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief RandomUniformMaxValFusion transformation replaces RandomUniform -> Mul subgraph
- * with a single RandomUniform node.
- *
+ * @brief RandomUniformMulAddFusion transformation replaces RandomUniform -> Add or
+ * RandomUniform -> Mul subgraph with a RandomUniform and replaces min and max const
+ * with corrected values.
  */
-class ngraph::pass::RandomUniformMulFusion : public ngraph::pass::MatcherPass {
+class ngraph::pass::RandomUniformMulAddFusion : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    RandomUniformMulFusion();
-};
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief RandomUniformMinValFusion transformation replaces RandomUniform -> Add subgraph
- * with a RandomUniform and replaces min and max const with corrected values.
- *
- */
-class ngraph::pass::RandomUniformAddFusion : public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    RandomUniformAddFusion();
+    RandomUniformMulAddFusion();
 };
 
 /**
@@ -50,7 +37,6 @@ class ngraph::pass::RandomUniformFusion : public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     RandomUniformFusion() {
-        add_matcher<ngraph::pass::RandomUniformMulFusion>();
-        add_matcher<ngraph::pass::RandomUniformAddFusion>();
+        add_matcher<ngraph::pass::RandomUniformMulAddFusion>();
     }
 };

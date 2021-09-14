@@ -37,7 +37,7 @@ TEST(TransformationTests, RandomUniformMulFusing) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::RandomUniformMulFusion>();
+        manager.register_pass<ngraph::pass::RandomUniformFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -80,7 +80,7 @@ TEST(TransformationTests, RandomUniformAddFusing) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::RandomUniformAddFusion>();
+        manager.register_pass<ngraph::pass::RandomUniformFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -122,7 +122,7 @@ TEST(TransformationTests, RandomUniformWithConvertMulFusing) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::RandomUniformMulFusion>();
+        manager.register_pass<ngraph::pass::RandomUniformFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -169,7 +169,7 @@ TEST(TransformationTests, RandomUniformWithConvertAddFusing) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::RandomUniformAddFusion>();
+        manager.register_pass<ngraph::pass::RandomUniformFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
