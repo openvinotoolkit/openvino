@@ -70,10 +70,6 @@ if (ENABLE_TESTS)
     add_subdirectory(src/openvino/test_utils)
 endif()
 
-if(ENABLE_WHEEL)
-    add_subdirectory(wheel)
-endif()
-
 if(TARGET _pyngraph)
     add_dependencies(ie_api _pyngraph)
 endif()
@@ -93,13 +89,3 @@ install(FILES requirements.txt
 install(PROGRAMS src/openvino/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_COMPONENT})
-
-# install Python samples
-
-ie_cpack_add_component(python_samples)
-
-install(DIRECTORY sample/
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/python
-        COMPONENT python_samples)
-
-ie_cpack(${PYTHON_COMPONENT} python_samples)
