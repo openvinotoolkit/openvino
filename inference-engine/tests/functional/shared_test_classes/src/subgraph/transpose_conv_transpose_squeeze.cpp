@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string TransposeConvTest::getTestCaseName(testing::TestParamInfo<TransposeConvTestParams> obj) {
+std::string TransposeConvTest::getTestCaseName(const testing::TestParamInfo<TransposeConvTestParams>& obj) {
     ConvParams convParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;

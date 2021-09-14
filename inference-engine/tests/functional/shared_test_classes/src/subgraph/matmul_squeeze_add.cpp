@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string MatmulSqueezeAddTest::getTestCaseName(testing::TestParamInfo<matmulSqueezeAddParams> obj) {
+std::string MatmulSqueezeAddTest::getTestCaseName(const testing::TestParamInfo<matmulSqueezeAddParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::vector<size_t> inputShape;
     std::size_t outputSize;
