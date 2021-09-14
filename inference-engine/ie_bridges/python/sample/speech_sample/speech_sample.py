@@ -187,9 +187,8 @@ def main():
                 scale_factors = []
 
                 for file_name in re.split(', |,', args.input):
-                    utterances = read_utterance_file(file_name)
-                    key = sorted(utterances)[0]
-                    scale_factors.append(get_scale_factor(utterances[key]))
+                    first_utterance = next(iter(read_utterance_file(file_name).values()))
+                    scale_factors.append(get_scale_factor(first_utterance))
 
                 set_scale_factors(plugin_config, scale_factors)
 
