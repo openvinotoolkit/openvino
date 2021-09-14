@@ -108,7 +108,7 @@ public:
     NGRAPH_RTTI_DECLARATION;
     PadFusion() {
         add_matcher<ngraph::pass::PadFusionAvgPool>();
-        add_matcher<ngraph::pass::PadFusionMaxPool>();
+        add_matcher<ngraph::pass::PadFusionMaxPool, false>();
         add_matcher<ngraph::pass::PadFusionConvolution>();
         add_matcher<ngraph::pass::PadFusionConvolutionBackpropData>();
         add_matcher<ngraph::pass::PadFusionGroupConvolution>();
