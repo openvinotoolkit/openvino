@@ -19,21 +19,21 @@ protected:
     }
 
     void loadDll(const string &libraryName) {
-        sharedObject.reset(new ov::runtime::SharedObject(libraryName.c_str()));
+        shared_object = ov::runtime::load_shared_object(libraryName.c_str());
     }
-    unique_ptr<ov::runtime::SharedObject> sharedObject;
+   std::shared_ptr<void> shared_object;
 
     using CreateF = void(std::shared_ptr<InferenceEngine::IInferencePlugin>&);
 
     std::function<CreateF> make_std_function(const std::string& functionName) {
-        std::function<CreateF> ptr(reinterpret_cast<CreateF*>(sharedObject->get_symbol(functionName.c_str())));
+        std::function<CreateF> ptr(reinterpret_cast<CreateF*>(ov::runtime::get_symbol(shared_object, functionName.c_str())));
         return ptr;
     }
 };
 
 TEST_F(SharedObjectOVTests, canLoadExistedPlugin) {
     loadDll(get_mock_engine_name());
-    EXPECT_NE(nullptr, sharedObject.get());
+    EXPECT_NE(nullptr, shared_object.get());
 }
 
 TEST_F(SharedObjectOVTests, loaderThrowsIfNoPlugin) {

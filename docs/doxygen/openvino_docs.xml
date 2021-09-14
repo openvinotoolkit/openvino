@@ -27,11 +27,9 @@ limitations under the License.
             <tab type="usergroup" title="Installation Guides" url=""><!--automatically generated-->
                 <tab type="usergroup" title="Linux" url="@ref openvino_docs_install_guides_installing_openvino_linux">
                     <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for Linux* OS" url="@ref openvino_docs_install_guides_installing_openvino_linux"/>
-                    <tab type="user" title="[DEPRECATED] Install Intel® Distribution of OpenVINO™ toolkit for Linux with FPGA Support" url="@ref openvino_docs_install_guides_installing_openvino_linux_fpga"/>
                 </tab>     
                 <tab type="usergroup" title="Windows" url="@ref openvino_docs_install_guides_installing_openvino_windows">
                     <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for Windows* 10" url="@ref openvino_docs_install_guides_installing_openvino_windows"/>
-                    <tab type="user" title="[DEPRECATED] Install Intel® Distribution of OpenVINO™ toolkit for Windows* with FPGA support" url="@ref openvino_docs_install_guides_installing_openvino_windows_fpga"/>
                 </tab>
                 <tab type="user" title="macOS" url="@ref openvino_docs_install_guides_installing_openvino_macos"/>
                 <tab type="user" title="Raspbian OS" url="@ref openvino_docs_install_guides_installing_openvino_raspbian"/>

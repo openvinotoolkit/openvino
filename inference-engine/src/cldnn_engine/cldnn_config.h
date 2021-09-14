@@ -8,7 +8,7 @@
 #include <string>
 
 #include "cldnn_custom_layer.h"
-
+#include <ie_performance_hints.hpp>
 #include <cldnn/graph/network.hpp>
 
 namespace CLDNNPlugin {
@@ -62,6 +62,7 @@ struct Config {
     bool enable_loop_unrolling;
 
     std::map<std::string, std::string> key_config_map;
+    InferenceEngine::PerfHintsConfig  perfHintsConfig;
 };
 
 }  // namespace CLDNNPlugin

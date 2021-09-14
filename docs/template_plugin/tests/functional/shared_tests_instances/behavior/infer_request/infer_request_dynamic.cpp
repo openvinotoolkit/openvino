@@ -4,16 +4,11 @@
 
 #include <vector>
 
-#include "behavior/infer_request_dynamic.hpp"
+#include "behavior/infer_request/infer_request_dynamic.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
 namespace {
-
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
-};
 
 const std::vector<std::map<std::string, std::string>> configs = {
     {}

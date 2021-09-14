@@ -13,6 +13,7 @@
 #include <memory>
 #include <functional>
 #include <vector>
+#include <cfloat>
 
 namespace MKLDNNPlugin {
 
@@ -40,6 +41,7 @@ private:
     Config engConfig;
     NumaNodesWeights weightsSharing;
     MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNExtensionManager>();
+    bool streamsSet = false;
 };
 
 }  // namespace MKLDNNPlugin
