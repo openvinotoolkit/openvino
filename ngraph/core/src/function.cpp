@@ -209,7 +209,8 @@ void ov::Function::validate_nodes_and_infer_types() const {
             tensors.insert(&tensor);
             for (const auto& name : output.get_tensor().get_names()) {
                 if (tensor_names.count(name))
-                    throw ov::Exception("Function is incorrect. All Tensors should have unique names.");
+                    throw ov::Exception("Function is incorrect. All Tensors should have unique names. " + name +
+                                        " is not unique.");
                 tensor_names.insert(name);
             }
         }
