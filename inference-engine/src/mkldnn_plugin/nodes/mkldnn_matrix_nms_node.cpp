@@ -110,7 +110,8 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
     m_postThreshold = attrs.post_threshold;
     m_normalized = attrs.normalized;
     int64_t max_output_boxes_per_class = 0;
-    size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses : m_numClasses - 1;
+    size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses :
+        m_backgroundClass < m_numClasses ? m_numClasses - 1 : m_numClasses;
     if (m_nmsTopk >= 0)
         max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
     else
@@ -125,7 +126,8 @@ void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    m_realNumClasses = m_backgroundClass == -1 ? m_numClasses : m_numClasses - 1;
+    m_realNumClasses = m_backgroundClass == -1 ? m_numClasses :
+        m_backgroundClass < m_numClasses ? m_numClasses - 1 : m_numClasses;;
     m_realNumBoxes = m_nmsTopk == -1 ? m_numBoxes : std::min(m_nmsTopk, static_cast<int>(m_numBoxes));
     m_numPerBatch.resize(m_numBatches);
     m_filteredBoxes.resize(m_numBatches * m_realNumClasses * m_realNumBoxes);

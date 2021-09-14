@@ -220,7 +220,7 @@ void MulticlassNmsLayerTest::SetUp() {
     // size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
     auto realClasses = numClasses;
-    if (backgroundClass >= 0 && backgroundClass <= numClasses) {
+    if (backgroundClass >= 0 && backgroundClass < numClasses) {
         realClasses = realClasses - 1;
     }
 

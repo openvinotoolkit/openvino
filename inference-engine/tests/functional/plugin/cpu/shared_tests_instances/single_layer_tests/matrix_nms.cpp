@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 using namespace ngraph;
 
 const std::vector<InputShapeParams> inShapeParams = {
-    InputShapeParams{3, 100, 5},
+    InputShapeParams{3, 100, 1},
     InputShapeParams{1, 10, 50},
     InputShapeParams{2, 50, 50}
 };
@@ -32,7 +32,7 @@ const std::vector<ThresholdParams> thresholdParams = {
 };
 const std::vector<int> nmsTopK = {-1, 100};
 const std::vector<int> keepTopK = {-1, 5};
-const std::vector<int> backgroudClass = {-1, 0};
+const std::vector<int> backgroudClass = {-1, 1};
 const std::vector<bool> normalized = {true, false};
 const std::vector<op::v8::MatrixNms::DecayFunction> decayFunction = {op::v8::MatrixNms::DecayFunction::GAUSSIAN,
                                                 op::v8::MatrixNms::DecayFunction::LINEAR};

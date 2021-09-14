@@ -219,7 +219,7 @@ void MatrixNmsLayerTest::SetUp() {
     std::tie(attrs.score_threshold, attrs.gaussian_sigma, attrs.post_threshold) = thresholdParams;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
     auto realClasses = numClasses;
-    if (attrs.background_class >=0 && attrs.background_class <= numClasses) {
+    if (attrs.background_class >=0 && attrs.background_class < numClasses) {
         realClasses = realClasses - 1;
     }
 
