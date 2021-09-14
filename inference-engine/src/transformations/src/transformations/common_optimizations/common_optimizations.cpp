@@ -138,6 +138,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
+    common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
@@ -176,9 +177,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
-
-    // RandomUniformFusion must be executed after LinOpSequenceFusion
-    manager.register_pass<ngraph::pass::RandomUniformFusion>();
 
     auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
