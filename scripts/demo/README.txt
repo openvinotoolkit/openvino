@@ -25,7 +25,7 @@ The "demo" folder contains two scripts:
 
 2. Benchmark sample using public SqueezeNet topology (run_sample_benchmark_app.sh|bat) 
 
-To run the samples, invoke run_sample_squeezenet.sh or run_sample_benchmark_app.sh or demo_speech_recognition.sh (*.bat on Windows) scripts from the console without parameters, for example:
+To run the samples, invoke run_sample_squeezenet.sh or run_sample_benchmark_app.sh (*.bat on Windows) scripts from the console without parameters, for example:
 
 ./run_sample_squeezenet.sh
 
