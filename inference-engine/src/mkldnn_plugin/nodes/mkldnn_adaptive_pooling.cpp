@@ -21,16 +21,20 @@ using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl::cpu::x64;
 
-bool MKLDNNAdaptivePoolingNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNAdaptivePoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveAvgPool::type_info)) {
-            auto adaPool = std::dynamic_pointer_cast<ngraph::opset8::AdaptiveAvgPool>(op);
+            auto adaPool = std::dynamic_pointer_cast<const ngraph::opset8::AdaptiveAvgPool>(op);
             if (!adaPool) {
                 errorMessage = "Only opset8 AdaptiveAvgPooling operation is supported";
                 return false;
             }
         } else if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveMaxPool::type_info)) {
-            auto adaPool = std::dynamic_pointer_cast<ngraph::opset8::AdaptiveMaxPool>(op);
+            auto adaPool = std::dynamic_pointer_cast<const ngraph::opset8::AdaptiveMaxPool>(op);
             if (!adaPool) {
                 errorMessage = "Only opset8 AdaptiveMaxPooling operation is supported";
                 return false;
@@ -69,19 +73,19 @@ void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
     if (getChildEdges().size() != (algorithm == AdaptivePoolingMax ? 2 : 1))
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getParentEdges().size();
 
-    auto parentDims = getParentEdgeAt(0)->getShape().getStaticDims();
-    auto childDims = getChildEdgeAt(0)->getShape().getStaticDims();
+    auto parentDims = getInputShapeAtPort(0).getStaticDims();
+    auto childDims = getOutputShapeAtPort(0).getStaticDims();
 
     spatialDimsCount = parentDims.size() - 2;
     if (!one_of(spatialDimsCount, 1, 2, 3)) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getShape().getRank();
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
     }
 
-    if (getParentEdgeAt(1)->getShape().getRank() != 1) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getShape().getRank();
+    if (getInputShapeAtPort(1).getRank() != 1) {
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
     }
 
-    if (getChildEdgeAt(0)->getShape().getRank() != getParentEdgeAt(0)->getShape().getRank()) {
+    if (getOutputShapeAtPort(0).getRank() != getInputShapeAtPort(0).getRank()) {
         IE_THROW() << errorPrefix << "must keep data rank";
     }
 }
@@ -99,7 +103,7 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize((algorithm == Algorithm::AdaptivePoolingAvg ? 1 : 2));
 
     std::vector<LayoutType> dataFormats{ LayoutType::ncsp };
-    if (getParentEdgeAt(0)->getShape().getStaticDims()[1] != 1) {
+    if (getInputShapeAtPort(0).getStaticDims()[1] != 1) {
         dataFormats.push_back(LayoutType::nspc);
         dataFormats.push_back(LayoutType::nCsp16c);
         dataFormats.push_back(LayoutType::nCsp8c);
@@ -118,8 +122,8 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
-    auto inputPrec = getParentEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
-    auto outputPrec = getChildEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
+    auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
+    auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
     if (!(inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32))
         IE_THROW() << errorPrefix << "doesn't support demanded precisions";
 
@@ -131,21 +135,22 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
         indexDst = reinterpret_cast<int *>(getChildEdgeAt(1)->getMemoryPtr()->GetPtr());
     }
 
-    auto srcBlockDesc = srcMemory0.GetDescriptor().data.format_desc.blocking;
+    auto isPlainFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::ncsp);
+    auto isTailCFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::nspc);
+    auto isBlkFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::nCsp16c) || srcMemory0.getDesc().hasLayoutType(LayoutType::nCsp8c);
 
-    int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
-    auto isPlainFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::ncsp);
-    auto isTailCFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::nspc);
+    auto srcBlockDesc = srcMemory0.GetDescWithType<BlockedMemoryDesc>();
+    int blockSize = isBlkFmt ? srcBlockDesc->getBlockDims().back() : 1;
 
     const auto *src = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     auto *dst = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    if (srcMemory1.GetElementsCount() != spatialDimsCount)
-        IE_THROW() << errorPrefix << "has input spatial dimension (" << srcMemory1.GetElementsCount()
+    if (srcMemory1.GetShape().getElementsCount() != spatialDimsCount)
+        IE_THROW() << errorPrefix << "has input spatial dimension (" << srcMemory1.GetShape().getElementsCount()
                    << ") inconsistent with pooling vector size (" << spatialDimsCount << ")";
 
-    auto inputDimVector = srcMemory0.GetDims();
+    auto inputDimVector = srcMemory0.getStaticDims();
     const int N = static_cast<int>(inputDimVector[0]);
     const int C = static_cast<int>(inputDimVector[1]);
     const int ID = static_cast<int>(spatialDimsCount == 3 ? inputDimVector[2] : 1);
@@ -159,14 +164,14 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     const int iHW = IH * IW;
     const int oDHW = OD * OH * OW, oHW = OH * OW;
 
-    const int chPadding = srcMemory0.GetDescriptor().data.padded_dims[1];
+    const int chPadding = blockSize * (isBlkFmt ? srcBlockDesc->getBlockDims()[1] : srcMemory0.GetShape().getStaticDims()[1]);
     const int blockCount = (isTailCFmt ? 1 :  chPadding / blockSize);
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << errorPrefix << "doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
-    auto srcStrides = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
-    auto dstStrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    auto srcStrides = srcBlockDesc->getStrides();
+    auto dstStrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
 
     // unified strides array
     const size_t tailDimsOffset = (isTailCFmt ? -1 : 0);
@@ -233,20 +238,20 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
         [&](int n, int blkIdx, int od, int oh, int ow) {
         auto srcData = src + n * inStrides[0] + blkIdx * inStrides[1];
         auto dstData = dst + n * outStrides[0] + blkIdx * outStrides[1] +
-                      od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4];
+                       od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4];
         int cStart = 0, cEnd = C, inResidual = 0, outResidual = 0;
         if (!isTailCFmt) {
-           cStart = blkIdx * blockSize;
-           cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);
+            cStart = blkIdx * blockSize;
+            cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);
         }
         for (int c = cStart; c < cEnd; c++) {
-           if (isTailCFmt) {
-               inResidual = c * inStrides[1];
-               outResidual = c * outStrides[1];
-           } else if (!isPlainFmt) {
-               inResidual = outResidual = c % blockSize;
-           }
-           pool(srcData + inResidual, dstData + outResidual, od, oh, ow, n * C + c);
+            if (isTailCFmt) {
+                inResidual = c * inStrides[1];
+                outResidual = c * outStrides[1];
+            } else if (!isPlainFmt) {
+                inResidual = outResidual = c % blockSize;
+            }
+            pool(srcData + inResidual, dstData + outResidual, od, oh, ow, n * C + c);
         }});
 }
 

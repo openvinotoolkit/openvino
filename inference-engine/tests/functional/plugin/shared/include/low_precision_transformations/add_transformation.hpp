@@ -31,7 +31,7 @@ class AddTransformation :
     public testing::WithParamInterface<AddTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<AddTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<AddTransformationParams>& obj);
 
 protected:
     void SetUp() override;
