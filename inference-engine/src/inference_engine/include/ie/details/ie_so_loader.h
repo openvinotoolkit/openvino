@@ -25,6 +25,11 @@ class INFERENCE_ENGINE_API_CLASS(SharedObjectLoader) {
 
 public:
     /**
+     * @brief Constructs from existing object
+     */
+    SharedObjectLoader(const std::shared_ptr<void>& impl);
+
+    /**
      * @brief Default constructor
      */
     SharedObjectLoader() = default;
@@ -55,6 +60,12 @@ public:
      * @throws Exception if the function is not found
      */
     void* get_symbol(const char* symbolName) const;
+
+    /**
+     * @brief Retruns reference to type erased implementation
+     * @throws Exception if the function is not found
+     */
+    std::shared_ptr<void> get() const;
 };
 
 }  // namespace details
