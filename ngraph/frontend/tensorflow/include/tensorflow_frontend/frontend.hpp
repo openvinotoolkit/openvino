@@ -22,13 +22,34 @@ namespace ngraph {
 namespace frontend {
 class TF_API FrontEndTensorflow : public FrontEnd {
 public:
-    // using Converter = std::function<ngraph::OutputVector(const ngraph::frontend::tensorflow::NodeContext&)>;
-
-    // void register_converter (const std::string& op_type, const Converter&);
-
     FrontEndTensorflow() {}
 
-    virtual std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override;
+    /// \brief Completely convert the model
+    /// \return fully converted nGraph function
+    std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
+
+    /// \brief Completely convert the remaining, not converted part of a function.
+    /// \param partiallyConverted partially converted nGraph function
+    void convert(std::shared_ptr<Function> partiallyConverted) const override;
+
+    /// \brief Convert only those parts of the model that can be converted leaving others
+    /// as-is. Converted parts are not normalized by additional transformations; normalize
+    /// function or another form of convert function should be called to finalize the
+    /// conversion process.
+    /// \param model Input model
+    /// \return partially converted nGraph function
+    std::shared_ptr<Function> convert_partially(InputModel::Ptr model) const override;
+
+    /// \brief Convert operations with one-to-one mapping with decoding nodes.
+    /// Each decoding node is an nGraph node representing a single FW operation node with
+    /// all attributes represented in FW-independent way.
+    /// \param model Input model
+    /// \return nGraph function after decoding
+    std::shared_ptr<Function> decode(InputModel::Ptr model) const override;
+
+    /// \brief Runs normalization passes on function that was loaded with partial conversion
+    /// \param function partially converted nGraph function
+    void normalize(std::shared_ptr<ngraph::Function> function) const override;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     std::string get_name() const override {
@@ -37,34 +58,9 @@ public:
 
 protected:
     /// \brief Check if FrontEndTensorflow can recognize model from given parts
-    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override {
-        // TODO: Support TensorFlow 2 SavedModel format
-        if (variants.empty() || variants.size() > 2)
-            return false;
+    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
 
-        // Validating first path, it must contain a model
-        if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
-            std::string suffix = ".pb";
-            std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
-            if (tf::endsWith(model_path, suffix)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override {
-        // TODO: input path, streams, and GraphIterator
-        // InputModelTF must include the single constructor for GraphIterator
-        if (variants.size() == 1) {
-            // The case when folder with __model__ and weight files is provided or .pdmodel file
-            if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
-                std::string m_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
-                return std::make_shared<InputModelTF>(m_path);
-            }
-        }
-        return nullptr;
-    }
+    InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
 };
 
 }  // namespace frontend

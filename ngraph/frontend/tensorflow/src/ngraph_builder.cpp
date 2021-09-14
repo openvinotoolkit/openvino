@@ -24,6 +24,7 @@
 #include "ngraph/pass/pass_config.hpp"
 #include "ngraph/slice_plan.hpp"
 //#include <ngraph/pass/transpose_sinking.h>
+#include <frontend_manager/frontend_exceptions.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <tensorflow_frontend/exceptions.hpp>
 #include <tensorflow_frontend/place.hpp>
@@ -2740,9 +2741,11 @@ static void extract_operation_name_and_port(const std::string& port_name, std::s
 }
 
 void Builder::TranslateGraph(
-    std::shared_ptr<ngraph::frontend::InputModelTF> tf_model,
+    const std::shared_ptr<ngraph::frontend::InputModelTensorflow>& tf_model,
     const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
     const std::string name,
+    bool fail_fast,
+    bool no_conversion,
     std::shared_ptr<ngraph::Function>& ng_function) {
     //
     // The op map holds a mapping from TensorFlow op names (strings) to
@@ -2757,6 +2760,20 @@ void Builder::TranslateGraph(
     const auto& inputs = tf_model->get_inputs();
     const auto& model_outputs = tf_model->get_outputs();
 
+    std::map<const string, const function<ngraph::OutputVector(const NodeContext&)>> translate_map;
+
+    if (no_conversion) {
+        const std::set<std::string> required_types{"Placeholder", "_Retval", "NoOp"};
+        for (auto& name : required_types) {
+            translate_map.emplace(name, TRANSLATE_OP_MAP.at(name));
+        }
+    } else {
+        translate_map = TRANSLATE_OP_MAP;
+    }
+
+    //
+    // Now create the nGraph ops from TensorFlow ops.
+    //
     // create parameter nodes for all tensor places corresponding to inputs
     for (const auto& input_place : inputs) {
         //const auto& input_name = input_place->get_names()[0];
@@ -2771,8 +2788,7 @@ void Builder::TranslateGraph(
         ng_op_map[input_name] = {input_output};
     }
 
-    // create the nGraph ops from TensorFlow ops
-    for (auto& op_place : ops) {
+    // create the nGraph ops from TensorFlow ops    for (auto& op_place : ops) {
         auto op = op_place->get_desc();
         auto op_name = op_place->get_names()[0];
 
@@ -2787,95 +2803,88 @@ void Builder::TranslateGraph(
       continue;
     }
 #endif
-        if (op->IsControlFlow()) {
-            throw errors::Unimplemented("Encountered a control flow op in the nGraph bridge: " + op->DebugString());
-        }
 
-        NGRAPH_VLOG(2) << "Constructing op " << op_name << " which is " << op->type_string() << "\n";
+        // Pre-processing: prepare a list of ng inputs for the node
+        ngraph::OutputVector ng_inputs;
+        for (size_t i = 0; i < op->num_inputs(); ++i) {
+            std::string input_name;
+            size_t port_idx;
+            try {
+                op->input_node(i, &input_name, &port_idx);
 
-        // const function<Status(const TFNodeDecoder*, const std::vector<const
-        // ngraph::frontend::tensorflow::detail::TensorWrapper*>&,
-        //                      Builder::OpMap&)>* op_fun;
-        const function<ngraph::OutputVector(const NodeContext&)>* op_fun;
-
-        try {
-            op_fun = &(TRANSLATE_OP_MAP.at(op->type_string()));
-
-        } catch (const std::out_of_range&) {
-            // -----------------------------
-            // Catch-all for unsupported ops
-            // -----------------------------
-            NGRAPH_VLOG(3) << "No translation handler registered for op: " << op_name << " (" << op->type_string()
-                           << ")";
-            NGRAPH_VLOG(3) << op->DebugString();
-            throw errors::InvalidArgument("No translation handler registered for op: " + op_name + " (" +
-                                          op->type_string() + ")\n" + op->DebugString());
-        }
-
-        try {
-            // Pre-processing: prepare a list of ng inputs for the node
-            ngraph::OutputVector ng_inputs;
-            for (size_t i = 0; i < op->num_inputs(); ++i) {
-                std::string input_name;
-                size_t port_idx;
-                try {
-                    op->input_node(i, &input_name, &port_idx);
-
-                    // TODO: add more comments here about order check (from closer Places to input port and far to producer output port)
-                    if (ng_op_map.count(std::to_string(i) + ":" + op_name)) {
-                        const auto& input_outputs_vector = ng_op_map.at(std::to_string(i) + ":" + op_name);
-                        FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
-                                                "Input created with pruning must have one output");
-                        ng_inputs.push_back(input_outputs_vector.at(0));
-                    } else if (ng_op_map.count(input_name + ":" + std::to_string(port_idx))) {
-                        const auto& input_outputs_vector = ng_op_map.at(input_name + ":" + std::to_string(port_idx));
-                        FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
-                                                "Input created with pruning must have one output");
-                        ng_inputs.push_back(input_outputs_vector.at(0));
-                    } else if (ng_op_map.count(input_name)) {
-                        const auto& input_outputs_vector = ng_op_map.at(input_name);
-                        FRONT_END_GENERAL_CHECK(input_outputs_vector.size() > port_idx,
-                                                "Input created with pruning must have one output");
-                        ng_inputs.push_back(input_outputs_vector.at(port_idx));
-                    } else {
-                        FRONT_END_GENERAL_CHECK(false,
-                                                "No input is found for node \"" + op_name + "\" by port" + std::to_string(port_idx));
-                    }
-                } catch (const std::exception& e) {
-                    std::cerr << "[ ERROR ] Exception happened when preparing input " << i << " for op '" << op->name()
-                              << "', expected input name: '" << input_name
-                              << "', expected input port index: " << port_idx << '\n';
-                    throw;
+                // TODO: add more comments here about order check (from closer Places to input port and far to producer output port)
+                if (ng_op_map.count(std::to_string(i) + ":" + op_name)) {
+                    const auto& input_outputs_vector = ng_op_map.at(std::to_string(i) + ":" + op_name);
+                    FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
+                                            "Input created with pruning must have one output");
+                    ng_inputs.push_back(input_outputs_vector.at(0));
+                } else if (ng_op_map.count(input_name + ":" + std::to_string(port_idx))) {
+                    const auto& input_outputs_vector = ng_op_map.at(input_name + ":" + std::to_string(port_idx));
+                    FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
+                                            "Input created with pruning must have one output");
+                    ng_inputs.push_back(input_outputs_vector.at(0));
+                } else if (ng_op_map.count(input_name)) {
+                    const auto& input_outputs_vector = ng_op_map.at(input_name);
+                    FRONT_END_GENERAL_CHECK(input_outputs_vector.size() > port_idx,
+                                            "Input created with pruning must have one output");
+                    ng_inputs.push_back(input_outputs_vector.at(port_idx));
+                } else {
+                    FRONT_END_GENERAL_CHECK(false,
+                                            "No input is found for node \"" + op_name + "\" by port" + std::to_string(port_idx));
                 }
+            } catch (const std::exception& e) {
+                std::cerr << "[ ERROR ] Exception happened when preparing input " << i << " for op '" << op->name()
+                          << "', expected input name: '" << input_name << "', expected input port index: " << port_idx
+                          << '\n';
+                throw;
             }
+        }
+]
+        ngraph::OutputVector outputs;
+        try {
+            if (op->IsControlFlow()) {
+                throw errors::Unimplemented("Encountered a control flow op in the nGraph bridge: " + op->DebugString());
+            }
+
+            const function<ngraph::OutputVector(const NodeContext&)>* op_fun;
+
+            auto op_fun_it = translate_map.find(op->type_string());
+            FRONT_END_OP_CONVERSION_CHECK(op_fun_it != translate_map.end(),
+                                          "No translator found for ",
+                                          op->type_string(),
+                                          " node.");
+            op_fun = &(op_fun_it->second);
+
             // NodeContext node_context(ng_inputs, op, inputs, indexed_shapes);
             NodeContext node_context(ng_inputs, op, inputs);
 
             // Next line does the conversion for a node by means of calling specific conversion rule
-            auto outputs = (*op_fun)(node_context);
-
-            // Post-processing: register outputs to the map and detect the edge ops
-            auto& node_record = ng_op_map[op_name];
-            for (auto output : outputs) {
-                if (auto result = std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr())) {
-                    results.push_back(result);
-                    // Do not add to ng_op_map
-                } else {
-                    if (auto param = std::dynamic_pointer_cast<opset::Parameter>(output.get_node_shared_ptr())) {
-                        params.push_back(param);
-                    }
-                    node_record.push_back(output);
-                }
-            }
-        } catch (const Status& e) {
-            throw errors::Internal("Unhandled exception in op handler: " + op_name + " (" + op->type_string() + ")\n" +
-                                   op->DebugString() + "\nDetails: " + e.message);
-        } catch (const std::exception& e) {
-            throw errors::Internal("Unhandled exception in op handler: " + op_name + " (" + op->type_string() + ")\n" +
-                                   op->DebugString() + "\n" + "what(): " + e.what());
+            outputs = (*op_fun)(node_context);
         } catch (...) {
-            throw errors::Internal("Unhandled exception in op handler: " + op_name + " (" + op->type_string() + ")\n" +
-                                   op->DebugString());
+            if (fail_fast) {
+                // Rethrowing any exception
+                throw;
+            } else {
+                auto ng_node = std::make_shared<ngraph::frontend::TFFrameworkNode>(op,
+                                                                                   ng_inputs,
+                                                                                   op_place->get_output_ports().size());
+                Builder::SetTracingInfo(op_name, ng_node);
+                outputs = ng_node->outputs();
+            }
+        }
+
+        // Post-processing: register outputs to the map and detect the edge ops
+        auto& node_record = ng_op_map[op_name];
+        for (auto output : outputs) {
+            if (auto result = std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr())) {
+                results.push_back(result);
+                // Do not add to ng_op_map
+            } else {
+                if (auto param = std::dynamic_pointer_cast<opset::Parameter>(output.get_node_shared_ptr())) {
+                    params.push_back(param);
+                }
+                node_record.push_back(output);
+            }
         }
     }
 
@@ -2928,6 +2937,30 @@ void Builder::TranslateGraph(
     //  result->set_needs_default_layout(true);
     //}
     NGRAPH_VLOG(5) << "Done with translations";
+}
+
+void Builder::TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
+    auto type = node->get_op_type();
+
+    auto translator_it = TRANSLATE_OP_MAP.find(type);
+    FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
+
+    ngraph::OutputVector ng_inputs;
+    for (auto& input : node->inputs()) {
+        ng_inputs.push_back(input.get_source_output());
+    }
+
+    NodeContext node_ctx(ng_inputs, node->get_decoder(), {}, {});
+    auto new_node_outputs = translator_it->second(node_ctx);
+    Builder::SetTracingInfo(node_ctx.get_name(), new_node_outputs.front());
+
+    auto new_output = new_node_outputs.begin();
+    auto old_outputs = node->outputs();
+    auto old_output = old_outputs.begin();
+
+    for (; new_output != new_node_outputs.end() && old_output != old_outputs.end(); ++old_output, ++new_output) {
+        old_output->replace(*new_output);
+    }
 }
 
 }  // namespace ngraph_bridge

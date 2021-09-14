@@ -22,6 +22,7 @@
 #include "ngraph/pass/pass_config.hpp"
 #include "ngraph/slice_plan.hpp"
 //#include <ngraph/pass/transpose_sinking.h>
+#include <frontend_manager/frontend_exceptions.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
 #include "default_opset.h"
@@ -41,7 +42,10 @@ using ::tensorflow::ngraph_bridge::NodeProtoWrapper;
 InputModelTensorflow::InputModelTensorflow(const std::string& _path) : path(_path) {
     std::ifstream pb_stream(path, std::ios::binary);
     graph_def = std::make_shared<GraphDef>();
-    std::cout << "[ INFO ] Model Parsed: " << graph_def->ParseFromIstream(&pb_stream) << std::endl;
+
+    FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file doesn't exist");
+    FRONT_END_GENERAL_CHECK(graph_def->ParseFromIstream(&pb_stream), "Model can't be parsed");
+
     std::cout << "[ INFO ] Loaded model contains " << graph_def->node_size() << " nodes." << std::endl;
     graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(graph_def.get());
 
@@ -116,6 +120,9 @@ void InputModelTensorflow::initial_traverse_graph() {
             size_t port_idx;
             try {
                 op->input_node(i, &input_name, &port_idx);
+                auto port_place = std::make_shared<OutPortPlaceTF>(*this);
+                port_place->set_op(m_ops_topology_sorted.back());
+                m_ops[input_name]->add_out_port(std::make_shared<OutPortPlaceTF>(*this), port_idx);
                 names_with_consumers.insert(input_name);
             } catch (const std::exception& e) {
                 std::cerr << "[ ERROR ] Exception happened when preparing input " << i << " for op '" << op->name()

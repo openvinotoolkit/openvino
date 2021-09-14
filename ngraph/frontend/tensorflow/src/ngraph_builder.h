@@ -29,6 +29,7 @@
 //#include "graph.pb.h"
 
 #include "node_context_impl.hpp"
+#include "tf_framework_node.hpp"
 
 #include "ngraph/ngraph.hpp"
 
@@ -57,10 +58,13 @@ namespace ngraph_bridge {
 class Builder {
  public:
     static void TranslateGraph(
-        std::shared_ptr<ngraph::frontend::InputModelTF> tf_model,
+        const std::shared_ptr<ngraph::frontend::InputModelTensorflow>& tf_model,
         const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
         const std::string name,
+        bool fail_fast,
+        bool no_conversion,
         std::shared_ptr<ngraph::Function>& ng_function);
+    static void TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node);
 
   using OpMap = std::unordered_map<std::string,
                                    std::vector<ngraph::Output<ngraph::Node>>>;
