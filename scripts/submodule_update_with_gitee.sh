@@ -12,7 +12,7 @@
 # -----------------------------------------------------------------------------
 # Common bash
 
-if [[ ! -z ${DEBUG_SHELL} ]]
+if [[ -n ${DEBUG_SHELL} ]]
 then
   set -x # Activate the expand mode if DEBUG is anything but empty.
 fi
@@ -27,7 +27,7 @@ die() {
 }
 
 check_git_version() {
-    currentver="$(echo $(git --version 2>&1 |awk 'NR==1{gsub(/"/,"");print $3}'))"
+    currentver="$(git --version 2>&1 |awk 'NR==1{gsub(/"/,"");print $3}')"
     requiredver="2.11.0"
     if [ "$(printf '%s\n' "$requiredver" "$currentver" | sort -V | head -n1)" = "$requiredver" ]; then
         # Greater than or equal to 2.11.0
@@ -44,14 +44,14 @@ ERR_CANNOT_UPDATE=13
 GITEE_GROUP_NAME="openvinotoolkit-prc"
 
 REPO_DIR=${1:-"${PWD}"}
-REPO_DIR=$(cd ${REPO_DIR} && pwd -P)
+REPO_DIR=$(cd "${REPO_DIR}" && pwd -P)
 
 SCRIPT_SH=$(cd "$(dirname "${0}")" && pwd -P)/$(basename "${0}")
 
 [ -d "${REPO_DIR}" ] || die "${REPO_DIR} is not directory!"
 [ -f "${SCRIPT_SH}" ] || die "${SCRIPT_SH} does not exist!"
 
-pushd ${REPO_DIR} >/dev/null
+pushd "${REPO_DIR}" >/dev/null
 
 # Step 0: Check if .gitmodules file exsit, otherwise no submodule update for this repo
 [ -f ".gitmodules" ] || exit 0
@@ -62,7 +62,7 @@ git submodule init
 # Step 2: Replacing each submodule URL of the current repository to the mirror repos in gitee
 for LINE in $(git config -f .gitmodules --list | grep "\.url=../../[^.]\|\.url=https://github.com/[^.]\|\.url=https://git.eclipse.org/[^.]")
 do
-    SUBPATH=$(echo "${LINE}" | sed "s|^submodule\.\([^.]*\)\.url.*$|\1|")
+    SUBPATH="${LINE//.url*/}"
     LOCATION=$(echo "${LINE}" | sed 's/.*\///' | sed 's/.git//g' | sed 's/.*\.//')
     if [ "$LOCATION" = "unity" ]; then
 	    LOCATION="Unity"
