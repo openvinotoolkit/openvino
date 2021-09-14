@@ -173,14 +173,18 @@ public:
 
         if ((absoluteErrorCount > 0) || (relativeErrorCount > 0)) {
             double relDiffMean = std::accumulate(relativeDifferences.begin(), relativeDifferences.end(), 0.0)/relativeDifferences.size();
-            double relDiffMax = *std::max_element(relativeDifferences.begin(), relativeDifferences.end());
+            auto relDiffMaxItr = std::max_element(relativeDifferences.begin(), relativeDifferences.end());
+            auto relDiffMaxIndex = std::distance(relativeDifferences.begin(), relDiffMaxItr);
             double absDiffMean = std::accumulate(absoluteDifferences.begin(), absoluteDifferences.end(), 0.0)/absoluteDifferences.size();
-            double absDiffMax = *std::max_element(absoluteDifferences.begin(), absoluteDifferences.end());
+            auto absDiffMaxItr = std::max_element(absoluteDifferences.begin(), absoluteDifferences.end());
+            auto absDiffMaxIndex = std::distance(absoluteDifferences.begin(), absDiffMaxItr);
 
-            IE_THROW() << "\nRelative comparison diff tensor mean: " << relDiffMean << ", \tmax: " << relDiffMax << ", \t# failure(" << relativeErrorCount
-                       << "/" << relativeDifferences.size() << ") of threshold: " << threshold << "\n"
-                       << "Absolute comparison diff tensor mean: " << absDiffMean << ", \tmax: " << absDiffMax << ", \t# failure(" << absoluteErrorCount
-                       << "/" << absoluteDifferences.size() << ") of threshold: " << absThreshold << "\n";
+            IE_THROW() << "\nRelative comparison diff tensor mean: " << relDiffMean << ", \tmax: " << relativeDifferences[relDiffMaxIndex]
+                       << " @ index: " << relDiffMaxIndex << ", \t# failure(" << relativeErrorCount << "/" << relativeDifferences.size()
+                       << ") of threshold: " << threshold << "\n"
+                       << "Absolute comparison diff tensor mean: " << absDiffMean << ", \tmax: " << absoluteDifferences[absDiffMaxIndex]
+                       << " @ index: " << absDiffMaxIndex << ", \t# failure(" << absoluteErrorCount << "/" << absoluteDifferences.size()
+                       << ") of threshold: " << absThreshold << "\n";
         }
     }
 
