@@ -241,3 +241,15 @@ TEST(function, multiple_inputs_outputs_function) {
     ASSERT_EQ(output1, result1);
     ASSERT_EQ(output2, result2);
 }
+
+TEST(function, create_function_with_incorrect_tensor_names) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu = std::make_shared<ov::opset8::Relu>(arg0);
+    relu->set_friendly_name("relu");
+    relu->get_output_tensor(0).set_names({"input"});
+    auto f = std::make_shared<ov::Function>(relu, ov::ParameterVector{arg0});
+    ASSERT_THROW(f->validate_nodes_and_infer_types(), std::exception);
+}
