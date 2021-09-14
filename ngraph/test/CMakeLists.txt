@@ -44,6 +44,7 @@ set(SRC
     input_output_assign.cpp
     int4.cpp
     intervals.cpp
+    layout.cpp
     main.cpp
     matcher_pass.cpp
     misc.cpp
