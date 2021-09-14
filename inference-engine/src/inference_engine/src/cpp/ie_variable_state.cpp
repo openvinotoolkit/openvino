@@ -49,7 +49,7 @@ void VariableState::SetState(Blob::Ptr state) {
 namespace ov {
 namespace runtime {
 
-VariableState::VariableState(const std::shared_ptr<SharedObject>& so, const ie::IVariableStateInternal::Ptr& impl)
+VariableState::VariableState(const std::shared_ptr<void>& so, const ie::IVariableStateInternal::Ptr& impl)
     : _so{so},
       _impl{impl} {
     IE_ASSERT(_impl != nullptr);
