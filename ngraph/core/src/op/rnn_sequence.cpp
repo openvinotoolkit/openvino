@@ -45,8 +45,8 @@ void op::v5::RNNSequence::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_RNNSequence_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
-            set_output_type(1, get_input_element_type(0), ov::Shape::dynamic());
+            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
+            set_output_type(1, get_input_element_type(0), ov::PartialShape::dynamic());
             return;
         }
     }
