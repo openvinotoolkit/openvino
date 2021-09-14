@@ -49,7 +49,7 @@ ngraph::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer
         auto max_const_value =
             std::dynamic_pointer_cast<opset8::Constant>(pattern_map.at(ru_max_const_pattern).get_node_shared_ptr());
         auto add_const_value =
-            std::dynamic_pointer_cast<opset8::Constant>(pattern_map.at(ru_max_const_pattern).get_node_shared_ptr());
+            std::dynamic_pointer_cast<opset8::Constant>(pattern_map.at(`add_const_pattern`).get_node_shared_ptr());            
 
         bool valid_constant_values = op::util::has_constant_value<double>(min_const_value, 0.0) &&
                                      op::util::has_constant_value<double>(max_const_value, 1.0);
