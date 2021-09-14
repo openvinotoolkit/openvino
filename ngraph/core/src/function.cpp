@@ -301,11 +301,11 @@ const ov::element::Type& ov::Function::get_output_element_type(size_t i) const {
     return m_results.at(i)->get_element_type();
 }
 
-const ngraph::Shape& ov::Function::get_output_shape(size_t i) const {
+const ov::Shape& ov::Function::get_output_shape(size_t i) const {
     return m_results.at(i)->get_shape();
 }
 
-const ov::Shape& ov::Function::get_output_partial_shape(size_t i) const {
+const ov::PartialShape& ov::Function::get_output_partial_shape(size_t i) const {
     return m_results.at(i)->get_output_partial_shape(0);
 }
 
@@ -341,7 +341,7 @@ size_t ov::Function::get_graph_size() const {
     for (auto node : get_ops()) {
         total_size += sizeof(*node);
         if (node->description() == "Constant") {
-            const ngraph::Shape& shape = node->get_output_shape(0);
+            const ov::Shape& shape = node->get_output_shape(0);
             size_t const_size = node->get_output_element_type(0).size();
             if (shape.size() == 0) {
                 total_size += const_size;
