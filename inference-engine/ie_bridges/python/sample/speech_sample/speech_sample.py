@@ -115,7 +115,7 @@ def parse_scale_factors(args: argparse.Namespace) -> list:
         sys.exit(-7)
 
     for i, scale_factor in enumerate(scale_factors):
-        if scale_factor < 0:
+        if float(scale_factor) < 0:
             log.error(f'Scale factor for input #{i} (counting from zero) is out of range (must be positive).')
             sys.exit(-8)
 
