@@ -90,6 +90,16 @@ const std::string& ov::descriptor::Tensor::get_name() const {
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
+void ov::descriptor::Tensor::reset_names() {
+    if (m_names.empty())
+        return;
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    if (m_names.empty())
+        return;
+    m_instance_id = m_next_instance_id.fetch_add(1);
+    m_names.clear();
+}
 const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {
     if (m_names.empty()) {
         std::lock_guard<std::mutex> lock(m_mutex);

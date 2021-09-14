@@ -217,6 +217,8 @@ MKLDNNPlugin::ConvertMatMulToGemm::ConvertMatMulToGemm() {
         }
 
         auto gemm = matmul->copy_with_new_inputs({ fc_input_a, fc_input_b });
+        // Clone with new inputs creates tensors with old names
+        matmul->get_output_tensor(0).reset_names();
         new_ops.push_back(gemm);
 
         if (gemm->get_shape() != output_shape) {

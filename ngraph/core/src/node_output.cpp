@@ -65,6 +65,8 @@ void Output<Node>::replace(const Output<Node>& replacement) {
         input.replace_source_output(replacement);
     }
     replacement.get_tensor_ptr()->set_names(get_tensor_ptr()->get_names());
+    // Reset original tensor names in order to avoid conflict with replacement operation
+    // get_tensor().reset_names();
 }
 
 RTMap& Output<Node>::get_rt_info() {
