@@ -16,6 +16,8 @@ constexpr uint32_t bufferMaxSize = 65528;
 
 constexpr uint32_t convMinFiltersNum = 4;
 constexpr uint32_t convMaxFiltersNum = 65532;
+constexpr uint32_t convDilationHeight = 1;
+constexpr uint32_t convDilationWidth = 1;
 constexpr uint32_t convFiltersNumDivider = 4;
 constexpr uint32_t convFilterSizeDivider = 8;
 constexpr uint32_t convFilterMaxSize = 768;
@@ -25,6 +27,8 @@ constexpr uint32_t noOfInputsLowPrecDivisor = 16;
 
 constexpr uint32_t affineMaxBatchSize = 8;
 
+constexpr uint32_t maxPoolMaxWindowSize = 6;
+constexpr uint32_t copyMaxGrouping = 8;
 constexpr uint32_t transposeMaxSize = 65528;
 
 inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
@@ -91,21 +95,25 @@ class Validator {
     RangeMultipleLimit inputChannelsNumberLimit{ {8, 384, "number of input channels"}, 8 };
 
     RangeMultipleLimit kernelNumberLimit{ {8, 256, "number of kernels"}, 8 };
-    VectorOrSquareLimitByChannelsAndPrecision kernelLimit {
+    VectorOrSquareLimitByChannelsAndPrecision kernelLimit{
         { 240, { 3, 7, 3 }, { 2, 7, 2 } },
         { 120, { 3, 7, 3 }, { 1, 7, 1 } } };
-    VectorOrSquareLimitByChannelsAndPrecision& strideLimit = kernelLimit;
+    VectorOrSquareLimitByChannelsAndPrecision & strideLimit = kernelLimit;
+    RangeLimit2D dilationLimit{{convDilationHeight, convDilationHeight, "dilation height"},
+        {convDilationWidth, convDilationWidth, "dilation width"}};
     const VectorOrSquareLimit poolingWindowLimit{ 3, 1, 1 };
 
     static void ThrowIfNotEmpty(const std::string prefix, const std::string error);
 public:
-    void ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
+    bool ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
         const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-        const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision) const;
+        const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
+        OvGnaType inPrecision, bool exception = true) const;
 
-    void ValidatePooling2D(std::string name,
+    bool ValidatePooling2D(std::string name,
         const uint32_t windowH, const uint32_t windowW,
-        const uint32_t strideH, const uint32_t strideW) const;
+        const uint32_t strideH, const uint32_t strideW,
+        bool exception = true) const;
 };
 } // namespace Cnn2D
 
