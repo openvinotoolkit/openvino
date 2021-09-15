@@ -2888,7 +2888,34 @@ void Builder::TranslateGraph(
                                         "node specified as custom output does not exist");
             results.push_back(std::make_shared<default_opset::Result>(node_outputs[port_index]));
         } else if (port_type == "in") {
-            // TODO: implement
+            // TODO: avoid this traversing by having a map for OpPlace objects, for example
+            std::shared_ptr<OpPlaceTF> operation_place = nullptr;
+            for (const auto& op_place : operation_places) {
+                if (op_place->get_names()[0].compare(operation_name) == 0) {
+                    operation_place = op_place;
+                }
+            }
+            FRONT_END_GENERAL_CHECK(operation_place, "There is no operation place with a name: " + operation_name);
+            auto operation_decoder = operation_place->get_desc();
+
+            // get to know a producer node and by which its output port data is generated
+            std::string producer_name;
+            size_t producer_port_idx;
+            try {
+                operation_decoder->input_node(port_index, &producer_name, &producer_port_idx);
+            } catch (const std::exception& e) {
+                FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(port_index) +
+                                " for op '" + operation_decoder->name() + "', expected input name: '" + producer_name +
+                                "', expected input port index: " + std::to_string(producer_port_idx) + '\n');
+            }
+
+            // add Result node for this producer output port
+            const auto& node_outputs = ng_op_map[producer_name];
+            FRONT_END_GENERAL_CHECK(node_outputs.size() > producer_port_idx,
+                                    "Output port with index " + std::to_string(producer_port_idx) + " of " +
+                                        producer_name +
+                                        "node specified as custom output does not exist");
+            results.push_back(std::make_shared<default_opset::Result>(node_outputs[producer_port_idx]));
         }
     }
     
