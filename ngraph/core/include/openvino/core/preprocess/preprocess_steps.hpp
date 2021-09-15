@@ -71,6 +71,20 @@ public:
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     PreProcessSteps&& scale(float value) &&;
 
+    /// \brief Add scale preprocess operation - Lvalue version
+    ///
+    /// \param values Scaling values. Layout runtime info with channels dimension must be specified for input tensor
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps& scale(const std::vector<float>& values) &;
+
+    /// \brief Add scale preprocess operation - Rvalue version
+    ///
+    /// \param values Scaling values. Layout runtime info with channels dimension must be specified for input tensor
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps&& scale(const std::vector<float>& values) &&;
+
     /// \brief Add mean preprocess operation - Lvalue version
     /// Subtract specified value from each element of input
     ///
@@ -86,6 +100,20 @@ public:
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     PreProcessSteps&& mean(float value) &&;
+
+    /// \brief Add mean preprocess operation - Lvalue version
+    ///
+    /// \param values Mean values. Layout runtime info with channels dimension must be specified for input tensor
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps& mean(const std::vector<float>& values) &;
+
+    /// \brief Add mean preprocess operation - Rvalue version
+    ///
+    /// \param values Mean values. Layout runtime info with channels dimension must be specified for input tensor
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps&& mean(const std::vector<float>& values) &&;
 
     /// \brief Signature for custom preprocessing operation. Custom preprocessing operation takes one input node and
     /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Function
