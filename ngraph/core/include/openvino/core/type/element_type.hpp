@@ -192,4 +192,13 @@ public:
 protected:
     ov::element::Type& m_ref;
 };
+
+template <>
+class NGRAPH_API AttributeAdapter<ov::element::TypeVector> : public DirectValueAccessor<ov::element::TypeVector> {
+public:
+    OPENVINO_RTTI("AttributeAdapter<ov::element::TypeVector>");
+    BWDCMP_RTTI_DECLARATION;
+    AttributeAdapter(ov::element::TypeVector& value) : DirectValueAccessor<ov::element::TypeVector>(value) {}
+};
+
 }  // namespace ov

@@ -13,6 +13,7 @@
 #include "ngraph/type/element_type_traits.hpp"
 
 BWDCMP_RTTI_DEFINITION(ngraph::AttributeAdapter<ov::element::Type>);
+BWDCMP_RTTI_DEFINITION(ngraph::AttributeAdapter<ov::element::TypeVector>);
 
 namespace {
 class TypeInfo {
