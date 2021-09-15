@@ -160,7 +160,7 @@ std::shared_ptr<void> load_shared_object(const wchar_t* path) {
     }
     if (!shared_object) {
         char cwd[1024];
-        IE_THROW() << "Cannot load library '" << openvino::util::wstring_to_string(std::wstring(path))
+        IE_THROW() << "Cannot load library '" << ov::util::wstring_to_string(std::wstring(path))
                    << "': " << GetLastError() << " from cwd: " << _getcwd(cwd, sizeof(cwd));
     }
     return {shared_object, [](void* shared_object) {
