@@ -424,7 +424,6 @@ TEST(TransformationTests, HSwishFusionWithClamp) {
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
-        gr->add_matcher<ngraph::pass::HSigmoidFusion>();
         gr->add_matcher<ngraph::pass::HSwishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -435,6 +434,39 @@ TEST(TransformationTests, HSwishFusionWithClamp) {
         auto hswish = std::make_shared<ngraph::opset7::HSwish>(input);
         auto mul_const = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {6.0});
         auto mul = std::make_shared<ngraph::opset7::Multiply>(hswish, mul_const);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, HSwishFusionWithClampWithWrongConstant) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.11});
+        auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
+        auto clamp = std::make_shared<ngraph::opset7::Clamp>(add, 0.11f, 6.32f);
+        auto mul = std::make_shared<ngraph::opset7::Multiply>(input, clamp);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
+        gr->add_matcher<ngraph::pass::HSwishFusion>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.11});
+        auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
+        auto clamp = std::make_shared<ngraph::opset7::Clamp>(add, 0.11f, 6.32f);
+        auto mul = std::make_shared<ngraph::opset7::Multiply>(input, clamp);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
     }
