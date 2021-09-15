@@ -69,125 +69,59 @@ private:
 };
 
 void InputModelTF::InputModelTFImpl::loadPlaces() {
-    std::set<std::string> all_names;
-    std::set<std::string> names_with_consumers;
+    std::set<std::string> all_op_names;
+    std::set<std::string> op_names_with_consumers;
 
     m_inputs.clear();
     for (; !m_graph_impl->is_end(); m_graph_impl->next()) {
-        auto op = m_graph_impl->get();
-        all_names.insert(op->name());
-        m_op_places.push_back(std::make_shared<OpPlaceTF>(m_input_model, op));
-        m_op_places_map[op->name()] = m_op_places.back();
-        if (m_graph_impl->get()->op() == "Placeholder") {
-            //m_inputs.push_back(m_op_places.back());
+        auto node_decoder = m_graph_impl->get();
+        auto op_name = node_decoder->name();
+        auto op_place = std::make_shared<OpPlaceTF>(m_input_model, node_decoder);
+        all_op_names.insert(op_name);
+        m_op_places.push_back(op_place);
+        m_op_places_map[node_decoder->name()] = op_place;
+        if (node_decoder->op() == "Placeholder") {
             ngraph::PartialShape pshape;
-            op->getAttrValue2("shape", &pshape);
             ngraph::element::Type type;
-            op->getAttrValue2("dtype", &type);
-            TensorPlaceTF a(m_input_model, pshape, type, {op->name()});
-            std::vector<std::string> names = {op->name()};
-            auto m_var_place = std::make_shared<TensorPlaceTF>(m_input_model, pshape, type, names);
-            m_tensor_places[op->name()] = m_var_place;
-            m_inputs.push_back(m_var_place);
+            node_decoder->getAttrValue2("shape", &pshape);
+            node_decoder->getAttrValue2("dtype", &type);
+            std::vector<std::string> names = {op_name};
+            auto tensor_place = std::make_shared<TensorPlaceTF>(m_input_model, pshape, type, names);
+            m_tensor_places[op_name] = tensor_place;
+            m_inputs.push_back(tensor_place);
         }
-        for (size_t i = 0; i < op->num_inputs(); ++i) {
-            std::string input_name;
-            size_t port_idx;
+        for (size_t input_port_idx = 0; input_port_idx < node_decoder->num_inputs(); ++input_port_idx) {
+            std::string producer_op_name;
+            size_t producer_output_port_idx;
             try {
-                op->input_node(i, &input_name, &port_idx);
-                names_with_consumers.insert(input_name);
+                node_decoder->input_node(input_port_idx, &producer_op_name, &producer_output_port_idx);
+                op_names_with_consumers.insert(producer_op_name);
             } catch (const std::exception& e) {
-                std::cerr << "[ ERROR ] Exception happened when preparing input " << i << " for op '" << op->name()
-                          << "', expected input name: '" << input_name << "', expected input port index: " << port_idx
-                          << '\n';
-                throw;
+                FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
+                                " for op '" + node_decoder->name() + "', expected input name: '" + producer_op_name +
+                                "', expected input port index: " + std::to_string(producer_output_port_idx));
             }
         }
     }
-    std::set<std::string> names_without_consumers;
-    std::set_difference(all_names.begin(),
-                        all_names.end(),
-                        names_with_consumers.begin(),
-                        names_with_consumers.end(),
-                        std::inserter(names_without_consumers, names_without_consumers.begin()));
+    std::set<std::string> op_names_without_consumers;
+    std::set_difference(all_op_names.begin(),
+                        all_op_names.end(),
+                        op_names_with_consumers.begin(),
+                        op_names_with_consumers.end(),
+                        std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
     m_graph_impl->reset();
 
     m_outputs.clear();
-    for (auto& out_name : names_without_consumers) {
-        std::vector<std::string> names = {out_name};
-        auto output_place = std::make_shared<TensorPlaceTF>(m_input_model, ngraph::PartialShape({}),
-            ngraph::element::undefined, names);
-        m_tensor_places[out_name] = output_place;
+    for (auto& output_name : op_names_without_consumers) {
+        std::vector<std::string> output_names = {output_name};
+        auto output_place = std::make_shared<TensorPlaceTF>(m_input_model,
+                                                            ngraph::PartialShape({}),
+                                                            ngraph::element::undefined,
+                                                            output_names);
+        m_tensor_places[output_name] = output_place;
         m_outputs.push_back(output_place);
     }
 }
-
-/*
-namespace tf {
-bool read_tensor(std::istream& is, char* data, size_t len) {
-    std::vector<char> header(16);
-    is.read(&header[0], 16);
-    uint32_t dims_len = 0;
-    is.read(reinterpret_cast<char*>(&dims_len), 4);
-    std::vector<char> dims_struct(dims_len);
-    is.read(&dims_struct[0], dims_len);
-    is.read(data, len);
-    if (is.gcount() != len)
-        return false;
-    return true;
-}
-
-template <typename T>
-std::basic_string<T> get_const_path(const std::basic_string<T>& folder_with_weights, const std::string& name) {
-    return folder_with_weights + pdpd::get_path_sep<T>() + name;
-}
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-std::basic_string<wchar_t> get_const_path(const std::basic_string<wchar_t>& folder, const std::string& name) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring _name = converter.from_bytes(name);
-    return folder + pdpd::get_path_sep<wchar_t>() + _name;
-}
-#endif
-
-template <typename T>
-std::basic_string<T> get_model_path(const std::basic_string<T>& path, std::ifstream* weights_stream) {
-    std::string model_file{path};
-    std::string ext = ".pdmodel";
-    if (pdpd::endsWith(model_file, ext)) {
-        std::string params_ext = ".pdiparams";
-        std::string weights_file{path};
-        weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
-        weights_stream->open(weights_file, std::ios::binary);
-        // Don't throw error if file isn't opened
-        // It may mean that model don't have constants
-    } else {
-        model_file += pdpd::get_path_sep<T>() + "__model__";
-    }
-    return model_file;
-}
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path, std::ifstream* weights_stream) {
-    std::wstring model_file{path};
-    std::wstring ext = L".pdmodel";
-    if (pdpd::endsWith(model_file, ext)) {
-        std::wstring params_ext = L".pdiparams";
-        std::wstring weights_file{path};
-        weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
-        weights_stream->open(weights_file, std::ios::binary);
-        // Don't throw error if file isn't opened
-        // It may mean that model don't have constants
-    } else {
-        model_file += pdpd::get_path_sep<wchar_t>() + L"__model__";
-    }
-    return model_file;
-}
-#endif
-}  // namespace pdpd
-*/
 
 std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::get_op_places() const {
     if (m_graph_changed) {
@@ -196,91 +130,78 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::get_op_p
     return m_op_places;
 }
 
-static std::string extract_operation_name(const std::string& port_name) {
-    constexpr char delimeter[] = ":";
-    auto pos = port_name.find(delimeter);
-    if (pos == std::string::npos) {
-        return port_name;
-    }
-
-    FRONT_END_GENERAL_CHECK((0 < pos) && (pos + 1 < port_name.length()), "Incorrect port name specified: " + port_name);
-
-    auto left_part = port_name.substr(0, pos);
-    auto right_part = port_name.substr(pos + 1, port_name.length() - pos);
-
-    if (left_part.find_first_not_of("0123456789") == std::string::npos) {
-        return right_part;
-    } else if (right_part.find_first_not_of("0123456789") == std::string::npos) {
-        return left_part;
-    } else {
-        FRONT_END_GENERAL_CHECK(false, "Incorrect port name specified: " + port_name);
-    }
-}
-
 std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determine_cut_nodes() const {
-    std::queue<tensorflow::detail::TFNodeDecoder*> q;
+    std::queue<tensorflow::detail::TFNodeDecoder*> decoders_queue;
     std::unordered_set<std::string> visited;
     std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> new_ops;
-    for (const auto& output_op : m_outputs) {
-        auto op_name = output_op->get_names()[0];
-        auto output_name = op_name;
-        auto operation_name = extract_operation_name(output_name);
+    for (const auto& output_place : m_outputs) {
+        FRONT_END_GENERAL_CHECK(output_place->get_names().size() > 0, "TensorPlace must have at least one name.");
+        auto output_place_name = output_place->get_names()[0];
+        std::string operation_name;
+        size_t port_idx;
+        std::string port_type;
+        tf::extract_operation_name_and_port(output_place_name, operation_name, port_idx, port_type);
         if (!visited.count(operation_name)) {
             visited.insert(operation_name);
-            auto out_op_place = m_op_places_map.at(operation_name);
-            if (out_op_place) {
-                // TODO: throw if nullptr
-                new_ops.push_back(out_op_place);
-                q.push(out_op_place->get_desc().get());
-            }
+            FRONT_END_GENERAL_CHECK(m_op_places_map.count(operation_name),
+                                    "Custom specified output is incorrect: " + output_place_name);
+            auto output_operation_place = m_op_places_map.at(operation_name);
+            FRONT_END_GENERAL_CHECK(output_operation_place , "There is not operation place in the map: " +
+                                    operation_name);
+            new_ops.push_back(output_operation_place);
+            decoders_queue.push(output_operation_place->get_desc().get());
         }
     }
-    while (!q.empty()) {
-        auto op = q.front();
-        q.pop();
-        auto current_op_node_name = op->name();
-        for (size_t i = 0; i < op->num_inputs(); ++i) {
-            std::string input_name;
-            size_t port_idx;
+    while (!decoders_queue.empty()) {
+        auto operation_decoder = decoders_queue.front();
+        decoders_queue.pop();
+        auto current_operation_name = operation_decoder->name();
+        for (size_t input_port_idx = 0; input_port_idx < operation_decoder->num_inputs(); ++input_port_idx) {
+            std::string producer_name;
+            size_t producer_output_port_idx;
             try {
-                op->input_node(i, &input_name, &port_idx);
+                operation_decoder->input_node(input_port_idx, &producer_name, &producer_output_port_idx);
             } catch (const std::exception& e) {
-                std::cerr << "[ ERROR ] Exception happened when preparing input " << i << " for op '" << op->name()
-                          << "', expected input name: '" << input_name << "', expected input port index: " << port_idx
-                          << '\n';
-                throw;
+                FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) + " for op '"
+                                + operation_decoder->name() + "', expected input name: '" + producer_name
+                                + "', expected input port index: " + std::to_string(producer_output_port_idx) + '\n');
             }
 
-            // check if the current node is pruned by its input port
+            // TODO: re-implement the logic below using Place graph structure (with OpPlace, In/OutPortPlace connections)
+            // and based on check if Place->is_input() decide to leave a node or not
+
+            // is_input is a flag to leave producer operation node or not.
+            // this producing node is not left if consumer is pruned by its input port, 
+            // the producer node is pruned by its output port or the producer becomes new input
+            // 1. check if the current node is pruned by its input port
             bool is_input = false;
-            std::string input_port_name = std::to_string(i) + ":" + current_op_node_name;
-            if (m_tensor_places.count(input_port_name)) {  // m_var_places -> m_inputs
-                // override_all_inputs ({"ReluOp:0", "0:ReluOp"}) <-> override_all_inputs ({"ReluOp:0"})
-                // ReluOp(0, 1, 2)
-                is_input = true;
+            std::string input_port_name = std::to_string(input_port_idx) + ":" + current_operation_name;
+            if (m_tensor_places.count(input_port_name)) {
+                const auto& tensor_place = m_tensor_places[input_port_name];
+                is_input = is_input || (tensor_place->is_input() ? true : false);
             }
 
-            // check if the producer node is pruned by its output port
-            std::string output_port_name = input_name + ":" + std::to_string(port_idx);
+            // 2. check if the producer node is pruned by its output port
+            std::string output_port_name = producer_name + ":" + std::to_string(producer_output_port_idx);
             if (m_tensor_places.count(output_port_name)) {
-                is_input = true;
+                const auto& tensor_place = m_tensor_places[output_port_name];
+                is_input = is_input || (tensor_place->is_input() ? true : false);
             }
 
-            // check if the current node is an input
-            auto op_it = m_op_places_map.find(input_name);
-            if (m_tensor_places.count(input_name)) {
-                is_input = true;
+            // 3. check if the current node is an input
+            FRONT_END_GENERAL_CHECK(m_op_places_map.count(producer_name),
+                                    "There is no operation node with name: " + producer_name);
+            const auto& producer_operation_place = m_op_places_map.at(producer_name);
+            auto op_it = m_op_places_map.find(producer_name);
+            if (m_tensor_places.count(producer_name)) {
+                const auto& tensor_place = m_tensor_places[producer_name];
+                is_input = is_input || (tensor_place->is_input() ? true : false);
             }
-            is_input = is_input || op_it->second->is_input();
 
-            if (op_it != m_op_places_map.end() && !is_input && !op_it->second->is_input() &&
-                !m_tensor_values.count(op_it->second->get_names()[0]) && !visited.count(input_name)) {
-                visited.insert(input_name);
-                new_ops.push_back(op_it->second);
-                // TODO: check that op is frozen
-                if (!op_it->second->is_input()) {
-                    q.push(op_it->second->get_desc().get());
-                }
+            if (!is_input && !visited.count(producer_name)) {
+                visited.insert(producer_name);
+                new_ops.push_back(producer_operation_place);
+                decoders_queue.push(producer_operation_place->get_desc().get());
             }
         }
     }
@@ -292,17 +213,15 @@ template <typename T>
 InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::basic_string<T>& path, const InputModel& input_model)
     : m_graph_def{std::make_shared<GraphDef>()},
       m_input_model(input_model) {
+    // TODO: convert any format variant to GraphIterator and pass it to the single constuctor
+    // InputModelTF with GraphIterator
+
     std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
 
     FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
     FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
 
-    // TODO: move GraphIterator to constructor arguments
-    // TODO: rename GraphIterator
     m_graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(m_graph_def.get());
-    // TODO: move NodeDecoder () to constructor arguments
-
-
     loadPlaces();
 }
 
@@ -310,10 +229,12 @@ InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::vector<std::istream*
                                                        const InputModel& input_model)
     : m_graph_def{std::make_shared<GraphDef>()},
       m_input_model(input_model) {
+    // TODO: convert any format variant to GraphIterator and pass it to the single constuctor
+    // InputModelTF with GraphIterator
+
     FRONT_END_GENERAL_CHECK(streams.size() == 1,
                             "One stream is needed to load a model in .pb format");
     FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(streams[0]), "Model can't be parsed");
-
     loadPlaces();
 }
 
@@ -330,11 +251,14 @@ Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorName(const std::strin
         return m_tensor_places.at(tensorName);
 
     // check that operation node exists for which this place is specified
-    auto op_name = extract_operation_name(tensorName);
-    if (m_op_places_map.count(op_name)) {
+    std::string operation_name;
+    size_t port_idx;
+    std::string port_type;
+    tf::extract_operation_name_and_port(tensorName, operation_name, port_idx, port_type);
+    if (m_op_places_map.count(operation_name)) {
         std::vector<std::string> names = {tensorName};
         auto m_var_place = std::make_shared<TensorPlaceTF>(m_input_model, ngraph::PartialShape(),
-            ngraph::element::f32, names);
+            ngraph::element::undefined, names);
         m_tensor_places[tensorName] = m_var_place;
         return m_var_place;    
     }
@@ -343,6 +267,37 @@ Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorName(const std::strin
 }
 
 namespace tf {
+void extract_operation_name_and_port(const std::string& port_name,
+                                     std::string& operation_name,
+                                     size_t& port_index,
+                                     std::string& port_type) {
+    constexpr char delimeter[] = ":";
+    auto pos = port_name.find(delimeter);
+    if (pos == std::string::npos) {
+        operation_name = port_name;
+        port_type = "none";
+        port_index = 0;
+        return;
+    }
+
+    FRONT_END_GENERAL_CHECK((0 < pos) && (pos + 1 < port_name.length()), "Incorrect port name specified: " + port_name);
+
+    auto left_part = port_name.substr(0, pos);
+    auto right_part = port_name.substr(pos + 1, port_name.length() - pos);
+
+    if (left_part.find_first_not_of("0123456789") == std::string::npos) {
+        port_type = "in";
+        operation_name = right_part;
+        port_index = std::atoi(left_part.c_str());
+    } else if (right_part.find_first_not_of("0123456789") == std::string::npos) {
+        port_type = "out";
+        operation_name = left_part;
+        port_index = std::atoi(right_part.c_str());
+    } else {
+        FRONT_END_GENERAL_CHECK(false, "Incorrect port name specified: " + port_name);
+    }
+}
+
 std::shared_ptr<TensorPlaceTF> castToTensorPlace(const Place::Ptr& place) {
     if (auto var_place = std::dynamic_pointer_cast<TensorPlaceTF>(place)) {
         return var_place;
@@ -353,27 +308,21 @@ std::shared_ptr<TensorPlaceTF> castToTensorPlace(const Place::Ptr& place) {
     }
     FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlaceTF.");
 }
-
 }  // namespace tf
 
 void InputModelTF::InputModelTFImpl::overrideAllInputs(const std::vector<Place::Ptr>& inputs) {
     m_graph_changed = true;
     m_inputs.clear();
-    m_tensor_places.clear();
-    for (const auto& inp : inputs) {
-        auto tensor_place = tf::castToTensorPlace(inp);
-        for (const auto& name : inp->get_names()) {
-            m_tensor_places[name] = tensor_place;
-        }
-        m_inputs.push_back(tensor_place);
+    for (const auto& input_place : inputs) {
+        m_inputs.push_back(tf::castToTensorPlace(input_place));
     }
 }
 
 void InputModelTF::InputModelTFImpl::overrideAllOutputs(const std::vector<Place::Ptr>& outputs) {
     m_graph_changed = true;
     m_outputs.clear();
-    for (const auto& outp : outputs) {
-        m_outputs.push_back(tf::castToTensorPlace(outp));
+    for (const auto& output_place : outputs) {
+        m_outputs.push_back(tf::castToTensorPlace(output_place));
     }
 }
 
