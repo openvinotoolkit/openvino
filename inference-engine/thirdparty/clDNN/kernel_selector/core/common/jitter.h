@@ -87,6 +87,9 @@ inline std::string toCodeString(const char* val) { return val; }
 inline std::string toCodeString(bool val) { return val ? "1" : "0"; }
 std::string toCodeString(float val);
 std::string toCodeString(double val);
+std::string toCodeString(size_t val);
+std::string toCodeString(uint8_t val);
+std::string toCodeString(int8_t val);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JitConstant
