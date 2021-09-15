@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME conformanceTestsInfra)
+set(TARGET_NAME conformanceShared)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
@@ -10,6 +10,8 @@ addIeTargetTest(
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
+        DEVELOPER_PACKAGE
+            inference_engine_tests
         ADD_CPPLINT
         INCLUDES
             PUBLIC

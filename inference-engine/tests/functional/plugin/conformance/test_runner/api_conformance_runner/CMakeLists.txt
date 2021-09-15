@@ -12,7 +12,7 @@ addIeTargetTest(
         ADD_CPPLINT
         LINK_LIBRARIES
             PUBLIC
-                conformanceTestsInfra
+                conformanceShared
         LABELS
             CONFORMANCE
 )
