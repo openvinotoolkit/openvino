@@ -51,6 +51,10 @@ struct GenericLayerParams {
     }
 };
 
+void operator>>(const std::stringstream& in, ngraph::element::Type& type) {
+    type = details::convertPrecision(ngraph::trim(in.str()));
+}
+
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
     if (!node)
         return false;
@@ -558,6 +562,11 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         }
 
         a->set(node_attrs);
+    } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
+        ngraph::element::TypeVector types;
+        if (!getParameters<ngraph::element::Type>(m_node.child("data"), name, types))
+            return;
+        a->set(types);
     } else {
         IE_THROW() << "Error IR reading. Attribute adapter can not be found for " << name << " parameter";
     }
