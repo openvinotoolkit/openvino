@@ -244,6 +244,7 @@ set(SRC
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
     visitors/op/add.cpp
+    visitors/op/asin.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
@@ -337,6 +338,7 @@ set(SRC
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/sign.cpp
+    visitors/op/sin.cpp
     visitors/op/sinh.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
