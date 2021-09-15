@@ -3,7 +3,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-echo -ne "\e[0;33mWARNING: If you get an error when running the demo in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
+echo -ne "\e[0;33mWARNING: If you get an error when running the sample in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 VENV_DIR="$HOME/venv_openvino"
@@ -11,7 +11,7 @@ VENV_DIR="$HOME/venv_openvino"
 . "$ROOT_DIR/utils.sh"
 
 usage() {
-    echo "Benchmark demo using public SqueezeNet topology"
+    echo "Classification sample using public SqueezeNet topology"
     echo
     echo "Options:"
     echo "  -help                     Print help message"
@@ -51,10 +51,6 @@ esac
 shift
 done
 
-if [ -z "${sampleoptions[*]}" ]; then
-    sampleoptions=( -niter 1000 )
-fi
-
 target_precision="FP16"
 
 echo -ne "target_precision = ${target_precision}\n"
@@ -88,9 +84,6 @@ fi
 
 if [[ $DISTRO == "centos" ]]; then
     # check installed Python version
-    if command -v python3.5 >/dev/null 2>&1; then
-        python_binary=python3.5
-    fi
     if command -v python3.6 >/dev/null 2>&1; then
         python_binary=python3.6
     fi
@@ -104,15 +97,13 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
         python_binary=python3.7
     elif command -v python3.6 >/dev/null 2>&1; then
         python_binary=python3.6
-    elif command -v python3.5 >/dev/null 2>&1; then
-        python_binary=python3.5
     else
         python_binary=python3
     fi
 fi
 
 if ! command -v $python_binary &>/dev/null; then
-    echo -ne "\n\nPython 3.5 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. ${run_again}"
+    echo -ne "\n\nPython 3.6 (x64) or higher is not installed. It is required to run Model Optimizer, please install it. ${run_again}"
     exit 1
 fi
 
@@ -182,15 +173,15 @@ mkdir -p "$build_dir"
 cd "$build_dir"
 cmake -DCMAKE_BUILD_TYPE=Release "$samples_path"
 
-make $NUM_THREADS benchmark_app
+make $NUM_THREADS classification_sample_async
 
 # Step 5. Run samples
-echo -ne "\n###############|| Run Inference Engine benchmark app ||###############\n\n"
+echo -ne "\n###############|| Run Inference Engine classification sample ||###############\n\n"
 
 cd "$binaries_dir"
 
 cp -f "$ROOT_DIR/${model_name}.labels" "${ir_dir}/"
 
-print_and_run ./benchmark_app -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" -pc "${sampleoptions[@]}"
+print_and_run ./classification_sample_async -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" "${sampleoptions[@]}"
 
-echo -ne "\n###############|| Inference Engine benchmark app completed successfully ||###############\n\n"
+echo -ne "\n###############|| Classification sample completed successfully ||###############\n\n"
