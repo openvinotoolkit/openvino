@@ -18,7 +18,7 @@ project(time_tests)
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 # Search OpenVINO Inference Engine installed
-find_package(InferenceEngine REQUIRED)
+find_package(OpenVINO REQUIRED)
 
 add_subdirectory(src)
 
