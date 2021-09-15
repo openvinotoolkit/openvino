@@ -88,9 +88,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto quantize = new quantize_impl(arg, best_kernels[0]);
-
-        return quantize;
+        return new quantize_impl(arg, best_kernels[0]);
     }
 };
 

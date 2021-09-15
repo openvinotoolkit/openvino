@@ -113,9 +113,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto eltwise = new eltwise_impl(arg, best_kernels[0]);
-
-        return eltwise;
+        return new eltwise_impl(arg, best_kernels[0]);
     }
 };
 

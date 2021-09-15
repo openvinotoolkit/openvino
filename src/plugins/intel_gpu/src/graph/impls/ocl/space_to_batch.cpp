@@ -44,9 +44,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto space_to_batch = new space_to_batch_impl(arg, best_kernels[0]);
-
-        return space_to_batch;
+        return new space_to_batch_impl(arg, best_kernels[0]);
     }
 };
 

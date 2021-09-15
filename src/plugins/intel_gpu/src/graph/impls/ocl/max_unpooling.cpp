@@ -55,9 +55,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto max_unpool = new max_unpooling_impl(arg, best_kernels[0]);
-
-        return max_unpool;
+        return new max_unpooling_impl(arg, best_kernels[0]);
     }
 };
 

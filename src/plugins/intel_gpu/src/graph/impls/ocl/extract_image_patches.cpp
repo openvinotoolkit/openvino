@@ -41,9 +41,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto extract_image_patches = new extract_image_patches_impl(arg, best_kernels[0]);
-
-        return extract_image_patches;
+        return new extract_image_patches_impl(arg, best_kernels[0]);
     }
 };
 

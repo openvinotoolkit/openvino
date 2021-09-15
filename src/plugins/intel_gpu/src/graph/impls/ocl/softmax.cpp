@@ -74,9 +74,7 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto softmax_node = new softmax_impl(arg, best_kernels[0]);
-
-        return softmax_node;
+        return new softmax_impl(arg, best_kernels[0]);
     }
 };
 

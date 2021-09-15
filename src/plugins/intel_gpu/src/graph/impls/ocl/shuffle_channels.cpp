@@ -46,9 +46,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto shuffle_channels = new shuffle_channels_impl(arg, best_kernels[0]);
-
-        return shuffle_channels;
+        return new shuffle_channels_impl(arg, best_kernels[0]);
     }
 };
 

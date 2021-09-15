@@ -14,15 +14,65 @@
 namespace cldnn {
 namespace common {
 struct loop_impl : typed_primitive_impl<loop> {
-    const loop_node& node;
+private:
+    bool _is_current_iteration_used = false;
+    primitive_id _current_iteration_id;
+    primitive_id _id;
+    primitive_id _trip_count_id;
+    int64_t _max_iteration = 0;
+    primitive_id _initial_execution_id;
+    bool _is_execution_condition_used = false;
+    primitive_id _condition_id;
+    std::vector<cldnn::loop::backedge_mapping> _back_edges{};
+    primitive_id _num_iteration_id;
+
+public:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<loop_impl>(*this);
     }
 
     void init_kernels(const program_node&) override {}
 
-    loop_impl(const loop_impl& other) : typed_primitive_impl<loop>(other), node(other.node) {}
-    explicit loop_impl(const loop_node& node) : node(node) {}
+    loop_impl(const loop_impl& other) : typed_primitive_impl<loop>(other),
+    _is_current_iteration_used(other._is_current_iteration_used),
+    _current_iteration_id(other._current_iteration_id),
+    _id(other._id),
+    _trip_count_id(other._trip_count_id),
+    _max_iteration(other._max_iteration),
+    _initial_execution_id(other._initial_execution_id),
+    _is_execution_condition_used(other._is_execution_condition_used),
+    _condition_id(other._condition_id),
+    _back_edges(other._back_edges),
+    _num_iteration_id(other._num_iteration_id) {}
+
+    explicit loop_impl(const loop_node& arg) :
+    _is_current_iteration_used(arg.is_current_iteration_used()),
+    _current_iteration_id(arg.get_current_iteration_id()),
+    _id(arg.id()),
+    _trip_count_id(arg.get_trip_count_id()),
+    _max_iteration(arg.get_max_iteration()),
+    _initial_execution_id(arg.get_initial_execution_id()),
+    _is_execution_condition_used(arg.is_execution_condition_used()),
+    _condition_id(arg.get_condition_id()),
+    _back_edges(arg.get_back_edges()),
+    _num_iteration_id(arg.get_num_iteration_id()) {}
+
+    void align_state(const program_node& arg) override {
+        if (!arg.is_type<loop>()) {
+            throw std::invalid_argument("Should be loop node");
+        }
+        const auto& loop_node = arg.as<loop>();
+         _is_current_iteration_used = loop_node.is_current_iteration_used();
+        _current_iteration_id = loop_node.get_current_iteration_id();
+        _id = loop_node.id();
+        _trip_count_id = loop_node.get_trip_count_id();
+        _max_iteration = loop_node.get_max_iteration();
+        _initial_execution_id = loop_node.get_initial_execution_id();
+        _is_execution_condition_used = loop_node.is_execution_condition_used();
+        _condition_id = loop_node.get_condition_id();
+        _back_edges = loop_node.get_back_edges();
+        _num_iteration_id = loop_node.get_num_iteration_id();
+    }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, loop_inst& instance) override {
         auto& outer_network = instance.get_network();
@@ -38,12 +88,11 @@ struct loop_impl : typed_primitive_impl<loop> {
             instance.preprocess_backedge_memory();
 
             // set input data for current_iteration primitive if current_iteration is used
-            if (node.is_current_iteration_used()) {
-                const primitive_id& current_iteration_id = node.get_current_iteration_id();
-                auto current_iteration_prim = body_network->get_primitive(current_iteration_id);
+            if (_is_current_iteration_used) {
+                auto current_iteration_prim = body_network->get_primitive(_current_iteration_id);
                 auto input_layout_prim = std::dynamic_pointer_cast<input_layout_inst>(current_iteration_prim);
                 if (input_layout_prim == nullptr) {
-                    CLDNN_ERROR_MESSAGE(node.id(), "current_iteration primitive is not input_layout");
+                    CLDNN_ERROR_MESSAGE(_id, "current_iteration primitive is not input_layout");
                 }
 
                 const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
@@ -54,25 +103,21 @@ struct loop_impl : typed_primitive_impl<loop> {
 
         // read trip_count from outer network
         bool update_num_iterations = false;
-        const primitive_id& trip_count_id = node.get_trip_count_id();
-        memory::ptr trip_count_mem = outer_network.get_primitive(trip_count_id)->output_memory_ptr();
+        memory::ptr trip_count_mem = outer_network.get_primitive(_trip_count_id)->output_memory_ptr();
         int64_t trip_count = loop_node::read_scalar_value(trip_count_mem, stream);
         if (trip_count < 0) {
-            const int64_t max_iteration = node.get_max_iteration();
-            trip_count = max_iteration;
+            trip_count = _max_iteration;
             update_num_iterations = true;
         }
 
         // read initial execution condition from outer network
-        const primitive_id& initial_execution_id = node.get_initial_execution_id();
-        memory::ptr initial_execution_mem = outer_network.get_primitive(initial_execution_id)->output_memory_ptr();
+        memory::ptr initial_execution_mem = outer_network.get_primitive(_initial_execution_id)->output_memory_ptr();
         int64_t execution_condition = loop_node::read_scalar_value(initial_execution_mem, stream);
 
         // shortcut of execution_condition memory in body network
         memory::ptr execution_condition_mem = nullptr;
-        if (node.is_execution_condition_used()) {
-            const primitive_id& condition_id = node.get_condition_id();
-            execution_condition_mem = body_network->get_primitive(condition_id)->output_memory_ptr();
+        if (_is_execution_condition_used) {
+            execution_condition_mem = body_network->get_primitive(_condition_id)->output_memory_ptr();
         }
 
         const auto& concatenated_input_mem_mappings = instance.concatenated_input_mem_mappings;
@@ -85,7 +130,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             if (mem) {
                 body_network->set_input_data(concatenated_input.sliced_data_prim->id(), mem);
             } else {
-                CLDNN_ERROR_MESSAGE(node.id(), "sliced input memory of loop is not allocated properly");
+                CLDNN_ERROR_MESSAGE(_id, "sliced input memory of loop is not allocated properly");
             }
         }
 
@@ -99,7 +144,7 @@ struct loop_impl : typed_primitive_impl<loop> {
                 if (mem) {
                     concatenated_input.sliced_data_prim->set_output_memory(mem);
                 } else {
-                    CLDNN_ERROR_MESSAGE(node.id(), "sliced input memory of loop is not allocated properly");
+                    CLDNN_ERROR_MESSAGE(_id, "sliced input memory of loop is not allocated properly");
                 }
             }
 
@@ -117,7 +162,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             body_network->execute(loop_carried_dep);
 
             loop_carried_dep.clear();
-            for (const auto& backedge : node.get_back_edges()) {
+            for (const auto& backedge : _back_edges) {
                 event::ptr body_event;
                 if (body_network->has_event(backedge.from))
                     body_event = body_network->get_primitive_event(backedge.from);
@@ -128,7 +173,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             //      ngraph opset document for loop operation.
             // However they are not being used yet and only TensorIterator which
             // has fixed sequence length is being validated.
-            if (node.is_execution_condition_used()) {
+            if (_is_execution_condition_used) {
                 execution_condition = loop_node::read_scalar_value(execution_condition_mem, stream);
             }
 
@@ -147,7 +192,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         if (update_num_iterations) {
             // update num_iterations (actual number of iterations)
             int64_t actual_iterations = 0;
-            if (node.is_current_iteration_used()) {
+            if (_is_current_iteration_used) {
                 const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
                 auto current_iteration_mem = backedge_mapping.from_primitive->output_memory_ptr();
                 actual_iterations = loop_node::read_scalar_value(current_iteration_mem, stream);
@@ -155,8 +200,7 @@ struct loop_impl : typed_primitive_impl<loop> {
                 actual_iterations = current_iteration_idx;
             }
 
-            const primitive_id& num_iteration_id = node.get_num_iteration_id();
-            memory::ptr num_actual_iterations_mem = outer_network.get_primitive(num_iteration_id)->output_memory_ptr();
+            memory::ptr num_actual_iterations_mem = outer_network.get_primitive(_num_iteration_id)->output_memory_ptr();
             loop_node::write_scalar_value(num_actual_iterations_mem, stream, actual_iterations);
         }
 

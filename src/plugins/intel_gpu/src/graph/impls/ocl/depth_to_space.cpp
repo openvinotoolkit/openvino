@@ -41,9 +41,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto depth_to_space = new depth_to_space_impl(arg, best_kernels[0]);
-
-        return depth_to_space;
+        return new depth_to_space_impl(arg, best_kernels[0]);
     }
 };
 

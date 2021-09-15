@@ -62,9 +62,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto cum_sum = new cum_sum_impl(arg, best_kernels[0]);
-
-        return cum_sum;
+        return new cum_sum_impl(arg, best_kernels[0]);
     }
 };
 

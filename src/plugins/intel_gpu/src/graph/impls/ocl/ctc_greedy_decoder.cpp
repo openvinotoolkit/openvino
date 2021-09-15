@@ -51,9 +51,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto grn = new ctc_greedy_decoder_impl(arg, best_kernels[0]);
-
-        return grn;
+        return new ctc_greedy_decoder_impl(arg, best_kernels[0]);
     }
 };
 

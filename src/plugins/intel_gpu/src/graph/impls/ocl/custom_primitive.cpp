@@ -24,7 +24,6 @@ namespace cldnn {
 namespace ocl {
 
 struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
-    const custom_gpu_primitive_node& outer;
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
     std::vector<kernel::ptr> _kernels;
     kernel_id _kernel_id;
@@ -33,20 +32,16 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         return make_unique<custom_gpu_primitive_impl>(*this);
     }
 
-    custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
-    : outer(other.outer)
-    , cl_kernel(other.cl_kernel)
-    , _kernels({})
-    , _kernel_id(other._kernel_id) {
-        _kernels.emplace_back(std::move(outer.get_program().get_kernel(_kernel_id)->clone()));
+    custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other) : cl_kernel(other.cl_kernel), _kernels({}), _kernel_id(other._kernel_id) {
+        _kernels.reserve(other._kernels.size());
+        for (const auto& kernel : other._kernels) {
+            _kernels.emplace_back(std::move(kernel->clone()));
+        }
     }
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
-                             std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel)
-        : outer(arg)
-        , cl_kernel(cl_kernel)
-        , _kernels() {
-        _kernel_id = outer.get_program().add_kernel(cl_kernel->code.kernelString);
+                             std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel) : cl_kernel(cl_kernel), _kernels() {
+        _kernel_id = arg.get_program().add_kernel(cl_kernel->code.kernelString);
     }
 
     void init_kernels(const program_node& node) override {

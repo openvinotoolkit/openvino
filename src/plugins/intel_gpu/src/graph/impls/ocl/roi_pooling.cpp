@@ -108,9 +108,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto roi_pool = new roi_pooling_impl(arg, best_kernels[0]);
-
-        return roi_pool;
+        return new roi_pooling_impl(arg, best_kernels[0]);
     }
 };
 

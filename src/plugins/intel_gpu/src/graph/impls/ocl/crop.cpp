@@ -17,13 +17,27 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
     using parent = typed_primitive_impl_ocl<crop>;
     using parent::parent;
 
+    crop_impl(const crop_impl& other) : parent(other),
+    _can_be_optimized(other._can_be_optimized) {}
+
+    crop_impl(const crop_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+    _can_be_optimized(arg.can_be_optimized()) {}
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<crop_impl>(*this);
     }
 
+    void align_state(const program_node& arg) override {
+        if (!arg.is_type<crop>()) {
+            throw std::invalid_argument("Should be crop node");
+        }
+        const auto& crop_node = arg.as<crop>();
+        _can_be_optimized = crop_node.can_be_optimized();
+    }
+
 protected:
     bool optimized_out(crop_inst& instance) const override {
-        return parent::optimized_out(instance) || _outer.can_be_optimized();
+        return parent::optimized_out(instance) || _can_be_optimized;
     }
 
 public:
@@ -46,10 +60,11 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto crop = new crop_impl(arg, best_kernels[0]);
-
-        return crop;
+        return new crop_impl(arg, best_kernels[0]);
     }
+
+private:
+    bool _can_be_optimized = false;
 };
 
 namespace detail {

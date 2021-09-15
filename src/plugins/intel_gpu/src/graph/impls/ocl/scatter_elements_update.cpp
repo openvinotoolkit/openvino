@@ -61,9 +61,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto scatter_elements_update = new scatter_elements_update_impl(arg, best_kernels[0]);
-
-        return scatter_elements_update;
+        return new scatter_elements_update_impl(arg, best_kernels[0]);
     }
 };
 

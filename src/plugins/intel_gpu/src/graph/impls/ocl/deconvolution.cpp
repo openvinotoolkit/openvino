@@ -18,8 +18,31 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
     using parent = typed_primitive_impl_ocl<deconvolution>;
     using parent::parent;
 
+    deconvolution_impl(const deconvolution_impl& other) : parent(other),
+    _id(other._id),
+    _filling_value(other._filling_value),
+    _split(other._split),
+    _groups(other._groups) {}
+
+    deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+    _id(arg.id()),
+    _filling_value(arg.get_output_layout().data_padding.filling_value()),
+    _split(arg.get_split()),
+    _groups(arg.get_groups()) {}
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deconvolution_impl>(*this);
+    }
+
+    void align_state(const program_node& arg) override {
+        if (!arg.is_type<deconvolution>()) {
+            throw std::invalid_argument("Should be deconvolution node");
+        }
+        const auto& deconvolution_node = arg.as<deconvolution>();
+        _id = deconvolution_node.id();
+        _filling_value = deconvolution_node.get_output_layout().data_padding.filling_value();
+        _split = deconvolution_node.get_split();
+        _groups = deconvolution_node.get_groups();
     }
 
 protected:
@@ -27,9 +50,9 @@ protected:
     bool validate_impl(const typed_primitive_inst<deconvolution>&) const override {
         bool res = true;
 
-        CLDNN_ERROR_NOT_EQUAL(_outer.id(),
+        CLDNN_ERROR_NOT_EQUAL(_id,
                               "deconvolution filling value",
-                              _outer.get_output_layout().data_padding.filling_value(),
+                              _filling_value,
                               "padding mode",
                               0.0f,
                               "Unknown padding mode in deconvolution.");
@@ -46,9 +69,9 @@ protected:
         return args;
     }
 
-    int32_t get_split() const override { return _outer.get_split(); }
+    int32_t get_split() const override { return _split; }
 
-    uint32_t get_groups() const override { return _outer.get_groups(); }
+    uint32_t get_groups() const override { return _groups; }
 
 public:
     static primitive_impl* create(const deconvolution_node& arg) {
@@ -108,10 +131,14 @@ public:
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
-        auto deconv = new deconvolution_impl(arg, best_kernels[0]);
-
-        return deconv;
+        return new deconvolution_impl(arg, best_kernels[0]);
     }
+
+private:
+    primitive_id _id;
+    float _filling_value = .0f;
+    int32_t _split = 1;
+    uint32_t _groups = 1;
 };
 
 namespace detail {

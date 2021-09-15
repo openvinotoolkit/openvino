@@ -44,9 +44,7 @@ struct lrn_impl : typed_primitive_impl_ocl<lrn> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto lrn = new lrn_impl(arg, best_kernels[0]);
-
-        return lrn;
+        return new lrn_impl(arg, best_kernels[0]);
     }
 };
 

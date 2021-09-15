@@ -19,6 +19,18 @@ struct scale_impl : typed_primitive_impl_ocl<scale> {
     using parent = typed_primitive_impl_ocl<scale>;
     using parent::parent;
 
+    scale_impl(const scale_impl& other) : parent(other), _bias_term(other._bias_term) {}
+
+    scale_impl(const scale_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd), _bias_term(arg.bias_term()) {}
+
+    void align_state(const program_node& arg) override {
+        if (!arg.is_type<scale>()) {
+            throw std::invalid_argument("Should be scale node");
+        }
+        const auto& scale_node = arg.as<scale>();
+        _bias_term = scale_node.bias_term();
+    }
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<scale_impl>(*this);
     }
@@ -29,7 +41,7 @@ protected:
         args.inputs = {instance.input_memory_ptr(), instance.scale_memory()};
         args.outputs = {instance.output_memory_ptr()};
 
-        if (_outer.bias_term()) {
+        if (_bias_term) {
             args.inputs.push_back(instance.bias_memory());
         }
         return args;
@@ -64,10 +76,11 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto scale = new scale_impl(arg, best_kernels[0]);
-
-        return scale;
+        return new scale_impl(arg, best_kernels[0]);
     }
+
+private:
+    bool _bias_term = false;
 };
 
 namespace detail {

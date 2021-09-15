@@ -84,9 +84,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto lstm_dynamic = new lstm_dynamic_timeloop_impl(arg, best_kernels[0]);
-
-        return lstm_dynamic;
+        return new lstm_dynamic_timeloop_impl(arg, best_kernels[0]);
     }
 };
 

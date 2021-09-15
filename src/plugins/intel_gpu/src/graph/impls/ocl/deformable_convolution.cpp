@@ -19,8 +19,25 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
     using parent = typed_primitive_impl_ocl<deformable_conv>;
     using parent::parent;
 
+    deformable_conv_impl(const deformable_conv_impl& other) : parent(other),
+    _split(other._split),
+    _groups(other._groups) {}
+
+    deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+    _split(arg.get_split()),
+    _groups(arg.get_groups()) {}
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deformable_conv_impl>(*this);
+    }
+
+    void align_state(const program_node& arg) override {
+        if (!arg.is_type<deformable_conv>()) {
+            throw std::invalid_argument("Should be deformable_conv node");
+        }
+        const auto& deformable_conv_node = arg.as<deformable_conv>();
+        _split = deformable_conv_node.get_split();
+        _groups = deformable_conv_node.get_groups();
     }
 
 protected:
@@ -32,9 +49,9 @@ protected:
         return args;
     }
 
-    int32_t get_split() const override { return _outer.get_split(); }
+    int32_t get_split() const override { return _split; }
 
-    uint32_t get_groups() const override { return _outer.get_groups(); }
+    uint32_t get_groups() const override { return _groups; }
 
 public:
     static primitive_impl* create(const deformable_conv_node& arg) {
@@ -71,10 +88,12 @@ public:
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
-        auto conv = new deformable_conv_impl(arg, best_kernels[0]);
-
-        return conv;
+        return new deformable_conv_impl(arg, best_kernels[0]);
     }
+
+private:
+    int32_t _split = 1;
+    uint32_t _groups = 1;
 };
 
 struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
@@ -86,7 +105,7 @@ struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
     }
 
 protected:
-    int32_t get_split() const override { return 1; }
+    int32_t get_split() const override { return 1; } //TO DO: Can be removed
 
     uint32_t get_groups() const override { return 1; }
 
@@ -146,9 +165,7 @@ public:
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
-        auto conv = new deformable_interp_impl(arg, best_kernels[0]);
-
-        return conv;
+        return new deformable_interp_impl(arg, best_kernels[0]);
     }
 };
 

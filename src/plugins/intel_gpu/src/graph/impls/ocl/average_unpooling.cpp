@@ -52,9 +52,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto average_unpool = new average_unpooling_impl(arg, best_kernels[0]);
-
-        return average_unpool;
+        return new average_unpooling_impl(arg, best_kernels[0]);
     }
 };
 

@@ -66,9 +66,7 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto permute = new permute_impl(arg, best_kernels[0]);
-
-        return permute;
+        return new permute_impl(arg, best_kernels[0]);
     }
 };
 

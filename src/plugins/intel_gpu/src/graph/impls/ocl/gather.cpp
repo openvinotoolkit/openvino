@@ -88,9 +88,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto gather = new gather_impl(arg, best_kernels[0]);
-
-        return gather;
+        return new gather_impl(arg, best_kernels[0]);
     }
 };
 

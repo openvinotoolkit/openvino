@@ -47,25 +47,38 @@ kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
 
 struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
     using parent = typed_primitive_impl_ocl<concatenation>;
+    using parent::parent;
 
-    std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<concatenation_impl>(*this);
-    }
+    concatenation_impl(const concatenation_impl& other) : parent(other),
+    _can_be_optimized(other._can_be_optimized) {}
 
-    concatenation_impl(const concatenation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        if (!_outer.can_be_optimized()) {
-            CLDNN_ERROR_NOT_EQUAL(_outer.id(),
+    concatenation_impl(const concatenation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+    _can_be_optimized(arg.can_be_optimized()) {
+        if (!_can_be_optimized) {
+            CLDNN_ERROR_NOT_EQUAL(arg.id(),
                                   "Input count",
-                                  _outer.inputs_count(),
+                                  arg.inputs_count(),
                                   "kds size",
                                   kd.kernels.size(),
                                   "Error - not enough kernels for concatenation");
         }
     }
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<concatenation_impl>(*this);
+    }
+
+    void align_state(const program_node& arg) override {
+        if (!arg.is_type<concatenation>()) {
+            throw std::invalid_argument("Should be concatenation node");
+        }
+        const auto& concatenation_node = arg.as<concatenation>();
+        _can_be_optimized = concatenation_node.can_be_optimized();
+    }
+
 protected:
     bool optimized_out(concatenation_inst& instance) const override {
-        return parent::optimized_out(instance) || _outer.can_be_optimized();
+        return parent::optimized_out(instance) || _can_be_optimized;
     }
 
 public:
@@ -95,10 +108,11 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        concatenation_impl* concat = new concatenation_impl(arg, best_kernels[0]);
-
-        return concat;
+        return new concatenation_impl(arg, best_kernels[0]);
     }
+
+private:
+    bool _can_be_optimized = false;
 };
 
 namespace detail {

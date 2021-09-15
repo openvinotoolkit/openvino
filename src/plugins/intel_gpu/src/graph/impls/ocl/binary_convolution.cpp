@@ -22,25 +22,41 @@ struct binary_convolution_impl : typed_primitive_impl_ocl<binary_convolution> {
     using parent = typed_primitive_impl_ocl<binary_convolution>;
     using parent::parent;
 
+    binary_convolution_impl(const binary_convolution_impl& other) : parent(other),
+    _id(other._id),
+    _split(other._split) {}
+
+    binary_convolution_impl(const binary_convolution_node& outer, const kernel_selector::kernel_data& kd) : parent(outer, kd),
+    _id(outer.id()),
+    _split(outer.get_split()) {}
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<binary_convolution_impl>(*this);
+    }
+
+    void align_state(const program_node& arg) override {
+        if (!arg.is_type<binary_convolution>()) {
+            throw std::invalid_argument("Should be binary_convolution node");
+        }
+        const auto& binary_convolution_node = arg.as<binary_convolution>();
+        _id = binary_convolution_node.id();
+        _split = binary_convolution_node.get_split();
     }
 
 protected:
     bool validate_impl(const typed_primitive_inst<binary_convolution>& instance) const override {
         bool res = true;
 
-        auto outer_id = _outer.id();
         auto data_type = instance.node.input().get_output_layout().data_type;
 
         // Check whether all memory elements use the same unit type (FP16 or FP32).
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(outer_id,
+        CLDNN_ERROR_DATA_TYPES_MISMATCH(_id,
                                         "Input memory",
                                         data_type,
                                         "output memory",
                                         instance.node.get_output_layout().data_type,
                                         "");
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
+        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_id,
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
@@ -57,7 +73,7 @@ protected:
         return args;
     }
 
-    int32_t get_split() const override { return _outer.get_split(); }
+    int32_t get_split() const override { return _split; }
 
 public:
     static primitive_impl* create(const binary_convolution_node& arg) {
@@ -125,10 +141,12 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto conv = new binary_convolution_impl(arg, best_kernels[0]);
-
-        return conv;
+        return new binary_convolution_impl(arg, best_kernels[0]);
     }
+
+private:
+    primitive_id _id;
+    int32_t _split = 1;
 };
 
 namespace detail {

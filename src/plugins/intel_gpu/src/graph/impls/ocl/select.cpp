@@ -39,9 +39,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto select = new select_impl(arg, best_kernels[0]);
-
-        return select;
+        return new select_impl(arg, best_kernels[0]);
     }
 };
 

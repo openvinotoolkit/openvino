@@ -58,9 +58,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto embedding_bag = new embedding_bag_impl(arg, best_kernels[0]);
-
-        return embedding_bag;
+        return new embedding_bag_impl(arg, best_kernels[0]);
     }
 };
 

@@ -120,9 +120,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto strided_slice = new strided_slice_impl(arg, best_kernels[0]);
-
-        return strided_slice;
+        return new strided_slice_impl(arg, best_kernels[0]);
     }
 };
 

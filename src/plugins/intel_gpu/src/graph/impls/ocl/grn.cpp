@@ -40,9 +40,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto grn = new grn_impl(arg, best_kernels[0]);
-
-        return grn;
+        return new grn_impl(arg, best_kernels[0]);
     }
 };
 

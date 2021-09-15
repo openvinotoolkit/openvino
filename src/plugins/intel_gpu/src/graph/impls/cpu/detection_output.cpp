@@ -43,16 +43,23 @@ bool comp_score_descend<std::pair<int, int>>(const std::pair<float, std::pair<in
 
 /************************ Detection Output CPU ************************/
 struct detection_output_impl : typed_primitive_impl<detection_output> {
-    enum NMSType {CAFFE, MXNET};
-    const detection_output_node& outer;
+    enum class NMSType {CAFFE, MXNET};
     NMSType nms_type;
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
     }
-    explicit detection_output_impl(const detection_output_node& outer)
-        : outer(outer)
-        , nms_type(outer.get_primitive()->decrease_label_id ? MXNET : CAFFE) {}
+
+    explicit detection_output_impl(const detection_output_node& arg) :
+    nms_type(arg.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE) {}
+
+    void align_state(const program_node& arg) override {
+        if (!arg.is_type<detection_output>()) {
+            throw std::invalid_argument("Should be detection_output node");
+        }
+        const auto& detection_output_node = arg.as<detection_output>();
+        nms_type = (detection_output_node.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE);
+    }
 
     static inline void intersect_bbox(const bounding_box& bbox1,
                                       const bounding_box& bbox2,
@@ -283,7 +290,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
 #pragma omp parallel for num_threads(num_threads_to_use) reduction(+ : num_det)
 #endif
 #endif
-            if (nms_type == CAFFE) {
+            if (nms_type == NMSType::CAFFE) {
                 for (int cls = 0; cls < static_cast<int>(args.num_classes); ++cls) {
                     if (static_cast<int>(cls) == args.background_label_id) {
                         conf_per_image[cls].clear();
@@ -789,7 +796,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
             }
         }
         // Extract confidences per image.
-        if (nms_type == CAFFE) {
+        if (nms_type == NMSType::CAFFE) {
             extract_confidences_per_image_caffe<dtype>(stream, instance, confidences, num_of_priors);
         } else {
             extract_confidences_per_image_mxnet<dtype>(stream, instance, confidences, num_of_priors, scoreIndexPairs);

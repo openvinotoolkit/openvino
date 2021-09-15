@@ -73,9 +73,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto fc = new fully_connected_impl(arg, best_kernels[0]);
-
-        return fc;
+        return new fully_connected_impl(arg, best_kernels[0]);
     }
 };
 

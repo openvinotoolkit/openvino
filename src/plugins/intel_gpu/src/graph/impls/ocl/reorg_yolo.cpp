@@ -38,9 +38,7 @@ struct reorg_yolo_impl : typed_primitive_impl_ocl<reorg_yolo> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto reorg_yolo_node = new reorg_yolo_impl(arg, best_kernels[0]);
-
-        return reorg_yolo_node;
+        return new reorg_yolo_impl(arg, best_kernels[0]);
     }
 };
 

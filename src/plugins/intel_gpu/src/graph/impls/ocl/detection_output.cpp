@@ -68,9 +68,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto detection_output = new detection_output_impl(arg, best_kernels[0]);
-
-        return detection_output;
+        return new detection_output_impl(arg, best_kernels[0]);
     }
 };
 

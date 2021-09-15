@@ -81,9 +81,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto lstm_gemm = new lstm_gemm_impl(arg, best_kernels[0]);
-
-        return lstm_gemm;
+        return new lstm_gemm_impl(arg, best_kernels[0]);
     }
 };
 

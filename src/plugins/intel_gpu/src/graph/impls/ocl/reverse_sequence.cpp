@@ -41,9 +41,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto reverse_sequence = new reverse_sequence_impl(arg, best_kernels[0]);
-
-        return reverse_sequence;
+        return new reverse_sequence_impl(arg, best_kernels[0]);
     }
 };
 

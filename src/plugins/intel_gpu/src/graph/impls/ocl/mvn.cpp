@@ -46,9 +46,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto mvn = new mvn_impl(arg, best_kernels[0]);
-
-        return mvn;
+        return new mvn_impl(arg, best_kernels[0]);
     }
 };
 

@@ -71,9 +71,7 @@ public:
 
         CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
 
-        auto reduce = new reduce_impl(arg, best_kernels[0]);
-
-        return reduce;
+        return new reduce_impl(arg, best_kernels[0]);
     }
 };
 

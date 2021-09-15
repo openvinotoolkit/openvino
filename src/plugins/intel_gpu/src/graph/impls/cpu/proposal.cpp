@@ -190,10 +190,6 @@ struct im_info_t {
 };
 
 struct proposal_impl : typed_primitive_impl<proposal> {
-    const proposal_node& outer;
-
-    explicit proposal_impl(const proposal_node& arg) : outer(arg) {}
-
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<proposal_impl>(*this);
     }
@@ -441,7 +437,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
         }
 
-        return new proposal_impl(arg);
+        return new proposal_impl();
     }
 };
 

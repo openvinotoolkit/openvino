@@ -39,9 +39,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto reshape = new reshape_impl(arg, best_kernels[0]);
-
-        return reshape;
+        return new reshape_impl(arg, best_kernels[0]);
     }
 };
 

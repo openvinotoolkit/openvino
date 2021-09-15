@@ -41,9 +41,7 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto region_yolo_node = new region_yolo_impl(arg, best_kernels[0]);
-
-        return region_yolo_node;
+        return new region_yolo_impl(arg, best_kernels[0]);
     }
 };
 

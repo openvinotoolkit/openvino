@@ -17,14 +17,27 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
     using parent = typed_primitive_impl_ocl<activation>;
     using parent::parent;
 
+    activation_impl(const activation_impl& other) : parent(other), _is_parameterized(other._is_parameterized) {}
+
+    activation_impl(const activation_node& outer, const kernel_selector::kernel_data& kd) : parent(outer, kd),
+    _is_parameterized(outer.is_parameterized()) {}
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<activation_impl>(*this);
+    }
+
+    void align_state(const program_node& arg) override {
+        if (!arg.is_type<activation>()) {
+            throw std::invalid_argument("Should be activation node");
+        }
+        const auto& activation_node = arg.as<activation>();
+        _is_parameterized = activation_node.is_parameterized();
     }
 
     kernel_arguments_data get_arguments(typed_primitive_inst<activation>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
 
-        if (_outer.is_parameterized()) {
+        if (_is_parameterized) {
             args.slope = instance.slope_memory();
         }
 
@@ -62,10 +75,11 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto activation = new activation_impl(arg, best_kernels[0]);
-
-        return activation;
+        return new activation_impl(arg, best_kernels[0]);
     }
+
+private:
+    bool _is_parameterized = false;
 };
 
 namespace detail {

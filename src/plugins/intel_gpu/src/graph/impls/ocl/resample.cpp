@@ -135,9 +135,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto resample = new resample_impl(arg, best_kernels[0]);
-
-        return resample;
+        return new resample_impl(arg, best_kernels[0]);
     }
 };
 

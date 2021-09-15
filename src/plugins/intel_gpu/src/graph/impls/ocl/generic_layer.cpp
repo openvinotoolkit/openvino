@@ -13,8 +13,7 @@ namespace cldnn {
 namespace ocl {
 
 struct generic_layer_impl : typed_primitive_impl<generic_layer> {
-    const generic_layer_node& outer;
-    const kernel_selector::cl_kernel_data& _cl_kernel_data;
+    kernel_selector::cl_kernel_data _cl_kernel_data;
     std::vector<kernel::ptr> _kernels;
     kernel_id _kernel_id;
 
@@ -22,26 +21,19 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         return make_unique<generic_layer_impl>(*this);
     }
 
-    generic_layer_impl(const generic_layer_impl& other)
-    : outer(other.outer)
-    , _cl_kernel_data(other._cl_kernel_data)
-    , _kernels({})
-    , _kernel_id(other._kernel_id) {
+    generic_layer_impl(const generic_layer_impl& other) : _cl_kernel_data(other._cl_kernel_data), _kernels({}) , _kernel_id(other._kernel_id) {
         if (other._kernels.empty()) {
             throw std::runtime_error("Can't copy generic_layer_impl node: kernels vector is empty");
         }
-        _kernels.push_back(other._kernels.front()->clone());
+        _kernels.push_back(std::move(other._kernels.front()->clone()));
     }
 
-    generic_layer_impl(const generic_layer_node& arg)
-        : outer(arg)
-        , _cl_kernel_data(*outer.get_primitive()->generic_params.clKernel.get())
-        , _kernels() {
-        _kernel_id = outer.get_program().add_kernel(outer.get_primitive()->generic_params.clKernel->code.kernelString);
+    generic_layer_impl(const generic_layer_node& arg) : _cl_kernel_data(*arg.get_primitive()->generic_params.clKernel), _kernels({}) {
+        _kernel_id = arg.get_program().add_kernel(_cl_kernel_data.code.kernelString);
     }
 
     void init_kernels(const program_node& node) override {
-        _kernels.push_back(node.get_program().get_kernel(_kernel_id));
+        _kernels.push_back(std::move(node.get_program().get_kernel(_kernel_id)));
     }
 
     void set_arguments_impl(generic_layer_inst& instance) override {
@@ -71,13 +63,22 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
 // TODO: move this file to cpu folder and add a new traget to 'cldnn::engine_types'
 struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
-    const generic_layer_node& outer;
+    // const generic_layer_node& outer;
+    std::shared_ptr<kernel_selector::CPUKernel> _cpu_kernel_data;
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<generic_layer_cpu>(*this);
     }
 
-    explicit generic_layer_cpu(const generic_layer_node& arg) : outer(arg) {}
+    explicit generic_layer_cpu(const generic_layer_node& arg) : _cpu_kernel_data(arg.get_primitive()->generic_params.cpuKernel) {}
+
+    void align_state(const program_node& arg) override {
+        if (!arg.is_type<generic_layer>()) {
+            throw std::invalid_argument("Should be generic_layer node");
+        }
+        const auto& generic_layer_node = arg.as<generic_layer>();
+        _cpu_kernel_data = generic_layer_node.get_primitive()->generic_params.cpuKernel;
+    }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, generic_layer_inst& instance) override {
         stream& stream = instance.get_network().get_stream();
@@ -94,9 +95,9 @@ struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
         mem_lock<uint8_t, mem_lock_type::read> old_pointer(input_mem, stream);
         mem_lock<uint8_t, mem_lock_type::write> new_pointer(output_mem, stream);
 
-        const auto& cpu_kernel = *outer.get_primitive()->generic_params.cpuKernel.get();
+        // const auto& cpu_kernel = *outer.get_primitive()->generic_params.cpuKernel.get();
 
-        cpu_kernel.Execute(old_pointer.data(), old_pointer.size(), new_pointer.data(), new_pointer.size());
+        _cpu_kernel_data->Execute(old_pointer.data(), old_pointer.size(), new_pointer.data(), new_pointer.size());
 
         ev->set();
         return ev;

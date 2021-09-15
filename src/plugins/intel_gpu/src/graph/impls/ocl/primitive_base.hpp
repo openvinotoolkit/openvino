@@ -25,26 +25,38 @@ For example, all gpu convolution implementations should derive from typed_primit
 */
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
-    const typed_program_node<PType>& _outer;
+    engine& _engine;
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
 
+    typed_primitive_impl_ocl(engine& engine) :
+    _engine(engine),
+    _kernel_data({}),
+    _kernel_ids({}),
+    _kernels({}),
+    _intermediates_memory({}) {
+        _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
+        _kernel_data.weightsReorderParams.cpuKernel = nullptr;
+        _kernel_data.weightsReorderParams.clKernel = nullptr;
+    }
+
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
-    : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name)
-    , _outer(other._outer)
-    , _kernel_data(other._kernel_data)
-    , _kernel_ids(other._kernel_ids)
-    , _kernels({}) {
+    : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name),
+    _engine(other._engine),
+    _kernel_data(other._kernel_data),
+    _kernel_ids(other._kernel_ids),
+    _kernels({}),
+    _intermediates_memory({}) {
         _kernels.reserve(other._kernels.size());
-        for (size_t k = 0; k < other._kernels.size(); ++k) {
-            _kernels.emplace_back(other._kernels[k]->clone());
+        for (const auto& kernel : other._kernels) {
+            _kernels.emplace_back(std::move(kernel->clone()));
         }
     }
 
     typed_primitive_impl_ocl(const typed_program_node<PType>& arg, const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
-          _outer(arg),
+          _engine(arg.get_program().get_engine()),
           _kernel_data(kd) {
         // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
@@ -54,7 +66,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         _kernel_ids.reserve(kd.kernels.size());
         // Add selected kernels to kernels_cache for the following compilation and save output ids
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
-            _kernel_ids.emplace_back(_outer.get_program().add_kernel(kd.kernels[i].code.kernelString));
+            _kernel_ids.emplace_back(arg.get_program().add_kernel(kd.kernels[i].code.kernelString));
         }
     }
 
