@@ -549,7 +549,7 @@ ov::Output<const ov::Node> ov::Function::output() const {
     return result;
 }
 ov::Output<const ov::Node> ov::Function::output(size_t i) const {
-    std::shared_ptr<const ov::Node> result = m_results.at(0);
+    std::shared_ptr<const ov::Node> result = m_results.at(i);
     return result;
 }
 ov::Output<const ov::Node> ov::Function::output(const std::string& tensor_name) const {

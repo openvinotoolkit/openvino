@@ -238,6 +238,10 @@ TEST(function, multiple_inputs_outputs_function) {
     ASSERT_EQ(output1, f->output("concat_t"));
     ASSERT_EQ(output2, f->output("identity"));
     ASSERT_EQ(output2, f->output(1));
+    ASSERT_EQ(arg0.get(), f->input(0).get_node());
+    ASSERT_EQ(arg1.get(), f->input(1).get_node());
+    ASSERT_EQ(result1.get(), f->output(0).get_node());
+    ASSERT_EQ(result2.get(), f->output(1).get_node());
     ASSERT_EQ(output1, result1);
     ASSERT_EQ(output2, result2);
     ASSERT_EQ(f->inputs().size(), 2);
@@ -264,7 +268,7 @@ TEST(function, get_input_by_tensor_name_from_const) {
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    const auto f = std::make_shared<ov::Function>(relu, ov::ParameterVector{arg0});
+    auto f = std::make_shared<const ov::Function>(relu, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
     auto input = f->input("input");
@@ -283,7 +287,7 @@ TEST(function, get_output_by_tensor_name_from_const_function) {
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names(out_names);
     auto result = std::make_shared<ov::opset8::Result>(relu);
-    const auto f = std::make_shared<ov::Function>(result, ov::ParameterVector{arg0});
+    auto f = std::make_shared<const ov::Function>(result, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
     auto output = f->output("relu_t");
@@ -303,7 +307,7 @@ TEST(function, get_incorrect_output_by_tensor_name_from_const_function) {
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    const auto f = std::make_shared<ov::Function>(relu, ov::ParameterVector{arg0});
+    auto f = std::make_shared<const ov::Function>(relu, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
     ASSERT_THROW(f->output("input"), ov::Exception);
@@ -317,7 +321,7 @@ TEST(function, get_incorrect_input_by_tensor_name_from_const_function) {
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    const auto f = std::make_shared<ov::Function>(relu, ov::ParameterVector{arg0});
+    auto f = std::make_shared<const ov::Function>(relu, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
     ASSERT_THROW(f->input("relu_t"), ov::Exception);
@@ -331,7 +335,7 @@ TEST(function, get_input_by_index_from_const_function) {
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    const auto f = std::make_shared<ov::Function>(relu, ov::ParameterVector{arg0});
+    auto f = std::make_shared<const ov::Function>(relu, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
     auto input = f->input(0);
@@ -349,7 +353,7 @@ TEST(function, get_output_by_index_from_const_function) {
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
     auto result = std::make_shared<ov::opset8::Result>(relu);
-    const auto f = std::make_shared<ov::Function>(result, ov::ParameterVector{arg0});
+    auto f = std::make_shared<const ov::Function>(result, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
     auto output = f->output(0);
@@ -366,7 +370,7 @@ TEST(function, get_input_without_index_from_const_function) {
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    const auto f = std::make_shared<ov::Function>(relu, ov::ParameterVector{arg0});
+    auto f = std::make_shared<const ov::Function>(relu, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
     auto input = f->input();
@@ -384,7 +388,7 @@ TEST(function, get_output_without_index_from_const_function) {
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
     auto result = std::make_shared<ov::opset8::Result>(relu);
-    const auto f = std::make_shared<ov::Function>(result, ov::ParameterVector{arg0});
+    auto f = std::make_shared<const ov::Function>(result, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
     auto output = f->output();
@@ -401,7 +405,7 @@ TEST(function, get_incorrect_output_by_index_from_const_function) {
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    const auto f = std::make_shared<ov::Function>(relu, ov::ParameterVector{arg0});
+    auto f = std::make_shared<const ov::Function>(relu, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
     ASSERT_THROW(f->output(2), std::exception);
@@ -415,7 +419,7 @@ TEST(function, get_incorrect_input_by_index_from_const_function) {
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    const auto f = std::make_shared<ov::Function>(relu, ov::ParameterVector{arg0});
+    auto f = std::make_shared<const ov::Function>(relu, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
     ASSERT_THROW(f->input(2), std::exception);
@@ -439,7 +443,7 @@ TEST(function, incorrect_multiple_inputs_outputs_function_from_const_function) {
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
     auto result2 = std::make_shared<ov::opset8::Result>(relu);
-    const auto f = std::make_shared<ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+    auto f = std::make_shared<const ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
 
     f->validate_nodes_and_infer_types();
 
@@ -465,7 +469,7 @@ TEST(function, multiple_inputs_outputs_function_from_const_function) {
     shape_of->set_friendly_name("shape_of");
     shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
     auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
-    const auto f = std::make_shared<ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+    auto f = std::make_shared<const ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
 
     f->validate_nodes_and_infer_types();
 
@@ -485,9 +489,13 @@ TEST(function, multiple_inputs_outputs_function_from_const_function) {
     ASSERT_NE(output1, output2);
     ASSERT_EQ(output1, f->output("concat_t"));
     ASSERT_EQ(output2, f->output("identity"));
+    ASSERT_EQ(arg0.get(), f->input(0).get_node());
+    ASSERT_EQ(arg1.get(), f->input(1).get_node());
+    ASSERT_EQ(result1.get(), f->output(0).get_node());
+    ASSERT_EQ(result2.get(), f->output(1).get_node());
     ASSERT_EQ(output2, f->output(1));
-    ASSERT_EQ(output1, result1);
-    ASSERT_EQ(output2, result2);
+    ASSERT_EQ(output1.get_node(), result1.get());
+    ASSERT_EQ(output2.get_node(), result2.get());
     ASSERT_EQ(f->inputs().size(), 2);
     ASSERT_EQ(f->outputs().size(), 2);
 }
@@ -500,6 +508,6 @@ TEST(function, create_function_with_incorrect_tensor_names_from_const_function) 
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"input"});
-    const auto f = std::make_shared<ov::Function>(relu, ov::ParameterVector{arg0});
+    auto f = std::make_shared<const ov::Function>(relu, ov::ParameterVector{arg0});
     ASSERT_THROW(f->validate_nodes_and_infer_types(), ov::Exception);
 }
