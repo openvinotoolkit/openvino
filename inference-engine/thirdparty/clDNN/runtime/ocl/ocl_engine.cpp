@@ -73,7 +73,7 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
         throw std::runtime_error("exceeded max size of memory object allocation");
     }
 
-    if (!supports_allocation(type)) {
+    if (type != allocation_type::cl_mem && !supports_allocation(type)) {
         std::ostringstream type_str;
         type_str << type;
         throw std::runtime_error("Unsupported allocation type " + type_str.str());

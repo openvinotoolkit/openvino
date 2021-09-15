@@ -146,6 +146,10 @@ public:
         return _node.is_output();
     }
 
+    bool mem_allocated() const {
+        return _mem_allocated;
+    }
+
     void allocate_internal_buffers();
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
@@ -182,6 +186,7 @@ protected:
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
+    bool _mem_allocated = false;
 
     memory::ptr allocate_output();
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
