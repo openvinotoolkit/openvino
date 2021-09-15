@@ -134,7 +134,5 @@ def common_onnx_pool_extractor(node):
         'layout': 'NCHW',
 
         'pooling_convention': pooling_convention,
-
-        'remove_values_output': True
     }
     return attrs

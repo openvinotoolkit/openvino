@@ -95,6 +95,5 @@ def create_pooling_attrs(node, pool_method):
         'pool_method': pool_method,
         'layout': data_format.s.decode(),
         'exclude_pad': True,
-        'remove_values_output': True
     }
     return attrs

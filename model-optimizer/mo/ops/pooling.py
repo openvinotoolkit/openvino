@@ -175,6 +175,9 @@ class Pooling(Op):
         if len(node.out_ports()) == 2 and not node.out_port(1).disconnected():
             node.out_port(1).data.set_shape(output_shape)
 
+        if node.has_and_set('pool_method') and node['pool_method'] == 'max':
+            node['remove_values_output'] = True
+
         # Add permute_attrs
         PermuteAttrs.create_permute_attrs(node, attrs=[('pad', 'input:0'),
                                                        ('stride', 'input:0'),

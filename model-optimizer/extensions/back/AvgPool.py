@@ -23,6 +23,6 @@ class AvgPool(BackReplacementPattern):
         node = match['pooling']
         node.type = 'AvgPool'
         del node['pool_method']
-        node['dilation'] = None
-        node['axis'] = None
-        node['index_element_type'] = None
+        # node['dilation'] = None
+        # node['axis'] = None
+        # node['index_element_type'] = None
