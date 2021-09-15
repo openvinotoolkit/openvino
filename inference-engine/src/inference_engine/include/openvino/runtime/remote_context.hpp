@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include <cmath>
 #include <map>
 #include <memory>
 #include <string>
@@ -25,6 +26,28 @@ class RemoteBlob;
 namespace ov {
 namespace runtime {
 
+namespace gpu {
+
+ov::ClRemoteContext = ov::RemoteContext.as<ov::ClRemoteContext>();
+
+class ClRemoteContext {
+
+    
+OPENVINO_RTTI_DEFINITION(op::v3::Broadcast, "Broadcast", 3, op::util::BroadcastBase);
+
+    /**
+     * @brief OpenCL memory handle conversion operator.
+     * @return `cl_mem`
+     */
+    operator cl_mem() {
+        return get();
+    }
+
+    operator RemoteContext();
+}
+
+}
+
 class Core;
 
 /**
@@ -36,6 +59,7 @@ class Core;
 class INFERENCE_ENGINE_API_CLASS(RemoteContext) {
     std::shared_ptr<void> _so;
     std::shared_ptr<ie::RemoteContext> _impl;
+    ov::Desc type; type = impl->get_type();
 
     /**
      * @brief Constructs RemoteContext from the initialized std::shared_ptr
@@ -58,9 +82,7 @@ public:
      * @tparam T Type to be checked. Must represent a class derived from the RemoteContext
      * @return true if this object can be dynamically cast to the type T*. Otherwise, false
      */
-    template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<ie::RemoteContext, T>::value, int>::type = 0>
+    template <typename T>
     bool is() noexcept {
         return dynamic_cast<T*>(_impl.get()) != nullptr;
     }
