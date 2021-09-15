@@ -9,7 +9,7 @@
 #include <vpu/model/data_contents/replicated_data_content.hpp>
 #include <vpu/model/data_contents/scaled_content.hpp>
 
-#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/vpu_scales_option.hpp>
 #include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 
 #include <precision_utils.h>
@@ -27,6 +27,7 @@
 #include <memory>
 #include <list>
 #include <set>
+#include <regex>
 
 namespace vpu {
 
@@ -206,6 +207,31 @@ void scaleWeightableStage(const Model& model, const Stage& stage, float factor) 
     stage->attrs().set<float>("scaleFactor", factor);
 }
 
+std::map<std::string, double> getVpuScaleMap(const std::string vpuScale) {
+    std::regex regexMask("(\\w+\\:+\\d+\\.+\\d+)");
+    auto scaleGroupsBegin = std::sregex_iterator(vpuScale.begin(), vpuScale.end(), regexMask);
+    auto scaleGroupsEnd = std::sregex_iterator();
+    std::map<std::string, double> vpuScaleMap;
+    for (std::sregex_iterator scaleGroup = scaleGroupsBegin; scaleGroup != scaleGroupsEnd; ++scaleGroup) {
+        const auto matchedScale = (*scaleGroup).str();
+        const auto delimeterPos = matchedScale.find(':');
+        std::pair<std::string, double> pair;
+        pair.first = std::string(matchedScale.substr(0, delimeterPos));
+        pair.second = std::stod(matchedScale.substr(delimeterPos + 1));
+        vpuScaleMap.insert(pair);
+    }
+    return vpuScaleMap;
+}
+
+double getScaleValue(const std::string layerName, const std::map<std::string, double>& vpuScalemap) {
+    for (const auto& pair : vpuScalemap) {
+        if (std::strstr(layerName.c_str(), pair.first.c_str()) || pair.first == "any") {
+            return pair.second;
+        }
+    }
+    return 0.0;
+}
+
 class PassImpl final : public Pass {
 public:
     void run(const Model& model) override;
@@ -228,8 +254,9 @@ void PassImpl::run(const Model& model) {
         }
         IE_ASSERT(stage->origLayer() != nullptr);
 
-        // Get scale from IR, compute if it was absent
-        auto scale = stage->origLayer()->GetParamAsFloat("vpu_scale", 0);
+        // Get scale from config, compute if it was absent
+        const auto map = getVpuScaleMap(env.config.get<VPUScalesOption>());
+        auto scale = getScaleValue(stage->origLayerName(), map);
         if (!scale) {
             auto weights = stage->input(1);
 
@@ -261,7 +288,7 @@ void PassImpl::run(const Model& model) {
                 scale = static_cast<float>(1ULL << static_cast<std::uint32_t>(shift));
             }
 
-            if (!env.config.get<IRWithScalesDirectoryOption>().empty()) {
+            if (!env.config.get<VPUScalesOption>().empty()) {
                 stage->origLayer()->params["vpu_scale"] = toString(scale);
             }
         }

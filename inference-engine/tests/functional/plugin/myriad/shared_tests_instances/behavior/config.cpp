@@ -285,7 +285,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES_AUTO}},
         {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS_AUTO}},
         {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES, {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES_AUTO}},
-        {InferenceEngine::MYRIAD_IR_WITH_SCALES_DIRECTORY, {std::string()}},
+        {InferenceEngine::MYRIAD_SCALES_PATTERN, {std::string()}},
         {InferenceEngine::MYRIAD_TENSOR_STRIDES, {std::map<std::string, std::vector<int>>()}},
         {InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, {false}},
         {InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, {false}},
@@ -437,7 +437,7 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, InferenceEngine::PluginConfigParams::NO,
             InferenceEngine::Parameter{false}),
 
-        std::make_tuple(InferenceEngine::MYRIAD_IR_WITH_SCALES_DIRECTORY, "/.", InferenceEngine::Parameter{"/."}),
+        std::make_tuple(InferenceEngine::MYRIAD_SCALES_PATTERN, "", InferenceEngine::Parameter{""}),
 
         std::make_tuple(InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor[1,2,3,4]",
             InferenceEngine::Parameter{std::map<std::string, std::vector<int>>{{"tensor", {4, 3, 2, 1}}}}),
@@ -620,7 +620,7 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_WATCHDOG,
         InferenceEngine::MYRIAD_PERF_REPORT_MODE,
         InferenceEngine::MYRIAD_PACK_DATA_IN_CMX,
-        InferenceEngine::MYRIAD_IR_WITH_SCALES_DIRECTORY,
+        InferenceEngine::MYRIAD_SCALES_PATTERN,
         InferenceEngine::MYRIAD_TENSOR_STRIDES,
         InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS,
         InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR,

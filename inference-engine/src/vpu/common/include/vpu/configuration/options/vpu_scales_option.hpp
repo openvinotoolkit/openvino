@@ -19,7 +19,7 @@ enum class Category;
 
 class PluginConfiguration;
 
-struct IRWithScalesDirectoryOption : public AsParameterEnabler {
+struct VPUScalesOption : public AsParameterEnabler {
     using value_type = std::string;
 
     static std::string key();
