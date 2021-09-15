@@ -25,9 +25,9 @@ The OpenVINO toolkit for Raspbian* OS is distributed without installer. This doc
 The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>/deployment_tools` directory.
 <details>
     <summary><strong>Click for the <code>deployment_tools</code> directory structure</strong></summary>
-   
 
-| Directory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Description                                                                           |  
+
+| Directory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Description                                                                           |
 |:----------------------------------------|:--------------------------------------------------------------------------------------|
 | `inference_engine/`                     | Inference Engine directory. Contains Inference Engine API binaries and source files, samples and extensions source files, and resources like hardware drivers.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`external/`     | Third-party dependencies and drivers.|
@@ -42,7 +42,7 @@ The primary tools for deploying your models and applications are installed to th
 
 The OpenVINO™ workflow on Raspbian* OS is as follows:
 1. **Get a pre-trained model** for your inference task. If you want to use your model for inference, the model must be converted to the `.bin` and `.xml` Intermediate Representation (IR) files, which are used as input by Inference Engine. On Raspberry PI, OpenVINO™ toolkit includes only the Inference Engine module. The Model Optimizer is not supported on this platform. To get the optimized models you can use one of the following options:
-   
+
    * Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader).
     <br> For more information on pre-trained models, see [Pre-Trained Models Documentation](@ref omz_models_group_intel)
    
@@ -82,10 +82,10 @@ The application outputs an image (`out_0.bmp`) with detected faced enclosed in r
 
 Following are some basic guidelines for executing the OpenVINO™ workflow using the code samples:
 
-1. Before using the OpenVINO™ samples, always set up the environment: 
+1. Before using the OpenVINO™ samples, always set up the environment:
 ```sh
 source <INSTALL_DIR>/bin/setupvars.sh
-``` 
+```
 2. Have the directory path for the following:
    - Code Sample binaries
    - Media: Video or image. Many sources are available from which you can download video media to use the code samples and demo applications, like https://videos.pexels.com and https://images.google.com.

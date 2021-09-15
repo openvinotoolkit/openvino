@@ -22,7 +22,7 @@ if not "%1"=="" (
         shift
     )
     if "%1"=="-help" (
-        echo Benchmark demo using public SqueezeNet topology
+        echo Benchmark sample using public SqueezeNet topology
         echo.
         echo Options:
         echo    -help                      Print help message
@@ -64,7 +64,7 @@ echo INTEL_OPENVINO_DIR is set to %INTEL_OPENVINO_DIR%
 :: Check if Python is installed
 python --version 2>NUL
 if errorlevel 1 (
-    echo Error^: Python is not installed. Please install Python 3.5 ^(64-bit^) or higher from https://www.python.org/downloads/
+    echo Error^: Python is not installed. Please install Python 3.6 ^(64-bit^) or higher from https://www.python.org/downloads/
     goto error
 )
 
@@ -80,13 +80,13 @@ for /F "tokens=1,2,3 delims=. " %%a in ("%version%") do (
 )
 
 if "%Major%" geq "3" (
-    if "%Minor%" geq "5" (
+    if "%Minor%" geq "6" (
         set python_ver=okay
     )
 )
 
 if not "%python_ver%"=="okay" (
-    echo Unsupported Python version. Please install Python 3.5 ^(64-bit^) or higher from https://www.python.org/downloads/
+    echo Unsupported Python version. Please install Python 3.6 ^(64-bit^) or higher from https://www.python.org/downloads/
     goto error
 )
 

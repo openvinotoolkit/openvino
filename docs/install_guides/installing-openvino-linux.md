@@ -346,12 +346,7 @@ cd /opt/intel/openvino_2021/deployment_tools/demo
 
 2. Run the **Image Classification verification script**. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 ```sh
-./demo_squeezenet_download_convert_run.sh -d HDDL
-```
-
-3. Run the **Inference Pipeline verification script**:
-```sh
-./demo_security_barrier_camera.sh -d HDDL
+./run_sample_squeezenet.sh -d HDDL
 ```
 
 You've completed all required configuration steps to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
