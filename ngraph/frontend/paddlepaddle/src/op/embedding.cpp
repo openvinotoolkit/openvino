@@ -17,7 +17,6 @@ NamedOutputs embedding(const NodeContext& node) {
     auto data_w = node.get_ng_input("W");
 
     auto padding_idx = node.get_attribute<int64_t>("padding_idx");
-    std::cout << "padding_idx = " << padding_idx << std::endl;
 
     const auto const_axis0 = Constant::create<int32_t>(i64, {1}, {0});
 
