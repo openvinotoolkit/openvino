@@ -103,8 +103,9 @@
                                                              _OPENVINO_RTTI_WITH_TYPE)(__VA_ARGS__))
 
 /// Note: Please don't use this macros for new operations
-/// TODO: deprecate type info
-#define BWDCMP_RTTI_DECLARATION static const ov::DiscreteTypeInfo type_info
+#define BWDCMP_RTTI_DECLARATION                                                                    \
+    OPENVINO_DEPRECATED("This member was deprecate. Please use ::get_type_info_static() instead.") \
+    static const ov::DiscreteTypeInfo type_info
 #define BWDCMP_RTTI_DEFINITION(CLASS)                                            \
     OPENVINO_SUPPRESS_DEPRECATED_START                                           \
     const ov::DiscreteTypeInfo CLASS::type_info = CLASS::get_type_info_static(); \
