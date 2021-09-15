@@ -76,11 +76,6 @@ std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::No
 std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> conv, std::shared_ptr<ngraph::Node> bias) {
     auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(1).get_node_shared_ptr());
 
-    // We need to check both inputs of Add when looking for constant
-    if (!add_const) {
-        add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(0).get_node_shared_ptr());
-    }
-
     // Check if it's really a bias and not just addition
     if (add_const) {
         auto bias_size = shape_size(add_const->get_shape());

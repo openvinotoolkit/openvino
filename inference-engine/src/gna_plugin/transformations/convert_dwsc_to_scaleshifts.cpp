@@ -19,18 +19,6 @@ using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(ConvertDWSCToScaleShifts, "ConvertDWSCToScaleShifts", 0);
 
-static bool VerifyDWSC(std::shared_ptr<ngraph::opset7::GroupConvolution> dwsc) {
-    // Verify it's a 1D convolution
-    // Verify that filter group count == input channel count
-    // Verify that per group filter output channel count == 1
-    if (dwsc->get_input_shape(1)[3] != 1 || dwsc->get_input_shape(0)[2] != 1 || dwsc->get_output_shape(0)[2] != 1 ||
-        dwsc->get_input_shape(1)[0] != dwsc->get_input_shape(0)[1] ||
-        dwsc->get_input_shape(1)[1] != 1)
-        return false;
-
-    return true;
-}
-
 static std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ngraph::opset7::GroupConvolution> dwsc,
     std::shared_ptr<ngraph::opset7::Constant> bias_const, std::shared_ptr<ngraph::opset7::FakeQuantize> fq_bias,
     std::shared_ptr<ngraph::opset7::Reshape> flat_input_plane, std::shared_ptr<ngraph::Node> flat_filters_plane) {
@@ -118,9 +106,6 @@ static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
     auto bias_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias_const_node);
     auto fq_bias = std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_bias_node);
 
-    if (!VerifyDWSC(dwsc))
-        return false;
-
     // We are looking for Transpose(NHWC->NCHW) => GroupConv => Transpose(NCHW->NHWC)
     // or similar cases, so required network must be in NHWC order like in TF
     if (!TransposeOrderMatches(std::dynamic_pointer_cast<ngraph::opset7::Transpose>(leading_transpose), {0, 3, 1, 2}))
@@ -166,6 +151,21 @@ static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
     return true;
 }
 
+static bool VerifyDWSC(const ngraph::Output<ngraph::Node>& output) {
+    auto dwsc = output.get_node();
+
+    // Verify it's a 1D convolution
+    // Verify that filter group count == input channel count
+    // Verify that per group filter output channel count == 1
+    if (!consumers_and_rank(1, 4)(output) ||
+        dwsc->get_input_shape(1)[3] != 1 || dwsc->get_input_shape(0)[2] != 1 || dwsc->get_output_shape(0)[2] != 1 ||
+        dwsc->get_input_shape(1)[0] != dwsc->get_input_shape(0)[1] ||
+        dwsc->get_input_shape(1)[1] != 1)
+        return false;
+
+    return true;
+}
+
 ConvertDWSCToScaleShifts::ConvertDWSCToScaleShifts() {
     MATCHER_SCOPE(ConvertDWSCToScaleShifts);
 
@@ -178,7 +178,7 @@ ConvertDWSCToScaleShifts::ConvertDWSCToScaleShifts() {
     auto reshape_filters_const = ngraph::pattern::wrap_type<ngraph::opset7::Reshape>({fq_filters_const, const_input}, ngraph::pattern::rank_equals(5));
     auto filters_const = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(5));
     auto dwsc_filters = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{filters_const, reshape_filters_const });
-    auto dwsc = ngraph::pattern::wrap_type<ngraph::opset7::GroupConvolution>({leading_transpose, dwsc_filters}, consumers_and_rank(1, 4));
+    auto dwsc = ngraph::pattern::wrap_type<ngraph::opset7::GroupConvolution>({leading_transpose, dwsc_filters}, VerifyDWSC);
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({dwsc, const_input});
     auto fq_bias = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({bias, const_input, const_input, const_input, const_input},
         consumers_and_rank(1, 4));
