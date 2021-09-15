@@ -226,11 +226,12 @@ bool onnx_editor::EdgeMapper::is_correct_and_unambiguous_node(const EditorNode& 
 }
 
 namespace {
-void unambiguous_node_check(bool condition, const EditorNode& node) {
+void check_node(bool condition, const EditorNode& node) {
     NGRAPH_CHECK(condition,
                  "The node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
                      ", output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
-                     ", node_index: " + (node.m_node_index == -1 ? "not_given" : node.m_output_name) + " is ambiguous");
+                     ", node_index: " + (node.m_node_index == -1 ? "not_given" : std::to_string(node.m_node_index)) +
+                     " is ambiguous");
 }
 }  // namespace
 
@@ -240,7 +241,7 @@ int onnx_editor::EdgeMapper::get_node_index(const EditorNode& node) const {
         return node.m_node_index;
     }
     const auto indexes = find_node_indexes(node.m_node_name, node.m_output_name);
-    unambiguous_node_check(indexes.size() == 1, node);
+    check_node(indexes.size() == 1, node);
     return indexes[0];
 }
 
@@ -255,7 +256,7 @@ bool onnx_editor::EdgeMapper::is_correct_tensor_name(const std::string& name) co
 }
 
 std::vector<std::string> onnx_editor::EdgeMapper::get_input_ports(const EditorNode& node) const {
-    unambiguous_node_check(is_correct_and_unambiguous_node(node), node);
+    check_node(is_correct_and_unambiguous_node(node), node);
     auto node_index = node.m_node_index;
     if (node_index == -1) {  // the node index is provided
         node_index = find_node_indexes(node.m_node_name, node.m_output_name)[0];
@@ -266,7 +267,7 @@ std::vector<std::string> onnx_editor::EdgeMapper::get_input_ports(const EditorNo
 }
 
 std::vector<std::string> onnx_editor::EdgeMapper::get_output_ports(const EditorNode& node) const {
-    unambiguous_node_check(is_correct_and_unambiguous_node(node), node);
+    check_node(is_correct_and_unambiguous_node(node), node);
     auto node_index = node.m_node_index;
     if (node_index == -1)  // the node index is provided
     {
