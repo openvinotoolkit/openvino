@@ -10,6 +10,7 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 add_subdirectory(builder)
 add_subdirectory(reference)
+add_subdirectory(shape_inference)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -39,7 +40,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph library")
 endif()
 
-target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference)
+target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference ngraph::shape_inference)
 
 ie_mark_target_as_cc(ngraph)
 

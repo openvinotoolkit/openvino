@@ -97,6 +97,11 @@ protected:
     CoordinateDiff m_pads_begin;
     CoordinateDiff m_pads_end;
     PadType m_auto_pad;
+    int64_t m_num_spatial = -1;
+
+private:
+    template <class T>
+    friend void shape_infer(Convolution* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 
 /// \brief Data batch backprop for batched convolution operation.
