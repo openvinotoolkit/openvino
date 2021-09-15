@@ -87,6 +87,7 @@ set(SRC
     span.cpp
     specialize_function.cpp
     tensor.cpp
+    type_info.cpp
     type_prop/abs.cpp
     type_prop/acos.cpp
     type_prop/adaptive_avg_pool.cpp
