@@ -59,7 +59,8 @@ OutputVector loop(const Node& node) {
         loop_carried_dependencies_map[i + 2] = loop_carried_dependencies[i].get_node()->get_friendly_name();
     }
 
-    auto body_graph = node.get_subgraph();
+    const auto& subgraphs = node.get_subgraphs();
+    auto body_graph = subgraphs.at("body");
     auto body_outputs = body_graph->get_ng_outputs();
     const auto& body_inputs = body_graph->get_ng_parameters();
 
