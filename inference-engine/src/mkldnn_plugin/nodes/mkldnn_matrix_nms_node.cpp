@@ -127,7 +127,7 @@ void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
         return;
 
     m_realNumClasses = m_backgroundClass == -1 ? m_numClasses :
-        m_backgroundClass < m_numClasses ? m_numClasses - 1 : m_numClasses;;
+        m_backgroundClass < m_numClasses ? m_numClasses - 1 : m_numClasses;
     m_realNumBoxes = m_nmsTopk == -1 ? m_numBoxes : std::min(m_nmsTopk, static_cast<int>(m_numBoxes));
     m_numPerBatch.resize(m_numBatches);
     m_filteredBoxes.resize(m_numBatches * m_realNumClasses * m_realNumBoxes);
