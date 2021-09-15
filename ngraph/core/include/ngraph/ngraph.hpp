@@ -8,7 +8,6 @@
 
 /**
  *  @defgroup ngraph_cpp_api nGraph C++ API
- *  @ingroup api_ref
  *  nGraph C++ API
  */
 

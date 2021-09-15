@@ -9,7 +9,6 @@
 
 /**
  *  @defgroup ie_cpp_api Inference Engine C++ API
- *  @ingroup api_ref
  *  Inference Engine C++ API
  */
 

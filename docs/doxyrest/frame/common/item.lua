@@ -47,6 +47,8 @@ function getItemFileName(item, suffix)
 	
 	if item.compoundKind == 'page' then
 		s = ''
+	elseif item.compoundKind == "interface" then
+		s = 'class_'
 	elseif item.compoundKind then
 		s = item.compoundKind .. "_"
 	elseif item.memberKind then

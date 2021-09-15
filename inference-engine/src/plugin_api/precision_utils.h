@@ -22,7 +22,6 @@
 namespace InferenceEngine {
 
 /**
- * @ingroup api_ref
  * @defgroup ie_dev_api Inference Engine Plugin API
  * @brief Defines Inference Engine Plugin API which can be used in plugin development
  * 

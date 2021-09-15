@@ -1,12 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-
-## @defgroup ngraph_python_opset6 nGraph Python Opset6
-# nGraph Python Opset6
-# @ingroup ngraph_python_opsets
-
-
 """Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
@@ -51,7 +45,6 @@ _get_node_factory_opset6 = partial(_get_node_factory, "opset6")
 # -------------------------------------------- ops ------------------------------------------------
 
 
-## @ingroup ngraph_python_opset6
 @nameable_op
 def ctc_greedy_decoder_seq_len(
         data: NodeInput,
@@ -64,11 +57,11 @@ def ctc_greedy_decoder_seq_len(
 ) -> Node:
     """Return a node which performs CTCGreedyDecoderSeqLen.
 
-    @param data:            The input 3D tensor. Shape: [batch_size, seq_length, num_classes]
-    @param sequence_length: Input 1D tensor with sequence length. Shape: [batch_size]
-    @param blank_index:     Scalar or 1D tensor with specifies the class index to use for the blank class.
+    :param data:            The input 3D tensor. Shape: [batch_size, seq_length, num_classes]
+    :param sequence_length: Input 1D tensor with sequence length. Shape: [batch_size]
+    :param blank_index:     Scalar or 1D tensor with specifies the class index to use for the blank class.
                             Optional parameter. Default value is num_classes-1.
-    @return:                The new node which performs CTCGreedyDecoderSeqLen.
+    :return::                The new node which performs CTCGreedyDecoderSeqLen.
     """
     if blank_index is not None:
         inputs = as_nodes(data, sequence_length, blank_index)
@@ -84,7 +77,6 @@ def ctc_greedy_decoder_seq_len(
     return _get_node_factory_opset6().create("CTCGreedyDecoderSeqLen", inputs, attributes)
 
 
-## @ingroup ngraph_python_opset6
 @nameable_op
 def gather_elements(
     data: NodeInput,
@@ -94,10 +86,10 @@ def gather_elements(
 ) -> Node:
     """Return a node which performs GatherElements.
 
-    @param data:       N-D tensor with data for gathering
-    @param indices:    N-D tensor with indices by which data is gathered
-    @param axis:       axis along which elements are gathered
-    @return:           The new node which performs GatherElements
+    :param data:       N-D tensor with data for gathering
+    :param indices:    N-D tensor with indices by which data is gathered
+    :param axis:       axis along which elements are gathered
+    :return::           The new node which performs GatherElements
     """
     inputs = as_nodes(data, indices)
 
@@ -108,7 +100,6 @@ def gather_elements(
     return _get_node_factory_opset6().create("GatherElements", inputs, attributes)
 
 
-## @ingroup ngraph_python_opset6
 @nameable_op
 def mvn(
     data: Node,
@@ -120,14 +111,14 @@ def mvn(
 ) -> Node:
     """Return a node which performs MeanVarianceNormalization (MVN).
 
-    @param data: The node with data tensor.
-    @param axes: The node with axes to reduce on.
-    @param normalize_variance: Denotes whether to perform variance normalization.
-    @param eps: The number added to the variance to avoid division by zero
+    :param data: The node with data tensor.
+    :param axes: The node with axes to reduce on.
+    :param normalize_variance: Denotes whether to perform variance normalization.
+    :param eps: The number added to the variance to avoid division by zero
                when normalizing the value. Scalar value.
-    @param eps_mode: how eps is applied (`inside_sqrt` or `outside_sqrt`)
-    @param name: Optional output node name.
-    @return The new node performing a MVN operation on input tensor.
+    :param eps_mode: how eps is applied (`inside_sqrt` or `outside_sqrt`)
+    :param name: Optional output node name.
+    :return: The new node performing a MVN operation on input tensor.
     """
     inputs = as_nodes(data, axes)
 
@@ -140,15 +131,14 @@ def mvn(
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
 
 
-## @ingroup ngraph_python_opset6
 @nameable_op
 def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
-    @param new_value:    Node producing a value to be assigned to a variable.
-    @param variable_id:  Id of a variable to be updated.
-    @param name:         Optional name for output node.
-    @return Assign node
+    :param new_value:    Node producing a value to be assigned to a variable.
+    :param variable_id:  Id of a variable to be updated.
+    :param name:         Optional name for output node.
+    :return: Assign node
     """
     return _get_node_factory_opset6().create(
         "Assign",
@@ -157,15 +147,14 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     )
 
 
-## @ingroup ngraph_python_opset6
 @nameable_op
 def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
-    @param init_value:   Node producing a value to be returned instead of an unassigned variable.
-    @param variable_id:  Id of a variable to be read.
-    @param name:         Optional name for output node.
-    @return ReadValue node
+    :param init_value:   Node producing a value to be returned instead of an unassigned variable.
+    :param variable_id:  Id of a variable to be read.
+    :param name:         Optional name for output node.
+    :return: ReadValue node
     """
     return _get_node_factory_opset6().create(
         "ReadValue",

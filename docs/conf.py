@@ -40,7 +40,8 @@ extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
     'doxyrest',
-    'cpplexer'
+    'cpplexer',
+    'sphinx.ext.autodoc'
 ]
 
 html_logo = '_static/logo.svg'

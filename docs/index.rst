@@ -12,4 +12,4 @@ Welcome to OpenVINO Toolkit's documentation!
    get_started
    documentation
    tutorials
-   group_api_ref
+   api/api_reference

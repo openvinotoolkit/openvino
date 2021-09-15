@@ -51,6 +51,10 @@ set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documenta
 set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation dir.")
 set(OPENVINO_NOTEBOOKS_DIR "" CACHE PATH "Path to openvino notebooks dir.")
 
+# python packages
+set(NGRAPH_PYTHON_PACKAGE "" CACHE PATH "Path to generated ngraph python package.")
+set(IE_PYTHON_PACKAGE "" CACHE PATH "Path to generated inference engine python package.")
+
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
     find_package(PythonInterp 3 REQUIRED)
@@ -109,6 +113,8 @@ function(build_docs)
     set(SPHINX_THEMES_OUT "${RST_OUTPUT}/_themes")
     set(SPHINX_INDEX_IN "${DOCS_SOURCE_DIR}/index.rst")
     set(SPHINX_INDEX_OUT "${RST_OUTPUT}/index.rst")
+    set(RST_FILES_IN "${DOCS_SOURCE_DIR}/rst_files")
+    set(RST_FILES_OUT "${RST_OUTPUT}/api")
     set(DOXYREST_IN "${DOCS_SOURCE_DIR}/doxyrest")
     set(DOXYREST_OUT "${DOCS_BUILD_DIR}/doxyrest")
     set(DOXYREST_SPHINX_IN "${DOCS_SOURCE_DIR}/doxyrest-sphinx")
@@ -125,6 +131,18 @@ function(build_docs)
         set(PYNGRAPH_DIR "${OPENVINO_BIN_DIR}/python_api/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
         list(APPEND commands 
             COMMAND ${PYTHON_EXECUTABLE} ${PYNGRAPH_REF_SCRIPT} ${OPENVINO_BIN_DIR} ${PYNGRAPH_DIR} ${PYNGRAPH_API_OUTPUT})
+    endif()
+
+    if(IE_PYTHON_PACKAGE)
+        # ie python package
+        list(APPEND commands
+             COMMAND sphinx-apidoc "${IE_PYTHON_PACKAGE}" -o "${RST_OUTPUT}/ie_python_api")
+    endif()
+
+    if(NGRAPH_PYTHON_PACKAGE)
+        # ngraph python package
+        list(APPEND commands
+             COMMAND sphinx-apidoc "${NGRAPH_PYTHON_PACKAGE}" -o "${RST_OUTPUT}/ngraph_python_api")
     endif()
 
     # Doxygen config
@@ -188,7 +206,6 @@ function(build_docs)
     endif()
 
     add_custom_target(doxygen_xml
-                      DEPENDS _pyngraph
                       COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generate doxygen XML output"
@@ -226,6 +243,7 @@ function(build_docs)
                        COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_MAIN_SOURCE_DIR}/../
                        COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${RST_FILES_IN} ${RST_FILES_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_SPHINX_IN} ${DOXYREST_SPHINX_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_STATIC_IN} ${SPHINX_STATIC_OUT}

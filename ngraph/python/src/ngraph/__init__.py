@@ -4,15 +4,6 @@
 """ngraph module namespace, exposing factory functions for all ops and other classes."""
 # noqa: F401
 
-
-## @defgroup ngraph_python_api nGraph Python API
-# nGraph Python API
-# @ingroup api_ref
-
-## @defgroup ngraph_python_opsets opsets
-# nGraph Python Opsets
-# @ingroup ngraph_python_api
-
 from pkg_resources import get_distribution, DistributionNotFound
 
 try:
