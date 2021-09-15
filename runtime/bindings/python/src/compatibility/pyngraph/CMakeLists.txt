@@ -2,13 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 3.13)
-
 project (pyngraph)
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage QUIET)
-    find_package(ngraph REQUIRED)
+    find_package(OpenVINO REQUIRED)
 endif()
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
@@ -56,10 +54,10 @@ pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "../")
 
-target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::frontend_manager)
+target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::core openvino::frontend::manager)
 
-if (TARGET ngraph::onnx_ngraph_frontend)
-    add_dependencies(_${PROJECT_NAME} ngraph::onnx_ngraph_frontend)
+if(TARGET onnx_ngraph_frontend)
+    add_dependencies(_${PROJECT_NAME} onnx_ngraph_frontend)
 endif()
 
 

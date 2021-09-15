@@ -19,6 +19,7 @@
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
+#include "openvino/pp.hpp"
 
 namespace ov {
 class Function;
@@ -27,7 +28,7 @@ namespace InferenceEngine {
 
 class ICore;
 class IExecutableNetworkInternal;
-class IRemoteContext;
+class RemoteContext;
 class IExtension;
 
 /**
@@ -146,13 +147,13 @@ public:
      * @brief Creates an executable network from network object, on specified remote context
      * @param network A network object acquired from InferenceEngine::Core::ReadNetwork
      * @param config string-string map of config parameters relevant only for this load operation
-     * @param context A pointer to plugin context derived from IRemoteContext class used to
+     * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the network
      * @return Created Executable Network object
      */
     virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
                                                                     const std::map<std::string, std::string>& config,
-                                                                    const std::shared_ptr<IRemoteContext>& context);
+                                                                    const std::shared_ptr<RemoteContext>& context);
 
     /**
      * @brief Creates an executable network from model file path
@@ -196,14 +197,14 @@ public:
      * @param[in]  params  The map of parameters
      * @return     A remote context object
      */
-    virtual std::shared_ptr<IRemoteContext> CreateContext(const ParamMap& params);
+    virtual std::shared_ptr<RemoteContext> CreateContext(const ParamMap& params);
 
     /**
      * @brief      Provides a default remote context instance if supported by a plugin
      * @param[in]  params  The map of parameters
      * @return     The default context.
      */
-    virtual std::shared_ptr<IRemoteContext> GetDefaultContext(const ParamMap& params);
+    virtual std::shared_ptr<RemoteContext> GetDefaultContext(const ParamMap& params);
 
     /**
      * @deprecated Use ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config)
@@ -235,7 +236,7 @@ public:
      * @return An Executable network
      */
     virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
-                                                                      const std::shared_ptr<IRemoteContext>& context,
+                                                                      const std::shared_ptr<RemoteContext>& context,
                                                                       const std::map<std::string, std::string>& config);
 
     /**
@@ -282,7 +283,7 @@ protected:
      * resources)
      * @note The function is used in
      * InferencePluginInternal::LoadNetwork(const CNNNetwork&, const std::map<std::string, std::string>&,
-     * IRemoteContext::Ptr) which performs common steps first and calls this plugin-dependent method implementation
+     * RemoteContext::Ptr) which performs common steps first and calls this plugin-dependent method implementation
      * after.
      * @param network A network object
      * @param context A remote context
@@ -291,7 +292,7 @@ protected:
      */
     virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
         const CNNNetwork& network,
-        const std::shared_ptr<IRemoteContext>& context,
+        const std::shared_ptr<RemoteContext>& context,
         const std::map<std::string, std::string>& config);
 
     /**
@@ -300,6 +301,7 @@ protected:
      * @param exeNetwork An executable network object to set information to
      * @param inputs An input information to set
      * @param outputs An output information to set
+     * @param function Function with initial execution info
      */
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const ConstInputsDataMap& inputs,
@@ -318,14 +320,15 @@ protected:
     std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
 };
 
+#define IE_CREATE_PLUGIN CreatePluginEngine
+
 namespace details {
 template <>
 class SOCreatorTrait<IInferencePlugin> {
 public:
-    static constexpr auto name = "CreatePluginEngine";
+    static constexpr auto name = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
 };
 }  // namespace details
-
 }  // namespace InferenceEngine
 
 /**
@@ -333,16 +336,16 @@ public:
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                                  \
-    INFERENCE_PLUGIN_API(void) CreatePluginEngine(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) { \
-        try {                                                                                                       \
-            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                   \
-        } catch (const InferenceEngine::Exception&) {                                                               \
-            throw;                                                                                                  \
-        } catch (const std::exception& ex) {                                                                        \
-            IE_THROW() << ex.what();                                                                                \
-        } catch (...) {                                                                                             \
-            IE_THROW(Unexpected);                                                                                   \
-        }                                                                                                           \
-        plugin->SetVersion(version);                                                                                \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                                \
+    INFERENCE_PLUGIN_API(void) IE_CREATE_PLUGIN(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) { \
+        try {                                                                                                     \
+            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                 \
+        } catch (const InferenceEngine::Exception&) {                                                             \
+            throw;                                                                                                \
+        } catch (const std::exception& ex) {                                                                      \
+            IE_THROW() << ex.what();                                                                              \
+        } catch (...) {                                                                                           \
+            IE_THROW(Unexpected);                                                                                 \
+        }                                                                                                         \
+        plugin->SetVersion(version);                                                                              \
     }
