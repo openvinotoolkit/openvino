@@ -98,7 +98,7 @@ def get_model_recs(test_conf_root):
 
         return model_recs
 
-    return test_conf_root.findall("model")
+    return test_conf_root.find("models")
 
 
 def main():
