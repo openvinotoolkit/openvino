@@ -74,7 +74,6 @@ class TestTFRandomUniform(CommonTFLayerTest):
                                        *connect('input', '1:add'),
                                        *connect('add', 'result')])
 
-
         return tf_net, ref_net
 
     test_data = [pytest.param(
@@ -91,5 +90,4 @@ class TestTFRandomUniform(CommonTFLayerTest):
         if ie_device == 'GPU':
             pytest.skip("RandomUniform is not supported on GPU")
         self._test(*self.create_tf_random_uniform_net(**params, precision=precision, ir_version=ir_version), ie_device,
-                   precision,
-                   temp_dir=temp_dir, ir_version=ir_version, **params)
+                   precision, temp_dir=temp_dir, ir_version=ir_version, **params)
