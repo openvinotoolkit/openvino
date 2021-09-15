@@ -4,14 +4,12 @@
 
 set(TARGET_NAME conformanceShared)
 
-addIeTargetTest(
+addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
-        DEVELOPER_PACKAGE
-            inference_engine_tests
         ADD_CPPLINT
         INCLUDES
             PUBLIC
