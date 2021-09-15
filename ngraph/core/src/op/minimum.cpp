@@ -41,6 +41,8 @@ bool evaluate_minimum(const HostTensorPtr& arg0,
     switch (arg0->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_minimum, i32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_minimum, i64, arg0, arg1, out, broadcast_spec);
+        NGRAPH_TYPE_CASE(evaluate_minimum, u8, arg0, arg1, out, broadcast_spec);
+        NGRAPH_TYPE_CASE(evaluate_minimum, u16, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_minimum, u32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_minimum, u64, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_minimum, f16, arg0, arg1, out, broadcast_spec);
