@@ -24,24 +24,22 @@ public:
           m_graph{&graph},
           m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())},
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())} {
-        const auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-            return attribute.is_graph();
-        });
-        m_has_subgraph = it != std::end(m_attributes);
-        if (m_has_subgraph) {
-            m_subgraph = std::make_shared<Subgraph>(it->get_subgraph(*m_graph));
+        for (const auto& attribute : m_attributes) {
+            if (attribute.is_graph())
+                m_subgraphs.insert({attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
         }
     }
 
-    Impl(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph, std::shared_ptr<Subgraph> subgraph)
+    Impl(const ONNX_NAMESPACE::NodeProto& node_proto,
+         const Graph& graph,
+         const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& subgraphs)
         : m_node_proto{&node_proto},
           m_name{node_proto.has_name() ? node_proto.name() : ""},
           m_domain{get_node_domain(node_proto)},
           m_graph{&graph},
           m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())},
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())},
-          m_has_subgraph(subgraph != nullptr),
-          m_subgraph(subgraph) {}
+          m_subgraphs(subgraphs) {}
 
     const std::vector<Attribute>& attributes() const;
     OutputVector get_ng_inputs() const;
@@ -57,8 +55,8 @@ public:
 
     bool has_attribute(const std::string& name) const;
 
-    bool has_subgraph() const;
-    std::shared_ptr<Subgraph> get_subgraph() const;
+    bool has_subgraphs() const;
+    const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& get_subgraphs() const;
 
     template <typename T>
     T get_attribute_value(const std::string& name, T default_value) const;
@@ -80,8 +78,7 @@ private:
     std::vector<std::reference_wrapper<const std::string>> m_output_names;
     mutable std::string m_description;
 
-    bool m_has_subgraph;
-    std::shared_ptr<Subgraph> m_subgraph;
+    std::unordered_map<std::string, std::shared_ptr<Subgraph>> m_subgraphs;
 };
 
 const ONNX_NAMESPACE::NodeProto& Node::Impl::node_proto() const {
@@ -127,15 +124,15 @@ Subgraph Node::Impl::get_subgraph_from_attribute(const std::string& name) const 
     if (it == std::end(m_attributes)) {
         throw error::node::UnknownAttribute{this->name(), name};
     }
-    return it->get_subgraph(*m_graph);
+    return it->get_subgraph(m_graph);
 }
 
-bool Node::Impl::has_subgraph() const {
-    return m_has_subgraph;
+bool Node::Impl::has_subgraphs() const {
+    return m_subgraphs.size() > 0;
 }
 
-std::shared_ptr<Subgraph> Node::Impl::get_subgraph() const {
-    return m_subgraph;
+const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& Node::Impl::get_subgraphs() const {
+    return m_subgraphs;
 }
 
 template <typename T>
@@ -198,7 +195,7 @@ Node::Node(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph)
 Node::Node(Node&& other) noexcept : m_pimpl{std::move(other.m_pimpl)} {}
 
 Node::Node(const Node& other)
-    : m_pimpl{new Impl{other.m_pimpl->node_proto(), other.m_pimpl->graph(), other.get_subgraph()}, [](Impl* impl) {
+    : m_pimpl{new Impl{other.m_pimpl->node_proto(), other.m_pimpl->graph(), other.get_subgraphs()}, [](Impl* impl) {
                   delete impl;
               }} {}
 
@@ -231,12 +228,12 @@ bool Node::has_attribute(const std::string& name) const {
     return m_pimpl->has_attribute(name);
 }
 
-bool Node::has_subgraph() const {
-    return m_pimpl->has_subgraph();
+bool Node::has_subgraphs() const {
+    return m_pimpl->has_subgraphs();
 }
 
-std::shared_ptr<Subgraph> Node::get_subgraph() const {
-    return m_pimpl->get_subgraph();
+const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& Node::get_subgraphs() const {
+    return m_pimpl->get_subgraphs();
 }
 
 std::vector<std::string> Node::get_attribute_names() const {

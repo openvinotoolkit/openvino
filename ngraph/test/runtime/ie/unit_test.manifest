@@ -1441,6 +1441,7 @@ onnx_controlflow_loop_2d_const_no_identity_termination_cond
 onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 onnx_controlflow_loop_no_variadic_inputs_and_outputs
 onnx_controlflow_loop_power
+onnx_if_dynamic_inputs
 
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference

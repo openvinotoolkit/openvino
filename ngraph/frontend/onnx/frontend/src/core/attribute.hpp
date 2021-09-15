@@ -301,7 +301,7 @@ public:
     const std::string& get_string() const {
         return m_attribute_proto->s();
     }
-    Subgraph get_subgraph(const Graph& parent_graph) const;
+    Subgraph get_subgraph(const Graph* parent_graph) const;
 
     std::vector<Tensor> get_tensor_array() const {
         return {std::begin(m_attribute_proto->tensors()), std::end(m_attribute_proto->tensors())};

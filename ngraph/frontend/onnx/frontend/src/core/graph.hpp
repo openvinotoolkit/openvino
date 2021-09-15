@@ -34,10 +34,10 @@ public:
     const std::string& get_name() const {
         return m_model->get_graph().name();
     }
-    const GraphCache& get_graph_cache() const;
     const ParameterVector& get_ng_parameters() const {
         return m_parameters;
     }
+    virtual bool is_ng_node_in_cache(const std::string& name) const;
     virtual Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
     OutputVector make_ng_nodes(const Node& onnx_node) const;
     const OpsetImports& get_opset_imports() const;
@@ -71,7 +71,7 @@ public:
     ///
     /// \param[in]  model          The ONNX model object.
     /// \param[in]  parent_graph   The reference to the parent graph.
-    Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model, const Graph& parent_graph);
+    Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model, const Graph* parent_graph);
 
     /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
     /// \return     Vector of edge nodes from parent scope.
@@ -87,14 +87,23 @@ public:
     Subgraph& operator=(const Subgraph&) = delete;
     Subgraph& operator=(Subgraph&&) = default;
 
+    bool is_ng_node_in_cache(const std::string& name) const override;
     Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const override;
     void infer_inputs_from_parent();
 
 private:
     void decode_to_framework_nodes() override;
     void find_inputs_from_parent();
+    /// \brief      Replaces current node's input with Parameter if that input comes from parent graph scope
+    ///
+    /// \param[in]  in_name                  input node name
+    /// \param[in]  from_parent_node         nGraph node from parent scope
+    /// \param[in]  node_to_replace_input    nGraph input node to be replaced
+    void replace_input_from_parent_scope_with_parameter(const std::string& in_name,
+                                                        const Output<ngraph::Node>& from_parent_node,
+                                                        Input<ngraph::Node>&& node_to_replace_input);
 
-    const GraphCache* m_parent_graph_cache;
+    const Graph* m_parent_graph;
     std::vector<std::string> m_inputs_from_parent;
     std::unordered_map<std::shared_ptr<ngraph::op::Parameter>, std::string> m_parameter_to_parent_node_map;
 };
