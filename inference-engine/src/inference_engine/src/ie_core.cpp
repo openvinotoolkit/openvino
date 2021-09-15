@@ -1306,11 +1306,14 @@ ExecutableNetwork Core::import_model(std::istream& networkModel,
     return {exec._so, exec._ptr};
 }
 
-ie::QueryNetworkResult Core::query_model(const std::shared_ptr<const ngraph::Function>& network,
-                                         const std::string& deviceName,
-                                         const ConfigMap& config) const {
-    return _impl->QueryNetwork(ie::CNNNetwork(std::const_pointer_cast<ngraph::Function>(network)), deviceName, config);
+SupportedOpsMap Core::query_model(const std::shared_ptr<const ngraph::Function>& network,
+                                  const std::string& deviceName,
+                                  const ConfigMap& config) const {
+    auto cnnNet = ie::CNNNetwork(std::const_pointer_cast<ngraph::Function>(network));
+    auto qnResult = _impl->QueryNetwork(cnnNet, deviceName, config);
+    return qnResult.supportedLayersMap;
 }
+
 void Core::set_config(const ConfigMap& config, const std::string& deviceName) {
     // HETERO case
     if (deviceName.find("HETERO:") == 0) {
