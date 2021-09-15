@@ -554,11 +554,9 @@ ov::Output<const ov::Node> ov::Function::output(size_t i) const {
 }
 ov::Output<const ov::Node> ov::Function::output(const std::string& tensor_name) const {
     for (const auto& res : m_results) {
-        for (const auto& name : res->get_input_tensor(0).get_names()) {
-            if (name == tensor_name) {
-                std::shared_ptr<const ov::Node> result = res;
-                return result;
-            }
+        if (res->get_input_tensor(0).get_names().count(tensor_name)) {
+            std::shared_ptr<const ov::Node> result = res;
+            return result;
         }
     }
     throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
@@ -582,10 +580,8 @@ ov::Output<ov::Node> ov::Function::output(size_t i) {
 }
 ov::Output<ov::Node> ov::Function::output(const std::string& tensor_name) {
     for (const auto& res : m_results) {
-        for (const auto& name : res->get_input_tensor(0).get_names()) {
-            if (name == tensor_name)
-                return res;
-        }
+        if (res->get_input_tensor(0).get_names().count(tensor_name))
+            return res;
     }
     throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
 }
@@ -613,11 +609,9 @@ ov::Output<const ov::Node> ov::Function::input(size_t i) const {
 }
 ov::Output<const ov::Node> ov::Function::input(const std::string& tensor_name) const {
     for (const auto& param : m_parameters) {
-        for (const auto& name : param->get_output_tensor(0).get_names()) {
-            if (name == tensor_name) {
-                std::shared_ptr<const ov::Node> parameter = param;
-                return parameter;
-            }
+        if (param->get_output_tensor(0).get_names().count(tensor_name)) {
+            std::shared_ptr<const ov::Node> parameter = param;
+            return parameter;
         }
     }
     throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
@@ -642,10 +636,8 @@ ov::Output<ov::Node> ov::Function::input(size_t i) {
 }
 ov::Output<ov::Node> ov::Function::input(const std::string& tensor_name) {
     for (const auto& param : m_parameters) {
-        for (const auto& name : param->get_output_tensor(0).get_names()) {
-            if (name == tensor_name)
-                return param;
-        }
+        if (param->get_output_tensor(0).get_names().count(tensor_name))
+            return param;
     }
     throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
 }
