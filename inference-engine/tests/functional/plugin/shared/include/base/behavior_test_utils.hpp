@@ -9,13 +9,16 @@
 #include <vector>
 #include <memory>
 #include <tuple>
+
 #include <gtest/gtest.h>
+
 #include <ngraph/node.hpp>
 #include <ngraph/function.hpp>
-#include <ie_plugin_config.hpp>
-#include <ngraph/function.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
-#include "gtest/gtest.h"
+
+#include <openvino/runtime/core.hpp>
+#include <ie_plugin_config.hpp>
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 
@@ -23,6 +26,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
+
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 
@@ -237,4 +241,63 @@ public:
     InferenceEngine::Parameter reference;
 };
 
-}  // namespace BehaviorTestsUtils
+inline ov::runtime::Core createCoreWithTemplate() {
+    ov::runtime::Core ie;
+    std::string pluginName = "templatePlugin";
+    pluginName += IE_BUILD_POSTFIX;
+    ie.register_plugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
+    return ie;
+}
+
+class OVClassNetworkTest : public ::testing::Test {
+public:
+    std::shared_ptr<ngraph::Function> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
+
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        // Generic network
+        {
+            actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+        }
+        // Quite simple network
+        {
+            simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+        }
+        // Multinput to substruct network
+        {
+            multinputNetwork = ngraph::builder::subgraph::make2InputSubtract();
+        }
+        // Network with KSO
+        {
+            ksoNetwork = ngraph::builder::subgraph::makeKSOFunction();
+        }
+    }
+
+    void setHeteroNetworkAffinity(const std::string &targetDevice) {
+        const std::map<std::string, std::string> deviceMapping = {{"Split_2",       targetDevice},
+                                                                  {"Convolution_4", targetDevice},
+                                                                  {"Convolution_7", CommonTestUtils::DEVICE_CPU},
+                                                                  {"Relu_5",        CommonTestUtils::DEVICE_CPU},
+                                                                  {"Relu_8",        targetDevice},
+                                                                  {"Concat_9",      CommonTestUtils::DEVICE_CPU}};
+
+        for (const auto &op : actualNetwork->get_ops()) {
+            auto it = deviceMapping.find(op->get_friendly_name());
+            if (it != deviceMapping.end()) {
+                std::string affinity = it->second;
+                op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+            }
+        }
+    }
+};
+
+class OVClassBaseTestP : public OVClassNetworkTest, public ::testing::WithParamInterface<std::string> {
+public:
+    std::string deviceName;
+    void SetUp() override {
+        OVClassNetworkTest::SetUp();
+        deviceName = GetParam();
+    }
+};
+
+} // namespace BehaviorTestsUtils
