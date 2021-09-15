@@ -97,6 +97,20 @@ void op::v5::RNNSequence::validate_and_infer_types() {
                               Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
                           "Parameter num_directions not matched in RNNSequence.");
 
+    auto valid_num_directions = 0;
+    if (m_direction == op::RecurrentSequenceDirection::FORWARD ||
+        m_direction == op::RecurrentSequenceDirection::REVERSE) {
+        valid_num_directions = 1;
+    } else if (m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) {
+        valid_num_directions = 2;
+    } else {
+        NODE_VALIDATION_CHECK(this, false, "Parameter direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
+    }
+
+    NODE_VALIDATION_CHECK(this,
+                          Dimension::merge(merged_num_directions, merged_num_directions, valid_num_directions),
+                          "Parameter num_directions not match direction in RNNSequence.");
+
     // Validate hidden_size value for W, R, B inputs
     if (merged_hidden_size.is_static()) {
         if (w_pshape[1].is_static()) {
