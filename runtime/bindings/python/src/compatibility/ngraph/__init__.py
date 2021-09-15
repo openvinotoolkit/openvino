@@ -133,6 +133,7 @@ from ngraph.opset8 import prior_box
 from ngraph.opset8 import prior_box_clustered
 from ngraph.opset8 import psroi_pooling
 from ngraph.opset8 import proposal
+from ngraph.opset8 import random_uniform
 from ngraph.opset8 import range
 from ngraph.opset8 import read_value
 from ngraph.opset8 import reduce_l1
