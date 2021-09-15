@@ -59,7 +59,6 @@ uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device) {
                                                                                 {"VPU", 60},
                                                                                 {"MYRIAD", 60},
                                                                                 {"HDDL", 60},
-                                                                                {"FPGA", 120},
                                                                                 {"UNKNOWN", 120}};
     uint32_t duration = 0;
     for (const auto& deviceDurationInSeconds : deviceDefaultDurationInSeconds) {

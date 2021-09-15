@@ -140,5 +140,5 @@ TEST(opset, opset8_dump) {
         std::cout << t.name << " ";
     }
     std::cout << std::endl;
-    ASSERT_EQ(162, opset.get_types_info().size());
+    ASSERT_EQ(163, opset.get_types_info().size());
 }
