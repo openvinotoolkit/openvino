@@ -38,9 +38,9 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 ie_cpack_add_component(core_tools DEPENDS core)
 
 install(TARGETS compile_tool
-        RUNTIME DESTINATION deployment_tools/tools/compile_tool
+        RUNTIME DESTINATION tools/compile_tool
         COMPONENT core_tools)
 
 install(FILES README.md
-        DESTINATION deployment_tools/tools/compile_tool
+        DESTINATION tools/compile_tool
         COMPONENT core_tools)

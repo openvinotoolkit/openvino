@@ -9,7 +9,6 @@ set "ROOT_DIR=%~dp0"
 FOR /F "delims=\" %%i IN ("%ROOT_DIR%") DO set SAMPLES_TYPE=%%~nxi
 
 set "SOLUTION_DIR64=%USERPROFILE%\Documents\Intel\OpenVINO\inference_engine_%SAMPLES_TYPE%_samples_build"
-if "%InferenceEngine_DIR%"=="" set "InferenceEngine_DIR=%ROOT_DIR%\..\share"
 
 set MSBUILD_BIN=
 set VS_PATH=
@@ -30,19 +29,16 @@ if not "%1" == "" (
 )
 
 if "%INTEL_OPENVINO_DIR%"=="" (
-    if exist "%ROOT_DIR%\..\..\..\bin\setupvars.bat" (
-        call "%ROOT_DIR%\..\..\..\bin\setupvars.bat"
+    if exist "%ROOT_DIR%\..\..\setupvars.bat" (
+        call "%ROOT_DIR%\..\..\setupvars.bat"
     ) else (
-        if exist "%ROOT_DIR%\..\..\..\..\bin\setupvars.bat" (
-            call "%ROOT_DIR%\..\..\..\..\bin\setupvars.bat" 
-      ) else (
          echo Failed to set the environment variables automatically    
-         echo To fix, run the following command: ^<INSTALL_DIR^>\bin\setupvars.bat
+         echo To fix, run the following command: ^<INSTALL_DIR^>\setupvars.bat
          echo where INSTALL_DIR is the OpenVINO installation directory.
          GOTO errorHandling
       )
     )
-) 
+)
 
 if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
    set "PLATFORM=x64"

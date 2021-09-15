@@ -24,11 +24,11 @@ In addition, sample scripts, code samples and demo applications are provided to 
 ## <a name="openvino-installation"></a>Intel® Distribution of OpenVINO™ toolkit Installation and Deployment Tools Directory Structure
 This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit installation and configuration steps. If you have not yet installed and configured the toolkit, see [Install Intel® Distribution of OpenVINO™ toolkit for Windows*](../install_guides/installing-openvino-windows.md).
 
-By default, the installation directory is `C:\Program Files (x86)\Intel\openvino_<version>`, referred to as `<INSTALL_DIR>`. If you installed the Intel® Distribution of OpenVINO™ toolkit to a directory other than the default, replace `C:\Program Files (x86)\Intel` with the directory in which you installed the software. For simplicity, a shortcut to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2021`.
+By default, the installation directory is `C:\Program Files (x86)\Intel\openvino_<version>`, referred to as `<INSTALL_DIR>`. If you installed the Intel® Distribution of OpenVINO™ toolkit to a directory other than the default, replace `C:\Program Files (x86)\Intel` with the directory in which you installed the software. For simplicity, a shortcut to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2022`.
 
-The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>\deployment_tools` directory.
+The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>\tools` directory.
 <details>
-    <summary><strong>Click for the <code>deployment_tools</code> directory structure</strong></summary>
+    <summary><strong>Click for the <code>tools</code> directory structure</strong></summary>
 
 
 | Directory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Description                                                                           |
@@ -63,7 +63,7 @@ The simplified OpenVINO™ workflow is:
 
 ## Use the Sample Scripts to Learn the Workflow
 
-The sample scripts in `<INSTALL_DIR>\deployment_tools\demo` give you a starting point to learn the OpenVINO workflow. These scripts automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios. The demo steps demonstrate how to:
+The sample scripts in `<INSTALL_DIR>\samples\scripts` give you a starting point to learn the OpenVINO workflow. These scripts automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios. The demo steps demonstrate how to:
 * Compile several samples from the source files delivered as part of the OpenVINO toolkit
 * Download trained models
 * Perform pipeline steps and see the output on the console
@@ -107,7 +107,7 @@ When the script completes, you see the label and confidence for the top-10 categ
 
 Top 10 results:
 
-Image C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\car.png
+Image C:\Program Files (x86)\Intel\openvino_2022\samples\scripts\car.png
 
 classid probability label
 ------- ----------- -----
@@ -189,7 +189,7 @@ This guide uses the Model Downloader to get pre-trained models. You can use one 
 
 * **List the models available in the downloader**:
 ```bat
-cd <INSTALL_DIR>\deployment_tools\tools\model_downloader\
+cd <INSTALL_DIR>\tools\model_downloader\
 ```
 ```bat
 python info_dumper.py --print_all
@@ -254,7 +254,7 @@ The `squeezenet1.1` model is downloaded in the Caffe* format. You must use the M
 
 3. Run the Model Optimizer script:
    ```bat
-   cd <INSTALL_DIR>\deployment_tools\model_optimizer
+   cd <INSTALL_DIR>\tools\model_optimizer
    ```
    ```bat
    python .\mo.py --input_model <model_dir>\<model_file> --data_type <model_precision> --output_dir <ir_dir>
@@ -267,7 +267,7 @@ The `squeezenet1.1` model is downloaded in the Caffe* format. You must use the M
 The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP16 IR and saves to the `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` output directory:
 
 ```bat
-   cd <INSTALL_DIR>\deployment_tools\model_optimizer
+   cd <INSTALL_DIR>\tools\model_optimizer
    ```
    ```bat
    python .\mo.py --input_model C:\Users\username\Documents\models\public\squeezenet1.1\squeezenet1.1.caffemodel --data_type FP16 --output_dir C:\Users\username\Documents\models\public\squeezenet1.1\ir
@@ -275,9 +275,9 @@ The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP
 
 After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` directory.
 
-Copy the `squeezenet1.1.labels` file from the `<INSTALL_DIR>\deployment_tools\demo\` to `<ir_dir>`. This file contains the classes that ImageNet uses. Therefore, the inference results show text instead of classification numbers:
+Copy the `squeezenet1.1.labels` file from the `<INSTALL_DIR>\samples\scripts\` to `<ir_dir>`. This file contains the classes that ImageNet uses. Therefore, the inference results show text instead of classification numbers:
    ```batch
-   cp <INSTALL_DIR>\deployment_tools\demo\squeezenet1.1.labels <ir_dir>
+   cp <INSTALL_DIR>\samples\scripts\squeezenet1.1.labels <ir_dir>
    ```
 </details>
 
@@ -288,8 +288,8 @@ Many sources are available from which you can download video media to use the co
 - https://images.google.com
 
 As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes two sample images that you can use for running code samples and demo applications:
-* `<INSTALL_DIR>\deployment_tools\demo\car.png`
-* `<INSTALL_DIR>\deployment_tools\demo\car_1.bmp`
+* `<INSTALL_DIR>\samples\scripts\car.png`
+* `<INSTALL_DIR>\samples\scripts\car_1.bmp`
 
 ### <a name="run-image-classification"></a>Step 4: Run the Image Classification Code Sample
 
@@ -299,7 +299,7 @@ To run the **Image Classification** code sample with an input image on the IR:
 
 1. Set up the OpenVINO environment variables:
    ```bat
-   <INSTALL_DIR>\openvino\bin\setupvars.sh
+   <INSTALL_DIR>\setupvars.sh
    ```
 2. Go to the code samples build directory:
    ```bat
@@ -312,31 +312,31 @@ To run the **Image Classification** code sample with an input image on the IR:
 <details>
     <summary><strong>Click for examples of running the Image Classification code sample on different devices</strong></summary>
 
-The following commands run the Image Classification Code Sample using the `car.png` file from the `<INSTALL_DIR>\deployment_tools\demo` directory as an input image, the IR of your model from `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` and on different hardware devices:
+The following commands run the Image Classification Code Sample using the `car.png` file from the `<INSTALL_DIR>\samples\scripts` directory as an input image, the IR of your model from `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` and on different hardware devices:
 
 **CPU:**
    ```bat
-   .\classification_sample_async -i <INSTALL_DIR>\deployment_tools\demo\car.png -m C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d CPU
+   .\classification_sample_async -i <INSTALL_DIR>\samples\scripts\car.png -m C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d CPU
    ```
 
    **GPU:**
    
    > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires additional hardware configuration steps. For details, see the Steps for Intel® Processor Graphics (GPU) section in the [installation instructions](../install_guides/installing-openvino-windows.md).
    ```bat
-   .\classification_sample_async -i <INSTALL_DIR>\deployment_tools\demo\car.png -m C:\Users\<USER_ID>\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d GPU
+   .\classification_sample_async -i <INSTALL_DIR>\samples\scripts\car.png -m C:\Users\<USER_ID>\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d GPU
    ```
    
    **MYRIAD:**
 
   ```bat
-   .\classification_sample_async -i <INSTALL_DIR>\deployment_tools\demo\car.png -m C:\Users\<USER_ID>\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d MYRIAD
+   .\classification_sample_async -i <INSTALL_DIR>\samples\scripts\car.png -m C:\Users\<USER_ID>\models\public\squeezenet1.1\ir\squeezenet1.1.xml -d MYRIAD
    ```
 
 When the Sample Application completes, you see the label and confidence for the top-10 categories on the display. Below is a sample output with inference results on CPU:
 ```bat
 Top 10 results:
 
-Image C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\car.png
+Image C:\Program Files (x86)\Intel\openvino_2022\samples\scripts\car.png
 
 classid probability label
 ------- ----------- -----
@@ -362,7 +362,7 @@ Below you can find basic guidelines for executing the OpenVINO™ workflow using
 
 1. Before using the OpenVINO™ samples, always set up the environment:
 ```bat
-<INSTALL_DIR>\bin\setupvars.bat
+<INSTALL_DIR>\setupvars.bat
 ```
 2. Make sure to have the directory path for the following:
 - Code Sample binaries located in `C:\Users\<USER_ID>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\intel64\Release`
@@ -378,9 +378,9 @@ To build all the demos and samples:
 
 ```sh
 cd $INTEL_OPENVINO_DIR\inference_engine_samples\cpp
-# to compile C samples, go here also: cd <INSTALL_DIR>\inference_engine\samples\c
+# to compile C samples, go here also: cd <INSTALL_DIR>\samples\c
 build_samples_msvc.bat
-cd $INTEL_OPENVINO_DIR\deployment_tools\open_model_zoo\demos
+cd $INTEL_OPENVINO_DIR\extras\open_model_zoo\demos
 build_demos_msvc.bat
 ```
 

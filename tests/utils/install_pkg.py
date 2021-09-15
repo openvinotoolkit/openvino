@@ -16,10 +16,10 @@ def get_openvino_environment(install_prefix: Path):
     """ Get OpenVINO environment variables
     """
     if sys.platform == "win32":
-        script = install_prefix / "bin" / "setupvars.bat"
+        script = install_prefix / "setupvars.bat"
         cmd = f"{script} && set"
     else:
-        script = install_prefix / "bin" / "setupvars.sh"
+        script = install_prefix / "setupvars.sh"
         # setupvars.sh is not compatible with /bin/sh. Using bash.
         cmd = f'bash -c ". {script} && env"'
 

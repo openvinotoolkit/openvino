@@ -123,16 +123,16 @@ endif()
 ie_cpack_add_component(cpp_samples_deps)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        DESTINATION "samples/cpp/thirdparty"
         COMPONENT cpp_samples_deps
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        DESTINATION "samples/cpp/thirdparty"
         COMPONENT cpp_samples_deps
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        DESTINATION "samples/cpp/thirdparty"
         COMPONENT cpp_samples_deps
         USE_SOURCE_PERMISSIONS)

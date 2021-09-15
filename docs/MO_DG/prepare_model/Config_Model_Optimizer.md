@@ -10,7 +10,7 @@ dependencies and provide the fastest and easiest way to configure the Model
 Optimizer.
 
 To configure all three frameworks, go to the
-`<INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites`
+`<INSTALL_DIR>/tools/model_optimizer/install_prerequisites`
 directory and run:
 
 *   For Linux\* OS:
@@ -35,7 +35,7 @@ install_prerequisites.bat
 ```
 
 To configure a specific framework, go to the
-`<INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites`
+`<INSTALL_DIR>/tools/model_optimizer/install_prerequisites`
 directory and run:
 
 *   For Caffe\* on Linux:
@@ -101,7 +101,7 @@ framework at a time.
 
 1.  Go to the Model Optimizer directory:
 ```shell
-cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+cd <INSTALL_DIR>/tools/model_optimizer/
 ```
 2.  **Strongly recommended for all global Model Optimizer dependency installations**:
     Create and activate a virtual environment. While not required, this step is
@@ -181,7 +181,7 @@ export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 On Windows, pre-built protobuf packages for Python versions 3.4, 3.5, 3.6,
 and 3.7 are provided with the installation package and can be found in
 the
-`<INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites`
+`<INSTALL_DIR>\tools\model_optimizer\install_prerequisites`
 folder. Please note that they are not installed with the
 `install_prerequisites.bat` installation script due to possible issues
 with `pip`, and you can install them at your own discretion. Make sure
@@ -198,7 +198,7 @@ To install the protobuf package:
 1. Open the command prompt as administrator.
 2. Go to the `install_prerequisites` folder of the OpenVINO toolkit installation directory:
 ```sh
-cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+cd <INSTALL_DIR>\tools\model_optimizer\install_prerequisites
 ```
 
 3. Run the following command to install the protobuf for Python 3.6. If

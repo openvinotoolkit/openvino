@@ -75,11 +75,11 @@ The guide assumes you downloaded the OpenVINO toolkit for Raspbian* OS. If you d
    By default, the package file is saved as `l_openvino_toolkit_runtime_raspbian_p_<version>.tgz`.
 3. Create an installation folder.
    ```sh
-   sudo mkdir -p /opt/intel/openvino_2021
+   sudo mkdir -p /opt/intel/openvino_2022
    ```
 4. Unpack the archive:
    ```sh
-   sudo tar -xf  l_openvino_toolkit_runtime_raspbian_p_<version>.tgz --strip 1 -C /opt/intel/openvino_2021
+   sudo tar -xf  l_openvino_toolkit_runtime_raspbian_p_<version>.tgz --strip 1 -C /opt/intel/openvino_2022
    ```
 
 Now the OpenVINO toolkit components are installed. Additional configuration steps are still required. Continue to the next sections to install External Software Dependencies, configure the environment and set up USB rules.
@@ -97,12 +97,12 @@ CMake is installed. Continue to the next section to set the environment variable
 
 You must update several environment variables before you can compile and run OpenVINO toolkit applications. Run the following script to temporarily set the environment variables:
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2022/setupvars.sh
 ```
 
 **(Optional)** The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
 ```sh
-echo "source /opt/intel/openvino_2021/bin/setupvars.sh" >> ~/.bashrc
+echo "source /opt/intel/openvino_2022/setupvars.sh" >> ~/.bashrc
 ```
 
 To test your change, open a new terminal. You will see the following:
@@ -120,11 +120,11 @@ This task applies only if you have an Intel® Neural Compute Stick 2 device.
    Log out and log in for it to take effect.
 2. If you didn't modify `.bashrc` to permanently set the environment variables, run `setupvars.sh` again after logging in:
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2022/setupvars.sh
    ```
 3. To perform inference on the Intel® Neural Compute Stick 2, install the USB rules running the `install_NCS_udev_rules.sh` script:
    ```sh
-   sh /opt/intel/openvino_2021/install_dependencies/install_NCS_udev_rules.sh
+   sh /opt/intel/openvino_2022/install_dependencies/install_NCS_udev_rules.sh
    ```
 4. Plug in your Intel® Neural Compute Stick 2.
 
@@ -140,7 +140,7 @@ Follow the next steps to use the pre-trained face detection model using Inferenc
    ```
 2. Build the Object Detection Sample:
    ```sh
-   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2021/deployment_tools/inference_engine/samples/cpp
+   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2022/samples/cpp
    ```
    ```sh
    make -j2 object_detection_sample_ssd

@@ -43,7 +43,7 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 To convert an MXNet\* model:
 
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
+1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory.
 2. To convert an MXNet\* model contained in a `model-file-symbol.json` and `model-file-0000.params`, run the Model Optimizer launch script `mo.py`, specifying a path to the input model file and a path to an output directory with write permissions:
 ```sh
 python3 mo_mxnet.py --input_model model-file-0000.params --output_dir <OUTPUT_MODEL_DIR>

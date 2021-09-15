@@ -116,3 +116,8 @@ endif()
 ie_sse42_optimization_flags(sse4_2_flags)
 set_source_files_properties(${__CLDNN_AllSources}
   PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+
+install(TARGETS "${CLDNN_BUILD__PROJ}"
+  RUNTIME DESTINATION tests
+  COMPONENT tests
+  EXCLUDE_FROM_ALL)

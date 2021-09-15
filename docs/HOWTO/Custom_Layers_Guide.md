@@ -313,7 +313,7 @@ operation for the CPU plugin. The code of  the library is described in the [Exte
 To build the extension, run the following:<br>
 ```bash
 mkdir build && cd build
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2022/setupvars.sh
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make --jobs=$(nproc)
 ```

@@ -173,7 +173,7 @@ Note that casting `Blob` to `TBlob` via `std::dynamic_pointer_cast` is not the r
 ## Build Your Application
 
 For details about building your application, refer to the CMake files for the sample applications.
-All samples source code is located in the `<INSTALL_DIR>/openvino/inference_engine/samples` directory, where `INSTALL_DIR` is the OpenVINO™ installation directory.
+All samples source code is located in the `<INSTALL_DIR>/samples` directory, where `INSTALL_DIR` is the OpenVINO™ installation directory.
 
 ### CMake project creation
 
@@ -199,7 +199,7 @@ add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OpenCV_LIBS})
 ```
 3. **To build your project** using CMake with the default build tools currently available on your machine, execute the following commands:
-> **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/bin/setupvars.sh` (or setupvars.bat for Windows)`. Otherwise the `InferenceEngine_DIR` and `OpenCV_DIR` variables won't be configured properly to pass `find_package` calls.
+> **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/setupvars.sh` (or setupvars.bat for Windows)`. Otherwise the `InferenceEngine_DIR` and `OpenCV_DIR` variables won't be configured properly to pass `find_package` calls.
 ```sh
 cd build/
 cmake ../project

@@ -36,10 +36,10 @@ Classification Sample Using SqueezeNet
 
 The sample illustrates the general workflow of using the Intel(R) Deep Learning Deployment Toolkit and performs the following:
 
-  - Downloads a public SqueezeNet model using the Model Downloader (open_model_zoo\tools\downloader\downloader.py)
-  - Installs all prerequisites required for running the Model Optimizer using the scripts from the "model_optimizer\install_prerequisites" folder
-  - Converts SqueezeNet to an IR using the Model Optimizer (model_optimizer\mo.py) via the Model Converter (open_model_zoo\tools\downloader\converter.py)
-  - Builds the Inference Engine classification_sample (inference_engine\samples\classification_sample)
+  - Downloads a public SqueezeNet model using the Model Downloader (extras\open_model_zoo\tools\downloader\downloader.py)
+  - Installs all prerequisites required for running the Model Optimizer using the scripts from the "tools\model_optimizer\install_prerequisites" folder
+  - Converts SqueezeNet to an IR using the Model Optimizer (tools\model_optimizer\mo.py) via the Model Converter (extras\open_model_zoo\tools\downloader\converter.py)
+  - Builds the Inference Engine classification_sample (samples\cpp\classification_sample)
   - Runs the sample with the car.png picture located in the demo folder
 
 The sample application prints top-10 inference results for the picture.
@@ -53,10 +53,10 @@ The sample illustrates how to use the Benchmark Application to estimate deep lea
 
 The sample script does the following:
 
-  - Downloads a public SqueezeNet model using the Model Downloader (open_model_zoo\tools\downloader\downloader.py)
-  - Installs all prerequisites required for running the Model Optimizer using the scripts from the "model_optimizer\install_prerequisites" folder
-  - Converts SqueezeNet to an IR using the Model Optimizer (model_optimizer\mo.py) via the Model Converter (open_model_zoo\tools\downloader\converter.py)
-  - Builds the Inference Engine benchmark tool (inference_engine\samples\benchmark_app)
+  - Downloads a public SqueezeNet model using the Model Downloader (extras\open_model_zoo\tools\downloader\downloader.py)
+  - Installs all prerequisites required for running the Model Optimizer using the scripts from the "tools\model_optimizer\install_prerequisites" folder
+  - Converts SqueezeNet to an IR using the Model Optimizer (tools\model_optimizer\mo.py) via the Model Converter (extras\open_model_zoo\tools\downloader\converter.py)
+  - Builds the Inference Engine benchmark tool (samples\benchmark_app)
   - Runs the tool with the car.png picture located in the demo folder
 
 The benchmark app prints performance counters, resulting latency, and throughput values.

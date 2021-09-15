@@ -148,33 +148,33 @@ To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's]
 
 ## Examples of Running the Tool
 
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices. As an input, the `car.png` file from the `<INSTALL_DIR>/samples/scripts/` directory is used.
 
 > **NOTE:** The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
 1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
    ```sh
-   cd <INSTAL_DIR>/deployment_tools/open_model_zoo/tools/downloader
+   cd <INSTAL_DIR>/extras/open_model_zoo/tools/downloader
    ```
    ```sh
    python3 downloader.py --name googlenet-v1 -o <models_dir>
    ```
 2. Convert the model to the Inference Engine IR format. Go to the Model Optimizer directory and run the `mo.py` script with specifying the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
    ```sh
-   cd <INSTALL_DIR>/deployment_tools/model_optimizer
+   cd <INSTALL_DIR>/tools/model_optimizer
    ```
    ```sh
    python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
-3. Run the tool with specifying the `<INSTALL_DIR>/deployment_tools/demo/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
+3. Run the tool with specifying the `<INSTALL_DIR>/samples/scripts/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
 
    * On CPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png  -d CPU -api async --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/samples/scripts/car.png  -d CPU -api async --progress true
    ```
    * On GPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png -d GPU -api async --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/samples/scripts/car.png -d GPU -api async --progress true
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.

@@ -39,8 +39,8 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core_c
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core_c
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core_c
-        INCLUDES DESTINATION ${IE_CPACK_IE_DIR}/include/ie)
+        INCLUDES DESTINATION runtime/include/ie)
 
 install(DIRECTORY ${InferenceEngine_C_API_SOURCE_DIR}/include/
-        DESTINATION ${IE_CPACK_IE_DIR}/include/ie
+        DESTINATION runtime/include/ie
         COMPONENT core_c_dev)

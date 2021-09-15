@@ -85,7 +85,6 @@ include(cmake/test_model_zoo.cmake)
 add_subdirectory(thirdparty)
 add_subdirectory(openvino)
 add_subdirectory(ngraph)
-
 add_subdirectory(runtime)
 add_subdirectory(inference-engine)
 
