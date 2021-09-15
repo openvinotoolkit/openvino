@@ -22,9 +22,9 @@ This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit
 
 The OpenVINO toolkit for Raspbian* OS is distributed without installer. This document refers to the directory to which you unpacked the toolkit package as `<INSTALL_DIR>`.
 
-The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>/deployment_tools` directory.
+The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>/tools` directory.
 <details>
-    <summary><strong>Click for the <code>deployment_tools</code> directory structure</strong></summary>
+    <summary><strong>Click for the <code>tools</code> directory structure</strong></summary>
 
 
 | Directory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Description                                                                           |
@@ -62,7 +62,7 @@ Follow the steps below to run pre-trained Face Detection network using Inference
    ```
 2. Build the Object Detection Sample with the following command:
    ```sh
-   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2021/deployment_tools/inference_engine/samples/cpp
+   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2022/samples/cpp
    make -j2 object_detection_sample_ssd
    ```
 3. Download the pre-trained Face Detection model with the [Model Downloader tool](@ref omz_tools_downloader):
@@ -84,7 +84,7 @@ Following are some basic guidelines for executing the OpenVINO™ workflow using
 
 1. Before using the OpenVINO™ samples, always set up the environment:
 ```sh
-source <INSTALL_DIR>/bin/setupvars.sh
+source <INSTALL_DIR>/setupvars.sh
 ```
 2. Have the directory path for the following:
    - Code Sample binaries
