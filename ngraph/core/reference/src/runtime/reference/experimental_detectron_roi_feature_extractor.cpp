@@ -64,7 +64,6 @@ void reord(const std::vector<float>& src_data,
     });
     for (int64_t i = 0; i < n; ++i) {
         const int64_t j = dst_mapping[i];
-        assert(0 <= j && j < n);
         memcpy(dst_data + i * step, src_data.data() + j * step, sizeof(float) * step);
     }
 }
