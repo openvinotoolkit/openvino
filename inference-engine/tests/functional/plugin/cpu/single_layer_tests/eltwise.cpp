@@ -47,6 +47,14 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
+        if (netPrecision == InferenceEngine::Precision::BF16) {
+            threshold = 0.2f;
+            // this pass necessary for cases when reference implementation got 2 different float number
+            // but cpu implementation got 2 same number due to fp32 -> bf16 conversion
+            if (eltwiseType == ngraph::helpers::EltwiseTypes::FLOOR_MOD)
+                inPrc = InferenceEngine::Precision::BF16;
+        }
+
         selectedType = getPrimitiveType() + "_" + netPrecision.name();
 
         std::vector<size_t> inputShape1, inputShape2;
@@ -160,7 +168,7 @@ const auto params_4D = ::testing::Combine(
             ::testing::ValuesIn(secondaryInputTypes),
             ::testing::ValuesIn(opTypes),
             ::testing::ValuesIn(netPrc),
-            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -176,7 +184,7 @@ const auto params_4D_emptyCPUSpec = ::testing::Combine(
                 ::testing::ValuesIn(secondaryInputTypes),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netPrc),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::FP32),
                 ::testing::Values(InferenceEngine::Precision::FP32),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -205,7 +213,7 @@ const auto params_5D = ::testing::Combine(
             ::testing::ValuesIn(secondaryInputTypes),
             ::testing::ValuesIn(opTypes),
             ::testing::ValuesIn(netPrc),
-            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -221,7 +229,7 @@ const auto params_5D_emptyCPUSpec = ::testing::Combine(
                 ::testing::ValuesIn(secondaryInputTypes),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netPrc),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::FP32),
                 ::testing::Values(InferenceEngine::Precision::FP32),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -246,7 +254,7 @@ const auto params_4D_Blocked_Planar = ::testing::Combine(
             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
             ::testing::ValuesIn(opTypes),
             ::testing::ValuesIn(netPrc),
-            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -272,7 +280,7 @@ const auto params_4D_Planar_Blocked = ::testing::Combine(
             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
             ::testing::ValuesIn(opTypes),
             ::testing::ValuesIn(netPrc),
-            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -298,7 +306,7 @@ const auto params_5D_Blocked_Planar = ::testing::Combine(
             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
             ::testing::ValuesIn(opTypes),
             ::testing::ValuesIn(netPrc),
-            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -324,7 +332,7 @@ const auto params_5D_Planar_Blocked = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netPrc),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::FP32),
                 ::testing::Values(InferenceEngine::Precision::FP32),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -352,7 +360,7 @@ const auto params_4D_1D = ::testing::Combine(
                 ::testing::ValuesIn(secondaryInputTypes),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netPrc),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::FP32),
                 ::testing::Values(InferenceEngine::Precision::FP32),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -379,7 +387,7 @@ const auto params_5D_1D = ::testing::Combine(
                 ::testing::ValuesIn(secondaryInputTypes),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netPrc),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::FP32),
                 ::testing::Values(InferenceEngine::Precision::FP32),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),

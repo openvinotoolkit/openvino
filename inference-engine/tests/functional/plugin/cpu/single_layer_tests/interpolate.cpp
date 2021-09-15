@@ -105,7 +105,7 @@ protected:
         selectedType.push_back('_');
         if (additionalConfig.count(PluginConfigParams::KEY_ENFORCE_BF16) && additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
             selectedType += "BF16";
-            inPrc = InferenceEngine::Precision::BF16;
+            threshold = 0.2f;
         } else {
             selectedType += netPrecision.name();
         }
