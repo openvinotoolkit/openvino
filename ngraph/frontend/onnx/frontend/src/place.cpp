@@ -85,6 +85,14 @@ Place::Ptr PlaceOutputEdgeONNX::get_target_tensor() const {
     return std::make_shared<PlaceTensorONNX>(m_editor->get_target_tensor_name(m_edge), m_editor);
 }
 
+std::vector<Place::Ptr> PlaceOutputEdgeONNX::get_consuming_ports() const {
+    return get_target_tensor()->get_consuming_ports();
+}
+
+Place::Ptr PlaceOutputEdgeONNX::get_producing_operation() const {
+    return std::make_shared<PlaceOpONNX>(onnx_editor::EditorNode{m_edge.m_node_idx}, m_editor);
+}
+
 PlaceTensorONNX::PlaceTensorONNX(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_name{name},
       m_editor{std::move(editor)} {}
@@ -110,6 +118,10 @@ std::vector<Place::Ptr> PlaceTensorONNX::get_consuming_ports() const {
         return std::make_shared<PlaceInputEdgeONNX>(edge, this->m_editor);
     });
     return ret;
+}
+
+Place::Ptr PlaceTensorONNX::get_producing_operation() const {
+    return get_producing_port()->get_producing_operation();
 }
 
 Place::Ptr PlaceTensorONNX::get_input_port(int input_port_index) const {
@@ -156,6 +168,10 @@ PlaceOpONNX::PlaceOpONNX(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_ed
 
 std::vector<std::string> PlaceOpONNX::get_names() const {
     return {m_node.m_node_name};
+}
+
+onnx_editor::EditorNode PlaceOpONNX::get_editor_node() const {
+    return m_node;
 }
 
 Place::Ptr PlaceOpONNX::get_output_port() const {
@@ -208,4 +224,25 @@ Place::Ptr PlaceOpONNX::get_input_port(const std::string& input_name) const {
             m_editor);
     }
     return nullptr;
+}
+
+std::vector<Place::Ptr> PlaceOpONNX::get_consuming_ports() const {
+    std::vector<Place::Ptr> consuming_ports;
+    const auto out_ports_size = m_editor->get_output_ports(m_node).size();
+    for (int out_idx = 0; out_idx < out_ports_size; ++out_idx) {
+        auto consuming_ops_out = get_output_port(out_idx)->get_consuming_ports();
+        consuming_ports.insert(consuming_ports.end(), consuming_ops_out.begin(), consuming_ops_out.end());
+    }
+    return consuming_ports;
+}
+
+bool PlaceOpONNX::is_equal(Place::Ptr another) const {
+    if (const auto place_op = std::dynamic_pointer_cast<PlaceOpONNX>(another)) {
+        const auto& another_node = place_op->get_editor_node();
+        if (m_editor->is_correct_and_unambiguous_node(m_node) ||
+            m_editor->is_correct_and_unambiguous_node(another_node)) {
+            return m_editor->get_node_index(m_node) == m_editor->get_node_index(another_node);
+        }
+    }
+    return false;
 }

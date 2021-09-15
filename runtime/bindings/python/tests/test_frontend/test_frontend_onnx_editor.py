@@ -9,6 +9,7 @@ from ngraph import PartialShape
 from ngraph.frontend import FrontEndManager
 
 
+# ------Test input model 1------
 #       in1        in2        in3
 #        |          |          |
 #        \          /          |
@@ -24,9 +25,32 @@ from ngraph.frontend import FrontEndManager
 #     /     \       |
 #   out1   out2    out4
 #
+#
+# ------Test input model 2------
+#       in1        in2
+#        |          |
+#        \          /
+#         +--------+
+#         |  Add   |
+#         +--------+
+#          <add_out>
+#             |
+#        +--------+
+#        | Split  |
+#        |(split2)|
+#        +--------+
+#        /         \
+#   <sp_out1>    <sp_out2>
+#   +-------+    +-------+
+#   |  Abs  |    |  Sin  |
+#   | (abs1)|    |       |
+#   +------ +    +-------+
+#      |             |
+#     out1          out2
+#
 def create_test_onnx_models():
     models = {}
-    # Input model
+    # Input model 1
     add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"])
     split = onnx.helper.make_node("Split", inputs=["add_out"],
                                   outputs=["out1", "out2"], name="split1", axis=0)
@@ -47,6 +71,24 @@ def create_test_onnx_models():
     graph = make_graph([add, split, relu, mul], "test_graph", input_tensors, output_tensors)
     models["input_model.onnx"] = make_model(graph, producer_name="ONNX Importer",
                                             opset_imports=[onnx.helper.make_opsetid("", 13)])
+
+    # Input model 2
+    split_2 = onnx.helper.make_node("Split", inputs=["add_out"],
+                                    outputs=["sp_out1", "sp_out2"], name="split2", axis=0)
+    abs = onnx.helper.make_node("Abs", inputs=["sp_out1"], outputs=["out1"], name="abs1")
+    sin = onnx.helper.make_node("Sin", inputs=["sp_out2"], outputs=["out2"])
+
+    input_tensors = [
+        make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    output_tensors = [
+        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
+        make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
+    ]
+    graph = make_graph([split_2, abs, sin], "test_graph_2", input_tensors, output_tensors)
+    models["input_model_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                              opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph
     input_tensors = [
@@ -538,6 +580,10 @@ def test_is_equal():
     assert not place6.is_equal(place7)
     assert not place8.is_equal(place2)
 
+    place9 = model.get_place_by_operation_name(operationName="split1")
+    assert place2.get_producing_operation().is_equal(place9)
+    assert not place9.is_equal(place2)
+
 
 def test_is_equal_data():
     skip_if_onnx_frontend_is_disabled()
@@ -648,3 +694,63 @@ def test_get_input_port():
 
     assert not split_op.get_input_port(inputPortIndex=1)
     assert not split_op.get_input_port(inputName="not_existed")
+
+
+def test_get_consuming_ports():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model.onnx")
+    assert model
+
+    place1 = model.get_place_by_tensor_name(tensorName="add_out")
+    add_tensor_consuming_ports = place1.get_consuming_ports()
+    assert len(add_tensor_consuming_ports) == 3
+    place2 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
+    assert add_tensor_consuming_ports[0].is_equal(place2)
+    place3 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=0)
+    assert add_tensor_consuming_ports[1].is_equal(place3)
+    place4 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=1)
+    assert add_tensor_consuming_ports[2].is_equal(place4)
+
+    add_op_consuming_ports = place1.get_producing_operation().get_consuming_ports()
+    assert len(add_op_consuming_ports) == len(add_tensor_consuming_ports)
+    for i in range(len(add_op_consuming_ports)):
+        assert add_op_consuming_ports[i].is_equal(add_tensor_consuming_ports[i])
+
+
+def test_get_consuming_ports_2():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    split_op_consuming_ports = split_op.get_consuming_ports()
+    assert len(split_op_consuming_ports) == 2
+    abs_input_port = model.get_place_by_operation_name(operationName="abs1").get_input_port(inputPortIndex=0)
+    assert split_op_consuming_ports[0].is_equal(abs_input_port)
+    sin_input_port = model.get_place_by_tensor_name(tensorName="out2").get_input_port(inputPortIndex=0)
+    assert split_op_consuming_ports[1].is_equal(sin_input_port)
+
+    split_out_port_0 = split_op.get_output_port(outputPortIndex=0)
+    split_out_port_0_consuming_ports = split_out_port_0.get_consuming_ports()
+    assert len(split_out_port_0_consuming_ports) == 1
+    assert split_out_port_0_consuming_ports[0].is_equal(abs_input_port)
+
+
+def test_get_producing_operation():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    split_tensor_out_2 = model.get_place_by_tensor_name(tensorName="sp_out2")
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    assert split_tensor_out_2.get_producing_operation().is_equal(split_op)
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    split_out_port_2 = split_op.get_output_port(outputPortIndex=1)
+    assert split_out_port_2.get_producing_operation().is_equal(split_op)
