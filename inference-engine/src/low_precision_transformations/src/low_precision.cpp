@@ -66,6 +66,7 @@
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
+#include "low_precision/move_fake_quantize.hpp"
 
 // cleanup transformations
 #include "low_precision/convert.hpp"
@@ -197,6 +198,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     prerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+    prerequisites->add_matcher<ngraph::pass::low_precision::MoveFakeQuantize>();
 
     manager.register_pass<TypeRelaxedReplacer>();
 
