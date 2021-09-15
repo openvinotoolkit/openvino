@@ -72,7 +72,6 @@ void split_points(const std::vector<int64_t>& ids, std::vector<int64_t>& rois_pe
     rois_per_level.clear();
     rois_per_level.resize(levels_num, 0);
     for (size_t i = 0; i < ids.size(); ++i) {
-        assert(0 <= ids[i] && ids[i] < levels_num);
         rois_per_level[ids[i]]++;
     }
     for (int64_t i = 1; i < levels_num; ++i) {
