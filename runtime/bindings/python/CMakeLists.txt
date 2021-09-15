@@ -2,13 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-<<<<<<< HEAD
-=======
 cmake_minimum_required (VERSION 3.13)
 
 project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 
->>>>>>> refs/rewritten/mk/ov_pybind_poc-7
 set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
 add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
