@@ -228,6 +228,7 @@ set(SRC
     type_prop/squeeze.cpp
     type_prop/swish.cpp
     type_prop/tan.cpp
+    type_prop/tanh.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
