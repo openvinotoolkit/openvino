@@ -409,7 +409,6 @@ set(MULTI_TEST_SRC
     backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
-    backend/asinh.in.cpp
     backend/atan.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
@@ -425,7 +424,6 @@ set(MULTI_TEST_SRC
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
-    backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/deformable_psroi_pooling.in.cpp
@@ -501,7 +499,6 @@ set(MULTI_TEST_SRC
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
-    backend/sinh.in.cpp
     backend/softmax.in.cpp
     backend/softplus.in.cpp
     backend/space_to_batch.in.cpp
@@ -511,7 +508,6 @@ set(MULTI_TEST_SRC
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
     backend/swish.in.cpp
-    backend/tanh.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
     backend/transpose.in.cpp
