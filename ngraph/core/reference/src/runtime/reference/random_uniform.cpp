@@ -68,11 +68,8 @@ float uint32_to_float(uint32_t x) {
     // exponent = 127, for obtaining a zero exponent.
     // mantissa = 23 right bits from generated uint32 random value.
 
-    uint32_t x_uint32 = (static_cast<uint32_t>(127) << 23) | (x & 0x7fffffu);
-
-    float x_float;
-    memcpy(&x_float, &x_uint32, sizeof(x_uint32));
-    return x_float - 1.0f;
+    convert_types out_val = {(static_cast<uint32_t>(127) << 23) | (x & 0x7fffffu)};
+    return out_val.f - 1.0f;
 }
 
 // Helper function for converting uint32 values to float16.Sets fractional part of
@@ -87,11 +84,8 @@ float16 uint32_to_float16(uint32_t x) {
     // mantissa = 10 right bits from generated uint32 random value.
 
     uint16_t x_uint16 = static_cast<uint16_t>(x);
-    x_uint16 = (static_cast<uint16_t>(15) << 10) | (x_uint16 & 0x3ffu);
-
-    float16 x_float16;
-    memcpy(&x_float16, &x_uint16, sizeof(x_uint16));
-    return x_float16 - static_cast<float16>(1);
+    convert_types out_val = {(static_cast<uint16_t>(15) << 10) | (x_uint16 & 0x3ffu)};
+    return out_val.f16 - static_cast<float16>(1);
 }
 
 // Helper function for converting uint32 values to double. Sets fractional part of
@@ -106,11 +100,8 @@ double uint32_to_double(uint32_t x1, uint32_t x2) {
     // mantissa = 52 right bits from two concatenated uint32 values from random integer generator.
 
     uint64_t significant = ((static_cast<uint64_t>(x1) & 0xfffffu) << 32) | static_cast<uint64_t>(x2);
-    uint64_t x_uint64 = ((static_cast<uint64_t>(1023) << 52) | significant);
-
-    double x_double;
-    memcpy(&x_double, &x_uint64, sizeof(x_uint64));
-    return x_double - 1.0;
+    convert_types out_val = {((static_cast<uint64_t>(1023) << 52) | significant)};
+    return out_val.d - 1.0;
 }
 
 // Helper function for converting uint32 values to bfloat16. Sets fractional part of
@@ -125,11 +116,8 @@ bfloat16 uint32_to_bfloat16(uint32_t x) {
     // mantissa = 7 right bits from generated uint32 random value.
 
     uint16_t x_uint16 = static_cast<uint16_t>(x);
-    x_uint16 = (static_cast<uint16_t>(127) << 7) | (x_uint16 & 0x7fu);
-
-    bfloat16 x_bfloat16;
-    memcpy(&x_bfloat16, &x_uint16, sizeof(x_uint16));
-    return x_bfloat16 - static_cast<bfloat16>(1);
+    convert_types out_val = {(static_cast<uint16_t>(127) << 7) | (x_uint16 & 0x7fu)};
+    return out_val.bf16 - static_cast<bfloat16>(1);
 }
 
 // Runs Philox algorithm.
