@@ -42,7 +42,7 @@
         <port id="1">     <!-- indices value is: [0, 2, 3, 4] -->
             <dim>4</dim>
         </port>
-        <port id="2">     <!-- offsets value is: [0, 2, 2] - second "bag" is empty -->
+        <port id="2">     <!-- offsets value is: [0, 2, 2] - 3 "bags" containing [2,0,4-2] elements, second "bag" is empty -->
             <dim>3</dim>
         </port>
         <port id="3"/>    <!-- default_index value is: 0 -->
