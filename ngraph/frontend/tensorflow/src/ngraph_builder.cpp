@@ -2727,6 +2727,7 @@ void Builder::TranslateGraph(
     const auto& operation_places = model->get_op_places();
     const auto& model_inputs = model->get_inputs();
     const auto& model_outputs = model->get_outputs();
+    const auto& model_frozen_inputs = model->get_tensor_values();
 
     std::map<const string, const function<ngraph::OutputVector(const NodeContext&)>> translate_map;
 
@@ -2739,10 +2740,21 @@ void Builder::TranslateGraph(
         translate_map = TRANSLATE_OP_MAP;
     }
 
+    // fill ng_op_map with Constant outputs for frozen inputs
+    for (const auto& frozen_input : model_frozen_inputs) {
+        const auto& frozen_input_name = frozen_input.first;
+        const auto& frozen_input_value = frozen_input.second;
+        ng_op_map[frozen_input_name] = {frozen_input_value};
+    }
+
     // create parameter nodes for all tensor places corresponding to inputs
     for (const auto& input_place : model_inputs) {
         FRONT_END_GENERAL_CHECK(input_place->get_names().size() == 1, "Input place must have one name.");
         auto input_name = input_place->get_names()[0];
+        if (ng_op_map.count(input_name)) {
+            // probably this input is frozen
+            continue;
+        }
         const auto& input_tensor_place = std::dynamic_pointer_cast<TensorPlaceTF>(input_place);
         auto input_shape = input_tensor_place->get_partial_shape();
         auto input_type = input_tensor_place->get_element_type();

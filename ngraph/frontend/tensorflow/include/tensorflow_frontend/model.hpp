@@ -19,12 +19,11 @@ class TF_API InputModelTF : public InputModel {
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;
 
-    std::map<std::string, Output<Node>> get_tensor_values() const;
-
 public:
     // TODO: move to private once GraphTranslation will be a part of FrontEndTF component
-    std::map<std::string, std::shared_ptr<TensorPlaceTF>> get_tensor_places() const;
     std::vector<std::shared_ptr<OpPlaceTF>> get_op_places() const;
+    std::map<std::string, std::shared_ptr<TensorPlaceTF>> get_tensor_places() const;
+    std::map<std::string, Output<Node>> get_tensor_values() const;
 
     explicit InputModelTF(const std::string& path);
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
