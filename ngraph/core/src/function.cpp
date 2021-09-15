@@ -533,16 +533,54 @@ ov::op::util::Variable::Ptr ov::Function::get_variable_by_id(const string& varia
 constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<shared_ptr<ov::Function>>::type_info;
 
 /// Output functions
-ov::Output<ov::Node> ov::Function::output() const {
+std::vector<ov::Output<const ov::Node>> ov::Function::outputs() const {
+    std::vector<ov::Output<const ov::Node>> results;
+    for (const auto& res : m_results) {
+        std::shared_ptr<const ov::Node> result = res;
+        results.emplace_back(result);
+    }
+    return results;
+}
+ov::Output<const ov::Node> ov::Function::output() const {
+    if (m_results.size() != 1) {
+        throw ov::Exception("output() must be called on a function with exactly one result.");
+    }
+    std::shared_ptr<const ov::Node> result = m_results.at(0);
+    return result;
+}
+ov::Output<const ov::Node> ov::Function::output(size_t i) const {
+    std::shared_ptr<const ov::Node> result = m_results.at(0);
+    return result;
+}
+ov::Output<const ov::Node> ov::Function::output(const std::string& tensor_name) const {
+    for (const auto& res : m_results) {
+        for (const auto& name : res->get_input_tensor(0).get_names()) {
+            if (name == tensor_name) {
+                std::shared_ptr<const ov::Node> result = res;
+                return result;
+            }
+        }
+    }
+    throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+}
+
+std::vector<ov::Output<ov::Node>> ov::Function::outputs() {
+    std::vector<ov::Output<ov::Node>> results;
+    for (const auto& result : m_results) {
+        results.emplace_back(result);
+    }
+    return results;
+}
+ov::Output<ov::Node> ov::Function::output() {
     if (m_results.size() != 1) {
         throw ov::Exception("output() must be called on a function with exactly one result.");
     }
     return m_results.at(0);
 }
-ov::Output<ov::Node> ov::Function::output(size_t i) const {
+ov::Output<ov::Node> ov::Function::output(size_t i) {
     return m_results.at(i);
 }
-ov::Output<ov::Node> ov::Function::output(const std::string& tensor_name) const {
+ov::Output<ov::Node> ov::Function::output(const std::string& tensor_name) {
     for (const auto& res : m_results) {
         for (const auto& name : res->get_input_tensor(0).get_names()) {
             if (name == tensor_name)
@@ -553,16 +591,56 @@ ov::Output<ov::Node> ov::Function::output(const std::string& tensor_name) const 
 }
 
 /// Input functions
-ov::Output<ov::Node> ov::Function::input() const {
+std::vector<ov::Output<const ov::Node>> ov::Function::inputs() const {
+    std::vector<ov::Output<const ov::Node>> inputs;
+    for (const auto& input : m_parameters) {
+        std::shared_ptr<const ov::Node> parameter = input;
+        inputs.emplace_back(parameter);
+    }
+    return inputs;
+}
+
+ov::Output<const ov::Node> ov::Function::input() const {
+    if (m_parameters.size() != 1) {
+        throw ov::Exception("input() must be called on a function with exactly one parameter.");
+    }
+    std::shared_ptr<const ov::Node> parameter = m_parameters.at(0);
+    return parameter;
+}
+ov::Output<const ov::Node> ov::Function::input(size_t i) const {
+    std::shared_ptr<const ov::Node> parameter = m_parameters.at(i);
+    return parameter;
+}
+ov::Output<const ov::Node> ov::Function::input(const std::string& tensor_name) const {
+    for (const auto& param : m_parameters) {
+        for (const auto& name : param->get_output_tensor(0).get_names()) {
+            if (name == tensor_name) {
+                std::shared_ptr<const ov::Node> parameter = param;
+                return parameter;
+            }
+        }
+    }
+    throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+}
+
+std::vector<ov::Output<ov::Node>> ov::Function::inputs() {
+    std::vector<ov::Output<ov::Node>> inputs;
+    for (const auto& input : m_parameters) {
+        inputs.emplace_back(input);
+    }
+    return inputs;
+}
+
+ov::Output<ov::Node> ov::Function::input() {
     if (m_parameters.size() != 1) {
         throw ov::Exception("input() must be called on a function with exactly one parameter.");
     }
     return m_parameters.at(0);
 }
-ov::Output<ov::Node> ov::Function::input(size_t i) const {
+ov::Output<ov::Node> ov::Function::input(size_t i) {
     return m_parameters.at(i);
 }
-ov::Output<ov::Node> ov::Function::input(const std::string& tensor_name) const {
+ov::Output<ov::Node> ov::Function::input(const std::string& tensor_name) {
     for (const auto& param : m_parameters) {
         for (const auto& name : param->get_output_tensor(0).get_names()) {
             if (name == tensor_name)

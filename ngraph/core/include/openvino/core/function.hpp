@@ -92,13 +92,23 @@ public:
     std::shared_ptr<ngraph::Node> get_output_op(size_t i) const;
 
     /// Output functions
-    ov::Output<ov::Node> output() const;
-    ov::Output<ov::Node> output(size_t i) const;
-    ov::Output<ov::Node> output(const std::string& tensor_name) const;
+    std::vector<ov::Output<ov::Node>> outputs();
+    ov::Output<ov::Node> output();
+    ov::Output<ov::Node> output(size_t i);
+    ov::Output<ov::Node> output(const std::string& tensor_name);
+    std::vector<ov::Output<const ov::Node>> outputs() const;
+    ov::Output<const ov::Node> output() const;
+    ov::Output<const ov::Node> output(size_t i) const;
+    ov::Output<const ov::Node> output(const std::string& tensor_name) const;
     /// Input functions
-    ov::Output<ov::Node> input() const;
-    ov::Output<ov::Node> input(size_t i) const;
-    ov::Output<ov::Node> input(const std::string& tensor_name) const;
+    std::vector<ov::Output<ov::Node>> inputs();
+    ov::Output<ov::Node> input();
+    ov::Output<ov::Node> input(size_t i);
+    ov::Output<ov::Node> input(const std::string& tensor_name);
+    std::vector<ov::Output<const ov::Node>> inputs() const;
+    ov::Output<const ov::Node> input() const;
+    ov::Output<const ov::Node> input(size_t i) const;
+    ov::Output<const ov::Node> input(const std::string& tensor_name) const;
 
     /// Return the element type of output i
     const ngraph::element::Type& get_output_element_type(size_t i) const;
