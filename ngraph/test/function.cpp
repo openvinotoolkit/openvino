@@ -248,7 +248,7 @@ TEST(function, multiple_inputs_outputs_function) {
     ASSERT_EQ(f->outputs().size(), 2);
 }
 
-TEST(function, create_function_with_incorrect_tensor_names) {
+TEST(function, DISABLED_create_function_with_incorrect_tensor_names) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -500,7 +500,7 @@ TEST(function, multiple_inputs_outputs_function_from_const_function) {
     ASSERT_EQ(f->outputs().size(), 2);
 }
 
-TEST(function, create_function_with_incorrect_tensor_names_from_const_function) {
+TEST(function, DISABLED_create_function_with_incorrect_tensor_names_from_const_function) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
