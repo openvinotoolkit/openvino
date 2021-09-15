@@ -409,7 +409,6 @@ set(MULTI_TEST_SRC
     backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
-    backend/asin.in.cpp
     backend/asinh.in.cpp
     backend/atan.in.cpp
     backend/auto_broadcast.in.cpp
@@ -426,7 +425,6 @@ set(MULTI_TEST_SRC
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
-    backend/cos.in.cpp
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
@@ -503,7 +501,6 @@ set(MULTI_TEST_SRC
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
-    backend/sin.in.cpp
     backend/sinh.in.cpp
     backend/softmax.in.cpp
     backend/softplus.in.cpp
