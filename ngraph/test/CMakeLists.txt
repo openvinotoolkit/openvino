@@ -220,6 +220,7 @@ set(SRC
     type_prop/sign.cpp
     type_prop/sin.cpp
     type_prop/sinh.cpp
+    type_prop/slice.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
@@ -339,6 +340,7 @@ set(SRC
     visitors/op/shuffle_channels.cpp
     visitors/op/sign.cpp
     visitors/op/sinh.cpp
+    visitors/op/slice.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
     visitors/op/space_to_batch.cpp
@@ -468,7 +470,6 @@ set(MULTI_TEST_SRC
     backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
-    backend/minimum.in.cpp
     backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiclass_nms.in.cpp
