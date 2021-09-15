@@ -30,14 +30,14 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 if(TARGET offline_transformations)
-    list(APPEND InferenceEngine_LIBRARIES offline_transformations)
+    list(APPEND link_libraries offline_transformations)
 else()
-    list(APPEND InferenceEngine_LIBRARIES IE::offline_transformations)
+    list(APPEND link_libraries IE::offline_transformations)
 endif()
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime ${link_libraries})
 
 # Compatibility with python 2.7 which has deprecated "register" specifier
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

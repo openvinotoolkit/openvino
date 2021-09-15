@@ -35,8 +35,8 @@ bool op::v0::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
 void op::v0::BatchNormInference::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_BatchNormInference_validate_and_infer_types);
     element::Type result_et;
-    PartialShape result_batch_shape;
-    PartialShape result_channel_shape;  // unused here
+    ov::PartialShape result_batch_shape;
+    ov::PartialShape result_channel_shape;  // unused here
 
     NODE_VALIDATION_CHECK(this,
                           m_epsilon >= 0,
@@ -93,8 +93,8 @@ bool op::v5::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
 void op::v5::BatchNormInference::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_BatchNormInference_validate_and_infer_types);
     element::Type result_et;
-    PartialShape result_batch_shape;
-    PartialShape result_channel_shape;  // unused here
+    ov::PartialShape result_batch_shape;
+    ov::PartialShape result_channel_shape;  // unused here
 
     NODE_VALIDATION_CHECK(this,
                           m_epsilon >= 0,

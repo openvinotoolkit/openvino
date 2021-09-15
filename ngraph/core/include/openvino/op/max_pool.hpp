@@ -31,9 +31,9 @@ public:
     /// \param auto_pad The pad type for automatically computing padding sizes.
     MaxPool(const Output<Node>& arg,
             const Strides& strides,
-            const ngraph::Shape& pads_begin,
-            const ngraph::Shape& pads_end,
-            const ngraph::Shape& kernel,
+            const Shape& pads_begin,
+            const Shape& pads_end,
+            const Shape& kernel,
             const op::RoundingType rounding_type = op::RoundingType::FLOOR,
             const PadType auto_pad = op::PadType::EXPLICIT);
 
@@ -83,9 +83,9 @@ public:
     MaxPool(const Output<Node>& arg,
             const Strides& strides,
             const Strides& dilations,
-            const ngraph::Shape& pads_begin,
-            const ngraph::Shape& pads_end,
-            const ngraph::Shape& kernel,
+            const Shape& pads_begin,
+            const Shape& pads_end,
+            const Shape& kernel,
             const op::RoundingType rounding_type = op::RoundingType::FLOOR,
             const PadType auto_pad = op::PadType::EXPLICIT,
             const element::Type index_element_type = element::i64,

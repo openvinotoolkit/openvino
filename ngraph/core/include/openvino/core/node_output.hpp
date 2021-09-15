@@ -8,10 +8,10 @@
 #include <map>
 #include <unordered_set>
 
-#include "ngraph/shape.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/variant.hpp"
 
@@ -68,7 +68,7 @@ public:
     /// \return The element type of the output referred to by this output handle.
     const element::Type& get_element_type() const;
     /// \return The shape of the output referred to by this output handle.
-    const ngraph::Shape& get_shape() const;
+    const Shape& get_shape() const;
     /// \return The partial shape of the output referred to by this output handle.
     const PartialShape& get_partial_shape() const;
 
@@ -145,7 +145,7 @@ public:
     /// \return The element type of the output referred to by this output handle.
     const element::Type& get_element_type() const;
     /// \return The shape of the output referred to by this output handle.
-    const ngraph::Shape& get_shape() const;
+    const Shape& get_shape() const;
     /// \return The partial shape of the output referred to by this output handle.
     const PartialShape& get_partial_shape() const;
 

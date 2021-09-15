@@ -34,8 +34,8 @@ bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Split::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Split_validate_and_infer_types);
-    const PartialShape& data_ps = get_input_partial_shape(0);
-    const PartialShape& axis_ps = get_input_partial_shape(1);
+    const ov::PartialShape& data_ps = get_input_partial_shape(0);
+    const ov::PartialShape& axis_ps = get_input_partial_shape(1);
     const element::Type& axis_et = get_input_element_type(1);
 
     NODE_VALIDATION_CHECK(this, axis_ps.rank().compatible(0), "'axis' input must be a scalar. Got: ", axis_ps);
@@ -50,7 +50,7 @@ void op::v1::Split::validate_and_infer_types() {
                           "Attribute 'num_splits' must be greater than zero. Got: ",
                           m_num_splits);
 
-    PartialShape each_output_shape{data_ps};
+    ov::PartialShape each_output_shape{data_ps};
     const Rank data_rank = data_ps.rank();
     const auto axis_input = get_constant_from_source(input_value(1));
     if (axis_input && data_rank.is_static()) {
@@ -87,7 +87,7 @@ void op::v1::Split::validate_and_infer_types() {
             each_output_shape[axis] = Dimension(dim_interval_at_axis_min, dim_interval_at_axis_max);
         }
     } else {
-        each_output_shape = PartialShape::dynamic(data_ps.rank());
+        each_output_shape = ov::PartialShape::dynamic(data_ps.rank());
     }
 
     for (size_t i = 0; i < m_num_splits; ++i) {
@@ -108,7 +108,7 @@ inline bool evaluate(const HostTensorPtr& data_tensor,
                      const HostTensorVector& outputs,
                      const int64_t axis,
                      const int64_t num_splits) {
-    Shape output_shape = data_tensor->get_shape();
+    ov::Shape output_shape = data_tensor->get_shape();
     std::vector<char*> outputs_data(num_splits);
     output_shape.at(axis) /= num_splits;
     for (size_t i = 0; i < outputs.size(); ++i) {

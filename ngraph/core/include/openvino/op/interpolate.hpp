@@ -79,7 +79,7 @@ class OPENVINO_API Interpolate : public Op {
 public:
     OPENVINO_RTTI_DECLARATION;
 
-    /// \brief Shape calculation mode
+    /// \brief PartialShape calculation mode
     ///
     /// sizes  - output shape for interpolated axes is calculated using input `sizes`
     /// scales - output shape for interpolated axes is calculated using input `scales`
@@ -248,7 +248,7 @@ private:
 
     /// \brief Calculates input shape after padding.
     ///
-    /// \param input_shape Shape of input data.
+    /// \param input_shape PartialShape of input data.
     ///
     /// \return Padded input shape, i.e. input_shape + pads_begin + pads_end
     PartialShape get_padded_input_shape(const PartialShape& input_shape) const;

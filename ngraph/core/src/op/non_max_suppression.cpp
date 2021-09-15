@@ -41,9 +41,9 @@ op::v1::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const bool sort_result_descending)
     : Op({boxes,
           scores,
-          op::v0::Constant::create(element::i64, Shape{}, {0}),
-          op::v0::Constant::create(element::f32, Shape{}, {.0f}),
-          op::v0::Constant::create(element::f32, Shape{}, {.0f})}),
+          op::v0::Constant::create(element::i64, ov::Shape{}, {0}),
+          op::v0::Constant::create(element::f32, ov::Shape{}, {.0f}),
+          op::v0::Constant::create(element::f32, ov::Shape{}, {.0f})}),
       m_box_encoding{box_encoding},
       m_sort_result_descending{sort_result_descending} {
     constructor_validate_and_infer_types();
@@ -55,11 +55,11 @@ std::shared_ptr<Node> op::v1::NonMaxSuppression::clone_with_new_inputs(const Out
     NODE_VALIDATION_CHECK(this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
 
     const auto& arg2 =
-        new_args.size() > 2 ? new_args.at(2) : ngraph::op::v0::Constant::create(element::i32, Shape{}, {0});
+        new_args.size() > 2 ? new_args.at(2) : ngraph::op::v0::Constant::create(element::i32, ov::Shape{}, {0});
     const auto& arg3 =
-        new_args.size() > 3 ? new_args.at(3) : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
+        new_args.size() > 3 ? new_args.at(3) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
     const auto& arg4 =
-        new_args.size() > 4 ? new_args.at(4) : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
+        new_args.size() > 4 ? new_args.at(4) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
 
     return std::make_shared<op::v1::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
@@ -90,7 +90,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types() {
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
-    PartialShape out_shape = {Dimension::dynamic(), 3};
+    ov::PartialShape out_shape = {Dimension::dynamic(), 3};
 
     if (boxes_ps.is_dynamic() || scores_ps.is_dynamic()) {
         set_output_type(0, output_element_type, out_shape);
@@ -219,9 +219,9 @@ op::v3::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const element::Type& output_type)
     : Op({boxes,
           scores,
-          op::v0::Constant::create(element::i64, Shape{}, {0}),
-          op::v0::Constant::create(element::f32, Shape{}, {.0f}),
-          op::v0::Constant::create(element::f32, Shape{}, {.0f})}),
+          op::v0::Constant::create(element::i64, ov::Shape{}, {0}),
+          op::v0::Constant::create(element::f32, ov::Shape{}, {.0f}),
+          op::v0::Constant::create(element::f32, ov::Shape{}, {.0f})}),
       m_box_encoding{box_encoding},
       m_sort_result_descending{sort_result_descending},
       m_output_type{output_type} {
@@ -234,11 +234,11 @@ std::shared_ptr<Node> op::v3::NonMaxSuppression::clone_with_new_inputs(const Out
     NODE_VALIDATION_CHECK(this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
 
     const auto& arg2 =
-        new_args.size() > 2 ? new_args.at(2) : ngraph::op::v0::Constant::create(element::i32, Shape{}, {0});
+        new_args.size() > 2 ? new_args.at(2) : ngraph::op::v0::Constant::create(element::i32, ov::Shape{}, {0});
     const auto& arg3 =
-        new_args.size() > 3 ? new_args.at(3) : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
+        new_args.size() > 3 ? new_args.at(3) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
     const auto& arg4 =
-        new_args.size() > 4 ? new_args.at(4) : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
+        new_args.size() > 4 ? new_args.at(4) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
 
     return std::make_shared<op::v3::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
@@ -336,7 +336,7 @@ void op::v3::NonMaxSuppression::validate_and_infer_types() {
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
-    PartialShape out_shape = {Dimension::dynamic(), 3};
+    ov::PartialShape out_shape = {Dimension::dynamic(), 3};
 
     validate();
 
@@ -412,9 +412,9 @@ op::v4::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const element::Type& output_type)
     : op::v3::NonMaxSuppression(boxes,
                                 scores,
-                                op::v0::Constant::create(element::i64, Shape{}, {0}),
-                                op::v0::Constant::create(element::f32, Shape{}, {.0f}),
-                                op::v0::Constant::create(element::f32, Shape{}, {.0f}),
+                                op::v0::Constant::create(element::i64, ov::Shape{}, {0}),
+                                op::v0::Constant::create(element::f32, ov::Shape{}, {.0f}),
+                                op::v0::Constant::create(element::f32, ov::Shape{}, {.0f}),
                                 box_encoding,
                                 sort_result_descending,
                                 output_type) {
@@ -427,11 +427,11 @@ std::shared_ptr<Node> op::v4::NonMaxSuppression::clone_with_new_inputs(const Out
     NODE_VALIDATION_CHECK(this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
 
     const auto& arg2 =
-        new_args.size() > 2 ? new_args.at(2) : ngraph::op::v0::Constant::create(element::i32, Shape{}, {0});
+        new_args.size() > 2 ? new_args.at(2) : ngraph::op::v0::Constant::create(element::i32, ov::Shape{}, {0});
     const auto& arg3 =
-        new_args.size() > 3 ? new_args.at(3) : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
+        new_args.size() > 3 ? new_args.at(3) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
     const auto& arg4 =
-        new_args.size() > 4 ? new_args.at(4) : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
+        new_args.size() > 4 ? new_args.at(4) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
 
     return std::make_shared<op::v4::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
@@ -450,7 +450,7 @@ void op::v4::NonMaxSuppression::validate_and_infer_types() {
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
-    PartialShape out_shape = {Dimension::dynamic(), 3};
+    ov::PartialShape out_shape = {Dimension::dynamic(), 3};
 
     op::v3::NonMaxSuppression::validate();
 
@@ -609,12 +609,12 @@ inline bool is_float_type_admissible(const element::Type& t) {
     return t == element::f32 || t == element::f16 || t == element::bf16;
 }
 
-inline bool is_scalar_or_1d_tensor_with_1_element(const PartialShape& p) {
+inline bool is_scalar_or_1d_tensor_with_1_element(const ov::PartialShape& p) {
     if (p.is_dynamic()) {
         return false;
     }
 
-    Shape shape = p.to_shape();
+    ov::Shape shape = p.to_shape();
 
     return ngraph::is_scalar(shape) || (is_vector(shape) && (shape[0] == 1));
 }
@@ -797,7 +797,7 @@ void op::v5::NonMaxSuppression::validate_and_infer_types() {
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
-    PartialShape out_shape = {Dimension::dynamic(), 3};
+    ov::PartialShape out_shape = {Dimension::dynamic(), 3};
 
     validate();
 
@@ -816,7 +816,7 @@ void op::v5::NonMaxSuppression::validate_and_infer_types() {
 
     set_output_type(0, m_output_type, out_shape);
     set_output_type(1, element::f32, out_shape);
-    set_output_type(2, m_output_type, Shape{1});
+    set_output_type(2, m_output_type, ov::Shape{1});
 }
 
 std::ostream& ov::operator<<(std::ostream& s, const op::v5::NonMaxSuppression::BoxEncodingType& type) {

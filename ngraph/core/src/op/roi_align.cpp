@@ -107,10 +107,10 @@ void op::v3::ROIAlign::validate_and_infer_types() {
     }
 
     // the output shape should have the following format [NUM_ROIS, C, pooled_h, pooled_w]
-    auto output_shape = PartialShape{{Dimension::dynamic(),
-                                      input_ps[1],
-                                      Dimension{static_cast<int64_t>(m_pooled_h)},
-                                      Dimension{static_cast<int64_t>(m_pooled_w)}}};
+    auto output_shape = ov::PartialShape{{Dimension::dynamic(),
+                                          input_ps[1],
+                                          Dimension{static_cast<int64_t>(m_pooled_h)},
+                                          Dimension{static_cast<int64_t>(m_pooled_w)}}};
 
     // if either of those 2 dimensions is static its value will be used
     // for the first dimension of the output shape - 'NUM_ROIS'
@@ -189,7 +189,7 @@ bool evaluate(const HostTensorPtr& feature_maps,
               const int sampling_ratio,
               const float spatial_scale,
               const op::v3::ROIAlign::PoolingMode& pooling_mode,
-              const Shape& batch_indices_shape) {
+              const ov::Shape& batch_indices_shape) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::roi_align<T>(feature_maps->get_data_ptr<ET>(),
                                      rois->get_data_ptr<ET>(),

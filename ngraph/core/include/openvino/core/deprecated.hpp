@@ -25,7 +25,7 @@
 #    define OPENVINO_DEPRECATED(msg)      __attribute__((deprecated(msg)))
 #    define OPENVINO_ENUM_DEPRECATED(msg) OPENVINO_DEPRECATED(msg)
 #elif defined(__GNUC__)
-#    define OPENVINO_DEPRECATED(msg) __attribute__((deprecated((msg))))
+#    define OPENVINO_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #    if __GNUC__ < 6 && !defined(__clang__)
 #        define OPENVINO_ENUM_DEPRECATED(msg)
 #    else

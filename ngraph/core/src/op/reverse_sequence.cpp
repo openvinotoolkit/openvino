@@ -63,7 +63,7 @@ void op::ReverseSequence::validate_and_infer_types() {
                           "Sequence lengths rank must be equal to 1. Got: ",
                           seq_lengths_pshape);
 
-    PartialShape output_pshape{data_pshape};
+    ov::PartialShape output_pshape{data_pshape};
     if (data_rank.is_static() && seq_lengths_rank.is_static()) {
         Dimension merged_sequence_length;
         NODE_VALIDATION_CHECK(

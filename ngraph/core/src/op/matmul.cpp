@@ -38,10 +38,10 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
 }
 
 namespace matmul {
-PartialShape validate_matmul_output_shape(const PartialShape& arg0_shape,
-                                          const PartialShape& arg1_shape,
-                                          bool transpose_a,
-                                          bool transpose_b) {
+ov::PartialShape validate_matmul_output_shape(const ov::PartialShape& arg0_shape,
+                                              const ov::PartialShape& arg1_shape,
+                                              bool transpose_a,
+                                              bool transpose_b) {
     auto arg0_rank = arg0_shape.rank().get_length();
     auto arg1_rank = arg1_shape.rank().get_length();
 
@@ -169,7 +169,7 @@ PartialShape validate_matmul_output_shape(const PartialShape& arg0_shape,
         output_shape.erase(output_shape.begin() + output_shape.size() - 1);
     }
 
-    return PartialShape(output_shape);
+    return ov::PartialShape(output_shape);
 }
 
 template <element::Type_t ET>
@@ -180,12 +180,14 @@ bool evaluate(const HostTensorPtr& arg0,
               bool transpose_b) {
     using T = typename element_type_traits<ET>::value_type;
 
-    Shape arg0_shape = arg0->get_shape();
-    Shape arg1_shape = arg1->get_shape();
+    ov::Shape arg0_shape = arg0->get_shape();
+    ov::Shape arg1_shape = arg1->get_shape();
 
-    PartialShape output_partial_shape =
-        validate_matmul_output_shape(PartialShape(arg0_shape), PartialShape(arg1_shape), transpose_a, transpose_b);
-    Shape output_shape = output_partial_shape.to_shape();
+    ov::PartialShape output_partial_shape = validate_matmul_output_shape(ov::PartialShape(arg0_shape),
+                                                                         ov::PartialShape(arg1_shape),
+                                                                         transpose_a,
+                                                                         transpose_b);
+    ov::Shape output_shape = output_partial_shape.to_shape();
     output->set_element_type(arg0->get_element_type());
     output->set_shape(output_shape);
 
@@ -259,7 +261,7 @@ void ngraph::op::v0::MatMul::validate_and_infer_types() {
     const auto& B_partial_shape = get_input_partial_shape(1);
 
     if (A_partial_shape.rank().is_static() && B_partial_shape.rank().is_static()) {
-        PartialShape output_shape;
+        ov::PartialShape output_shape;
 
         const bool transpose_a = get_transpose_a();
         const bool transpose_b = get_transpose_b();
@@ -268,6 +270,6 @@ void ngraph::op::v0::MatMul::validate_and_infer_types() {
 
         set_output_type(0, result_et, output_shape);
     } else {
-        set_output_type(0, result_et, PartialShape::dynamic());
+        set_output_type(0, result_et, ov::PartialShape::dynamic());
     }
 }

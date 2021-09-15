@@ -60,10 +60,10 @@ void ov::op::v0::PSROIPooling::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this, m_spatial_bins_y > 0, "spatial_bins_y has to be greater than 0");
     }
 
-    const PartialShape& feat_map_pshape = get_input_partial_shape(0);
-    const PartialShape& coords_pshape = get_input_partial_shape(1);
+    const ov::PartialShape& feat_map_pshape = get_input_partial_shape(0);
+    const ov::PartialShape& coords_pshape = get_input_partial_shape(1);
     if (feat_map_pshape.rank().is_dynamic() || coords_pshape.rank().is_dynamic()) {
-        set_output_type(0, feat_maps_et, PartialShape::dynamic());
+        set_output_type(0, feat_maps_et, ov::PartialShape::dynamic());
     } else {
         NODE_VALIDATION_CHECK(this,
                               feat_map_pshape.rank().get_length() == 4,

@@ -61,7 +61,7 @@ void op::v1::OneHot::validate_and_infer_types() {
                           off_value_shape.is_dynamic() || ngraph::is_scalar(off_value_shape.to_shape()),
                           "off_value input must be scalar.");
 
-    PartialShape result_shape{PartialShape::dynamic()};
+    ov::PartialShape result_shape{ov::PartialShape::dynamic()};
     const auto& depth = input_value(1).get_node_shared_ptr();
     const auto& depth_constant = get_constant_from_source(input_value(1));
     if (indices_shape.rank().is_static() && depth_constant) {

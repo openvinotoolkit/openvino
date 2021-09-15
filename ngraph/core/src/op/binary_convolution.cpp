@@ -58,9 +58,9 @@ ov::op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
 
 void ov::op::v1::BinaryConvolution::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_BinaryConvolution_validate_and_infer_types);
-    const PartialShape& data_batch_pshape = get_input_partial_shape(0);
+    const ov::PartialShape& data_batch_pshape = get_input_partial_shape(0);
     element::Type data_batch_et = get_input_element_type(0);
-    const PartialShape& filters_pshape = get_input_partial_shape(1);
+    const ov::PartialShape& filters_pshape = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this,
                           data_batch_et.is_real() || data_batch_et.is_integral_number(),
@@ -78,15 +78,15 @@ void ov::op::v1::BinaryConvolution::validate_and_infer_types() {
                           " and ",
                           filters_pshape);
 
-    PartialShape result_shape = ngraph::validate_and_infer_convolution_forward_output_shape(this,
-                                                                                            result_ps_rank,
-                                                                                            data_batch_pshape,
-                                                                                            filters_pshape,
-                                                                                            m_auto_pad,
-                                                                                            m_strides,
-                                                                                            m_dilations,
-                                                                                            m_pads_begin,
-                                                                                            m_pads_end);
+    ov::PartialShape result_shape = ngraph::validate_and_infer_convolution_forward_output_shape(this,
+                                                                                                result_ps_rank,
+                                                                                                data_batch_pshape,
+                                                                                                filters_pshape,
+                                                                                                m_auto_pad,
+                                                                                                m_strides,
+                                                                                                m_dilations,
+                                                                                                m_pads_begin,
+                                                                                                m_pads_end);
     set_output_type(0, data_batch_et, result_shape);
 }
 

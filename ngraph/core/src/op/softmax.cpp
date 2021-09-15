@@ -23,7 +23,7 @@ using namespace ngraph;
 
 namespace {
 template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const Shape& shape, const AxisSet& axes) {
+inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const ov::Shape& shape, const AxisSet& axes) {
     runtime::reference::softmax(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape, axes);
     return true;
 }
@@ -60,7 +60,7 @@ bool ngraph::op::v1::Softmax::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Softmax::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Softmax_validate_and_infer_types);
-    const PartialShape& input_shape = get_input_partial_shape(0);
+    const ov::PartialShape& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
                               m_axis < static_cast<size_t>(input_shape.rank().get_length()),
