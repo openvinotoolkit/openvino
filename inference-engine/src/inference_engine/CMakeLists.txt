@@ -223,9 +223,6 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
 
 # Export for build tree
 
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
-       APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
-
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
@@ -281,12 +278,6 @@ ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}" DESTINATION ${IE_CPACK_IE_DIR}
         COMPONENT core_dev)
 
-install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        INCLUDES DESTINATION ${IE_CPACK_IE_DIR}/include/ie)
-
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
@@ -310,12 +301,6 @@ else()
 endif()
 
 # Install cmake scripts
-
-install(EXPORT InferenceEngineTargets
-        FILE InferenceEngineTargets.cmake
-        NAMESPACE IE::
-        DESTINATION ${IE_CPACK_IE_DIR}/share
-        COMPONENT core_dev)
 
 install(EXPORT OpenVINOTargets
         FILE OpenVINOTargets.cmake

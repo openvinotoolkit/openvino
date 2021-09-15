@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string FqConvFqAffineTest::getTestCaseName(testing::TestParamInfo<FqConvFqAffineTestParamsSet> obj) {
+std::string FqConvFqAffineTest::getTestCaseName(const testing::TestParamInfo<FqConvFqAffineTestParamsSet>& obj) {
     FqSpecificParams fqParams;
     ConvParams convParams;
     bool permute;
