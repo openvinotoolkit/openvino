@@ -7,7 +7,7 @@ import pytest
 import warnings
 
 from openvino.inference_engine import ie_api as ie
-from conftest import model_path, image_path
+from ..conftest import model_path, image_path
 
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"

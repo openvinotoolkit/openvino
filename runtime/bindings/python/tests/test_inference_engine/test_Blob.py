@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 from openvino.inference_engine import TensorDesc, Blob, IECore
-from conftest import image_path
+from ..conftest import image_path
 
 
 path_to_image = image_path()
@@ -140,7 +140,7 @@ def test_set_shape():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_blob_set_shape_after_async_infer():
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)

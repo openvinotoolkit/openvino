@@ -6,7 +6,7 @@ import ngraph as ng
 from ngraph.impl.op import Parameter
 from ngraph.impl import Function, Shape, Type
 
-from conftest import model_path, create_ngraph_function
+from ..conftest import model_path, create_ngraph_function
 
 
 test_net_xml, test_net_bin = model_path()

@@ -4,7 +4,7 @@
 import pytest
 
 from openvino.inference_engine import IECore, DataPtr
-from conftest import model_path
+from ..conftest import model_path
 
 
 test_net_xml, test_net_bin = model_path()
@@ -48,7 +48,7 @@ def test_initialized():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_is_dynamic():
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function([-1, 3, 20, 20])
     net = ng.function_to_cnn(function)

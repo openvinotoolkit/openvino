@@ -6,7 +6,7 @@ import pytest
 import warnings
 
 from openvino.inference_engine import IECore, IENetwork, DataPtr, InputInfoPtr, PreProcessInfo
-from conftest import model_path
+from ..conftest import model_path
 
 
 test_net_xml, test_net_bin = model_path()
@@ -166,7 +166,7 @@ def test_reshape():
     ([1, 3, -1, 25], [1, 3, 22, -1])
 ])
 def test_reshape_with_partial_shape(device, shape, p_shape):
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function(shape)
     net = ng.function_to_cnn(function)
@@ -185,7 +185,7 @@ def test_reshape_with_partial_shape(device, shape, p_shape):
 
 @pytest.mark.ngraph_dependent_test
 def test_incorrect_reshape(device):
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function([1, 3, 22, 22])
     net = ng.function_to_cnn(function)
@@ -287,7 +287,7 @@ def test_tensor_names():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_create_two_exec_net():
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)

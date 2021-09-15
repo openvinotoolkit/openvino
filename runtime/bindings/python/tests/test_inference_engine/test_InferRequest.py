@@ -9,7 +9,7 @@ import threading
 from datetime import datetime
 
 from openvino.inference_engine import ie_api as ie
-from conftest import model_path, image_path
+from ..conftest import model_path, image_path
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -574,7 +574,7 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
     ([1, 4, 20, 20], [(3,5), 3, 20, 20], [6, 4, 20, 20]),
 ])
 def test_infer_dynamic_network_with_set_shape(shape, p_shape, ref_shape):
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function(shape)
     net = ng.function_to_cnn(function)
@@ -601,7 +601,7 @@ def test_infer_dynamic_network_with_set_shape(shape, p_shape, ref_shape):
     ([1, 4, 20, 20], [(3,5), 3, 20, 20], [6, 4, 20, 20]),
 ])
 def test_infer_dynamic_network_without_set_shape(shape, p_shape, ref_shape):
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function(shape)
     net = ng.function_to_cnn(function)
@@ -627,7 +627,7 @@ def test_infer_dynamic_network_without_set_shape(shape, p_shape, ref_shape):
     ([1, 4, 20, 20], [(3,5), 3, 20, 20], [6, 4, 20, 20]),
 ])
 def test_infer_dynamic_network_with_set_blob(shape, p_shape, ref_shape):
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function(shape)
     net = ng.function_to_cnn(function)
@@ -651,7 +651,7 @@ def test_infer_dynamic_network_with_set_blob(shape, p_shape, ref_shape):
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_infer_dynamic_network_twice():
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     shape, p_shape = [1, 4, 20, 20], [(0,5), 4, 20, 20]
     ref_shape1, ref_shape2 = [2, 4, 20, 20], [3, 4, 20, 20]
@@ -673,7 +673,7 @@ def test_infer_dynamic_network_twice():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_infer_dynamic_network_with_set_blob_twice():
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     shape, p_shape = [1, 4, 20, 20], [(0,5), 4, 20, 20]
     ref_shape1, ref_shape2 = [2, 4, 20, 20], [3, 4, 20, 20]
@@ -707,7 +707,7 @@ def test_infer_dynamic_network_with_set_blob_twice():
     ([3, 4, 20, 20], [3, 6, 20, 20], [3, 8, 20, 20]),
 ])
 def test_async_infer_dynamic_network_3_requests(shapes):
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function([3, 4, 20, 20])
     net = ng.function_to_cnn(function)
@@ -726,7 +726,7 @@ def test_async_infer_dynamic_network_3_requests(shapes):
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_set_blob_with_incorrect_name():
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function([4, 4, 20, 20])
     net = ng.function_to_cnn(function)
@@ -744,7 +744,7 @@ def test_set_blob_with_incorrect_name():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_set_blob_with_incorrect_size():
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function([4, 4, 20, 20])
     net = ng.function_to_cnn(function)
@@ -765,7 +765,7 @@ def test_set_blob_with_incorrect_size():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_set_blob_after_async_infer():
-    from conftest import create_ngraph_function
+    from ..conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)
