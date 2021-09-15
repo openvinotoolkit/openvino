@@ -4,21 +4,12 @@
 
 #include "mkldnn_strided_slice_node.h"
 
-#include <mkldnn_types.h>
-#include <mkldnn_extension_utils.h>
-
 #include "ie_parallel.hpp"
-#include "caseless.hpp"
 #include "common/cpu_memcpy.h"
-#include "common/blocked_desc_creator.h"
-#include "utils/general_utils.h"
 #include "mkldnn_input_node.h"
+#include <ngraph/opsets/opset1.hpp>
 
 #include <string>
-#include <tuple>
-#include <algorithm>
-#include "caseless.hpp"
-#include <ngraph/opsets/opset1.hpp>
 
 #define THROW_ERROR IE_THROW() << "StridedSlice layer with name '" << getName() << "' "
 
@@ -35,19 +26,20 @@ static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims&
     return start;
 }
 
-bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto ss = ov::as_type_ptr<const ngraph::opset1::StridedSlice>(op);
-        if (!ss) {
-            errorMessage = "Only opset1 StridedSlice operation is supported";
+        if (!ov::is_type<ov::op::v1::StridedSlice>(op) &&
+                !ov::is_type<ov::op::v8::Slice>(op)) {
+            errorMessage = "Only StridedSlice from opset1 and Slice from opset8 operations are supported.";
             return false;
         }
 
-        if (ss->get_input_node_shared_ptr(BEGIN_ID)->get_type_info() != ov::op::v0::Constant::get_type_info_static() ||
-            ss->get_input_node_shared_ptr(END_ID)->get_type_info() != ov::op::v0::Constant::get_type_info_static() ||
-            (ss->get_input_size() == 4 && ss->get_input_node_shared_ptr(STRIDE_ID)->get_type_info() != ov::op::v0::Constant::get_type_info_static())) {
-            // TODO: Support begin, end, stride inputs for dynamic shapes.
-            errorMessage = "Only Constant 'begin', 'end' and 'stride' inputs are supported.";
+        if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(BEGIN_ID)) ||
+                !ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(END_ID)) ||
+                op->get_input_size() > STRIDE_ID && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(STRIDE_ID)) ||
+                op->get_input_size() > AXES_ID && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_ID))) {
+            // TODO: Support begin, end, stride, axis inputs for dynamic shapes.
+            errorMessage = "Only Constant 'begin', 'end', 'stride' and 'axis' inputs are supported.";
             return false;
         }
     } catch (...) {
@@ -56,53 +48,27 @@ bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    auto ss = ov::as_type_ptr<const ngraph::opset1::StridedSlice>(op);
-    if (inputShapes.size() != 3 && inputShapes.size() != 4) {
+    if (inputShapes.size() < 3 && inputShapes.size() > 5) {
         THROW_ERROR << "has incorrect number of input edges";
     }
     if (outputShapes.size() != 1) {
         THROW_ERROR << "has incorrect number of output edges";
     }
-
-    const size_t inputRank = getInputShapeAtPort(DATA_ID).getRank();
-    const size_t outputRank = getOutputShapeAtPort(0).getRank();
-
-    const size_t nDims = std::max(inputRank, outputRank);
-
-    auto createMask = [&](const std::vector<int64_t> &origMask, const int bit = 0, bool needReverse = false) {
-        std::vector<int> mask(origMask.begin(), origMask.end());
-        if (needReverse) {
-            for (size_t i = 0; i < mask.size(); i++)
-                mask[i] = 1 - mask[i];
-        }
-        for (size_t i = mask.size(); i < nDims; ++i) mask.push_back(bit);
-        return mask;
-    };
-
-    attrs.beginMask = createMask(ss->get_begin_mask(), 1, true);
-    attrs.endMask = createMask(ss->get_end_mask(), 1, true);
-    attrs.newAxisMask = createMask(ss->get_new_axis_mask());
-    attrs.shrinkAxisMask = createMask(ss->get_shrink_axis_mask());
-
-    auto origEllipsisMask = ss->get_ellipsis_mask();
-    for (const auto &o : origEllipsisMask) {
-        attrs.ellipsisMask.push_back(o);
-    }
-    if (attrs.ellipsisMask.size() == 0) {
-        for (size_t i = attrs.ellipsisMask.size(); i < nDims; ++i) attrs.ellipsisMask.push_back(0);
+    for (size_t i = 0lu; i < op->get_input_size(); i++) {
+        isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->inputs()[i].get_node());
     }
 
     attrs.beginDims = getInputShapeAtPort(BEGIN_ID).getStaticDims();
     attrs.endDims = getInputShapeAtPort(END_ID).getStaticDims();
     if (attrs.beginDims.size() != 1)
-        THROW_ERROR << " should have begin vector with 1 dimension";
-    if (attrs.beginDims.size() != 1)
+        THROW_ERROR << "should have begin vector with 1 dimension";
+    if (attrs.endDims.size() != 1)
         THROW_ERROR << "should have end vector with 1 dimension";
     if (attrs.beginDims[0] != attrs.endDims[0])
         THROW_ERROR << "should have begin vector with size equal to end vector size";
@@ -115,6 +81,56 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Nod
         if (attrs.beginDims[0] != attrs.strideDims[0])
             THROW_ERROR << "should have stride vector with size equal to begin vector size";
     }
+
+    if (inputShapes.size() > AXES_ID) {
+        isAxesSpecified = true;
+        attrs.axesDims = inputShapes[AXES_ID].getStaticDims();
+        if (attrs.axesDims.size() != 1)
+            THROW_ERROR << "should have axes vector with 1 dimension.";
+        if (attrs.beginDims[0] != attrs.axesDims[0])
+            THROW_ERROR << "should have axes vector with size equal to begin vector size.";
+    }
+
+    if (ov::is_type<ov::op::v1::StridedSlice>(op)) {
+        isStridedSliceOp = true;
+        auto ss = ov::as_type_ptr<const ov::op::v1::StridedSlice>(op);
+
+        const size_t inputRank = getInputShapeAtPort(DATA_ID).getRank();
+        const size_t outputRank = getOutputShapeAtPort(0).getRank();
+
+        const size_t nDims = std::max(inputRank, outputRank);
+
+        auto createMask = [&](const std::vector<int64_t> &origMask, const int bit = 0, bool needReverse = false) {
+            std::vector<int> mask(origMask.begin(), origMask.end());
+            if (needReverse) {
+                for (size_t i = 0; i < mask.size(); i++)
+                    mask[i] = 1 - mask[i];
+            }
+            for (size_t i = mask.size(); i < nDims; ++i) mask.push_back(bit);
+            return mask;
+        };
+
+        attrs.beginMask = createMask(ss->get_begin_mask(), 1, true);
+        attrs.endMask = createMask(ss->get_end_mask(), 1, true);
+        attrs.newAxisMask = createMask(ss->get_new_axis_mask());
+        attrs.shrinkAxisMask = createMask(ss->get_shrink_axis_mask());
+
+        auto origEllipsisMask = ss->get_ellipsis_mask();
+        for (const auto &o : origEllipsisMask) {
+            attrs.ellipsisMask.push_back(o);
+        }
+        if (attrs.ellipsisMask.size() == 0) {
+            for (size_t i = attrs.ellipsisMask.size(); i < nDims; ++i) attrs.ellipsisMask.push_back(0);
+        }
+    } else {
+        isStridedSliceOp = false;
+        const size_t length = outputShapes[0].getRank();
+        attrs.beginMask = std::vector<int>(length, 1);
+        attrs.endMask = std::vector<int>(length, 1);
+        attrs.newAxisMask = std::vector<int>(length, 0);
+        attrs.shrinkAxisMask = std::vector<int>(length, 0);
+        attrs.ellipsisMask = std::vector<int>(length, 0);
+    }
 }
 
 void MKLDNNStridedSliceNode::getSupportedDescriptors() {
@@ -124,16 +140,20 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
 
     int ellipsisMaskCounter = 0;
     int ellipsisPos1 = -1;
-    for (size_t i = 0; i < attrs.ellipsisMask.size(); i++) {
-        ellipsisMaskCounter += attrs.ellipsisMask[i];
-        ellipsisPos1 = attrs.ellipsisMask[i] == 1 && ellipsisPos1 == -1 ? i : ellipsisPos1;
-    }
-    if (ellipsisMaskCounter > 1)
-        THROW_ERROR << "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed";
+    if (isStridedSliceOp) {
+        for (size_t i = 0; i < attrs.ellipsisMask.size(); i++) {
+            ellipsisMaskCounter += attrs.ellipsisMask[i];
+            ellipsisPos1 = attrs.ellipsisMask[i] == 1 && ellipsisPos1 == -1 ? i : ellipsisPos1;
+        }
+        if (ellipsisMaskCounter > 1)
+            THROW_ERROR << "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed";
 
-    int newAxis = std::accumulate(attrs.newAxisMask.begin(), attrs.newAxisMask.end(), 0);
-    int shrinkAxis = std::accumulate(attrs.shrinkAxisMask.begin(), attrs.shrinkAxisMask.end(), 0);
-    attrs.equalDims = newAxis == 0 && shrinkAxis == 0;
+        int newAxis = std::accumulate(attrs.newAxisMask.begin(), attrs.newAxisMask.end(), 0);
+        int shrinkAxis = std::accumulate(attrs.shrinkAxisMask.begin(), attrs.shrinkAxisMask.end(), 0);
+        attrs.equalDims = newAxis == 0 && shrinkAxis == 0;
+    } else {
+        attrs.equalDims = true;
+    }
 
     auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
         const auto constNode = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgesAtPort(type)[0]->getParent());
@@ -146,7 +166,7 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
         const int *ptr = static_cast<const int*>(blob->GetPtr());
         parameter.assign(ptr, ptr + size);
 
-        if (ellipsisMaskCounter == 0 && size < nDims) {
+        if (isStridedSliceOp && ellipsisMaskCounter == 0 && size < nDims) {
             for (size_t i = size; i < nDims; i++) parameter.push_back(value);
         }
     };
@@ -157,6 +177,20 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
         fillingInParameters(attrs.end, END_ID, attrs.endDims[0], 0);
     if (attrs.strideDims.size())
         fillingInParameters(attrs.stride, STRIDE_ID, attrs.strideDims[0], 1);
+    if (attrs.axesDims.size()) {
+        fillingInParameters(attrs.axes, AXES_ID, attrs.axesDims[0], 0);
+        std::vector<int> beginTmp(outputRank, 0);
+        std::vector<int> endTmp(outputRank, 0);
+        int i = 0;
+        for (auto a : attrs.axes) {
+            beginTmp[a] = attrs.begin[i++];
+            endTmp[a] = attrs.end[i++];
+            attrs.beginMask[a] = 0;
+            attrs.endMask[a] = 0;
+        }
+        attrs.begin = beginTmp;
+        attrs.end = endTmp;
+    }
 
     if (inputRank > 3 && attrs.equalDims && ellipsisMaskCounter == 1)
         addHiddenDims(inputRank, ellipsisPos1);
@@ -194,15 +228,11 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision dataPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
-    InferenceEngine::Precision beginPrecision = getOriginalInputPrecisionAtPort(BEGIN_ID);
-    InferenceEngine::Precision endPrecision = getOriginalInputPrecisionAtPort(END_ID);
-    InferenceEngine::Precision stridePrecision;
-    if (isStrideSpecified)
-        stridePrecision = getOriginalInputPrecisionAtPort(STRIDE_ID);
+    const InferenceEngine::Precision dataPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
+    const InferenceEngine::Precision iPrecision = Precision::I32;
     attrs.dataSize = dataPrecision.size();
 
-    size_t nDims = getInputShapeAtPort(DATA_ID).getRank();
+    const size_t nDims = getInputShapeAtPort(DATA_ID).getRank();
 
     NodeConfig config;
     config.dynBatchSupport = false;
@@ -210,12 +240,16 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[DATA_ID].inPlace = -1;
     config.inConfs[BEGIN_ID].inPlace = -1;
     config.inConfs[END_ID].inPlace = -1;
-    config.inConfs[DATA_ID].constant = false;
-    config.inConfs[BEGIN_ID].constant = true;
-    config.inConfs[END_ID].constant = true;
+    config.inConfs[DATA_ID].constant = isConstantInput[DATA_ID];
+    config.inConfs[BEGIN_ID].constant = isConstantInput[BEGIN_ID];
+    config.inConfs[END_ID].constant = isConstantInput[END_ID];
     if (isStrideSpecified) {
         config.inConfs[STRIDE_ID].inPlace = -1;
-        config.inConfs[STRIDE_ID].constant = true;
+        config.inConfs[STRIDE_ID].constant = isConstantInput[STRIDE_ID];
+    }
+    if (isAxesSpecified) {
+        config.inConfs[AXES_ID].inPlace = -1;
+        config.inConfs[AXES_ID].constant = isConstantInput[AXES_ID];
     }
     config.outConfs.resize(1);
 
@@ -241,11 +275,13 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     auto range = BlockedDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
-        config.inConfs[0].desc = itr->second->createSharedDesc(dataPrecision, getInputShapeAtPort(DATA_ID));
-        config.inConfs[BEGIN_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(beginPrecision, getInputShapeAtPort(BEGIN_ID));
-        config.inConfs[END_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(endPrecision, getInputShapeAtPort(END_ID));
+        config.inConfs[DATA_ID].desc = itr->second->createSharedDesc(dataPrecision, getInputShapeAtPort(DATA_ID));
+        config.inConfs[BEGIN_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(BEGIN_ID));
+        config.inConfs[END_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(END_ID));
         if (isStrideSpecified)
-            config.inConfs[STRIDE_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(stridePrecision, getInputShapeAtPort(STRIDE_ID));
+            config.inConfs[STRIDE_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(STRIDE_ID));
+        if (isAxesSpecified)
+            config.inConfs[AXES_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(AXES_ID));
 
         config.outConfs[0].desc = itr->second->createSharedDesc(dataPrecision, getOutputShapeAtPort(DATA_ID));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
@@ -254,7 +290,7 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
 
 void MKLDNNStridedSliceNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
         THROW_ERROR << "has not allocated destination memory.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
@@ -306,11 +342,13 @@ void MKLDNNStridedSliceNode::orderParametersByLayouts(const MKLDNNMemoryPtr& src
         sortByOrder(attrs.begin);
         sortByOrder(attrs.end);
         sortByOrder(attrs.stride);
-        sortByOrder(attrs.beginMask);
-        sortByOrder(attrs.endMask);
-        sortByOrder(attrs.ellipsisMask);
-        sortByOrder(attrs.newAxisMask);
-        sortByOrder(attrs.shrinkAxisMask);
+        if (isStridedSliceOp) {
+            sortByOrder(attrs.beginMask);
+            sortByOrder(attrs.endMask);
+            sortByOrder(attrs.ellipsisMask);
+            sortByOrder(attrs.newAxisMask);
+            sortByOrder(attrs.shrinkAxisMask);
+        }
     }
 }
 
