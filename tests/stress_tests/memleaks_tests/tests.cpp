@@ -52,7 +52,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, read_network) {
     std::vector<std::function<void()>> pipeline;
 
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(read_cnnnetwork(test_params.models[i]["path"]));
+        pipeline.push_back(read_cnnnetwork(test_params.models[i]["full_path"]));
     }
     auto test = [&] {
         log_info("Read networks: " << test_params.model_name << " for " << test_params.numiters << " times");
@@ -66,7 +66,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, cnnnetwork_reshape_batch_x2) {
     std::vector<std::function<void()>> pipeline;
 
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(cnnnetwork_reshape_batch_x2(test_params.models[i]["path"]));
+        pipeline.push_back(cnnnetwork_reshape_batch_x2(test_params.models[i]["full_path"]));
     }
     auto test = [&] {
         log_info("Reshape to batch*=2 of CNNNetworks created from networks: " << test_params.model_name << " for "
@@ -81,7 +81,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, set_input_params) {
     std::vector<std::function<void()>> pipeline;
 
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(set_input_params(test_params.models[i]["path"]));
+        pipeline.push_back(set_input_params(test_params.models[i]["full_path"]));
     }
     auto test = [&] {
         log_info("Apply preprocessing for CNNNetworks from networks: " << test_params.model_name << " for "
@@ -97,7 +97,7 @@ TEST_P(MemLeaksTestSuite, recreate_exenetwork) {
     std::vector<std::function<void()>> pipeline;
 
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(recreate_exenetwork(ie, test_params.models[i]["path"], test_params.device));
+        pipeline.push_back(recreate_exenetwork(ie, test_params.models[i]["full_path"], test_params.device));
     }
     auto test = [&] {
         log_info("Recreate ExecutableNetworks within existing InferenceEngine::Core from networks: "
@@ -118,7 +118,7 @@ TEST_P(MemLeaksTestSuite, recreate_infer_request) {
     exeNetworks.reserve(n_models);
 
     for (int i = 0; i < n_models; i++) {
-        CNNNetwork cnnNetwork = ie.ReadNetwork(test_params.models[i]["path"]);
+        CNNNetwork cnnNetwork = ie.ReadNetwork(test_params.models[i]["full_path"]);
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, test_params.device);
         exeNetworks.push_back(exeNetwork);
         pipeline.push_back(recreate_infer_request(exeNetworks[i]));
@@ -143,7 +143,7 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
     outputs_info.reserve(n_models);
 
     for (int i = 0; i < n_models; i++) {
-        CNNNetwork cnnNetwork = ie.ReadNetwork(test_params.models[i]["path"]);
+        CNNNetwork cnnNetwork = ie.ReadNetwork(test_params.models[i]["full_path"]);
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, test_params.device);
         InferRequest infer_request = exeNetwork.CreateInferRequest();
         infer_requests.push_back(infer_request);
@@ -168,7 +168,7 @@ TEST_P(MemLeaksTestSuite, infer_request_inference) {
     auto test_params = GetParam();
     std::vector<std::function<void()>> pipeline;
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(infer_request_inference(test_params.models[i]["path"], test_params.device));
+        pipeline.push_back(infer_request_inference(test_params.models[i]["full_path"], test_params.device));
     }
     auto test = [&] {
         log_info("Inference of InferRequests from networks: " << test_params.model_name << " for \""
@@ -184,7 +184,7 @@ TEST_P(MemLeaksTestSuite, inference_with_streams) {
     const auto nstreams = 2;
     std::vector<std::function<void()>> pipeline;
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(inference_with_streams(test_params.models[i]["path"], test_params.device, nstreams));
+        pipeline.push_back(inference_with_streams(test_params.models[i]["full_path"], test_params.device, nstreams));
     }
     auto test = [&] {
         log_info("Inference of InferRequests from networks: " << test_params.model_name << " for \""

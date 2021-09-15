@@ -102,8 +102,12 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
             if (full_path.empty() || path.empty())
                 throw std::logic_error(
                         "One of the 'model' records from test config doesn't contain 'full_path' or 'path' attributes");
+            std::string name = model.attribute("name").as_string();
             std::string precision = model.attribute("precision").as_string();
-            std::map<std::string, std::string> model_map{{"name", path}, {"path", full_path}, {"path", precision}};
+            std::map<std::string, std::string> model_map{{"name", name},
+                                                         {"path", path},
+                                                         {"full_path", full_path},
+                                                         {"precision", precision}};
             models.push_back(model_map);
         }
         tests_cases.push_back(MemLeaksTestCase(numprocesses, numthreads, numiterations, device_name, models));
