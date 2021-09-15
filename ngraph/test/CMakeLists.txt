@@ -411,7 +411,6 @@ set(MULTI_TEST_SRC
     backend/api.in.cpp
     backend/asin.in.cpp
     backend/asinh.in.cpp
-    backend/atan.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
