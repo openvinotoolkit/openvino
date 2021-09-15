@@ -83,10 +83,10 @@ jobs:
       sudo apt --assume-yes install openjdk-11-jdk
       # For opencv-python: python3-setuptools and pip upgrade
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/wheel/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/wheel/requirements-dev.txt
       # For running Python API tests
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/src/compatibility/openvino/src/requirements-dev.txt
       # For running PaddlePaddle frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/ngraph/test/frontend/paddlepaddle/requirements_dev.txt
       # For running ONNX frontend unit tests
@@ -250,7 +250,7 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
+      cd $(REPO_DIR)/runtime/bindings/python/tests/test_inference_engine
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
     displayName: 'Python API Tests'
     continueOnError: false
