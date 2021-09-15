@@ -5,6 +5,7 @@ import numpy as np
 import os
 import pytest
 import warnings
+import time
 
 from openvino.inference_engine import ie_api as ie
 from conftest import model_path, image_path
@@ -171,6 +172,26 @@ def test_wait_before_start(device):
       assert np.argmax(request_handler.output_blobs['fc_out'].buffer) == 2
   del exec_net
   del ie_core
+
+
+def test_wait_for_callback(device):
+    def callback(status, callbacks_info):
+        time.sleep(0.01)
+        callbacks_info['finished'] += 1
+
+    ie_core = ie.IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    num_requests = 3
+    exec_net = ie_core.load_network(net, device, num_requests=num_requests)
+    callbacks_info = {}
+    callbacks_info['finished'] = 0
+    img = read_image()
+    for request in exec_net.requests:
+        request.set_completion_callback(callback, callbacks_info)
+        request.async_infer({'data': img})
+
+    exec_net.wait(num_requests)
+    assert callbacks_info['finished'] == num_requests
 
 
 def test_wrong_request_id(device):
