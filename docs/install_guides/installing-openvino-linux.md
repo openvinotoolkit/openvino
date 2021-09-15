@@ -315,7 +315,7 @@ sudo usermod -a -G users "$(whoami)"
    Log out and log in for it to take effect.
 2. To perform inference on Intel® Neural Compute Stick 2, install the USB rules as follows:
    ```sh
-   sudo cp /opt/intel/openvino_2022/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/
+   sudo cp /opt/intel/openvino_2022/runtime/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/
    ```
    ```sh
    sudo udevadm control --reload-rules
@@ -346,12 +346,7 @@ cd /opt/intel/openvino_2022/samples/scripts
 
 2. Run the **Image Classification verification script**. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 ```sh
-./demo_squeezenet_download_convert_run.sh -d HDDL
-```
-
-3. Run the **Inference Pipeline verification script**:
-```sh
-./demo_security_barrier_camera.sh -d HDDL
+./run_sample_squeezenet.sh -d HDDL
 ```
 
 You've completed all required configuration steps to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 

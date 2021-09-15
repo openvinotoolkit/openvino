@@ -323,34 +323,34 @@ docker run -it --rm --net=host -v /var/tmp:/var/tmp –-ipc=host <image_name>
 
 ### Run Demos in the Docker* Image
 
-To run the Security Barrier Camera Demo on a specific inference device, run the following commands with the root privileges (additional third-party dependencies will be installed):
+To run the Classification Demo Using SqueezeNet on a specific inference device, run the following commands with the root privileges (additional third-party dependencies will be installed):
 
 **CPU**:
 
 ```sh
 docker run -itu root:root --rm <image_name>
-/bin/bash -c "apt update && apt install sudo && samples/scripts/demo_security_barrier_camera.sh -d CPU -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d CPU"
 ```
 
 **GPU**:
 
 ```sh
 docker run -itu root:root --rm --device /dev/dri:/dev/dri <image_name>
-/bin/bash -c "apt update && apt install sudo && samples/scripts/demo_security_barrier_camera.sh -d GPU -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d GPU"
 ```
 
 **MYRIAD**:
 
 ```sh
 docker run -itu root:root --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && samples/scripts/demo_security_barrier_camera.sh -d MYRIAD -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d MYRIAD"
 ```
 
 **HDDL**:
 
 ```sh
 docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
-/bin/bash -c "apt update && apt install sudo && samples/scripts/demo_security_barrier_camera.sh -d HDDL -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d HDDL"
 ```
 
 ## Troubleshooting

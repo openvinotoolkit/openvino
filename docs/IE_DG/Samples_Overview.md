@@ -3,9 +3,9 @@
 The Inference Engine sample applications are simple console applications that show how to utilize specific Inference Engine capabilities within an application, assist developers in executing specific tasks such as loading a model, running inference, querying specific device capabilities and etc.
 
 After installation of Intel® Distribution of OpenVINO™ toolkit, С, C++ and Python* sample applications are available in the following directories, respectively:
-* `<INSTALL_DIR>/inference_engine/samples/c`
-* `<INSTALL_DIR>/inference_engine/samples/cpp`
-* `<INSTALL_DIR>/inference_engine/samples/python`
+* `<INSTALL_DIR>/samples/c`
+* `<INSTALL_DIR>/samples/cpp`
+* `<INSTALL_DIR>/samples/python`
 
 Inference Engine sample applications include the following:
 
@@ -64,7 +64,7 @@ The officially supported Linux* build environment is the following:
 
 > **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/inference_engine/samples/c` or `<INSTALL_DIR>/inference_engine/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
+To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
 build_samples.sh
 ```
@@ -91,11 +91,11 @@ cd build
 3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
   - For release configuration:
   ```sh
-  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/inference_engine/samples/cpp
+  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
   ```
   - For debug configuration:
   ```sh
-  cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/inference_engine/samples/cpp
+  cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/samples/cpp
   ```
 4. Run `make` to build the samples:
 ```sh
@@ -114,7 +114,7 @@ The recommended Windows* build environment is the following:
 
 > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
 
-To build the C or C++ sample applications on Windows, go to the `<INSTALL_DIR>\inference_engine\samples\c` or `<INSTALL_DIR>\inference_engine\samples\cpp` directory, respectively, and run the `build_samples_msvc.bat` batch file:
+To build the C or C++ sample applications on Windows, go to the `<INSTALL_DIR>\samples\c` or `<INSTALL_DIR>\samples\cpp` directory, respectively, and run the `build_samples_msvc.bat` batch file:
 ```sh
 build_samples_msvc.bat
 ```
@@ -123,7 +123,7 @@ By default, the script automatically detects the highest Microsoft Visual Studio
 a solution for a sample code. Optionally, you can also specify the preferred Microsoft Visual Studio version to be used by the script. Supported
 versions are `VS2017` and `VS2019`. For example, to build the C++ samples using the Microsoft Visual Studio 2017, use the following command:
 ```sh
-<INSTALL_DIR>\inference_engine\samples\cpp\build_samples_msvc.bat VS2017
+<INSTALL_DIR>\samples\cpp\build_samples_msvc.bat VS2017
 ```
 
 Once the build is completed, you can find sample binaries in the following folders:
@@ -144,7 +144,7 @@ The officially supported macOS* build environment is the following:
 
 > **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-To build the C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/inference_engine/samples/c` or `<INSTALL_DIR>/inference_engine/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
+To build the C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
 build_samples.sh
 ```
@@ -177,11 +177,11 @@ cd build
 3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
   - For release configuration:
   ```sh
-  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/inference_engine/samples/cpp
+  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
   ```
   - For debug configuration:
   ```sh
-  cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/inference_engine/samples/cpp
+  cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/samples/cpp
   ```
 4. Run `make` to build the samples:
 ```sh

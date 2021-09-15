@@ -173,7 +173,7 @@ Note that casting `Blob` to `TBlob` via `std::dynamic_pointer_cast` is not the r
 ## Build Your Application
 
 For details about building your application, refer to the CMake files for the sample applications.
-All samples source code is located in the `<INSTALL_DIR>/openvino/inference_engine/samples` directory, where `INSTALL_DIR` is the OpenVINO™ installation directory.
+All samples source code is located in the `<INSTALL_DIR>/samples` directory, where `INSTALL_DIR` is the OpenVINO™ installation directory.
 
 ### CMake project creation
 
