@@ -193,7 +193,7 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino_2021/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2022/runtime/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
    - **CentOS 7**:
@@ -223,11 +223,11 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
     /bin/mkdir -p '/usr/local/include/libusb-1.0' && \
     /usr/bin/install -c -m 644 libusb.h '/usr/local/include/libusb-1.0' && \
     /bin/mkdir -p '/usr/local/lib/pkgconfig' && \
-    printf "\nexport LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/usr/local/lib\n" >> /opt/intel/openvino_2021/bin/setupvars.sh
+    printf "\nexport LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/usr/local/lib\n" >> /opt/intel/openvino_2022/setupvars.sh
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino_2021/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2022/runtime/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
 2. Run the Docker* image:
@@ -329,28 +329,28 @@ To run the Classification Demo Using SqueezeNet on a specific inference device, 
 
 ```sh
 docker run -itu root:root --rm <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/run_sample_squeezenet.sh -d CPU"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d CPU"
 ```
 
 **GPU**:
 
 ```sh
 docker run -itu root:root --rm --device /dev/dri:/dev/dri <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/run_sample_squeezenet.sh -d GPU"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d GPU"
 ```
 
 **MYRIAD**:
 
 ```sh
 docker run -itu root:root --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/run_sample_squeezenet.sh -d MYRIAD"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d MYRIAD"
 ```
 
 **HDDL**:
 
 ```sh
 docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/run_sample_squeezenet.sh -d HDDL"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d HDDL"
 ```
 
 ## Troubleshooting

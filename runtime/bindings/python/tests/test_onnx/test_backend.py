@@ -33,7 +33,6 @@ from tests import (
     xfail_issue_39658,
     xfail_issue_39659,
     xfail_issue_39662,
-    xfail_issue_43742,
     xfail_issue_44848,
     xfail_issue_44851,
     xfail_issue_44854,
@@ -221,6 +220,7 @@ tests_expected_to_fail = [
         "OnnxBackendSimpleModelTest.test_sequence_model4_cpu",
         "OnnxBackendSimpleModelTest.test_sequence_model2_cpu",
         "OnnxBackendNodeModelTest.test_identity_sequence_cpu",
+        "OnnxBackendNodeModelTest.test_if_seq_cpu",
     ),
     (
         xfail_issue_38701,
@@ -375,11 +375,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_sum_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_negative_axes_keepdims_example_cpu",
-    ),
-    (
-        xfail_issue_43742,
-        "OnnxBackendNodeModelTest.test_if_cpu",
-        "OnnxBackendNodeModelTest.test_if_seq_cpu",
     ),
     (
         xfail_issue_44848,
