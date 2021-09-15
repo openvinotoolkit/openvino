@@ -30,14 +30,14 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 if(TARGET offline_transformations)
-    list(APPEND InferenceEngine_LIBRARIES offline_transformations)
+    list(APPEND link_libraries offline_transformations)
 else()
-    list(APPEND InferenceEngine_LIBRARIES IE::offline_transformations)
+    list(APPEND link_libraries IE::offline_transformations)
 endif()
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime ${link_libraries})
 
 # Compatibility with python 2.7 which has deprecated "register" specifier
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -59,9 +59,11 @@ add_custom_command(TARGET ${TARGET_NAME}
 # ie_cpack_add_component(${PYTHON_VERSION}_dev DEPENDS ${PYTHON_COMPONENT})
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_COMPONENT}
-        LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_COMPONENT})
+        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/offline_transformations
+        COMPONENT ${PYTHON_COMPONENT}
+        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/offline_transformations
+        COMPONENT ${PYTHON_COMPONENT})
 
 install(PROGRAMS __init__.py
-        DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/offline_transformations
         COMPONENT ${PYTHON_COMPONENT})

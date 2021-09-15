@@ -35,7 +35,7 @@ class FuseSubtractToFakeQuantizeTransformation :
     public testing::WithParamInterface<FuseSubtractToFakeQuantizeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;

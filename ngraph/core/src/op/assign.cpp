@@ -53,7 +53,7 @@ void op::v3::Assign::validate_and_infer_types() {
 
         set_output_type(0, arg_t, output_shape);
     } else {
-        set_output_type(0, arg_t, PartialShape::dynamic());
+        set_output_type(0, arg_t, ov::PartialShape::dynamic());
     }
 }
 

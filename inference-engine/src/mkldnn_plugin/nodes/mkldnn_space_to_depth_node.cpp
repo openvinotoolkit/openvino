@@ -21,8 +21,12 @@ using namespace mkldnn;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 
-bool MKLDNNSpaceToDepthNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNSpaceToDepthNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto spaceToDepth = std::dynamic_pointer_cast<const ngraph::opset1::SpaceToDepth>(op);
         if (!spaceToDepth) {
             errorMessage = "Only opset1 SpaceToDepth operation is supported";
@@ -98,7 +102,7 @@ void MKLDNNSpaceToDepthNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
-    auto srcDims = getParentEdgeAt(0)->getShape().getStaticDims();
+    auto srcDims = getInputShapeAtPort(0).getStaticDims();
     const size_t nDims = srcDims.size();
 
     impl_desc_type impl_type;
@@ -138,8 +142,8 @@ void MKLDNNSpaceToDepthNode::initSupportedPrimitiveDescriptors() {
     auto range = BlockedDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
-        config.inConfs[0].desc = itr->second->createUniqueDesc(precision, getParentEdgeAt(0)->getShape().getStaticDims());
-        config.outConfs[0].desc = itr->second->createUniqueDesc(precision, getChildEdgeAt(0)->getShape().getStaticDims());
+        config.inConfs[0].desc = itr->second->createSharedDesc(precision, getInputShapeAtPort(0));
+        config.outConfs[0].desc = itr->second->createSharedDesc(precision, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     }
 }
@@ -154,13 +158,13 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has unidentified preferable primitive descriptor";
 
-    SizeVector srcDims = getParentEdgeAt(0)->getShape().getStaticDims();
-    SizeVector dstDims = getChildEdgeAt(0)->getShape().getStaticDims();
+    VectorDims srcDims = srcMemPtr->getStaticDims();
+    VectorDims dstDims = dstMemPtr->getStaticDims();
 
     size_t nDims = srcDims.size();
     const size_t nSpatialDims = nDims - 2;
-    const bool isBlocked = getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c) ||
-                           getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c);
+    const bool isBlocked = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c) ||
+                           getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c);
     const size_t reshapedRank = nDims + nSpatialDims + static_cast<int>(isBlocked) + static_cast<int>(isBlocked && mode == Mode::DEPTH_FIRST);
     const size_t lastIdx = reshapedRank - 1;
     size_t firstSpatialOrder = 2;
@@ -191,8 +195,8 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
     };
 
     if (isBlocked) {
-        SizeVector srcBlockedDims = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>().getBlockDims();
-        SizeVector dstBlockedDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>().getBlockDims();
+        VectorDims srcBlockedDims = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+        VectorDims dstBlockedDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
         size_t orderShiftForBlocks, orderShiftForDims;
         if (mode == Mode::BLOCKS_FIRST) {
@@ -219,7 +223,7 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
         }
 
         reshapeAndSetPermOrder(orderShiftForBlocks, orderShiftForDims, firstSpatialOrder, dstBlockedDims);
-    } else if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc)) {
+    } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
         srcDims.push_back(srcDims[1]);
         dstDims.push_back(dstDims[1]);
         srcDims.erase(srcDims.begin() + 1);

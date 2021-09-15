@@ -53,7 +53,7 @@ protected:
     bool evaluate_broadcast(const HostTensorPtr& arg0,
                             const HostTensorPtr& out,
                             const std::pair<bool, AxisSet>& pair_broadcast_axes,
-                            const ngraph::Shape& output_shape) const;
+                            const Shape& output_shape) const;
 
     bool evaluate_broadcast(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisSet& broadcast_axes) const;
 
@@ -66,8 +66,8 @@ protected:
 
     void validate_target_shape_numpy(const PartialShape& arg_shape, const PartialShape& target_shape) const;
 
-    static std::pair<bool, AxisSet> get_broadcast_axes_numpy_pdpd(const ngraph::Shape& arg_shape,
-                                                                  const ngraph::Shape& result_shape,
+    static std::pair<bool, AxisSet> get_broadcast_axes_numpy_pdpd(const Shape& arg_shape,
+                                                                  const Shape& result_shape,
                                                                   const op::BroadcastModeSpec& broadcast_spec);
 
     static std::pair<bool, AxisSet> get_broadcast_axes_none(const AxisVector& axes_mapping_val,
@@ -77,7 +77,7 @@ protected:
                                     const AxisVector& axes_mapping_val,
                                     const PartialShape& target_shape) const;
 
-    ngraph::Shape get_target_shape(const HostTensorPtr& input1) const;
+    Shape get_target_shape(const HostTensorPtr& input1) const;
 };
 }  // namespace util
 }  // namespace op

@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ConstConvConcatTest::getTestCaseName(testing::TestParamInfo<ConstConvConcatParams> obj) {
+std::string ConstConvConcatTest::getTestCaseName(const testing::TestParamInfo<ConstConvConcatParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

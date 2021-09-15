@@ -16,6 +16,7 @@
 #include "ngraph_ops/deconvolution_ie.hpp"
 
 #include <ie_metric_helpers.hpp>
+#include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "multi_device_plugin.hpp"
 #include <ie_algorithm.hpp>
@@ -56,10 +57,12 @@ namespace {
         }
         return config;
     }
-    std::vector<std::string> supported_configKeys = {
-        MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-        CONFIG_KEY_INTERNAL(WORK_MODE)
-    };
+    std::vector<std::string> supported_configKeys = []() -> decltype(PerfHintsConfig::SupportedKeys()) {
+                    auto res = PerfHintsConfig::SupportedKeys();
+                    res.push_back(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+                    res.push_back(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
+                    return res;
+                }();
 }  // namespace
 
 std::map<std::string, std::string> MultiDeviceInferencePlugin::GetSupportedConfig(
@@ -142,12 +145,16 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
 }
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
+    const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
     for (auto && kvp : config) {
         const auto& name = kvp.first;
-        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
+        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
+            if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end())
+                PerfHintsConfig::CheckConfigAndValue(kvp);
             _config[name] = kvp.second;
-        else
+        } else {
             IE_THROW() << "Unsupported config key: " << name;
+        }
     }
 }
 
@@ -167,7 +174,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        std::string device_name = { "MULTI" };
+        std::string device_name = { GetName() };
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, device_name);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, supported_configKeys);
@@ -185,7 +192,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const st
 IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
                                                                                const std::map<std::string, std::string>& config) {
     if (network.getFunction() == nullptr) {
-        IE_THROW() << "MULTI device supports just ngraph network representation";
+        IE_THROW() << GetName() << " device supports just ngraph network representation";
     }
 
     auto networkPrecision = GetNetworkPrecision(network);
@@ -197,23 +204,24 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                                                                               const std::map<std::string, std::string>& config,
                                                                               const std::string &networkPrecision) {
     if (GetCore() == nullptr) {
-        IE_THROW() << "Please, work with MULTI device via InferenceEngine::Core object";
+        IE_THROW() << "Please, work with " << GetName() << " device via InferenceEngine::Core object";
     }
 
     if (modelPath.empty() && network.getFunction() == nullptr) {
-        IE_THROW() << "MULTI device supports just ngraph network representation";
+        IE_THROW() << GetName() << " device supports just ngraph network representation";
     }
 
     auto fullConfig = mergeConfigs(_config, config);
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
-    auto workMode = fullConfig.find(CONFIG_KEY_INTERNAL(WORK_MODE));
+    auto workMode = fullConfig.find(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
+    bool workModeAuto = workMode != fullConfig.end() && workMode->second == InferenceEngine::PluginConfigParams::YES;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
 
     // not found device priorities for -d AUTO use case
     if (priorities == fullConfig.end()) {
-        if (workMode != fullConfig.end()) {
+        if (workModeAuto) {
             std::string allDevices;
             auto availableDevices = GetCore()->GetAvailableDevices();
             if (availableDevices.empty()) {
@@ -226,17 +234,18 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             metaDevices = ParseMetaDevices(allDevices, fullConfig);
             multiNetworkConfig.insert({MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, allDevices});
         } else {
-            IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for MULTI device";
+            IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
         }
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
         metaDevices = ParseMetaDevices(priorities->second, fullConfig);
         multiNetworkConfig.insert(*priorities);
     }
     // check if it is -d AUTO or -d AUTO:xPU use case
-    if (workMode != fullConfig.end()) {
-        auto targetDevice = SelectDevice(metaDevices, networkPrecision);
-        // std::cout << "!!! DEBUG: select device is " << targetDevice.deviceName << std::endl;
-        metaDevices = { targetDevice };
+    if (workModeAuto) {
+        // select the device
+        auto device = SelectDevice(metaDevices, networkPrecision).deviceName;
+        // parse the config for the device
+        metaDevices = ParseMetaDevices(SelectDevice(metaDevices, networkPrecision).deviceName, fullConfig);
     }
 
     DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
@@ -271,7 +280,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     executor->runAndWait(loads);
     if (executableNetworkPerDevice.empty())
         IE_THROW(NotFound) << "Failed to load network to any device "
-                                            <<  "that the MULTI device is initialized to work with";
+                           <<  "that the " << GetName() << " device is initialized to work with";
 
     // checking the perf counters config from the loaded network to respect both device's plugin and load-specific setting
     size_t num_plugins_supporting_perf_counters = 0;
@@ -293,6 +302,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         SetExeNetworkInfo(impl,
                           executableNetworkPerDevice.begin()->second->GetInputsInfo(),
                           executableNetworkPerDevice.begin()->second->GetOutputsInfo());
+        SetExeNetworkInfo(impl, executableNetworkPerDevice.begin()->second->GetExecGraphInfo());
     }
     return impl;
 }
@@ -302,11 +312,11 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     QueryNetworkResult queryResult;
 
     if (GetCore() == nullptr) {
-        IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
+        IE_THROW() << "Please, work with " << GetName() <<  " device via InferencEngine::Core object";
     }
 
     if (network.getFunction() == nullptr) {
-        IE_THROW() << "MULTI device supports just ngraph network representation";
+        IE_THROW() << GetName() << " device supports just ngraph network representation";
     }
 
     queryResult.rc = StatusCode::OK;
@@ -315,7 +325,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     auto fullConfig = mergeConfigs(_config, config);
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (priorities == fullConfig.end()) {
-        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for MULTI device";
+        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() <<  " device";
     }
     auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
     std::unordered_set<std::string> supportedLayers;
@@ -338,7 +348,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
 
 DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision) {
     if (metaDevices.empty()) {
-        IE_THROW(NotFound) << "No available device to select in AUTO plugin";
+        IE_THROW(NotFound) << "No available device to select in " << GetName() <<  " plugin";
     }
     if (metaDevices.size() == 1) {
         return metaDevices.at(0);

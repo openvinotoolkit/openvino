@@ -12,6 +12,7 @@ extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
 extensions/back/ChangeOutputTypeAttributes.py
+extensions/back/ChangeRandomUniformOutputType.py
 extensions/back/ClampNormalizer.py
 extensions/back/compress_quantized_weights.py
 extensions/back/ConvolutionNormalizer.py
@@ -52,11 +53,9 @@ extensions/back/ResultNormalizer.py
 extensions/back/ResultRename.py
 extensions/back/ReverseInputChannels.py
 extensions/back/RNNSequenceTypeRename.py
-extensions/back/ScalarConstNormalize.py
 extensions/back/SelectBroadcast.py
 extensions/back/ShapeOfConstFolding.py
 extensions/back/ShuffleChannelPatternOptimization.py
-extensions/back/ShufflenetReLUReorder.py
 extensions/back/SpecialNodesFinalization.py
 extensions/back/StridedSliceMasksNormalizer.py
 extensions/back/TopKNormalizer.py
@@ -69,6 +68,7 @@ extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
 extensions/front/AttributedPadToPad.py
+extensions/front/AttributedRandomUniformToRandomUniform.py
 extensions/front/AttributedRollToRoll.py
 extensions/front/binary_quantize_normalization.py
 extensions/front/broadcast_with_range.py
@@ -127,7 +127,6 @@ extensions/front/ChangePlaceholderTypes.py
 extensions/front/create_tensor_nodes.py
 extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
-extensions/front/DropoutWithRandomUniformReplacer.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
 extensions/front/FillToBroadcast.py
@@ -213,6 +212,7 @@ extensions/front/mxnet/pad_ext.py
 extensions/front/mxnet/pooling_ext.py
 extensions/front/mxnet/proposal_ext.py
 extensions/front/mxnet/psroi_pooling_ext.py
+extensions/front/mxnet/random_uniform_ext.py
 extensions/front/mxnet/repeat_ext.py
 extensions/front/mxnet/reshape_ext.py
 extensions/front/mxnet/RNN_ext.py
@@ -321,6 +321,7 @@ extensions/front/onnx/priorgridgenerator_ext.py
 extensions/front/onnx/proposal_ext.py
 extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/quantize_linear_ext.py
+extensions/front/onnx/random_uniform_ext.py
 extensions/front/onnx/range_ext.py
 extensions/front/onnx/reduce_ext.py
 extensions/front/onnx/reshape_ext.py
@@ -462,6 +463,8 @@ extensions/front/tf/placeholder_ext.py
 extensions/front/tf/placeholder_with_default_ext.py
 extensions/front/tf/pooling_ext.py
 extensions/front/tf/prelu.py
+extensions/front/tf/random_uniform_ext.py
+extensions/front/tf/random_uniform_int_ext.py
 extensions/front/tf/range_ext.py
 extensions/front/tf/reduce_ext.py
 extensions/front/tf/reshape_related_ext.py
@@ -729,6 +732,7 @@ extensions/ops/proposal_onnx.py
 extensions/ops/proposal_python_example.py
 extensions/ops/psroipooling.py
 extensions/ops/quantize_linear.py
+extensions/ops/random_uniform.py
 extensions/ops/range.py
 extensions/ops/rank.py
 extensions/ops/ReduceOps.py
@@ -831,7 +835,6 @@ mo/front/common/partial_infer/elemental.py
 mo/front/common/partial_infer/eltwise.py
 mo/front/common/partial_infer/multi_box_detection.py
 mo/front/common/partial_infer/multi_box_prior.py
-mo/front/common/partial_infer/random_uniform.py
 mo/front/common/partial_infer/roipooling.py
 mo/front/common/partial_infer/utils.py
 mo/front/common/register_custom_ops.py
@@ -914,7 +917,6 @@ mo/front/tf/extractors/fused_bn.py
 mo/front/tf/extractors/identity.py
 mo/front/tf/extractors/native_tf.py
 mo/front/tf/extractors/pack.py
-mo/front/tf/extractors/random_uniform.py
 mo/front/tf/extractors/strided_slice.py
 mo/front/tf/extractors/subgraph_utils.py
 mo/front/tf/extractors/utils.py
@@ -1051,6 +1053,7 @@ mo/utils/ir_reader/extenders/parameter_extender.py
 mo/utils/ir_reader/extenders/pooling_extender.py
 mo/utils/ir_reader/extenders/priorbox_clustered_extender.py
 mo/utils/ir_reader/extenders/priorbox_extender.py
+mo/utils/ir_reader/extenders/random_uniform_extender.py
 mo/utils/ir_reader/extenders/range_extender.py
 mo/utils/ir_reader/extenders/reorg_yolo_extender.py
 mo/utils/ir_reader/extenders/RNNCell_extender.py

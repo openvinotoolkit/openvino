@@ -16,7 +16,7 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::DepthToSpace, "DepthToSpace", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::DepthToSpace, "DepthToSpace", 0);
 
 op::DepthToSpace::DepthToSpace(const Output<Node>& data, const DepthToSpaceMode& mode, const size_t block_size)
     : Op({data}),
@@ -45,7 +45,7 @@ std::shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector
 
 void op::DepthToSpace::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_DepthToSpace_validate_and_infer_types);
-    PartialShape data_pshape = get_input_partial_shape(0);
+    ov::PartialShape data_pshape = get_input_partial_shape(0);
 
     const auto& data_type = get_input_element_type(0);
 
@@ -79,7 +79,7 @@ void op::DepthToSpace::validate_and_infer_types() {
         set_output_size(1);
         set_output_type(0, data_type, out_shape);
     } else {
-        set_output_type(0, data_type, PartialShape::dynamic(data_pshape.rank()));
+        set_output_type(0, data_type, ov::PartialShape::dynamic(data_pshape.rank()));
     }
 }
 
@@ -113,7 +113,7 @@ bool op::DepthToSpace::has_evaluate() const {
     return !get_input_partial_shape(0).is_dynamic();
 }
 
-std::ostream& ngraph::operator<<(std::ostream& s, const op::DepthToSpace::DepthToSpaceMode& type) {
+std::ostream& ov::operator<<(std::ostream& s, const ov::op::v0::DepthToSpace::DepthToSpaceMode& type) {
     return s << as_string(type);
 }
 

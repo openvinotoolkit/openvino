@@ -11,7 +11,7 @@
 
 using namespace std;
 
-constexpr ov::NodeTypeInfo ov::op::util::ScatterBase::type_info;
+OPENVINO_RTTI_DEFINITION(ov::op::util::ScatterBase, "ScatterBase", 0);
 
 ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
                                        const Output<Node>& indices,

@@ -34,7 +34,7 @@ const ov::AxisSet ov::op::util::ArithmeticReduction::get_reduction_axes() const 
 
 void ov::op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_axes) {
     this->input(1).replace_source_output(
-        ngraph::op::Constant::create(element::i64, ngraph::Shape{reduction_axes.size()}, reduction_axes.to_vector())
+        ngraph::op::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())
             ->output(0));
 }
 

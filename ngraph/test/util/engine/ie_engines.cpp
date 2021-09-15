@@ -24,14 +24,97 @@ namespace
         const auto expected_data = expected->rmap();
 
         const auto* computed_data_buffer = computed_data.template as<const T*>();
-        const auto* expected_data_buffer = expected_data.template as<const T*>();
-
         std::vector<T> computed_values(computed_data_buffer,
                                        computed_data_buffer + computed->size());
-        std::vector<T> expected_values(expected_data_buffer,
-                                       expected_data_buffer + computed->size());
 
-        return std::make_pair(std::move(computed_values), std::move(expected_values));
+        switch (static_cast<InferenceEngine::Precision::ePrecision>(expected->getTensorDesc().getPrecision()))
+        {
+            case InferenceEngine::Precision::FP32: {
+                const auto* expected_data_buffer = expected_data.template as<const float *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::FP64: {
+                const auto *expected_data_buffer = expected_data.template as<const double *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I8: {
+                const auto *expected_data_buffer = expected_data.template as<const int8_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I16: {
+                const auto *expected_data_buffer = expected_data.template as<const int16_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I32: {
+                const auto *expected_data_buffer = expected_data.template as<const int32_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I64: {
+                const auto *expected_data_buffer = expected_data.template as<const int64_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U8: {
+                const auto *expected_data_buffer = expected_data.template as<const uint8_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U16: {
+                const auto *expected_data_buffer = expected_data.template as<const uint16_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U32: {
+                const auto *expected_data_buffer = expected_data.template as<const uint32_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U64: {
+                const auto *expected_data_buffer = expected_data.template as<const uint64_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::BOOL: {
+                const auto *expected_data_buffer = expected_data.template as<const uint8_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::BF16: {
+                const auto *expected_data_buffer = expected_data.template as<const bfloat16 *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            default: THROW_IE_EXCEPTION << "Not implemented yet";
+        }
     }
 
     /// Compares two blobs containing floating point elements.
@@ -87,12 +170,6 @@ namespace
                                                   const size_t tolerance_bits)
     {
         const auto& computed_precision = computed->getTensorDesc().getPrecision();
-        const auto& expected_precision = expected->getTensorDesc().getPrecision();
-
-        if (computed_precision != expected_precision)
-        {
-            return testing::AssertionFailure();
-        }
 
         switch (static_cast<InferenceEngine::Precision::ePrecision>(computed_precision))
         {
