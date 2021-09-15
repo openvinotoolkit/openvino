@@ -216,7 +216,6 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     allocate_primitives();
     check_names();
     build_insts_deps();
-    allocate_internal_buffers();
     build_exec_order();
     validate_primitives();
     add_default_output_chains();
@@ -485,12 +484,6 @@ void network::allocate_primitives() {
 void network::build_insts_deps() {
     for (auto& inst : _primitives) {
         inst.second->build_deps();
-    }
-}
-
-void network::allocate_internal_buffers() {
-    for (auto& inst : _primitives) {
-        inst.second->allocate_internal_buffers();
     }
 }
 

@@ -151,6 +151,8 @@ void primitive_inst::build_deps() {
 primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
     : _network(network), _node(node), _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr), _output(), _output_changed(false) {
     if (allocate_memory) {
+        const auto& inst_deps = _network.get_primitives(_node.get_dependencies());
+
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data
         auto users = node.get_users();
@@ -180,6 +182,9 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         } else {
             _output = allocate_output();
         }
+
+        // Allocate internal buffer
+        allocate_internal_buffers();
     }
 }
 
@@ -199,10 +204,11 @@ void primitive_inst::allocate_internal_buffers(void) {
 
     // NOTE: Currently the ocl driver aborts at runtime when there are layers using device memory close to max size within multiple streams.
     // Decided the limitation as 85 % empirically, but still it needs further investigation.
+    const auto& inst_deps = _network.get_primitives(_node.get_dependencies());
     if (engine.supports_allocation(allocation_type::usm_device) &&
         (std::accumulate(ibuf_layouts.begin(), ibuf_layouts.end(), 0, layout_acc) <= engine.get_device_info().max_alloc_mem_size * 0.85)) {
-        for (size_t i = 0; i < dependencies().size(); ++i) {
-            if (dep_memory(i).get_allocation_type() == allocation_type::usm_device) {
+        for (const auto& dep : inst_deps) {
+            if (dep->output_memory().get_allocation_type() == allocation_type::usm_device) {
                 alloc_type = allocation_type::usm_device;
                 break;
             }
