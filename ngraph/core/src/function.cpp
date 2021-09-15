@@ -197,7 +197,8 @@ void ov::Function::validate_nodes_and_infer_types() const {
     std::map<ov::op::util::Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
-    std::unordered_set<std::string> tensor_names;
+    // TODO: enable tensor names check after fixes in transformations
+    // std::unordered_set<std::string> tensor_names;
     std::unordered_set<const ov::descriptor::Tensor*> tensors;
     for (auto& node : get_ordered_ops()) {
         node->revalidate_and_infer_types();
@@ -207,12 +208,12 @@ void ov::Function::validate_nodes_and_infer_types() const {
             if (tensors.count(&tensor))
                 continue;
             tensors.insert(&tensor);
-            for (const auto& name : output.get_tensor().get_names()) {
-                if (tensor_names.count(name))
-                    throw ov::Exception("Function is incorrect. All Tensors should have unique names. " + name +
-                                        " is not unique.");
-                tensor_names.insert(name);
-            }
+            // for (const auto& name : output.get_tensor().get_names()) {
+            //     if (tensor_names.count(name))
+            //         throw ov::Exception("Function is incorrect. All Tensors should have unique names. " + name +
+            //                             " is not unique.");
+            //     tensor_names.insert(name);
+            // }
         }
         if (op::util::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
