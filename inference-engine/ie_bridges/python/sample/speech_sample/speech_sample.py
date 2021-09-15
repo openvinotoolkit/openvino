@@ -190,6 +190,7 @@ def main():
                     first_utterance = next(iter(read_utterance_file(file_name).values()))
                     scale_factors.append(get_scale_factor(first_utterance))
 
+                log.info('Using scale factor(s) calculated from first utterance')
                 set_scale_factors(plugin_config, scale_factors)
 
         if args.export_embedded_gna_model:
