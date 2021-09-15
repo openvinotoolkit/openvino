@@ -1791,7 +1791,3 @@ class TestGetSetAttributeBetweenNodes(unittest.TestCase):
         self.assertTrue(get_edge_attribute_between_nodes(a_node, f_node, 'Attr') == "new_value_3")
         self.assertTrue(get_edge_attribute_between_nodes(b_node, d_node, 'Attr') == "new_value_4")
         self.assertTrue(get_edge_attribute_between_nodes(b_node, f_node, 'Attr') == "new_value_5")
-
-
-class TestOD(unittest.TestCase):
-    pass
