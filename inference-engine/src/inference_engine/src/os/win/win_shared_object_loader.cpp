@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ie_common.h"
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
-#include "ie_common.h"
-#include "openvino/util/file_util.hpp"
 #include "shared_object.hpp"
 
 //
@@ -59,15 +58,14 @@
 //
 
 #if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
-#    error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
+# error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
 #endif
 
+#include <mutex>
 #include <direct.h>
 
-#include <mutex>
-
 #ifndef NOMINMAX
-#    define NOMINMAX
+# define NOMINMAX
 #endif
 
 #include <windows.h>
@@ -76,7 +74,7 @@ namespace ov {
 namespace runtime {
 std::shared_ptr<void> load_shared_object(const char* path) {
     void* shared_object = nullptr;
-    using GetDllDirectoryA_Fnc = DWORD (*)(DWORD, LPSTR);
+    using GetDllDirectoryA_Fnc = DWORD(*)(DWORD, LPSTR);
     GetDllDirectoryA_Fnc IEGetDllDirectoryA = nullptr;
     if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
         IEGetDllDirectoryA = reinterpret_cast<GetDllDirectoryA_Fnc>(GetProcAddress(hm, "GetDllDirectoryA"));
@@ -101,7 +99,7 @@ std::shared_ptr<void> load_shared_object(const char* path) {
             std::string original(path);
             original[pos - path] = 0;
             return original;
-        }();
+        } ();
 
         SetDllDirectoryA(dirname.c_str());
         shared_object = LoadLibraryA(path);
@@ -116,9 +114,10 @@ std::shared_ptr<void> load_shared_object(const char* path) {
     if (!shared_object) {
         char cwd[1024];
         IE_THROW() << "Cannot load library '" << path << "': " << GetLastError()
-                   << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+            << " from cwd: " << _getcwd(cwd, sizeof(cwd));
     }
-    return {shared_object, [](void* shared_object) {
+    return {shared_object,
+            [] (void* shared_object) {
                 FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
             }};
 }
@@ -126,13 +125,13 @@ std::shared_ptr<void> load_shared_object(const char* path) {
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<void> load_shared_object(const wchar_t* path) {
     void* shared_object = nullptr;
-    using GetDllDirectoryW_Fnc = DWORD (*)(DWORD, LPWSTR);
+    using GetDllDirectoryW_Fnc = DWORD(*)(DWORD, LPWSTR);
     static GetDllDirectoryW_Fnc IEGetDllDirectoryW = nullptr;
     if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
         IEGetDllDirectoryW = reinterpret_cast<GetDllDirectoryW_Fnc>(GetProcAddress(hm, "GetDllDirectoryW"));
     }
     // ExcludeCurrentDirectory
-#    if !WINAPI_PARTITION_SYSTEM
+#if !WINAPI_PARTITION_SYSTEM
     if (IEGetDllDirectoryW && IEGetDllDirectoryW(0, NULL) <= 1) {
         SetDllDirectoryW(L"");
     }
@@ -148,22 +147,23 @@ std::shared_ptr<void> load_shared_object(const wchar_t* path) {
             std::wstring original(path);
             original[pos - path] = 0;
             return original;
-        }();
+        } ();
         SetDllDirectoryW(dirname.c_str());
         shared_object = LoadLibraryW(path);
 
         SetDllDirectoryW(&lpBuffer.front());
     }
-#    endif
+#endif
     if (!shared_object) {
         shared_object = LoadLibraryW(path);
     }
     if (!shared_object) {
         char cwd[1024];
-        IE_THROW() << "Cannot load library '" << ov::util::wstring_to_string(std::wstring(path))
-                   << "': " << GetLastError() << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+        IE_THROW() << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(path)) << "': " << GetLastError()
+                            << " from cwd: " << _getcwd(cwd, sizeof(cwd));
     }
-    return {shared_object, [](void* shared_object) {
+    return {shared_object,
+            [] (void* shared_object) {
                 FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
             }};
 }
@@ -173,10 +173,11 @@ void* get_symbol(const std::shared_ptr<void>& shared_object, const char* symbol_
     if (!shared_object) {
         IE_THROW() << "Cannot get '" << symbol_name << "' content from unknown library!";
     }
-    auto procAddr = reinterpret_cast<void*>(
-        GetProcAddress(reinterpret_cast<HMODULE>(const_cast<void*>(shared_object.get())), symbol_name));
+    auto procAddr = reinterpret_cast<void*>(GetProcAddress(
+        reinterpret_cast<HMODULE>(const_cast<void*>(shared_object.get())), symbol_name));
     if (procAddr == nullptr) {
-        IE_THROW(NotFound) << "GetProcAddress cannot locate method '" << symbol_name << "': " << GetLastError();
+        IE_THROW(NotFound)
+            << "GetProcAddress cannot locate method '" << symbol_name << "': " << GetLastError();
     }
     return procAddr;
 }
@@ -207,7 +208,7 @@ SharedObjectLoader::SharedObjectLoader(const std::shared_ptr<void>& shared_objec
 
 SharedObjectLoader::~SharedObjectLoader() {}
 
-SharedObjectLoader::SharedObjectLoader(const char* pluginName) {
+SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
     _impl = std::make_shared<Impl>(pluginName);
 }
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
