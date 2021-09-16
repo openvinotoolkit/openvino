@@ -185,9 +185,9 @@ class XmlSerializer : public ngraph::AttributeVisitor {
     }
 
     std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
-        const std::string& map_type) {
+        const std::string& map_type, const std::string&body_name="body") {
         std::vector<std::string> output;
-        for (pugi::xml_node node : xml_node.child("body").child("layers")) {
+        for (pugi::xml_node node : xml_node.child(body_name.c_str()).child("layers")) {
             if (!map_type.compare(node.attribute("type").value())) {
                 output.push_back(node.attribute("id").value());
             }
@@ -200,14 +200,14 @@ class XmlSerializer : public ngraph::AttributeVisitor {
     }
 
     void input_descriptions_on_adapter(const std::vector<std::shared_ptr<
-                                        ngraph::op::util::SubGraphOp::InputDescription>>& input_descriptions,
+                                        ngraph::op::util::MultiSubGraphOp::InputDescription>>& input_descriptions,
                                         const std::vector<std::string>& parameter_mapping,
                                         const std::vector<std::string>& result_mapping,
-                                        pugi::xml_node& port_map) {
+                                        pugi::xml_node& port_map, const std::string& portmap_name) {
         NGRAPH_CHECK(!parameter_mapping.empty(), "No parameters found in body Function.");
 
-        if (!m_xml_node.parent().child("port_map")) {
-            port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
+        if (!m_xml_node.parent().child(portmap_name.c_str())) {
+            port_map = m_xml_node.parent().insert_child_before(portmap_name.c_str(), m_xml_node.parent().first_child());
         }
 
         for (const auto& input_description : input_descriptions) {
@@ -237,11 +237,11 @@ class XmlSerializer : public ngraph::AttributeVisitor {
                                         ngraph::op::util::SubGraphOp::OutputDescription>>& output_descriptions,
                                         const uint32_t& input_count,
                                         const std::vector<std::string>& result_mapping,
-                                        pugi::xml_node& port_map) {
+                                        pugi::xml_node& port_map, const std::string& portmap_name) {
         NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Function.");
 
         if (!port_map) {
-            port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
+            port_map = m_xml_node.parent().insert_child_before(portmap_name.c_str(), m_xml_node.parent().first_child());
         }
 
         for (const auto& output_description : output_descriptions) {
@@ -292,28 +292,56 @@ public:
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        if (m_xml_node.parent().child("body")) {
-            std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result");
-            std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
-            pugi::xml_node port_map = m_xml_node.parent().child("port_map");
+        using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
 
-            NGRAPH_CHECK(!parameter_mapping.empty() || !result_mapping.empty(), "No parameters or results found in body Function.");
-            // TI, Loop do not have attributtes as regular ops, it is necessary to append "port_map" and
-            // "back_edges" to layer above (m_xml_node.parent()) as in ngfunction_2_irv10() layer (here "m_xml_node")
-            // with empty attributes is removed.
-            if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
-                                <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
-                input_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
-            } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
-                                <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-                uint32_t op_input_count = 0;
-                for (auto c = m_xml_node.parent().child("input").first_child(); !c.empty(); c = c.next_sibling()) {
-                    op_input_count++;
+        const std::vector<BodyTargetNames> body_names = {
+            {"body", "port_map", {"input_descriptions", "output_descriptions","special_body_ports"}},
+            {"then_body", "then_port_map", {"then_inputs", "then_outputs"}},
+            {"else_body", "else_port_map", {"else_inputs", "else_outputs"}} };
+        BodyTargetNames bnames;
+        bool is_body_target = false;
+        std::vector<BodyTargetNames> serialize_bodies;
+        for (const auto& _body_target : body_names)
+        {
+            if (m_xml_node.parent().child(std::get<0>(_body_target).c_str()))
+            {
+                auto vec_names = std::get<2>(_body_target);
+
+                if (std::find(vec_names.begin(), vec_names.end(), name) != vec_names.end())
+                {
+                    is_body_target = true;
+                    bnames = _body_target;
+                    break;
                 }
-                output_descriptions_on_adapter(a->get(), op_input_count, result_mapping, port_map);
-            } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
-                special_body_ports_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
             }
+        }
+        if (is_body_target) {
+                auto body_name = std::get<0>(bnames);
+                auto portmap_name = std::get<1>(bnames);
+                std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result", body_name);
+                std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter", body_name);
+
+                pugi::xml_node port_map = m_xml_node.parent().child(portmap_name.c_str());
+
+                NGRAPH_CHECK(!parameter_mapping.empty() || !result_mapping.empty(), "No parameters or results found in body Function.");
+                // TI, Loop do not have attributtes as regular ops, it is necessary to append "port_map" and
+                // "back_edges" to layer above (m_xml_node.parent()) as in ngfunction_2_irv10() layer (here "m_xml_node")
+                // with empty attributes is removed.
+                if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
+                    <ngraph::op::util::MultiSubGraphOp::InputDescription>>>>(&adapter)) {
+                    input_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map, portmap_name);
+                }
+                else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
+                    <ngraph::op::util::MultiSubGraphOp::OutputDescription>>>>(&adapter)) {
+                    uint32_t op_input_count = 0;
+                    for (auto c = m_xml_node.parent().child("input").first_child(); !c.empty(); c = c.next_sibling()) {
+                        op_input_count++;
+                    }
+                    output_descriptions_on_adapter(a->get(), op_input_count, result_mapping, port_map, portmap_name);
+                }
+                else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
+                    special_body_ports_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
+                }
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
                 m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
@@ -401,7 +429,7 @@ public:
     void on_adapter(
         const std::string& name,
         ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
-        if (name == "body") {
+        if (name == "body" || name=="then_body" || name =="else_body") {
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "body"
             // to layer above (m_xml_node.parent()) as in ngfunction_2_irv10() layer (m_xml_node) with empty attributes
             // is removed.
@@ -731,7 +759,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 }
             }
 
-            if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
+            if (node_type_name == "TensorIterator" || node_type_name == "Loop"|| node_type_name == "If") {
                 layer.prepend_move(input);
             }
         }
@@ -769,7 +797,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                     }
                 }
             }
-            if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
+            if (node_type_name == "TensorIterator" || node_type_name == "Loop" ) {
                 layer.insert_move_after(output, layer.first_child());
             }
         }
