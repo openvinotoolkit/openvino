@@ -12,6 +12,18 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
+
+// Helper struct for converting between types
+struct convert_types {
+    union {
+        uint64_t ui64;
+        double d;
+        float f;
+        float16 f16;
+        bfloat16 bf16;
+    };
+};
+
 std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                              const char* min_val,
                                              const char* max_val,
