@@ -330,6 +330,7 @@ set(SRC
     visitors/op/reverse.cpp
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
+    visitors/op/rnn_sequence.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
     visitors/op/scatter_elements_update.cpp
