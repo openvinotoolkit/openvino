@@ -31,4 +31,43 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(multiConfigs)),
                             ExecutableNetworkBaseTest::getTestCaseName);
+
+    const std::vector<InferenceEngine::Precision> netPrecisions = {
+            InferenceEngine::Precision::FP32,
+            InferenceEngine::Precision::U8,
+            InferenceEngine::Precision::I16,
+            InferenceEngine::Precision::U16
+    };
+
+    const std::vector<std::map<std::string, std::string>> configSetPrc = {
+            {},
+            {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
+    };
+
+    const std::vector<std::map<std::string, std::string>> MultiConfigsSetPrc = {
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
+             {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::ValuesIn(configSetPrc)),
+                            ExecNetSetPrecision::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, ExecNetSetPrecision,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                    ::testing::ValuesIn(MultiConfigsSetPrc)),
+                            ExecNetSetPrecision::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetSetPrecision,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(MultiConfigsSetPrc)),
+                            ExecNetSetPrecision::getTestCaseName);
 }  // namespace

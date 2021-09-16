@@ -59,5 +59,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
+        // Not expected behavior
+        R"(.*Behavior.*ExecNetSetPrecision.*canSetInputPrecisionForNetwork.*FP16.*)",
     };
 }

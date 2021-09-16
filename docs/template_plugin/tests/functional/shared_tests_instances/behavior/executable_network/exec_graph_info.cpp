@@ -19,4 +19,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecutableNetworkBaseTest,
                                 ::testing::ValuesIn(configs)),
                         ExecutableNetworkBaseTest::getTestCaseName);
 
+
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                 ::testing::ValuesIn(configs)),
+                         ExecNetSetPrecision::getTestCaseName);
 }  // namespace

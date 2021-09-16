@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/version.hpp"
+#include "behavior/plugin/version.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -11,17 +11,17 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> Multiconfigs = {
-            {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_MYRIAD}}
+            {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
     };
 
     const std::vector<std::map<std::string, std::string>> Heteroconfigs = {
-            {{ HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) , CommonTestUtils::DEVICE_MYRIAD}}
+            {{ HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) , CommonTestUtils::DEVICE_CPU}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, VersionTest,
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
                             VersionTest::getTestCaseName);
 
@@ -29,6 +29,13 @@ namespace {
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                    ::testing::ValuesIn(Multiconfigs)),
+                            VersionTest::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, VersionTest,
+                            ::testing::Combine(
+                                    ::testing::Values(InferenceEngine::Precision::FP32),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(Multiconfigs)),
                             VersionTest::getTestCaseName);
 

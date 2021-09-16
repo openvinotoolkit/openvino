@@ -34,11 +34,4 @@ namespace {
                                      ::testing::ValuesIn(configs)),
                              ExecNetSetPrecision::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
-                             ::testing::Combine(
-                                     ::testing::Values(InferenceEngine::Precision::FP32),
-                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                     ::testing::ValuesIn(configs)),
-                             ExecNetSetPrecision::getTestCaseName);
-
 }  // namespace

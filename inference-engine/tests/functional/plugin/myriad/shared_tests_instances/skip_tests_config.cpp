@@ -55,5 +55,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         // TODO: CVS-65013
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        // Not expected behavior
+        R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
     };
 }
