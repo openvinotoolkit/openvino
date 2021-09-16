@@ -811,3 +811,25 @@ def test_get_consuming_operations():
     assert len(split_out_sp_out_2_consuming_ops) == 1
     assert split_out_1_consuming_ops[0].is_equal(split_out_sp_out_2_consuming_ops[0])
     assert split_out_1_consuming_ops[0].is_equal(sin_op)
+
+
+def test_get_target_tensor():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    assert not split_op.get_target_tensor()
+
+    split_op_tensor_1 = split_op.get_target_tensor(outputPortIndex=1)
+    sp_out2_tensor = model.get_place_by_tensor_name(tensorName="sp_out2")
+    assert split_op_tensor_1.is_equal(sp_out2_tensor)
+
+    split_tensor_sp_out2 = split_op.get_target_tensor(outputName="sp_out2")
+    assert split_tensor_sp_out2.is_equal(split_op_tensor_1)
+
+    abs_op = model.get_place_by_operation_name(operationName="abs1")
+    out1_tensor = model.get_place_by_tensor_name(tensorName="out1")
+    assert abs_op.get_target_tensor().is_equal(out1_tensor)

@@ -291,6 +291,30 @@ bool PlaceOpONNX::is_equal(Place::Ptr another) const {
     return false;
 }
 
+Place::Ptr PlaceOpONNX::get_target_tensor() const {
+    const auto output_port = get_output_port();
+    if (output_port != nullptr) {
+        return output_port->get_target_tensor();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_target_tensor(int output_port_index) const {
+    const auto output_port = get_output_port(output_port_index);
+    if (output_port != nullptr) {
+        return output_port->get_target_tensor();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_target_tensor(const std::string& output_name) const {
+    const auto output_port = get_output_port(output_name);
+    if (output_port != nullptr) {
+        return output_port->get_target_tensor();
+    }
+    return nullptr;
+}
+
 bool PlaceOpONNX::is_input() const {
     return false;
 }

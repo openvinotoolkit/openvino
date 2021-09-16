@@ -145,6 +145,20 @@ public:
         return std::make_shared<PlaceMockPy>();
     }
 
+    Place::Ptr get_target_tensor(const std::string& outputName) const override {
+        m_stat.m_get_target_tensor++;
+        m_stat.m_lastArgInt = -1;
+        m_stat.m_lastArgString = outputName;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    Place::Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const override {
+        m_stat.m_get_target_tensor++;
+        m_stat.m_lastArgInt = outputPortIndex;
+        m_stat.m_lastArgString = outputName;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
     Place::Ptr get_producing_operation() const override {
         m_stat.m_get_producing_operation++;
         m_stat.m_lastArgInt = -1;

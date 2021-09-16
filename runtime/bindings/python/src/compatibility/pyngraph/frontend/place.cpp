@@ -127,13 +127,22 @@ void regclass_pyngraph_Place(py::module m) {
 
     place.def(
         "get_target_tensor",
-        [](const ngraph::frontend::Place& self, py::object outputPortIndex) {
-            if (outputPortIndex == py::none()) {
-                return self.get_target_tensor();
+        [](const ngraph::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
+            if (outputName == py::none()) {
+                if (outputPortIndex == py::none()) {
+                    return self.get_target_tensor();
+                } else {
+                    return self.get_target_tensor(py::cast<int>(outputPortIndex));
+                }
             } else {
-                return self.get_target_tensor(py::cast<int>(outputPortIndex));
+                if (outputPortIndex == py::none()) {
+                    return self.get_target_tensor(py::cast<std::string>(outputName));
+                } else {
+                    return self.get_target_tensor(py::cast<std::string>(outputName), py::cast<int>(outputPortIndex));
+                }
             }
         },
+        py::arg("outputName") = py::none(),
         py::arg("outputPortIndex") = py::none(),
         R"(
                 Returns a tensor place that gets data from this place; applicable for operations,
@@ -141,6 +150,8 @@ void regclass_pyngraph_Place(py::module m) {
 
                 Parameters
                 ----------
+                outputName : str
+                    Name of output port group. May not be set if node has one output port group.
                 outputPortIndex : int
                     Output port index if the current place is an operation node and has multiple output ports.
                     May not be set if place has only one output port.

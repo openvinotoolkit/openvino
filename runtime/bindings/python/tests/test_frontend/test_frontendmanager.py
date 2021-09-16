@@ -463,6 +463,16 @@ def test_place_get_target_tensor():
     stat = get_place_stat(place)
     assert stat.get_target_tensor == 2
     assert stat.lastArgInt == -1
+    assert place.get_target_tensor(outputName="2") is not None
+    stat = get_place_stat(place)
+    assert stat.get_target_tensor == 3
+    assert stat.lastArgInt == -1
+    assert stat.lastArgString == "2"
+    assert place.get_target_tensor(outputName="3", outputPortIndex=33) is not None
+    stat = get_place_stat(place)
+    assert stat.get_target_tensor == 4
+    assert stat.lastArgInt == 33
+    assert stat.lastArgString == "3"
 
 
 @mock_needed
