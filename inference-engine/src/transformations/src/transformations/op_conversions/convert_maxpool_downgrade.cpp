@@ -25,6 +25,9 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
         if (!maxpool_v8_node)
             return false;
 
+        if (maxpool_v8_node->get_output_target_inputs(1).size() != 0)
+            return false;
+
         auto maxpool_v1_node = make_shared<opset1::MaxPool>(maxpool_v8_node->input_value(0),
                                                             maxpool_v8_node->get_strides(),
                                                             maxpool_v8_node->get_pads_begin(),

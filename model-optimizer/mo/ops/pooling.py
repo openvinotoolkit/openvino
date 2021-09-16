@@ -63,7 +63,7 @@ class Pooling(Op):
             'version': poolings_map[attrs.get('pool_method')]['version'],
             'infer': self.infer,
             'in_ports_count': 1,
-            'out_ports_count': poolings_map[attrs.get('pool_method')]['out_ports_count']
+            'out_ports_count': 1 if attrs.get('version') == 'opset1' else poolings_map[attrs.get('pool_method')]['out_ports_count']
         }, attrs)
 
     def backend_attrs(self):
