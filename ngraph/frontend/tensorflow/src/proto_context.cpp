@@ -14,6 +14,8 @@
  * limitations under the License.
  *******************************************************************************/
 
+#include <tensorflow_frontend/place.hpp>
+
 #include "default_opset.h"
 #include "graph.hpp"
 #include "graph.pb.h"
@@ -21,8 +23,6 @@
 #include "ngraph_conversions.h"
 #include "node_context_impl.hpp"
 #include "tensor.pb.h"
-
-#include <tensorflow_frontend/place.hpp>
 
 namespace ngraph {
 namespace frontend {
@@ -217,9 +217,9 @@ NodeContext::NodeContext(const OutputVector& _ng_inputs,
       m_indexed_shapes(indexed_shapes) {}
 
 NodeContext::NodeContext(const OutputVector& _ng_inputs,
-    std::shared_ptr<detail::TFNodeDecoder> _decoder,
-    const std::vector<Place::Ptr>& _inputs)
-    : m_indexed_shapes {} {
+                         std::shared_ptr<detail::TFNodeDecoder> _decoder,
+                         const std::vector<Place::Ptr>& _inputs)
+    : m_indexed_shapes{} {
     m_ng_inputs = _ng_inputs;
     m_decoder = _decoder;
 
@@ -228,7 +228,6 @@ NodeContext::NodeContext(const OutputVector& _ng_inputs,
         m_overridden_shapes[input_tensor_place->get_names()[0]] = input_tensor_place->get_partial_shape();
     }
 }
-
 
 size_t NodeContext::get_ng_input_size() const {
     return m_ng_inputs.size();

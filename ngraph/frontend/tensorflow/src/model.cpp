@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <fstream>
-#include <queue>
-
-#include <ngraph/opsets/opset7.hpp>
 #include <frontend_manager/frontend_exceptions.hpp>
+#include <fstream>
+#include <ngraph/opsets/opset7.hpp>
+#include <queue>
 #include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/place.hpp>
 #include <tensorflow_frontend/utility.hpp>
@@ -146,8 +145,8 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
             FRONT_END_GENERAL_CHECK(m_op_places_map.count(operation_name),
                                     "Custom specified output is incorrect: " + output_place_name);
             auto output_operation_place = m_op_places_map.at(operation_name);
-            FRONT_END_GENERAL_CHECK(output_operation_place , "There is not operation place in the map: " +
-                                    operation_name);
+            FRONT_END_GENERAL_CHECK(output_operation_place,
+                                    "There is not operation place in the map: " + operation_name);
             new_ops.push_back(output_operation_place);
             decoders_queue.push(output_operation_place->get_desc().get());
         }
@@ -162,16 +161,16 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
             try {
                 operation_decoder->input_node(input_port_idx, &producer_name, &producer_output_port_idx);
             } catch (const std::exception& e) {
-                FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) + " for op '"
-                                + operation_decoder->name() + "', expected input name: '" + producer_name
-                                + "', expected input port index: " + std::to_string(producer_output_port_idx) + '\n');
+                FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
+                                " for op '" + operation_decoder->name() + "', expected input name: '" + producer_name +
+                                "', expected input port index: " + std::to_string(producer_output_port_idx) + '\n');
             }
 
-            // TODO: re-implement the logic below using Place graph structure (with OpPlace, In/OutPortPlace connections)
-            // and based on check if Place->is_input() decide to leave a node or not
+            // TODO: re-implement the logic below using Place graph structure (with OpPlace, In/OutPortPlace
+            // connections) and based on check if Place->is_input() decide to leave a node or not
 
             // is_input is a flag to leave producer operation node or not.
-            // this producing node is not left if consumer is pruned by its input port, 
+            // this producing node is not left if consumer is pruned by its input port,
             // the producer node is pruned by its output port or the producer becomes new input
             // 1. check if the current node is pruned by its input port
             bool is_input = false;
@@ -226,14 +225,13 @@ InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::basic_string<T>& pat
 }
 
 InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::vector<std::istream*>& streams,
-                                                       const InputModel& input_model)
+                                                 const InputModel& input_model)
     : m_graph_def{std::make_shared<GraphDef>()},
       m_input_model(input_model) {
     // TODO: convert any format variant to GraphIterator and pass it to the single constuctor
     // InputModelTF with GraphIterator
 
-    FRONT_END_GENERAL_CHECK(streams.size() == 1,
-                            "One stream is needed to load a model in .pb format");
+    FRONT_END_GENERAL_CHECK(streams.size() == 1, "One stream is needed to load a model in .pb format");
     FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(streams[0]), "Model can't be parsed");
     loadPlaces();
 }
@@ -257,10 +255,10 @@ Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorName(const std::strin
     tf::extract_operation_name_and_port(tensorName, operation_name, port_idx, port_type);
     if (m_op_places_map.count(operation_name)) {
         std::vector<std::string> names = {tensorName};
-        auto m_var_place = std::make_shared<TensorPlaceTF>(m_input_model, ngraph::PartialShape(),
-            ngraph::element::undefined, names);
+        auto m_var_place =
+            std::make_shared<TensorPlaceTF>(m_input_model, ngraph::PartialShape(), ngraph::element::undefined, names);
         m_tensor_places[tensorName] = m_var_place;
-        return m_var_place;    
+        return m_var_place;
     }
 
     return nullptr;
@@ -327,7 +325,7 @@ void InputModelTF::InputModelTFImpl::overrideAllOutputs(const std::vector<Place:
 }
 
 void InputModelTF::InputModelTFImpl::extractSubgraph(const std::vector<Place::Ptr>& inputs,
-                                                         const std::vector<Place::Ptr>& outputs) {
+                                                     const std::vector<Place::Ptr>& outputs) {
     m_graph_changed = true;
     overrideAllInputs(inputs);
     overrideAllOutputs(outputs);

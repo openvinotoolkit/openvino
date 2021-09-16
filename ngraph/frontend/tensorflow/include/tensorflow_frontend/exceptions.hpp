@@ -17,9 +17,7 @@ namespace tf {
 
 class OpValidationFailureTF : public OpValidationFailure {
 public:
-    OpValidationFailureTF(const CheckLocInfo& check_loc_info,
-                            const NodeContext& node,
-                            const std::string& explanation)
+    OpValidationFailureTF(const CheckLocInfo& check_loc_info, const NodeContext& node, const std::string& explanation)
         : OpValidationFailure(check_loc_info, get_error_msg_prefix_tf(node), explanation) {}
 
 private:

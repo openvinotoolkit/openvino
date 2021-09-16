@@ -226,11 +226,12 @@ TensorPlaceTF::TensorPlaceTF(const InputModel& input_model,
 */
 
 TensorPlaceTF::TensorPlaceTF(const InputModel& input_model,
-    ngraph::PartialShape pshape,
-    ngraph::element::Type type,
-    const std::vector<std::string>& names)
+                             ngraph::PartialShape pshape,
+                             ngraph::element::Type type,
+                             const std::vector<std::string>& names)
     : PlaceTF(input_model, names),
-      m_pshape(pshape), m_type(type) {}
+      m_pshape(pshape),
+      m_type(type) {}
 
 std::vector<Place::Ptr> TensorPlaceTF::get_consuming_ports() const {
     std::vector<Place::Ptr> consuming_ports;

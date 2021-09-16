@@ -20,7 +20,6 @@
 #include <tensorflow_frontend/place.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
-
 namespace ngraph {
 namespace frontend {
 namespace tensorflow {
@@ -48,8 +47,8 @@ public:
                 const std::vector<ngraph::PartialShape>& indexed_shapes = {});
 
     NodeContext(const OutputVector& _ng_inputs,
-        std::shared_ptr<detail::TFNodeDecoder> _decoder,
-        const std::vector<Place::Ptr>& _inputs);
+                std::shared_ptr<detail::TFNodeDecoder> _decoder,
+                const std::vector<Place::Ptr>& _inputs);
 
     size_t get_ng_input_size() const;
 

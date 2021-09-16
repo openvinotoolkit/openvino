@@ -2765,7 +2765,7 @@ void Builder::TranslateGraph(
         ng_op_map[input_name] = {input_ng_output};
     }
 
-    // create the nGraph ops from TensorFlow ops    
+    // create the nGraph ops from TensorFlow ops
     for (auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_desc();
         auto operation_name = operation_place->get_names()[0];
@@ -2791,9 +2791,8 @@ void Builder::TranslateGraph(
                 operation_decoder->input_node(input_port_idx, &producer_name, &producer_port_idx);
             } catch (const std::exception& e) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
-                                " for op '"
-                                + operation_decoder->name() + "', expected input name: '" + producer_name
-                                + "', expected input port index: " + std::to_string(producer_port_idx) + '\n');
+                                " for op '" + operation_decoder->name() + "', expected input name: '" + producer_name +
+                                "', expected input port index: " + std::to_string(producer_port_idx) + '\n');
             }
             // TODO: re-implement the logic below once Place graph structure is implemented
             // Using Place graph structure (OpPlace, In/OutPortPlace places and their connections) can give
@@ -2913,19 +2912,18 @@ void Builder::TranslateGraph(
             const auto& node_outputs = ng_op_map[producer_name];
             FRONT_END_GENERAL_CHECK(node_outputs.size() > producer_port_idx,
                                     "Output port with index " + std::to_string(producer_port_idx) + " of " +
-                                        producer_name +
-                                        "node specified as custom output does not exist");
+                                        producer_name + "node specified as custom output does not exist");
             results.push_back(std::make_shared<default_opset::Result>(node_outputs[producer_port_idx]));
         }
     }
-    
+
     // find all terminal nodes in ngraph graph to complete list of results
     if (results.empty()) {
         for (const auto& node_output_vector : ng_op_map) {
             for (auto output : node_output_vector.second) {
                 if (output.get_target_inputs().empty() &&
                     !std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr())) {
-                    results.push_back(std::make_shared<default_opset::Result>(output));                
+                    results.push_back(std::make_shared<default_opset::Result>(output));
                 }
             }
         }

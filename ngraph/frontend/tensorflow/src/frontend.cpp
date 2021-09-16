@@ -35,7 +35,7 @@ bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
 }
 
 InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
-    // TODO: convert any format variant to GraphIterator and pass it to the single constuctor 
+    // TODO: convert any format variant to GraphIterator and pass it to the single constuctor
     // InputModelTF with GraphIterator
     if (variants.size() == 1) {
         // a case when protobuf format or SavedModel dir format is provided
