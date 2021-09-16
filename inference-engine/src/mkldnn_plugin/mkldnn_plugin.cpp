@@ -76,6 +76,7 @@
 #include <ngraph/graph_util.hpp>
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/op_conversions/convert_convertlike.hpp>
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
@@ -180,6 +181,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+
+    manager.register_pass<ngraph::pass::ConvertConvertLike>();
 
     auto pass_config = manager.get_pass_config();
 
