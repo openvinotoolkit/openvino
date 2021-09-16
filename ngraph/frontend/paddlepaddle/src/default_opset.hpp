@@ -2,19 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
-#include "default_opset.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
 namespace op {
-NamedOutputs tanh(const NodeContext& node) {
-    auto x = node.get_ng_input("X");
-
-    return node.default_single_output_mapping({std::make_shared<default_opset::Tanh>(x)}, {"Out"});
-}
+namespace default_opset = ngraph::opset8;
 
 }  // namespace op
 }  // namespace pdpd

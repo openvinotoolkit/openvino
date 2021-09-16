@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset7.hpp>
 #include <node_context.hpp>
+
+#include "default_opset.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -14,7 +15,7 @@ NamedOutputs gelu(const NodeContext& node) {
     auto approximate = node.get_attribute<bool>("approximate", false);
     auto mode = approximate ? ngraph::op::GeluApproximationMode::TANH : ngraph::op::GeluApproximationMode::ERF;
 
-    return node.default_single_output_mapping({std::make_shared<opset7::Gelu>(data, mode)}, {"Out"});
+    return node.default_single_output_mapping({std::make_shared<default_opset::Gelu>(data, mode)}, {"Out"});
 }
 }  // namespace op
 }  // namespace pdpd

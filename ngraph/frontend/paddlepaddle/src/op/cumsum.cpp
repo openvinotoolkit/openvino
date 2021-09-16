@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
+
+#include "default_opset.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -19,12 +20,14 @@ NamedOutputs cumsum(const NodeContext& node) {
     std::shared_ptr<ngraph::Node> input = x.get_node_shared_ptr();
     if (flatten) {
         // convert to 1-d tensor
-        input = std::make_shared<ngraph::opset6::Reshape>(x, opset6::Constant::create(element::i64, {1}, {-1}), false);
+        input = std::make_shared<default_opset::Reshape>(x,
+                                                         default_opset::Constant::create(element::i64, {1}, {-1}),
+                                                         false);
     }
 
-    auto axis_node = opset6::Constant::create(element::i64, {}, {axis});
+    auto axis_node = default_opset::Constant::create(element::i64, {}, {axis});
     return node.default_single_output_mapping(
-        {std::make_shared<ngraph::opset6::CumSum>(input, axis_node, exclusive, reverse)},
+        {std::make_shared<default_opset::CumSum>(input, axis_node, exclusive, reverse)},
         {"Out"});
 }
 

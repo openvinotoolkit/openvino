@@ -1,8 +1,9 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
+
+#include "default_opset.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -13,7 +14,7 @@ NamedOutputs matmul_v2(const NodeContext& node) {
     auto y = node.get_ng_input("Y");
     auto transpose_a = node.get_attribute<bool>("trans_x", false);
     auto transpose_b = node.get_attribute<bool>("trans_y", false);
-    auto mm = std::make_shared<ngraph::opset6::MatMul>(x, y, transpose_a, transpose_b);
+    auto mm = std::make_shared<default_opset::MatMul>(x, y, transpose_a, transpose_b);
     return node.default_single_output_mapping({mm}, {"Out"});
 }
 

@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
+
+#include "default_opset.hpp"
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
 namespace op {
 NamedOutputs layer_norm(const NodeContext& node) {
-    using namespace ngraph::opset6;
+    using namespace default_opset;
     auto data = node.get_ng_input("X");
     auto epsilon = node.get_attribute<float>("epsilon", 1e-05);
     auto begin_norm_axis = node.get_attribute<int32_t>("begin_norm_axis", 1);
