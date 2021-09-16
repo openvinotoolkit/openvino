@@ -29,6 +29,7 @@
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
+#include "transformations/common_optimizations/random_uniform_fusion.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
@@ -139,6 +140,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
+    common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
