@@ -69,6 +69,10 @@ function(build_docs)
     set(DOCS_SOURCE_DIR "${OpenVINO_MAIN_SOURCE_DIR}/docs")
     set(DOXYGEN_DIR "${DOCS_SOURCE_DIR}/doxygen")
 
+    set(OPENVINO_BIN_DIR "${OpenVINO_MAIN_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/")
+    set(NGRAPH_PYTHON_PACKAGE "${OPENVINO_BIN_DIR}/python_api/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/ngraph")
+    set(IE_PYTHON_PACKAGE "${OPENVINO_BIN_DIR}/python_api/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/openvino")
+
     # API INPUT
     
     set(NGRAPH_DIR "${OpenVINO_MAIN_SOURCE_DIR}/ngraph")
@@ -124,26 +128,11 @@ function(build_docs)
     configure_file(${DOXYREST_CONFIG_IN} ${DOXYREST_CONFIG_OUT} @ONLY)
     configure_file(${SPHINX_CONF_IN} ${SPHINX_CONF_OUT} @ONLY)
 
-    if(NGRAPH_PYTHON_BUILD_ENABLE)
-        # pyngraph dirs
-        set(PYNGRAPH_API_OUTPUT "${DOCS_BUILD_DIR}/pyngraph")
-        set(OPENVINO_BIN_DIR "${OpenVINO_MAIN_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/")
-        set(PYNGRAPH_DIR "${OPENVINO_BIN_DIR}/python_api/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
-        list(APPEND commands 
-            COMMAND ${PYTHON_EXECUTABLE} ${PYNGRAPH_REF_SCRIPT} ${OPENVINO_BIN_DIR} ${PYNGRAPH_DIR} ${PYNGRAPH_API_OUTPUT})
-    endif()
-
-    if(IE_PYTHON_PACKAGE)
-        # ie python package
-        list(APPEND commands
-             COMMAND sphinx-apidoc "${IE_PYTHON_PACKAGE}" -o "${RST_OUTPUT}/ie_python_api")
-    endif()
-
-    if(NGRAPH_PYTHON_PACKAGE)
-        # ngraph python package
-        list(APPEND commands
-             COMMAND sphinx-apidoc "${NGRAPH_PYTHON_PACKAGE}" -o "${RST_OUTPUT}/ngraph_python_api")
-    endif()
+    # ie python package
+    list(APPEND commands COMMAND sphinx-apidoc "${IE_PYTHON_PACKAGE}" -o "${RST_OUTPUT}/ie_python_api")
+    
+    # ngraph python package
+    list(APPEND commands COMMAND sphinx-apidoc "${NGRAPH_PYTHON_PACKAGE}" -o "${RST_OUTPUT}/ngraph_python_api")
 
     # Doxygen config
     set(DOXYFILE_SOURCE "${DOXYGEN_DIR}/Doxyfile.config")

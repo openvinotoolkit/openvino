@@ -1,4 +1,4 @@
-# OpenVINO™ Toolkit Overview {#index}
+# OpenVINO™ Toolkit Overview {#openvino_overview}
 
 ## Introduction
 
