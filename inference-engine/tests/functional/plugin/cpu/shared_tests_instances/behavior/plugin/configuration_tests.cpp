@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "configuration_tests/configuration_tests.hpp"
+#include "behavior/plugin/configuration_tests.hpp"
 #include "threading/ie_istreams_executor.hpp"
 #include "ie_plugin_config.hpp"
 #if (defined(__APPLE__) || defined(_WIN32))

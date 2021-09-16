@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "configuration_tests/configuration_tests.hpp"
+#include "behavior/plugin/configuration_tests.hpp"
 #include <cstdint>
 
 std::string DefaultConfigurationTest::getTestCaseName(const ::testing::TestParamInfo<DefaultConfigurationParameters> &obj) {
