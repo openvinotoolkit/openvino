@@ -14,7 +14,7 @@ addIeTargetTest(
             PUBLIC
                 conformanceShared
         LABELS
-            CONFORMANCE
+            OP_CONFORMANCE
 )
 
 ie_faster_build(${TARGET_NAME} UNITY)

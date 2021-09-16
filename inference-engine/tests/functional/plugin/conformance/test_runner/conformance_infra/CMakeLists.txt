@@ -18,8 +18,6 @@ addIeTarget(
             PUBLIC
                 gflags
                 funcSharedTests
-        LABELS
-            CONFORMANCE
 )
 
 ie_faster_build(${TARGET_NAME} UNITY)
