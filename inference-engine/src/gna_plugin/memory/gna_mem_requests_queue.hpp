@@ -8,6 +8,7 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
+#include <memory>
 #include "gna_mem_requests.hpp"
 #include "gna_lib_ver_selector.hpp"
 
