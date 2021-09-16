@@ -61,8 +61,10 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
 
 bool op::v8::If::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_If_visit_attributes);
-/*    m_bodies[THEN_BODY_INDEX] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "then_branch");
-    m_bodies[ELSE_BODY_INDEX] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "else_branch");*/
+    /*    m_bodies[THEN_BODY_INDEX] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{},
+       "then_branch");
+        m_bodies[ELSE_BODY_INDEX] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{},
+       "else_branch");*/
     visitor.on_attribute("then_body", m_bodies[THEN_BODY_INDEX]);
     visitor.on_attribute("else_body", m_bodies[ELSE_BODY_INDEX]);
     visitor.on_attribute("then_inputs", m_input_descriptions[THEN_BODY_INDEX]);
