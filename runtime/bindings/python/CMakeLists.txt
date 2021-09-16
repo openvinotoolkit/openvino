@@ -8,6 +8,8 @@ project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 
 add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
 
+find_package(PythonLibs 3 REQUIRED)
+
 if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
     set(PYTHON_VERSION python${CMAKE_MATCH_1}.${CMAKE_MATCH_2})
 else()
