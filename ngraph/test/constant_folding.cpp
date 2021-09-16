@@ -395,10 +395,10 @@ TEST(constant_folding, constant_unary_binary) {
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
-template <typename T, typename U>
+template <element::Type_t from, element::Type_t to, typename T, typename U>
 static void test_const_convert(const vector<T>& values_in, const vector<U>& values_expected) {
-    auto constant = op::Constant::create(element::from<T>(), Shape{values_in.size()}, values_in);
-    auto convert = make_shared<op::Convert>(constant, element::from<U>());
+    auto constant = op::Constant::create(from, Shape{values_in.size()}, values_in);
+    auto convert = make_shared<op::Convert>(constant, to);
     convert->set_friendly_name("test");
     auto f = make_shared<Function>(convert, ParameterVector{});
 
@@ -412,8 +412,8 @@ static void test_const_convert(const vector<T>& values_in, const vector<U>& valu
     auto new_const = ov::as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_const);
     ASSERT_EQ(new_const->get_friendly_name(), "test");
-    ASSERT_EQ(new_const->get_output_element_type(0), element::from<U>());
-    auto values_out = new_const->template get_vector<U>();
+    ASSERT_EQ(new_const->get_output_element_type(0), to);
+    auto values_out = new_const->template cast_vector<U>();
 
     ASSERT_EQ(values_expected, values_out);
 }
@@ -422,27 +422,37 @@ TEST(constant_folding, const_convert) {
     {
         vector<float> in{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
         vector<uint64_t> expected{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
-        test_const_convert(in, expected);
+        test_const_convert<element::f32, element::u64>(in, expected);
     }
     {
         vector<bool> in{false, true, true, false, false, false, true};
         vector<float> expected{0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-        test_const_convert(in, expected);
+        test_const_convert<element::boolean, element::f32>(in, expected);
     }
     {
         vector<float> in{1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f};
         vector<bool> expected{true, false, true, false, true, false, true};
-        test_const_convert(in, expected);
+        test_const_convert<element::f32, element::boolean>(in, expected);
     }
     {
         vector<int64_t> in{1, 2, 3, 4, 5};
         vector<double> expected{1.0, 2.0, 3.0, 4.0, 5.0};
-        test_const_convert(in, expected);
+        test_const_convert<element::i64, element::f64>(in, expected);
     }
     {
         vector<double> in{1.2, 2.1, 3.3, 4.45, 5.02};
         vector<int64_t> expected{1, 2, 3, 4, 5};
-        test_const_convert(in, expected);
+        test_const_convert<element::f64, element::i64>(in, expected);
+    }
+    {
+        vector<int8_t> in{7, 0, 1, 2, 3, 4, 5, -1, -2, -8};
+        vector<float> expected{7, 0, 1, 2, 3, 4, 5, -1, -2, -8};
+        test_const_convert<element::i4, element::f32>(in, expected);
+    }
+    {
+        vector<float> in{9, 0, 1, 2, 3, 4, 5, -1, -2, -10};
+        vector<int8_t> expected{-7, 0, 1, 2, 3, 4, 5, -1, -2, 6};
+        test_const_convert<element::f32, element::i4>(in, expected);
     }
 }
 
