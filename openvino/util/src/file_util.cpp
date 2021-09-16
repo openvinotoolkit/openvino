@@ -90,12 +90,12 @@ namespace {
 std::string join_paths(const std::string& s1, const std::string& s2) {
     std::string rc;
     if (s2.size() > 0) {
-        if (s2[0] == ov::util::FileTraits<char>::file_separator) {
+        if (s2[0] == '/') {
             rc = s2;
         } else if (s1.size() > 0) {
             rc = s1;
-            if (rc[rc.size() - 1] != ov::util::FileTraits<char>::file_separator) {
-                rc += ov::util::FileTraits<char>::file_separator;
+            if (rc[rc.size() - 1] != '/') {
+                rc += '/';
             }
             rc += s2;
         } else {
