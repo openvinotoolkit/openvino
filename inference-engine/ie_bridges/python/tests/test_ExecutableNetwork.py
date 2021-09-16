@@ -179,7 +179,7 @@ def test_wait_for_callback(device):
         time.sleep(0.01)
         callbacks_info['finished'] += 1
 
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     num_requests = 3
     exec_net = ie_core.load_network(net, device, num_requests=num_requests)

@@ -367,7 +367,7 @@ def test_async_infer_wait_while_callback_will_not_finish(device):
         time.sleep(0.01)
         callback_status['finished'] = True
 
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     callback_status = {}
