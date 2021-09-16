@@ -38,6 +38,7 @@
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/common_optimizations/leaky_relu_fusion.hpp>
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
+#include <transformations/common_optimizations/random_uniform_fusion.hpp>
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
@@ -92,6 +93,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
+    common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
