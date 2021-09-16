@@ -334,8 +334,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkWithKSO) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
 
     try {
-        auto rres = ie.query_model(ksoNetwork, deviceName);
-        auto rl_map = rres.supportedLayersMap;
+        auto rl_map = ie.query_model(ksoNetwork, deviceName);
         auto func = ksoNetwork;
         for (const auto& op : func->get_ops()) {
             if (!rl_map.count(op->get_friendly_name())) {
@@ -377,8 +376,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
             func = std::make_shared<ngraph::Function>(results, params);
         }
 
-        auto rres = ie.query_model(func, deviceName);
-        auto rl_map = rres.supportedLayersMap;
+        auto rl_map = ie.query_model(ksoNetwork, deviceName);
         for (const auto& op : func->get_ops()) {
             if (!rl_map.count(op->get_friendly_name())) {
                 FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << deviceName;
@@ -399,8 +397,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithKSO) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
 
     try {
-        auto rres = ie.query_model(ksoNetwork, deviceName);
-        auto rl_map = rres.supportedLayersMap;
+        auto rl_map = ie.query_model(ksoNetwork, deviceName);
         auto func = ksoNetwork;
         for (const auto& op : func->get_ops()) {
             if (!rl_map.count(op->get_friendly_name())) {
@@ -420,10 +417,10 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithKSO) {
 
 TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
-    InferenceEngine::QueryNetworkResult res;
+    ov::runtime::SupportedOpsMap res;
     ASSERT_NO_THROW(
             res = ie.query_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK", deviceName}}));
-    ASSERT_LT(0, res.supportedLayersMap.size());
+    ASSERT_LT(0, res.size());
 }
 
 TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
@@ -928,7 +925,7 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
         for (auto&& node : function->get_ops()) {
             expectedLayers.emplace(node->get_friendly_name());
         }
-        InferenceEngine::QueryNetworkResult result;
+        ov::runtime::SupportedOpsMap result;
         std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + deviceName);
         ASSERT_NO_THROW(result = ie.query_model(
                 multinputNetwork,
@@ -936,7 +933,7 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
                 {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices}, {"TARGET_FALLBACK", targetFallback}}));
 
         std::unordered_set<std::string> actualLayers;
-        for (auto&& layer : result.supportedLayersMap) {
+        for (auto&& layer : result) {
             actualLayers.emplace(layer.first);
         }
         ASSERT_EQ(expectedLayers, actualLayers);
@@ -963,14 +960,14 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         for (auto&& node : function->get_ops()) {
             expectedLayers.emplace(node->get_friendly_name());
         }
-        InferenceEngine::QueryNetworkResult result;
+        ov::runtime::SupportedOpsMap result;
         ASSERT_NO_THROW(result = ie.query_model(multinputNetwork,
                                                 CommonTestUtils::DEVICE_MULTI,
                                                 {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                                                  {"TARGET_FALLBACK", deviceName + "," + deviceName}}));
 
         std::unordered_set<std::string> actualLayers;
-        for (auto&& layer : result.supportedLayersMap) {
+        for (auto&& layer : result) {
             actualLayers.emplace(layer.first);
         }
         ASSERT_EQ(expectedLayers, actualLayers);
