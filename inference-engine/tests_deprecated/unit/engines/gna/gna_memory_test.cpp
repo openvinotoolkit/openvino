@@ -272,7 +272,7 @@ TEST_F(GNAMemoryTest, canPushValue) {
     ASSERT_FLOAT_EQ(pFuture[3], 13);
 }
 
-TEST_F(GNAMemoryTest, canPushReadOnlyValue) {
+TEST_F(GNAMemoryTest, DISABLED_canPushReadOnlyValue) {
 
     float* pFuture = (float*)&pFuture;
     float* pFuture2 = (float*)&pFuture2;
@@ -312,7 +312,7 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
     ASSERT_EQ(memAligned.getRWBytes(), 64);
 }
 
-TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
+TEST_F(GNAMemoryTest, DISABLED_canSetUpReadWriteSectionPtr) {
 
     float* pFuture2 = (float*)&pFuture2;
     float* pFuture1 = (float*)&pFuture1;
@@ -344,7 +344,7 @@ TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
 }
 
 
-TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequest) {
+TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequest) {
     float input[]  = {1, 2, 3};
 
     float *pFuture = nullptr;
@@ -375,7 +375,7 @@ TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequest) {
     ASSERT_FLOAT_EQ(pFuture[8], 0);
 }
 
-TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenPush) {
+TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenPush) {
     float input[]  = {1, 2, 3};
     float input2[]  = {6, 7, 8};
 
@@ -407,7 +407,7 @@ TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenPush) {
     ASSERT_FLOAT_EQ(pFutureInput2[2], 8);
 }
 
-TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenAlloc) {
+TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenAlloc) {
     float input[]  = {1, 2, 3};
 
     float *pFutureInput = nullptr;
