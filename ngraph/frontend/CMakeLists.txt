@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
+set(FRONTEND_INSTALL_INCLUDE "runtime/include/ngraph/frontend")
 
 add_subdirectory(frontend_manager)
 

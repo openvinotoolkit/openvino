@@ -13,7 +13,8 @@
 #include <map>
 #include <string>
 
-namespace InferenceEngine {};
+namespace InferenceEngine {}
+
 namespace ov {
 namespace ie = InferenceEngine;
 namespace runtime {
@@ -21,5 +22,13 @@ namespace runtime {
  * @brief This type of map is commonly used to pass set of parameters
  */
 using ConfigMap = std::map<std::string, std::string>;
+
+/**
+ * @brief This type of map is used for result of Core::query_model
+ *   - `key` means operation name
+ *   - `value` means device name supporting this operation
+ */
+using SupportedOpsMap = std::map<std::string, std::string>;
+
 }  // namespace runtime
 }  // namespace ov

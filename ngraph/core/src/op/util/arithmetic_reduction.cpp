@@ -34,21 +34,21 @@ const ov::AxisSet ov::op::util::ArithmeticReduction::get_reduction_axes() const 
 
 void ov::op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_axes) {
     this->input(1).replace_source_output(
-        ngraph::op::Constant::create(element::i64, ngraph::Shape{reduction_axes.size()}, reduction_axes.to_vector())
+        ngraph::op::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())
             ->output(0));
 }
 
 void ov::op::util::ArithmeticReduction::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_ArithmeticReduction_validate_and_infer_types);
 
-    const Shape& axes_shape = get_input_partial_shape(1);
+    const PartialShape& axes_shape = get_input_partial_shape(1);
     const Rank axes_rank = axes_shape.rank();
     NODE_VALIDATION_CHECK(this,
                           axes_rank.compatible(0) || axes_rank.compatible(1),
                           "Axes input must be a scalar or 1D input. Got: ",
                           axes_shape);
 
-    Shape result_shape = infer_reduction_output_shape(false);
+    PartialShape result_shape = infer_reduction_output_shape(false);
     set_input_is_relevant_to_shape(1);
     set_output_type(0, get_input_element_type(0), result_shape);
 }
