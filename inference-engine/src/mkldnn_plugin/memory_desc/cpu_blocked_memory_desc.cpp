@@ -299,3 +299,19 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
         IE_THROW() << "Can't compute padded elements count for non undefined blocked dims";
     return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
 }
+
+MemoryDescPtr CpuBlockedMemoryDesc::cloneWithUndefStridesAndOffset() const {
+    const auto orderSize = getOrder().size();
+    return std::make_shared<CpuBlockedMemoryDesc>(getPrecision(), getShape(), getBlockDims(), getOrder(), Shape::UNDEFINED_DIM,
+                                                  VectorDims(orderSize, 0), VectorDims(orderSize, Shape::UNDEFINED_DIM));
+}
+
+MemoryDescPtr CpuBlockedMemoryDesc::cloneWithDefaultStridesAndOffset() const {
+    return std::make_shared<CpuBlockedMemoryDesc>(getPrecision(), getShape(), getBlockDims(), getOrder());
+}
+
+MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
+    auto newDesc = std::make_shared<CpuBlockedMemoryDesc>(*this);
+    newDesc->setPrecision(prec);
+    return newDesc;
+}
