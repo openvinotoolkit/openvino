@@ -81,6 +81,7 @@ class CoreThreadingTests : public CoreThreadingTestsBase,
                            public ::testing::TestWithParam<Params> {
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(deviceName, config) = GetParam();
     }
 
@@ -101,7 +102,6 @@ public:
 
 // tested function: GetVersions, UnregisterPlugin
 TEST_P(CoreThreadingTests, smoke_GetVersions) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core ie;
     runParallel([&] () {
         auto versions = ie.GetVersions(deviceName);
@@ -112,8 +112,6 @@ TEST_P(CoreThreadingTests, smoke_GetVersions) {
 
 // tested function: SetConfig for already created plugins
 TEST_P(CoreThreadingTests, smoke_SetConfigPluginExists) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     InferenceEngine::Core ie;
 
     ie.SetConfig(config);
@@ -126,8 +124,6 @@ TEST_P(CoreThreadingTests, smoke_SetConfigPluginExists) {
 
 // tested function: GetConfig, UnregisterPlugin
 TEST_P(CoreThreadingTests, smoke_GetConfig) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     InferenceEngine::Core ie;
     std::string configKey = config.begin()->first;
 
@@ -140,8 +136,6 @@ TEST_P(CoreThreadingTests, smoke_GetConfig) {
 
 // tested function: GetMetric, UnregisterPlugin
 TEST_P(CoreThreadingTests, smoke_GetMetric) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     InferenceEngine::Core ie;
     runParallel([&] () {
         ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
@@ -151,8 +145,6 @@ TEST_P(CoreThreadingTests, smoke_GetMetric) {
 
 // tested function: QueryNetwork
 TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     InferenceEngine::Core ie;
     InferenceEngine::CNNNetwork network(ngraph::builder::subgraph::make2InputSubtract());
 
@@ -191,6 +183,7 @@ class CoreThreadingTestsWithIterations : public ::testing::TestWithParam<CoreThr
     public CoreThreadingTestsBase {
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(deviceName, config) = std::get<0>(GetParam());
         numThreads = std::get<1>(GetParam());
         numIterations = std::get<2>(GetParam());
@@ -238,8 +231,6 @@ public:
 
 // tested function: LoadNetwork, AddExtension
 TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
@@ -254,8 +245,6 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
 
 // tested function: LoadNetwork accuracy
 TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
@@ -303,8 +292,6 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
 
 // tested function: ReadNetwork, SetConfig, LoadNetwork, AddExtension
 TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_MultipleIECores) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     std::atomic<unsigned int> counter{0u};
 
     SetupNetworks();
