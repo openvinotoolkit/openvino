@@ -17,12 +17,13 @@ from setuptools.command.develop import develop as _develop
 from distutils.command.build import build as _build
 
 __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
-PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
-OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../../.."))
+PYTHON_API_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
+PYNGRAPH_ROOT_DIR = os.path.normpath(os.path.join(PYTHON_API_ROOT_DIR, "src", "compatibility"))
+OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYTHON_API_ROOT_DIR, "../../.."))
 # Change current working directory to runtime/bindings/python
 os.chdir(PYNGRAPH_ROOT_DIR)
 
-NGRAPH_LIBS = ["ngraph", "onnx_importer", "inference_engine"]
+NGRAPH_LIBS = ["ngraph", "onnx_ngraph_frontend"]
 
 packages = [
     "ngraph",
@@ -39,14 +40,12 @@ packages = [
     "ngraph.impl.op",
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
-    "openvino",
-    "openvino.inference_engine"
     "ngraph.frontend",
 ]
 
 data_files = []
 
-with open(os.path.join(PYNGRAPH_ROOT_DIR, "requirements.txt")) as req:
+with open(os.path.join(PYTHON_API_ROOT_DIR, "requirements.txt")) as req:
     requirements = req.read().splitlines()
 
 cmdclass = {}
@@ -131,8 +130,6 @@ class BuildCMakeExt(build_ext):
     def run(self):
         """Run CMake build for modules."""
         for extension in self.extensions:
-            if extension.name == "pyopenvino":
-                self.build_cmake(extension)
             if extension.name == "_pyngraph":
                 self.build_cmake(extension)
 
@@ -144,8 +141,6 @@ class BuildCMakeExt(build_ext):
         build_dir = pathlib.Path(self.build_temp)
 
         extension_path = pathlib.Path(self.get_ext_fullpath(extension.name))
-        if extension.name == "pyopenvino":
-            extension_path = pathlib.Path(os.path.join(extension_path.parent.absolute(), "openvino"))
 
         os.makedirs(build_dir, exist_ok=True)
         os.makedirs(extension_path.parent.absolute(), exist_ok=True)
@@ -162,9 +157,8 @@ class BuildCMakeExt(build_ext):
         ext_args = self.cmake_args.split() if self.cmake_args else []
         self.spawn(["cmake", "-S" + root_dir, "-B" + self.build_temp,
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
-                    "-DPYTHON_EXECUTABLE={}".format(sys.executable),
-                    "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
-                    "-DNGRAPH_ONNX_IMPORT_ENABLE=ON"] + ext_args)
+                    "-DENABLE_PYTHON=ON",
+                    "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)
 
