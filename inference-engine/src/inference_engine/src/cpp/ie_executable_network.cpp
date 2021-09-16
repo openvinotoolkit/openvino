@@ -10,6 +10,7 @@
 #include "ie_executable_network_base.hpp"
 #include "ie_remote_context.hpp"
 #include "openvino/runtime/executable_network.hpp"
+#include "openvino/core/except.hpp"
 
 namespace InferenceEngine {
 
@@ -20,6 +21,14 @@ namespace InferenceEngine {
         __VA_ARGS__;                                                        \
     } catch (...) {                                                         \
         InferenceEngine::details::Rethrow();                                \
+    }
+
+#define OV_EXEC_NET_CALL_STATEMENT(...)                                          \
+    OPENVINO_ASSERT(_impl != nullptr, "ExecutableNetwork was not initialized."); \
+    try {                                                                        \
+        __VA_ARGS__;                                                             \
+    } catch (const std::exception & ex) {                                        \
+        throw ov::Exception(ex.what());                                          \
     }
 
 ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader& so, const IExecutableNetworkInternal::Ptr& impl)
@@ -115,43 +124,43 @@ ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<void>& so,
                                      const std::shared_ptr<ie::IExecutableNetworkInternal>& impl)
     : _so{so},
       _impl{impl} {
-    IE_ASSERT(_impl != nullptr);
+    OPENVINO_ASSERT(_impl != nullptr, "ExecutableNetwork was not initialized.");
 }
 
 std::shared_ptr<const Function> ExecutableNetwork::get_runtime_function() const {
-    EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Function>(_impl->GetExecGraphInfo()));
+    OV_EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Function>(_impl->GetExecGraphInfo()));
 }
 
 ParameterVector ExecutableNetwork::get_parameters() const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_parameters());
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_parameters());
 }
 
 ResultVector ExecutableNetwork::get_results() const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_results());
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_results());
 }
 
 InferRequest ExecutableNetwork::create_infer_request() {
-    EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
+    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
 }
 
 void ExecutableNetwork::export_model(std::ostream& networkModel) {
-    EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
+    OV_EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
 }
 
 void ExecutableNetwork::set_config(const ie::ParamMap& config) {
-    EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
+    OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
 }
 
 ie::Parameter ExecutableNetwork::get_config(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetConfig(name));
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetConfig(name));
 }
 
 ie::Parameter ExecutableNetwork::get_metric(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
 }
 
 std::shared_ptr<ie::RemoteContext> ExecutableNetwork::get_context() const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetContext());
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetContext());
 }
 
 bool ExecutableNetwork::operator!() const noexcept {
