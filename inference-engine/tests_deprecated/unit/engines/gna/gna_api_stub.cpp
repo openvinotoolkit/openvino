@@ -45,6 +45,12 @@ GNA2_API enum Gna2Status Gna2MemoryAlloc(
     return Gna2StatusSuccess;
 }
 
+GNA2_API enum Gna2Status Gna2MemorySetTag(
+    void* memory,
+    uint32_t tag) {
+    return Gna2StatusSuccess;
+}
+
 GNA2_API enum Gna2Status Gna2DeviceCreateForExport(
     Gna2DeviceVersion targetDeviceVersion,
     uint32_t * deviceIndex) {

@@ -37,8 +37,10 @@ namespace GNAPluginNS {
 #else
     using dnn_ptr = std::shared_ptr<CPPWrapper<intel_nnet_type_t>>;
 #endif
-    //using allocator_type = GNAPluginNS::memory::PolymorphAllocator<uint8_t>;
-    using gna_memory_type = GNAPluginNS::memory::GNAMemory;// <allocator_type>;
+    using gna_memory_type = GNAPluginNS::memory::GNAMemoryInterface;
+    using gna_memory_float = GNAPluginNS::memory::GNAMemory<memory::GNAFloatAllocator>;
+    using gna_memory_device = GNAPluginNS::memory::GNAMemory<>;
+
     using DnnComponentsForLayer = std::list<std::pair<std::string, intel_dnn_component_t>>;
     using MemoryConnection = std::list<std::pair<std::string, GNAMemoryLayer>>;
     using ConcatConnection = std::unordered_map<std::string, GNAConcatLayer>;

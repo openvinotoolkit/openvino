@@ -421,7 +421,7 @@ void GNAPlugin::InitGNADevice() {
                 GetDeviceVersionFromString(config.dumpXNNGeneration));
 #endif
     size_t page_size_bytes = 4096;
-    gnamem = std::make_shared<gna_memory_type>(memory::GNAAllocator(gnadevice), page_size_bytes);
+    gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
@@ -905,8 +905,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     if (gnaFlags->sw_fp32) {
-        THROW_GNA_EXCEPTION << "FP32 ALLOCATOR NOT IMPLEMENTED\n";
-        //gnamem.reset(new gna_memory_type(memory::make_polymorph<std::allocator<uint8_t>>()));
+        gnamem = std::make_shared<gna_memory_float>(memory::GNAFloatAllocator{});
         graphCompiler.setGNAMemoryPtr(gnamem);
     }
 

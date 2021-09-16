@@ -20,14 +20,29 @@
 
 namespace GNAPluginNS {
 namespace memory {
+
+class GNAFloatAllocator : public std::allocator < uint8_t > {
+ public:
+    void setTag(void*, GNAPluginNS::memory::rRegion) {
+    }
+};
+
+class GNAMemoryInterface {
+public:
+    virtual std::shared_ptr<GNAMemRequestsQueue> getQueue(rRegion region) = 0;
+    virtual void commit() = 0;
+    virtual void* getBasePtr() = 0;
+    virtual size_t getRWBytes() = 0;
+    virtual size_t getTotalBytes() = 0;
+};
+
 /**
  * @brief encapsulate various request to allocate GNA specific memory,
  * in order to issue single allocation call and configure actual pointers in requests
  * @tparam Allocator - a GNAAllocator in case of actual HW offloads
  */
-//template<class Allocator = std::allocator<uint8_t>>
-    using Allocator = GNAAllocator;
-class GNAMemory {
+template<class Allocator = GNAAllocator>
+class GNAMemory : public GNAMemoryInterface {
     std::map<rRegion, std::shared_ptr<GNAMemRequestsQueue>> _mem_queues;
     size_t _total = 0;
     Allocator _allocator;
@@ -56,25 +71,52 @@ class GNAMemory {
         }
 
 
-    std::shared_ptr<GNAMemRequestsQueue> getQueue(rRegion region) {
+    std::shared_ptr<GNAMemRequestsQueue> getQueue(rRegion region) override {
         return _mem_queues[region];
     }
 
-    void *getBasePtr() {
+    void *getBasePtr() override {
         return heap.get();
     }
 
-    size_t getRWBytes() {
+    size_t getRWBytes() override {
         return ALIGN(getQueue(REGION_STATES)->calcSize(), _page_alignment);
     }
 
-    size_t getTotalBytes() {
+    size_t getTotalBytes() override {
         _total = 0;
         for (auto queue : _mem_queues) {
             expandBindRequests(queue.second);
             _total += ALIGN(queue.second->calcSize(), _page_alignment);
         }
         return _total;
+    }
+
+    /**
+     * @brief calculates size required for all requests, allocates memory and updates pointers
+     */
+    void commit() override {
+        // getTotalBytes();
+        size_t heap_offset = 0;
+        for (auto queue : _mem_queues) {
+            if (queue.second->calcSize() != 0) {
+                heap_offset = ALIGN(allocateRegion(queue.second), _page_alignment);
+                std::cout << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
+                _allocator.setTag(queue.second->getBasePtr(), queue.first);
+            }
+        }
+#ifdef GNA_HEAP_PROFILER
+        memoryDump();
+#endif
+    }
+
+ protected:
+    std::shared_ptr<uint8_t> allocate(size_t bytes) {
+        std::shared_ptr<uint8_t> sp(_allocator.allocate(bytes), [=](uint8_t *p) {
+            _allocator.deallocate(p, bytes);
+        });
+        std::fill(sp.get(), sp.get() + bytes, 0);
+        return sp;
     }
 
     size_t allocateRegion(std::shared_ptr<GNAMemRequestsQueue> mRequests) {
@@ -128,34 +170,6 @@ class GNAMemory {
         return offset;
     }
 
-    /**
-     * @brief calculates size required for all requests, allocates memory and updates pointers
-     */
-    void commit() {
-        // getTotalBytes();
-        size_t heap_offset = 0;
-        for (auto queue : _mem_queues) {
-            if (queue.second->calcSize() != 0) {
-                heap_offset = ALIGN(allocateRegion(queue.second), _page_alignment);
-                std::cout << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
-                _allocator.setTag(queue.second->getBasePtr(), queue.first);
-            }
-        }
-#ifdef GNA_HEAP_PROFILER
-        memoryDump();
-#endif
-    }
-
- protected:
-    std::shared_ptr<uint8_t> allocate(size_t bytes) {
-        std::shared_ptr<uint8_t> sp(_allocator.allocate(bytes), [=](uint8_t *p) {
-            _allocator.deallocate(p, bytes);
-        });
-        std::fill(sp.get(), sp.get() + bytes, 0);
-        return sp;
-    }
-
- protected:
     void expandBindRequests(std::shared_ptr<GNAMemRequestsQueue> mRequests) {
         // 1st stage -- looking for expandable bind requests:
         for (auto &originated : mRequests->_mem_requests) {
