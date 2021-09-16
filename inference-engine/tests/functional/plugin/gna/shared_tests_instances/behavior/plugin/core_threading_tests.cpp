@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <behavior/core_threading_tests.hpp>
+#include <behavior/plugin/core_threading_tests.hpp>
 
 namespace {
 Params params[] = {

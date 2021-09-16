@@ -57,5 +57,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
         // Not expected behavior
         R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
+        R"(.*CoreThreadingTestsWithIterations.*)",
     };
 }
