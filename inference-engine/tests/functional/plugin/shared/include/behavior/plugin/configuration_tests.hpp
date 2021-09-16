@@ -11,19 +11,6 @@
 #include <ie_core.hpp>
 #include <ie_parameter.hpp>
 
-template<typename paramType>
-class ConfigurationTest : public CommonTestUtils::TestsCommon, public ::testing::WithParamInterface<paramType> {
-protected:
-    ~ConfigurationTest() override = default;
-    std::unique_ptr<InferenceEngine::Core> _core;
-    void SetUp() override {
-        _core.reset(new InferenceEngine::Core);
-    }
-    void TearDown() override {
-        _core.reset();
-    }
-};
-
 using CustomComparator = std::function<bool(const InferenceEngine::Parameter&, const InferenceEngine::Parameter&)>;
 
 struct DefaultParameter {
@@ -37,7 +24,18 @@ using DefaultConfigurationParameters = std::tuple<
     DefaultParameter // default parameter key value comparator
 >;
 
-struct DefaultConfigurationTest : public ConfigurationTest<DefaultConfigurationParameters> {
+struct DefaultConfigurationTest : public CommonTestUtils::TestsCommon, public ::testing::WithParamInterface<DefaultConfigurationParameters> {
     enum {DeviceName, DefaultParamterId};
     static std::string getTestCaseName(const ::testing::TestParamInfo<DefaultConfigurationParameters> &obj);
+
+protected:
+    ~DefaultConfigurationTest() override = default;
+    std::unique_ptr<InferenceEngine::Core> _core;
+
+    void SetUp() override {
+        _core.reset(new InferenceEngine::Core);
+    }
+    void TearDown() override {
+        _core.reset();
+    }
 };

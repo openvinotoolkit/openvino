@@ -24,7 +24,6 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                     ::testing::ValuesIn(inconfigs)),
                             IncorrectConfigTests::getTestCaseName);
@@ -40,7 +39,6 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                     ::testing::ValuesIn(Inconfigs)),
                             IncorrectConfigAPITests::getTestCaseName);
@@ -53,7 +51,6 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                     ::testing::ValuesIn(conf)),
                             CorrectConfigAPITests::getTestCaseName);

@@ -236,7 +236,6 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::ValuesIn(getCorrectConfigs())),
     CorrectConfigTests::getTestCaseName);
@@ -252,14 +251,12 @@ const std::vector<std::map<std::string, std::string>>& getCorrectMultiConfigs() 
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigTests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MULTI),
         ::testing::ValuesIn(getCorrectMultiConfigs())),
     CorrectConfigTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigTests,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(getPrecisions()),
                                  ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                  ::testing::ValuesIn(getCorrectMultiConfigs())),
                          CorrectConfigTests::getTestCaseName);
@@ -318,7 +315,6 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectSingleOptionDefaultValueConfigTests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::ValuesIn(getDefaultEntries())));
 
@@ -601,7 +597,6 @@ const std::vector<std::string>& getPublicOptions() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigPublicOptionsTests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::ValuesIn(getPublicOptions())));
 
@@ -648,7 +643,6 @@ const std::vector<std::string>& getPrivateOptions() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigPrivateOptionsTests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::ValuesIn(getPrivateOptions())));
 
@@ -835,7 +829,6 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::ValuesIn(getIncorrectConfigs())),
     IncorrectConfigTests::getTestCaseName);
@@ -902,55 +895,47 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectMultiConfigs(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MULTI),
         ::testing::ValuesIn(getIncorrectMultiConfigs())),
     IncorrectConfigTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
      ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_AUTO),
         ::testing::ValuesIn(getIncorrectMultiConfigs())),
      IncorrectConfigTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigSingleOptionTests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::Values("INCORRECT_KEY")));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::Values(std::map<std::string, std::string>{})),
     CorrectConfigAPITests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigAPITests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MULTI),
         ::testing::ValuesIn(getCorrectMultiConfigs())),
     CorrectConfigAPITests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::Values(std::map<std::string, std::string>{{"INCORRECT_KEY", "INCORRECT_VALUE"}})),
     IncorrectConfigAPITests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigAPITests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MULTI),
         ::testing::ValuesIn(getIncorrectMultiConfigs())),
     IncorrectConfigAPITests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
      ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_AUTO),
         ::testing::ValuesIn(getIncorrectMultiConfigs())),
      IncorrectConfigAPITests::getTestCaseName);

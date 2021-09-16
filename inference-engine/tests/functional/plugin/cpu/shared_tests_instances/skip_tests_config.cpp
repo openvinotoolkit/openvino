@@ -86,6 +86,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
         R"(.*Auto_Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         R"(.*Auto.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+        R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
         // azure is failing after #6199
         R"(.*/NmsLayerTest.*)",
         // TODO: 56520 Accuracy mismatch
