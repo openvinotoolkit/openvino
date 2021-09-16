@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from mo.graph.graph import Graph
-from mo.ops.op import Op
+from mo.ops.op import Op, RTInfo
 
 
 class Result(Op):
@@ -21,4 +21,5 @@ class Result(Op):
             'value': None,
             'data_type': None,
             'in_ports_count': 1,
+            'rt_info': RTInfo()
         }, attrs)
