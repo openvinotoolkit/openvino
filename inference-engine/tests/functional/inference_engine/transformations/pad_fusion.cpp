@@ -122,7 +122,7 @@ TEST(TransformationTests, PadFusionAvgPoolDontExcludePad) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, PadFusionMaxPool) {
+TEST(TransformationTests, DISABLED_PadFusionMaxPool) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
 
     Shape data_shape{1, 3, 14, 14};
