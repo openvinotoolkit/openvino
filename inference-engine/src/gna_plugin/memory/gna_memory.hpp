@@ -101,7 +101,7 @@ class GNAMemory : public GNAMemoryInterface {
         for (auto queue : _mem_queues) {
             if (queue.second->calcSize() != 0) {
                 heap_offset = ALIGN(allocateRegion(queue.second), _page_alignment);
-                std::cout << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
+                gnalog() << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
                 _allocator.setTag(queue.second->getBasePtr(), queue.first);
             }
         }
@@ -135,7 +135,7 @@ class GNAMemory : public GNAMemoryInterface {
                 } else {
                     *reinterpret_cast<void **>(re._ptr_out) = cptr;
                 }
-                std::cout << "ALLOCATED=" << static_cast<void*>(cptr) << ", size=" << re._element_size * re._num_elements << "\n";
+                gnalog() << "ALLOCATED=" << static_cast<void*>(cptr) << ", size=" << re._element_size * re._num_elements << "\n";
                 getQueue(REGION_AUTO)->iterate_binded(re, [](MemRequest & reference, MemRequest & binded) {
                     *reinterpret_cast<void **>(binded._ptr_out) =
                         binded._offset + reinterpret_cast<uint8_t *>(*reinterpret_cast<void **>(reference._ptr_out));

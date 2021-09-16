@@ -675,7 +675,7 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
-
+    gnalog() << "GNAPlugin::LoadNetwork()\n";
     if (!gnaFlags->sw_fp32) {
         InitGNADevice();
     }
