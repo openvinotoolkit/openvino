@@ -185,18 +185,18 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
 #endif
 
 template <typename T>
-void ROIAlignForward_cpu_kernel(const int64_t nthreads,
-                                const T* bottom_data,
-                                const T& spatial_scale,
-                                const int64_t channels,
-                                const int64_t height,
-                                const int64_t width,
-                                const int64_t pooled_height,
-                                const int64_t pooled_width,
-                                const int64_t sampling_ratio,
-                                const T* bottom_rois,
-                                const bool aligned,
-                                T* top_data) {
+void ROIAlignForward(const int64_t nthreads,
+                     const T* bottom_data,
+                     const T& spatial_scale,
+                     const int64_t channels,
+                     const int64_t height,
+                     const int64_t width,
+                     const int64_t pooled_height,
+                     const int64_t pooled_width,
+                     const int64_t sampling_ratio,
+                     const T* bottom_rois,
+                     const bool aligned,
+                     T* top_data) {
     int64_t roi_cols = 4;
 
     int64_t n_rois = nthreads / channels / pooled_width / pooled_height;
@@ -321,18 +321,18 @@ void experimental_detectron_roi_feature_extractor(
             const float* featuremap = inputs[input_features_start_port + i].data();
             const int64_t featuremap_height = static_cast<int64_t>(input_shapes[input_features_start_port + i][2]);
             const int64_t featuremap_width = static_cast<int64_t>(input_shapes[input_features_start_port + i][3]);
-            ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,
-                                              featuremap,
-                                              1.0f / pyramid_scales[i],
-                                              channels_num,
-                                              featuremap_height,
-                                              featuremap_width,
-                                              pooled_height,
-                                              pooled_width,
-                                              sampling_ratio,
-                                              &reordered_rois[4 * level_rois_offset],
-                                              aligned,
-                                              &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
+            ROIAlignForward<float>(feaxels_per_roi * level_rois_num,
+                                   featuremap,
+                                   1.0f / pyramid_scales[i],
+                                   channels_num,
+                                   featuremap_height,
+                                   featuremap_width,
+                                   pooled_height,
+                                   pooled_width,
+                                   sampling_ratio,
+                                   &reordered_rois[4 * level_rois_offset],
+                                   aligned,
+                                   &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
         }
     }
 
