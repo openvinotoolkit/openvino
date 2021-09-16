@@ -20,7 +20,7 @@
     OPENVINO_ASSERT(_impl != nullptr, "VariableState was not initialized."); \
     try {                                                                    \
         __VA_ARGS__;                                                         \
-    } catch (const std::exception & ex) {                                    \
+    } catch (const std::exception& ex) {                                     \
         throw ov::Exception(ex.what());                                      \
     }
 

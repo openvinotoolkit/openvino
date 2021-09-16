@@ -13,8 +13,8 @@
 #include "details/ie_so_loader.h"
 #include "ie_infer_async_request_base.hpp"
 #include "ie_remote_context.hpp"
-#include "openvino/runtime/infer_request.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/infer_request.hpp"
 
 namespace InferenceEngine {
 
@@ -27,12 +27,12 @@ namespace InferenceEngine {
         ::InferenceEngine::details::Rethrow();                            \
     }
 
-#define OV_INFER_REQ_CALL_STATEMENT(...)                                     \
-    OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");  \
-    try {                                                                    \
-        __VA_ARGS__;                                                         \
-    } catch (const std::exception & ex) {                                    \
-        throw ov::Exception(ex.what());                                      \
+#define OV_INFER_REQ_CALL_STATEMENT(...)                                    \
+    OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized."); \
+    try {                                                                   \
+        __VA_ARGS__;                                                        \
+    } catch (const std::exception& ex) {                                    \
+        throw ov::Exception(ex.what());                                     \
     }
 
 InferRequest::InferRequest(const details::SharedObjectLoader& so, const IInferRequestInternal::Ptr& impl)

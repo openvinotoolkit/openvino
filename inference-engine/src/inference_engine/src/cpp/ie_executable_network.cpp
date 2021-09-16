@@ -9,8 +9,8 @@
 #include "ie_common.h"
 #include "ie_executable_network_base.hpp"
 #include "ie_remote_context.hpp"
-#include "openvino/runtime/executable_network.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/executable_network.hpp"
 
 namespace InferenceEngine {
 
@@ -27,7 +27,7 @@ namespace InferenceEngine {
     OPENVINO_ASSERT(_impl != nullptr, "ExecutableNetwork was not initialized."); \
     try {                                                                        \
         __VA_ARGS__;                                                             \
-    } catch (const std::exception & ex) {                                        \
+    } catch (const std::exception& ex) {                                         \
         throw ov::Exception(ex.what());                                          \
     }
 

@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ie_remote_context.hpp"
+
 #include <exception>
 
+#include "ie_remote_blob.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/remote_context.hpp"
-
-#include "ie_remote_blob.hpp"
-#include "ie_remote_context.hpp"
 
 #define OV_REMOTE_CONTEXT_STATEMENT(...)                                     \
     OPENVINO_ASSERT(_impl != nullptr, "RemoteContext was not initialized."); \
     try {                                                                    \
         __VA_ARGS__;                                                         \
-    } catch (const std::exception & ex) {                                    \
+    } catch (const std::exception& ex) {                                     \
         throw ov::Exception(ex.what());                                      \
     }
 
