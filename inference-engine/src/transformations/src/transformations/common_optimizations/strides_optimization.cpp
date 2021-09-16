@@ -113,11 +113,12 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
                     [] (size_t s1, size_t s2) -> size_t { return s1 * s2; });
         }
 
+        const auto& current_strides = conv->get_strides();
         if (can_propagate_conv_stride(conv)) {
             conv->set_strides(strides_ones);
             auto conv_input = conv->input(0);
             insert_strides_prop(conv_input, conv_strides);
-        } else {
+        } else if (!std::equal(current_strides.begin(), current_strides.end(), conv_strides.begin())) {
             const auto& pattern_value_map = m.get_pattern_value_map();
             const auto& input = pattern_value_map.at(data);
             bool is_auto_pad_explicit = conv->get_auto_pad() == op::PadType::EXPLICIT;
