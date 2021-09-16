@@ -25,6 +25,7 @@ public:
     bool is_equal(Place::Ptr another) const override;
     bool is_equal_data(Place::Ptr another) const override;
     Place::Ptr get_source_tensor() const override;
+    std::vector<Place::Ptr> get_consuming_operations() const override;
 
 private:
     onnx_editor::InputEdge m_edge;
@@ -47,6 +48,7 @@ public:
     Place::Ptr get_target_tensor() const override;
     std::vector<Place::Ptr> get_consuming_ports() const override;
     Place::Ptr get_producing_operation() const override;
+    std::vector<Place::Ptr> get_consuming_operations() const override;
 
 private:
     onnx_editor::OutputEdge m_edge;
@@ -67,6 +69,7 @@ public:
     bool is_output() const override;
     bool is_equal(Place::Ptr another) const override;
     bool is_equal_data(Place::Ptr another) const override;
+    std::vector<Place::Ptr> get_consuming_operations() const override;
 
 private:
     std::string m_name;
@@ -92,6 +95,7 @@ public:
     Place::Ptr get_input_port(const std::string& input_name) const override;
 
     std::vector<Place::Ptr> get_consuming_ports() const override;
+    std::vector<Place::Ptr> get_consuming_operations() const override;
     bool is_equal(Place::Ptr another) const override;
     bool is_input() const override;
     bool is_output() const override;

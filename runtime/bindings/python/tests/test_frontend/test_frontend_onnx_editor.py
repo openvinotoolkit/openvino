@@ -86,7 +86,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
     ]
-    graph = make_graph([split_2, abs, sin], "test_graph_2", input_tensors, output_tensors)
+    graph = make_graph([add, split_2, abs, sin], "test_graph_2", input_tensors, output_tensors)
     models["input_model_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
                                               opset_imports=[onnx.helper.make_opsetid("", 13)])
 
@@ -765,3 +765,42 @@ def test_get_producing_operation():
     split_op = model.get_place_by_operation_name(operationName="split2")
     split_out_port_2 = split_op.get_output_port(outputPortIndex=1)
     assert split_out_port_2.get_producing_operation().is_equal(split_op)
+
+
+def test_get_consuming_operations():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    split_op_consuming_ops = split_op.get_consuming_operations()
+    abs_op = model.get_place_by_operation_name(operationName="abs1")
+    sin_op = model.get_place_by_tensor_name(tensorName="out2").get_producing_operation()
+
+    assert len(split_op_consuming_ops) == 2
+    assert split_op_consuming_ops[0].is_equal(abs_op)
+    assert split_op_consuming_ops[1].is_equal(sin_op)
+
+    split_op_port = split_op.get_input_port(inputPortIndex=0)
+    split_op_port_consuming_ops = split_op_port.get_consuming_operations()
+
+    assert len(split_op_port_consuming_ops) == 1
+    assert split_op_port_consuming_ops[0].is_equal(split_op)
+
+    add_out_port = model.get_place_by_tensor_name(tensorName="add_out").get_producing_port()
+    add_out_port_consuming_ops = add_out_port.get_consuming_operations()
+    assert len(add_out_port_consuming_ops) == 1
+    assert add_out_port_consuming_ops[0].is_equal(split_op)
+
+    sp_out2_tensor = model.get_place_by_tensor_name(tensorName="sp_out2")
+    sp_out2_tensor_consuming_ops = sp_out2_tensor.get_consuming_operations()
+    assert len(sp_out2_tensor_consuming_ops) == 1
+    assert sp_out2_tensor_consuming_ops[0].is_equal(sin_op)
+
+    out2_tensor = model.get_place_by_tensor_name(tensorName="out2")
+    out2_tensor_consuming_ops = out2_tensor.get_consuming_operations()
+    assert len(out2_tensor_consuming_ops) == 0
+    out2_port_consuming_ops = out2_tensor.get_producing_port().get_consuming_operations()
+    assert len(out2_port_consuming_ops) == 0
