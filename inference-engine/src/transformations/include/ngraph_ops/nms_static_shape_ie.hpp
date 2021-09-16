@@ -53,7 +53,7 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
             const auto num_boxes = num_boxes_boxes.get_length();
             auto num_classes = scores_ps[1].get_length();
             if (this->m_attrs.background_class >= 0 && this->m_attrs.background_class < num_classes) {
-                num_classes = std::max(1, num_classes - 1);
+                num_classes = std::max(int64_t{1}, num_classes - 1);
             }
             int64_t max_output_boxes_per_class = 0;
             if (this->m_attrs.nms_top_k >= 0)
