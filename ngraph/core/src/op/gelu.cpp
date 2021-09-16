@@ -38,7 +38,7 @@ shared_ptr<Node> op::v0::Gelu::clone_with_new_inputs(const OutputVector& new_arg
 void op::v0::Gelu::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Gelu_validate_and_infer_types);
     element::Type input_element_type = get_input_element_type(0);
-    PartialShape input_pshape = get_input_partial_shape(0);
+    ov::PartialShape input_pshape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(this,
                           input_element_type.is_dynamic() || input_element_type.is_real(),
@@ -91,7 +91,7 @@ shared_ptr<Node> op::v7::Gelu::clone_with_new_inputs(const OutputVector& new_arg
 void op::v7::Gelu::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v7_Gelu_validate_and_infer_types);
     element::Type input_element_type = get_input_element_type(0);
-    PartialShape input_pshape = get_input_partial_shape(0);
+    ov::PartialShape input_pshape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(this,
                           input_element_type.is_dynamic() || input_element_type.is_real(),

@@ -25,19 +25,19 @@ public:
     /// \param auto_pad The pad type for automatically computing padding sizes.
     MaxPoolBase(const Output<Node>& arg,
                 const Strides& strides,
-                const ngraph::Shape& pads_begin,
-                const ngraph::Shape& pads_end,
-                const ngraph::Shape& kernel,
+                const Shape& pads_begin,
+                const Shape& pads_end,
+                const Shape& kernel,
                 const op::RoundingType rounding_mode = op::RoundingType::FLOOR,
                 const PadType auto_pad = op::PadType::EXPLICIT);
 
     void validate_and_infer_types() override;
 
     /// \return The kernel shape.
-    const ngraph::Shape& get_kernel() const {
+    const Shape& get_kernel() const {
         return m_kernel;
     }
-    void set_kernel(const ngraph::Shape& kernel) {
+    void set_kernel(const Shape& kernel) {
         m_kernel = kernel;
     }
     /// \return The strides.
@@ -48,17 +48,17 @@ public:
         m_strides = strides;
     }
     /// \return The beginning of padding shape.
-    const ngraph::Shape& get_pads_begin() const {
+    const Shape& get_pads_begin() const {
         return m_pads_begin;
     }
-    void set_pads_begin(const ngraph::Shape& pads_begin) {
+    void set_pads_begin(const Shape& pads_begin) {
         m_pads_begin = pads_begin;
     }
     /// \return The end of padding shape.
-    const ngraph::Shape& get_pads_end() const {
+    const Shape& get_pads_end() const {
         return m_pads_end;
     }
-    void set_adding_above(const ngraph::Shape& pads_end) {
+    void set_adding_above(const Shape& pads_end) {
         m_pads_end = pads_end;
     }
     /// \return The pad type for pooling.
@@ -79,15 +79,15 @@ public:
 protected:
     bool update_auto_padding(const PartialShape& in_shape,
                              const Strides& filter_dilations,
-                             ngraph::Shape& new_pads_end,
-                             ngraph::Shape& new_pads_begin) const;
+                             Shape& new_pads_end,
+                             Shape& new_pads_begin) const;
 
     PartialShape infer_output_shape(const Strides& dilations);
 
-    ngraph::Shape m_kernel;
+    Shape m_kernel;
     Strides m_strides;
-    ngraph::Shape m_pads_begin;
-    ngraph::Shape m_pads_end;
+    Shape m_pads_begin;
+    Shape m_pads_end;
     PadType m_auto_pad;
     op::RoundingType m_rounding_type;
 };

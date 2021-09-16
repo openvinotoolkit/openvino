@@ -14,9 +14,9 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief  Iterate a body over tensors, accumulating into tensors.
-class NGRAPH_API TensorIterator : public op::util::SubGraphOp {
+class OPENVINO_API TensorIterator : public op::util::SubGraphOp {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI_DECLARATION;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

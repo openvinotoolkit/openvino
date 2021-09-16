@@ -44,7 +44,6 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /inference-engine/tests/functional/plugin/myriad/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
 /inference-engine/tests/unit/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
 /inference-engine/tests/unit/engines/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
-/inference-engine/tools/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
 /inference-engine/scripts/run_tests_myriad_multistick.sh  @openvinotoolkit/openvino-ie-vpu-maintainers
 
 # IE GNA:

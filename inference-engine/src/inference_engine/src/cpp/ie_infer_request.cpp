@@ -196,7 +196,7 @@ bool InferRequest::operator==(const InferRequest& r) const noexcept {
 namespace ov {
 namespace runtime {
 
-InferRequest::InferRequest(const std::shared_ptr<SharedObject>& so, const ie::IInferRequestInternal::Ptr& impl)
+InferRequest::InferRequest(const std::shared_ptr<void>& so, const ie::IInferRequestInternal::Ptr& impl)
     : _so{so},
       _impl{impl} {
     IE_ASSERT(_impl != nullptr);

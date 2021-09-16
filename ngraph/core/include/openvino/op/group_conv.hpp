@@ -216,7 +216,7 @@ public:
 
     /// \return The spatial shape of the output.
     const PartialShape get_convolution_output_shape() const;
-    void set_output_shape(const ngraph::Shape& output_shape);
+    void set_output_shape(const Shape& output_shape);
     /// \return The strides from the forward prop.
     const Strides& get_strides() const {
         return m_strides;

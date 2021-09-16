@@ -24,7 +24,7 @@ bool op::v5::LogSoftmax::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v5::LogSoftmax::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_LogSoftmax_validate_and_infer_types);
-    const PartialShape& input_shape = get_input_partial_shape(0);
+    const ov::PartialShape& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
                               m_axis < input_shape.rank().get_length() && m_axis >= -input_shape.rank().get_length(),

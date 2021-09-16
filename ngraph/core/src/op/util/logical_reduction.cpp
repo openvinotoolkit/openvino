@@ -18,7 +18,7 @@ op::util::LogicalReduction::LogicalReduction() = default;
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const AxisSet& reduction_axes)
     : ReductionBase(
           arg,
-          ngraph::op::Constant::create(element::i64, ngraph::Shape{reduction_axes.size()}, reduction_axes.to_vector())
+          ngraph::op::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())
               ->output(0)) {
     add_provenance_group_member(input_value(1).get_node_shared_ptr());
 }
@@ -40,7 +40,7 @@ const AxisSet op::util::LogicalReduction::get_reduction_axes() const {
 
 void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axes) {
     this->input(1).replace_source_output(
-        ngraph::op::Constant::create(element::i64, ngraph::Shape{reduction_axes.size()}, reduction_axes.to_vector())
+        ngraph::op::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())
             ->output(0));
 }
 

@@ -29,7 +29,7 @@ public:
     using Ptr = std::shared_ptr<Variable>;
     Variable() = default;
 
-    explicit Variable(const VariableInfo& variable_info) : m_info(variable_info) {}
+    explicit Variable(VariableInfo variable_info) : m_info(std::move(variable_info)) {}
 
     VariableInfo get_info() const {
         return m_info;
