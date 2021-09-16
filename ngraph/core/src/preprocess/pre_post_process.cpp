@@ -32,7 +32,7 @@ static int64_t get_channels_helper(const std::shared_ptr<Node>& node) {
     return layout::channels(layout->get());
 }
 
-static StaticShape construct_mean_scale_shape(const std::shared_ptr<Node>& node, size_t values_size) {
+static Shape construct_mean_scale_shape(const std::shared_ptr<Node>& node, size_t values_size) {
     // TODO: support also Mean/Scale image case
     auto channels = get_channels_helper(node);
     OPENVINO_ASSERT(channels >= 0, "Channels dimension is not specified in layout");
@@ -57,9 +57,9 @@ struct PreProcessSteps::PreProcessStepsImpl {
     void add_scale_impl(const std::vector<float>& values) {
         m_actions.emplace_back(std::make_tuple(
             [values](const std::shared_ptr<Node>& node) {
-                StaticShape shape;
+                Shape shape;
                 if (values.size() == 1) {
-                    shape = StaticShape{1};
+                    shape = Shape{1};
                 } else {
                     shape = construct_mean_scale_shape(node, values.size());
                 }
@@ -77,9 +77,9 @@ struct PreProcessSteps::PreProcessStepsImpl {
     void add_mean_impl(const std::vector<float>& values) {
         m_actions.emplace_back(std::make_tuple(
             [values](const std::shared_ptr<Node>& node) {
-                StaticShape shape;
+                Shape shape;
                 if (values.size() == 1) {
-                    shape = StaticShape{1};
+                    shape = Shape{1};
                 } else {
                     shape = construct_mean_scale_shape(node, values.size());
                 }

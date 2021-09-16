@@ -170,8 +170,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         std::vector<FileUtils::FilePath> listOfExtentions;
     };
 
-    std::unordered_set<std::string> opsetNames;
-    std::vector<ie::IExtensionPtr> extensions;
+    mutable std::unordered_set<std::string> opsetNames;
+    mutable std::vector<ie::IExtensionPtr> extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -689,7 +689,11 @@ public:
                     });
                 }
 
-                return plugins.emplace(deviceName, plugin).first->second;
+                auto result = plugins.emplace(deviceName, plugin).first->second;
+
+                TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
+
+                return result;
             } catch (const ie::Exception& ex) {
                 IE_THROW() << "Failed to create plugin " << FileUtils::fromFilePath(desc.libraryLocation)
                            << " for device " << deviceName << "\n"
@@ -814,23 +818,7 @@ public:
      */
     void AddExtension(const ie::IExtensionPtr& extension) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
-
-        std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
-        for (const auto& it : opsets) {
-            if (opsetNames.find(it.first) != opsetNames.end())
-                IE_THROW() << "Cannot add opset with name: " << it.first
-                           << ". Opset with the same name already exists.";
-            opsetNames.insert(it.first);
-        }
-
-        // add extensions for already created plugins
-        for (auto& plugin : plugins) {
-            try {
-                plugin.second.add_extension(extension);
-            } catch (...) {
-            }
-        }
-        extensions.emplace_back(extension);
+        AddExtensionUnsafe(extension);
     }
 
     /**
@@ -880,6 +868,36 @@ public:
         }
 
         return versions;
+    }
+
+private:
+    void AddExtensionUnsafe(const ie::IExtensionPtr& extension) const {
+        std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
+        for (const auto& it : opsets) {
+            if (opsetNames.find(it.first) != opsetNames.end())
+                IE_THROW() << "Cannot add opset with name: " << it.first
+                           << ". Opset with the same name already exists.";
+            opsetNames.insert(it.first);
+        }
+
+        // add extensions for already created plugins
+        for (auto& plugin : plugins) {
+            try {
+                plugin.second.add_extension(extension);
+            } catch (...) {
+            }
+        }
+        extensions.emplace_back(extension);
+    }
+
+    template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
+    void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) const {
+        try {
+            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(path);
+            AddExtensionUnsafe(extension_ptr);
+        } catch (const InferenceEngine::NotFound&) {
+        } catch (const InferenceEngine::GeneralError&) {
+        }
     }
 };
 
@@ -1288,11 +1306,14 @@ ExecutableNetwork Core::import_model(std::istream& networkModel,
     return {exec._so, exec._ptr};
 }
 
-ie::QueryNetworkResult Core::query_model(const std::shared_ptr<const ngraph::Function>& network,
-                                         const std::string& deviceName,
-                                         const ConfigMap& config) const {
-    return _impl->QueryNetwork(ie::CNNNetwork(std::const_pointer_cast<ngraph::Function>(network)), deviceName, config);
+SupportedOpsMap Core::query_model(const std::shared_ptr<const ngraph::Function>& network,
+                                  const std::string& deviceName,
+                                  const ConfigMap& config) const {
+    auto cnnNet = ie::CNNNetwork(std::const_pointer_cast<ngraph::Function>(network));
+    auto qnResult = _impl->QueryNetwork(cnnNet, deviceName, config);
+    return qnResult.supportedLayersMap;
 }
+
 void Core::set_config(const ConfigMap& config, const std::string& deviceName) {
     // HETERO case
     if (deviceName.find("HETERO:") == 0) {
