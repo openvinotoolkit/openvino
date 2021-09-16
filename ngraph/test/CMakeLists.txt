@@ -331,6 +331,7 @@ set(SRC
     visitors/op/reverse.cpp
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
+    visitors/op/rnn_sequence.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
     visitors/op/scatter_elements_update.cpp
@@ -415,7 +416,6 @@ set(MULTI_TEST_SRC
     backend/api.in.cpp
     backend/asin.in.cpp
     backend/asinh.in.cpp
-    backend/atan.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
