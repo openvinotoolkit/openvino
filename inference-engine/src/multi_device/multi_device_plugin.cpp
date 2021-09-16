@@ -239,6 +239,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         validConfigKey.push_back(PluginConfigParams::KEY_PERF_COUNT);
         validConfigKey.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
         validConfigKey.push_back(PluginConfigParams::KEY_PERFORMANCE_HINT);
+        validConfigKey.push_back(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
         strDevices = "";
         for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
              std::map<std::string, std::string> deviceConfig;
