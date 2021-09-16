@@ -6,6 +6,7 @@
 
 #include <pybind11/numpy.h>
 
+#include "ngraph/ngraph.hpp"
 #include "ngraph/validation_util.hpp"
 
 namespace py = pybind11;
@@ -36,4 +37,6 @@ void regmodule_pyngraph_util(py::module m) {
                         they are the same returns Constant operation
                         from the resulting bound, otherwise Null.
                 )");
+
+    mod.def("get_ngraph_version_string", &get_ngraph_version_string);
 }
