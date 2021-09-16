@@ -107,12 +107,29 @@ public:
     std::vector<Place::Ptr> get_consuming_operations() const override {
         m_stat.m_get_consuming_operations++;
         m_stat.m_lastArgInt = -1;
+        m_stat.m_lastArgString = "";
         return {std::make_shared<PlaceMockPy>()};
     }
 
     std::vector<Place::Ptr> get_consuming_operations(int outputPortIndex) const override {
         m_stat.m_get_consuming_operations++;
         m_stat.m_lastArgInt = outputPortIndex;
+        m_stat.m_lastArgString = "";
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    std::vector<Place::Ptr> get_consuming_operations(const std::string& outputName) const override {
+        m_stat.m_get_consuming_operations++;
+        m_stat.m_lastArgInt = -1;
+        m_stat.m_lastArgString = outputName;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    std::vector<Place::Ptr> get_consuming_operations(const std::string& outputName,
+                                                     int outputPortIndex) const override {
+        m_stat.m_get_consuming_operations++;
+        m_stat.m_lastArgInt = outputPortIndex;
+        m_stat.m_lastArgString = outputName;
         return {std::make_shared<PlaceMockPy>()};
     }
 

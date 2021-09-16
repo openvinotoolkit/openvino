@@ -96,6 +96,9 @@ public:
 
     std::vector<Place::Ptr> get_consuming_ports() const override;
     std::vector<Place::Ptr> get_consuming_operations() const override;
+    std::vector<Place::Ptr> get_consuming_operations(int output_port_index) const override;
+    std::vector<Place::Ptr> get_consuming_operations(const std::string& output_port_name) const override;
+
     bool is_equal(Place::Ptr another) const override;
     bool is_input() const override;
     bool is_output() const override;

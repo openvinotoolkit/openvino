@@ -804,3 +804,10 @@ def test_get_consuming_operations():
     assert len(out2_tensor_consuming_ops) == 0
     out2_port_consuming_ops = out2_tensor.get_producing_port().get_consuming_operations()
     assert len(out2_port_consuming_ops) == 0
+
+    split_out_1_consuming_ops = split_op.get_consuming_operations(outputPortIndex=1)
+    assert len(split_out_1_consuming_ops) == 1
+    split_out_sp_out_2_consuming_ops = split_op.get_consuming_operations(outputName="sp_out2")
+    assert len(split_out_sp_out_2_consuming_ops) == 1
+    assert split_out_1_consuming_ops[0].is_equal(split_out_sp_out_2_consuming_ops[0])
+    assert split_out_1_consuming_ops[0].is_equal(sin_op)

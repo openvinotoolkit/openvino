@@ -103,7 +103,7 @@ public:
     ///
     /// \return A vector with all operation node references that consumes data from this
     /// place
-    virtual std::vector<Ptr> get_consuming_operations(const std::string& outputPortName) const;
+    virtual std::vector<Ptr> get_consuming_operations(const std::string& outputName) const;
 
     /// \brief Returns references to all operation nodes that consume data from this place
     /// for specified output port

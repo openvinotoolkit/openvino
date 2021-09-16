@@ -163,9 +163,13 @@ bool PlaceTensorONNX::is_equal_data(Place::Ptr another) const {
 std::vector<Place::Ptr> PlaceTensorONNX::get_consuming_operations() const {
     std::vector<Place::Ptr> consuming_ports = get_consuming_ports();
     std::vector<Place::Ptr> consuming_ops;
-    std::transform(std::begin(consuming_ports), std::end(consuming_ports), std::back_inserter(consuming_ops),
-     [](const Place::Ptr place) {return place->get_consuming_operations().at(0);});
-    
+    std::transform(std::begin(consuming_ports),
+                   std::end(consuming_ports),
+                   std::back_inserter(consuming_ops),
+                   [](const Place::Ptr place) {
+                       return place->get_consuming_operations().at(0);
+                   });
+
     return consuming_ops;
 }
 
@@ -247,13 +251,33 @@ std::vector<Place::Ptr> PlaceOpONNX::get_consuming_ports() const {
     return consuming_ports;
 }
 
+namespace {
+std::vector<Place::Ptr> get_consuming_ops(std::vector<Place::Ptr> input_ports) {
+    std::vector<Place::Ptr> consuming_ops;
+    std::transform(std::begin(input_ports),
+                   std::end(input_ports),
+                   std::back_inserter(consuming_ops),
+                   [](const Place::Ptr place) {
+                       return place->get_consuming_operations().at(0);
+                   });
+
+    return consuming_ops;
+}
+}  // namespace
+
 std::vector<Place::Ptr> PlaceOpONNX::get_consuming_operations() const {
     std::vector<Place::Ptr> consuming_ports = get_consuming_ports();
-    std::vector<Place::Ptr> consuming_ops;
-    std::transform(std::begin(consuming_ports), std::end(consuming_ports), std::back_inserter(consuming_ops),
-     [](const Place::Ptr place) {return place->get_consuming_operations().at(0);});
-    
-    return consuming_ops;
+    return get_consuming_ops(consuming_ports);
+}
+
+std::vector<Place::Ptr> PlaceOpONNX::get_consuming_operations(int output_port_index) const {
+    std::vector<Place::Ptr> consuming_ports = get_output_port(output_port_index)->get_consuming_ports();
+    return get_consuming_ops(consuming_ports);
+}
+
+std::vector<Place::Ptr> PlaceOpONNX::get_consuming_operations(const std::string& output_port_name) const {
+    std::vector<Place::Ptr> consuming_ports = get_output_port(output_port_name)->get_consuming_ports();
+    return get_consuming_ops(consuming_ports);
 }
 
 bool PlaceOpONNX::is_equal(Place::Ptr another) const {
