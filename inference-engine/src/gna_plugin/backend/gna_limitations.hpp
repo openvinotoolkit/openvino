@@ -104,6 +104,7 @@ class Validator {
     const VectorOrSquareLimit poolingWindowLimit{ 3, 1, 1 };
 
     static void ThrowIfNotEmpty(const std::string prefix, const std::string error);
+
 public:
     Validator() = default;
 
