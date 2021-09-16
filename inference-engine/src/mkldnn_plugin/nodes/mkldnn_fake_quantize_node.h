@@ -90,12 +90,24 @@ public:
     const std::vector<float>& getOutputScale() const { return outputScale; }
     const std::vector<float>& getOutputShift() const { return outputShift; }
 
-    void setCropLow(std::vector<float> newCropLow) { cropLow = std::move(newCropLow); isPostOpDataInitialized = false; }
-    void setCropHigh(std::vector<float> newCropHigh) { cropHigh = std::move(newCropHigh); isPostOpDataInitialized = false; }
-    void setInputScale(std::vector<float> newInputScale) { inputScale = std::move(newInputScale); isPostOpDataInitialized = false; }
-    void setInputShift(std::vector<float> newInputShift) { inputShift = std::move(newInputShift); isPostOpDataInitialized = false; }
-    void setOutputScale(std::vector<float> newOutputScale) { outputScale = std::move(newOutputScale); isPostOpDataInitialized = false;}
-    void setOutputShift(std::vector<float> newOutputShift) { outputShift = std::move(newOutputShift); isPostOpDataInitialized = false; }
+    void setCropLow(std::vector<float> newCropLow) {
+        cropLow = std::move(newCropLow); cropLowSize = cropLow.size(); isPostOpDataInitialized = false;
+    }
+    void setCropHigh(std::vector<float> newCropHigh) {
+        cropHigh = std::move(newCropHigh); cropHighSize = cropHigh.size(); isPostOpDataInitialized = false;
+    }
+    void setInputScale(std::vector<float> newInputScale) {
+        inputScale = std::move(newInputScale); inputScaleSize = inputScale.size(); isPostOpDataInitialized = false;
+    }
+    void setInputShift(std::vector<float> newInputShift) {
+        inputShift = std::move(newInputShift); inputShiftSize = inputShift.size(); isPostOpDataInitialized = false;
+    }
+    void setOutputScale(std::vector<float> newOutputScale) {
+        outputScale = std::move(newOutputScale); outputScaleSize = outputScale.size(); isPostOpDataInitialized = false;
+    }
+    void setOutputShift(std::vector<float> newOutputShift) {
+        outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); isPostOpDataInitialized = false;
+    }
 
     bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
     bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
