@@ -34,7 +34,7 @@ class Core;
  * @brief This is an interface of an executable network
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
-    std::shared_ptr<SharedObject> _so;
+    std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
 
     /**
@@ -43,8 +43,7 @@ class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
      * object is destroyed.
      * @param impl Initialized shared pointer
      */
-    ExecutableNetwork(const std::shared_ptr<SharedObject>& so,
-                      const std::shared_ptr<ie::IExecutableNetworkInternal>& impl);
+    ExecutableNetwork(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IExecutableNetworkInternal>& impl);
     friend class ov::runtime::Core;
 
 public:

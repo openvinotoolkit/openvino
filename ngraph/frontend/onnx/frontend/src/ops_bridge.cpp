@@ -29,6 +29,7 @@
 #include "op/cast_like.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
+#include "op/com.microsoft/bias_gelu.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
 #include "op/constant.hpp"
@@ -66,6 +67,7 @@
 #include "op/hard_swish.hpp"
 #include "op/hardmax.hpp"
 #include "op/identity.hpp"
+#include "op/if.hpp"
 #include "op/image_scaler.hpp"
 #include "op/instance_norm.hpp"
 #include "op/leaky_relu.hpp"
@@ -261,6 +263,8 @@ bool OperatorsBridge::_is_operator_registered(const std::string& name,
     }
 }
 
+static const char* const MICROSOFT_DOMAIN = "com.microsoft";
+
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
 
@@ -335,6 +339,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
     REGISTER_OPERATOR("HardSwish", 1, hard_swish);
     REGISTER_OPERATOR("Identity", 1, identity);
+    REGISTER_OPERATOR("If", 1, if_op);
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
@@ -473,6 +478,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBoxClustered", 1, prior_box_clustered);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Swish", 1, swish);
+
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
 }
 
 #undef REGISTER_OPERATOR

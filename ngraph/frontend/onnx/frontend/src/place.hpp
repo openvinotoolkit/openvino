@@ -13,6 +13,7 @@ namespace frontend {
 class PlaceInputEdgeONNX : public Place {
 public:
     PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceInputEdgeONNX(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
     onnx_editor::InputEdge get_input_edge() const;
 
@@ -34,6 +35,7 @@ private:
 class PlaceOutputEdgeONNX : public Place {
 public:
     PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceOutputEdgeONNX(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
     onnx_editor::OutputEdge get_output_edge() const;
 
@@ -55,6 +57,7 @@ private:
 class PlaceTensorONNX : public Place {
 public:
     PlaceTensorONNX(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceTensorONNX(std::string&& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
     std::vector<std::string> get_names() const override;
 
@@ -80,6 +83,7 @@ private:
 class PlaceOpONNX : public Place {
 public:
     PlaceOpONNX(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceOpONNX(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
     std::vector<std::string> get_names() const override;
 
     Place::Ptr get_output_port() const override;

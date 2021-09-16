@@ -62,8 +62,6 @@ xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node 
 xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Momentum")
-xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "If")
 xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop"
                                       "Not constant termination condition body output is not supported")
 xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger"
@@ -95,7 +93,6 @@ xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero
 xfail_issue_44958 = xfail_test(reason="Expected: Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no element")
 xfail_issue_44968 = xfail_test(reason="Expected: Unsupported dynamic op: Squeeze")
-xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if uint data type is used")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_55760 = xfail_test(reason="RuntimeError: Reversed axis have axes above the source space shape")
@@ -149,3 +146,4 @@ skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with
 xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
+xfail_issue_63643 = xfail_test(reason="RuntimeError: Unsupported operation of type: Convolution name")

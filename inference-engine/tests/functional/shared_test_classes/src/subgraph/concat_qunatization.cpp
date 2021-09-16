@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ConcatQuantization::getTestCaseName(testing::TestParamInfo<concatQuantizationParams> obj) {
+std::string ConcatQuantization::getTestCaseName(const testing::TestParamInfo<concatQuantizationParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;
