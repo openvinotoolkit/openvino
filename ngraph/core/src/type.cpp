@@ -20,8 +20,8 @@ size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTyp
 namespace ov {
 std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
     std::string version_id = info.version_id ? info.version_id : "(empty)";
-    s << "DiscreteTypeInfo{name: " << info.name << ", version_id: " << version_id
-      << ", old_version: " << info.version << ", parent: ";
+    s << "DiscreteTypeInfo{name: " << info.name << ", version_id: " << version_id << ", old_version: " << info.version
+      << ", parent: ";
     if (!info.parent)
         s << info.parent;
     else
