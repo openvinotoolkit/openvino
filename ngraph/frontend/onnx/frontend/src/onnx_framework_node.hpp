@@ -86,14 +86,19 @@ public:
         : ONNXFrameworkNode(graph, node, inputs) {}
 
     void infer_inputs_from_parent() {
-        m_node.get_subgraph()->infer_inputs_from_parent();
+        for (auto& subgraph : m_node.get_subgraphs())
+            subgraph.second->infer_inputs_from_parent();
     }
 
-    std::shared_ptr<Function> get_subgraph_body() const {
-        auto subgraph = m_node.get_subgraph();
-        return std::make_shared<Function>(subgraph->get_ng_outputs(),
-                                          subgraph->get_ng_parameters(),
-                                          subgraph->get_name());
+    std::vector<std::shared_ptr<Function>> get_subgraph_functions() const {
+        std::vector<std::shared_ptr<Function>> ret;
+        for (const auto& kv : m_node.get_subgraphs()) {
+            auto& subgraph = kv.second;
+            ret.push_back(std::make_shared<Function>(subgraph->get_ng_outputs(),
+                                                     subgraph->get_ng_parameters(),
+                                                     subgraph->get_name()));
+        }
+        return ret;
     }
 };
 
