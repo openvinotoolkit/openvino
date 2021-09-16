@@ -6,7 +6,7 @@
 
 #include <tuple>
 
-#include "transformations/decompose_2d_conv.hpp"
+#include "transformations/decompose_2d_convolution.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset7.hpp>
@@ -426,7 +426,7 @@ void TransformInput(const GraphData& graph_data, const ConvParams& conv_params, 
     */
 
     // First we need to prepare flat (height = 1) slices of input data proper for flattened (height = 1) filters created later on;
-    // the input datat is overlapping (duplicated)
+    // the input data is overlapping (duplicated)
     ngraph::OutputVector dilated_input_planes;
     for (size_t filter_height = 0; filter_height < conv_params.filter_height; filter_height++) {
         size_t offset;
@@ -704,10 +704,13 @@ void execute_test(modelType model, std::shared_ptr<ngraph::Function> function, s
     case modelType::TranspConvBcastAddActTransp:
     case modelType::TranspConvBcastAddMaxPoolActTransp:
         manager.register_pass<GNAPluginNS::Decompose2DConv>();
+        break;
     case modelType::TranspConvTranspBcastAdd:
         manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBias>();
+        break;
     case modelType::TranspConvTranspBcastAddAct:
         manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBiasAF>();
+        break;
     }
 
     manager.run_passes(function);
