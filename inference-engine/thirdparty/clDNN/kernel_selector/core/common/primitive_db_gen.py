@@ -96,7 +96,7 @@ class OpenCL2CHeaders(object):
                 undefs += include_file_undefs
         return undefs
 
-    # Conservertive removal of macro checking with its potential users
+    # Conservative removal of macro checking with its potential users
     # Potential users are determined by checking followings:
     #   - if macro is appearing on the line
     #   - if macro might be composed by concat
