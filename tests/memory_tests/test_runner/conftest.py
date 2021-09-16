@@ -439,7 +439,7 @@ def prepare_timeline_report(pytestconfig):
 
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(
-                searchpath=Path().absolute() / 'memory-template'),
+                searchpath=Path().absolute() / 'memory_template'),
             autoescape=False)
         template = env.get_template('timeline_report.html')
         template.stream(records=records, timelines=timelines).dump(report_path)
