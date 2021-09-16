@@ -106,6 +106,7 @@ from ngraph.opset1.ops import prior_box
 from ngraph.opset1.ops import prior_box_clustered
 from ngraph.opset1.ops import psroi_pooling
 from ngraph.opset4.ops import proposal
+from ngraph.opset8.ops import random_uniform
 from ngraph.opset1.ops import range
 from ngraph.opset3.ops import read_value
 from ngraph.opset4.ops import reduce_l1

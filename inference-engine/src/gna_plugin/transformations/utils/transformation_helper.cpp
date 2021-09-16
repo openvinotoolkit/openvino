@@ -5,6 +5,7 @@
 
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include "transformation_helper.hpp"
 
 
@@ -70,6 +71,31 @@ std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::No
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)1, (size_t)1}),       // strides
         std::vector<int64_t>{1, 0},                                                                             // begin mask
         std::vector<int64_t>{1, 0});                                                                            // end mask
+}
+
+std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> conv, std::shared_ptr<ngraph::Node> bias) {
+    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(1).get_node_shared_ptr());
+
+    // Check if it's really a bias and not just addition
+    if (add_const) {
+        auto bias_size = shape_size(add_const->get_shape());
+        auto conv_filter_count = conv->get_output_shape(0)[1];
+        if (bias_size == conv_filter_count)
+            return add_const;
+    }
+    return nullptr;
+}
+
+std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer,
+    std::shared_ptr<ngraph::Node> last_node) {
+    if (fq_layer != nullptr) {
+        auto new_fq = fq_layer->clone_with_new_inputs({last_node,
+            fq_layer->input_value(1), fq_layer->input_value(2),
+            fq_layer->input_value(3), fq_layer->input_value(4)});
+        ngraph::copy_runtime_info(new_fq, fq_layer);
+        return new_fq;
+    }
+    return last_node;
 }
 
 } // namespace GNAPluginNS
