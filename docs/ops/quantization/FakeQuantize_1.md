@@ -2,7 +2,7 @@
 
 **Versioned name**: *FakeQuantize-1*
 
-**Category**: Quantization
+**Category**: *Quantization*
 
 **Short description**: *FakeQuantize* is element-wise linear quantization of floating-point input values into a discrete set of floating-point values.
 

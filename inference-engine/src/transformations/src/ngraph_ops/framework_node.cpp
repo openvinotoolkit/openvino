@@ -95,8 +95,8 @@ void op::FrameworkNode::validate_and_infer_types() {
     }
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::FrameworkNodeAttrs>::type_info;
+constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>::type_info;
 
-AttributeAdapter<op::FrameworkNodeAttrs>::AttributeAdapter(
-    op::FrameworkNodeAttrs& value)
-    : DirectValueAccessor<op::FrameworkNodeAttrs>(value) {}
+ov::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>::AttributeAdapter(
+    ngraph::op::FrameworkNodeAttrs& value)
+    : DirectValueAccessor<ngraph::op::FrameworkNodeAttrs>(value) {}

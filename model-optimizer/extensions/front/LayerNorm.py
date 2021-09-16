@@ -3,10 +3,10 @@
 
 import logging as log
 
+from extensions.ops.mvn import MVN
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
-from extensions.ops.mvn import MVN
 from mo.middle.pattern_match import apply_pattern
 
 

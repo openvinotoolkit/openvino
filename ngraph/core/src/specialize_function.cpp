@@ -18,7 +18,7 @@ std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> 
                                                       const std::vector<void*>& parameter_values)
 
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "specialize_function");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "specialize_function");
 
     NGRAPH_CHECK(f->get_parameters().size() == parameter_shapes.size());
     NGRAPH_CHECK(f->get_parameters().size() == parameter_element_types.size());
@@ -72,7 +72,7 @@ std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> 
     ParameterVector new_parameters = f->get_parameters();
     for (size_t i = 0; i < new_parameters.size(); i++) {
         auto name = new_parameters[i]->get_friendly_name();
-        new_parameters[i] = as_type_ptr<op::Parameter>(m[new_parameters[i].get()]);
+        new_parameters[i] = ov::as_type_ptr<op::Parameter>(m[new_parameters[i].get()]);
 
         // If the replacement for a Parameter is not itself a Parameter, we must have replaced it
         // with a constant. We will insert a dead Parameter into the clone's parameters, in order

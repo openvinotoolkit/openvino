@@ -66,6 +66,7 @@
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
+#include "low_precision/move_fake_quantize.hpp"
 
 // cleanup transformations
 #include "low_precision/convert.hpp"
@@ -75,7 +76,6 @@
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
-#include "low_precision/subtract_multiply_to_multiply_add.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::LowPrecision, "LowPrecision", 0);
 
@@ -95,7 +95,7 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
     using namespace ngraph;
 
     auto is_op_type = [](std::shared_ptr<Node> n) {
-        return !!as_type_ptr<BaseOp>(n);
+        return !!ov::as_type_ptr<BaseOp>(n);
     };
 
     auto p_node = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_op_type);
@@ -198,6 +198,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     prerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+    prerequisites->add_matcher<ngraph::pass::low_precision::MoveFakeQuantize>();
 
     manager.register_pass<TypeRelaxedReplacer>();
 
@@ -245,7 +246,6 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     cleanup->add_matcher<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>(
         params,
         OperationPrecisionRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions));
-    manager.register_pass<ngraph::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation>(params);
     manager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>(params);
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
@@ -270,7 +270,7 @@ bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::s
                 continue;
             }
 
-            const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
+            const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
             if ((fakeQuantize != nullptr) &&
                 QuantizationDetails::outputLayoutIsSupported(fakeQuantize) &&
                 QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {

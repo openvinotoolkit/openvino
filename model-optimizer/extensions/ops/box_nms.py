@@ -8,14 +8,15 @@ from mo.utils.utils import refer_to_faq_msg
 
 
 class BoxNms(Op):
-    ''' It is assumed that there is no equivalent of this op in IE.
-    '''
+    """
+    It is assumed that there is no equivalent of this op in IE.
+    """
     op = '_contrib_box_nms'
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'coord_start': 2,
             'force_suppress': False,
             'id_index': 0,
@@ -23,7 +24,7 @@ class BoxNms(Op):
             'score_index': 1,
             'topk': 400,
             'valid_thresh': 0.01,
-            'infer': __class__.infer
+            'infer': self.infer
         }
         super().__init__(graph, mandatory_props, attrs)
 

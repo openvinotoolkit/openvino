@@ -4,6 +4,7 @@
 import numpy as np
 
 from extensions.ops.tensor_iterator import TensorIterator
+from mo.front.common.partial_infer.utils import shape_delete
 from mo.graph.graph import Graph, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -90,7 +91,7 @@ class GRUAndRNNToTensorIterator(MiddleReplacementPattern):
         for out in outputs:
             add_opoutput(body, out.id, 0, False)
 
-        outputs[0].shape = np.delete(outputs[0].shape.copy(), rnn_layer.sequence_dim)
+        outputs[0].shape = shape_delete(outputs[0].shape, rnn_layer.sequence_dim)
         output_unsqueeze_dim = Const(body, dict(name=rnn_layer.name + '/output_unsqueeze_dim',
                                                 value=rnn_layer.sequence_dim)).create_node_with_data()
         output_unsqueeze = Unsqueeze(body, dict(name=rnn_layer.name + '/output_unsqueeze/', internal_layer_id=2))

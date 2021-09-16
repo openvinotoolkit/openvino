@@ -22,7 +22,7 @@ typedef std::tuple<
 
 class DFTLayerTest : public testing::WithParamInterface<DFTParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<DFTParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<DFTParams>& obj);
 
 protected:
     void SetUp() override;

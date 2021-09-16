@@ -11,7 +11,7 @@
 #include "common/memory_desc_wrapper.hpp"
 
 #include <fstream>
-#include <cpu_memory_desc_utils.h>
+#include <memory_desc/cpu_memory_desc_utils.h>
 
 using namespace InferenceEngine;
 
@@ -65,7 +65,7 @@ static IEB_HEADER prepare_header(const MemoryDesc& desc) {
     return header;
 }
 
-static MKLDNNMemoryDesc parse_header(IEB_HEADER &header) {
+static DnnlBlockedMemoryDesc parse_header(IEB_HEADER &header) {
     if (header.magic[0] != IEB_MAGIC[0] ||
         header.magic[1] != IEB_MAGIC[1] ||
         header.magic[2] != IEB_MAGIC[2] ||
@@ -76,16 +76,16 @@ static MKLDNNMemoryDesc parse_header(IEB_HEADER &header) {
         header.ver[1] != 1)
         IE_THROW() << "Dumper cannot parse file. Unsupported IEB format version.";
 
-    const auto prc = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision(static_cast<Precision::ePrecision>(header.precision)));
+    const auto prc = Precision(static_cast<Precision::ePrecision>(header.precision));
     SizeVector dims(header.ndims);
     for (int i = 0; i < header.ndims; i++)
         dims[i] = header.dims[i];
 
-    return MKLDNNMemoryDesc{dims, prc, MKLDNNMemory::GetPlainFormatByRank(dims.size()) };
+    return DnnlBlockedMemoryDesc{prc, Shape(dims)};
 }
 
 void BlobDumper::prepare_plain_data(const MKLDNNMemoryPtr &memory, std::vector<uint8_t> &data) const {
-    const auto &desc = memory->GetDesc();
+    const auto &desc = memory->getDesc();
     size_t data_size = desc.getShape().getElementsCount();
     const auto size = data_size * desc.getPrecision().size();
     data.resize(size);
@@ -132,7 +132,7 @@ void BlobDumper::dump(std::ostream &stream) const {
     if (memory == nullptr)
         IE_THROW() << "Dumper cannot dump. Memory is not allocated.";
 
-    IEB_HEADER header = prepare_header(memory->GetDesc());
+    IEB_HEADER header = prepare_header(memory->getDesc());
     std::vector<uint8_t> data;
     prepare_plain_data(this->memory, data);
 
@@ -149,12 +149,12 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
     if (memory == nullptr)
         IE_THROW() << "Dumper cannot dump. Memory is not allocated.";
 
-    const auto dims = memory->GetDims();
-    const auto &desc = memory->GetDesc();
+    const auto &desc = memory->getDesc();
+    const auto dims = desc.getShape().getStaticDims();
     size_t data_size = desc.getShape().getElementsCount();
 
     // Header like "U8 4D shape: 2 3 224 224 ()
-    stream << memory->GetDesc().getPrecision().name() << " "
+    stream << memory->getDesc().getPrecision().name() << " "
            << dims.size() << "D "
            << "shape: ";
     for (size_t d : dims) stream << d << " ";

@@ -71,7 +71,7 @@ struct CompiledGraph final {
 // compileNetwork
 //
 
-CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, ncDevicePlatform_t platform, const PluginConfiguration& config, const Logger::Ptr& log,
+CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, const PluginConfiguration& config, const Logger::Ptr& log,
                                   const std::shared_ptr<ie::ICore> core);
 
 CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const PluginConfiguration& subConfig, const std::shared_ptr<ie::ICore> core);
@@ -80,7 +80,7 @@ CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const Plugin
 // getSupportedLayers
 //
 
-std::set<std::string> getSupportedLayers(const ie::CNNNetwork& network, ncDevicePlatform_t platform, const PluginConfiguration& config, const Logger::Ptr& log,
+std::set<std::string> getSupportedLayers(const ie::CNNNetwork& network, const PluginConfiguration& config, const Logger::Ptr& log,
                                          const std::shared_ptr<ie::ICore> core);
 
 //

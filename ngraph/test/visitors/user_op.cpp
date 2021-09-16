@@ -18,7 +18,7 @@ using ngraph::test::ValueMap;
 
 enum class TuringModel { XL400, XL1200 };
 
-namespace ngraph {
+namespace ov {
 template <>
 EnumNames<TuringModel>& EnumNames<TuringModel>::get() {
     static auto enum_names =
@@ -74,7 +74,7 @@ protected:
 };
 
 constexpr DiscreteTypeInfo AttributeAdapter<Position>::type_info;
-}  // namespace ngraph
+}  // namespace ov
 
 // Given a Turing machine program and data, return scalar 1 if the program would
 // complete, 1 if it would not.
@@ -110,7 +110,7 @@ public:
            const std::vector<int32_t>& vec_int32_t,
            const std::vector<int64_t>& vec_int64_t,
            const std::vector<size_t>& vec_size_t,
-           const Position& position,
+           const ov::Position& position,
            const shared_ptr<Node>& node,
            const NodeVector& node_vector,
            const ParameterVector& parameter_vector,
@@ -240,7 +240,7 @@ public:
     const vector<size_t>& get_vec_size_t() const {
         return m_vec_size_t;
     }
-    const Position& get_position() const {
+    const ov::Position& get_position() const {
         return m_position;
     }
     const shared_ptr<Node>& get_node() const {
@@ -362,7 +362,7 @@ protected:
     vector<int32_t> m_vec_int32_t;
     vector<int64_t> m_vec_int64_t;
     vector<size_t> m_vec_size_t;
-    Position m_position;
+    ov::Position m_position;
     shared_ptr<Node> m_node;
     NodeVector m_node_vector;
     ParameterVector m_parameter_vector;
@@ -406,7 +406,7 @@ TEST(attributes, user_op) {
                                       vector<int32_t>{1, 2, 4, 8},
                                       vector<int64_t>{1, 2, 4, 8},
                                       vector<size_t>{1, 3, 8, 4, 2},
-                                      Position{1.3f, 5.1f, 2.3f},
+                                      ov::Position{1.3f, 5.1f, 2.3f},
                                       data,
                                       NodeVector{program, result, data},
                                       ParameterVector{data, data, program},
@@ -423,7 +423,7 @@ TEST(attributes, user_op) {
     saver.register_node(data, "data");
     saver.register_node(result, "result");
     builder.save_node(oracle);
-    auto g_oracle = as_type_ptr<Oracle>(builder.create());
+    auto g_oracle = ov::as_type_ptr<Oracle>(builder.create());
 
     EXPECT_EQ(g_oracle->get_turing_model(), oracle->get_turing_model());
     EXPECT_EQ(g_oracle->get_element_type(), oracle->get_element_type());

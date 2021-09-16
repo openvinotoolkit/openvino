@@ -109,6 +109,9 @@ def prepare_ir(argv: argparse.Namespace):
         if argv.input_model:
             if not argv.framework:
                 moc_front_end = fem.load_by_model(argv.input_model)
+                # skip onnx frontend as not fully supported yet (63050)
+                if moc_front_end and moc_front_end.get_name() == "onnx":
+                    moc_front_end = None
                 if moc_front_end:
                     argv.framework = moc_front_end.get_name()
             elif argv.framework in available_moc_front_ends:

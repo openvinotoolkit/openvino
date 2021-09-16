@@ -9,19 +9,18 @@
 #include "ngraph/op/util/elementwise_args.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::util::BinaryElementwiseLogical, "BinaryElementwiseLogical", 0);
+NGRAPH_RTTI_DEFINITION(ov::op::util::BinaryElementwiseLogical, "BinaryElementwiseLogical", 0);
 
-op::util::BinaryElementwiseLogical::BinaryElementwiseLogical() {}
+ov::op::util::BinaryElementwiseLogical::BinaryElementwiseLogical() = default;
 
-op::util::BinaryElementwiseLogical::BinaryElementwiseLogical(const Output<Node>& arg0,
-                                                             const Output<Node>& arg1,
-                                                             const AutoBroadcastSpec& autob)
+ov::op::util::BinaryElementwiseLogical::BinaryElementwiseLogical(const Output<Node>& arg0,
+                                                                 const Output<Node>& arg1,
+                                                                 const AutoBroadcastSpec& autob)
     : Op({arg0, arg1}),
       m_autob(autob) {}
 
-void op::util::BinaryElementwiseLogical::validate_and_infer_types() {
+void ov::op::util::BinaryElementwiseLogical::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseLogical_validate_and_infer_types);
 
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, m_autob);
@@ -37,7 +36,7 @@ void op::util::BinaryElementwiseLogical::validate_and_infer_types() {
     set_output_type(0, element::boolean, args_pshape);
 }
 
-bool op::util::BinaryElementwiseLogical::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::BinaryElementwiseLogical::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseLogical_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;

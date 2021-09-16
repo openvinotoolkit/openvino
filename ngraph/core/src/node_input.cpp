@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/node_input.hpp"
+#include "openvino/core/node_input.hpp"
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 Input<Node>::Input(Node* node, size_t index) : m_node(node), m_index(index) {}
 
 Node* Input<Node>::get_node() const {
@@ -153,4 +153,4 @@ std::ostream& operator<<(std::ostream& out, const Input<const Node>& input) {
     return input.get_node()->write_description(out, 0)
            << ".input(" << input.get_index() << "):" << input.get_element_type() << input.get_partial_shape();
 }
-}  // namespace ngraph
+}  // namespace ov

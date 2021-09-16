@@ -16,9 +16,11 @@
 #include <string>
 
 #include "blob_factory.hpp"
+#include "exec_graph_info.hpp"
 #include "ie_icore.hpp"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
 
 namespace InferenceEngine {
@@ -125,6 +127,10 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     }
 
     SetExeNetworkInfo(impl, const_map_cast(network.getInputsInfo()), const_map_cast(network.getOutputsInfo()));
+    auto function = network.getFunction();
+    if (function) {
+        SetExeNetworkInfo(impl, std::const_pointer_cast<ov::Function>(function));
+    }
 
     return impl;
 }
@@ -152,11 +158,11 @@ Parameter IInferencePlugin::GetMetric(const std::string&, const std::map<std::st
     IE_THROW(NotImplemented);
 }
 
-RemoteContext::Ptr IInferencePlugin::CreateContext(const ParamMap&) {
+std::shared_ptr<RemoteContext> IInferencePlugin::CreateContext(const ParamMap&) {
     IE_THROW(NotImplemented);
 }
 
-RemoteContext::Ptr IInferencePlugin::GetDefaultContext(const ParamMap&) {
+std::shared_ptr<RemoteContext> IInferencePlugin::GetDefaultContext(const ParamMap&) {
     IE_THROW(NotImplemented);
 }
 
@@ -219,6 +225,85 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     // Set inputs/outputs and pointer to plugin manually here
     exeNetwork->setNetworkInputs(copyInfo(constMapCast(inputs)));
     exeNetwork->setNetworkOutputs(copyInfo(constMapCast(outputs)));
+
+    ngraph::ParameterVector parameters;
+    ngraph::ResultVector results;
+    std::vector<ngraph::Output<ngraph::Node>> node_outputs;
+
+    for (auto&& input : inputs) {
+        auto tensor_desc = input.second->getTensorDesc();
+        auto dims = tensor_desc.getDims();
+        parameters.push_back(
+            std::make_shared<ngraph::op::v0::Parameter>(details::convertPrecision(tensor_desc.getPrecision()),
+                                                        std::vector<ov::Dimension>{dims.begin(), dims.end()}));
+        parameters.back()->set_friendly_name(input.first);
+        node_outputs.push_back(parameters.back()->output(0));
+    }
+
+    auto node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(node_outputs, outputs.size());
+
+    int i = 0;
+    for (auto&& output : outputs) {
+        auto tensor_desc = output.second->getTensorDesc();
+        auto dims = tensor_desc.getDims();
+        node->set_output_type(i,
+                              details::convertPrecision(tensor_desc.getPrecision()),
+                              std::vector<ov::Dimension>{dims.begin(), dims.end()});
+        results.push_back(std::make_shared<ngraph::op::v0::Result>(node->output(i)));
+        ++i;
+    }
+    exeNetwork->setRuntimeFunction(std::make_shared<ov::Function>(results, parameters, "execution_info"));
+    exeNetwork->SetPointerToPlugin(shared_from_this());
+}
+
+void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+                                         const std::shared_ptr<ov::Function>& function) {
+    IE_ASSERT(exeNetwork != nullptr);
+    IE_ASSERT(function != nullptr);
+
+    ngraph::ParameterVector parameters;
+    ngraph::ResultVector results;
+    ngraph::NodeVector nodes;
+
+    std::map<ngraph::Output<ngraph::Node>, ngraph::Output<ngraph::Node>> output_map;
+
+    for (auto&& node : function->get_ordered_ops()) {
+        ngraph::Node* new_node = nullptr;
+        if (ngraph::is_type<ngraph::op::Parameter>(node)) {
+            parameters.push_back(std::static_pointer_cast<ngraph::op::v0::Parameter>(node->clone_with_new_inputs({})));
+            for (std::size_t i = 0; i < node->outputs().size(); ++i) {
+                output_map.emplace(node->output(i), parameters.back()->output(i));
+            }
+            new_node = parameters.back().get();
+        } else {
+            std::vector<ngraph::Output<ngraph::Node>> outputs;
+            for (auto&& input : node->inputs()) {
+                outputs.emplace_back(output_map.at(input.get_source_output()));
+            }
+            if (ngraph::is_type<ngraph::op::Result>(node)) {
+                results.push_back(
+                    std::static_pointer_cast<ngraph::op::v0::Result>(node->clone_with_new_inputs(outputs)));
+                new_node = results.back().get();
+            } else {
+                nodes.push_back(
+                    std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(outputs, node->outputs().size()));
+                new_node = nodes.back().get();
+                for (std::size_t i = 0; i < node->outputs().size(); ++i) {
+                    auto output = node->output(i);
+                    output_map.emplace(output, nodes.back()->output(i));
+                    new_node->set_output_type(i, output.get_element_type(), output.get_partial_shape());
+                }
+            }
+        }
+        IE_ASSERT(new_node != nullptr);
+        new_node->set_friendly_name(node->get_friendly_name());
+        new_node->get_rt_info()[ExecGraphInfoSerialization::PERF_COUNTER] =
+            std::make_shared<::ngraph::VariantWrapper<std::string>>("not_executed");
+        new_node->get_rt_info()[ExecGraphInfoSerialization::ORIGINAL_NAMES] =
+            std::make_shared<::ngraph::VariantWrapper<std::string>>(node->get_friendly_name());
+    }
+    exeNetwork->setRuntimeFunction(
+        std::make_shared<ov::Function>(results, parameters, function->get_friendly_name() + "_execution_info"));
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 

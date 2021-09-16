@@ -16,34 +16,41 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 const std::vector<ConcatWithDifferentChildrenTransformationParam> testValues = {
     // U8
     {
+        1,
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} }
+    },
+    // U8 and unsupported concat axis
+    {
+        2,
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} }
     },
     // I8
     {
-        { 256ul, ngraph::Shape({}), {-128.f}, {127.f}, {-1.28f}, {1.27f} },
-        { 256ul, ngraph::Shape({}), {-128.f}, {127.f}, {-1.28f / 2}, {1.27f / 2} }
+        1,
+        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f / 2.f}, {1.27f / 2.f} }
     },
     // mixed: U8 + I8
     {
+        1,
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
     },
     // mixed: I8 + U8
     {
+        1,
         { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} }
     }
 };
-
-const std::vector<bool> multiChannel = { true/*, false*/ };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithDifferentChildrenTransformation,
     ::testing::Combine(
@@ -51,7 +58,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithDifferentChildrenTransformation,
         ::testing::Values(ngraph::PartialShape({ 1, 3, 10, 10 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(multiChannel)),
+        ::testing::ValuesIn(trasformationParamValues)),
     ConcatWithDifferentChildrenTransformation::getTestCaseName);
 }  // namespace

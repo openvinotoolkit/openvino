@@ -15,6 +15,9 @@
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
 
+namespace ov {
+class Function;
+}
 namespace InferenceEngine {
 
 class IInferencePlugin;
@@ -46,6 +49,12 @@ public:
      * @param[in]  networkOutputs  The network outputs
      */
     virtual void setNetworkOutputs(const OutputsDataMap& networkOutputs);
+
+    /**
+     * @brief      Sets function with network inputs and outpus info
+     * @param[in]  function The function with network inputs and outpus info
+     */
+    virtual void setRuntimeFunction(std::shared_ptr<ov::Function> function);
 
     /**
      * @brief Gets the Executable network output Data node information. The received info is stored in the given Data
@@ -85,7 +94,7 @@ public:
      * @brief Get executable graph information from a device
      * @return A network object to store executable graph information
      */
-    virtual CNNNetwork GetExecGraphInfo();
+    virtual std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     /**
      * @deprecated Need to implement GetVariablesInfo for ExecutableNetwork
@@ -141,6 +150,7 @@ protected:
     virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                           OutputsDataMap networkOutputs);
 
+    std::shared_ptr<ov::Function> _runtime_function;  //!< Holds information about network inputs and outputs
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
 

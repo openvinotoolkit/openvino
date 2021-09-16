@@ -451,6 +451,9 @@ std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
                                           const ngraph::Output<Node> &in1,
                                           ngraph::helpers::LogicalTypes logicalType);
 
+std::shared_ptr<ngraph::Node> makeLogical(const ngraph::ParameterVector& inputs,
+                                          ngraph::helpers::LogicalTypes logicalType);
+
 std::shared_ptr<ngraph::Node> makeDetectionOutput(const ngraph::OutputVector &inputs,
                                                   const ngraph::op::DetectionOutputAttrs& attrs);
 

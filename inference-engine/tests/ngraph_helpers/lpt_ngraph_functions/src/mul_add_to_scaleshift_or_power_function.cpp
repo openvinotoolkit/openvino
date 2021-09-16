@@ -7,7 +7,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 #include <legacy/ngraph_ops/power.hpp>
 #include <legacy/ngraph_ops/scaleshift.hpp>
@@ -28,19 +27,14 @@ namespace subgraph {
         const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
 
         const auto mulConst = ngraph::op::Constant::create(ngraph::element::f32, mulValues.constantShape, mulValues.values);
-        const auto mul = std::make_shared<ngraph::op::TypeRelaxed<ngraph::pass::low_precision::DequantizationMultiply>>(
+        const auto mul = std::make_shared<ngraph::op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(input, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(mulConst, element::f32).get());
 
         const auto addConst = ngraph::op::Constant::create(ngraph::element::f32, addValues.constantShape, addValues.values);
-        const auto add = std::make_shared<ngraph::pass::low_precision::DequantizationAdd>(mul, addConst);
+        const auto add = std::make_shared<opset1::Add>(mul, addConst);
         add->set_friendly_name("add");
-
-        if (!isDequantization) {
-            ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(mul);
-            ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(add);
-        }
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
         return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MulAddToScaleshiftOrPowerFunction");
@@ -62,7 +56,6 @@ namespace subgraph {
         std::shared_ptr<ngraph::Node> lastNode;
         if (isDequantization) {
             std::shared_ptr<Node> scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(input, weights, biases, precisionAfterOperation);
-            addDequantizationAttribute(scaleshift);
             scaleshift->set_friendly_name("add");
             lastNode = scaleshift;
         } else {
