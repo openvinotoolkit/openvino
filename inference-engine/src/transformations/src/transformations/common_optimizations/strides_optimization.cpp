@@ -118,13 +118,25 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
             auto conv_input = conv->input(0);
             insert_strides_prop(conv_input, conv_strides);
         } else {
-            // Retain original padding
-            // Make sure that setting strides does not change padding in cases when auto_pad is not EXPLICIT.
-            // When padding type is not EXPLICIT, strides make a role to paddings calculation.
-            // Change in padding, results in change in image position that filter is applied,
-            // so we may end up with unwanted results after that.
-            conv->set_auto_pad(op::PadType::EXPLICIT);
-            conv->set_strides(conv_strides);
+            const auto& pattern_value_map = m.get_pattern_value_map();
+            const auto& input = pattern_value_map.at(data);
+            bool is_auto_pad_explicit = conv->get_auto_pad() == op::PadType::EXPLICIT;
+            if (is_auto_pad_explicit || input.get_partial_shape().is_static()) {
+                // Retain original padding
+                // Make sure that setting strides does not change padding in cases when auto_pad is not EXPLICIT.
+                // When padding type is not EXPLICIT, strides make a role to paddings calculation.
+                // Change in padding, results in change in image position that filter is applied,
+                // so we may end up with unwanted results after that.
+                if (!is_auto_pad_explicit)
+                    conv->set_auto_pad(op::PadType::EXPLICIT);
+                conv->set_strides(conv_strides);
+            } else {
+                for (auto& output : conv->outputs()) {
+                    for (auto inp : output.get_target_inputs()) {
+                        insert_pooling(output, inp, conv_strides);
+                    }
+                }
+            }
         }
 
         return true;
