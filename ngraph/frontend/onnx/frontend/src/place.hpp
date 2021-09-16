@@ -93,6 +93,8 @@ public:
 
     std::vector<Place::Ptr> get_consuming_ports() const override;
     bool is_equal(Place::Ptr another) const override;
+    bool is_input() const override;
+    bool is_output() const override;
 
 private:
     onnx_editor::EditorNode m_node;

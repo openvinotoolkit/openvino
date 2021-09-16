@@ -474,10 +474,14 @@ def test_is_input_output():
     assert not place3.is_input()
     assert not place3.is_output()
 
-    place4 = place1 = model.get_place_by_operation_name_and_input_port(
+    place4 = model.get_place_by_operation_name_and_input_port(
         operationName="split1", inputPortIndex=0)
     assert not place4.is_input()
     assert not place4.is_output()
+
+    place5 = model.get_place_by_operation_name(operationName="split1")
+    assert not place5.is_input()
+    assert not place5.is_output()
 
 
 def test_set_partial_shape():

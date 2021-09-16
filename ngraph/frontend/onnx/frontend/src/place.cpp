@@ -240,3 +240,11 @@ bool PlaceOpONNX::is_equal(Place::Ptr another) const {
     }
     return false;
 }
+
+bool PlaceOpONNX::is_input() const {
+    return false;
+}
+
+bool PlaceOpONNX::is_output() const {
+    return false;
+}
