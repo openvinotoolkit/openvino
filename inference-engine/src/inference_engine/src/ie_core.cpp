@@ -81,6 +81,9 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
             config_[ie::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
                 deviceName.substr(std::string("AUTO:").size());
         }
+    } else if (deviceName_.find("BATCH:") == 0) {
+        deviceName_ = "BATCH";
+        config_[CONFIG_KEY(AUTO_BATCH)] = deviceName.substr(6);
     } else {
         if (deviceName_.empty()) {
             deviceName_ = "AUTO";
@@ -972,6 +975,12 @@ public:
                     deviceNames = ie::DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
                 }
                 deviceNames.emplace_back("AUTO");
+            } else if (deviceName.find("BATCH") == 0) {
+                auto pos = deviceName.find_first_of(":");
+                if (pos != std::string::npos) {
+                    deviceNames = {ie::DeviceIDParser::getBatchDevice(deviceName.substr(pos + 1))};
+                }
+                deviceNames.push_back("BATCH");
             } else {
                 deviceNames.push_back(deviceName);
             }
@@ -1062,7 +1071,7 @@ std::vector<std::string> DeviceIDParser::getHeteroDevices(std::string fallbackDe
 }
 
 std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList) {
-    std::vector<std::string> deviceNames;
+    std::set<std::string> deviceNames;
     auto trim_request_info = [](std::string device_with_requests) {
         auto opening_bracket = device_with_requests.find_first_of('(');
         return device_with_requests.substr(0, opening_bracket);
@@ -1074,14 +1083,36 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
     // we skip the #requests info here
     while ((pos = devicesList.find(delimiter)) != std::string::npos) {
         auto d = devicesList.substr(0, pos);
-        deviceNames.push_back(trim_request_info(d));
+        if (d.find("BATCH") == 0) {
+            deviceNames.insert("BATCH");
+            auto p = d.find_first_of(":");
+            if (p != std::string::npos)
+                deviceNames.insert(DeviceIDParser::getBatchDevice(d.substr(p + 1)));
+        } else {
+            deviceNames.insert(trim_request_info(d));
+        }
         devicesList.erase(0, pos + 1);
     }
 
-    if (!devicesList.empty())
-        deviceNames.push_back(trim_request_info(devicesList));
+    if (!devicesList.empty()) {
+        if (devicesList.find("BATCH") == 0) {
+            deviceNames.insert("BATCH");
+            auto p = devicesList.find_first_of(":");
+            if (p != std::string::npos)
+                deviceNames.insert(DeviceIDParser::getBatchDevice(devicesList.substr(p + 1)));
+        } else {
+            deviceNames.insert(trim_request_info(devicesList));
+        }
+    }
+    return std::vector<std::string>(deviceNames.begin(), deviceNames.end());
+}
 
-    return deviceNames;
+std::string DeviceIDParser::getBatchDevice(std::string device) {
+    auto trim_request_info = [](std::string device_with_requests) {
+        auto opening_bracket = device_with_requests.find_first_of('(');
+        return device_with_requests.substr(0, opening_bracket);
+    };
+    return trim_request_info(device);
 }
 
 class Core::Impl : public ov::runtime::CoreImpl {
@@ -1116,8 +1147,47 @@ CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
-                                    const std::string& deviceName,
+                                    const std::string& deviceNameOrig,
                                     const std::map<std::string, std::string>& config) {
+    auto deviceName = deviceNameOrig;
+    if (deviceNameOrig == "GPU") {
+        std::map<std::string, Parameter> options;
+        options["MODEL_ADDRESS"] = &network;
+        auto optimalBatchSize =
+            _impl->GetCPPPluginByName(deviceNameOrig).get_metric(METRIC_KEY(OPTIMAL_BATCH), options).as<unsigned int>();
+        auto function = network.getFunction();
+        bool bDetectionOutput = false;
+        for (auto&& node : function->get_ops()) {
+            auto isDetectionOutputParent = [](decltype(node)& nd) {
+                for (size_t n = 0; n < nd->get_input_size(); n++) {
+                    if (!std::strcmp("DetectionOutput", nd->get_input_node_ptr(n)->get_type_info().name))
+                        return true;
+                }
+                return false;
+            };
+
+            if (!std::strcmp("DetectionOutput", node->get_type_info().name) ||
+                (!std::strcmp("Result", node->get_type_info().name) && isDetectionOutputParent(node))) {
+                node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(deviceNameOrig);
+                std::cout << "!!! AFF !!! type: " << node->get_type_info().name
+                          << ", name: " << node->get_friendly_name() << std::endl;
+                bDetectionOutput = true;
+            } else {
+                node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("BATCH");
+            }
+        }
+        if (optimalBatchSize > 1) {
+            if (bDetectionOutput) {
+                deviceName = "HETERO:BATCH," + deviceNameOrig;
+                std::cout << "HETERO code path!!!!" << std::endl;
+                // config["AUTO_BATCH"] = deviceNameOrig+"("+ std::to_string(optimalBatchSize)+ ")";
+                SetConfig({{"AUTO_BATCH", deviceNameOrig + "(" + std::to_string(optimalBatchSize) + ")"}}, "BATCH");
+            } else {
+                std::string deviceBatch = "BATCH:" + deviceNameOrig + "(" + std::to_string(optimalBatchSize) + ")";
+                deviceName = deviceBatch;
+            }
+        }
+    }
     auto exec = _impl->LoadNetwork(network, deviceName, config);
     return {exec._so, exec._ptr};
 }

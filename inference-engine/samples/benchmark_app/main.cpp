@@ -666,7 +666,7 @@ int main(int argc, char* argv[]) {
         next_step(ss.str());
 
         // warming up - out of scope
-        for (size_t i =0 ; i < inferRequestsQueue.requests.size(); i++) {
+        for (size_t i = 0; i < inferRequestsQueue.requests.size(); i++) {
             inferRequestsQueue.getIdleRequest()->startAsync();
         }
         inferRequestsQueue.waitAll();

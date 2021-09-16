@@ -678,11 +678,11 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         }
         IE_SET_METRIC_RETURN(GPU_UARCH_VERSION, s.str());
     } else if (name == METRIC_KEY(OPTIMAL_BATCH)) {
-        auto network = options.find("MODEL_ADDRESS")->second.as<InferenceEngine::CNNNetwork const*>();
+        // auto network = options.find("MODEL_ADDRESS")->second.as<InferenceEngine::CNNNetwork const*>();
         // auto transformedNetwork = CloneAndTransformNetwork(*network, _impl->m_config);
         unsigned int batch = 8;
         std::cout << "SELECTED BATCH: " << batch << std::endl;
-        IE_SET_METRIC_RETURN(OPTIMAL_BATCH, batch);    
+        IE_SET_METRIC_RETURN(OPTIMAL_BATCH, batch);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";

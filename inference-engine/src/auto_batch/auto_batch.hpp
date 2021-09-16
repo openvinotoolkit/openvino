@@ -15,13 +15,11 @@
 #include <memory>
 #include <string>
 
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
-#include "ie_iinfer_request.hpp"
-#include "details/ie_exception_conversion.hpp"
-#include <ie_parallel.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 
+#include <ie_parallel.hpp>
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 # include <tbb/concurrent_queue.h>
 #endif
@@ -76,24 +74,16 @@ public:
     using Ptr = std::shared_ptr<AutoBatchExecutableNetwork>;
     struct WorkerInferRequest {
         using Ptr = std::shared_ptr<WorkerInferRequest>;
-        InferenceEngine::InferRequest   _inferRequest;
+        InferenceEngine::SoIInferRequestInternal   _inferRequest;
         InferenceEngine::StatusCode     _status = InferenceEngine::StatusCode::OK;
         int                             _batchSize;
         std::promise<void>              _cond;
         std::shared_future<void>        _event;
         std::atomic_int                 _numRequestsReady = {0};
-        void ReportArrival() {
-            _numRequestsReady++;
-            if (_numRequestsReady == _batchSize) {
-                _numRequestsReady = 0;
-                _inferRequest.StartAsync();
-            }
-            // workerRequestPtr->_cond.
-        }
     };
     using NotBusyWorkerRequests = ThreadSafeQueue<WorkerInferRequest*>;
 
-    explicit AutoBatchExecutableNetwork(const InferenceEngine::ExecutableNetwork&                 networkForDevice,
+    explicit AutoBatchExecutableNetwork(const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,
                                           const DeviceInformation&                                 networkDevices,
                                           const std::unordered_map<std::string, InferenceEngine::Parameter>&    config,
                                           const bool                                                            needPerfCounters = false);
@@ -101,21 +91,21 @@ public:
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) override;
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
-    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
-    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
-    ~AutoBatchExecutableNetwork() override;
+    virtual ~AutoBatchExecutableNetwork();
 
     std::atomic_bool                                            _terminate = {false};
     DeviceInformation                                           _device;
-    InferenceEngine::ExecutableNetwork                          _network;
+    InferenceEngine::SoExecutableNetworkInternal                _network;
     std::vector<WorkerInferRequest::Ptr>                        _workerRequests;
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool                                                        _needPerfCounters = false;
     std::atomic_size_t                                          _numRequestsCreated = {0};
 };
 
-class AutoBatchInferRequest : public InferenceEngine::InferRequestInternal {
+class AutoBatchInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     using Ptr = std::shared_ptr<AutoBatchInferRequest>;
     explicit AutoBatchInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
@@ -142,19 +132,19 @@ public:
                                           const AutoBatchExecutableNetwork::Ptr&      AutoBatchExecutableNetwork,
                                           const InferenceEngine::ITaskExecutor::Ptr&    callbackExecutor);
     void Infer_ThreadUnsafe() override;
-    ~AutoBatchAsyncInferRequest() override;
+    virtual ~AutoBatchAsyncInferRequest();
 
 protected:
     AutoBatchExecutableNetwork::Ptr                                   _AutoBatchExecutableNetwork;
     AutoBatchInferRequest::Ptr                                        _inferRequest;
 };
 
-class AutoBatchInferencePlugin : public InferenceEngine::InferencePluginInternal {
+class AutoBatchInferencePlugin : public InferenceEngine::IInferencePlugin {
 public:
     AutoBatchInferencePlugin();
-    ~AutoBatchInferencePlugin() override = default;
+    virtual ~AutoBatchInferencePlugin() = default;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                                                                        const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
