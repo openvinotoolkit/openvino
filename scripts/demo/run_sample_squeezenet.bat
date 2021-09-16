@@ -22,7 +22,7 @@ if not "%1"=="" (
         shift
     )
     if "%1"=="-help" (
-        echo Benchmark demo using public SqueezeNet topology
+        echo Classification sample using public SqueezeNet topology
         echo.
         echo Options:
         echo    -help                      Print help message
@@ -32,10 +32,6 @@ if not "%1"=="" (
     )
     shift
     goto :input_arguments_loop
-)
-
-IF "%SAMPLE_OPTIONS%"=="" (
-    set SAMPLE_OPTIONS=-niter 1000 
 )
 
 set ROOT_DIR=%~dp0
@@ -52,8 +48,8 @@ set model_name=squeezenet1.1
 
 set target_image_path=%ROOT_DIR%car.png
 
-if exist "%ROOT_DIR%..\..\bin\setupvars.bat" (
-    call "%ROOT_DIR%..\..\bin\setupvars.bat"
+if exist "%ROOT_DIR%..\..\setupvars.bat" (
+    call "%ROOT_DIR%..\..\setupvars.bat"
 ) else (
     echo setupvars.bat is not found, INTEL_OPENVINO_DIR can't be set
     goto error
@@ -64,7 +60,7 @@ echo INTEL_OPENVINO_DIR is set to %INTEL_OPENVINO_DIR%
 :: Check if Python is installed
 python --version 2>NUL
 if errorlevel 1 (
-    echo Error^: Python is not installed. Please install Python 3.5 ^(64-bit^) or higher from https://www.python.org/downloads/
+    echo Error^: Python is not installed. Please install Python 3.6 ^(64-bit^) or higher from https://www.python.org/downloads/
     goto error
 )
 
@@ -80,13 +76,13 @@ for /F "tokens=1,2,3 delims=. " %%a in ("%version%") do (
 )
 
 if "%Major%" geq "3" (
-    if "%Minor%" geq "5" (
+    if "%Minor%" geq "6" (
         set python_ver=okay
     )
 )
 
 if not "%python_ver%"=="okay" (
-    echo Unsupported Python version. Please install Python 3.5 ^(64-bit^) or higher from https://www.python.org/downloads/
+    echo Unsupported Python version. Please install Python 3.6 ^(64-bit^) or higher from https://www.python.org/downloads/
     goto error
 )
 
@@ -108,7 +104,7 @@ python -m pip install -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requireme
 
 if ERRORLEVEL 1 GOTO errorHandling
 
-set downloader_dir=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader
+set downloader_dir=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader
 
 for /F "tokens=* usebackq" %%d in (
     `python "%downloader_dir%\info_dumper.py" --name "%model_name%" ^|
@@ -138,7 +134,7 @@ echo.
 echo ###############^|^| Install Model Optimizer prerequisites ^|^|###############
 echo.
 CALL :delay 3
-cd /d "%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer"
+cd /d "%INTEL_OPENVINO_DIR%\tools\model_optimizer"
 python -m pip install -r requirements.txt
 if ERRORLEVEL 1 GOTO errorHandling
 
@@ -149,8 +145,8 @@ echo.
 CALL :delay 3
 
 ::set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
-echo python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
-python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
+echo python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
+python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
 if ERRORLEVEL 1 GOTO errorHandling
 
 CALL :delay 7
@@ -230,7 +226,7 @@ set "SOLUTION_DIR64=%BUILD_FOLDER%\inference_engine_cpp_samples_build"
 
 echo Creating Visual Studio !MSBUILD_VERSION! %PLATFORM% files in %SOLUTION_DIR64%... && ^
 if exist "%SOLUTION_DIR64%\CMakeCache.txt" del "%SOLUTION_DIR64%\CMakeCache.txt"
-cd /d "%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\samples\cpp" && cmake -E make_directory "%SOLUTION_DIR64%" && cd /d "%SOLUTION_DIR64%" && cmake -G "Visual Studio !MSBUILD_VERSION!" -A %PLATFORM% "%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\samples\cpp"
+cd /d "%INTEL_OPENVINO_DIR%\samples\cpp" && cmake -E make_directory "%SOLUTION_DIR64%" && cd /d "%SOLUTION_DIR64%" && cmake -G "Visual Studio !MSBUILD_VERSION!" -A %PLATFORM% "%INTEL_OPENVINO_DIR%\samples\cpp"
 if ERRORLEVEL 1 GOTO errorHandling
 
 CALL :delay 7
@@ -239,8 +235,8 @@ echo.
 echo ###############^|^| Build Inference Engine samples using MS Visual Studio (MSBuild.exe) ^|^|###############
 echo.
 CALL :delay 3
-echo "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:cpp_samples\benchmark_app /clp:ErrorsOnly /m
-"!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:cpp_samples\benchmark_app /clp:ErrorsOnly /m
+echo "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:cpp_samples\classification_sample_async /clp:ErrorsOnly /m
+"!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:cpp_samples\classification_sample_async /clp:ErrorsOnly /m
 
 if ERRORLEVEL 1 GOTO errorHandling
 
@@ -248,19 +244,21 @@ CALL :delay 7
 
 :runSample
 echo.
-echo ###############^|^| Run Inference Engine benchmark app ^|^|###############
+echo ###############^|^| Run Inference Engine classification sample ^|^|###############
 echo.
 CALL :delay 3
 copy /Y "%ROOT_DIR%%model_name%.labels" "%ir_dir%"
 cd /d "%SOLUTION_DIR64%\intel64\Release"
-
-echo benchmark_app.exe -i "%target_image_path%" -m "%ir_dir%\%model_name%.xml" -pc  -d  !TARGET! !SAMPLE_OPTIONS!
-benchmark_app.exe -i "%target_image_path%" -m "%ir_dir%\%model_name%.xml" -pc  -d  !TARGET! !SAMPLE_OPTIONS!
+if not exist classification_sample_async.exe (
+   cd /d "%INTEL_OPENVINO_DIR%\samples\cpp\intel64\Release"
+)
+echo classification_sample_async.exe -i "%target_image_path%" -m "%ir_dir%\%model_name%.xml" -d !TARGET! !SAMPLE_OPTIONS!
+classification_sample_async.exe -i "%target_image_path%" -m "%ir_dir%\%model_name%.xml" -d !TARGET! !SAMPLE_OPTIONS!
 
 if ERRORLEVEL 1 GOTO errorHandling
 
 echo.
-echo ###############^|^| Inference Engine benchmark app completed successfully ^|^|###############
+echo ###############^|^| Classification sample completed successfully ^|^|###############
 
 CALL :delay 10
 cd /d "%ROOT_DIR%"
