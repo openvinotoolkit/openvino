@@ -262,4 +262,28 @@ TEST_P(ExecutableNetworkBaseTest, canExport) {
     ASSERT_TRUE(CommonTestUtils::fileExists(modelName + ".bin"));
     CommonTestUtils::removeIRFiles(modelName + ".xml", modelName + ".bin");
 }
+
+TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
+    // compare 2 networks
+    auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
+    compare_functions(referenceNetwork, cnnNet.getFunction());
+}
+
+using ExecNetSetPrecision = BehaviorTestsUtils::BehaviorTestsBasic;
+
+TEST_P(ExecNetSetPrecision, canSetInputPrecisionForNetwork) {
+    InferenceEngine::CNNNetwork cnnNet(function);
+    InferenceEngine::InputsDataMap inputs_info = cnnNet.getInputsInfo();
+    ASSERT_EQ(1u, inputs_info.size());
+    inputs_info.begin()->second->setPrecision(netPrecision);
+    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+}
+
+TEST_P(ExecNetSetPrecision, canSetOutputPrecisionForNetwork) {
+    InferenceEngine::CNNNetwork cnnNet(function);
+    InferenceEngine::OutputsDataMap outputs_info = cnnNet.getOutputsInfo();
+    ASSERT_EQ(outputs_info.size(), 1u);
+    outputs_info.begin()->second->setPrecision(netPrecision);
+    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+}
 }  // namespace BehaviorTestsDefinitions

@@ -21,4 +21,24 @@ namespace {
                                     ::testing::ValuesIn(configs)),
                             ExecutableNetworkBaseTest::getTestCaseName);
 
+    const std::vector<InferenceEngine::Precision> setPRC = {
+            InferenceEngine::Precision::FP32,
+            InferenceEngine::Precision::U8,
+            InferenceEngine::Precision::I16
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
+                             ::testing::Combine(
+                                     ::testing::ValuesIn(netPrecisions),
+                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                     ::testing::ValuesIn(configs)),
+                             ExecNetSetPrecision::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
+                             ::testing::Combine(
+                                     ::testing::Values(InferenceEngine::Precision::FP32),
+                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                     ::testing::ValuesIn(configs)),
+                             ExecNetSetPrecision::getTestCaseName);
+
 }  // namespace
