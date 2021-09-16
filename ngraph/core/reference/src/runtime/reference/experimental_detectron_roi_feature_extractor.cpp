@@ -213,7 +213,7 @@ void ROIAlignForward_cpu_kernel(const int64_t nthreads,
         }
 
         T offset = aligned ? static_cast<T>(0.5) : static_cast<T>(0.0);
-        // Do not using rounding; this implementation detail is critical
+        // Do not use rounding; this implementation detail is critical
         T roi_start_w = offset_bottom_rois[0] * spatial_scale - offset;
         T roi_start_h = offset_bottom_rois[1] * spatial_scale - offset;
         T roi_end_w = offset_bottom_rois[2] * spatial_scale - offset;
