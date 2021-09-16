@@ -22,7 +22,7 @@ class SubtractTransformation :
     public testing::WithParamInterface<SubtractTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SubtractTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<SubtractTransformationParams>& obj);
 
 protected:
     void SetUp() override;

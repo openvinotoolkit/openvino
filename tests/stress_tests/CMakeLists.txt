@@ -4,6 +4,13 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_EXTENSIONS OFF)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+endif()
+
 if (CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
     set(CMAKE_BUILD_TYPE "Release")
@@ -12,7 +19,8 @@ endif()
 # Define directory where artifacts will be placed
 set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
-find_package(InferenceEngineDeveloperPackage REQUIRED)
+# Search OpenVINO Inference Engine installed
+find_package(OpenVINO REQUIRED)
 
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
