@@ -12,7 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionBackpropDataTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionBackpropDataTransformationParams> obj) {
+std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionBackpropDataTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::pair<ngraph::PartialShape, bool> inputShape;
     ngraph::Shape outputShape;

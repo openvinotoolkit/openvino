@@ -4,10 +4,8 @@
 
 #include "ie_api_impl.hpp"
 
-#include <ngraph/partial_shape.hpp>
-
-#include "ie_iinfer_request.hpp"
 #include "ie_plugin_config.hpp"
+#include "ngraph/partial_shape.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map<std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
@@ -547,10 +545,10 @@ void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests)
                     auto end_time = Time::now();
                     auto execTime = std::chrono::duration_cast<ns>(end_time - infer_request.start_time);
                     infer_request.exec_time = static_cast<double>(execTime.count()) * 0.000001;
-                    infer_request.request_queue_ptr->setRequestIdle(infer_request.index);
                     if (infer_request.user_callback) {
                         infer_request.user_callback(infer_request.user_data, code);
                     }
+                    infer_request.request_queue_ptr->setRequestIdle(infer_request.index);
                 });
     }
 }

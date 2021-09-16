@@ -10,14 +10,14 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                       SKIP "${OpenVINO_SOURCE_DIR}/bin"
                            "${OpenVINO_SOURCE_DIR}/build"
                            "${OpenVINO_SOURCE_DIR}/thirdparty"
-                           "${OpenVINO_SOURCE_DIR}/ngraph/python/pybind11"
+                           "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/thirdparty/pybind11"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
                            "${TEMP}"
                            # TODO fix and enable back:
                            "${OpenVINO_SOURCE_DIR}/inference-engine/scripts/dependencies.sh"
                            "${OpenVINO_SOURCE_DIR}/scripts/install_dependencies/install_NEO_OCL_driver.sh"
                            "${OpenVINO_SOURCE_DIR}/scripts/install_dependencies/install_openvino_dependencies.sh"
-                           "${OpenVINO_SOURCE_DIR}/ngraph/python/tests/test_onnx/model_zoo_preprocess.sh"
+                           "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/tests/test_onnx/model_zoo_preprocess.sh"
                            )
 
 #
@@ -30,11 +30,11 @@ ie_cpack_add_component(setupvars REQUIRED)
 
 if(UNIX)
     install(PROGRAMS setupvars/setupvars.sh
-            DESTINATION bin
+            DESTINATION .
             COMPONENT setupvars)
 elseif(WIN32)
     install(PROGRAMS setupvars/setupvars.bat
-            DESTINATION bin
+            DESTINATION .
             COMPONENT setupvars)
 endif()
 
@@ -53,14 +53,16 @@ ie_cpack_add_component(demo_scripts DEPENDS core)
 
 if(UNIX)
     install(DIRECTORY demo/
-            DESTINATION deployment_tools/demo
+            DESTINATION samples/scripts
             COMPONENT demo_scripts
             USE_SOURCE_PERMISSIONS
+            PATTERN demo_security_barrier_camera.* EXCLUDE
             PATTERN *.bat EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY demo/
-            DESTINATION deployment_tools/demo
+            DESTINATION samples/scripts
             COMPONENT demo_scripts
             USE_SOURCE_PERMISSIONS
+            PATTERN demo_security_barrier_camera.* EXCLUDE
             PATTERN *.sh EXCLUDE)
 endif()
