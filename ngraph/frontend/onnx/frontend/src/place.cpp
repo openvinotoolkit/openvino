@@ -124,12 +124,6 @@ Place::Ptr PlaceTensorONNX::get_producing_operation() const {
     return get_producing_port()->get_producing_operation();
 }
 
-Place::Ptr PlaceTensorONNX::get_input_port(int input_port_index) const {
-    return std::make_shared<PlaceInputEdgeONNX>(
-        m_editor->find_input_edge(onnx_editor::EditorOutput(m_name), onnx_editor::EditorInput(input_port_index)),
-        m_editor);
-}
-
 bool PlaceTensorONNX::is_input() const {
     const auto inputs = m_editor->model_inputs();
     return std::find(std::begin(inputs), std::end(inputs), m_name) != std::end(inputs);

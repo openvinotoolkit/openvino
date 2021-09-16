@@ -63,7 +63,6 @@ public:
     Place::Ptr get_producing_port() const override;
     std::vector<Place::Ptr> get_consuming_ports() const override;
     Place::Ptr get_producing_operation() const override;
-    Place::Ptr get_input_port(int input_port_index) const override;
     bool is_input() const override;
     bool is_output() const override;
     bool is_equal(Place::Ptr another) const override;
