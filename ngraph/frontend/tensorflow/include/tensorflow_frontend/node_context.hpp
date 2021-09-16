@@ -17,6 +17,7 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
+#include <tensorflow_frontend/place.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
 namespace ngraph {
@@ -34,7 +35,7 @@ class NodeContext {
     std::shared_ptr<detail::TFNodeDecoder> m_decoder;
 
     // If shape is overridden for a particular node, it exists in the following map
-    const std::map<std::string, ngraph::PartialShape>& m_overridden_shapes;
+    std::map<std::string, ngraph::PartialShape> m_overridden_shapes;
 
     // For special kind inputs (args) there are shapes defined externally here:
     const std::vector<ngraph::PartialShape>& m_indexed_shapes;
@@ -44,6 +45,10 @@ public:
                 std::shared_ptr<detail::TFNodeDecoder> _decoder,
                 const std::map<std::string, ngraph::PartialShape>& overridden_shapes,
                 const std::vector<ngraph::PartialShape>& indexed_shapes = {});
+
+    NodeContext(const OutputVector& _ng_inputs,
+                std::shared_ptr<detail::TFNodeDecoder> _decoder,
+                const std::vector<Place::Ptr>& _inputs);
 
     size_t get_ng_input_size() const;
 

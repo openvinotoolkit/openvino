@@ -208,6 +208,7 @@ Place::Ptr OpPlaceTF::get_target_tensor(int outputPortIndex) const {
     return get_output_port(outputPortIndex)->get_target_tensor();
 }
 
+/*
 TensorPlaceTF::TensorPlaceTF(const InputModel& input_model,
                              const std::vector<std::string>& names,
                              const ::tensorflow::TensorProto& tensor)
@@ -222,6 +223,15 @@ TensorPlaceTF::TensorPlaceTF(const InputModel& input_model,
     }
     m_pshape = dims;
 }
+*/
+
+TensorPlaceTF::TensorPlaceTF(const InputModel& input_model,
+                             ngraph::PartialShape pshape,
+                             ngraph::element::Type type,
+                             const std::vector<std::string>& names)
+    : PlaceTF(input_model, names),
+      m_pshape(pshape),
+      m_type(type) {}
 
 std::vector<Place::Ptr> TensorPlaceTF::get_consuming_ports() const {
     std::vector<Place::Ptr> consuming_ports;
@@ -249,10 +259,6 @@ void TensorPlaceTF::add_producing_port(const std::shared_ptr<OutPortPlaceTF>& ou
 
 void TensorPlaceTF::add_consuming_port(const std::shared_ptr<InPortPlaceTF>& in_port) {
     m_consuming_ports.push_back(in_port);
-}
-
-const ::tensorflow::TensorProto& TensorPlaceTF::get_desc() const {
-    return m_tensor;
 }
 
 std::vector<Place::Ptr> TensorPlaceTF::get_consuming_operations() const {

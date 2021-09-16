@@ -111,7 +111,6 @@ public:
     // Internal usage
     const std::vector<std::shared_ptr<OutPortPlaceTF>>& get_output_ports() const;
     const std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>>& get_input_ports() const;
-    // std::shared_ptr<OutPortPlaceTF> get_output_port_tf(const std::string& outputName, int outputPortIndex) const;
     std::shared_ptr<InPortPlaceTF> get_input_port_tf(const std::string& inputName, int inputPortIndex) const;
     std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> get_desc() const;
 
@@ -120,8 +119,8 @@ public:
 
     Ptr get_output_port() const override;
     Ptr get_output_port(int outputPortIndex) const override;
-    // Ptr get_output_port(const std::string& outputPortName) const override;
-    // Ptr get_output_port(const std::string& outputPortName, int outputPortIndex) const override;
+    // TODO: implement
+    // Ptr get_output_port(int outputPortIndex) const override;
 
     Ptr get_input_port() const override;
     Ptr get_input_port(int inputPortIndex) const override;
@@ -130,8 +129,8 @@ public:
 
     std::vector<Ptr> get_consuming_operations() const override;
     std::vector<Ptr> get_consuming_operations(int outputPortIndex) const override;
-    // std::vector<Ptr> get_consuming_operations(const std::string& outputPortName) const override;
-    // std::vector<Ptr> get_consuming_operations(const std::string& outputPortName, int outputPortIndex) const override;
+    // TODO: implement
+    // std::vector<Ptr> get_consuming_operations(int outputPortIndex) const override;
 
     Ptr get_producing_operation() const override;
     Ptr get_producing_operation(int inputPortIndex) const override;
@@ -145,8 +144,8 @@ public:
 
     Ptr get_target_tensor() const override;
     Ptr get_target_tensor(int outputPortIndex) const override;
-    // Ptr get_target_tensor(const std::string& outputName) const override;
-    // Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const override;
+    // TODO: implement (this method may be not needed)
+    // Ptr get_target_tensor(int outputPortIndex) const override;
 
 private:
     std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> m_op_def;
@@ -157,8 +156,9 @@ private:
 class TensorPlaceTF : public PlaceTF {
 public:
     TensorPlaceTF(const InputModel& input_model,
-                  const std::vector<std::string>& names,
-                  const ::tensorflow::TensorProto& tensor);
+                  ngraph::PartialShape pshape,
+                  ngraph::element::Type type,
+                  const std::vector<std::string>& names);
 
     void add_producing_port(const std::shared_ptr<OutPortPlaceTF>& out_port);
     void add_consuming_port(const std::shared_ptr<InPortPlaceTF>& in_port);
@@ -176,7 +176,6 @@ public:
     void set_element_type(const element::Type& type) {
         m_type = type;
     }
-    const ::tensorflow::TensorProto& get_desc() const;
 
     // External usage
     Ptr get_producing_operation() const override;
@@ -186,7 +185,7 @@ public:
     bool is_equal_data(Ptr another) const override;
 
 private:
-    const ::tensorflow::TensorProto& m_tensor;
+    // const ::tensorflow::TensorProto& m_tensor;
     PartialShape m_pshape;
     element::Type m_type;
 

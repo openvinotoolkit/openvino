@@ -14,6 +14,8 @@
  * limitations under the License.
  *******************************************************************************/
 
+#include <tensorflow_frontend/place.hpp>
+
 #include "default_opset.h"
 #include "graph.hpp"
 #include "graph.pb.h"
@@ -205,7 +207,6 @@ public:
 };
 
 #endif
-
 NodeContext::NodeContext(const OutputVector& _ng_inputs,
                          std::shared_ptr<detail::TFNodeDecoder> _decoder,
                          const std::map<std::string, ngraph::PartialShape>& overridden_shapes,
@@ -214,6 +215,19 @@ NodeContext::NodeContext(const OutputVector& _ng_inputs,
       m_decoder(_decoder),
       m_overridden_shapes(overridden_shapes),
       m_indexed_shapes(indexed_shapes) {}
+
+NodeContext::NodeContext(const OutputVector& _ng_inputs,
+                         std::shared_ptr<detail::TFNodeDecoder> _decoder,
+                         const std::vector<Place::Ptr>& _inputs)
+    : m_indexed_shapes{} {
+    m_ng_inputs = _ng_inputs;
+    m_decoder = _decoder;
+
+    for (const auto& inp : _inputs) {
+        const auto& input_tensor_place = std::dynamic_pointer_cast<TensorPlaceTF>(inp);
+        m_overridden_shapes[input_tensor_place->get_names()[0]] = input_tensor_place->get_partial_shape();
+    }
+}
 
 size_t NodeContext::get_ng_input_size() const {
     return m_ng_inputs.size();

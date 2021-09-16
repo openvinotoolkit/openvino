@@ -20,9 +20,9 @@ class GraphIteratorProto;
 
 namespace ngraph {
 namespace frontend {
-class TF_API FrontEndTensorflow : public FrontEnd {
+class TF_API FrontEndTF : public FrontEnd {
 public:
-    FrontEndTensorflow() {}
+    FrontEndTF() {}
 
     /// \brief Completely convert the model
     /// \return fully converted nGraph function
