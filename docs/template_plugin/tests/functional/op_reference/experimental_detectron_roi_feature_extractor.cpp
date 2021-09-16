@@ -22,9 +22,6 @@ using ExperimentalROI = op::v6::ExperimentalDetectronROIFeatureExtractor;
 struct ExperimentalROIFunctional {
     std::shared_ptr<Function> create_function(const std::vector<Tensor>& ed_inputs,
                                               const std::vector<Tensor>& results) {
-        // NGRAPH_CHECK(ed_inputs.size() == 2, "Incorrect test case. Number of inputs is not equal to 2.");
-        // NGRAPH_CHECK(results.size() == 2, "Incorrect test case. Number of outputs is not equal to 2.");
-        //
         Attrs attrs;
         attrs.aligned = false;
         attrs.output_size = 3;
