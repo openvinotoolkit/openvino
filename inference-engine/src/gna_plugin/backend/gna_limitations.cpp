@@ -113,10 +113,10 @@ bool Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const u
     error += kernelStrideWLimit.GetErrorOrEmpty(strideW);
 
     error += dilationLimit.GetErrorOrEmpty(dilationH, dilationW);
-    
+
     if (exception)
         ThrowIfNotEmpty(prefix, error);
-    
+
     return error.empty() ? true : false;
 }
 
@@ -135,7 +135,7 @@ bool Validator::ValidatePooling2D(std::string name,
 
     if (exception)
         ThrowIfNotEmpty(prefix, error);
-    
+
     return error.empty() ? true : false;
 }
 
