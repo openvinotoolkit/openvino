@@ -45,10 +45,13 @@ void SoftMaxLayerTest::SetUp() {
 
     inputDynamicShape = FuncTestUtils::PartialShapeUtils::vec2partialshape(inputShape, targetStaticShapes[0]);
 
-    makeSoftMax();
+    setTargetStaticShape(targetStaticShapes[0]);
+    function = makeSoftMax("softMax");
+    functionRefs = ngraph::clone_function(*function);
+    functionRefs->set_friendly_name("softMaxRefs");
 }
 
-void SoftMaxLayerTest::makeSoftMax() {
+std::shared_ptr<ngraph::Function> SoftMaxLayerTest::makeSoftMax(const std::string& name) {
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     const auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShape});
     const auto paramOuts =
@@ -56,7 +59,7 @@ void SoftMaxLayerTest::makeSoftMax() {
 
     const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), axis);
     const ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(softMax)};
-    function = std::make_shared<ngraph::Function>(results, params, "softMax");
+    return std::make_shared<ngraph::Function>(results, params, name);
 }
 
 }  // namespace LayerTestsDefinitions

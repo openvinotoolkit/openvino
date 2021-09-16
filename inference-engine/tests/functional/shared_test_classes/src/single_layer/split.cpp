@@ -53,5 +53,7 @@ void SplitLayerTest::SetUp() {
         results.push_back(std::make_shared<ngraph::opset5::Result>(split->output(outIndices[i])));
     }
     function = std::make_shared<ngraph::Function>(results, params, "split");
+    functionRefs = ngraph::clone_function(*function);
+    functionRefs->set_friendly_name("splitRefs");
 }
 }  // namespace LayerTestsDefinitions

@@ -39,10 +39,10 @@ void LayerTestsCommon::Run() {
     s.setDeviceName(targetDevice);
 
     if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-        s.updateOPsStats(function, PassRate::Statuses::SKIPPED);
+        s.updateOPsStats(functionRefs, PassRate::Statuses::SKIPPED);
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
     } else {
-        s.updateOPsStats(function, PassRate::Statuses::CRASHED);
+        s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
     }
 
     try {
@@ -52,17 +52,17 @@ void LayerTestsCommon::Run() {
             GenerateInputs();
             Infer();
             Validate();
-            s.updateOPsStats(function, PassRate::Statuses::PASSED);
+            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
         }
     }
     catch (const std::runtime_error &re) {
-        s.updateOPsStats(function, PassRate::Statuses::FAILED);
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_(re.what());
     } catch (const std::exception &ex) {
-        s.updateOPsStats(function, PassRate::Statuses::FAILED);
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_(ex.what());
     } catch (...) {
-        s.updateOPsStats(function, PassRate::Statuses::FAILED);
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
 }
@@ -95,8 +95,10 @@ void LayerTestsCommon::Serialize() {
 
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo& info) const {
     return FuncTestUtils::createAndFillBlob(
-            InferenceEngine::TensorDesc(info.getPrecision(), targetStaticShape,
-                                        const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
+           targetStaticShape.empty() ? info.getTensorDesc()
+                                         : InferenceEngine::TensorDesc(info.getPrecision(),
+                                                                       targetStaticShape,
+                                                                       const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
 }
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
@@ -317,12 +319,14 @@ void LayerTestsCommon::ConfigureNetwork() {
         }
     }
 
-    std::map<std::string, ngraph::PartialShape> inputShapes;
-    auto inputsDataMap = cnnNetwork.getInputsInfo();
-    for (auto&& inputDataMap : inputsDataMap) {
-        inputShapes[inputDataMap.first] = std::vector<ngraph::Dimension>(inputDynamicShape);
+    if (inputDynamicShape.is_dynamic()) {
+        std::map<std::string, ngraph::PartialShape> inputShapes;
+        auto inputsDataMap = cnnNetwork.getInputsInfo();
+        for (auto&& inputDataMap : inputsDataMap) {
+            inputShapes[inputDataMap.first] = std::vector<ngraph::Dimension>(inputDynamicShape);
+        }
+        cnnNetwork.reshape(inputShapes);
     }
-    cnnNetwork.reshape(inputShapes);
 }
 
 void LayerTestsCommon::LoadNetwork() {

@@ -36,7 +36,7 @@ public:
 
 protected:
     void SetUp() override;
-    void makeSoftMax();
+    std::shared_ptr<ngraph::Function> makeSoftMax(const std::string& name = "");
 
 private:
     InferenceEngine::Precision netPrecision;

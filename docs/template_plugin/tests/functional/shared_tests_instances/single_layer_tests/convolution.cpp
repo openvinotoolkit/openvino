@@ -80,8 +80,9 @@ INSTANTIATE_TEST_SUITE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<std::pair<size_t, size_t>>({{1, 10}, {3, 30}, {30, 300}, {30, 300}})),
-//                                 ::testing::Values(std::vector<std::vector<size_t>>({{1, 3, 30, 30}, {2, 4, 31, 31}})),
-                                 ::testing::Values(std::vector<std::vector<size_t>>({{2, 4, 31, 31}})),
+                                 ::testing::Values(std::vector<std::vector<size_t>>({{1, 3, 30, 30}}),
+                                                   std::vector<std::vector<size_t>>({{2, 4, 31, 31}}),
+                                                   std::vector<std::vector<size_t>>({{1, 3, 30, 30}, {2, 4, 31, 31}})),
                                  ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                          ConvolutionLayerTest::getTestCaseName);
 // ! [test_convolution:instantiate]
