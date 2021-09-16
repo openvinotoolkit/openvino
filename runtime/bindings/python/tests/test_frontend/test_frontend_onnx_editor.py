@@ -354,8 +354,9 @@ def test_extract_subgraph_4():
     model = fe.load("input_model.onnx")
     assert model
 
-    place1 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation().get_input_port(inputPortIndex=0)
-    place2 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation().get_input_port(inputPortIndex=1)
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place1 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+    place2 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
     place3 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
     place4 = model.get_place_by_tensor_name(tensorName="out1")
     place5 = model.get_place_by_tensor_name(tensorName="out2")
@@ -419,8 +420,9 @@ def test_override_all_inputs():
 
     place1 = model.get_place_by_operation_name_and_input_port(
         operationName="split1", inputPortIndex=0)
-    place2 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation().get_input_port(inputPortIndex=0)
-    place3 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation().get_input_port(inputPortIndex=1)
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place2 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+    place3 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
     place4 = model.get_place_by_tensor_name(tensorName="in3")
     model.override_all_inputs(inputs=[place1, place2, place3, place4])
     result_func = fe.convert(model)
@@ -566,12 +568,14 @@ def test_is_equal():
     place2 = model.get_place_by_tensor_name(tensorName="out2")
     assert place2.is_equal(place2)
 
-    place3 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation().get_input_port(inputPortIndex=0)
-    place4 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation().get_input_port(inputPortIndex=0)
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place3 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+    place4 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
     assert place3.is_equal(place4)
 
+    out1_tensor = model.get_place_by_tensor_name(tensorName="out1")
     place5 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
-    place6 = model.get_place_by_tensor_name(tensorName="out1").get_producing_operation().get_input_port(inputPortIndex=0)
+    place6 = out1_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
     assert place5.is_equal(place6)
 
     place7 = model.get_place_by_tensor_name(tensorName="out4").get_producing_port()
@@ -610,11 +614,12 @@ def test_is_equal_data():
     place4 = place2.get_producing_port()
     assert place2.is_equal_data(place4)
 
-    place5 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation().get_input_port(inputPortIndex=0)
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place5 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
     assert place2.is_equal_data(place5)
     assert place4.is_equal_data(place5)
 
-    place6 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation().get_input_port(inputPortIndex=1)
+    place6 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
     assert place6.is_equal_data(place5)
 
     place7 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
@@ -712,9 +717,10 @@ def test_get_consuming_ports():
     assert len(add_tensor_consuming_ports) == 3
     place2 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
     assert add_tensor_consuming_ports[0].is_equal(place2)
-    place3 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation().get_input_port(inputPortIndex=0)
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place3 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
     assert add_tensor_consuming_ports[1].is_equal(place3)
-    place4 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation().get_input_port(inputPortIndex=1)
+    place4 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
     assert add_tensor_consuming_ports[2].is_equal(place4)
 
     add_op_consuming_ports = place1.get_producing_operation().get_consuming_ports()
@@ -735,7 +741,8 @@ def test_get_consuming_ports_2():
     assert len(split_op_consuming_ports) == 2
     abs_input_port = model.get_place_by_operation_name(operationName="abs1").get_input_port(inputPortIndex=0)
     assert split_op_consuming_ports[0].is_equal(abs_input_port)
-    sin_input_port = model.get_place_by_tensor_name(tensorName="out2").get_producing_operation().get_input_port(inputPortIndex=0)
+    out2_tensor = model.get_place_by_tensor_name(tensorName="out2")
+    sin_input_port = out2_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
     assert split_op_consuming_ports[1].is_equal(sin_input_port)
 
     split_out_port_0 = split_op.get_output_port(outputPortIndex=0)
