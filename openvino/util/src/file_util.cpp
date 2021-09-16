@@ -11,6 +11,8 @@
 #include <fstream>
 #include <sstream>
 
+#include "openvino/util/common_util.hpp"
+
 #ifdef _WIN32
 #    ifndef NOMINMAX
 #        define NOMINMAX
@@ -88,12 +90,12 @@ namespace {
 std::string join_paths(const std::string& s1, const std::string& s2) {
     std::string rc;
     if (s2.size() > 0) {
-        if (s2[0] == '/') {
+        if (s2[0] == ov::util::FileTraits<char>::file_separator) {
             rc = s2;
         } else if (s1.size() > 0) {
             rc = s1;
-            if (rc[rc.size() - 1] != '/') {
-                rc += "/";
+            if (rc[rc.size() - 1] != ov::util::FileTraits<char>::file_separator) {
+                rc += ov::util::FileTraits<char>::file_separator;
             }
             rc += s2;
         } else {
@@ -320,22 +322,12 @@ static std::string get_ov_library_path_a() {
     GetModuleFileNameA(hm, (LPSTR)ov_library_path, sizeof(ov_library_path));
     return get_path_name(std::string(ov_library_path));
 #elif defined(__APPLE__) || defined(__linux__)
-#    ifdef USE_STATIC_IE
-#        ifdef __APPLE__
     Dl_info info;
     dladdr(reinterpret_cast<void*>(ov::util::get_ov_lib_path), &info);
-    std::string path = get_path_name(std::string(info.dli_fname)).c_str();
-#        else
-    char result[PATH_MAX];
-    ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
-    std::string path = get_path_name(std::string(result, (count > 0) ? count : 0));
-#        endif  // __APPLE__
-    return FileUtils::makePath(path, std::string("lib"));
-#    else
-    Dl_info info;
-    dladdr(reinterpret_cast<void*>(ov::util::get_ov_lib_path), &info);
-    return get_path_name(std::string(info.dli_fname)).c_str();
-#    endif  // USE_STATIC_IE
+    std::string result = get_path_name(std::string(info.dli_fname)).c_str();
+    if (!ov::util::ends_with(result, "/lib") && !ov::util::ends_with(result, "/lib/"))
+        result = ov::util::path_join({result, "lib"});
+    return result;
 #else
 #    error "Unsupported OS"
 #endif  // _WIN32
