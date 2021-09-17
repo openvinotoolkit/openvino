@@ -139,7 +139,10 @@ if(ENABLE_ONEDNN_FOR_GPU)
             INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
             PREFIX onednn_gpu_build
             EXCLUDE_FROM_ALL ON
-            CMAKE_ARGS "-DDNNL_CPU_RUNTIME=NONE"
+            CMAKE_ARGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+                       "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+                       "-DDNNL_CPU_RUNTIME=NONE"
+                       "-DDNNL_GPU_RUNTIME=OCL"
                        "-DDNNL_GPU_RUNTIME=OCL"
                        "-DDNNL_LIBRARY_NAME=onednn_gpu"
                        "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
