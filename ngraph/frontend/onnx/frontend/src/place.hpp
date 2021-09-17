@@ -26,6 +26,7 @@ public:
     bool is_equal_data(Place::Ptr another) const override;
     Place::Ptr get_source_tensor() const override;
     std::vector<Place::Ptr> get_consuming_operations() const override;
+    Place::Ptr get_producing_operation() const override;
 
 private:
     onnx_editor::InputEdge m_edge;
@@ -98,6 +99,10 @@ public:
     std::vector<Place::Ptr> get_consuming_operations() const override;
     std::vector<Place::Ptr> get_consuming_operations(int output_port_index) const override;
     std::vector<Place::Ptr> get_consuming_operations(const std::string& output_port_name) const override;
+
+    Place::Ptr get_producing_operation() const override;
+    Place::Ptr get_producing_operation(int input_port_index) const override;
+    Place::Ptr get_producing_operation(const std::string& input_port_name) const override;
 
     Place::Place::Ptr get_target_tensor() const override;
     Place::Ptr get_target_tensor(int output_port_index) const override;

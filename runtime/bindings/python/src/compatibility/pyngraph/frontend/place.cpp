@@ -164,19 +164,31 @@ void regclass_pyngraph_Place(py::module m) {
 
     place.def(
         "get_producing_operation",
-        [](const ngraph::frontend::Place& self, py::object inputPortIndex) {
-            if (inputPortIndex == py::none()) {
-                return self.get_producing_operation();
+        [](const ngraph::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
+            if (inputName == py::none()) {
+                if (inputPortIndex == py::none()) {
+                    return self.get_producing_operation();
+                } else {
+                    return self.get_producing_operation(py::cast<int>(inputPortIndex));
+                }
             } else {
-                return self.get_producing_operation(py::cast<int>(inputPortIndex));
+                if (inputPortIndex == py::none()) {
+                    return self.get_producing_operation(py::cast<std::string>(inputName));
+                } else {
+                    return self.get_producing_operation(py::cast<std::string>(inputName),
+                                                        py::cast<int>(inputPortIndex));
+                }
             }
         },
+        py::arg("inputName") = py::none(),
         py::arg("inputPortIndex") = py::none(),
         R"(
                 Get an operation node place that immediately produces data for this place.
 
                 Parameters
                 ----------
+                inputName : str
+                    Name of port group. May not be set if node has one input port group.
                 inputPortIndex : int
                     If a given place is itself an operation node, this specifies a port index.
                     May not be set if place has only one input port.

@@ -51,6 +51,10 @@ std::vector<Place::Ptr> PlaceInputEdgeONNX::get_consuming_operations() const {
     return {std::make_shared<PlaceOpONNX>(onnx_editor::EditorNode{m_edge.m_node_idx}, m_editor)};
 }
 
+Place::Ptr PlaceInputEdgeONNX::get_producing_operation() const {
+    return get_source_tensor()->get_producing_operation();
+}
+
 PlaceOutputEdgeONNX::PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge,
                                          std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{edge},
@@ -278,6 +282,30 @@ std::vector<Place::Ptr> PlaceOpONNX::get_consuming_operations(int output_port_in
 std::vector<Place::Ptr> PlaceOpONNX::get_consuming_operations(const std::string& output_port_name) const {
     std::vector<Place::Ptr> consuming_ports = get_output_port(output_port_name)->get_consuming_ports();
     return get_consuming_ops(consuming_ports);
+}
+
+Place::Ptr PlaceOpONNX::get_producing_operation() const {
+    const auto input_port = get_input_port();
+    if (input_port != nullptr) {
+        return input_port->get_producing_operation();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_producing_operation(int input_port_index) const {
+    const auto input_port = get_input_port(input_port_index);
+    if (input_port != nullptr) {
+        return input_port->get_producing_operation();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_producing_operation(const std::string& input_port_name) const {
+    const auto input_port = get_input_port(input_port_name);
+    if (input_port != nullptr) {
+        return input_port->get_producing_operation();
+    }
+    return nullptr;
 }
 
 bool PlaceOpONNX::is_equal(Place::Ptr another) const {

@@ -171,6 +171,20 @@ public:
         return std::make_shared<PlaceMockPy>();
     }
 
+    Place::Ptr get_producing_operation(const std::string& inputName) const override {
+        m_stat.m_get_producing_operation++;
+        m_stat.m_lastArgInt = -1;
+        m_stat.m_lastArgString = inputName;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    Place::Ptr get_producing_operation(const std::string& inputName, int inputPortIndex) const override {
+        m_stat.m_get_producing_operation++;
+        m_stat.m_lastArgInt = inputPortIndex;
+        m_stat.m_lastArgString = inputName;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
     Place::Ptr get_producing_port() const override {
         m_stat.m_get_producing_port++;
         return std::make_shared<PlaceMockPy>();

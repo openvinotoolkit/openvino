@@ -855,3 +855,28 @@ def test_get_source_tensor():
 
     split_op = model.get_place_by_operation_name(operationName="split2")
     assert split_op.get_source_tensor().is_equal(add_out_tensor)
+
+
+def test_get_producing_operation():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    abs_op = model.get_place_by_operation_name(operationName="abs1")
+    abs_port_0 = abs_op.get_input_port()
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    assert abs_port_0.get_producing_operation().is_equal(split_op)
+    assert abs_op.get_producing_operation().is_equal(split_op)
+
+    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
+    add_op = add_out_tensor.get_producing_operation()
+    assert not add_op.get_producing_operation()
+
+    split_op_producing_op = split_op.get_producing_operation(inputName="add_out")
+    assert split_op_producing_op.is_equal(add_op)
+
+    out2_tensor = model.get_place_by_tensor_name(tensorName="out2")
+    sin_op = out2_tensor.get_producing_operation()
+    assert sin_op.get_producing_operation(inputPortIndex=0).is_equal(split_op)

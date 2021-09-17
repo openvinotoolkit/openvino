@@ -486,6 +486,16 @@ def test_place_get_producing_operation():
     stat = get_place_stat(place)
     assert stat.get_producing_operation == 2
     assert stat.lastArgInt == -1
+    assert place.get_producing_operation(inputName="2") is not None
+    stat = get_place_stat(place)
+    assert stat.get_producing_operation == 3
+    assert stat.lastArgInt == -1
+    assert stat.lastArgString == "2"
+    assert place.get_producing_operation(inputName="3", inputPortIndex=33) is not None
+    stat = get_place_stat(place)
+    assert stat.get_producing_operation == 4
+    assert stat.lastArgInt == 33
+    assert stat.lastArgString == "3"
 
 
 @mock_needed
