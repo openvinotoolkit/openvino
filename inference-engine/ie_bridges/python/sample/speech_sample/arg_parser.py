@@ -28,8 +28,9 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-bs', '--batch_size', default=1, type=int, help='Optional. Batch size 1-8 (default 1).')
     args.add_argument('-qb', '--quantization_bits', default=16, type=int,
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
-    args.add_argument('-sf', '--scale_factor', type=float,
-                      help='Optional. The user-specified input scale factor for quantization.')
+    args.add_argument('-sf', '--scale_factor', type=str,
+                      help='Optional. The user-specified input scale factor for quantization. '
+                      'If the network contains multiple inputs, provide scale factors by separating them with commas.')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
     args.add_argument('-we', '--export_embedded_gna_model', type=str, help=argparse.SUPPRESS)
