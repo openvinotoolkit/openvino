@@ -7,7 +7,6 @@ from mo.graph.graph import Graph
 
 class ReplaceDropoutMaskPattern(FrontReplacementPattern):
     enabled = True
-    run_non_recursive = True
 
     def run_after(self):
         from extensions.front.restore_ports import RestorePorts
