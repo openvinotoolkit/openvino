@@ -817,7 +817,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithDefaultStridesAndOffset() const {
         }
     }
     newDesc->desc.data.offset0 = 0;
-    newDesc->status = descStatus::Defined;
+    newDesc->status = descStatus::Unknown;
     return newDesc;
 }
 
