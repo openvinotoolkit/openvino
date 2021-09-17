@@ -24,8 +24,9 @@ if(ENABLE_MYRIAD)
                 DESTINATION ${IE_CPACK_LIBRARY_PATH}/vpu_custom_kernels
                 COMPONENT myriad)
         install(DIRECTORY ${VPU_CLC_MA2X8X_ROOT}/
-                DESTINATION deployment_tools/tools/cl_compiler
+                DESTINATION tools/cl_compiler
                 COMPONENT myriad
+                USE_SOURCE_PERMISSIONS
                 PATTERN ie_dependency.info EXCLUDE)
     endif()
 endif()

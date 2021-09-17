@@ -79,9 +79,9 @@ Make sure those libraries are in your computer's path or in the place you pointe
 * Windows: `PATH`
 * macOS: `DYLD_LIBRARY_PATH`
 
-On Linux and macOS, use the script `bin/setupvars.sh` to set the environment variables.
+On Linux and macOS, use the script `setupvars.sh` to set the environment variables.
 
-On Windows, run the `bin\setupvars.bat` batch file to set the environment variables.
+On Windows, run the `setupvars.bat` batch file to set the environment variables.
 
 To learn more about supported devices and corresponding plugins, see the [Supported Devices](supported_plugins/Supported_Devices.md) chapter.
 
