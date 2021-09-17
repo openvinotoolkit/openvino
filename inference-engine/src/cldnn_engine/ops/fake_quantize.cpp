@@ -31,7 +31,8 @@ void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v0::Fake
                                             output_low_id,
                                             output_high_id,
                                             levels,
-                                            dt);
+                                            dt,
+                                            op->get_friendly_name());
 
     p.AddPrimitive(quantizationPrim);
     p.AddPrimitiveToProfiler(op);
