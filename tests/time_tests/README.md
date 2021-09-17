@@ -15,7 +15,7 @@ the commands below:
 
 1. Build tests:
 ``` bash
-source <OpenVINO_install_dir>/bin/setupvars.sh
+source <OpenVINO_install_dir>/setupvars.sh
 mkdir build && cd build
 cmake .. && make time_tests
 ```
