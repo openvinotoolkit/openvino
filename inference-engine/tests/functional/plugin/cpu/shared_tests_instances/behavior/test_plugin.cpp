@@ -32,6 +32,10 @@ namespace {
              {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
     };
 
+    const std::vector<std::map<std::string, std::string>> AutoConfigsInputOutput = {
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
+    };
+
     const std::vector<std::map<std::string, std::string>> configsOutput = {
             {},
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
@@ -56,7 +60,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(MultiConfigsInputOutput)),
+                                    ::testing::ValuesIn(AutoConfigsInputOutput)),
                             BehaviorTestOutput::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTests,
@@ -98,7 +102,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(MultiConfigsInputOutput)),
+                                    ::testing::ValuesIn(AutoConfigsInputOutput)),
                             BehaviorTestInput::getTestCaseName);
 
 }  // namespace
