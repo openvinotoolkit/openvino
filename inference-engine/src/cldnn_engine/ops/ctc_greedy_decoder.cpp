@@ -33,7 +33,10 @@ void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::No
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
-                                                 cldnn::data_types::i32);
+                                                 cldnn::data_types::i32,
+                                                 std::vector<float>(),
+                                                 cldnn::reorder_mean_mode::subtract,
+                                                 op->get_friendly_name());
             p.AddPrimitive(preprocessPrim);
             p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
             reorderedInputs[portIndex] = (reorderPrimName);
@@ -73,8 +76,9 @@ void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::No
         shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayout));
 
         cldnn::primitive_id ctc_gd_mutable_id_w = layer_type_name_ID(op) + "_md_write";
-        auto ctc_gd_mutable_prim = cldnn::mutable_data(ctc_gd_mutable_id_w, shared_memory[0]);
-        p.primitivesToIRLayersMap[ctc_gd_mutable_id_w] = { op->get_friendly_name() };
+        auto ctc_gd_mutable_prim = cldnn::mutable_data(ctc_gd_mutable_id_w,
+                                                       shared_memory[0],
+                                                       op->get_friendly_name());
         p.primitiveIDs[ctc_gd_mutable_id_w] = ctc_gd_mutable_id_w;
         p.AddPrimitive(ctc_gd_mutable_prim);
         reorderedInputs.push_back(ctc_gd_mutable_id_w);
@@ -86,7 +90,8 @@ void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::No
                 reorderedInputs,
                 blank_index,
                 ctc_merge_repeated,
-                CldnnTensorFromIEDims(op->get_output_shape(0)));
+                CldnnTensorFromIEDims(op->get_output_shape(0)),
+                op->get_friendly_name());
 
     // clDNN primitive supports only i32 as output data type
     primitive.output_data_type = DataTypeFromPrecision(ngraph::element::i32);
@@ -99,8 +104,10 @@ void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::No
 
     if (num_output == 2) {
         cldnn::primitive_id ctc_gd_mutable_id_r = layer_type_name_ID(op) + ".1";
-        auto ctc_gd_mutable_prim_r = cldnn::mutable_data(ctc_gd_mutable_id_r, { CTCGreedyDecoderLayerName }, shared_memory[0]);
-        p.primitivesToIRLayersMap[ctc_gd_mutable_id_r] = { op->get_friendly_name() };
+        auto ctc_gd_mutable_prim_r = cldnn::mutable_data(ctc_gd_mutable_id_r,
+                                                         { CTCGreedyDecoderLayerName },
+                                                         shared_memory[0],
+                                                         op->get_friendly_name());
         p.primitiveIDs[ctc_gd_mutable_id_r] = ctc_gd_mutable_id_r;
         p.AddPrimitive(ctc_gd_mutable_prim_r);
     }
