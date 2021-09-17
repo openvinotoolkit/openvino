@@ -60,4 +60,3 @@ TEST(threading, get_friendly_name) {
         th.join();
     }
 }
-
