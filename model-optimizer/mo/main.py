@@ -121,7 +121,7 @@ def load_moc_frontends(argv: argparse.Namespace) -> (Optional[FrontEnd], List[st
         'onnx': 'legacy',
     }
     # Disable MOC frontend if default is set to legacy and no user override
-    if frontend_defaults[moc_front_end.get_name()] == 'legacy' and not use_new_frontend:
+    if frontend_defaults.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
         moc_front_end = None
 
     return moc_front_end, available_moc_front_ends
