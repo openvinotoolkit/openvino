@@ -12,11 +12,11 @@
 #include "mkldnn_itt.h"
 #include "nodes/mkldnn_memory_node.hpp"
 #include <threading/ie_executor_manager.hpp>
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#define FIX_62820 0
+#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #include <threading/ie_tbb_streams_executor.hpp>
-#else
-#include <threading/ie_cpu_streams_executor.hpp>
 #endif
+#include <threading/ie_cpu_streams_executor.hpp>
 #include <ie_system_conf.h>
 #include <algorithm>
 #include <unordered_set>
@@ -72,14 +72,14 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     } else {
         auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
 #else
         _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
 #endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
         _callbackExecutor = std::make_shared<ImmediateSerialExecutor>();
 #else
