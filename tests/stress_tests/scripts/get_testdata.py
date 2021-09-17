@@ -9,13 +9,12 @@ Usage: ./scrips/get_testdata.py
 # pylint:disable=line-too-long
 
 import argparse
+import json
 import logging as log
 import os
 import shutil
 import subprocess
 import sys
-import json
-
 from distutils.dir_util import copy_tree
 from inspect import getsourcefile
 from pathlib import Path
@@ -124,7 +123,7 @@ def main():
         if os.path.exists(str(omz_path)):
             shutil.rmtree(str(omz_path))
         cmd = 'git clone --single-branch --branch develop' \
-              ' https://github.com/opencv/open_model_zoo {omz_path}'.format(omz_path=omz_path)
+              ' https://github.com/openvinotoolkit/open_model_zoo {omz_path}'.format(omz_path=omz_path)
         run_in_subprocess(cmd)
 
     # prepare virtual environment and install requirements

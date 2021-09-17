@@ -12,11 +12,12 @@
 #include <mutex>
 
 #include <cpp/ie_cnn_network.h>
+#include <ngraph/ngraph.hpp>
 
 #include "cldnn_config.h"
 
-#include <api/engine.hpp>
-#include <api/topology.hpp>
+#include <cldnn/runtime/engine.hpp>
+#include <cldnn/graph/topology.hpp>
 
 // Forward declarations for cldnn part
 namespace cldnn {
@@ -25,12 +26,6 @@ struct activation_additional_params;
 enum class reduce_mode : uint16_t;
 enum class eltwise_mode : int32_t;
 }  // namespace cldnn
-
-// Forward declarations for ngraph part
-namespace ngraph {
-class Node;
-class DiscreteTypeInfo;
-}  // namespace ngraph
 
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
 void __register ## _ ## op_name ## _ ## op_version() {                                            \
@@ -69,8 +64,8 @@ public:
 
 class Program {
 public:
-    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config, bool createTopologyOnly = false);
-    Program(std::shared_ptr<const cldnn::engine> engine, const Config& config) : m_config(config), m_engine(engine),
+    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config, bool createTopologyOnly = false);
+    Program(std::shared_ptr<cldnn::engine> engine, const Config& config) : m_config(config), m_engine(engine),
             m_curBatch(-1), queryMode(false), m_max_batch(1) {}
     Program() : m_config({}), m_engine(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
 
@@ -100,8 +95,8 @@ public:
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return inputLayouts; }
     InferenceEngine::InputsDataMap GetNetworkInputs() const { return m_networkInputs; }
     InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_networkOutputs; }
-    const cldnn::engine& GetEngine() const { return *m_engine; }
-    std::shared_ptr<const cldnn::engine> GetEnginePtr() const { return m_engine; }
+    cldnn::engine& GetEngine() const { return *m_engine; }
+    std::shared_ptr<cldnn::engine> GetEnginePtr() const { return m_engine; }
     const Config& GetConfig() const { return m_config; }
     int GetMaxBatchSizeForSingleProgram();
 
@@ -150,7 +145,7 @@ public:
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
-    std::shared_ptr<const cldnn::engine> m_engine;
+    std::shared_ptr<cldnn::engine> m_engine;
     Config m_config;
 
     std::shared_ptr<cldnn::topology> m_topology;

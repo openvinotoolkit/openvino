@@ -130,14 +130,14 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
 
     auto finalKernelName = GetKernelName(newParams);
     auto cldnnJit = GetJitConstants(newParams, dispatchData);
-    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, options);
+    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
     auto& kernel = kd.kernels[0];
     uint32_t fused_deps_total = 0;
     for (auto& fused_dep : newParams.fused_ops) {
         for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
-            kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total});
             fused_deps_total++;
         }
     }
@@ -153,7 +153,7 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
                      !newParams.bias.empty(),
                      1,
                      fused_deps_total);
-    kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
     kd.autoTuneIndex = autoTuneIndex;
 

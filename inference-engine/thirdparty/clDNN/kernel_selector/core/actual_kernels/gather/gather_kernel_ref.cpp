@@ -79,6 +79,10 @@ static int64_t GetGatherBatchDim(const gather_params& params) {
         return params.batch_dim;
 }
 
+static inline std::string GetGatherMaxIndexDim(const gather_params& params) {
+    return std::to_string(params.inputs[0].GetDims().at(params.inputs[0].GetDims().size() - GetGatherChannelIndex(params) - 1).v);
+}
+
 static inline std::string GetOrderString(std::vector<std::string>& order) {
     std::string order_str = order[0];
     for (size_t i = 1; i < order.size(); i++)
@@ -168,6 +172,8 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
 
     jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndecesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
+    if (params.support_neg_ind)
+        jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = GetOrder(params.inputs[0].GetDims().size());
@@ -203,7 +209,7 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
     gather_params& newParams = *static_cast<gather_params*>(kd.params.get());
 
     auto dispatchData = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

@@ -159,20 +159,12 @@ The snippet below provides an example of the implementation for `GetMetric`:
 
 > **NOTE**: If an unsupported metric key is passed to the function, it must throw an exception.
 
-### `ImportNetworkImpl()`
+### `ImportNetwork()`
 
 The importing network mechanism allows to import a previously exported backend specific graph and wrap it 
 using an [ExecutableNetwork](@ref executable_network) object. This functionality is useful if 
 backend specific graph compilation takes significant time and/or cannot be done on a target host 
 device due to other reasons.
-
-**Implementation details:** The base plugin class InferenceEngine::IInferencePlugin implements InferenceEngine::IInferencePlugin::ImportNetwork 
-as follows: exports a device type (InferenceEngine::IInferencePlugin::_pluginName) and then calls `ImportNetworkImpl`, 
-which is implemented in a derived class. 
-If a plugin cannot use the base implementation InferenceEngine::IInferencePlugin::ImportNetwork, it can override base 
-implementation and define an output blob structure up to its needs. This 
-can be useful if a plugin exports a blob in a special format for integration with other frameworks 
-where a common Inference Engine header from a base class implementation is not appropriate. 
 
 During export of backend specific graph using `ExecutableNetwork::Export`, a plugin may export any 
 type of information it needs to import a compiled graph properly and check its correctness. 

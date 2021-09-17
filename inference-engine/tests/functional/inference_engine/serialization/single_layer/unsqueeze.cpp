@@ -32,7 +32,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {
     ngraph::helpers::SqueezeOpType::UNSQUEEZE};
 
-INSTANTIATE_TEST_CASE_P(smoke_Squeeze_Basic, SqueezeUnsqueezeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Squeeze_Basic, SqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors)),
                             ::testing::ValuesIn(opTypes),

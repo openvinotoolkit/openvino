@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <list>
-#include <set>
-#include <unordered_set>
 
 #include "ie_metric_helpers.hpp"
-#include <api/cldnn.hpp>
-#include <api/data.hpp>
+#include <chrono>
+#include <cmath>
+#include <algorithm>
+
+#include "ie_metric_helpers.hpp"
 #include <chrono>
 #include <cmath>
 #include <algorithm>
@@ -16,7 +16,6 @@
 #include "cldnn_itt.h"
 
 #include <description_buffer.hpp>
-#include <cldnn/cldnn_config.hpp>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
 #include "cldnn_async_infer_request.h"
@@ -28,19 +27,19 @@
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
-
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
-CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteContext::Ptr context, Config config) :
+CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<RemoteContext> context, Config config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]()->InferenceEngine::ITaskExecutor::Ptr {
-        if (config.throughput_streams > 1) {
+        if (config.exclusiveAsyncRequests) {
+            //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
+            return ExecutorManager::getInstance()->getExecutor("GPU");
+        }  else if (config.throughput_streams > 1) {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"CLDNNPlugin executor", config.throughput_streams});
-        } else if (config.exclusiveAsyncRequests) {
-            return ExecutorManager::getInstance()->getExecutor("GPU");
         } else {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"CLDNNPlugin executor", 1});
@@ -97,7 +96,7 @@ IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequest() {
     return CreateAsyncInferRequestFromSync<CLDNNAsyncInferRequest>();
 }
 
-InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> CLDNNExecNetwork::GetExecGraphInfo() {
     if (m_graphs.empty())
         IE_THROW(NetworkNotLoaded);
 
@@ -137,7 +136,7 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
     }
 }
 
-RemoteContext::Ptr CLDNNExecNetwork::GetContext() const {
+std::shared_ptr<RemoteContext> CLDNNExecNetwork::GetContext() const {
     return m_context;
 }
 

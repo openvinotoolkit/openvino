@@ -16,6 +16,10 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 
+#include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
+
 namespace ngraph {
 namespace op {
 namespace util {
@@ -128,6 +132,8 @@ Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & inpu
     }
     return output[0];
 }
+
+TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node);
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph

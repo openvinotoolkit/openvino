@@ -7,7 +7,6 @@ import xml.etree.ElementTree as ET
 
 from jinja2 import Environment, FileSystemLoader
 
-from utils import constants
 from utils import utils
 
 logger = utils.get_logger('Summarize')
@@ -126,6 +125,7 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
         pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
         general_pass_rate[device.tag] = general_passed_tests[device.tag] * 100 / general_test_count[device.tag]
         general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
+        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100 / len(results[device.tag])), 1)
 
     logger.info("Test number comparison between devices is started")
     for op in op_res:
@@ -166,11 +166,9 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag:
     env = Environment(loader=file_loader)
     template = env.get_template('report_template.html')
 
-    verified_operations = constants.VERIFIED_OP_REFERENCES
-
     res_summary = template.render(ordered_ops=op_list, devices=device_list, results=results, timestamp=timestamp,
                                   general_pass_rate=general_pass_rate, pass_rate_avg=pass_rate_avg,
-                                  verified_operations=verified_operations, trusted_ops=trusted_ops,
+                                  trusted_ops=trusted_ops,
                                   general_test_count=general_test_count, report_tag=report_tag)
 
     report_path = os.path.join(output_folder, f'{output_filename}.html')

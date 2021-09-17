@@ -20,7 +20,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     ReduceSumTransformationParam
@@ -30,7 +30,7 @@ class ReduceSumTransformation :
     public testing::WithParamInterface<ReduceSumTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReduceSumTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReduceSumTransformationParams>& obj);
 
 protected:
     void SetUp() override;

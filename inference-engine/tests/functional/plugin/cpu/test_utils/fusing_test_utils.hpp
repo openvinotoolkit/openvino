@@ -216,6 +216,13 @@ const auto fusingScaleShift = fusingSpecificParams{ std::make_shared<postNodesMg
                 return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
             }, "Add(PerChannel)"}}), {"Add"} };
 
+const auto fusingFakeQuantizePerTensor = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+                auto localPrc = inpNode->get_element_type();
+                ngraph::Shape newShape(inpNode->get_shape().size(), 1);
+                return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+            }, "FakeQuantize(PerTensor)"}}), {"FakeQuantize"} };
+
 const auto fusingFakeQuantizePerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 auto localPrc = inpNode->get_element_type();

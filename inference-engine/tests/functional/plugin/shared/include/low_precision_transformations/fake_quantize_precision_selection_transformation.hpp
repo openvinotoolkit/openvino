@@ -50,7 +50,7 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSe
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     FakeQuantizePrecisionSelectionTransformationTestValues> FakeQuantizeTransformationParams;
@@ -59,13 +59,10 @@ class FakeQuantizePrecisionSelectionTransformation :
     public testing::WithParamInterface<FakeQuantizeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -14,30 +14,19 @@ file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 function(ie_avx512_core_optimization_flags flags)
     if(WIN32)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(${flags} "/QxCORE-AVX512" PARENT_SCOPE)
+            set(${flags} /QxCORE-AVX512 PARENT_SCOPE)
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-            set(${flags} "/arch:AVX512" PARENT_SCOPE)
+            set(${flags} /arch:AVX512 PARENT_SCOPE)
         else()
             message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(${flags} "-xCORE-AVX512" PARENT_SCOPE)
+            set(${flags} -xCORE-AVX512 PARENT_SCOPE)
         else()
-            set(${flags} "-mavx512f -mavx512bw -mavx512dq -mfma" PARENT_SCOPE)
+            set(${flags} -mavx512f -mavx512bw -mavx512dq -mfma PARENT_SCOPE)
         endif()
     endif()
-endfunction()
-
-function(set_ie_neon_optimization_flags neon_flags)
-    file(GLOB NEON_SRC ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.cpp)
-    file(GLOB NEON_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.hpp)
-
-    list(APPEND LIBRARY_HEADERS ${NEON_HEADERS})
-    list(APPEND LIBRARY_SRC ${NEON_SRC})
-
-    set_source_files_properties(${NEON_SRC} PROPERTIES COMPILE_FLAGS "${neon_flags}")
-    add_definitions(-DHAVE_NEON=1)
 endfunction()
 
 if(ENABLE_SSE42)
@@ -48,7 +37,7 @@ if(ENABLE_SSE42)
     list(APPEND LIBRARY_SRC ${SSE_SRC})
 
     ie_sse42_optimization_flags(sse4_2_flags)
-    set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+    set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_OPTIONS "${sse4_2_flags}")
     add_definitions(-DHAVE_SSE=1)
 endif()
 
@@ -60,7 +49,7 @@ if(ENABLE_AVX2)
     list(APPEND LIBRARY_SRC ${AVX2_SRC})
 
     ie_avx2_optimization_flags(avx2_flags)
-    set_source_files_properties(${AVX2_SRC} PROPERTIES COMPILE_FLAGS "${avx2_flags}")
+    set_source_files_properties(${AVX2_SRC} PROPERTIES COMPILE_OPTIONS "${avx2_flags}")
     add_definitions(-DHAVE_AVX2=1)
 endif()
 
@@ -80,7 +69,7 @@ if(ENABLE_AVX512F AND NOT GNU_5_DEBUG_CASE)
     list(APPEND LIBRARY_SRC ${AVX512_SRC})
 
     ie_avx512_core_optimization_flags(avx512_flags)
-    set_source_files_properties(${AVX512_SRC} PROPERTIES COMPILE_FLAGS "${avx512_flags}")
+    set_source_files_properties(${AVX512_SRC} PROPERTIES COMPILE_OPTIONS "${avx512_flags}")
     add_definitions(-DHAVE_AVX512=1)
 endif()
 
@@ -94,7 +83,7 @@ if(ARM OR AARCH64)
         list(APPEND LIBRARY_HEADERS ${NEON_HEADERS})
         list(APPEND LIBRARY_SRC ${NEON_SRC})
 
-        set_source_files_properties(${NEON_SRC} PROPERTIES COMPILE_FLAGS "${neon_flags}")
+        set_source_files_properties(${NEON_SRC} PROPERTIES COMPILE_OPTIONS "${neon_flags}")
         add_definitions(-DHAVE_NEON=1)
     endif()
 endif()
@@ -113,7 +102,7 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_PREPROC_PLUGIN
                                                       $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ocv"
+target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ocv_hal,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:fluid,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -153,7 +142,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # Static library used for unit tests which are always built
 
-add_library(${TARGET_NAME}_s STATIC
+add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
@@ -178,10 +167,9 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
 
 # install
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)

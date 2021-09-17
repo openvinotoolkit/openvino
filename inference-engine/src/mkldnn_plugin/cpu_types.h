@@ -4,7 +4,12 @@
 
 #pragma once
 
+#include <vector>
+
 namespace MKLDNNPlugin {
+
+using Dim = std::size_t;
+using VectorDims = std::vector<Dim>;
 
 enum Type {
     Unknown,
@@ -16,6 +21,7 @@ enum Type {
     Deconvolution,
     Lrn,
     Pooling,
+    AdaptivePooling,
     FullyConnected,
     Softmax,
     Split,
@@ -64,7 +70,30 @@ enum Type {
     Reference,
     ShuffleChannels,
     DFT,
-    Math
+    Math,
+    CTCLoss,
+    Bucketize,
+    CTCGreedyDecoder,
+    CTCGreedyDecoderSeqLen,
+    CumSum,
+    DetectionOutput,
+    ExperimentalDetectronDetectionOutput,
+    LogSoftmax,
+    TopK,
+    GatherTree,
+    GRN,
+    Range,
+    Proposal,
+    ReorgYolo,
+    ReverseSequence,
+    ExperimentalDetectronTopKROIs,
+    ExperimentalDetectronROIFeatureExtractor,
+    ExperimentalDetectronPriorGridGenerator,
+    ExperimentalDetectronGenerateProposalsSingleImage,
+    ExtractImagePatches,
+    NonMaxSuppression,
+    MatrixNms,
+    MulticlassNms
 };
 
 enum Algorithm {
@@ -73,6 +102,10 @@ enum Algorithm {
     // Pooling algorithms
     PoolingMax,
     PoolingAvg,
+
+    // Adaptive pooling algorithms
+    AdaptivePoolingMax,
+    AdaptivePoolingAvg,
 
     // Convolution algorithms
     ConvolutionCommon,

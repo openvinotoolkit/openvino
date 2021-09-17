@@ -37,7 +37,7 @@ const auto params2D = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_LogSoftmax2D,
         LogSoftmaxLayerTest,
         params2D,
@@ -66,7 +66,7 @@ const auto params4D = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_LogSoftmax4D,
         LogSoftmaxLayerTest,
         params4D,

@@ -5,6 +5,7 @@
 #include "common_test_utils/file_utils.hpp"
 
 #include "read_ir/read_ir.hpp"
+#include "conformance.hpp"
 
 namespace ConformanceTests {
 using namespace LayerTestsDefinitions;
@@ -16,7 +17,7 @@ std::vector<std::string> IRFolderPaths = {};
 std::vector<std::string> disabledTests = {};
 
 namespace {
-INSTANTIATE_TEST_CASE_P(conformance,
+INSTANTIATE_TEST_SUITE_P(conformance,
                         ReadIRTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(CommonTestUtils::getFileListByPatternRecursive(IRFolderPaths,  std::regex(R"(.*\.xml)"))),

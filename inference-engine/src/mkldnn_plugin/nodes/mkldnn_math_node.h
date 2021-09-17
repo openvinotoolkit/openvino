@@ -19,7 +19,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNMathNode& node)>> initializers;
@@ -28,7 +28,6 @@ private:
     float beta = 0.0f;
     float gamma = 0.0f;
 
-    std::vector<DataConfigurator> inDataConf;
     std::string errorPrefix;
 };
 

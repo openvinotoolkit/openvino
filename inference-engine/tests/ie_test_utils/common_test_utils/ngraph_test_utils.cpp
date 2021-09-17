@@ -22,6 +22,8 @@
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
+
 namespace {
 inline namespace tools {
 bool isTypeRelaxed(const std::string &type) {
@@ -43,20 +45,29 @@ bool compareTypeInfo(const ngraph::DiscreteTypeInfo &info1, const ngraph::Discre
 
 template<typename Node>
 bool compare_rt_keys(const Node &node1, const Node &node2) {
+    // The "opset" parameter in RT info is optional
+    // and mandatory only for TypeRelaxed operations.
+    // Therefore, we ignore this key when comparing RT keys.
+
     const auto &first_node_rt_info = node1->get_rt_info();
     const auto &second_node_rt_info = node2->get_rt_info();
 
-    if (first_node_rt_info.empty() && second_node_rt_info.empty()) {
-        return true;
-    }
-
-    if (first_node_rt_info.size() != second_node_rt_info.size()) {
-        return false;
-    }
-
     auto first_node_rt_info_it = first_node_rt_info.begin();
     auto second_node_rt_info_it = second_node_rt_info.begin();
-    while (first_node_rt_info_it != first_node_rt_info.end()) {
+
+    while (first_node_rt_info_it != first_node_rt_info.end()
+        && second_node_rt_info_it != second_node_rt_info.end()) {
+        bool is_continue = false;
+        if (first_node_rt_info_it->first == "opset") {
+            ++first_node_rt_info_it;
+            is_continue = true;
+        }
+        if (second_node_rt_info_it->first == "opset") {
+            ++second_node_rt_info_it;
+            is_continue = true;
+        }
+        if (is_continue)
+            continue;
         if (first_node_rt_info_it->first != second_node_rt_info_it->first) {
             return false;
         }
@@ -64,7 +75,16 @@ bool compare_rt_keys(const Node &node1, const Node &node2) {
         ++second_node_rt_info_it;
     }
 
-    return true;
+    if (first_node_rt_info_it != first_node_rt_info.end()
+        && first_node_rt_info_it->first == "opset") {
+        ++first_node_rt_info_it;
+    }
+    if (second_node_rt_info_it != second_node_rt_info.end()
+        && second_node_rt_info_it->first == "opset") {
+        ++second_node_rt_info_it;
+    }
+    return first_node_rt_info_it == first_node_rt_info.end()
+        && second_node_rt_info_it == second_node_rt_info.end();
 }
 
 bool less_by_name(
@@ -779,6 +799,14 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
     }
 }
 
+void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string & name) {
+    output.get_tensor_ptr()->set_names({name});
+}
+
+void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string> & names) {
+    output.get_tensor_ptr()->set_names(names);
+}
+
 NGRAPH_RTTI_DEFINITION(TestOpMultiOut, "TestOp", 0);
 
 namespace attributes {
@@ -803,6 +831,8 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ngraph::ValueAc
         insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
     } else if (auto framework_node_attr = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
         insert(name, framework_node_attr->get());
+    } else if (auto variable_ptr = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        insert(name, variable_ptr->get());
     } else {
         m_read_result += "store   attr [ ERR ]: " + name +
                          " [drop `void` comparison which is '" + adapter.get_type_info().name +
@@ -882,6 +912,8 @@ void ReadAndCompareAttributes::verify_others(const std::string &name, ngraph::Va
         verify_mem_buf(name, a->get());
     } else if (auto attrs = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
         verify(name, attrs->get());
+    } else if (auto variable_ptr = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        verify(name, variable_ptr->get());
     } else {
         m_cmp_result += "compare attr [ ERR ]: " + name +
                         " [drop `void` comparison which is '" + adapter.get_type_info().name +

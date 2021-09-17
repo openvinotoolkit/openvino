@@ -244,6 +244,9 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     LayerParams params = {layer->get_friendly_name(), "TensorIterator",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::TensorIterator>(params);
+    if (res == nullptr) {
+        IE_THROW() << "Can't create TensorIterator";
+    }
     res->body = body;
 
     // Port map: outputs
@@ -430,6 +433,9 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
             const auto data_beg = static_cast<char*>(a->get()->get_ptr());
             params[name] = std::string(data_beg, a->get()->size());
         }
+    } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(& adapter)) {
+        const auto & attrs = a->get();
+        params[name] = joinVec(attrs);
     } else {
         IE_THROW() << "Error converting ngraph to CNN network. "
                               "Attribute adapter can not be found for " << name << " parameter";

@@ -26,7 +26,7 @@ std::map<std::string, std::string> additional_config = {
 };
 } // namespace
 
-INSTANTIATE_TEST_CASE_P(smoke_MemoryEltwiseReshapeConcatTest, MemoryEltwiseReshapeConcatTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MemoryEltwiseReshapeConcatTest, MemoryEltwiseReshapeConcatTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),

@@ -17,6 +17,7 @@ Outcome of a build is a `subgrpahsDumper` binary located in building artifacts f
 ## Running
 The tool takes two command line parameters:    
 * `--input_folders` - Required. Comma separated paths to the input folders with IRs
+* `--local_cache` - Optional. Comma separated paths to the local cache folders with IRs.
 * `--output_folder` - Required. Path to the output folders where to serialize IRs
 * `--path_regex` - Optional. regular expression to be applied in input folders recursive discovery
 * `--constants_size_threshold` - Optional. Maximum size of constant in megabytes to be serialized.

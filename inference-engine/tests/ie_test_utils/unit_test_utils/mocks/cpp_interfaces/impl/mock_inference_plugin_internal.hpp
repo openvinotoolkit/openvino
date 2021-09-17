@@ -32,11 +32,8 @@ public:
     MOCK_METHOD1(AddExtension, void(InferenceEngine::IExtensionPtr ext_ptr));
     MOCK_METHOD1(SetConfig, void(const std::map <std::string, std::string> &));
 
-    using InferenceEngine::IInferencePlugin::ImportNetwork;
-
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ImportNetworkImpl(std::istream& stream,
-                                                                                   const std::map <std::string, std::string>&) {
-        std::getline(stream, importedString);
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
+    ImportNetwork(std::istream& stream, const std::map <std::string, std::string>&) {
         return {};
     }
 

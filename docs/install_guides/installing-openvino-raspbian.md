@@ -28,7 +28,7 @@ The OpenVINO toolkit for Raspbian OS is an archive with pre-installed header fil
 
 > **NOTE**:
 > * The package does not include the [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To convert models to Intermediate Representation (IR), you need to install it separately to your host machine.
-> * The package does not include the Open Model Zoo demo applications. You can download them separately from the [Open Models Zoo repository](https://github.com/opencv/open_model_zoo).
+> * The package does not include the Open Model Zoo demo applications. You can download them separately from the [Open Models Zoo repository](https://github.com/openvinotoolkit/open_model_zoo).
 
 ## Development and Target Platforms
 
@@ -75,11 +75,11 @@ The guide assumes you downloaded the OpenVINO toolkit for Raspbian* OS. If you d
    By default, the package file is saved as `l_openvino_toolkit_runtime_raspbian_p_<version>.tgz`.
 3. Create an installation folder.
    ```sh
-   sudo mkdir -p /opt/intel/openvino_2021
+   sudo mkdir -p /opt/intel/openvino_2022
    ```
 4. Unpack the archive:
    ```sh
-   sudo tar -xf  l_openvino_toolkit_runtime_raspbian_p_<version>.tgz --strip 1 -C /opt/intel/openvino_2021
+   sudo tar -xf  l_openvino_toolkit_runtime_raspbian_p_<version>.tgz --strip 1 -C /opt/intel/openvino_2022
    ```
 
 Now the OpenVINO toolkit components are installed. Additional configuration steps are still required. Continue to the next sections to install External Software Dependencies, configure the environment and set up USB rules.
@@ -97,12 +97,12 @@ CMake is installed. Continue to the next section to set the environment variable
 
 You must update several environment variables before you can compile and run OpenVINO toolkit applications. Run the following script to temporarily set the environment variables:
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2022/setupvars.sh
 ```
 
 **(Optional)** The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
 ```sh
-echo "source /opt/intel/openvino_2021/bin/setupvars.sh" >> ~/.bashrc
+echo "source /opt/intel/openvino_2022/setupvars.sh" >> ~/.bashrc
 ```
 
 To test your change, open a new terminal. You will see the following:
@@ -120,11 +120,11 @@ This task applies only if you have an Intel® Neural Compute Stick 2 device.
    Log out and log in for it to take effect.
 2. If you didn't modify `.bashrc` to permanently set the environment variables, run `setupvars.sh` again after logging in:
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2022/setupvars.sh
    ```
 3. To perform inference on the Intel® Neural Compute Stick 2, install the USB rules running the `install_NCS_udev_rules.sh` script:
    ```sh
-   sh /opt/intel/openvino_2021/install_dependencies/install_NCS_udev_rules.sh
+   sh /opt/intel/openvino_2022/install_dependencies/install_NCS_udev_rules.sh
    ```
 4. Plug in your Intel® Neural Compute Stick 2.
 
@@ -140,7 +140,7 @@ Follow the next steps to use the pre-trained face detection model using Inferenc
    ```
 2. Build the Object Detection Sample:
    ```sh
-   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2021/deployment_tools/inference_engine/samples/cpp
+   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2022/samples/cpp
    ```
    ```sh
    make -j2 object_detection_sample_ssd
@@ -166,7 +166,7 @@ Read the next topic if you want to learn more about OpenVINO workflow for Raspbe
 
 If you want to use your model for inference, the model must be converted to the .bin and .xml Intermediate Representation (IR) files that are used as input by Inference Engine. OpenVINO™ toolkit support on Raspberry Pi only includes the Inference Engine module of the Intel® Distribution of OpenVINO™ toolkit. The Model Optimizer is not supported on this platform. To get the optimized models you can use one of the following options:
 
-* Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader).
+* Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader).
 
    For more information on pre-trained models, see [Pre-Trained Models Documentation](@ref omz_models_group_intel)
 

@@ -13,11 +13,11 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
 
-#include "api/loop.hpp"
-#include "api/mutable_data.hpp"
-#include "api/data.hpp"
-#include "api/reorder.hpp"
-#include "api/topology.hpp"
+#include "cldnn/primitives/loop.hpp"
+#include "cldnn/primitives/mutable_data.hpp"
+#include "cldnn/primitives/data.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/graph/topology.hpp"
 
 #include <vector>
 #include <algorithm>
@@ -28,9 +28,8 @@ namespace CLDNNPlugin {
 
 template<class DATA_TYPE>
 static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num) {
-    auto mem = cldnn::memory::allocate(p.GetEngine(),
-        { cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
-    auto ptr = mem.pointer<int64_t>();
+    auto mem = p.GetEngine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
+    cldnn::mem_lock<int64_t> ptr{mem, p.GetEngine().get_program_stream()};
     *ptr.begin() = num;
     return {id, mem};
 }
@@ -42,7 +41,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
     const auto format = DefaultFormatForDims(op->get_output_shape(output_idx).size());
     const auto tensor = CldnnTensorFromIEDims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
-    auto mem = cldnn::memory::allocate(p.GetEngine(), output_layout);
+    auto mem = p.GetEngine().allocate_memory(output_layout);
     auto md = cldnn::mutable_data(id, {input}, mem); // cldnn::data cannot set dependency
     return md;
 }

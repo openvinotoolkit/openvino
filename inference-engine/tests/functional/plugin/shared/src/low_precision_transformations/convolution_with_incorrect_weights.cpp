@@ -20,9 +20,9 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams> obj) {
+std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionWIthIncorrectWeightsParam param;
@@ -40,7 +40,7 @@ void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
     threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionWIthIncorrectWeightsParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
@@ -51,31 +51,6 @@ void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
         param.fakeQuantizeOnWeights,
         param.fakeQuantizeOnData,
         param.isCorrect);
-
-    validate();
-}
-
-void ConvolutionWIthIncorrectWeightsTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ConvolutionWIthIncorrectWeightsParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-    EXPECT_EQ(1ul, transformed->get_output_size());
-
-    const auto output = transformed->get_output_op(0);
-    const auto parent = output->get_input_node_shared_ptr(0);
-    ASSERT_FALSE(parent == nullptr);
-
-    const std::string typeName = parent->get_type_name();
-    if (param.isCorrect) {
-        ASSERT_EQ("ScaleShiftIE", typeName);
-    } else {
-        ASSERT_EQ("ConvolutionIE", typeName);
-    }
 }
 
 TEST_P(ConvolutionWIthIncorrectWeightsTransformation, CompareWithRefImpl) {

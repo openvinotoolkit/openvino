@@ -60,7 +60,9 @@
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
+#include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
@@ -69,9 +71,12 @@
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
 #include <low_precision/pull_transpose_through_dequantization.hpp>
-#include <low_precision/transformer.hpp>
+#include <low_precision/convolution.hpp>
 #include <low_precision/convolution_backprop_data.hpp>
+#include <low_precision/group_convolution.hpp>
+#include <low_precision/low_precision.hpp>
 #include <low_precision/mat_mul.hpp>
+#include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
 
@@ -79,7 +84,10 @@
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
 #include "cldnn_itt.h"
-#include "cldnn/cldnn_config.hpp"
+#include "gpu/gpu_config.hpp"
+
+#include "cldnn/runtime/device_query.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -117,13 +125,13 @@ struct clDNNEngine::impl {
 };
 
 cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::string> &config) const {
-    auto device_info = device_map.begin()->second.get_info();
+    auto device_info = device_map.begin()->second->get_info();
     if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
         auto val = config.at(PluginConfigParams::KEY_DEVICE_ID);
         if (device_map.find(val) == device_map.end()) {
             IE_THROW() << "Invalid device ID: " << val;
         }
-        device_info = device_map.at(val).get_info();
+        device_info = device_map.at(val)->get_info();
     }
 
     return device_info;
@@ -132,11 +140,8 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
 template<typename T>
 static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node> node) {
     if (auto op = std::dynamic_pointer_cast<const T>(node)) {
-        auto reduction_axes = op->get_reduction_axes().to_vector();
-        bool reduce_along_f = op->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
         bool fp16_batch_not_1 = op->get_element_type() == ngraph::element::f16 && op->input(0).get_shape()[0] != 1;
-        bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
-        return can_use_reduce;
+        return !fp16_batch_not_1;
     }
     return false;
 }
@@ -150,10 +155,12 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork");
         auto nGraphFunc = clonedNetwork.getFunction();
 
+        using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
+
         bool enableInt8;
         {
             ngraph::pass::Manager manager;
-            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
             if (enableInt8) {
                 manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
                     std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
@@ -206,8 +213,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
 
             auto pass_config = manager.get_pass_config();
-
-            using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
             // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
             pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
@@ -303,18 +308,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     return true;
                 });
 
-            pass_config->set_callback<ngraph::pass::ConvertNMS1ToNMS5,
-                                      ngraph::pass::ConvertNMS3ToNMS5,
-                                      ngraph::pass::ConvertNMS4ToNMS5,
-                                      ngraph::pass::ConvertNMSToNMSIEInternal>(
-                    [](const_node_ptr &node) -> bool {
-                        return node->input_value(0).get_shape().back() == 4lu &&
-                               node->input_value(0).get_shape().front() == node->input_value(1).get_shape().front() &&
-                               node->input_value(0).get_shape()[1] == node->input_value(1).get_shape().back() &&
-                               node->input_value(0).get_shape().size() == 3lu &&
-                               node->input_value(1).get_shape().size() == 3lu;
-                    });
-
             pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
                 [](const_node_ptr &node) -> bool {
                     const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);
@@ -358,6 +351,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::ConvertBroadcast3>();
             pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
             pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+            pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
             if (!config.enable_loop_unrolling) {
                 pass_config->disable<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
@@ -384,34 +378,85 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
             using namespace ngraph::pass::low_precision;
 
-            ngraph::pass::Manager manager;
             // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
             // With this key users can work-around such issues
             if (!config.enable_fp16_for_quantized_models) {
+                ngraph::pass::Manager manager;
                 manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
+                manager.run_passes(nGraphFunc);
             }
-            auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
-            const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
-            lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
-            lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
-            lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
-            manager.run_passes(nGraphFunc);
 
-            auto params = LayerTransformation::Params(true,                                                        // updatePrecisions
-                                                      LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                      LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
-                                                      true);                                                       // supportAsymmetricQuantization
-            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params)
-                    .setSupportAsymmetricQuantization(false)
-                    .setSupport3DTensorOnActivations(false))
-                .add<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>(LayerTransformation::Params(params)
-                    .setSupportAsymmetricQuantization(false)
-                    .setDeconvolutionSpecificChannelsRatio(true))
-                // INT8 StridedSlice not supported
-                .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
+            auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
+                OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}},
+                }),
+                OperationPrecisionRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                }),
+                OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                }),
+                OperationPrecisionRestriction::create<ngraph::opset1::StridedSlice>({})
+            });
 
-            transformer.transform(nGraphFunc);
+            auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
+                OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
+                OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0}),
+            });
+
+            ngraph::pass::Manager lptManager;
+
+            auto lptPassConfig = lptManager.get_pass_config();
+            lptPassConfig->disable<ngraph::pass::low_precision::StridedSliceTransformation>();
+            lptPassConfig->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
+                if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
+                    return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
+                }
+                return false;
+            });
+            lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
+                auto fillStaticChannel = [](const ngraph::PartialShape& shape, size_t& channel) -> bool {
+                    const auto rank = shape.rank();
+                    if (rank.is_dynamic()) {
+                        return false;
+                    }
+                    if (rank.get_length() < 2ul) {
+                        return false;
+                    }
+                    const auto dimension = shape[1];
+                    if (dimension.is_dynamic()) {
+                        return false;
+                    }
+                    channel = dimension.get_length();
+                    return true;
+                };
+
+                size_t inputChannels;
+                if (!fillStaticChannel(node->get_input_partial_shape(0), inputChannels)) {
+                    return true;
+                }
+
+                size_t outputChannels;
+                if (!fillStaticChannel(node->get_output_partial_shape(0), outputChannels)) {
+                    return true;
+                }
+
+
+                if ((inputChannels % 4 != 0) || (outputChannels % 16 != 0)) {
+                    return true;
+                }
+
+                return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
+            });
+            lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
+                return MatMulTransformation::is3DTensorOnActivations(node);
+            });
+
+            lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization);
+            lptManager.run_passes(nGraphFunc);
         }
 
         {
@@ -425,11 +470,21 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             auto pass_config = manager.get_pass_config();
             pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
                 [config](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+                    auto sub_graph_op = std::dynamic_pointer_cast<const ngraph::op::util::SubGraphOp>(node);
+                    int64_t num_iter = sub_graph_op->get_num_iterations();
+                    if (num_iter == 1) {
+                        return false;
+                    }
                     return !config.enable_loop_unrolling;
                 });
 
             manager.run_passes(nGraphFunc);
         }
+    }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+        clonedNetwork.serialize(debug_config->dump_graphs + "/transformed_func.xml");
     }
     return clonedNetwork;
 }
@@ -440,7 +495,8 @@ clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
     RegisterPrimitives();
     // try loading clDNN engine and get info from it
     {
-        cldnn::device_query device_query;
+        // Set OCL runtime which should be always available
+        cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
         device_map = device_query.get_available_devices();
     }
     // locate global custom kernel config
@@ -497,14 +553,40 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
     }
 }
 
+std::map<std::string, std::string> clDNNEngine::ConvertPerfHintsToConfig(
+        const std::map<std::string, std::string>& network_config,
+        const CLDNNPlugin::Config& plugin_config) const {
+    // deduces the actual settings from the performance hints and returns fully-defined config
+    auto config = network_config;
+    const auto &mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
+    // the mode may have just arrived to the LoadNetwork, or was set with the plugins' SetConfig
+    if (mode != config.end() || !plugin_config.perfHintsConfig.ovPerfHint.empty()) {
+        const auto mode_name = (mode != config.end())
+                               ? PerfHintsConfig::CheckPerformanceHintValue(mode->second)
+                               : plugin_config.perfHintsConfig.ovPerfHint;
+        //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+        const auto streams = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS);
+        if (streams == config.end() && !streamsSet) {
+            if (mode_name == CONFIG_VALUE(LATENCY)) {
+                config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(1);
+            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+                config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
+                config[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = std::to_string(1);
+            }
+        }
+    }
+    return config;
+}
+
 IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const std::map<std::string, std::string> &config) {
+                                                                const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl");
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
     CLDNNPlugin::Config conf = _impl->m_config;
+    auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
     CLDNNRemoteCLContext::Ptr context;
@@ -550,7 +632,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
 
 IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                 const RemoteContext::Ptr &context,
-                                                                const std::map<std::string, std::string> &config) {
+                                                                const std::map<std::string, std::string> &orig_config) {
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
@@ -560,6 +642,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     }
 
     CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
+    auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
@@ -571,15 +654,13 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
     if (GPU_PARAM_VALUE(OCL) == contextTypeStr) {
-        auto context = std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
-        return std::dynamic_pointer_cast<RemoteContext>(context);
+        return std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
     } else if (GPU_PARAM_VALUE(VA_SHARED) == contextTypeStr) {
 #ifdef _WIN32
-        auto context = std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
 #else
-        auto context = std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
 #endif
-        return std::dynamic_pointer_cast<RemoteContext>(context);
     } else {
         IE_THROW() << "Invalid remote context type" << contextTypeStr;
     }
@@ -589,10 +670,11 @@ RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
     if (nullptr == m_defaultContext) {
         m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_config));
     }
-    return std::dynamic_pointer_cast<RemoteContext>(m_defaultContext);
+    return m_defaultContext;
 }
 
 void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
+    streamsSet = (config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end());
     _impl->m_config.UpdateFromMap(config);
 }
 
@@ -846,8 +928,8 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
 };
 
 static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
-    auto freqGHz = info.core_frequency / 1000.f;
-    auto numEUs = info.cores_count;
+    auto freqGHz = info.gpu_frequency / 1000.f;
+    auto numEUs = info.execution_units_count;
     auto opsPerComputeBlock = 0;
     auto computeBlockIPC = 1.0f;
     switch (dt) {
@@ -889,8 +971,8 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
     auto iter = device_map.find(device_id);
     auto device_info = iter != device_map.end() ?
-        iter->second.get_info() :
-        device_map.begin()->second.get_info();
+        iter->second->get_info() :
+        device_map.begin()->second->get_info();
 
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
@@ -926,7 +1008,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         gops[InferenceEngine::Precision::FP32] = GetGOPS(device_info, cldnn::data_types::f32);
         IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
     } else if (name == GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)) {
-        IE_SET_METRIC_RETURN(GPU_EXECUTION_UNITS_COUNT, device_info.cores_count);
+        IE_SET_METRIC_RETURN(GPU_EXECUTION_UNITS_COUNT, device_info.execution_units_count);
     } else if (name == GPU_METRIC_KEY(UARCH_VERSION)) {
         std::stringstream s;
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0 && device_info.gfx_ver.revision == 0) {

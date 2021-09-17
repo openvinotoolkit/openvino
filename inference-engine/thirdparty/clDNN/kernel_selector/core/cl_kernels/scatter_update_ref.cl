@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #define AXIS_B (0)
 #define AXIS_F (1)
@@ -23,7 +24,7 @@
 
 KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
                    const __global INPUT1_TYPE* indices,
-                   const __global INPUT2_TYPE* updates, 
+                   const __global INPUT2_TYPE* updates,
                    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
                    , FUSED_OPS_DECLS

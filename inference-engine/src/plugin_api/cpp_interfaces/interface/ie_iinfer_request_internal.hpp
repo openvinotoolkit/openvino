@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <ie_blob.h>
-#include <ie_common.h>
-#include <ie_preprocess_data.hpp>
-#include <ie_input_info.hpp>
-#include <cpp/ie_infer_request.hpp>
-
 #include <map>
 #include <memory>
 #include <string>
+
+#include "cpp/ie_infer_request.hpp"
+#include "ie_blob.h"
+#include "ie_common.h"
+#include "ie_input_info.hpp"
+#include "ie_preprocess_data.hpp"
 
 namespace InferenceEngine {
 
@@ -89,7 +89,8 @@ public:
     /**
      * @brief Sets pre-process for input data
      * @param name Name of input blob.
-     * @param data - a reference to input or output blob. The type of Blob must correspond to the network input precision and size.
+     * @param data - a reference to input or output blob. The type of Blob must correspond to the network input
+     * precision and size.
      * @param info Preprocess info for blob.
      */
     virtual void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info);
@@ -219,17 +220,19 @@ protected:
      * @param deviceBlob Blob object in plugin's desired format
      * @return `True` if pre-processing is required, `false` otherwise
      */
-    bool preProcessingRequired(const InputInfo::Ptr& info, const Blob::Ptr& userBlob, const Blob::Ptr& deviceBlob = nullptr);
+    bool preProcessingRequired(const InputInfo::Ptr& info,
+                               const Blob::Ptr& userBlob,
+                               const Blob::Ptr& deviceBlob = nullptr);
 
     void addInputPreProcessingFor(const std::string& name, Blob::Ptr const& from, const Blob::Ptr& to);
 
-    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
+    InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
-    InferenceEngine::BlobMap _inputs;  //!< A map of user passed blobs for network inputs
-    InferenceEngine::BlobMap _deviceInputs; //!< A map of actual network inputs, in plugin specific format
-    InferenceEngine::BlobMap _outputs;  //!< A map of user passed blobs for network outputs
-    std::map<std::string, PreProcessDataPtr> _preProcData;        //!< A map of pre-process data per input
-    int m_curBatch = -1;  //!< Current batch value used in dynamic batching
+    InferenceEngine::BlobMap _inputs;                 //!< A map of user passed blobs for network inputs
+    InferenceEngine::BlobMap _deviceInputs;           //!< A map of actual network inputs, in plugin specific format
+    InferenceEngine::BlobMap _outputs;                //!< A map of user passed blobs for network outputs
+    std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
+    int m_curBatch = -1;                                    //!< Current batch value used in dynamic batching
 
     /**
      * @brief A shared pointer to IInferRequestInternal
@@ -239,7 +242,7 @@ protected:
     Callback _callback;  //!< A callback
 
 private:
-    void*   _userData = nullptr;
+    void* _userData = nullptr;
 };
 
 /**

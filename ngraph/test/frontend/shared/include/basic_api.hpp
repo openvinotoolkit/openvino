@@ -4,16 +4,15 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
-
 #include <gtest/gtest.h>
 
-using BasicTestParam = std::tuple<std::string,  // FrontEnd name
-        std::string,  // Base path to models
-        std::string>; // Model name
+#include <frontend_manager/frontend_manager.hpp>
 
-class FrontEndBasicTest : public ::testing::TestWithParam<BasicTestParam>
-{
+using BasicTestParam = std::tuple<std::string,   // FrontEnd name
+                                  std::string,   // Base path to models
+                                  std::string>;  // Model name
+
+class FrontEndBasicTest : public ::testing::TestWithParam<BasicTestParam> {
 public:
     std::string m_feName;
     std::string m_pathToModels;

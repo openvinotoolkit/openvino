@@ -101,7 +101,7 @@ const auto testCase4D = ::testing::Combine(
 );
 
 
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsDFT_1d, DFTLayerTest, testCase1D, DFTLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsDFT_2d, DFTLayerTest, testCase2D, DFTLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsDFT_3d, DFTLayerTest, testCase3D, DFTLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsDFT_4d, DFTLayerTest, testCase4D, DFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsDFT_1d, DFTLayerTest, testCase1D, DFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsDFT_2d, DFTLayerTest, testCase2D, DFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsDFT_3d, DFTLayerTest, testCase3D, DFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsDFT_4d, DFTLayerTest, testCase4D, DFTLayerTest::getTestCaseName);

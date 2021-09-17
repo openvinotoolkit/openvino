@@ -47,7 +47,7 @@ namespace {
             {std::string(GNA_CONFIG_KEY(COMPACT_MODE)), "NO"}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_split_connected, SplitRelu,
+    INSTANTIATE_TEST_SUITE_P(smoke_split_connected, SplitRelu,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(connect_index),

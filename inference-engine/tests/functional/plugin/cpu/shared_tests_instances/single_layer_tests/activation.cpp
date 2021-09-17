@@ -28,6 +28,7 @@ const std::vector<InferenceEngine::Precision> intPrecisions = {
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
         {Sigmoid,               {}},
+        {Tan,                   {}},
         {Tanh,                  {}},
         {Relu,                  {}},
         {Exp,                   {}},
@@ -37,7 +38,9 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Clamp,                 {{-2.0f, 2.0f}}},
         {Negative,              {}},
         {Acos,                  {}},
+        {Acosh,                  {}},
         {Asin,                  {}},
+        {Asinh,                 {}},
         {Atan,                  {}},
         {Cos,                   {}},
         {Cosh,                  {}},
@@ -57,40 +60,48 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {HSigmoid,              {}},
         {RoundHalfToEven,       {}},
         {RoundHalfAwayFromZero, {}},
-        {Erf,                   {}},
         {GeluErf,               {}},
-        {GeluTanh,              {}}
+        {GeluTanh,              {}},
+        {Swish,                 {{0.4f}}}
 };
 
 // List of operations that should be tested also with integer precision
 const std::map<ActivationTypes, std::vector<std::vector<float>>> intActivationTypes = {
+        {Acosh,                 {}},
+        {Asinh,                 {}},
+        {Atan,                  {}},
+        {Negative,              {}},
+        {Ceiling,               {}},
+        {Cos,                   {}},
+        {Cosh,                  {}},
+        {Sign,                  {}},
+        {Sinh,                  {}},
         {Sqrt,                  {}},
+        {Tan,                   {}},
         {Tanh,                  {}},
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
-    {PReLu, {{-0.01f}}},
-    {LeakyRelu, {{0.01f}}}
+        {PReLu, {{}}}, // Slope will be filled with increasing values from -10 to match slope input shape
+        {LeakyRelu, {{0.01f}}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{1, 50}, {{}}},
-        {{1, 128}, {{}}},
+        {{5, 128}, {{}}},
+        {{2, 2, 2, 2, 2, 2, 2, 2}, {{}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
         {{1, 50}, {{1}, {50}}},
         {{1, 128}, {{1}, {128}}},
-        {{20, 128}, {{128}}},
-        {{1, 20, 128}, {{1}, {20}}},
-        {{1, 20, 128, 128}, {{1}, {20}}},
-        {{1, 20, 20, 128, 128}, {{1}, {20}}}
-        // according to spec second input for PRelu must be 1D and must be broadcastabe per channel
-        // at this moment these cases unsupported
-        // {{20, 128}, {{20}, {20, 128}}},
-        // {{1, 20, 128}, {{128}, {20, 128}}},
-        // {{1, 20, 128, 128}, {{128}, {128, 128}, {20, 128, 128}}},
-        // {{1, 20, 20, 128, 128}, {{128}, {128, 128}, {20, 128, 128}, {20, 20, 128, 128}}},
+
+        // Broadcast check
+        {{3, 2}, {{1}, {2}, {3, 2}}},
+        {{3, 2, 5}, {{1}, {2}, {5}, {2, 5}, {3, 1, 5}, {1, 2, 1}, {1, 1, 5}, {3, 1, 1}, {3, 2, 5}}},
+        {{2, 1, 2}, {{2}, {2, 1, 1}}},
+        {{3, 2, 5, 7}, {{1}, {7}, {2}, {5, 7}, {2, 5, 7}, {2, 1, 1}, {1, 2, 1, 1}, {3, 2, 1, 1}, {3, 2, 5, 7}}},
+        {{2, 2, 2, 2, 2, 2, 2, 2}, {{2}, {2, 2}, {2, 1, 1, 2}}},
 };
 
 const auto basicCases = ::testing::Combine(
@@ -126,12 +137,10 @@ const auto basicIntegerOperations = ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_Integer_Activation_Basic, ActivationLayerTest, basicIntegerOperations, ActivationLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationDynamicLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Integer_Activation_Basic, ActivationLayerTest, basicIntegerOperations, ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationDynamicLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic_Prelu_Const, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic_Prelu_Param, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
 }  // namespace

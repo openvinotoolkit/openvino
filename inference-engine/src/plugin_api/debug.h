@@ -14,16 +14,19 @@
 #include <cstdarg>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <functional>
-#include <ostream>
 #include <iterator>
 #include <numeric>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <cstring>
 
 #include "ie_algorithm.hpp"
+
+namespace InferenceEngine {
+namespace details {
 
 /**
  * @brief Serializes a `std::vector` to a `std::ostream`
@@ -32,20 +35,17 @@
  * @param vec A vector to serialize
  * @return A reference to a `std::stream`
  */
-namespace std {
 template <typename T>
 inline std::ostream& operator<<(std::ostream& out, const std::vector<T>& vec) {
-    if (vec.empty()) return std::operator<<(out, "[]");
+    if (vec.empty())
+        return std::operator<<(out, "[]");
     out << "[" << vec[0];
     for (unsigned i = 1; i < vec.size(); i++) {
         out << ", " << vec[i];
     }
     return out << "]";
 }
-}  // namespace std
 
-namespace InferenceEngine {
-namespace details {
 /**
  * @brief trim from start (in place)
  * @ingroup ie_dev_api_error_debug
@@ -63,7 +63,8 @@ inline void ltrim(std::string& s) {
  * @param s - string to trim
  */
 inline void rtrim(std::string& s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(),
+    s.erase(std::find_if(s.rbegin(),
+                         s.rend(),
                          [](int c) {
                              return !std::isspace(c);
                          })
@@ -117,10 +118,12 @@ inline std::vector<std::string> split(const std::string& src, const std::string&
  */
 template <typename T, typename A>
 std::string joinVec(std::vector<T, A> const& vec, std::string const& glue = std::string(",")) {
-    if (vec.empty()) return "";
+    if (vec.empty())
+        return "";
     std::stringstream oss;
     oss << vec[0];
-    for (size_t i = 1; i < vec.size(); i++) oss << glue << vec[i];
+    for (size_t i = 1; i < vec.size(); i++)
+        oss << glue << vec[i];
     return oss.str();
 }
 
@@ -143,9 +146,11 @@ std::string dumpVec(std::vector<T, A> const& vec) {
  */
 template <typename T, typename A>
 T product(std::vector<T, A> const& vec) {
-    if (vec.empty()) return 0;
+    if (vec.empty())
+        return 0;
     T ret = vec[0];
-    for (size_t i = 1; i < vec.size(); ++i) ret *= vec[i];
+    for (size_t i = 1; i < vec.size(); ++i)
+        ret *= vec[i];
     return ret;
 }
 
@@ -158,15 +163,17 @@ T product(std::vector<T, A> const& vec) {
  */
 template <typename T, typename A>
 bool equal(const std::vector<T, A>& v1, const std::vector<T, A>& v2) {
-    if (v1.size() != v2.size()) return false;
+    if (v1.size() != v2.size())
+        return false;
     for (auto i1 = v1.cbegin(), i2 = v2.cbegin(); i1 != v1.cend(); ++i1, ++i2) {
-        if (*i1 != *i2) return false;
+        if (*i1 != *i2)
+            return false;
     }
     return true;
 }
 
 #ifdef _WIN32
-# define strncasecmp _strnicmp
+#    define strncasecmp _strnicmp
 #endif
 
 /**
@@ -192,7 +199,8 @@ inline bool equal(const std::string& lhs, const std::string& rhs, bool ignoreCas
 inline bool endsWith(const std::string& src, const char* with) {
     int wl = static_cast<int>(strlen(with));
     int so = static_cast<int>(src.length()) - wl;
-    if (so < 0) return false;
+    if (so < 0)
+        return false;
     return 0 == strncmp(with, &src[so], wl);
 }
 
@@ -205,8 +213,9 @@ inline bool endsWith(const std::string& src, const char* with) {
 inline std::string tolower(const std::string& s) {
     std::string ret;
     ret.resize(s.length());
-    std::transform(s.begin(), s.end(), ret.begin(),
-        [](char c) { return static_cast<char>(::tolower(static_cast<int>(c))); });
+    std::transform(s.begin(), s.end(), ret.begin(), [](char c) {
+        return static_cast<char>(::tolower(static_cast<int>(c)));
+    });
     return ret;
 }
 }  // namespace details

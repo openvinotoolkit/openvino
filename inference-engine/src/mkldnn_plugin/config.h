@@ -4,9 +4,12 @@
 
 #pragma once
 
+#include <threading/ie_istreams_executor.hpp>
+#include <ie_performance_hints.hpp>
+#include "utils/debug_capabilities.h"
+
 #include <string>
 #include <map>
-#include <threading/ie_istreams_executor.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -24,7 +27,7 @@ struct Config {
     std::string dumpToDot = "";
     int batchLimit = 0;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
-
+    InferenceEngine::PerfHintsConfig  perfHintsConfig;
 #if defined(__arm__) || defined(__aarch64__)
     // Currently INT8 mode is not optimized on ARM, fallback to FP32 mode.
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
@@ -33,6 +36,10 @@ struct Config {
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
     bool manualEnforceBF16 = false;
+#endif
+
+#ifdef CPU_DEBUG_CAPS
+    DebugCaps::Config debugCaps;
 #endif
 
     void readProperties(const std::map<std::string, std::string> &config);

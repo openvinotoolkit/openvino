@@ -19,6 +19,9 @@
 #include "ie_parallel.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
+#include <memory_desc/cpu_memory_desc_utils.h>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/ngraph_utils.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -219,7 +222,7 @@ struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_
 
         this->preamble();
 
-        if (jqp_.src_layout == Layout::CHW || jqp_.src_layout == Layout::NCHW || jqp_.src_layout == Layout::NCDHW)
+        if (jqp_.is_planar)
             compute_planar();
         else
             compute_generic();
@@ -819,6 +822,11 @@ private:
 
 bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
         if (!fq) {
             errorMessage = "Only opset1 FakeQuantize operation is supported";
@@ -1090,31 +1098,23 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
     }
 }
 
-std::vector<mkldnn::memory::format_tag> MKLDNNFakeQuantizeNode::getDataFormats() const {
+std::vector<LayoutType> MKLDNNFakeQuantizeNode::getDataFormats() const {
     // Special case for first FQ in the network
-    if (getParentEdgesAtPort(0)[0]->getDims()[getAxis()] == 3) {
-        return { MKLDNNMemory::GetPlainFormat(getParentEdgesAtPort(0)[0]->getDims()) };
+    if (getInputShapeAtPort(0).getStaticDims()[getAxis()] == 3) {
+        return { LayoutType::ncsp };
     } else {
         if (isBinarization()) {
-            return {memory::format_tag::nhwc};
+            return { LayoutType::nspc };
         } else {
-            switch (getParentEdgesAtPort(0)[0]->getDims().ndims()) {
-                case 4:
-                    if (getAxis() == 1) {
-                        auto blkFormat = mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
-                        return {blkFormat, memory::format_tag::nhwc, memory::format_tag::nchw};
-                    } else {
-                        return {memory::format_tag::nchw};
-                    }
-                case 5:
-                    if (getAxis() == 1) {
-                        auto blkFormat = mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c;
-                        return {blkFormat, memory::format_tag::ndhwc, memory::format_tag::ncdhw};
-                    } else {
-                        return {memory::format_tag::ncdhw};
-                    }
-                default:
-                    return {MKLDNNMemory::GetPlainFormat(getParentEdgesAtPort(0)[0]->getDims())};
+            if (one_of(getInputShapeAtPort(0).getRank(), 4, 5)) {
+                if (getAxis() == 1) {
+                    auto blkFormat = mayiuse(cpu::x64::avx512_common) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
+                    return { blkFormat, LayoutType::nspc, LayoutType::ncsp };
+                } else {
+                    return { LayoutType::ncsp };
+                }
+            } else {
+                return { LayoutType::ncsp };
             }
         }
     }
@@ -1147,12 +1147,12 @@ void MKLDNNFakeQuantizeNode::getSupportedDescriptors() {
             IE_THROW() << errorPrefix << "has unsupported number of parent edges at port " << i;
     }
 
-    if (getParentEdgesAtPort(0)[0]->getDims().ndims() != getChildEdgesAtPort(0)[0]->getDims().ndims()) {
+    if (getInputShapeAtPort(0).getRank() != getInputShapeAtPort(0).getRank()) {
         IE_THROW() << errorPrefix << "has different ranks for input and output tensors";
     }
 
     if (isBinarization()) {
-        if (getParentEdgesAtPort(0)[0]->getDims().ndims() != 4ul) {
+        if (getInputShapeAtPort(0).getRank() != 4ul) {
             IE_THROW() << errorPrefix << "doesn't support input/output rank != 4";
         }
     }
@@ -1189,47 +1189,52 @@ void MKLDNNFakeQuantizeNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getInputPrecision());
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOutputPrecision());
-
     for (auto& fmt : getDataFormats()) {
-        LayerConfig config;
+        NodeConfig config;
         config.dynBatchSupport = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            DataConfig dataConfig;
+            PortConfig dataConfig;
             dataConfig.inPlace = -1;
             dataConfig.constant = false;
 
             if (i == 0) {
-                dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType, fmt);
+                auto descCreator = BlockedDescCreator::getCommonCreators().at(fmt);
+                dataConfig.desc = descCreator->createSharedDesc(getInputPrecision(), getInputShapeAtPort(i));
             } else {
-                dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), memory::data_type::f32,
-                                                   MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
+                auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
+                dataConfig.desc = descCreator->createSharedDesc(Precision::FP32, getInputShapeAtPort(i));
             }
             config.inConfs.push_back(dataConfig);
         }
 
-        DataConfig dataConfig;
+        PortConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
+        auto descCreator = BlockedDescCreator::getCommonCreators().at(fmt);
+        dataConfig.desc = descCreator->createSharedDesc(getOutputPrecision(), getOutputShapeAtPort(0));
         config.outConfs.push_back(dataConfig);
 
-        supportedPrimitiveDescriptors.push_back({config, impl_type, fmt});
+        supportedPrimitiveDescriptors.push_back({config, impl_type});
     }
 }
 
 void MKLDNNFakeQuantizeNode::createPrimitive() {
     auto config = getSelectedPrimitiveDescriptor()->getConfig();
 
-    auto inDims = config.inConfs[0].desc.getDims();
+    auto inDims = config.inConfs[0].desc->getShape().getStaticDims();
     jqp.c = inDims.size() > 1 ? inDims[1] : 1;
 
-    jqp.src_prc = config.inConfs[0].desc.getPrecision();
+    jqp.src_prc = config.inConfs[0].desc->getPrecision();
     jqp.wei_prc = Precision::FP32;
-    jqp.dst_prc = config.outConfs[0].desc.getPrecision();
+    jqp.dst_prc = config.outConfs[0].desc->getPrecision();
 
-    jqp.src_layout = config.inConfs[0].desc.getLayout();
+    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    jqp.s_str = srcDesc->getStrides();
+
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    jqp.d_str = dstDesc->getStrides();
+
+    jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
 
     jqp.op_type = getAlgorithm();
 
@@ -1258,10 +1263,10 @@ void MKLDNNFakeQuantizeNode::createPrimitive() {
     if (quantize_kernel)
         quantize_kernel->create_ker();
 
-    size_t axisSize = getParentEdgeAt(0)->getDims()[getAxis()];
+    size_t axisSize = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims()[getAxis()];
     size_t axisPaddedSize = rnd_up(axisSize, 16);
 
-    MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)axisPaddedSize}, memory::data_type::f32, memory::format_tag::x};
+    DnnlBlockedMemoryDesc weightsDataDesc(Shape(InferenceEngine::SizeVector{axisPaddedSize}), memory::data_type::f32, memory::format_tag::x);
 
     if (isBinarization()) {
         auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
@@ -1297,12 +1302,11 @@ void MKLDNNFakeQuantizeNode::executeReference() {
 
     auto src = reinterpret_cast<const float *>(srcMemory->GetPtr());
 
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    auto srcDims = config.inConfs[0].desc.getDims();
-    auto dstDims = config.outConfs[0].desc.getDims();
+    auto srcDims = srcMemory->getStaticDims();
+    auto dstDims = dstMemory->getStaticDims();
 
-    auto s_str = config.inConfs[0].desc.getBlockingDesc().getStrides();
-    auto d_str = config.outConfs[0].desc.getBlockingDesc().getStrides();
+    auto s_str = jqp.s_str;
+    auto d_str = jqp.d_str;
 
     const int N = srcDims[0];
     const int C = srcDims.size() > 1 ? srcDims[1] : 1;
@@ -1419,10 +1423,9 @@ void MKLDNNFakeQuantizeNode::executeBinarization() {
     auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
     auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
 
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    auto src_dims = config.inConfs[0].desc.getDims();
+    auto src_dims = srcMemory->getStaticDims();
 
-    std::vector<size_t> s_str = config.inConfs[0].desc.getBlockingDesc().getStrides();
+    std::vector<size_t> s_str = jqp.s_str;
     size_t tmp = s_str[s_str.size() - 1];
     for (int i = s_str.size() - 1; i > 1; i--) {
         s_str[i] = s_str[i - 1];
@@ -1463,24 +1466,23 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
     auto output_scale = reinterpret_cast<const float*>(internalBlobMemory[4]->GetData());
     auto output_shift = reinterpret_cast<const float*>(internalBlobMemory[5]->GetData());
 
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    auto srcDims = config.inConfs[0].desc.getDims();
+    auto& srcDesc = srcMemory->getDesc();
+    auto srcDims = srcDesc.getShape().getStaticDims();
 
-    bool is_blk_format = jqp.src_layout != Layout::NHWC && jqp.src_layout != Layout::NDHWC;
-    int blk_size = (jqp.src_layout == Layout::CHW ||
-                    jqp.src_layout == Layout::NCHW ||
-                    jqp.src_layout == Layout::NCDHW) ? 1 : mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5);
+    int blk_size = (srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5))
+                    ? 1 : mayiuse(cpu::x64::avx512_common) ? 16 : 8;
 
     auto src_type_size = jqp.src_prc.size();
     auto dst_type_size = jqp.dst_prc.size();
 
-    std::vector<size_t> s_str = config.inConfs[0].desc.getBlockingDesc().getStrides();
+    auto s_str = jqp.s_str;
 
-    if (jqp.src_layout == BLOCKED) {
+    if (is_blk_format) {
         s_str[1] /= blk_size;
     }
 
-    if (jqp.src_layout == Layout::NHWC || jqp.src_layout == Layout::NDHWC) {
+    if (srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5)) {
         size_t tmp = s_str[s_str.size() - 1];
         for (int i = s_str.size() - 1; i > 1; i--) {
             s_str[i] = s_str[i - 1];
@@ -1495,7 +1497,7 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
     const int H = srcDims.size() == 3 ? srcDims[2] : srcDims.size() > 3 ? srcDims[srcDims.size() - 2] : 1;
     const int W = srcDims.size() > 3 ? srcDims[srcDims.size() - 1] : 1;
 
-    if (jqp.src_layout == Layout::CHW) {
+    if (srcDesc.hasLayoutType(LayoutType::ncsp) && srcDesc.getShape().getRank() == 3) {
         parallel_nd(N, CB, D, [&](int n, int cb, int d) {
             auto arg = jit_quantize_call_args();
 
@@ -1542,7 +1544,7 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
 
             arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
             arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
-            arg.block_size = (is_blk_format && jqp.src_layout != Layout::NC) ? (size_t) blk_size : nstl::min(blk_size, C - c);
+            arg.block_size = (is_blk_format && srcDims.size() != 2) ? (size_t) blk_size : nstl::min(blk_size, C - c);
             arg.work_amount = (size_t) W;
 
             (*quantize_kernel)(&arg);

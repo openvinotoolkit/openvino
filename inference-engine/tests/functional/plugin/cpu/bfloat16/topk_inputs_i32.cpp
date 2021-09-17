@@ -146,7 +146,7 @@ TEST_P(TopKInputsI32, CompareWithRefImpl) {
 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, TopKInputsI32,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_NoReshape, TopKInputsI32,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::FP32),
@@ -155,7 +155,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, TopKInputsI32,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         TopKInputsI32::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, TopKInputsI32,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, TopKInputsI32,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

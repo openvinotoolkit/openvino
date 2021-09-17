@@ -1,6 +1,7 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <openvino/cc/ngraph/itt.hpp>
 
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
 
@@ -8,7 +9,7 @@
 
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
+#include <ngraph/rt_info.hpp>
 #include "gna_plugin_log.hpp"
 
 using namespace GNAPluginNS;
@@ -16,6 +17,7 @@ using namespace GNAPluginNS;
 NGRAPH_RTTI_DEFINITION(InsertTransposeAfterConvOrPool, "InsertTransposeAfterConvOrPool", 0);
 
 bool InsertTransposeAfterConvOrPool::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(InsertTransposeAfterConvOrPool);
     bool is_graph_modfied = false;
     for (auto& node : f->get_ordered_ops()) {
         if (std::dynamic_pointer_cast<ngraph::opset7::Convolution>(node) == nullptr &&
@@ -92,11 +94,13 @@ bool InsertTransposeAfterConvOrPool::run_on_function(std::shared_ptr<ngraph::Fun
                                                                              transposeInShape);
         auto reshapeBefore = std::make_shared<ngraph::opset7::Reshape>(node, reshapeConstBefore, false);
         reshapeBefore->set_friendly_name(node->get_friendly_name() + "/reshape_out");
+        ngraph::copy_runtime_info(node, reshapeBefore);
 
         auto transpose_order = transposeInShape.size() == 3 ? ngraph::Shape{0, 2, 1} : ngraph::Shape{0, 3, 1, 2};
         auto transpose = std::make_shared<ngraph::opset7::Transpose>(reshapeBefore,
             ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order));
         transpose->set_friendly_name(node->get_friendly_name() + "/transpose_out");
+        ngraph::copy_runtime_info(node, transpose);
 
         for (auto input : consumers) {
             input.replace_source_output(transpose);

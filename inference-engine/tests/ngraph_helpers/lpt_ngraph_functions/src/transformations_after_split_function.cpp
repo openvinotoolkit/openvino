@@ -137,7 +137,7 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
     }
     if (transformationName == "NormalizeL2Transformation") {
         const auto dequantization = makeDequantization(parent, { {element::f32}, {}, { 0.1f } });
-        const auto axesNode = opset1::Constant::create(element::u64, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        const auto axesNode = opset1::Constant::create(element::i64, ngraph::Shape{ 3 }, { 1, 2, 3 });
         return std::make_shared<ngraph::opset1::NormalizeL2>(dequantization, axesNode, 1e-6, ngraph::op::EpsMode::ADD);
     }
     if (transformationName == "PReluTransformation") {
@@ -183,11 +183,13 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
         return makeDequantization(parent, { {element::f32}, {}, { 0.1f } });
     }
     if (transformationName == "FuseSubtractToFakeQuantizeTransformation") {
-        const auto fakeQuantize = makeFakeQuantize(parent, element::f32, { 256, Shape{}, { 0.f }, { 255.f }, { 0.f }, { 127.f } });
+        // INT8 before FakeQuantize, all operations before FakeQuantize have been fused: need to have TypeRelaxed here
+        const auto fakeQuantize = makeFakeQuantizeTypeRelaxed(parent, element::f32, { 256, Shape{}, { 0.f }, { 255.f }, { 0.f }, { 127.f } });
         return makeDequantization(fakeQuantize, { {}, {{ 128.f }, element::f32, {}}, {} });
     }
     if (transformationName == "FuseMultiplyToFakeQuantizeTransformation") {
-        const auto fakeQuantize = makeFakeQuantize(parent, element::f32, { 256, Shape{}, { 0.f }, { 255.f }, { 0.f }, { 127.f } });
+        // INT8 before FakeQuantize, all operations before FakeQuantize have been fused: need to have TypeRelaxed here
+        const auto fakeQuantize = makeFakeQuantizeTypeRelaxed(parent, element::f32, { 256, Shape{}, { 0.f }, { 255.f }, { 0.f }, { 127.f } });
         return makeDequantization(fakeQuantize, { {}, {}, {{ 2.f }, element::f32, {}} });
     }
     if (transformationName == "MultiplyToGroupConvolutionTransformation") {

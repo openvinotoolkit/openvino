@@ -3,7 +3,7 @@
 //
 
 #include "../common/tests_utils.h"
-#include "../common/ie_utils.h"
+#include "common_utils.h"
 #include "../common/managers/thread_manager.h"
 #include "tests_pipelines/tests_pipelines.h"
 
@@ -118,17 +118,27 @@ TEST_P(MemLeaksTestSuite, infer_request_inference) {
     };
     test_runner(test_params.numthreads, test);
 }
+
+TEST_P(MemLeaksTestSuite, inference_with_streams) {
+    const auto nstreams = 2;
+    auto test_params = GetParam();
+    auto test = [&] {
+        return test_inference_with_streams(test_params.model, test_params.device, nstreams, test_params.numiters);
+    };
+    test_runner(test_params.numthreads, test);
+}
+
 // tests_pipelines/tests_pipelines.cpp
 
-INSTANTIATE_TEST_CASE_P(MemLeaksTests, MemLeaksTestSuiteNoModel,
+INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuiteNoModel,
                         ::testing::ValuesIn(generateTestsParams({"processes", "threads", "iterations", "devices"})),
                         getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(MemLeaksTests, MemLeaksTestSuiteNoDevice,
+INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuiteNoDevice,
                         ::testing::ValuesIn(generateTestsParams({"processes", "threads", "iterations", "models"})),
                         getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(MemLeaksTests, MemLeaksTestSuite,
+INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuite,
                         ::testing::ValuesIn(
                                 generateTestsParams({"processes", "threads", "iterations", "devices", "models"})),
                         getTestCaseName);

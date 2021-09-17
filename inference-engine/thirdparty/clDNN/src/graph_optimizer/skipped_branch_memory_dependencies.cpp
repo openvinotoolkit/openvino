@@ -7,9 +7,9 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "program_helpers.h"
-#include "cldnn_itt.h"
+#include "runtime/cldnn_itt.hpp"
 #include <vector>
 #include <memory>
 #include <list>
@@ -18,7 +18,7 @@
 
 using namespace cldnn;
 
-void skipped_branch_memory_dependencies::run(program_impl& p) {
+void skipped_branch_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::SkippedBranchMemoryDependencies");
     // Primitive A can't use primitive B buffer if processing_num(B) < processing_num(A) and for any usr - the user of B
     // processing_num(usr) > processing_num(A) Otherwise it could override data that has to be used in the future.

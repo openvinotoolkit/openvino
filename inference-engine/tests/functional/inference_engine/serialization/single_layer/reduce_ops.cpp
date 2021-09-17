@@ -140,35 +140,35 @@ const auto params_ReductionTypesLogical = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceOneAxis_Serialization,
         ReduceOpsLayerTest,
         paramsOneAxis,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceLogicalOneAxis_Serialization,
         ReduceOpsLayerTest,
         paramsOneAxisLogical,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceAxes_Serialization,
         ReduceOpsLayerTest,
         params_Axes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_ReductionTypes_Serialization,
         ReduceOpsLayerTest,
         params_ReductionTypes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceLogical_ReductionTypes_Serialization,
         ReduceOpsLayerTest,
         params_ReductionTypesLogical,

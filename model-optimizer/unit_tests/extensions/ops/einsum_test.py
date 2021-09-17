@@ -60,6 +60,11 @@ class TestEinsum(unittest.TestCase):
         ([int64_array([1, 3, 5])], "AbC", int64_array([1, 5, 3])),
         # mixed case letters and equation in implicit mode
         ([int64_array([3, 11, 1, 5]), int64_array([1, 3, 1, 7])], "a...b,B...", int64_array([3, 11, 7, 1, 3, 5])),
+        # inner product in implicit mode
+        ([int64_array([3]), int64_array([3])], "i,i", int64_array([])),
+        # equation with ellipsis and repeated labels in implicit mode
+        # "a...b,b..." is equivalent to "a...b,b...->...a"
+        ([int64_array([9, 1, 4, 3]), int64_array([3, 11, 7, 1])], "a...b,b...", int64_array([11, 7, 4, 9])),
     ])
     def test_einsum(self, input_shapes, equation, ref_output_shape):
         graph = create_einsum_graph(input_shapes, equation)

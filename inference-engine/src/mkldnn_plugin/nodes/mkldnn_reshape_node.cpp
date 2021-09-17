@@ -6,13 +6,46 @@
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+bool MKLDNNReshapeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+        if (!std::dynamic_pointer_cast<const ngraph::opset1::Reshape>(op) &&
+            !std::dynamic_pointer_cast<const ngraph::opset1::Squeeze>(op) &&
+                !std::dynamic_pointer_cast<const ngraph::opset1::Unsqueeze>(op)) {
+            errorMessage = "Only opset1 Reshape, Squeeze, Unsqueeze operations are supported";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
 MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {}
+        MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+}
+
+MKLDNNReshapeNode::MKLDNNReshapeNode(const std::string& name, const Shape& inDims, const Shape& outDims, Precision precision,
+        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &wCache)
+        : MKLDNNNode("Reshape", name, eng, wCache) {
+    this->inputShapes.push_back(inDims);
+    this->outputShapes.push_back(outDims);
+    addOriginalInputPrecision(precision);
+    addOriginalOutputPrecision(precision);
+}
 
 void MKLDNNReshapeNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 1 && getParentEdges().size() != 2)
@@ -25,28 +58,27 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getOriginalOutputPrecisionAtPort(0);
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+    InferenceEngine::Precision inPrec = getOriginalInputPrecisionAtPort(0);
+    InferenceEngine::Precision outPrec = getOriginalOutputPrecisionAtPort(0);
 
     // Current reshape implementation is simple memory reinterpret,
     // same precision on input and output is required
-    if (inputDataType != outputDataType)
-        inputDataType = outputDataType;
+    if (inPrec != outPrec)
+        inPrec = outPrec;
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(getParentEdges().size());
-    for (size_t i = 0; i <getParentEdges().size(); i++) {
+    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
         config.inConfs[i].inPlace = -1;
         config.inConfs[i].constant = false;
-        config.inConfs[i].desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType);
+        config.inConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(inPrec, getInputShapeAtPort(i));
     }
     config.outConfs.resize(1);
     config.outConfs[0].inPlace = 0;
     config.outConfs[0].constant = false;
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
+    config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outPrec, getOutputShapeAtPort(0));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 

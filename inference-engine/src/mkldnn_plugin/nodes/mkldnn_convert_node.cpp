@@ -5,15 +5,21 @@
 #include <mkldnn_extension_utils.h>
 #include "mkldnn_convert_node.h"
 #include "common/cpu_convert.h"
-#include "common/tensor_desc_creator.h"
+#include "common/blocked_desc_creator.h"
 #include <ngraph/opsets/opset1.hpp>
+#include "utils/ngraph_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNConvertNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNConvertNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto convert = std::dynamic_pointer_cast<const ngraph::opset1::Convert>(op);
         if (!convert) {
             errorMessage = "Only opset1 Convert operation is supported";
@@ -38,62 +44,79 @@ MKLDNNConvertNode::MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, co
 MKLDNNConvertNode::MKLDNNConvertNode(const InferenceEngine::SizeVector &dims, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
                                      const std::string &nodeName, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode("Convert", nodeName, eng, cache) {
-    inDims.emplace_back(dims);
+    inputShapes.emplace_back(dims);
     addOriginalInputPrecision(inPrc);
-    outDims.emplace_back(dims);
+    outputShapes.emplace_back(dims);
     addOriginalOutputPrecision(outPrc);
+
+    errorPrefix = "Convert node with name '" + getName() + "'";
 }
 
 void MKLDNNConvertNode::getSupportedDescriptors() {
     // if tensor descriptors are set via setDescs method we need to update the inDims/outDims data
     // from correspond tensor descriptors.
-    if (outDims.empty() && output && output->getLayout() != InferenceEngine::Layout::ANY)
-        outDims.push_back(MKLDNNDims(output->getDims()));
-    if (inDims.empty() && input && input->getLayout() != InferenceEngine::Layout::ANY)
-        inDims.push_back(MKLDNNDims(input->getDims()));
+    if (outputShapes.empty())
+        outputShapes.push_back(output->getShape());
+    if (inputShapes.empty())
+        inputShapes.push_back(input->getShape());
     if (getParentEdges().size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << " has incorrect number of output edges";
 }
 
+bool MKLDNNConvertNode::isSupportedDesc(const MemoryDesc &desc) {
+    bool isSupported = desc.getType() & MemoryDescType::Blocked;
+    if (desc.getType() == MemoryDescType::DnnlBlocked)
+        isSupported &= desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData();
+    return isSupported;
+}
+
 void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    LayerConfig config;
-    DataConfig dataIn;
-    DataConfig dataConfigOut;
+    NodeConfig config;
+    PortConfig dataIn;
+    PortConfig dataConfigOut;
 
     config.dynBatchSupport = false;
 
-    // if input and output pointers are not null, then the inp/output tensor descriptors were set using setDescs method, so
+    bool canInitExternalDesc = false;
+    if (input && output) {
+        canInitExternalDesc = true;
+        canInitExternalDesc &= isSupportedDesc(*input);
+        canInitExternalDesc &= isSupportedDesc(*output);
+    }
+
+    // if input and output pointers are not null and not contain extra data, then the inp/output tensor descriptors were set using setDescs method, so
     // they should be used as the actual descriptors.
-    if (input && input->getLayout() != InferenceEngine::Layout::ANY && output && output->getLayout() != InferenceEngine::Layout::ANY) {
-        dataIn.desc = *input;
+    if (canInitExternalDesc) {
+        dataIn.desc = input;
         config.inConfs.push_back(dataIn);
 
-        const auto& blockingDesc = config.inConfs[0].desc.getBlockingDesc(); // inp/out layouts must be the same
-        dataConfigOut.desc = TensorDesc(output->getPrecision(), input->getDims(), blockingDesc);
+        // inp/out layouts must be the same
+        dataConfigOut.desc = config.inConfs[0].desc;
+        dataConfigOut.desc = MemoryDescUtils::cloneWithNewPrecision(*dataConfigOut.desc, output->getPrecision());
         config.outConfs.push_back(dataConfigOut);
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
-    } else if (getOriginalInputsNumber() == 1 && getOriginalOutputsNumber() == 1) {
-        const SizeVector& insDims = getParentEdgeAt(0)->getDims().ToSizeVector();
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+    } else if (inputShapes.size() == 1 && outputShapes.size() == 1) {
+        const Shape& insShape = getInputShapeAtPort(0);
         auto insPrecision = getOriginalInputPrecisionAtPort(0);
-        const SizeVector& outputDims = getChildEdgeAt(0)->getDims().ToSizeVector();
+        const Shape& outputShape = getOutputShapeAtPort(0);
         auto outPrecision = getOriginalOutputPrecisionAtPort(0);
 
         config.inConfs.push_back(dataIn);
         config.outConfs.push_back(dataConfigOut);
 
-        auto creators = TensorDescCreator::getCommonCreators();
-        auto range = TensorDescCreator::makeFilteredRange(creators, insDims.size());
+        auto creators = BlockedDescCreator::getCommonCreators();
+        auto range = BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
 
         for (auto itr = range.first; itr != range.second; ++itr) {
-            config.inConfs[0].desc = itr->second->createDesc(insPrecision, insDims);
-            config.outConfs[0].desc = itr->second->createDesc(outPrecision, outputDims);
+            config.inConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape));
+            config.outConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape));
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
     } else {
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges";
@@ -114,12 +137,16 @@ void MKLDNNConvertNode::createPrimitive() {
 void MKLDNNConvertNode::execute(mkldnn::stream strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
     auto& childMem = getChildEdgeAt(0)->getMemory();
-    if (parentMem.GetElementsCount() != childMem.GetElementsCount())
+
+    const auto parentPaddElemCount = parentMem.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+    const auto childPaddElemCount = childMem.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+
+    if (parentPaddElemCount != childPaddElemCount)
         IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
 
     void* srcPtr = parentMem.GetPtr();
     void* dstPtr = childMem.GetPtr();
-    cpu_convert(srcPtr, dstPtr, getParentEdgeAt(0)->getDesc().getPrecision(), getChildEdgeAt(0)->getDesc().getPrecision(), parentMem.GetElementsCount());
+    cpu_convert(srcPtr, dstPtr, parentMem.getDesc().getPrecision(), childMem.getDesc().getPrecision(), parentPaddElemCount);
 }
 
 bool MKLDNNConvertNode::created() const {

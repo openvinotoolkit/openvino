@@ -31,7 +31,7 @@ using softMaxLayerTestParams = std::tuple<
 class SoftMaxLayerTest : public testing::WithParamInterface<softMaxLayerTestParams>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<softMaxLayerTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<softMaxLayerTestParams>& obj);
 
 protected:
     void SetUp() override;

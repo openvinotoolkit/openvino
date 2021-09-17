@@ -12,9 +12,9 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ReduceSumTransformation::getTestCaseName(testing::TestParamInfo<ReduceSumTransformationParams> obj) {
+std::string ReduceSumTransformation::getTestCaseName(const testing::TestParamInfo<ReduceSumTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ReduceSumTransformationParam param;;
@@ -32,7 +32,7 @@ std::string ReduceSumTransformation::getTestCaseName(testing::TestParamInfo<Redu
 
 void ReduceSumTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ReduceSumTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();

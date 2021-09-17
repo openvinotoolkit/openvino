@@ -43,7 +43,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type, // netPrecision
-    ngraph::Shape,         // inputShape
+    std::pair<ngraph::PartialShape, bool>, // input shape and shape support flag
     ngraph::Shape,         // outputShape
     std::string,           // targetDevice
     ngraph::pass::low_precision::LayerTransformation::Params,
@@ -54,7 +54,7 @@ class ConvolutionBackpropDataTransformation :
     public testing::WithParamInterface<ConvolutionBackpropDataTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvolutionBackpropDataTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvolutionBackpropDataTransformationParams>& obj);
 
 protected:
     void SetUp() override;

@@ -35,7 +35,7 @@ const auto conv1DParams_AutoPadValid = ::testing::Combine(
     ::testing::ValuesIn(dilations1D), ::testing::ValuesIn(numOutChannels1D),
     ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Convolution1D_ExplicitPadding, ConvolutionLayerTest,
     ::testing::Combine(
         conv1DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -47,7 +47,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Convolution1D_AutoPadValid, ConvolutionLayerTest,
     ::testing::Combine(
         conv1DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
@@ -79,7 +79,7 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
     ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels),
     ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Convolution2D_ExplicitPadding, ConvolutionLayerTest,
     ::testing::Combine(
         conv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -91,7 +91,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Convolution2D_AutoPadValid, ConvolutionLayerTest,
     ::testing::Combine(
         conv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
@@ -120,7 +120,7 @@ namespace specificWeightLayout {
                                                               ::testing::Values(numOutChannels),
                                                               ::testing::Values(ngraph::op::PadType::EXPLICIT));
 
-    INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_SpecificWeightLayout, ConvolutionLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_SpecificWeightLayout, ConvolutionLayerTest,
                                 ::testing::Combine(conv2DParams_WeightLayout,
                                                    ::testing::ValuesIn(netPrecisions),
                                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -151,7 +151,7 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
     ::testing::ValuesIn(dilations3d), ::testing::ValuesIn(numOutChannels3D),
     ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Convolution3D_ExplicitPadding, ConvolutionLayerTest,
     ::testing::Combine(
         conv3DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -163,7 +163,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Convolution3D_AutoPadValid, ConvolutionLayerTest,
     ::testing::Combine(
         conv3DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),

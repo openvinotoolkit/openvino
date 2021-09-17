@@ -6,9 +6,11 @@
 #include "node_dumper.h"
 
 #include "mkldnn_node.h"
-#include "utils/blob_dump.h"
-
 #include "ie_common.h"
+#include "utils/blob_dump.h"
+#include "utils/debug_capabilities.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+
 #include <array>
 #include <regex>
 #include <sstream>
@@ -18,31 +20,31 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-NodeDumper::NodeDumper(int _count):
-    count(_count), dumpFormat(DUMP_FORMAT::BIN) {
-    const char* dumpDirEnv = std::getenv("OV_CPU_BLOB_DUMP_DIR");
-    if (dumpDirEnv)
-        dumpDirName = dumpDirEnv;
+NodeDumper::NodeDumper(const DebugCaps::Config& config, const int _count)
+    : dumpFormat(FORMAT::BIN)
+    , dumpDirName("mkldnn_dump")
+    , count(_count) {
+    if (!config.blobDumpDir.empty())
+        dumpDirName = config.blobDumpDir;
 
-    const char* dumpFormatEnv = std::getenv("OV_CPU_BLOB_DUMP_FORMAT");
-    if (dumpFormatEnv)
-        dumpFormat = parseDumpFormat(dumpFormatEnv);
+    if (!config.blobDumpFormat.empty())
+        dumpFormat = parseDumpFormat(config.blobDumpFormat);
 
-    const char* filter = std::getenv("OV_CPU_BLOB_DUMP_NODE_EXEC_ID");
-    if (filter)
-        dumpFilters[FILTER::BY_EXEC_ID] = filter;
+    if (!config.blobDumpNodeExecId.empty())
+        dumpFilters[FILTER::BY_EXEC_ID] = config.blobDumpNodeExecId;
 
-    filter = std::getenv("OV_CPU_BLOB_DUMP_NODE_TYPE");
-    if (filter)
-        dumpFilters[FILTER::BY_TYPE] = filter;
+    if (!config.blobDumpNodePorts.empty())
+        dumpFilters[FILTER::BY_PORTS] = config.blobDumpNodePorts;
 
-    filter = std::getenv("OV_CPU_BLOB_DUMP_NODE_NAME");
-    if (filter)
-        dumpFilters[FILTER::BY_NAME] = filter;
+    if (!config.blobDumpNodeType.empty())
+        dumpFilters[FILTER::BY_TYPE] = config.blobDumpNodeType;
+
+    if (!config.blobDumpNodeName.empty())
+        dumpFilters[FILTER::BY_NAME] = config.blobDumpNodeName;
 }
 
 void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
-    if (!shouldBeDumped(node))
+    if (!shouldBeDumped(node, "IN"))
         return;
 
     auto exec_order = std::to_string(node->getExecIndex());
@@ -62,16 +64,13 @@ void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
             file_name = file_name.substr(file_name.size() - 240);
 
         auto dump_file = dumpDirName + "/#" + exec_order + "_" + file_name;
-        std::cout << "Dump before: " << dump_file << std::endl;
+        std::cout << "Dump inputs: " << dump_file << std::endl;
 
-        TensorDesc desc = prEdge->getDesc();
+        auto& desc = prEdge->getMemory().getDesc();
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        BlobDumper dumper(prEdge->getBlob());
-        if (pr->ext_scales)
-            dumper.withScales(pr->ext_scales);
-
+        BlobDumper dumper(prEdge->getMemoryPtr());
         dump(dumper, dump_file);
     }
 
@@ -79,7 +78,7 @@ void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
 }
 
 void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node) const {
-    if (!shouldBeDumped(node))
+    if (!shouldBeDumped(node, "OUT"))
         return;
 
     auto exec_order = std::to_string(node->getExecIndex());
@@ -98,16 +97,13 @@ void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node) const {
             file_name = file_name.substr(file_name.size() - 240);
 
         auto dump_file = dumpDirName + "/#" + exec_order + "_" + file_name;
-        std::cout << "Dump after:  " << dump_file << std::endl;
+        std::cout << "Dump outputs:  " << dump_file << std::endl;
 
-        TensorDesc desc = childEdge->getDesc();
+        auto& desc = childEdge->getMemory().getDesc();
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        BlobDumper dumper(childEdge->getBlob());
-        if (node->ext_scales)
-            dumper.withScales(node->ext_scales);
-
+        BlobDumper dumper(childEdge->getMemoryPtr());
         dump(dumper, dump_file);
     }
 }
@@ -125,63 +121,86 @@ void NodeDumper::dumpInternalBlobs(const MKLDNNNodePtr& node) const {
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        BlobDumper dumper(blb);
+        MKLDNNMemoryPtr memory = std::make_shared<MKLDNNMemory>(node->getEngine());
+        memory->Create(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(desc), blb->buffer());
+        BlobDumper dumper(memory);
         dump(dumper, dump_file);
     }
 }
 
 void NodeDumper::dump(const BlobDumper& bd, const std::string& file) const {
     switch (dumpFormat) {
-    case DUMP_FORMAT::BIN: {
+    case FORMAT::BIN: {
         bd.dump(file);
         break;
     }
-    case DUMP_FORMAT::TEXT: {
+    case FORMAT::TEXT: {
         bd.dumpAsTxt(file);
         break;
     }
     default:
-        IE_THROW() << "Unknown dump format";
+        IE_THROW() << "NodeDumper: Unknown dump format";
     }
 }
 
-bool NodeDumper::shouldBeDumped(const MKLDNNNodePtr& node) const {
+bool NodeDumper::shouldBeDumped(const MKLDNNNodePtr& node, const std::string& portsKind) const {
     if (dumpFilters.empty())
         return false;
 
-    if (dumpFilters.count(FILTER::BY_EXEC_ID)) { // filter by exec id env set
+    if (dumpFilters.count(FILTER::BY_PORTS)) { // filter by ports configured
+        if (dumpFilters.at(FILTER::BY_PORTS) != "ALL" &&
+            portsKind != dumpFilters.at(FILTER::BY_PORTS))
+            return false;
+    }
+
+    if (dumpFilters.count(FILTER::BY_EXEC_ID)) { // filter by exec id configured
         std::stringstream ss(dumpFilters.at(FILTER::BY_EXEC_ID));
         int id;
         bool matched = false;
+
         while (ss >> id) {
-            if (node->getExecIndex() == id) // exec id matches
+            if (node->getExecIndex() == id) {// exec id matches
                 matched = true;
+                break;
+            }
         }
 
         if (!matched)
             return false;
     }
 
-    if (dumpFilters.count(FILTER::BY_TYPE)) { // filter by type env set
-        if (NameFromType(node->getType()) != dumpFilters.at(FILTER::BY_TYPE)) // type does not match
+    if (dumpFilters.count(FILTER::BY_TYPE)) { // filter by type configured
+        std::stringstream ss(dumpFilters.at(FILTER::BY_TYPE));
+        std::string type;
+        bool matched = false;
+
+        while (ss >> type) {
+            if (NameFromType(node->getType()) == type) {// type does not match
+                matched = true;
+                break;
+            }
+        }
+
+        if (!matched)
             return false;
     }
 
-    if (dumpFilters.count(FILTER::BY_NAME)) { // filter by name env set
-        if (!std::regex_match(node->getName(), std::regex(dumpFilters.at(FILTER::BY_NAME)))) // name does not match
+    if (dumpFilters.count(FILTER::BY_NAME)) { // filter by name configured
+        if (dumpFilters.at(FILTER::BY_NAME) != "*" && // to have 'single char' option for matching all the names
+            !std::regex_match(node->getName(), std::regex(dumpFilters.at(FILTER::BY_NAME)))) // name does not match
             return false;
     }
 
     return true;
 }
 
-NodeDumper::DUMP_FORMAT NodeDumper::parseDumpFormat(const std::string& format) const {
+NodeDumper::FORMAT NodeDumper::parseDumpFormat(const std::string& format) const {
     if (format == "BIN")
-        return DUMP_FORMAT::BIN;
+        return FORMAT::BIN;
     else if (format == "TEXT")
-        return DUMP_FORMAT::TEXT;
+        return FORMAT::TEXT;
     else
-        IE_THROW() << "Unknown dump format";
+        IE_THROW() << "NodeDumper: Unknown dump format";
 }
 
 void NodeDumper::formatNodeName(std::string& name) const {

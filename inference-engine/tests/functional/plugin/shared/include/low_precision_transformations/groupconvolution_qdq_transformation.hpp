@@ -51,7 +51,7 @@ inline std::ostream& operator<<(std::ostream& out, const GroupConvolutionQDqTran
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     GroupConvolutionQDqTransformationParam
@@ -61,7 +61,7 @@ class GroupConvolutionQDqTransformation :
     public testing::WithParamInterface<GroupConvolutionQDqTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GroupConvolutionQDqTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<GroupConvolutionQDqTransformationParams>& obj);
 
 protected:
     void SetUp() override;

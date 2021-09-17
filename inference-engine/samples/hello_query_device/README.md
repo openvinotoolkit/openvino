@@ -27,8 +27,8 @@ To build the sample, please use instructions available at [Build the Sample Appl
 
 To see quired information, run the following:
 
-```sh
-./hello_query_device -h
+```
+<path_to_sample>/hello_query_device -h
 Usage : hello_query_device
 ```
 
@@ -36,8 +36,7 @@ Usage : hello_query_device
 
 The application prints all available devices with their supported metrics and default values for configuration parameters:
 
-```sh
-./hello_query_device
+```
 Available devices:
         Device: CPU
         Metrics:
@@ -63,20 +62,20 @@ Available devices:
                 SUPPORTED_METRICS : [ AVAILABLE_DEVICES SUPPORTED_METRICS FULL_DEVICE_NAME OPTIMIZATION_CAPABILITIES SUPPORTED_CONFIG_KEYS RANGE_FOR_ASYNC_INFER_REQUESTS RANGE_FOR_STREAMS ]
                 FULL_DEVICE_NAME : Intel(R) UHD Graphics 620 (iGPU)
                 OPTIMIZATION_CAPABILITIES : [ FP32 BIN FP16 ]
-                SUPPORTED_CONFIG_KEYS : [ CACHE_DIR CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS CLDNN_GRAPH_DUMPS_DIR CLDNN_MAX_NUM_THREADS CLDNN_MEM_POOL CLDNN_NV12_TWO_INPUTS CLDNN_PLUGIN_PRIORITY CLDNN_PLUGIN_THROTTLE CLDNN_SOURCES_DUMPS_DIR CLDNN_ENABLE_LOOP_UNROLLING CONFIG_FILE DEVICE_ID DUMP_KERNELS DYN_BATCH_ENABLED EXCLUSIVE_ASYNC_REQUESTS GPU_THROUGHPUT_STREAMS PERF_COUNT TUNING_FILE TUNING_MODE ]
+                SUPPORTED_CONFIG_KEYS : [ CACHE_DIR CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS CLDNN_GRAPH_DUMPS_DIR GPU_MAX_NUM_THREADS CLDNN_MEM_POOL CLDNN_NV12_TWO_INPUTS CLDNN_PLUGIN_PRIORITY CLDNN_PLUGIN_THROTTLE CLDNN_SOURCES_DUMPS_DIR GPU_ENABLE_LOOP_UNROLLING CONFIG_FILE DEVICE_ID DUMP_KERNELS DYN_BATCH_ENABLED EXCLUSIVE_ASYNC_REQUESTS GPU_THROUGHPUT_STREAMS PERF_COUNT TUNING_FILE TUNING_MODE ]
                 RANGE_FOR_ASYNC_INFER_REQUESTS : { 1, 2, 1 }
                 RANGE_FOR_STREAMS : { 1, 2 }
         Default values for device configuration keys:
                 CACHE_DIR : ""
                 CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS : YES
                 CLDNN_GRAPH_DUMPS_DIR : ""
-                CLDNN_MAX_NUM_THREADS : 8
                 CLDNN_MEM_POOL : YES
                 CLDNN_NV12_TWO_INPUTS : NO
                 CLDNN_PLUGIN_PRIORITY : 0
                 CLDNN_PLUGIN_THROTTLE : 0
                 CLDNN_SOURCES_DUMPS_DIR : ""
-                CLDNN_ENABLE_LOOP_UNROLLING : YES
+                GPU_MAX_NUM_THREADS : 8
+                GPU_ENABLE_LOOP_UNROLLING : YES
                 CONFIG_FILE : ""
                 DEVICE_ID : ""
                 DUMP_KERNELS : NO

@@ -43,7 +43,7 @@ public:
         return result.str();
     }
 
-InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
         InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
         blob->allocate();
 
@@ -99,11 +99,12 @@ const std::vector<std::vector<std::vector<size_t>>> input_shapes = {
         {{1, 8}, {8, 1}},
         {{128, 8}, {8, 1}},
         {{8, 8}, {8, 8}},
-        {{1, 16}, {16, 8}}
+        {{1, 16}, {16, 8}},
+        {{6, 16}, {16, 8}}
 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_convert_matmul_to_fc, ConvertMatmulToFcPass,
+INSTANTIATE_TEST_SUITE_P(smoke_convert_matmul_to_fc, ConvertMatmulToFcPass,
                         ::testing::Combine(
                                 ::testing::ValuesIn(input_shapes),
                                 ::testing::ValuesIn(netPrecisions),

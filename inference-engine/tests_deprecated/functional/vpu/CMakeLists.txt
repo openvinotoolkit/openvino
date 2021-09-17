@@ -59,8 +59,7 @@ addIeTargetTest(
     ADDITIONAL_SOURCE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/graph_transformer
     INCLUDES
-        ${IE_MAIN_SOURCE_DIR}/include/vpu
-        ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
+        $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
         ${CMAKE_CURRENT_BINARY_DIR}
     LINK_LIBRARIES
         IESharedTests

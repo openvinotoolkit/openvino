@@ -7,6 +7,7 @@
 
 #include <ie_system_conf.h>
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "ie_parallel.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
@@ -24,19 +25,15 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
         R"(.*(RangeNumpyAddSubgraphTest).*netPRC=FP16.*)",
         // TODO: Issue: 43793
-        R"(.*PreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
-        R"(.*PreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
+        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
+        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
-        // TODO: Issue: 25533
-        R"(.*ConvertLikeLayerTest.*)",
+        // TODO: Issue: 63469
+        R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
-        // TODO: Issue: 34805
-        R"(.*ActivationLayerTest.*Ceiling.*)",
-        // TODO: Issue: 32032
-        R"(.*ActivationParamLayerTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
@@ -55,13 +52,16 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvolutionLayerCPUTest.*BF16.*_inFmts=(ndhwc|nhwc).*)",
         // TODO: 56827. Sporadic test failures
         R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.IS=\(1\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
-
-        // incorrect reference implementation
-        R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
-        // lpt transformation produce the same names for MatMul and Multiply
-        R"(.*MatMulTransformation.*)",
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
         R"(.*smoke_Convolution3D.*D=\(1.2.1\)_O=1.*)",
+
+        // TODO: Issue: 35627. CPU Normalize supports from 2D to 4D blobs
+        R"(.*NormalizeL2_1D.*)",
+        R"(.*NormalizeL2_5D.*)",
+        // Issue: 59788. mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+        R"(.*NormalizeL2_.*axes=\(1.2.*_eps=100.*)",
+        R"(.*NormalizeL2_.*axes=\(2.1.*_eps=100.*)",
+        R"(.*NormalizeL2_.*axes=\(3.1.2.*_eps=100.*)",
 
         // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
         R"(.*BF16NetworkRestore1.*)",
@@ -69,9 +69,36 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 55656 AUTO plugin and QueryNetwork
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
-        // reference doesn't cover I8, U8 cases. Issue: 55842
-        R"(.*Gather7LayerTest.*netPRC=I8.*)",
+        // Unsupported config KEY_ENFORCE_BF16 for AUTO plugin
+        R"(.*Behavior_Auto.*InferRequestSetBlobByType.*)",
+        // TODO: 57562 No dynamic output shape support
+        R"(.*NonZeroLayerTest.*)",
+        // need to implement Export / Import
+        R"(.*IEClassImportExportTestP.*)",
+        // CVS-58963: Not implemented yet
+        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+        // Not expected behavior
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=HW.*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*targetDevice=(AUTO|MULTI).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=CN.*targetDevice=(AUTO|MULTI).*)",
+        R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
+        R"(.*Auto_Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+        // azure is failing after #6199
+        R"(.*/NmsLayerTest.*)",
+        // TODO: 56520 Accuracy mismatch
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
+
+        // Issue: 62746
+        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)"
     };
+
+#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+    retVector.emplace_back(R"(.*ReusableCPUStreamsExecutor.*)");
+#endif
+
 #ifdef __APPLE__
         // TODO: Issue 55717
         //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");

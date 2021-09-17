@@ -20,7 +20,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | Validated Models           | Acoustic model based on Kaldi* neural networks (see [Model Preparation](#model-preparation) section) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin)                              |
 | Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                             |
-| Other language realization | [C++](../../../../samples/speech_sample)                                                              |
+| Other language realization | [C++](../../../../samples/speech_sample/README.md)                                                              |
 
 ## How It Works
 
@@ -68,19 +68,20 @@ In addition to performing inference directly from a GNA model file, this option 
 
 ## Running
 
-Run the application with the <code>-h</code> option to see the usage message:
+Run the application with the `-h` option to see the usage message:
 
-```sh
-python speech_sample.py -h
+```
+python <path_to_sample>/speech_sample.py -h
 ```
 
 Usage message:
 
-```sh
+```
 usage: speech_sample.py [-h] (-m MODEL | -rg IMPORT_GNA_MODEL) -i INPUT       
                         [-o OUTPUT] [-r REFERENCE] [-d DEVICE]
                         [-bs BATCH_SIZE] [-qb QUANTIZATION_BITS]
-                        [-wg EXPORT_GNA_MODEL] [-iname INPUT_LAYERS]
+                        [-sf SCALE_FACTOR] [-wg EXPORT_GNA_MODEL] [-pc]       
+                        [-a {CORE,ATOM}] [-iname INPUT_LAYERS]
                         [-oname OUTPUT_LAYERS]
 
 optional arguments:
@@ -94,9 +95,10 @@ optional arguments:
 Options:
   -h, --help            Show this help message and exit.
   -i INPUT, --input INPUT
-                        Required. Path to an input file (.ark or .npz).
+                        Required. Path to an input file (.ark or .npz).       
   -o OUTPUT, --output OUTPUT
-                        Optional. Output file name to save inference results (.ark or .npz).
+                        Optional. Output file name to save inference results  
+                        (.ark or .npz).
   -r REFERENCE, --reference REFERENCE
                         Optional. Read reference score file and compare
                         scores.
@@ -113,9 +115,18 @@ Options:
   -qb QUANTIZATION_BITS, --quantization_bits QUANTIZATION_BITS
                         Optional. Weight bits for quantization: 8 or 16
                         (default 16).
+  -sf SCALE_FACTOR, --scale_factor SCALE_FACTOR
+                        Optional. The user-specified input scale factor for
+                        quantization.
   -wg EXPORT_GNA_MODEL, --export_gna_model EXPORT_GNA_MODEL
                         Optional. Write GNA model to file using path/filename
                         provided.
+  -pc, --performance_counter
+                        Optional. Enables performance report (specify -a to
+                        ensure arch accurate results).
+  -a {CORE,ATOM}, --arch {CORE,ATOM}
+                        Optional. Specify architecture. CORE, ATOM with the
+                        combination of -pc.
   -iname INPUT_LAYERS, --input_layers INPUT_LAYERS
                         Optional. Layer names for input blobs. The names are
                         separated with ",". Allows to change the order of
@@ -131,8 +142,8 @@ Options:
 
 You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
 
-```sh
-python mo.py --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
+```
+python <path_to_mo>/mo.py --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <path_to_dir>
 ```
 
 The following pre-trained models are available:
@@ -147,8 +158,8 @@ All of them can be downloaded from [https://storage.openvinotoolkit.org/models_c
 
 You can do inference on Intel® Processors with the GNA co-processor (or emulation library):
 
-```sh
-python speech_sample.py -d GNA_AUTO -m wsj_dnn5b.xml -i dev93_10.ark -r dev93_scores_10.ark -o result.npz
+```
+python <path_to_sample>/speech_sample.py -m <path_to_model>/wsj_dnn5b.xml -i <path_to_ark>/dev93_10.ark -r <path_to_ark>/dev93_scores_10.ark -d GNA_AUTO -o result.npz
 ```
 
 > **NOTES**:
@@ -161,7 +172,7 @@ python speech_sample.py -d GNA_AUTO -m wsj_dnn5b.xml -i dev93_10.ark -r dev93_sc
 
 The sample application logs each step in a standard output stream.
 
-```sh
+```
 [ INFO ] Creating Inference Engine
 [ INFO ] Reading the network: wsj_dnn5b.xml
 [ INFO ] Configuring input and output blobs
@@ -193,7 +204,7 @@ The sample application logs each step in a standard output stream.
 
 - [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
 - [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-- [Model Downloader](@ref omz_tools_downloader_README)
+- [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [IENetwork.batch_size]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#a79a647cb1b49645616eaeb2ca255ef2e

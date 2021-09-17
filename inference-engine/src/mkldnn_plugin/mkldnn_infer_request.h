@@ -51,6 +51,7 @@ private:
     void PushInputData();
     void PushStates();
     void PullStates();
+    void redefineMemoryForInputNodes();
 
     void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
 

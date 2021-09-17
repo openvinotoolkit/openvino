@@ -4,5 +4,5 @@
 
 #include "reduce_ops.hpp"
 
-using Type = ::testing::Types<ngraph::op::v1::ReduceLogicalOr>;
-INSTANTIATE_TYPED_TEST_CASE_P(attributes_reduce_logical_or, ReduceOpsAttrTest, Type);
+using Type = ::testing::Types<ReduceOperatorType<ngraph::op::v1::ReduceLogicalOr, ngraph::element::boolean>>;
+INSTANTIATE_TYPED_TEST_SUITE_P(attributes_reduce_op, ReduceOperatorVisitor, Type, ReduceOperatorTypeName);

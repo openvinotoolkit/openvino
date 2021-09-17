@@ -34,7 +34,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Values actual;
     Values expected;
 };
@@ -324,7 +324,7 @@ const std::vector<ConvertSubtractConstantTransformationTestValues> testValues = 
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ConvertSubtractConstantTransformation,
     ::testing::Combine(

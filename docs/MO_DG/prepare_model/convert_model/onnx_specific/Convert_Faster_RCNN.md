@@ -8,7 +8,8 @@ These instructions are applicable only to the Faster R-CNN model converted to th
 ```sh
 python3 ./mo_onnx.py
 --input_model FasterRCNN-10.onnx \
---input_shape [3,800,800] \
+--input_shape [1,3,800,800] \
+--input 0:2 \
 --mean_values [102.9801,115.9465,122.7717] \
 --transformations_config ./extensions/front/onnx/faster_rcnn.json 
 ```

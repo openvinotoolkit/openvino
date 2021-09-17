@@ -264,13 +264,13 @@ TEST_F(myriadLayerReshapeFasterRCNN_smoke, Reshape) {
     ASSERT_TRUE(generateNetAndInfer(NetworkInitParams().useHWOpt( CheckMyriadX())));
 }
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerReshape_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayerReshape_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_reshapeInParams),
         ::testing::ValuesIn(s_reshapeOutParams))
 );
 
-INSTANTIATE_TEST_CASE_P(fc_to_conv_case, myriadLayerReshape_smoke,
+INSTANTIATE_TEST_SUITE_P(fc_to_conv_case, myriadLayerReshape_smoke,
     ::testing::Values(
         std::make_tuple(
             SizeVector{400, 12544},
@@ -291,11 +291,11 @@ INSTANTIATE_TEST_CASE_P(fc_to_conv_case, myriadLayerReshape_smoke,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsReshapeBeforeFC_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsReshapeBeforeFC_smoke,
         ::testing::Values(CONFIG_VALUE(YES), CONFIG_VALUE(NO))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsReshapeFasterRCNN_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsReshapeFasterRCNN_smoke,
         ::testing::Combine(
             ::testing::ValuesIn(s_convTensor)
           , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 1, 1))

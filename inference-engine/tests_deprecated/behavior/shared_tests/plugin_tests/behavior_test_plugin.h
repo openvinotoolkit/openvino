@@ -10,7 +10,6 @@
 #include <inference_engine.hpp>
 #include <ie_plugin_config.hpp>
 #include <vpu/vpu_plugin_config.hpp>
-#include <vpu/private_plugin_config.hpp>
 #include <gna/gna_config.hpp>
 #include <common_test_utils/test_assertions.hpp>
 #include <memory>
@@ -107,8 +106,5 @@ TestModel getConvReluNormPoolFcModel(InferenceEngine::Precision netPrc);
 const TestModel convReluNormPoolFcModelFP32 = getConvReluNormPoolFcModel(InferenceEngine::Precision::FP32);
 const TestModel convReluNormPoolFcModelFP16 = getConvReluNormPoolFcModel(InferenceEngine::Precision::FP16);
 const TestModel convReluNormPoolFcModelQ78 = getConvReluNormPoolFcModel(InferenceEngine::Precision::Q78);
-
-class FPGAHangingTest : public BehaviorPluginTest {
-};
 
 #endif

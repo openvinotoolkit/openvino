@@ -70,7 +70,7 @@ public:
 
     void RunSingleTest(const std::string& poolMethod, float tolerance) {
         if (!CheckMyriadX()) {
-            SKIP() << "Non-MyriadX device";
+            GTEST_SKIP() << "Non-MyriadX device";
         }
 
         AddPoolingLayer(poolMethod);
@@ -80,7 +80,7 @@ public:
 
     void RunWithReLUTest(const std::string& poolMethod, float tolerance) {
         if (!CheckMyriadX()) {
-            SKIP() << "Non-MyriadX device";
+            GTEST_SKIP() << "Non-MyriadX device";
         }
 
         AddPoolingLayer(poolMethod);
@@ -91,7 +91,7 @@ public:
 
     void RunMultipleInferTest(const std::string& poolMethod) {
         if (!CheckMyriadX()) {
-            SKIP() << "Non-MyriadX device";
+            GTEST_SKIP() << "Non-MyriadX device";
         }
 
         AddPoolingLayer(poolMethod);
@@ -108,11 +108,11 @@ TEST_P(MyriadX_HW_Pooling_Tests_nightly, Avg_Single) {
     // this case is not supported by HW
     if (kernel.x == 3 && kernel.y == 3 &&
         stride.x == 2 && stride.y == 2) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
     if ((kernel.x % 2 == 0 || kernel.y % 2 == 0) &&
         (in_dims.w % 2 == 1 || in_dims.h % 2 == 1)) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
 
     RunSingleTest("avg", 0.0015f);
@@ -126,11 +126,11 @@ TEST_P(MyriadX_HW_Pooling_Tests_nightly, Avg_WithReLU) {
     // this case is not supported by HW
     if (kernel.x == 3 && kernel.y == 3 &&
         stride.x == 2 && stride.y == 2) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
     if ((kernel.x % 2 == 0 || kernel.y % 2 == 0) &&
         (in_dims.w % 2 == 1 || in_dims.h % 2 == 1)) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
 
     RunWithReLUTest("avg", 0.0015f);
@@ -144,17 +144,17 @@ TEST_P(MyriadX_HW_Pooling_Tests_nightly, Avg_MultipleInfer) {
     // this case is not supported by HW
     if (kernel.x == 3 && kernel.y == 3 &&
         stride.x == 2 && stride.y == 2) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
     if ((kernel.x % 2 == 0 || kernel.y % 2 == 0) &&
         (in_dims.w % 2 == 1 || in_dims.h % 2 == 1)) {
-        SKIP() << "Unsupported case";
+        GTEST_SKIP() << "Unsupported case";
     }
 
     RunMultipleInferTest("avg");
 }
 
-INSTANTIATE_TEST_CASE_P(pool_2x2s1p0, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_2x2s1p0, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 112, 112))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 2, 2))
@@ -163,7 +163,7 @@ INSTANTIATE_TEST_CASE_P(pool_2x2s1p0, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_2x2s2p0, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_2x2s2p0, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 224, 224),
                                                              MAKE_STRUCT(tensor_test_params, 1, 128, 112, 112),
@@ -176,7 +176,7 @@ INSTANTIATE_TEST_CASE_P(pool_2x2s2p0, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_2x2s2p0_yolo_tiny_v1, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_2x2s2p0_yolo_tiny_v1, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 16, 448, 448))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 2, 2))
@@ -185,7 +185,7 @@ INSTANTIATE_TEST_CASE_P(pool_2x2s2p0_yolo_tiny_v1, MyriadX_HW_Pooling_Tests_nigh
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_3x3s1p0, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_3x3s1p0, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 192, 28, 28),
                                                              MAKE_STRUCT(tensor_test_params, 1, 100, 28, 28))
@@ -195,7 +195,7 @@ INSTANTIATE_TEST_CASE_P(pool_3x3s1p0, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_3x3s1p1, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_3x3s1p1, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 192, 28, 28))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -205,7 +205,7 @@ INSTANTIATE_TEST_CASE_P(pool_3x3s1p1, MyriadX_HW_Pooling_Tests_nightly,
 );
 
 // TODO : 3x3s2p0 HW seems to work only for Max Pooling
-INSTANTIATE_TEST_CASE_P(pool_3x3s2p0, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_3x3s2p0, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 64, 112, 112))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -214,7 +214,7 @@ INSTANTIATE_TEST_CASE_P(pool_3x3s2p0, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_3x3s2p1, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_3x3s2p1, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 576, 7, 7),
                                                              MAKE_STRUCT(tensor_test_params, 1, 16, 35, 35),
@@ -226,7 +226,7 @@ INSTANTIATE_TEST_CASE_P(pool_3x3s2p1, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_7x7s1p0, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_7x7s1p0, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 1024, 7, 7))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 7, 7))
@@ -235,7 +235,7 @@ INSTANTIATE_TEST_CASE_P(pool_7x7s1p0, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_14x14s1p0, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_14x14s1p0, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 1024, 14, 14),
                                                              MAKE_STRUCT(tensor_test_params, 1, 1000, 14, 14))
@@ -245,7 +245,7 @@ INSTANTIATE_TEST_CASE_P(pool_14x14s1p0, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_15x15s1p0, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_15x15s1p0, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 1024, 15, 15),
                                                              MAKE_STRUCT(tensor_test_params, 1, 1000, 15, 15))
@@ -255,7 +255,7 @@ INSTANTIATE_TEST_CASE_P(pool_15x15s1p0, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_2x2s1p1_odd, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_2x2s1p1_odd, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 512, 13, 13))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 2, 2))
@@ -264,7 +264,7 @@ INSTANTIATE_TEST_CASE_P(pool_2x2s1p1_odd, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_2x2s2p0_odd, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_2x2s2p0_odd, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 75, 75),
                                                              MAKE_STRUCT(tensor_test_params, 2, 64, 75, 75),
@@ -276,7 +276,7 @@ INSTANTIATE_TEST_CASE_P(pool_2x2s2p0_odd, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_3x3s1p0_odd, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_3x3s1p0_odd, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 192, 37, 37),
                                                              MAKE_STRUCT(tensor_test_params, 1, 832, 9, 9),
@@ -287,7 +287,7 @@ INSTANTIATE_TEST_CASE_P(pool_3x3s1p0_odd, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_3x3s2p0_odd, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_3x3s2p0_odd, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 96, 93, 93),
                                                              MAKE_STRUCT(tensor_test_params, 1, 512, 23, 23),
@@ -299,7 +299,7 @@ INSTANTIATE_TEST_CASE_P(pool_3x3s2p0_odd, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_3x3s2p0_extra, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_3x3s2p0_extra, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 96, 32, 52))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -308,7 +308,7 @@ INSTANTIATE_TEST_CASE_P(pool_3x3s2p0_extra, MyriadX_HW_Pooling_Tests_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_7x7s7p0_rfcn_batch, MyriadX_HW_Pooling_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_7x7s7p0_rfcn_batch, MyriadX_HW_Pooling_Tests_nightly,
                         ::testing::Combine(
                                 ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 300, 5, 7, 7))
                                 , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 7, 7))
@@ -368,7 +368,7 @@ public:
 
 TEST_P(MyriadX_HW_PoolTF_Tests_nightly, Single) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddPoolingLayer();
@@ -376,7 +376,7 @@ TEST_P(MyriadX_HW_PoolTF_Tests_nightly, Single) {
     CompareWithSW(0.0f);
 }
 
-INSTANTIATE_TEST_CASE_P(pool_2x2_3x3, MyriadX_HW_PoolTF_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_2x2_3x3, MyriadX_HW_PoolTF_Tests_nightly,
     ::testing::Combine(
         ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 128, 128)),
         ::testing::Values<kernel>(MAKE_STRUCT(param_size, 2, 2),
@@ -391,7 +391,7 @@ INSTANTIATE_TEST_CASE_P(pool_2x2_3x3, MyriadX_HW_PoolTF_Tests_nightly,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(pool4x4, MyriadX_HW_PoolTF_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool4x4, MyriadX_HW_PoolTF_Tests_nightly,
     ::testing::Combine(
         ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 128, 128)),
         ::testing::Values<kernel>(MAKE_STRUCT(param_size, 4, 4)),
@@ -409,7 +409,7 @@ INSTANTIATE_TEST_CASE_P(pool4x4, MyriadX_HW_PoolTF_Tests_nightly,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(pool_with_large_width, MyriadX_HW_PoolTF_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(pool_with_large_width, MyriadX_HW_PoolTF_Tests_nightly,
     ::testing::Combine(
         ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 8, 640, 960),
                                      MAKE_STRUCT(tensor_test_params, 1, 64, 6, 1000)),
@@ -422,7 +422,7 @@ INSTANTIATE_TEST_CASE_P(pool_with_large_width, MyriadX_HW_PoolTF_Tests_nightly,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(tf, MyriadX_HW_PoolTF_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(tf, MyriadX_HW_PoolTF_Tests_nightly,
     ::testing::Values(
         std::make_tuple(
             MAKE_STRUCT(tensor_test_params, 1, 64, 112, 112),   // input

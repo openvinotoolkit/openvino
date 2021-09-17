@@ -13,15 +13,19 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto gatherOp = ngraph::as_type_ptr<const ngraph::op::v7::Gather>(op);
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+        const auto gatherOp = ngraph::as_type_ptr<const ngraph::op::v7::Gather>(op);
         if (!gatherOp) {
             errorMessage = "Only opset7 Gather operation is supported";
             return false;
         }
 
-        auto axesOp = gatherOp->get_input_node_shared_ptr(GATHER_AXIS);
+        const auto axesOp = gatherOp->get_input_node_shared_ptr(GATHER_AXIS);
         if (!ngraph::as_type_ptr<const ngraph::op::Constant>(axesOp)) {
             errorMessage = "Only Constant operation on 'axis' input is supported";
             return false;
@@ -75,10 +79,10 @@ void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
         return;
 
     Precision dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, dataPrecision},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
-                         {{TensorDescCreatorTypes::ncsp, dataPrecision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, dataPrecision}},
                          impl_desc_type::ref_any);
 }
 
@@ -92,10 +96,10 @@ void MKLDNNGatherNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix_ << " has unidentified preferable primitive descriptor.";
 
-    const SizeVector srcDims = getParentEdgeAt(GATHER_DATA)->getDims().ToSizeVector();
-    const SizeVector idxDims = getParentEdgeAt(GATHER_INDEXES)->getDims().ToSizeVector();
-    const SizeVector dstDims = getChildEdgeAt(0)->getDims().ToSizeVector();
-    dataSize = getParentEdgeAt(GATHER_DATA)->getDesc().getPrecision().size();
+    const SizeVector srcDims = getParentEdgeAt(GATHER_DATA)->getMemory().getStaticDims();
+    const SizeVector idxDims = getParentEdgeAt(GATHER_INDEXES)->getMemory().getStaticDims();
+    const SizeVector dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    dataSize = getParentEdgeAt(GATHER_DATA)->getMemory().getDesc().getPrecision().size();
 
     indexRange = srcDims[axis];
     batchSize = std::accumulate(srcDims.begin(), srcDims.begin() + batchDims, 1, std::multiplies<size_t>());

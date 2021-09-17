@@ -14,6 +14,7 @@
 #include "w_dirent.h"
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
+
 namespace CommonTestUtils {
 
 inline void fixSlashes(std::string &str) {
@@ -55,11 +56,12 @@ inline bool copyFile(std::string source_path, std::wstring dest_path) {
 
 inline std::wstring addUnicodePostfixToPath(std::string source_path, std::wstring postfix) {
     fixSlashes(source_path);
-    std::wstring result = stringToWString(source_path);
-    std::wstring file_name = result.substr(0, result.size() - 4);
-    std::wstring extension = result.substr(result.size() - 4, result.size());
-    result = file_name + postfix + extension;
-    return result;
+    auto result = stringToWString(source_path);
+    auto extPos = result.rfind('.');
+    auto extension = result.substr(extPos, result.size());
+    auto file_name = result.substr(0, extPos);
+
+    return file_name + postfix + extension;
 }
 
 inline void removeFile(std::wstring path) {

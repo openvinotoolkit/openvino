@@ -186,7 +186,9 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
         }
     }
 
+    NGRAPH_SUPPRESS_DEPRECATED_START;
     const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers);
+    NGRAPH_SUPPRESS_DEPRECATED_END;
     ngraph::pass::ConstantFolding().run_on_function(foldedFunc);
     for (const auto &op : foldedFunc->get_ops()) {
         NGRAPH_CHECK(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
@@ -694,16 +696,16 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type) 
 
 std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::InterpolateMode type) {
     switch (type) {
-        case ngraph::op::v4::Interpolate::InterpolateMode::cubic:
+        case ngraph::op::v4::Interpolate::InterpolateMode::CUBIC:
             os << "cubic";
             break;
-        case ngraph::op::v4::Interpolate::InterpolateMode::linear:
+        case ngraph::op::v4::Interpolate::InterpolateMode::LINEAR:
             os << "linear";
             break;
-        case ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx:
+        case ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX:
             os << "linear_onnx";
             break;
-        case ngraph::op::v4::Interpolate::InterpolateMode::nearest:
+        case ngraph::op::v4::Interpolate::InterpolateMode::NEAREST:
             os << "nearest";
             break;
         default:
@@ -714,19 +716,19 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Interpo
 
 std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::CoordinateTransformMode type) {
     switch (type) {
-        case ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS:
             os << "align_corners";
             break;
-        case ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC:
             os << "asymmetric";
             break;
-        case ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL:
             os << "half_pixel";
             break;
-        case ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL:
             os << "pytorch_half_pixel";
             break;
-        case ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN:
             os << "tf_half_pixel_for_nn";
             break;
         default:
@@ -737,19 +739,19 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Coordin
 
 std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::NearestMode type) {
     switch (type) {
-        case ngraph::op::v4::Interpolate::NearestMode::ceil:
+        case ngraph::op::v4::Interpolate::NearestMode::CEIL:
             os << "ceil";
             break;
-        case ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil:
+        case ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL:
             os << "round_prefer_ceil";
             break;
-        case ngraph::op::v4::Interpolate::NearestMode::floor:
+        case ngraph::op::v4::Interpolate::NearestMode::FLOOR:
             os << "floor";
             break;
-        case ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor:
+        case ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR:
             os << "round_prefer_floor";
             break;
-        case ngraph::op::v4::Interpolate::NearestMode::simple:
+        case ngraph::op::v4::Interpolate::NearestMode::SIMPLE:
             os << "simple";
             break;
         default:
@@ -760,10 +762,10 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Nearest
 
 std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCalcMode type) {
     switch (type) {
-        case ngraph::op::v4::Interpolate::ShapeCalcMode::scales:
+        case ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES:
             os << "scales";
             break;
-        case ngraph::op::v4::Interpolate::ShapeCalcMode::sizes:
+        case ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES:
             os << "sizes";
             break;
         default:
@@ -817,5 +819,32 @@ std::ostream& operator<<(std::ostream & os, SequenceTestsMode type) {
     }
     return os;
 }
+
+std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
+    switch (type) {
+        case MemoryTransformation::NONE:
+            os << "NONE";
+            break;
+        case MemoryTransformation::LOW_LATENCY_V2:
+            os << "LOW_LATENCY_V2";
+            break;
+        case MemoryTransformation::LOW_LATENCY:
+            os << "LOW_LATENCY";
+            break;
+        case MemoryTransformation::LOW_LATENCY_V2_REGULAR_API:
+            os << "LOW_LATENCY_V2_REGULAR_API";
+            break;
+        case MemoryTransformation::LOW_LATENCY_REGULAR_API:
+            os << "LOW_LATENCY_REGULAR_API";
+            break;
+        case MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT:
+            os << "LOW_LATENCY_V2_ORIGINAL_INIT";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_TYPE");
+    }
+    return os;
+}
+
 }  // namespace helpers
 }  // namespace ngraph

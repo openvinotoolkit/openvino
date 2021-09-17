@@ -138,7 +138,7 @@ git checkout 57b8f2d95e62e2e649b382f516ab41f949b57239
 
 3. Set up the environment as described in `README.md`.
 
-**Step 2**. Download a pre-trained model from the list attached in the `Evaluation` section of `README.md` document, for example `yolact_base_54_800000.pth`.
+**Step 2**. Download a pre-trained model from the list attached in the `Evaluation` section of the [README.md](https://github.com/dbolya/yolact/blob/master/README.md) document, for example `yolact_base_54_800000.pth`.
 
 **Step 3**. Export the model to ONNX* format.
 
@@ -188,4 +188,3 @@ python path/to/model_optimizer/mo.py \
     --reverse_input_channels \
     --scale 255
 ```
-

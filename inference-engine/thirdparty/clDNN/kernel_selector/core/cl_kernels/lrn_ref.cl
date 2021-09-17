@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 #include "include/data_types.cl"
 
 KERNEL(normalization)(
-    __global const INPUT0_TYPE* input, 
+    __global const INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
-#endif                        
+#endif
     )
 {
     const uint b = get_global_id(GWS_BATCH);
@@ -38,20 +37,20 @@ KERNEL(normalization)(
         INPUT0_TYPE val = zero ? 0.0f : input[j_offset];
         sum += val*val;
         j_offset += INPUT0_FEATURE_PITCH;
-#ifdef DYNAMIC_KERNEL_DIVIDER 
+#ifdef DYNAMIC_KERNEL_DIVIDER
         num_elementes += zero ? 0 : 1;
 #endif
     }
-    
+
 #else
 
     const int x_start = ((int)x - PADDING);
     const int y_start = ((int)y - PADDING);
     int input_offset = GET_DATA_INDEX(INPUT0, b, f, y_start, x_start);
 
-    for (int j = 0; j < LOCAL_SIZE ; ++j) 
+    for (int j = 0; j < LOCAL_SIZE ; ++j)
     {
-        for (int i = 0; i < LOCAL_SIZE ; ++i) 
+        for (int i = 0; i < LOCAL_SIZE ; ++i)
         {
             int input_offset_x = x_start + i;
             int input_offset_y = y_start + j;
@@ -62,10 +61,10 @@ KERNEL(normalization)(
             zero = input_offset_y >= INPUT0_SIZE_Y ? true : zero;
 
             INPUT0_TYPE val = zero ? INPUT0_VAL_ZERO : input[input_offset];
-            
+
             sum += val*val;
             input_offset += INPUT0_X_PITCH;
-#ifdef DYNAMIC_KERNEL_DIVIDER 
+#ifdef DYNAMIC_KERNEL_DIVIDER
             num_elementes += zero ? 0 : 1;
 #endif
         }
@@ -73,15 +72,15 @@ KERNEL(normalization)(
     }
 #endif
 
-#ifdef DYNAMIC_KERNEL_DIVIDER 
+#ifdef DYNAMIC_KERNEL_DIVIDER
     const INPUT0_TYPE num_elementes_div = INPUT0_VAL_ONE / TO_INPUT0_TYPE(num_elementes);
 #else
     const INPUT0_TYPE num_elementes_div = NUM_ELEMENTS_DIV;
 #endif
-    
+
     INPUT0_TYPE base = TO_INPUT0_TYPE(K) + TO_INPUT0_TYPE((ACCUMULATOR_TYPE)ALPHA*sum * num_elementes_div);
     INPUT0_TYPE normalization_factor = native_powr(base, TO_INPUT0_TYPE(-BETA));
-    
+
     INPUT0_TYPE lrn_result = input[input_index] * normalization_factor;
 
 #if HAS_FUSED_OPS

@@ -15,7 +15,7 @@ namespace {
             {},
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, ExecGraphTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecGraphTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),

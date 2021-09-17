@@ -68,6 +68,7 @@ protected:
         MatMulNodeType nodeType;
         fusingSpecificParams fusingParams;
         std::tie(basicParamsSet, nodeType, fusingParams) = this->GetParam();
+        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
 
@@ -120,7 +121,7 @@ namespace fullyConnected {
 
 const auto fusingBiasFC = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<Node> inpNode, const element::Type& ngPrc, ParameterVector& params) {
-                auto bias = builder::makeConstant(ngPrc, Shape({inpNode->get_input_shape(1).back()}), std::vector<float>{}, true);
+                auto bias = builder::makeConstant(ngPrc, Shape({inpNode->get_output_shape(0).back()}), std::vector<float>{}, true);
                 return std::make_shared<opset1::Add>(inpNode, bias);
             }, "fusingBiasFC"}}), {"Add"}};
 
@@ -149,7 +150,7 @@ const auto testParams2D = ::testing::Combine(fullyConnectedParams2D,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D));
 
-INSTANTIATE_TEST_CASE_P(smoke_Check_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Check_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<std::pair<SizeVector, SizeVector>> IS3D = {
     {{1, 32, 120}, {120, 5}},
@@ -171,7 +172,7 @@ const auto testParams3D = ::testing::Combine(fullyConnectedParams3D,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet3D));
 
-INSTANTIATE_TEST_CASE_P(smoke_Check_3D, MatMulLayerCPUTest, testParams3D, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Check_3D, MatMulLayerCPUTest, testParams3D, MatMulLayerCPUTest::getTestCaseName);
 
 }; // namespace fullyConnected
 
@@ -196,7 +197,7 @@ const auto testParams = ::testing::Combine(gemmParams,
                                            ::testing::Values(MatMulNodeType::MatMul),
                                            ::testing::Values(emptyFusingSpec));
 
-INSTANTIATE_TEST_CASE_P(smoke_Check, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Check, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
 
 }; // namespace gemm
 

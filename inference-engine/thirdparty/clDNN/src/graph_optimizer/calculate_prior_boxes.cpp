@@ -7,12 +7,12 @@
 #include "pass_manager.h"
 #include "prior_box_inst.h"
 #include "program_node.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include <memory>
 
 using namespace cldnn;
 
-void calculate_prior_boxes::run(program_impl& p) {
+void calculate_prior_boxes::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto& node = (*itr++);
@@ -25,9 +25,8 @@ void calculate_prior_boxes::run(program_impl& p) {
         p.remove_connection(pb_node.input(), pb_node);
 
         auto result = pb_node.get_result_buffer();
-        auto cpp_mem = memory(result.detach());
 
-        auto& data_node = p.get_or_create(std::make_shared<data>("_cldnn_tmp_" + pb_node.id() + "_result", cpp_mem));
+        auto& data_node = p.get_or_create(std::make_shared<data>("_cldnn_tmp_" + pb_node.id() + "_result", result));
         p.replace(pb_node, data_node);
     }
 }

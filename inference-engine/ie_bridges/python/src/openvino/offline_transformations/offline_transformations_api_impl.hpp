@@ -15,7 +15,7 @@ void ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf);
 
 void ApplyPOTTransformations(InferenceEnginePython::IENetwork network, std::string device);
 
-void ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network, int64_t num_iterations);
+void ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network, bool use_const_initializer = true);
 
 void ApplyPruningTransformation(InferenceEnginePython::IENetwork network);
 

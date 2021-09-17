@@ -22,7 +22,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     const size_t dataIndex_ = 0;
@@ -32,7 +32,7 @@ private:
     size_t dataTypeSize_;
     int strideAxDst_;
     int dstAxDim_;
-    int strideAx1Diff_;
+    int strideAx1Diff_ = 0;
     std::string errorPrefix_;
 
     template <typename dataType>

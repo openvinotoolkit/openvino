@@ -4,13 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
-BASE_DIR="$( dirname "$SCRIPT_DIR" )"
-
-INSTALLDIR="${BASE_DIR}"
-
-
+INSTALLDIR="${SCRIPT_DIR}"
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
-export INTEL_CVSDK_DIR="$INTEL_OPENVINO_DIR"
 
 # parse command line options
 while [[ $# -gt 0 ]]
@@ -29,41 +24,40 @@ esac
 shift
 done
 
-if [ -e "$INSTALLDIR/deployment_tools/inference_engine" ]; then
-    export InferenceEngine_DIR=$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/share
-    system_type=$(ls "$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/lib/")
-    IE_PLUGINS_PATH=$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/lib/$system_type
+if [ -e "$INSTALLDIR/runtime" ]; then
+    export InferenceEngine_DIR=$INSTALLDIR/runtime/cmake
+    export ngraph_DIR=$INSTALLDIR/runtime/cmake
+    export OpenVINO_DIR=$INSTALLDIR/runtime/cmake
 
-    if [[ -e ${IE_PLUGINS_PATH}/arch_descriptions ]]; then
-        export ARCH_ROOT_DIR=${IE_PLUGINS_PATH}/arch_descriptions
-    fi
+    system_type=$(ls "$INSTALLDIR/runtime/lib/")
+    IE_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
+    export OV_FRONTEND_PATH=${IE_PLUGINS_PATH}${OV_FRONTEND_PATH:+:$OV_FRONTEND_PATH}
 
-    export HDDL_INSTALL_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/hddl
+    export HDDL_INSTALL_DIR=$INSTALLDIR/runtime/3rdparty/hddl
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        export DYLD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/omp/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_mac/lib:${IE_PLUGINS_PATH}${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
-        export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/omp/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_mac/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export DYLD_LIBRARY_PATH=${IE_PLUGINS_PATH}${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     else
-        export LD_LIBRARY_PATH=$HDDL_INSTALL_DIR/lib:$INSTALLDIR/deployment_tools/inference_engine/external/omp/lib:$INSTALLDIR/deployment_tools/inference_engine/external/gna/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_lnx/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=$HDDL_INSTALL_DIR/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     fi
 
-    HDDL_UNITE_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/hddl_unite
+    HDDL_UNITE_DIR=$INSTALLDIR/runtime/3rdparty/hddl_unite
 
     if [ -e "$HDDL_UNITE_DIR" ]; then
         export LD_LIBRARY_PATH=$HDDL_UNITE_DIR/lib:$HDDL_UNITE_DIR/thirdparty/XLink/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     fi
 fi
 
-if [ -e "$INSTALLDIR/deployment_tools/inference_engine/external/tbb" ]; then
+if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        export DYLD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/tbb/lib:${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
+        export DYLD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
     fi
-    export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/tbb/lib:${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-    export TBB_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/tbb/cmake
+    export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+    export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
 fi
 
-if [ -e "$INSTALLDIR/deployment_tools/ngraph" ]; then
-    export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/ngraph/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-    export ngraph_DIR=$INSTALLDIR/deployment_tools/ngraph/cmake
+if [ -e "$INSTALLDIR/tools/compile_tool" ]; then
+    export LD_LIBRARY_PATH=$INSTALLDIR/tools/compile_tool${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 fi
 
 if [ -e "$INSTALLDIR/opencv" ]; then
@@ -77,20 +71,26 @@ if [ -e "$INSTALLDIR/opencv" ]; then
 fi
 
 
-if [ -f "$INTEL_OPENVINO_DIR/data_processing/dl_streamer/bin/setupvars.sh" ]; then
-    source "$INTEL_OPENVINO_DIR/data_processing/dl_streamer/bin/setupvars.sh"
+if [ -f "$INTEL_OPENVINO_DIR/extras/dl_streamer/setupvars.sh" ]; then
+    source "$INTEL_OPENVINO_DIR/extras/dl_streamer/setupvars.sh"
 fi
 
-export PATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PATH:+:$PATH}"
-export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}"
+export PATH="$INTEL_OPENVINO_DIR/tools/model_optimizer${PATH:+:$PATH}"
+export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}"
 
 
-if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/accuracy_checker" ]; then
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/accuracy_checker:$PYTHONPATH"
+
+if [ -e "$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader" ]; then
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader:$PYTHONPATH"
+    export PATH="$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader:$PATH"
 fi
 
-if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/tools/post_training_optimization_toolkit" ]; then
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/tools/post_training_optimization_toolkit:$PYTHONPATH"
+if [ -e "$INTEL_OPENVINO_DIR/tools/accuracy_checker" ]; then
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/accuracy_checker:$PYTHONPATH"
+fi
+
+if [ -e "$INTEL_OPENVINO_DIR/tools/post_training_optimization_toolkit" ]; then
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/post_training_optimization_toolkit:$PYTHONPATH"
 fi
 
 if [ -z "$python_version" ]; then

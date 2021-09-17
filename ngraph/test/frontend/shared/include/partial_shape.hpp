@@ -4,35 +4,29 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
-
 #include <gtest/gtest.h>
 
-struct BaseFEParam
-{
-    BaseFEParam()
-    {}
+#include <frontend_manager/frontend_manager.hpp>
 
-    BaseFEParam(const std::string& name, const std::string& path) :
-            m_frontEndName(name), m_modelsPath(path)
-    {}
+struct BaseFEParam {
+    BaseFEParam() {}
+
+    BaseFEParam(const std::string& name, const std::string& path) : m_frontEndName(name), m_modelsPath(path) {}
 
     std::string m_frontEndName;
     std::string m_modelsPath;
 };
 
-struct PartShape
-{
+struct PartShape {
     std::string m_modelName;
     std::string m_tensorName;
-    std::vector<size_t> m_oldPartialShape;
-    std::vector<size_t> m_newPartialShape;
+    ngraph::PartialShape m_oldPartialShape;
+    ngraph::PartialShape m_newPartialShape;
 };
 
 using PartialShapeParam = std::tuple<BaseFEParam, PartShape>;
 
-class FrontEndPartialShapeTest : public ::testing::TestWithParam<PartialShapeParam>
-{
+class FrontEndPartialShapeTest : public ::testing::TestWithParam<PartialShapeParam> {
 public:
     BaseFEParam m_baseParam;
     PartShape m_partShape;

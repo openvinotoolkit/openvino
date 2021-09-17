@@ -4,7 +4,7 @@
 
 #include "normalize_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -51,7 +51,7 @@ std::string normalize_inst::to_string(normalize_node const& node) {
     return primitive_description.str();
 }
 
-normalize_inst::typed_primitive_inst(network_impl& network, normalize_node const& node) : parent(network, node) {
+normalize_inst::typed_primitive_inst(network& network, normalize_node const& node) : parent(network, node) {
     /// Scale f dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale per channel).
     auto scale_layout = node.scale().get_output_layout();
     auto scale_size = scale_layout.size;

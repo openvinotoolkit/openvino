@@ -3,6 +3,7 @@
 //
 
 #include <ngraph/variant.hpp>
+
 #include "ngraph/op/util/variable_context.hpp"
 
-constexpr ngraph::VariantTypeInfo ngraph::VariantWrapper<ngraph::VariableContext>::type_info;
+constexpr ov::VariantTypeInfo ov::VariantWrapper<ngraph::VariableContext>::type_info;

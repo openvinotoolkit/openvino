@@ -20,7 +20,7 @@ namespace {
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                              InferenceEngine::Precision::FP16};
 
-    INSTANTIATE_TEST_CASE_P(smoke_LoopCommonZeroClip, LoopTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_LoopCommonZeroClip, LoopTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(execute_first_iteration),
                                     ::testing::ValuesIn(is_body_condition_const),
@@ -48,7 +48,7 @@ namespace {
     using namespace testing;
     using namespace InferenceEngine;
 
-    INSTANTIATE_TEST_CASE_P(smoke_StaticShapeLoop, StaticShapeLoopTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_StaticShapeLoop, StaticShapeLoopTest,
                             Combine(
                                     ValuesIn(std::vector<bool>{true, false}),
                                     Values(true),
@@ -56,9 +56,10 @@ namespace {
                                     Values<int64_t>(7),
                                     Values<InferenceEngine::SizeVector>({2, 1, 4}),
                                     Values<InferenceEngine::Precision>(Precision::FP32, Precision::I32),
-                                    Values(CommonTestUtils::DEVICE_CPU)));
+                                    Values(CommonTestUtils::DEVICE_CPU),
+                                    Values<std::map<std::string, std::string>>({})));
     using namespace testing;
-    INSTANTIATE_TEST_CASE_P(smoke_TrivialLoop, TrivialLoopTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_TrivialLoop, TrivialLoopTest,
                             Combine(
                                     Values<InferenceEngine::Precision>(Precision::FP32, Precision::I32),
                                     Values<InferenceEngine::SizeVector>({2, 3, 4}),

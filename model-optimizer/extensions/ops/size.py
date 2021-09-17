@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import is_fully_defined, shape_array, dynamic_dimension_value
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -39,4 +40,7 @@ class Size(Op):
         assert node.output_type in [np.int64, np.int32], \
             'Size `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type).name)
 
-        node.out_port(0).data.set_value(np.array(np.prod(input_shape), dtype=node.output_type))
+        if is_fully_defined(input_shape):
+            node.out_port(0).data.set_value(np.array(np.prod(input_shape), dtype=node.output_type))
+        else:
+            node.out_port(0).data.set_value(shape_array(dynamic_dimension_value))

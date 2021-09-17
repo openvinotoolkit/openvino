@@ -32,6 +32,6 @@ std::vector<addOutputsParams> testCases = {
         addOutputsParams(getTargetNetwork(), {"Memory"}, CommonTestUtils::DEVICE_CPU)
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_AddOutputBasic, AddOutputsTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AddOutputBasic, AddOutputsTest,
         ::testing::ValuesIn(testCases),
         AddOutputsTest::getTestCaseName);

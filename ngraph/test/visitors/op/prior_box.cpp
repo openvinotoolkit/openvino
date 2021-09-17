@@ -3,14 +3,12 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -18,8 +16,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, prior_box_op)
-{
+TEST(attributes, prior_box_op) {
     NodeBuilder::get_ops().register_factory<opset1::PriorBox>();
     const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{128, 128});
     const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
@@ -40,11 +37,13 @@ TEST(attributes, prior_box_op)
 
     auto prior_box = make_shared<opset1::PriorBox>(layer_shape, image_shape, attrs);
     NodeBuilder builder(prior_box);
-    auto g_prior_box = as_type_ptr<opset1::PriorBox>(builder.create());
+    auto g_prior_box = ov::as_type_ptr<opset1::PriorBox>(builder.create());
 
     const auto prior_box_attrs = prior_box->get_attrs();
     const auto g_prior_box_attrs = g_prior_box->get_attrs();
 
+    const auto expected_attr_count = 12;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     EXPECT_EQ(g_prior_box_attrs.min_size, prior_box_attrs.min_size);
     EXPECT_EQ(g_prior_box_attrs.max_size, prior_box_attrs.max_size);
     EXPECT_EQ(g_prior_box_attrs.aspect_ratio, prior_box_attrs.aspect_ratio);

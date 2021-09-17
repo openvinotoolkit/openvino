@@ -12,9 +12,9 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionBackpropDataTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionBackpropDataTransformationParams> obj) {
+std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionBackpropDataTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    std::pair<ngraph::PartialShape, bool> inputShape;
     ngraph::Shape outputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -22,7 +22,7 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(testing::Test
     std::tie(netPrecision, inputShape, outputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
+    result << getTestCaseNameByParams(netPrecision, inputShape.first, targetDevice, params) << "_" <<
         outputShape << "_" <<
         param.fakeQuantizeOnData << "_" <<
         param.fakeQuantizeOnWeights << "_" <<
@@ -34,22 +34,27 @@ void ConvolutionBackpropDataTransformation::SetUp() {
     threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    std::pair<ngraph::PartialShape, bool> inputShapeAndHandling;
     ngraph::Shape outputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionBackpropDataTransformationParam param;
-    std::tie(netPrecision, inputShape, outputShape, targetDevice, params, param) = this->GetParam();
+    std::tie(netPrecision, inputShapeAndHandling, outputShape, targetDevice, params, param) = this->GetParam();
 
     std::shared_ptr<ngraph::Node> weights;
 
+    const auto inputShape = inputShapeAndHandling.first;
+    ngraph::Shape weightsShape(4, 1ul);
+    weightsShape[0] = inputShape[1].get_length();
+    weightsShape[1] = inputShape[1].get_length() / 2;
+
     if (!param.fakeQuantizeOnWeights.empty()) {
         weights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
-            ngraph::Shape{inputShape[1], inputShape[1] / 2, 1, 1},
+            weightsShape,
             netPrecision,
             param.fakeQuantizeOnWeights);
     } else {
         weights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
-            ngraph::Shape{inputShape[1], inputShape[1] / 2, 1, 1},
+            weightsShape,
             netPrecision,
             param.dequantizationOnWeights);
     }
@@ -65,9 +70,12 @@ void ConvolutionBackpropDataTransformation::SetUp() {
 void ConvolutionBackpropDataTransformation::Run() {
     LayerTestsCommon::Run();
 
-    const auto params = std::get<5>(GetParam());
-    const auto actualType = getRuntimePrecision(params.layerName);
-    EXPECT_EQ(actualType, params.expectedKernelType);
+    const auto inputShape = std::get<1>(GetParam());
+    if (inputShape.second) {
+        const auto params = std::get<5>(GetParam());
+        const auto actualType = getRuntimePrecision(params.layerName);
+        EXPECT_EQ(actualType, params.expectedKernelType);
+    }
 }
 
 TEST_P(ConvolutionBackpropDataTransformation, CompareWithRefImpl) {

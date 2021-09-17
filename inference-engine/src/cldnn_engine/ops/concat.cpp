@@ -7,19 +7,19 @@
 
 #include "ngraph/op/concat.hpp"
 
-#include "api/concatenation.hpp"
+#include "cldnn/primitives/concatenation.hpp"
 
 namespace CLDNNPlugin {
 
 static cldnn::concatenation::concatenation_axis GetConcatAxis(int32_t axis, size_t rank) {
-    if (axis >= rank)
+    unsigned cldnn_axis = axis >= 0 ? axis : axis + static_cast<int32_t>(rank);
+    if (cldnn_axis >= rank)
         IE_THROW() << "Concatenation axis exceeds number of dimensions";
 
     // Difference in dimension ordering between IE and clDNN,
     // reverse spatial dimensions after batch and feature.
-    unsigned cldnn_axis = axis;
-    if (axis >= 2) {
-        auto spatial_axis = axis - 2;
+    if (cldnn_axis >= 2) {
+        auto spatial_axis = cldnn_axis - 2;
         // Default and minimum number of dimensions is 4
         auto spatial_size = std::max<size_t>(rank, 4) - 2;
         cldnn_axis = spatial_size - spatial_axis - 1 + 2;

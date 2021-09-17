@@ -3,17 +3,333 @@
 //
 
 #include "ngraph/op/deformable_convolution.hpp"
+
 #include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/reshape.hpp"
+#include "ngraph/runtime/reference/deformable_convolution.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::DeformableConvolution::type_info;
+OPENVINO_RTTI_DEFINITION(op::v1::DeformableConvolution,
+                         "DeformableConvolution",
+                         1,
+                         op::util::DeformableConvolutionBase);
+OPENVINO_RTTI_DEFINITION(op::v8::DeformableConvolution,
+                         "DeformableConvolution",
+                         8,
+                         op::util::DeformableConvolutionBase);
+
+op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
+                                                     const Output<Node>& offsets,
+                                                     const Output<Node>& filters,
+                                                     const Strides& strides,
+                                                     const CoordinateDiff& pads_begin,
+                                                     const CoordinateDiff& pads_end,
+                                                     const Strides& dilations,
+                                                     const op::PadType& auto_pad,
+                                                     const int64_t group,
+                                                     const int64_t deformable_group,
+                                                     const bool bilinear_interpolation_pad)
+    : DeformableConvolutionBase({arg, offsets, filters},
+                                strides,
+                                pads_begin,
+                                pads_end,
+                                dilations,
+                                auto_pad,
+                                group,
+                                deformable_group),
+      m_bilinear_interpolation_pad(bilinear_interpolation_pad) {
+    constructor_validate_and_infer_types();
+}
+
+op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
+                                                     const Output<Node>& offsets,
+                                                     const Output<Node>& filters,
+                                                     const Output<Node>& mask,
+                                                     const Strides& strides,
+                                                     const CoordinateDiff& pads_begin,
+                                                     const CoordinateDiff& pads_end,
+                                                     const Strides& dilations,
+                                                     const op::PadType& auto_pad,
+                                                     const int64_t group,
+                                                     const int64_t deformable_group,
+                                                     const bool bilinear_interpolation_pad)
+    : DeformableConvolutionBase({arg, offsets, filters, mask},
+                                strides,
+                                pads_begin,
+                                pads_end,
+                                dilations,
+                                auto_pad,
+                                group,
+                                deformable_group),
+      m_bilinear_interpolation_pad(bilinear_interpolation_pad) {
+    constructor_validate_and_infer_types();
+}
+
+bool op::v8::DeformableConvolution::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(DeformableConvolution_v8_visit_attributes);
+    visitor.on_attribute("bilinear_interpolation_pad", m_bilinear_interpolation_pad);
+    return DeformableConvolutionBase::visit_attributes(visitor);
+}
+
+void op::v8::DeformableConvolution::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(DeformableConvolution_v8_validate_and_infer_types);
+
+    DeformableConvolutionBase::validate_and_infer_types();
+    if (inputs().size() == 4) {
+        const ov::PartialShape& data_pshape = get_input_partial_shape(0);
+        const ov::PartialShape& filters_pshape = get_input_partial_shape(2);
+        const ov::PartialShape& mask_pshape = get_input_partial_shape(3);
+        element::Type mask_et = get_input_element_type(3);
+
+        NODE_VALIDATION_CHECK(this,
+                              mask_et.is_real() || mask_et.is_integral_number(),
+                              "Element type of Mask input must be numeric. Got: ",
+                              mask_et);
+
+        NODE_VALIDATION_CHECK(this,
+                              mask_pshape.rank().compatible(4),
+                              "Mask input must be of rank 4. Got: ",
+                              mask_pshape.rank());
+
+        if (mask_pshape.rank().is_static() && mask_pshape[1].is_static()) {
+            if (filters_pshape.rank().is_static() && filters_pshape[2].is_static() && filters_pshape[3].is_static()) {
+                auto offsets_channels =
+                    m_deformable_group * filters_pshape[2].get_length() * filters_pshape[3].get_length();
+                NODE_VALIDATION_CHECK(this,
+                                      mask_pshape[1].get_length() == offsets_channels,
+                                      "The channels dimension of mask input is not "
+                                      "compatible with filters and 'deformable group' attribute. "
+                                      "Mask input shape: ",
+                                      mask_pshape,
+                                      ", deformable 'group' attribute value: ",
+                                      m_deformable_group,
+                                      ", filters shape: ",
+                                      filters_pshape);
+            }
+            // At least we can check if mask channels is evenly divisible by deformable
+            // group attribute
+            NODE_VALIDATION_CHECK(this,
+                                  mask_pshape[1].get_length() % m_deformable_group == 0,
+                                  "The channels dimension of mask input must be "
+                                  "evenly divisible by the 'deformable group' value along the "
+                                  "channels axis. Offsets input shape: ",
+                                  mask_pshape,
+                                  ", 'deformable group' attribute value: ",
+                                  m_deformable_group);
+
+            if (data_pshape.rank().is_static()) {
+                NODE_VALIDATION_CHECK(this,
+                                      mask_pshape[0].compatible(data_pshape[0]),
+                                      "Data batch and mask batch dimension must be same value. Got: ",
+                                      mask_pshape[0],
+                                      " and ",
+                                      data_pshape[0]);
+            }
+        }
+
+        ov::PartialShape result_pshape = get_output_partial_shape(0);
+        if (result_pshape.rank().is_static() && mask_pshape.rank().is_static()) {
+            NODE_VALIDATION_CHECK(
+                this,
+                result_pshape[2].compatible(mask_pshape[2]) && result_pshape[3].compatible(mask_pshape[3]),
+                "Spatial dimensions of mask and output must be equal. Got: ",
+                mask_pshape[2],
+                ", ",
+                mask_pshape[3],
+                " and ",
+                result_pshape[2],
+                ", ",
+                result_pshape[3]);
+        }
+    }
+}
+
+std::shared_ptr<Node> op::v8::DeformableConvolution::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(DeformableConvolution_v8_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    NODE_VALIDATION_CHECK(this, new_args.size() >= 3 && new_args.size() <= 4, "Number of inputs must be 3 or 4");
+    switch (new_args.size()) {
+    case 3:
+        return std::make_shared<DeformableConvolution>(new_args.at(0),
+                                                       new_args.at(1),
+                                                       new_args.at(2),
+                                                       m_strides,
+                                                       m_pads_begin,
+                                                       m_pads_end,
+                                                       m_dilations,
+                                                       m_auto_pad,
+                                                       m_group,
+                                                       m_deformable_group,
+                                                       m_bilinear_interpolation_pad);
+    default:
+        return std::make_shared<DeformableConvolution>(new_args.at(0),
+                                                       new_args.at(1),
+                                                       new_args.at(2),
+                                                       new_args.at(3),
+                                                       m_strides,
+                                                       m_pads_begin,
+                                                       m_pads_end,
+                                                       m_dilations,
+                                                       m_auto_pad,
+                                                       m_group,
+                                                       m_deformable_group,
+                                                       m_bilinear_interpolation_pad);
+    }
+}
+
+namespace deformable_convolution {
+template <element::Type_t ET>
+inline bool evaluate(const HostTensorVector& inputs,
+                     const HostTensorPtr& out,
+                     const Strides& strides,
+                     const CoordinateDiff& pads_begin,
+                     const CoordinateDiff& pads_end,
+                     const Strides& dilations,
+                     const ngraph::op::PadType& auto_pad,
+                     const int64_t group,
+                     const int64_t deformable_group,
+                     const bool use_bilinear_interpolation_padding) {
+    using T = typename element_type_traits<ET>::value_type;
+    if (inputs.size() == 3) {
+        runtime::reference::deformable_convolution<T>(inputs[0]->get_data_ptr<ET>(),
+                                                      inputs[1]->get_data_ptr<ET>(),
+                                                      inputs[2]->get_data_ptr<ET>(),
+                                                      out->get_data_ptr<ET>(),
+                                                      inputs[0]->get_shape(),
+                                                      inputs[1]->get_shape(),
+                                                      inputs[2]->get_shape(),
+                                                      out->get_shape(),
+                                                      strides,
+                                                      dilations,
+                                                      pads_begin,
+                                                      pads_end,
+                                                      group,
+                                                      deformable_group,
+                                                      use_bilinear_interpolation_padding);
+    } else if (inputs.size() == 4) {
+        runtime::reference::deformable_convolution<T>(inputs[0]->get_data_ptr<ET>(),
+                                                      inputs[1]->get_data_ptr<ET>(),
+                                                      inputs[2]->get_data_ptr<ET>(),
+                                                      inputs[3]->get_data_ptr<ET>(),
+                                                      out->get_data_ptr<ET>(),
+                                                      inputs[0]->get_shape(),
+                                                      inputs[1]->get_shape(),
+                                                      inputs[2]->get_shape(),
+                                                      inputs[3]->get_shape(),
+                                                      out->get_shape(),
+                                                      strides,
+                                                      dilations,
+                                                      pads_begin,
+                                                      pads_end,
+                                                      group,
+                                                      deformable_group,
+                                                      use_bilinear_interpolation_padding);
+    }
+
+    return true;
+}
+
+bool evaluate_deformable_convolution(const HostTensorVector& inputs,
+                                     const HostTensorPtr& out,
+                                     const Strides& strides,
+                                     const Strides& dilations,
+                                     const CoordinateDiff& pads_begin,
+                                     const CoordinateDiff& pads_end,
+                                     const ngraph::op::PadType& auto_pad,
+                                     const int64_t group,
+                                     const int64_t deformable_group,
+                                     const bool use_bilinear_interpolation_padding) {
+    bool rc = true;
+    switch (inputs[0]->get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_deformable_convolution,
+                         f32,
+                         inputs,
+                         out,
+                         strides,
+                         pads_begin,
+                         pads_end,
+                         dilations,
+                         auto_pad,
+                         group,
+                         deformable_group,
+                         use_bilinear_interpolation_padding);
+        NGRAPH_TYPE_CASE(evaluate_deformable_convolution,
+                         f16,
+                         inputs,
+                         out,
+                         strides,
+                         pads_begin,
+                         pads_end,
+                         dilations,
+                         auto_pad,
+                         group,
+                         deformable_group,
+                         use_bilinear_interpolation_padding);
+        NGRAPH_TYPE_CASE(evaluate_deformable_convolution,
+                         i32,
+                         inputs,
+                         out,
+                         strides,
+                         pads_begin,
+                         pads_end,
+                         dilations,
+                         auto_pad,
+                         group,
+                         deformable_group,
+                         use_bilinear_interpolation_padding);
+        NGRAPH_TYPE_CASE(evaluate_deformable_convolution,
+                         i16,
+                         inputs,
+                         out,
+                         strides,
+                         pads_begin,
+                         pads_end,
+                         dilations,
+                         auto_pad,
+                         group,
+                         deformable_group,
+                         use_bilinear_interpolation_padding);
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+}  // namespace deformable_convolution
+
+bool op::v8::DeformableConvolution::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(DeformableConvolution_v8_evaluate);
+    deformable_convolution::evaluate_deformable_convolution(inputs,
+                                                            outputs[0],
+                                                            get_strides(),
+                                                            get_dilations(),
+                                                            get_pads_begin(),
+                                                            get_pads_end(),
+                                                            get_auto_pad(),
+                                                            get_group(),
+                                                            get_deformable_group(),
+                                                            get_bilinear_interpolation_pad());
+    return true;
+}
+
+bool op::v8::DeformableConvolution::has_evaluate() const {
+    NGRAPH_OP_SCOPE(DeformableConvolution_v8_has_evaluate);
+    switch (get_input_element_type(0)) {
+    case ngraph::element::f16:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::f32:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
 
 op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,
@@ -22,218 +338,31 @@ op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const CoordinateDiff& pads_begin,
                                                      const CoordinateDiff& pads_end,
                                                      const Strides& dilations,
-                                                     const PadType& auto_pad,
+                                                     const op::PadType& auto_pad,
                                                      const int64_t group,
                                                      const int64_t deformable_group)
-    : Op({arg, offsets, filters})
-    , m_strides(strides)
-    , m_dilations(dilations)
-    , m_pads_begin(pads_begin)
-    , m_pads_end(pads_end)
-    , m_auto_pad(auto_pad)
-    , m_group(group)
-    , m_deformable_group(deformable_group)
-{
+    : DeformableConvolutionBase({arg, offsets, filters},
+                                strides,
+                                pads_begin,
+                                pads_end,
+                                dilations,
+                                auto_pad,
+                                group,
+                                deformable_group) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v1::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
-{
-    NGRAPH_OP_SCOPE(v1_DeformableConvolution_visit_attributes);
-    visitor.on_attribute("strides", m_strides);
-    visitor.on_attribute("dilations", m_dilations);
-    visitor.on_attribute("pads_begin", m_pads_begin);
-    visitor.on_attribute("pads_end", m_pads_end);
-    visitor.on_attribute("auto_pad", m_auto_pad);
-    visitor.on_attribute("group", m_group);
-    visitor.on_attribute("deformable_group", m_deformable_group);
-    return true;
-}
-
-void op::v1::DeformableConvolution::validate_and_infer_types()
-{
-    NGRAPH_OP_SCOPE(v1_DeformableConvolution_validate_and_infer_types);
-    const PartialShape& data_batch_pshape = get_input_partial_shape(0);
-    const PartialShape& offsets_pshape = get_input_partial_shape(1);
-    const PartialShape& filters_pshape = get_input_partial_shape(2);
-
-    element::Type data_batch_et = get_input_element_type(0);
-    element::Type offsets_et = get_input_element_type(1);
-    element::Type filters_et = get_input_element_type(2);
-
-    element::Type result_et;
-    NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, data_batch_et, offsets_et) &&
-                              element::Type::merge(result_et, result_et, filters_et),
-                          "Element types of inputs do not match. Got: data batch (",
-                          data_batch_et,
-                          "), offsets (",
-                          offsets_et,
-                          ") and filters (",
-                          filters_et,
-                          ")");
-
-    NODE_VALIDATION_CHECK(this,
-                          result_et.is_real() || result_et.is_integral_number(),
-                          "Element type of inputs must be numeric. Got: ",
-                          result_et);
-
-    Rank result_ps_rank{};
-    NODE_VALIDATION_CHECK(
-        this,
-        Rank::merge(result_ps_rank, data_batch_pshape.rank(), offsets_pshape.rank()) &&
-            Rank::merge(result_ps_rank, result_ps_rank, filters_pshape.rank()),
-        "Ranks of inputs do not match. Got: data batch shape ",
-        data_batch_pshape,
-        ", offsets shape ",
-        offsets_pshape,
-        ", filters shape ",
-        filters_pshape);
-
-    NODE_VALIDATION_CHECK(
-        this, result_ps_rank.compatible(4), "Inputs must be of rank 4. Got: ", result_ps_rank);
-
-    NODE_VALIDATION_CHECK(
-        this, m_group > 0, "Attribute 'group' must be any value starting from 1. Got: ", m_group);
-
-    NODE_VALIDATION_CHECK(this,
-                          m_deformable_group > 0,
-                          "Attribute 'deformable group' must be any value starting from 1. Got: ",
-                          m_deformable_group);
-
-    if (offsets_pshape.rank().is_static())
-    {
-        if (offsets_pshape[1].is_static())
-        {
-            if (filters_pshape.rank().is_static() && filters_pshape[2].is_static() &&
-                filters_pshape[3].is_static())
-            {
-                auto offsets_channels = m_deformable_group * filters_pshape[2].get_length() *
-                                        filters_pshape[3].get_length() * 2;
-                NODE_VALIDATION_CHECK(this,
-                                      offsets_pshape[1].get_length() == offsets_channels,
-                                      "The channels dimension of offsets input is not "
-                                      "compatible with filters and 'deformable group' attribute. "
-                                      "Offsets input shape: ",
-                                      offsets_pshape,
-                                      ", deformable 'group' attribute value: ",
-                                      m_deformable_group,
-                                      ", filters shape: ",
-                                      filters_pshape);
-            }
-            else
-            {
-                // At least we can check if offsets channels is evenly divisible by deformable
-                // group attribute
-                NODE_VALIDATION_CHECK(this,
-                                      offsets_pshape[1].get_length() % m_deformable_group == 0,
-                                      "The channels dimension of offsets input must be "
-                                      "evenly divisible by the 'deformable group' value along the "
-                                      "channels axis. Offsets input shape: ",
-                                      offsets_pshape,
-                                      ", 'deformable group' attribute value: ",
-                                      m_deformable_group);
-            }
-        }
-
-        if (data_batch_pshape.rank().is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                offsets_pshape[0].compatible(data_batch_pshape[0]),
-                "Data batch and offsets batch dimension must be same value. Got: ",
-                offsets_pshape[0],
-                " and ",
-                data_batch_pshape[0]);
-        }
-    }
-
-    if (data_batch_pshape.rank().is_static() && data_batch_pshape[1].is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              data_batch_pshape[1].get_length() % m_group == 0,
-                              "The input data shape must be evenly divisible by the 'group' value "
-                              "along the channels axis. Current input shape: ",
-                              data_batch_pshape,
-                              ", 'group' attribute value: ",
-                              m_group);
-    }
-
-    if (filters_pshape.rank().is_static() && filters_pshape[0].is_static())
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            filters_pshape[0].get_length() % m_group == 0,
-            "The filters shape must be evenly divisible by the 'group' value along "
-            "the channels axis. Current filters shape: ",
-            filters_pshape,
-            ", 'group' attribute value: ",
-            m_group);
-    }
-
-    // adjust filter shape to reuse regular infer_convolution_forward()
-    const auto new_filters_pshape = [&](int groups) {
-        auto new_shape(filters_pshape);
-        if (new_shape.rank().is_static())
-        {
-            new_shape[1] *= groups;
-        }
-        return new_shape;
-    }(m_group);
-    PartialShape result_shape =
-        validate_and_infer_convolution_forward_output_shape(this,
-                                                            result_ps_rank,
-                                                            data_batch_pshape,
-                                                            new_filters_pshape,
-                                                            m_auto_pad,
-                                                            m_strides,
-                                                            m_dilations,
-                                                            m_pads_begin,
-                                                            m_pads_end);
-
-    if (result_shape.rank().is_static() && offsets_pshape.rank().is_static())
-    {
-        PartialShape result_spatial_shape = [&result_shape]() {
-            vector<Dimension> result_spatial_dims{result_shape};
-            result_spatial_dims.erase(result_spatial_dims.begin(), result_spatial_dims.begin() + 2);
-            return PartialShape{result_spatial_dims};
-        }();
-
-        PartialShape offsets_spatial_shape = [&offsets_pshape]() {
-            vector<Dimension> offsets_spatial_dims{offsets_pshape};
-            offsets_spatial_dims.erase(offsets_spatial_dims.begin(),
-                                       offsets_spatial_dims.begin() + 2);
-            return PartialShape{offsets_spatial_dims};
-        }();
-
-        NODE_VALIDATION_CHECK(this,
-                              offsets_spatial_shape.compatible(result_spatial_shape),
-                              "Spatial dimensions of offsets and output must be equal. Got: ",
-                              offsets_spatial_shape,
-                              " and ",
-                              result_spatial_shape);
-
-        if (result_shape[0].is_dynamic())
-        {
-            result_shape[0] = offsets_pshape[0]; // batch size
-        }
-    }
-    set_output_type(0, result_et, result_shape);
-}
-
-shared_ptr<Node>
-    op::v1::DeformableConvolution::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    NGRAPH_OP_SCOPE(v1_DeformableConvolution_clone_with_new_inputs);
+std::shared_ptr<Node> op::v1::DeformableConvolution::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(DeformableConvolution_v1_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::DeformableConvolution>(new_args.at(0),
-                                                  new_args.at(1),
-                                                  new_args.at(2),
-                                                  m_strides,
-                                                  m_pads_begin,
-                                                  m_pads_end,
-                                                  m_dilations,
-                                                  m_auto_pad,
-                                                  m_group,
-                                                  m_deformable_group);
+    return std::make_shared<DeformableConvolution>(new_args.at(0),
+                                                   new_args.at(1),
+                                                   new_args.at(2),
+                                                   m_strides,
+                                                   m_pads_begin,
+                                                   m_pads_end,
+                                                   m_dilations,
+                                                   m_auto_pad,
+                                                   m_group,
+                                                   m_deformable_group);
 }

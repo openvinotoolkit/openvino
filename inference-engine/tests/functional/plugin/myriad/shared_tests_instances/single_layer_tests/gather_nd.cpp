@@ -39,7 +39,7 @@ const std::vector<GatherNDParamsSubset> layerParams = {
     GatherNDParamsSubset{{2, 2, 2, 2}, {2, 2, 1}, 2},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_GatherND,
     GatherNDLayerTest,
     testing::Combine(

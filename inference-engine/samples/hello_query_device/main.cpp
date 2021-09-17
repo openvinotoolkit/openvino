@@ -125,7 +125,8 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)) != supportedMetrics.end()) {
+            if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)) !=
+                supportedMetrics.end()) {
                 std::cout << "\tSUPPORTED_CONFIG_KEYS (default values): " << std::endl;
                 std::vector<std::string> supportedConfigKeys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 for (auto&& configKey : supportedConfigKeys) {

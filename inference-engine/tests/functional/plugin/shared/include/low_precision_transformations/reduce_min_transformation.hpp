@@ -20,7 +20,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     ReduceMinTransformationParam
@@ -30,7 +30,7 @@ class ReduceMinTransformation :
     public testing::WithParamInterface<ReduceMinTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReduceMinTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReduceMinTransformationParams>& obj);
 
 protected:
     void SetUp() override;

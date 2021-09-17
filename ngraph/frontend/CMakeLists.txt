@@ -2,13 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set(FRONTEND_INSTALL_INCLUDE "runtime/include/ngraph/frontend")
+
 add_subdirectory(frontend_manager)
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
-    add_subdirectory(onnx_common)
-    add_subdirectory(onnx_import)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
+    add_subdirectory(onnx)
 endif()
 
-if (NGRAPH_ONNX_EDITOR_ENABLE)
-    add_subdirectory(onnx_editor)
+if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    add_subdirectory(paddlepaddle)
+endif()
+
+if (IR_FRONTEND_ENABLE)
+    add_subdirectory(ir)
 endif()

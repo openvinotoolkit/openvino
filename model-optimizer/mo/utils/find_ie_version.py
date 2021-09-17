@@ -26,8 +26,10 @@ def setup_env(module="", libs=[]):
     :param module: path to python module
     :param libs: list with paths to libraries
     """
-    os.environ[python_path_key] = os.pathsep.join([os.environ[python_path_key], module])
-    os.environ[lib_env_key] = os.pathsep.join([os.environ[lib_env_key], *libs])
+    os.environ[python_path_key] = os.pathsep.join([module, os.environ[python_path_key]])
+    os.environ[lib_env_key] = os.pathsep.join([*libs, os.environ[lib_env_key]])
+    if not os.getenv("OV_FRONTEND_PATH"):
+        os.environ["OV_FRONTEND_PATH"] = os.pathsep.join([*libs, os.environ[lib_env_key]])
 
 
 def reset_env():
@@ -88,9 +90,8 @@ def find_ie_version(silent=False):
         {
             "module": os.path.join(script_path, '../../../../python/', python_version),
             "libs": [
-                os.path.join(script_path, '../../../inference_engine/bin/intel64/Release'),
-                os.path.join(script_path, '../../../inference_engine/external/tbb/bin'),
-                os.path.join(script_path, '../../../ngraph/lib'),
+                os.path.join(script_path, '../../../../runtime/bin/intel64/Release'),
+                os.path.join(script_path, '../../../../runtime/3rdparty/tbb/bin'),
             ],
         },
         # Local builds
@@ -118,9 +119,8 @@ def find_ie_version(silent=False):
         {
             "module": os.path.join(script_path, '../../../../python/', python_version),
             "libs": [
-                os.path.join(script_path, '../../../inference_engine/lib/intel64'),
-                os.path.join(script_path, '../../../inference_engine/external/tbb/lib'),
-                os.path.join(script_path, '../../../ngraph/lib'),
+                os.path.join(script_path, '../../../../runtime/lib/intel64'),
+                os.path.join(script_path, '../../../../runtime/3rdparty/tbb/lib'),
             ],
         },
         # Local builds

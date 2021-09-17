@@ -88,8 +88,7 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
         this->postamble();
 
         load_emitter->emit_data();
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && store_emitter != nullptr && store_emitter->get_emu_vcvtneps2bf16() != nullptr)
-            store_emitter->get_emu_vcvtneps2bf16()->emit_data();
+        store_emitter->emit_data();
     }
 
 private:
@@ -155,7 +154,7 @@ private:
             Vmm vmm_max = get_acc_reg(i);
 
             load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx())}, {static_cast<size_t>(vmm_max.getIdx())},
-                                    std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, false, "zero", i * src_c_off),
+                                    std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, i * src_c_off),
                                     {}, load_pool_gpr_idxs);
         }
 
@@ -169,7 +168,7 @@ private:
                     Vmm vmm_src = get_src_reg(i);
 
                     load_emitter->emit_code({static_cast<size_t>(aux_reg_input1.getIdx())}, {static_cast<size_t>(vmm_src.getIdx())},
-                                            std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, false, "zero", i * src_c_off),
+                                            std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, i * src_c_off),
                                             {}, load_pool_gpr_idxs);
 
                     if (isa == cpu::x64::sse41) {
@@ -222,7 +221,7 @@ private:
 
         for (int i = 0; i < c_blocks; i++) {
             const int src_c_off = i * jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_data_size;
-            const auto load_context = std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, false, "zero", src_c_off);
+            const auto load_context = std::make_shared<load_emitter_context>(jpp_.src_prc, Precision::FP32, step, src_c_off);
 
             mov(aux_reg_input, reg_input);
 
@@ -307,8 +306,12 @@ private:
     }
 };
 
-bool MKLDNNROIPoolingNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNROIPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto roiPooling = std::dynamic_pointer_cast<const ngraph::opset2::ROIPooling>(op);
         if (!roiPooling) {
             errorMessage = "Only opset2 ROIPooling operation is supported";
@@ -355,21 +358,21 @@ void MKLDNNROIPoolingNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 
-    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+    if (getInputShapeAtPort(0).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
     }
 
-    if (getParentEdgeAt(1)->getDims().ndims() != 2) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+    if (getInputShapeAtPort(1).getRank() != 2) {
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
     }
 
-    if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+    if (getOutputShapeAtPort(0).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
     }
 
-    if (getParentEdgeAt(1)->getDims()[1] != 5) {
+    if (getInputShapeAtPort(1).getStaticDims()[1] != 5) {
         IE_THROW() << errorPrefix << "has invalid shape on 1st input: ["
-                                          << getParentEdgeAt(1)->getDims()[0] << "," << getParentEdgeAt(1)->getDims()[1] << "]";
+                                  << getInputShapeAtPort(1).getStaticDims()[0] << "," << getInputShapeAtPort(1).getStaticDims()[1] << "]";
     }
 }
 
@@ -384,25 +387,10 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
             runtimePrecision = Precision::FP32;
     }
 
-    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
+    src_data_size = dst_data_size = runtimePrecision.size();
 
-    src_data_size = MKLDNNExtensionUtils::sizeOfDataType(dataType);
-    dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(dataType);
-
-    InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = false;
-    config.inConfs.resize(2);
-    config.inConfs[0].constant = false;
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[1].constant = false;
-    config.inConfs[1].inPlace = -1;
-
-    config.outConfs.resize(1);
-    config.outConfs[0].constant = false;
-    config.outConfs[0].inPlace = -1;
-
-    auto parentDims = getParentEdgeAt(0)->getDims();
-    auto format = mayiuse(avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
+    auto parentDims = getInputShapeAtPort(0).getStaticDims();
+    auto format = mayiuse(avx512_common) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_common)) {
         impl_type = impl_desc_type::jit_avx512;
@@ -414,10 +402,10 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
-    config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), dataType, format);
-    config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), dataType, memory::format_tag::nc);
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, format);
-    supportedPrimitiveDescriptors.push_back({config, impl_type, format});
+    addSupportedPrimDesc({{format, runtimePrecision},
+                          {LayoutType::ncsp, runtimePrecision}},
+                         {{format, runtimePrecision}},
+                          impl_type);
 }
 
 void MKLDNNROIPoolingNode::createPrimitive() {
@@ -429,8 +417,8 @@ void MKLDNNROIPoolingNode::createPrimitive() {
     const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
     jpp.c_block = simd_w;
 
-    auto inDims = config.inConfs[0].desc.getDims();
-    auto outDims = config.outConfs[0].desc.getDims();
+    auto inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
+    auto outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
     jpp.mb = outDims[0];
     jpp.c = rnd_up(inDims[1], simd_w);
@@ -448,8 +436,8 @@ void MKLDNNROIPoolingNode::createPrimitive() {
     jpp.nb_c_blocking = mayiuse(cpu::x64::avx512_common) ? 15 : 7;
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    jpp.src_prc = selectedPD->getConfig().inConfs[0].desc.getPrecision();
-    jpp.dst_prc = selectedPD->getConfig().outConfs[0].desc.getPrecision();
+    jpp.src_prc = selectedPD->getConfig().inConfs[0].desc->getPrecision();
+    jpp.dst_prc = selectedPD->getConfig().outConfs[0].desc->getPrecision();
     jpp.src_data_size = jpp.src_prc.size();
     jpp.dst_data_size = jpp.dst_prc.size();
 
@@ -482,9 +470,9 @@ void MKLDNNROIPoolingNode::execute() {
         IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
-    auto src_strides = config.inConfs[0].desc.getBlockingDesc().getStrides();
-    auto dst_strides = config.outConfs[0].desc.getBlockingDesc().getStrides();
-    size_t src_roi_step = config.inConfs[1].desc.getBlockingDesc().getStrides()[0];
+    auto src_strides = srcMemory0.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto dst_strides = dstMemory.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    size_t src_roi_step = srcMemory1.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
 
     int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
     int MB = jpp.mb;
@@ -513,13 +501,18 @@ void MKLDNNROIPoolingNode::execute() {
             if (roi_pooling_kernel) {
                 arg.bin_area = 0;
                 arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
+                (*roi_pooling_kernel)(&arg);
             } else {
-                for (int c = 0; c < c_block; c++) {
-                    dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                    int ch_blk_cur = cbb * cb_num + cbb_cur;
+                    if (ch_blk_cur >= jpp.nb_c) {
+                        break;  // current block work is done
+                    }
+                    for (int c = 0; c < c_block; c++) {
+                        dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                    }
                 }
             }
-
-            (*roi_pooling_kernel)(&arg);
         } else {
             size_t roi_off = n * src_roi_step;
             const auto *src_roi_ptr = &src_roi[roi_off];
@@ -569,18 +562,23 @@ void MKLDNNROIPoolingNode::execute() {
                     arg.kh = hend - hstart;
                     arg.kw = wend - wstart;
                 } else {
-                    for (int c = 0; c < c_block; c++) {
-                        const size_t pool_index = n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c;
-                        if ((hend <= hstart) || (wend <= wstart)) {
-                            dst[pool_index] = 0;
-                        } else {
-                            for (int h = hstart; h < hend; ++h) {
-                                for (int w = wstart; w < wend; ++w) {
-                                    float batch_data = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                h * src_strides[2] + w * src_strides[3] + c];
-
-                                    if (batch_data > dst[pool_index]) {
-                                        dst[pool_index] = batch_data;
+                    for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                        int ch_blk_cur = cbb * cb_num + cbb_cur;
+                        if (ch_blk_cur >= jpp.nb_c) {
+                            break;  // current block work is done
+                        }
+                        for (int c = 0; c < c_block; c++) {
+                            const size_t pool_index = n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c;
+                            if ((hend <= hstart) || (wend <= wstart)) {
+                                dst[pool_index] = 0;
+                            } else {
+                                dst[pool_index] =  src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                            hstart * src_strides[2] + wstart * src_strides[3] + c];
+                                for (int h = hstart; h < hend; ++h) {
+                                    for (int w = wstart; w < wend; ++w) {
+                                        float batch_data = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    h * src_strides[2] + w * src_strides[3] + c];
+                                        dst[pool_index] = std::fmax(batch_data, dst[pool_index]);
                                     }
                                 }
                             }
@@ -596,18 +594,35 @@ void MKLDNNROIPoolingNode::execute() {
                 float height_scale = (jpp.pooled_h > 1 ? ((roi_end_h_ - roi_start_h_) * (jpp.ih - 1)) / (jpp.pooled_h - 1) : 0);
                 float width_scale  = (jpp.pooled_w > 1 ? ((roi_end_w_ - roi_start_w_) * (jpp.iw - 1)) / (jpp.pooled_w - 1) : 0);
 
-                float in_y = (jpp.pooled_h > 1 ? (oh * height_scale + roi_start_h_ * (jpp.ih - 1)) :
-                              0.5 * (roi_start_h_ + roi_end_h_) * (jpp.ih - 1));
-                float in_x = (jpp.pooled_w > 1 ? (ow * width_scale  + roi_start_w_ * (jpp.iw - 1)) :
-                              0.5 * (roi_start_w_ + roi_end_w_) * (jpp.iw - 1));
+                float in_y, in_x;
+                // because of nonalgebraic character of floating point operation, some proposals can cause violation of inequality:
+                // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) <= (end_h - start_h) * (input_h - 1),
+                // and as result excess of right limit for proposal value,
+                // if the border case (current_h == pooled_h - 1) will not be handled explicitly
+                if (jpp.pooled_h > 1) {
+                    in_y = (oh == jpp.pooled_h - 1 ? roi_end_h_ * (jpp.ih - 1) : (oh * height_scale + roi_start_h_ * (jpp.ih - 1)));
+                } else {
+                    in_y = 0.5 * (roi_start_h_ + roi_end_h_) * (jpp.ih - 1);
+                }
+                if (jpp.pooled_w > 1) {
+                    in_x = (ow == jpp.pooled_w - 1 ? roi_end_w_ * (jpp.iw - 1) : (ow * width_scale  + roi_start_w_ * (jpp.iw - 1)));
+                } else {
+                    in_x = 0.5 * (roi_start_w_ + roi_end_w_) * (jpp.iw - 1);
+                }
 
                 if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
                     if (roi_pooling_kernel) {
                         arg.bin_area = 0;
                         arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
                     } else {
-                        for (int c = 0; c < c_block; c++) {
-                            dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                        for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                            int ch_blk_cur = cbb * cb_num + cbb_cur;
+                            if (ch_blk_cur >= jpp.nb_c) {
+                                break;  // current block work is done
+                            }
+                            for (int c = 0; c < c_block; c++) {
+                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                            }
                         }
                     }
                 } else {
@@ -636,21 +651,27 @@ void MKLDNNROIPoolingNode::execute() {
 
                         arg.bin_area = 1;
                     } else {
-                        for (int c = 0; c < 1; c++) {
-                            const float top_left     = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                top_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                            const float top_right    = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                top_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
-                            const float bottom_left  = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                bottom_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                            const float bottom_right = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
+                        for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                            int ch_blk_cur = cbb * cb_num + cbb_cur;
+                            if (ch_blk_cur >= jpp.nb_c) {
+                                break;  // current block work is done
+                            }
+                            for (int c = 0; c < c_block; c++) {
+                                const float top_left     = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    top_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
+                                const float top_right    = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    top_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
+                                const float bottom_left  = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    bottom_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
+                                const float bottom_right = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
 
-                            const float top    = top_left + (top_right - top_left) * (in_x - left_x_index);
-                            const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
+                                const float top    = top_left + (top_right - top_left) * (in_x - left_x_index);
+                                const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
 
-                            dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] =
-                                    top + (bottom - top) * (in_y - top_y_index);
+                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] =
+                                        top + (bottom - top) * (in_y - top_y_index);
+                            }
                         }
                     }
                 }

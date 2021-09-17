@@ -25,17 +25,13 @@ public:
     MOCK_METHOD1(Export, void(const std::string &));
     void Export(std::ostream &) override {};
     MOCK_METHOD0(QueryState, std::vector<IVariableStateInternal::Ptr>(void));
-    MOCK_METHOD0(GetExecGraphInfo, CNNNetwork(void));
+    MOCK_METHOD0(GetExecGraphInfo, std::shared_ptr<ngraph::Function>(void));
 
     MOCK_METHOD1(SetConfig, void(const std::map<std::string, Parameter> &config));
     MOCK_CONST_METHOD1(GetConfig, Parameter(const std::string &name));
     MOCK_CONST_METHOD1(GetMetric, Parameter(const std::string &name));
-    MOCK_CONST_METHOD0(GetContext, RemoteContext::Ptr(void));
+    MOCK_CONST_METHOD0(GetContext, std::shared_ptr<RemoteContext>(void));
     void WrapOstreamExport(std::ostream& networkModel) {
         IExecutableNetworkInternal::Export(networkModel);
-    }
-    const std::string exportString = "MockExecutableNetworkInternal";
-    void ExportImpl(std::ostream& networkModel) override {
-        networkModel << exportString << std::endl;
     }
 };

@@ -130,7 +130,7 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
         },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkMemoryCase, ImportMemoryTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkMemoryCase, ImportMemoryTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),

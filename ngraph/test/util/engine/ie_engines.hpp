@@ -113,11 +113,6 @@ namespace ngraph
             unsigned int m_allocated_inputs = 0;
             unsigned int m_allocated_expected_outputs = 0;
 
-            /// Upgrades functions containing legacy opset0 to opset1
-            /// and checks if the graph can be executed
-            std::shared_ptr<Function>
-                upgrade_and_validate_function(const std::shared_ptr<Function> function) const;
-
             /// Retrieves a set of all ops IE can execute
             std::set<NodeTypeInfo> get_ie_ops() const;
 
@@ -160,5 +155,5 @@ namespace ngraph
         {
             static constexpr bool value = true;
         };
-    }
-}
+    } // namespace test
+} // namespace ngraph

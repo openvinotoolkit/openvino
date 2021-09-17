@@ -10,9 +10,11 @@ using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
+enum ProposalGenerationMode { RANDOM, ULTIMATE_RIGHT_BORDER };
 
 using ROIPoolingCPUTestParamsSet = std::tuple<LayerTestsDefinitions::roiPoolingParamsTuple,
                                               CPUSpecificParams,
+                                              ProposalGenerationMode,
                                               std::map<std::string, std::string>>;
 
 class ROIPoolingCPULayerTest : public testing::WithParamInterface<ROIPoolingCPUTestParamsSet>,
@@ -22,9 +24,10 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<ROIPoolingCPUTestParamsSet> obj) {
         LayerTestsDefinitions::roiPoolingParamsTuple basicParamsSet;
         CPUSpecificParams cpuParams;
+        ProposalGenerationMode propMode;
         std::map<std::string, std::string> additionalConfig;
 
-        std::tie(basicParamsSet, cpuParams, additionalConfig) = obj.param;
+        std::tie(basicParamsSet, cpuParams, propMode, additionalConfig) = obj.param;
         std::ostringstream result;
 
         result << LayerTestsDefinitions::ROIPoolingLayerTest::getTestCaseName(
@@ -37,6 +40,15 @@ public:
                 if (item.second == PluginConfigParams::YES)
                     result << "_" << item.first << "=" << item.second;
             }
+        }
+        switch (propMode) {
+            case ProposalGenerationMode::ULTIMATE_RIGHT_BORDER:
+                result << "_UltimateRightBorderProposal";
+                break;
+            case ProposalGenerationMode::RANDOM:
+            default:
+                result << "_RandomProposal";
+                break;
         }
 
         return result.str();
@@ -55,6 +67,28 @@ protected:
         for (const auto &input : cnnNetwork.getInputsInfo()) {
             const auto &info = input.second;
             InferenceEngine::Blob::Ptr blob;
+            void (*propGenerator)(InferenceEngine::Blob::Ptr &);
+            switch (propMode) {
+                case ULTIMATE_RIGHT_BORDER:
+                    // because of nonalgebraic character of floating point operation, the following values causes inequity:
+                    // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) > (end_h - start_h) * (input_h - 1)
+                    // and as result excess of right limit for proposal value if the border case (current_h == pooled_h - 1)
+                    // will not be handled explicitly
+                    propGenerator = [](InferenceEngine::Blob::Ptr &blob) {
+                        auto *data = blob->buffer().as<float *>();
+                        for (size_t i = 0; i < blob->size(); i += 5) {
+                            data[i] = 0;
+                            data[i + 1] = 0.f;
+                            data[i + 2] = 0.248046786f;
+                            data[i + 3] = 0.471333951f;
+                            data[i + 4] = 1.f;
+                        }
+                    };
+                    break;
+                case RANDOM:
+                default:
+                    propGenerator = nullptr;
+            }
 
             if (it == 1) {
                 blob = make_blob_with_precision(info->getTensorDesc());
@@ -62,12 +96,12 @@ protected:
                 switch (inPrc) {
                 case Precision::FP32: {
                     CommonTestUtils::fill_data_roi<Precision::FP32>
-                        (blob, feat_map_shape[0] - 1, height, width, 1.0f, is_roi_max_mode);
+                        (blob, feat_map_shape[0] - 1, height, width, 1.0f, is_roi_max_mode, 1, propGenerator);
                     break;
                 }
                 case Precision::BF16: {
                     CommonTestUtils::fill_data_roi<Precision::BF16>
-                        (blob, feat_map_shape[0] - 1, height, width, 1.0f, is_roi_max_mode);
+                        (blob, feat_map_shape[0] - 1, height, width, 1.0f, is_roi_max_mode, 1, propGenerator);
                     break;
                 }
                 default:
@@ -92,7 +126,7 @@ protected:
         InferenceEngine::SizeVector poolShape;
         InferenceEngine::Precision netPrecision;
 
-        std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
+        std::tie(basicParamsSet, cpuParams, propMode, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(inputShape, coordsShape, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = basicParamsSet;
 
@@ -118,6 +152,7 @@ protected:
 private:
     ngraph::helpers::ROIPoolingTypes pool_method;
     float spatial_scale;
+    ProposalGenerationMode propMode;
 };
 
 TEST_P(ROIPoolingCPULayerTest, CompareWithRefs) {
@@ -186,18 +221,35 @@ const auto test_ROIPooling_bilinear = ::testing::Combine(::testing::ValuesIn(inS
                                                          ::testing::ValuesIn(netPRCs),
                                                          ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_ROIPoolingCPU_max,
+INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingCPU_max,
                         ROIPoolingCPULayerTest,
                         ::testing::Combine(test_ROIPooling_max,
                                            ::testing::ValuesIn(selectCPUInfoForDevice()),
+                                           ::testing::Values(ProposalGenerationMode::RANDOM),
                                            ::testing::ValuesIn(additionalConfig)),
                         ROIPoolingCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ROIPoolingCPU_bilinear,
+INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingCPU_bilinear,
                         ROIPoolingCPULayerTest,
                         ::testing::Combine(test_ROIPooling_bilinear,
                                            ::testing::ValuesIn(selectCPUInfoForDevice()),
+                                           ::testing::Values(ProposalGenerationMode::RANDOM),
                                            ::testing::ValuesIn(additionalConfig)),
+                        ROIPoolingCPULayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_ROIPoolingCPU_bilinear_ultimateRightBorderProposal,
+                        ROIPoolingCPULayerTest,
+                        ::testing::Combine(::testing::Combine(::testing::Values(std::vector<size_t> { 1, 1, 50, 50 }),
+                                                              ::testing::Values(std::vector<size_t> { 1, 5 }),
+                                                              ::testing::Values(std::vector<size_t> { 4, 4 }),
+                                                              ::testing::Values(spatial_scales[1]),
+                                                              ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
+                                                              ::testing::Values(InferenceEngine::Precision::FP32),
+                                                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                           ::testing::ValuesIn(selectCPUInfoForDevice()),
+                                           ::testing::Values(ProposalGenerationMode::ULTIMATE_RIGHT_BORDER),
+                                           ::testing::Values(std::map<std::string, std::string>{
+                                               {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}})),
                         ROIPoolingCPULayerTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

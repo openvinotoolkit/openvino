@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 #include "include/data_types.cl"
 
 #define WORK_GROUP_SIZE 16

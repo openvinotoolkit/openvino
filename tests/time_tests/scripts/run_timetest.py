@@ -12,7 +12,6 @@ collected statistics.
 
 import statistics
 import tempfile
-import subprocess
 import logging
 import argparse
 import sys
@@ -27,38 +26,14 @@ sys.path.append(TIME_TESTS_DIR)
 
 from test_runner.utils import filter_timetest_result
 
+UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
+sys.path.insert(0, str(UTILS_DIR))
 
-def run_cmd(args: list, log=None, verbose=True):
-    """ Run command
-    """
-    if log is None:
-        log = logging.getLogger('run_cmd')
-    log_out = log.info if verbose else log.debug
-
-    log.info(f'========== cmd: {" ".join(args)}')  # pylint: disable=logging-fstring-interpolation
-
-    proc = subprocess.Popen(args,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT,
-                            encoding='utf-8',
-                            universal_newlines=True)
-    output = []
-    for line in iter(proc.stdout.readline, ''):
-        log_out(line.strip('\n'))
-        output.append(line)
-        if line or proc.poll() is None:
-            continue
-        break
-    outs = proc.communicate()[0]
-
-    if outs:
-        log_out(outs.strip('\n'))
-        output.append(outs)
-    log.info('========== Completed. Exit code: %d', proc.returncode)
-    return proc.returncode, ''.join(output)
+from proc_utils import cmd_exec
+from path_utils import check_positive_int
 
 
-def parse_stats(stats: dict, res: dict):
+def parse_stats(stats: list, res: dict):
     """Parse raw statistics from nested list to flatten dict"""
     for element in stats:
         if isinstance(element, (int, float)):
@@ -100,11 +75,11 @@ def run_timetest(args: dict, log=None):
     stats = {}
     for run_iter in range(args["niter"]):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
-        retcode, msg = run_cmd(cmd_common + ["-s", str(tmp_stats_path)], log=log)
+        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
                       "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
-            return retcode, {}
+            return retcode, msg, {}, {}
 
         # Read raw statistics
         with open(tmp_stats_path, "r") as file:
@@ -129,16 +104,7 @@ def run_timetest(args: dict, log=None):
     aggregated_stats = aggregate_stats(filtered_stats)
     log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
 
-    return 0, aggregated_stats, stats
-
-
-def check_positive_int(val):
-    """Check argsparse argument is positive integer and return it"""
-    value = int(val)
-    if value < 1:
-        msg = "%r is less than 1" % val
-        raise argparse.ArgumentTypeError(msg)
-    return value
+    return 0, "", aggregated_stats, stats
 
 
 def cli_parser():
@@ -151,7 +117,7 @@ def cli_parser():
                         required=True,
                         dest="model",
                         type=Path,
-                        help='path to an .xml/.onnx/.prototxt file with a trained model or'
+                        help='path to an .xml/.onnx file with a trained model or'
                              ' to a .blob files with a trained compiled model')
     parser.add_argument('-d',
                         required=True,
@@ -178,7 +144,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
-    exit_code, aggr_stats, _ = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
+    exit_code, _, aggr_stats, _ = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
 
     if args.stats_path:
         # Save aggregated results to a file

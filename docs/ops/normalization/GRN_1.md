@@ -8,7 +8,7 @@
 
 **Detailed description**:
 
-*GRN* computes the L2 norm by channels for input tensor with shape `[N, C, ...]`. *GRN* does the following with the input tensor:
+*GRN* computes the L2 norm across channels for input tensor with shape `[N, C, ...]`. *GRN* does the following with the input tensor:
 
     output[i0, i1, ..., iN] = x[i0, i1, ..., iN] / sqrt(sum[j = 0..C-1](x[i0, j, ..., iN]**2) + bias)
 
@@ -16,24 +16,27 @@
 
 * *bias*
 
-  * **Description**: *bias* is added to the variance.
-  * **Range of values**: a non-negative floating point value
+  * **Description**: *bias* is added to the sum of squares.
+  * **Range of values**: a positive floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
 
-* **1**: Input tensor with element of any floating point type and `2 <= rank <=4`. Required.
+* **1**:  `data` - A tensor of type *T* and `2 <= rank <= 4`. **Required.**
 
 **Outputs**
 
-* **1**: Output tensor of the same type and shape as the input tensor.
+* **1**: The result of *GRN* function applied to `data` input tensor. Normalized tensor of the same type and shape as the data input.
+
+**Types**
+
+* *T*: arbitrary supported floating-point type.
 
 **Example**
 
 ```xml
-<layer id="5" name="normalization" type="GRN">
+<layer ... type="GRN">
     <data bias="1e-4"/>
     <input>
         <port id="0">

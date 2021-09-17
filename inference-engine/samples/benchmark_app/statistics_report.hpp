@@ -35,14 +35,14 @@ public:
         EXECUTION_RESULTS,
     };
 
-    explicit StatisticsReport(Config config): _config(std::move(config)) {
+    explicit StatisticsReport(Config config) : _config(std::move(config)) {
         _separator =
 #if defined _WIN32 || defined __CYGWIN__
-    #if defined UNICODE
+#    if defined UNICODE
             L"\\";
-    #else
+#    else
             "\\";
-    #endif
+#    endif
 #else
             "/";
 #endif

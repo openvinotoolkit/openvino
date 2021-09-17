@@ -9,7 +9,7 @@
 
 #include <ie_compound_blob.h>
 
-#include <cldnn/cldnn_config.hpp>
+#include <gpu/gpu_config.hpp>
 #include <remote_blob_tests/remote_blob_helpers.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
@@ -25,13 +25,13 @@ class RemoteBlob_Test : public CommonTestUtils::TestsCommon {
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
 
-    virtual void SetUp() {
+    void SetUp() override {
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
     }
 };
 
 TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
-#if defined(_WIN32) || defined(ANDROID)
+#if defined(ANDROID)
     GTEST_SKIP();
 #endif
     CNNNetwork net(fn_ptr);
@@ -39,7 +39,6 @@ TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
     net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
 
-    auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
     // TODO: Issue: investigate issue with IECore
     auto ie = InferenceEngine::Core();
     auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
@@ -86,9 +85,6 @@ TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
 }
 
 TEST_F(RemoteBlob_Test, smoke_canInferOnUserContext) {
-#if defined _WIN32
-    GTEST_SKIP();
-#endif
     auto fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
     CNNNetwork net(fn_ptr);
 
@@ -142,7 +138,7 @@ protected:
 };
 
 TEST_P(BatchedBlob_Test, canInputNV12) {
-#if defined(_WIN32) || defined(ANDROID)
+#if defined(ANDROID)
     GTEST_SKIP();
 #endif
     const int height = 16;
@@ -175,7 +171,7 @@ TEST_P(BatchedBlob_Test, canInputNV12) {
 
     /* XXX: is it correct to set KEY_CLDNN_NV12_TWO_INPUTS in case of remote blob? */
     auto exec_net_b = ie.LoadNetwork(net_remote, CommonTestUtils::DEVICE_GPU,
-                { { CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS, PluginConfigParams::YES} });
+                { { GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, PluginConfigParams::YES} });
     auto inf_req_remote = exec_net_b.CreateInferRequest();
     auto cldnn_context = exec_net_b.GetContext();
     cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
@@ -269,21 +265,29 @@ TEST_P(BatchedBlob_Test, canInputNV12) {
 
 const std::vector<size_t> num_batches{1, 2, 4};
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlob, BatchedBlob_Test, ::testing::ValuesIn(num_batches), BatchedBlob_Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, BatchedBlob_Test, ::testing::ValuesIn(num_batches), BatchedBlob_Test::getTestCaseName);
 
-class TwoNets_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
+using TwoNetsParams = std::tuple<size_t,   // number of streams
+                                 size_t>;  // number of requests
+
+class TwoNets_Test : public CommonTestUtils::TestsCommon,
+    public testing::WithParamInterface<TwoNetsParams> {
     void SetUp() override {
-        num_streams = this->GetParam();
+        std::tie(num_streams, num_requests) = this->GetParam();
         fn_ptrs = {ngraph::builder::subgraph::makeSplitMultiConvConcat(),
                    ngraph::builder::subgraph::makeMultiSingleConv()};
     };
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<std::size_t> &obj) {
-        return "num_streams_" + std::to_string(obj.param);
+    static std::string getTestCaseName(const testing::TestParamInfo<TwoNetsParams>& obj) {
+        size_t streams, requests;
+        std::tie(streams, requests) = obj.param;
+        return "_num_streams_" + std::to_string(streams) + "_num_req_" +
+            std::to_string(requests);
     }
 
 protected:
     size_t num_streams;
+    size_t num_requests;
     std::vector<std::shared_ptr<ngraph::Function>> fn_ptrs;
 };
 
@@ -309,7 +313,7 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
         auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU,
                                        {{PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(num_streams)}});
 
-        for (int j = 0; j < num_streams; j++) {
+        for (int j = 0; j < num_streams * num_requests; j++) {
             outputs.push_back(net.getOutputsInfo().begin()->first);
 
             auto inf_req = exec_net.CreateInferRequest();
@@ -355,6 +359,10 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
     }
 }
 
-const std::vector<size_t> num_streams{1, 2};
+const std::vector<size_t> num_streams{ 1, 2 };
+const std::vector<size_t> num_requests{ 1, 4 };
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlob, TwoNets_Test, ::testing::ValuesIn(num_streams), TwoNets_Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, TwoNets_Test,
+    ::testing::Combine(::testing::ValuesIn(num_streams),
+        ::testing::ValuesIn(num_requests)),
+    TwoNets_Test::getTestCaseName);

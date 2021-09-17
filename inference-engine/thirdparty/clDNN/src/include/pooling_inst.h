@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/pooling.hpp"
+#include "cldnn/primitives/pooling.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <memory>
 
@@ -14,7 +15,7 @@ namespace cldnn {
 template <>
 struct typed_program_node<pooling> : public typed_program_node_base<pooling> {
     using parent = typed_program_node_base<pooling>;
-    typed_program_node(const std::shared_ptr<pooling> prim, program_impl& prog) : parent(prim, prog) {
+    typed_program_node(const std::shared_ptr<pooling> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
     }
 

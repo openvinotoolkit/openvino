@@ -10,7 +10,7 @@
 using namespace SubgraphTestsDefinitions;
 
 namespace {
-    INSTANTIATE_TEST_CASE_P(smoke_Check, TensorNamesTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Check, TensorNamesTest,
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             TensorNamesTest::getTestCaseName);
 }  // namespace

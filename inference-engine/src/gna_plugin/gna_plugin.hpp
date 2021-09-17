@@ -21,7 +21,6 @@
 #include "backend/am_intel_dnn.hpp"
 #include "gna_data_types.hpp"
 #include "gna_graph_compiler.hpp"
-#include "gna_plugin_policy.hpp"
 #include "gna_plugin_log.hpp"
 #include "gna_plugin_config.hpp"
 #include <legacy/ie_util_internal.hpp>
@@ -69,8 +68,6 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 
     intel_dnn_number_type_t output_type = kDnnInt;
 
-    GNAPluginNS::Policy policy;
-
 #if GNA_LIB_VER == 2
     void createRequestConfigsForGnaModels();
 #endif
@@ -117,8 +114,12 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;
-    InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& params) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const InferenceEngine::ParamMap&) override { THROW_GNA_EXCEPTION << "Not implemented"; }
+    std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
+    std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(const InferenceEngine::ParamMap&) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
 
     void Wait(uint32_t sync, InferenceEngine::Blob &result) { THROW_GNA_EXCEPTION << "Not implemented"; }
 
@@ -129,7 +130,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
-                                                     const InferenceEngine::RemoteContext::Ptr& context,
+                                                     const std::shared_ptr<InferenceEngine::RemoteContext>& context,
                                                      const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
@@ -157,11 +158,6 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState();
-
-     /**
-      * test-wise API
-      */
-     void SetPolicy(GNAPluginNS::Policy p) {policy = p;}
 
      /**
       * QueryMetrics API
@@ -217,6 +213,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void UpdateFieldsFromConfig();
     void UpdateGnaQuantModeFromNetwork(InferenceEngine::CNNNetwork &);
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork &);
+    void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork &);
     /**
      * @brief Tries to init an output on the base of a layer data
      * @param portId output port identificator

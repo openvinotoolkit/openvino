@@ -1,10 +1,4 @@
-fake_quantize_pdpd
-
-INTERPRETER.onnx_model_quant_conv_linear
 INTERPRETER.onnx_top_k_opset_10
-
-reduce_sum_large_1d_to_scalar
-reduce_sum_keep_large_1d_to_scalar
 
 # Temporarily disabled:
 INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
@@ -31,21 +25,6 @@ INTERPRETER.onnx_model_matmul_integer_4d_no_zero_point
 # Disabled tests for disabled reference implementations
 INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
 INTERPRETER.sum_2d_to_scalar_int8
-INTERPRETER.sum_trivial_in_double
-INTERPRETER.reduce_sum_2d_to_scalar_int8
-INTERPRETER.reduce_sum_trivial_in_double
-INTERPRETER.reduce_sum_keep_2d_to_scalar_int8
-INTERPRETER.reduce_sum_keep_trivial_in_double
-INTERPRETER.reduce_product_to_scalar_int8
-INTERPRETER.reduce_product_keep_to_scalar_int8
-INTERPRETER.reduce_min_to_scalar_int8
-INTERPRETER.reduce_min_keep_to_scalar_int8
-INTERPRETER.reduce_mean_to_scalar_int8
-INTERPRETER.reduce_mean_keep_to_scalar_int8
-INTERPRETER.reduce_max_to_scalar_int8
-INTERPRETER.reduce_max_3d_to_scalar_double
-INTERPRETER.reduce_max_keep_to_scalar_int8
-INTERPRETER.reduce_max_keep_3d_to_scalar_double
 INTERPRETER.product_to_scalar_int8
 INTERPRETER.max_pool_uint8
 INTERPRETER.max_pool_int8
@@ -100,8 +79,6 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
-INTERPRETER.onnx_model_quant_conv_linear_2d
-INTERPRETER.onnx_model_quant_conv_linear_3d
 INTERPRETER.onnx_model_conv_integer
 INTERPRETER.onnx_model_conv_integer_zero_point_zero
 INTERPRETER.onnx_model_conv_integer_no_zero_point
@@ -151,14 +128,15 @@ quantize_clamp_int32
 # u16 type is not supported in Minimum evaluate method
 minimum_u16
 
-# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronTopKROIs
-INTERPRETER.onnx_model_experimental_detectron_topk_rios
-
-# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronGenerateProposalsSingleImage
-INTERPRETER.onnx_model_experimental_detectron_generate_proposals_single_image
-
 # Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronROIFeatureExtractor
 INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
 
 # No evaluator for DeformableConv2D
 onnx_model_deformable_conv_2d
+
+# No support for unsigned types
+INTERPRETER.zero_sized_negative
+
+# No support yet for RandomUniform
+INTERPRETER.onnx_model_random_uniform
+INTERPRETER.onnx_model_random_uniform_like

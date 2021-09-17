@@ -41,13 +41,13 @@ std::vector<InferenceEngine::Precision> precisionsWithNegativeValues = {
 std::vector<std::string> dataWithNegativeValues = {"1", "-2", "3", "-4", "5", "-6",
                                                    "7", "-1", "2", "-3", "4", "-5"};
 
-INSTANTIATE_TEST_CASE_P(smoke_Constant_Serialization, ConstantLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Constant_Serialization, ConstantLayerTest,
                         ::testing::Combine(::testing::ValuesIn(shapes),
                                            ::testing::ValuesIn(precisions), ::testing::Values(data),
                                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConstantLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Constant_Serialization_with_negative_values, ConstantLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Constant_Serialization_with_negative_values, ConstantLayerTest,
                         ::testing::Combine(::testing::ValuesIn(shapes),
                                            ::testing::ValuesIn(precisionsWithNegativeValues),
                                            ::testing::Values(dataWithNegativeValues),

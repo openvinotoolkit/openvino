@@ -60,6 +60,8 @@ MKLDNNPlugin::ReshapeFullyConnected::ReshapeFullyConnected() {
                                                                         fc->input_value(2),
                                                                         output_shape_new,
                                                                         fc->get_output_type());
+        } else {
+            return false;
         }
         new_ops.push_back(fc_new);
 

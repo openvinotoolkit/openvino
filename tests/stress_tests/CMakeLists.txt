@@ -4,36 +4,30 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_EXTENSIONS OFF)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+endif()
+
 if (CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-set (GFLAGS_IS_SUBPROJECT TRUE)
-set (HAVE_SYS_STAT_H 1)
-set (HAVE_INTTYPES_H 1)
-set (INTTYPES_FORMAT C99)
-set (BUILD_TESTING OFF)
+# Define directory where artifacts will be placed
+set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
-find_package(InferenceEngineDeveloperPackage REQUIRED)
+# Search OpenVINO Inference Engine installed
+find_package(OpenVINO REQUIRED)
 
-set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
+set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
-if(EXISTS "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/samples/thirdparty/gflags")
-    function(add_gflags)
-        if(NOT WIN32)
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-all")
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
-        endif()
-        set(BUILD_SHARED_LIBS OFF)
-        add_subdirectory(${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/samples/thirdparty/gflags
-                         ${CMAKE_CURRENT_BINARY_DIR}/gflags_build
-                         EXCLUDE_FROM_ALL)
-        set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
-    endfunction()
-    add_gflags()
-endif()
-
+add_subdirectory(common)
 add_subdirectory(unittests)
 add_subdirectory(memleaks_tests)
 add_subdirectory(memcheck_tests)
+
+install(DIRECTORY scripts/ DESTINATION tests/stress_tests/scripts COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY .automation/ DESTINATION tests/stress_tests/.automation COMPONENT tests EXCLUDE_FROM_ALL)

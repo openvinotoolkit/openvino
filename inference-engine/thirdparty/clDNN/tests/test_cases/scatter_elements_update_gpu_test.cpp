@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
+#include "test_utils.h"
 
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/scatter_elements_update.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/scatter_elements_update.hpp>
+#include <cldnn/runtime/memory.hpp>
+#include <cldnn/graph/topology.hpp>
+#include <cldnn/graph/network.hpp>
 
 #include <cstddef>
-#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -42,11 +40,11 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF) {
     //  10.f, 11.f, 5.f, 4.f,
     //  1.f, 7.f, 12.f, 13.f
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 4, 1, 1 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Updates
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 4, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Updates
     auto axis = cldnn::scatter_elements_update::scatter_elements_update_axis::along_f;
 
     set_values(input1, {
@@ -65,9 +63,9 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF) {
     });
 
     topology topology;
-    topology.add(input_layout("InputData", input1.get_layout()));
-    topology.add(input_layout("InputIndices", input2.get_layout()));
-    topology.add(input_layout("InputUpdates", input3.get_layout()));
+    topology.add(input_layout("InputData", input1->get_layout()));
+    topology.add(input_layout("InputIndices", input2->get_layout()));
+    topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
         scatter_elements_update("scatter_elements_update", "InputData", "InputIndices", "InputUpdates", axis)
     );
@@ -81,7 +79,7 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF) {
     auto outputs = network.execute();
 
     auto output = outputs.at("scatter_elements_update").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         10.f, 11.f, 5.f, 4.f,

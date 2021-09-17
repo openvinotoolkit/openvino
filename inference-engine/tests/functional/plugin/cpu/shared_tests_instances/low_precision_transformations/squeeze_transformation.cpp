@@ -18,8 +18,8 @@ namespace {
 
     const std::vector<LayerTransformation::Params> trasformationParamValues = {
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(false),
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(true),
+        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(false),
+        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(true),
     };
 
     const std::vector<LayerTestsDefinitions::SqueezeTransformationParam> params = {
@@ -45,7 +45,7 @@ namespace {
         }
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_LPT, SqueezeTransformation,
+    INSTANTIATE_TEST_SUITE_P(smoke_LPT, SqueezeTransformation,
         ::testing::Combine(
             ::testing::ValuesIn(precisions),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),

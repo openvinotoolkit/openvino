@@ -15,6 +15,7 @@
 #include <memory>
 
 #include <cpp/ie_cnn_network.h>
+#include <ngraph/function.hpp>
 
 namespace InferenceEngine {
 class CNNLayer;
@@ -129,4 +130,12 @@ inline std::string GetTimestamp() {
     return std::to_string(ns.count());
 }
 
+inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, std::string>& config) {
+    os << "(";
+    for (const auto& configItem : config) {
+        os << configItem.first << "=" << configItem.second << "_";
+    }
+    os << ")";
+    return os;
+}
 }  // namespace CommonTestUtils

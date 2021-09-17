@@ -37,7 +37,7 @@ Detailed information on how to convert models from the <a href="https://github.c
 
 **Supported Pre-Trained Topologies from TensorFlow 1 Detection Model Zoo**
 
-Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models zoo that are supported.
+Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Object Detection Models Zoo</a> and <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Object Detection Models Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models Zoo that are supported.
 
 | Model Name| TensorFlow 1 Object Detection API Models|
 | :------------- | -----:|
@@ -161,7 +161,7 @@ Where `HEIGHT` and `WIDTH` are the input images height and width for which the m
 * [GNMT](https://github.com/tensorflow/nmt) topology can be converted using [these instructions](tf_specific/Convert_GNMT_From_Tensorflow.md).
 * [BERT](https://github.com/google-research/bert) topology can be converted using [these instructions](tf_specific/Convert_BERT_From_Tensorflow.md).
 * [XLNet](https://github.com/zihangdai/xlnet) topology can be converted using [these instructions](tf_specific/Convert_XLNet_From_Tensorflow.md).
-
+* [Attention OCR](https://github.com/emedvedev/attention-ocr) topology can be converted using [these instructions](tf_specific/Convert_AttentionOCR_From_Tensorflow.md).
   
 
 ## Loading Non-Frozen Models to the Model Optimizer <a name="loading-nonfrozen-models"></a>
@@ -178,7 +178,7 @@ There are three ways to store non-frozen TensorFlow models and load them to the 
 
     To convert such a TensorFlow model:
 
-    1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
+    1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
     2. Run the `mo_tf.py` script with the path to the checkpoint file to convert a model and an output directory where you have write permissions:
 
     * If input model is in `.pb` format:<br>
@@ -200,7 +200,7 @@ python3 mo_tf.py --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT
 
     To convert such TensorFlow model:
 
-    1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
+    1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
     2. Run the `mo_tf.py` script with a path to the MetaGraph `.meta` file and a writable output directory to convert a model:<br>
 ```sh
 python3 mo_tf.py --input_meta_graph <INPUT_META_GRAPH>.meta --output_dir <OUTPUT_MODEL_DIR>
@@ -212,7 +212,7 @@ python3 mo_tf.py --input_meta_graph <INPUT_META_GRAPH>.meta --output_dir <OUTPUT
 
     To convert such TensorFlow model:
 
-    1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
+    1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
     2. Run the `mo_tf.py` script with a path to the SavedModel directory and a writable output directory to convert a model:<br>
 ```sh
 python3 mo_tf.py --saved_model_dir <SAVED_MODEL_DIRECTORY> --output_dir <OUTPUT_MODEL_DIR>
@@ -251,7 +251,7 @@ Where:
 
 To convert a TensorFlow model:
 
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
+1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
 2. Use the `mo_tf.py` script to simply convert a model with the path to the input model `.pb` file and a writable output directory:
 ```sh
 python3 mo_tf.py --input_model <INPUT_MODEL>.pb --output_dir <OUTPUT_MODEL_DIR>
@@ -342,7 +342,7 @@ Below are the instructions on how to convert each of them.
 
 A model in the SavedModel format consists of a directory with a `saved_model.pb` file and two subfolders: `variables` and `assets`. 
 To convert such a model:
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
+1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory.
 2. Run the `mo_tf.py` script with a path to the SavedModel directory and a writable output directory:
 ```sh
 python3 mo_tf.py --saved_model_dir <SAVED_MODEL_DIRECTORY> --output_dir <OUTPUT_MODEL_DIR>
@@ -405,10 +405,8 @@ Refer to [Supported Framework Layers ](../Supported_Frameworks_Layers.md) for th
 The Model Optimizer provides explanatory messages if it is unable to run to completion due to issues like typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md). The FAQ has instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
 
 ## Video: Converting a TensorFlow Model
-[![](https://img.youtube.com/vi/QW6532LtiTc/0.jpg)](https://www.youtube.com/watch?v=QW6532LtiTc)
-\htmlonly
+
 <iframe width="560" height="315" src="https://www.youtube.com/embed/QW6532LtiTc" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\endhtmlonly
 
 ## Summary
 In this document, you learned:

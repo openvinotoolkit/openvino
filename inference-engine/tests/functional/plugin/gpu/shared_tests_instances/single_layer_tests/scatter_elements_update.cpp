@@ -43,6 +43,6 @@ const auto ScatterEltUpdateCases = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ScatterEltsUpdate, ScatterElementsUpdateLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterEltsUpdate, ScatterElementsUpdateLayerTest,
     ScatterEltUpdateCases, ScatterElementsUpdateLayerTest::getTestCaseName);
 }  // namespace

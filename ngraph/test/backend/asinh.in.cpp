@@ -31,21 +31,33 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, asinh)
-{
+NGRAPH_TEST(${BACKEND_NAME}, asinh) {
     Shape shape{11};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Asinh>(A), ParameterVector{A});
 
     vector<float> input{0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f, 5.f, 10.f, 100.f};
     vector<float> expected;
-    for (float f : input)
-    {
+    for (float f : input) {
         expected.push_back(std::asinh(f));
     }
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(input);
     test_case.add_expected_output<float>(shape, expected);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, asinh_i32) {
+    Shape shape{11};
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto f = make_shared<Function>(make_shared<op::Asinh>(A), ParameterVector{A});
+
+    vector<int> input{-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5};
+    vector<int> expected{-2, -2, -2, -1, -1, 0, 1, 1, 2, 2, 2};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int>(input);
+    test_case.add_expected_output<int>(shape, expected);
     test_case.run();
 }

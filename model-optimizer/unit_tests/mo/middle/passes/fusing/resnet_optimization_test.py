@@ -407,9 +407,6 @@ class ResnetOptimizationTests(unittest.TestCase):
         graph.graph['layout'] = 'NCHW'
         graph_ref.graph['layout'] = 'NCHW'
 
-        #        dump_graph_for_graphviz(graph)
-        #        dump_graph_for_graphviz(graph_ref)
-
         stride_optimization(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'conv_3_data', check_op_attrs=True)
@@ -510,9 +507,6 @@ class ResnetOptimizationTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NCHW'
         graph_ref.graph['layout'] = 'NCHW'
-
-        #        dump_graph_for_graphviz(graph)
-        #        dump_graph_for_graphviz(graph_ref)
 
         stride_optimization(graph)
 

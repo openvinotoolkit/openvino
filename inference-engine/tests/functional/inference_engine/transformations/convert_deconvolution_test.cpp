@@ -76,7 +76,7 @@ TEST_P(ConvertDeconvolutionTest, CompareFunctions) {
     ASSERT_TRUE(orig_shape.same_scheme(f->get_output_partial_shape(0))) << "Shape " << orig_shape << " is not equal to " << f->get_output_partial_shape(0);
 }
 
-INSTANTIATE_TEST_CASE_P(ConvertDeconvolution, ConvertDeconvolutionTest,
+INSTANTIATE_TEST_SUITE_P(ConvertDeconvolution, ConvertDeconvolutionTest,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{3, 8, 1, 2, 3}),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{3, 8, 1, 2, 3}),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{3, 9, 2, 3, 1}),

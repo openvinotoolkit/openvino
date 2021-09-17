@@ -55,7 +55,7 @@ const std::vector<std::pair<SizeVector, SizeVector>> shapes_3D = {
         std::pair<SizeVector, SizeVector>{ SizeVector{2, 3, 3}, SizeVector{2, 3, 3}},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MVNMultiplyAdd_1D, MVNMultiplyAdd,
+INSTANTIATE_TEST_SUITE_P(smoke_MVNMultiplyAdd_1D, MVNMultiplyAdd,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shapes_1D),
                                 ::testing::ValuesIn(netPrecision),
@@ -67,7 +67,7 @@ INSTANTIATE_TEST_CASE_P(smoke_MVNMultiplyAdd_1D, MVNMultiplyAdd,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         MVNMultiplyAdd::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_MVNMultiplyAdd_2D, MVNMultiplyAdd,
+INSTANTIATE_TEST_SUITE_P(smoke_MVNMultiplyAdd_2D, MVNMultiplyAdd,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shapes_2D),
                                 ::testing::ValuesIn(netPrecision),
@@ -79,7 +79,7 @@ INSTANTIATE_TEST_CASE_P(smoke_MVNMultiplyAdd_2D, MVNMultiplyAdd,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         MVNMultiplyAdd::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_MVNMultiplyAdd_3D, MVNMultiplyAdd,
+INSTANTIATE_TEST_SUITE_P(smoke_MVNMultiplyAdd_3D, MVNMultiplyAdd,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shapes_3D),
                                 ::testing::ValuesIn(netPrecision),

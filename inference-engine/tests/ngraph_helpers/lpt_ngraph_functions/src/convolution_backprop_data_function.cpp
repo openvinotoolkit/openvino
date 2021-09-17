@@ -13,7 +13,6 @@
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph::pass::low_precision;
@@ -24,7 +23,7 @@ namespace subgraph {
 
 std::shared_ptr<Function> ConvolutionBackpropDataFunction::get(
     const element::Type netPrecision,
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const Shape& outputShape,
     const builder::subgraph::FakeQuantizeOnData& fqOnData,
     const std::shared_ptr<Node>& weights) {
@@ -38,6 +37,7 @@ std::shared_ptr<Function> ConvolutionBackpropDataFunction::get(
         CoordinateDiff{ 0, 0 },
         CoordinateDiff{ 0, 0 },
         Strides{ 1, 1 });
+    convolutionBackpropData->set_friendly_name("convolutionBackpropData");
 
     ngraph::ResultVector results{ std::make_shared<opset1::Result>(convolutionBackpropData) };
     return std::make_shared<ngraph::Function>(results, ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
@@ -81,7 +81,7 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
         dequantizationStructure.subtract.constantPrecision = dequantizationOnWeights.subtract.constantPrecision;
     }
     if (weights->get_element_type().is_real()) {
-        weights = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(weights, netPrecision));
+        weights = ov::as_type_ptr<opset1::Constant>(fold<opset1::Convert>(weights, netPrecision));
     }
     const auto dq = makeDequantization(weights, dequantizationStructure);
 
@@ -91,7 +91,7 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
 std::shared_ptr<Function> ConvolutionBackpropDataFunction::getOriginal(
     const element::Type precision,
     const element::Type netPrecision,
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const Shape& outputShape,
     const builder::subgraph::DequantizationOperations& dequantization,
     const std::shared_ptr<Node>& weights) {
@@ -116,7 +116,7 @@ std::shared_ptr<Function> ConvolutionBackpropDataFunction::getOriginal(
 std::shared_ptr<Function>  ConvolutionBackpropDataFunction::getReference(
     const element::Type precision,
     const element::Type netPrecision,
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const Shape& outputShape,
     const builder::subgraph::DequantizationOperations& dequantization,
     const std::shared_ptr<Node>& weights,
