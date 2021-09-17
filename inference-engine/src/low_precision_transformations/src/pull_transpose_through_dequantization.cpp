@@ -30,15 +30,15 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& transp
         elementwiseValuesConvert->get_input_node_shared_ptr(0ul);
     assert(ov::is_type<opset1::Constant>(elementwiseValues));
 
-    const auto transposeValuesShape = transposeValues->output(0).get_shape();
-    const auto elementwiseValuesShape = elementwiseValues->output(0).get_shape();
+    const auto transposeValuesShape = transposeValues->get_output_shape(0);
+    const auto elementwiseValuesShape = elementwiseValues->get_output_shape(0);
     if (elementwiseValuesShape.size() != shape_size(transposeValuesShape)) {
         if (shape_size(elementwiseValuesShape) != 1ul) {
             return nullptr;
         }
 
         elementwiseValues = ngraph::pass::low_precision::fold<opset1::Broadcast>(
-            elementwiseValues->output(0),
+            elementwiseValues,
             std::make_shared<opset1::Constant>(
                 element::i64,
                 Shape{ shape_size(transposeValuesShape) },
@@ -48,18 +48,18 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& transp
 
     const std::shared_ptr<opset1::Transpose> newTranspose = ov::as_type_ptr<opset1::Transpose>(transpose->clone_with_new_inputs({
         elementwise->get_input_node_shared_ptr(0ul),
-        transposeValues->output(0) }));
+        transposeValues }));
 
     const auto newElementwiseValues = ngraph::pass::low_precision::fold<opset1::Transpose>(
-        elementwiseValues->output(0),
-        transposeValues->output(0));
+        elementwiseValues,
+        transposeValues);
     assert(ov::is_type<opset1::Constant>(newElementwiseValues));
 
     const auto newElementwise = elementwise->clone_with_new_inputs({
-        newTranspose->output(0),
+        newTranspose,
         elementwiseValuesConvert == nullptr ?
-            newElementwiseValues->output(0) :
-            std::make_shared<opset1::Convert>(newElementwiseValues->output(0), elementwiseValuesConvert->get_destination_type()) });
+            newElementwiseValues :
+            std::make_shared<opset1::Convert>(newElementwiseValues, elementwiseValuesConvert->get_destination_type()) });
 
     replace_node(transpose, newElementwise);
     copy_runtime_info({ elementwise, transpose }, { newTranspose, newElementwise });
@@ -78,7 +78,7 @@ std::shared_ptr<Node> moveThroughConvert(const std::shared_ptr<Node>& transpose,
 
 void fuseConstant(const std::shared_ptr<Node>& transpose, const std::shared_ptr<Node>& constant) {
     const auto newConstant = ngraph::pass::low_precision::fold<opset1::Transpose>(
-        constant->output(0),
+        constant,
         transpose->input_value(1));
 
     replace_node(transpose, newConstant);

@@ -67,7 +67,7 @@ bool PadTransformation::transform(TransformationContext& context, ngraph::patter
             bcastedShape[padIdx] = inputPShape[padIdx].get_length();
 
             const auto bCastConst = opset1::Constant::create(element::i32, Shape{bcastedShape.size()}, bcastedShape);
-            return ov::as_type_ptr<opset1::Constant>(fold<opset1::Broadcast>(constant->output(0), bCastConst->output(0)));
+            return ov::as_type_ptr<opset1::Constant>(fold<opset1::Broadcast>(constant, bCastConst));
         };
 
         if (dequantization.subtract && shape_size(dequantization.subtractConstant->get_shape()) == 1ul) {
@@ -113,7 +113,7 @@ bool PadTransformation::transform(TransformationContext& context, ngraph::patter
             const auto beginConst = opset1::Constant::create(element::u32, { padsForConstantBegin.size() }, padsForConstantBegin);
             const auto endConst = opset1::Constant::create(element::u32, { padsForConstantEnd.size() }, padsForConstantEnd);
             const auto padValueConstant = opset1::Constant::create(constant->get_element_type(), Shape{}, { padVal });
-            const auto foldedConstant = fold<opset1::Pad>(constant->output(0), beginConst, endConst, padValueConstant, padMode);
+            const auto foldedConstant = fold<opset1::Pad>(constant, beginConst, endConst, padValueConstant, padMode);
             return ov::as_type_ptr<opset1::Constant>(foldedConstant);
         } else {
             return constant;

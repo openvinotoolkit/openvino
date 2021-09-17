@@ -55,10 +55,10 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
 
     const auto value = multiplyConstant->get_output_element_type(0) == element::f32 ?
         multiplyConstant :
-        foldConvert(multiplyConstant->output(0), deqPrecision);
+        foldConvert(multiplyConstant, deqPrecision);
 
-    outputLowConst_f32 = fold<opset1::Multiply>(outputLowConst_f32->output(0), value);
-    outputHighConst_f32 = fold<opset1::Multiply>(outputHighConst_f32->output(0), value);
+    outputLowConst_f32 = fold<opset1::Multiply>(outputLowConst_f32, value);
+    outputHighConst_f32 = fold<opset1::Multiply>(outputHighConst_f32, value);
 
     const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
     const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
@@ -70,10 +70,10 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
             fakeQuantize->input_value(0),
-            inputLow->output(0),
-            inputHigh->output(0),
-            outputLowConst_f32->output(0),
-            outputHighConst_f32->output(0),
+            inputLow,
+            inputHigh,
+            outputLowConst_f32,
+            outputHighConst_f32,
             fakeQuantize->get_levels()),
         multiply->get_output_element_type(0));
 

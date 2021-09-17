@@ -177,12 +177,12 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         //         SC1' = SC1 / SC2
         //         SH1' = SH1 + SC2 * SH2 / SC1
         auto newSubtractFullPathValues = fold<opset1::Add>(
-            subtractFullPathValues->output(0),
+            subtractFullPathValues,
             fold<opset1::Divide>(
-                fold<opset1::Multiply>(subtractEmptyPathValues->output(0), multiplyEmptyPathValues->output(0)),
-                multiplyFullPathValues->output(0)));
+                fold<opset1::Multiply>(subtractEmptyPathValues, multiplyEmptyPathValues),
+                multiplyFullPathValues));
 
-        auto newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues->output(0), multiplyEmptyPathValues->output(0));
+        auto newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
 
         if (NetworkHelper::isZeroConst(newSubtractFullPathValues)) {
             newSubtractFullPathValues = nullptr;
@@ -209,8 +209,8 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
                     fullPathInput.get_element_type() != newSubtractFullPathValues->get_element_type() ?
                         std::make_shared<opset1::Convert>(fullPathInput, newSubtractFullPathValues->get_element_type()) :
                         fullPathInput,
-                    newSubtractFullPathValues->output(0)),
-            newMultiplyFullPathValues->output(0));
+                    newSubtractFullPathValues),
+            newMultiplyFullPathValues);
 
         newAddOrSubtract = std::make_shared<op::TypeRelaxed<opset1::Add>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
@@ -218,8 +218,8 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
             ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ add->get_output_element_type(0) },
-            ngraph::op::TemporaryReplaceOutputType(newAddOrSubtract->output(0), element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(multiplyEmptyPathValues->output(0), element::f32).get());
+            ngraph::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
 
         replace_node(add, newMultiply);
         NetworkHelper::copyInfo(add, newAddOrSubtract);

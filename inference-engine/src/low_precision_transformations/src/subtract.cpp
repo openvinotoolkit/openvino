@@ -62,8 +62,8 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
         }));
 
         std::shared_ptr<Node> newMultiply = dequantization.multiply->copy_with_new_inputs({
-            newSubtract->output(0),
-            dequantization.multiplyConstant->output(0)
+            newSubtract,
+            dequantization.multiplyConstant
         });
 
         replace_node(subtract, newMultiply);
@@ -73,7 +73,7 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
     if (dequantization.subtract != nullptr) {
         std::shared_ptr<opset1::Subtract> newSubtract = ov::as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
             dequantization.subtract->input_value(0),
-            fold<ngraph::opset1::Add>(subtract->input_value(1), dequantization.subtractConstant->output(0))
+            fold<ngraph::opset1::Add>(subtract->input_value(1), dequantization.subtractConstant)
         }));
 
         replace_node(subtract, newSubtract);

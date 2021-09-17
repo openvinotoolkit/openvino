@@ -54,10 +54,10 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
 
     const auto value = subtractConstant->get_output_element_type(0) == element::f32 ?
         subtractConstant :
-        foldConvert(subtractConstant->output(0), deqPrecision);
+        foldConvert(subtractConstant, deqPrecision);
 
-    outputLowConst_f32 = fold<opset1::Subtract>(outputLowConst_f32->output(0), value);
-    outputHighConst_f32 = fold<opset1::Subtract>(outputHighConst_f32->output(0), value);
+    outputLowConst_f32 = fold<opset1::Subtract>(outputLowConst_f32, value);
+    outputHighConst_f32 = fold<opset1::Subtract>(outputHighConst_f32, value);
 
     const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
     const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
@@ -69,10 +69,10 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
             fakeQuantize->input_value(0),
-            inputLow->output(0),
-            inputHigh->output(0),
-            outputLowConst_f32->output(0),
-            outputHighConst_f32->output(0),
+            inputLow,
+            inputHigh,
+            outputLowConst_f32,
+            outputHighConst_f32,
             fakeQuantize->get_levels()),
         subtract->get_output_element_type(0));
 

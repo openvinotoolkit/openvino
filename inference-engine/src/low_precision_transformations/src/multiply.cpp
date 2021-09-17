@@ -88,8 +88,8 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             ngraph::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(
                 fold<opset1::Multiply>(
-                    foldConvert(multiplyParentConst, element::f32)->output(0),
-                    foldConvert(constParent, element::f32)->output(0)),
+                    foldConvert(multiplyParentConst, element::f32),
+                    foldConvert(constParent, element::f32)),
                 element::f32).get());
 
         NetworkHelper::copyInfo(multiplyParent.get_node_shared_ptr(), newMultiply);
@@ -127,15 +127,15 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         // before: Y = (SC1 * (X1 - SH1)) * (SC2 * X2)
         // after : Y = (SC1' * (X1 - SH1)) * (X2) , where :
         //         SC1' = SC1 * SC2
-        auto newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath->output(0), multiplyValuesFullPath->output(0));
+        auto newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         OutputVector inputs{ {}, {} };
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
         inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
             dequantizationFullPath.subtract == nullptr ?
                 (dequantizationFullPath.convert == nullptr ?
-                    dequantizationFullPath.data : dequantizationFullPath.convert->output(0)) :
-                dequantizationFullPath.subtract->output(0),
-            newMultiplyValuesFullPath->output(0));
+                    dequantizationFullPath.data : dequantizationFullPath.convert) :
+                dequantizationFullPath.subtract,
+            newMultiplyValuesFullPath);
 
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},

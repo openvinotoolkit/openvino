@@ -61,7 +61,7 @@ static std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const
 
     if ((shape.size() > 1ul) && (shape.size() < static_cast<size_t>(targetShape.rank().get_length()))) {
         constantOp = fold<opset1::Unsqueeze>(
-            constantOp->output(0),
+            constantOp,
             std::make_shared<opset1::Constant>(ngraph::element::i32, Shape{ 1 }, std::vector<size_t>({ 0ul })));
     }
     return constantOp;
@@ -139,7 +139,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     if (ov::is_type<opset1::Multiply>(eltwise) && checkElementwise(eltwise)) {
         const auto value = constant->get_output_element_type(0) == deqPrecision ?
             constant :
-            foldConvert(constant->output(0), deqPrecision);
+            foldConvert(constant, deqPrecision);
 
         const auto valueVec = ov::as_type_ptr<opset1::Constant>(value)->cast_vector<float>();
 
@@ -147,8 +147,8 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
             return nullptr;
         }
 
-        inputLowConst_f32 = fold<opset1::Divide>(inputLowConst_f32->output(0), value);
-        inputHighConst_f32 = fold<opset1::Divide>(inputHighConst_f32->output(0), value);
+        inputLowConst_f32 = fold<opset1::Divide>(inputLowConst_f32, value);
+        inputHighConst_f32 = fold<opset1::Divide>(inputHighConst_f32, value);
         const auto resultLow = ov::as_type_ptr<opset1::Constant>(inputLowConst_f32)->cast_vector<float>();
         const auto resultHigh = ov::as_type_ptr<opset1::Constant>(inputHighConst_f32)->cast_vector<float>();
         if (std::any_of(resultLow.begin(), resultLow.end(), [](const float value){ return std::isinf(value); }) ||
@@ -161,10 +161,10 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     } else if (ov::is_type<opset1::Subtract>(eltwise) && checkElementwise(eltwise)) {
         const auto value = constant->get_output_element_type(0) == deqPrecision ?
             constant :
-            foldConvert(constant->output(0), deqPrecision);
+            foldConvert(constant, deqPrecision);
 
-        inputLowConst_f32 = fq::updateShape(fold<opset1::Add>(inputLowConst_f32->output(0), value), fakeQuantize->get_output_partial_shape(0));
-        inputHighConst_f32 = fq::updateShape(fold<opset1::Add>(inputHighConst_f32->output(0), value), fakeQuantize->get_output_partial_shape(0));
+        inputLowConst_f32 = fq::updateShape(fold<opset1::Add>(inputLowConst_f32, value), fakeQuantize->get_output_partial_shape(0));
+        inputHighConst_f32 = fq::updateShape(fold<opset1::Add>(inputHighConst_f32, value), fakeQuantize->get_output_partial_shape(0));
     } else if (ov::is_type<opset1::Add>(eltwise) && checkElementwise(eltwise)) {
         if (ov::is_type<opset1::Convolution>(fq::getDataNode(eltwise)) ||
             ov::is_type<opset1::GroupConvolution>(fq::getDataNode(eltwise)) ||
@@ -175,10 +175,10 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
 
         const auto value = constant->get_output_element_type(0) == deqPrecision ?
             constant :
-            foldConvert(constant->output(0), deqPrecision);
+            foldConvert(constant, deqPrecision);
 
-        inputLowConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputLowConst_f32->output(0), value), fakeQuantize->get_output_partial_shape(0));
-        inputHighConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputHighConst_f32->output(0), value), fakeQuantize->get_output_partial_shape(0));
+        inputLowConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputLowConst_f32, value), fakeQuantize->get_output_partial_shape(0));
+        inputHighConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputHighConst_f32, value), fakeQuantize->get_output_partial_shape(0));
     } else if (ov::is_type<opset1::Convert>(eltwise)) {
         // issue #40611
         if ((eltwise->get_input_element_type(0) == element::i32) &&
@@ -194,8 +194,8 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
 
     const auto newFakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({
         data->output(outputIdx),
-        inputLowConst_f32->output(0),
-        inputHighConst_f32->output(0),
+        inputLowConst_f32,
+        inputHighConst_f32,
         foldConvert(fakeQuantize->input_value(3), deqPrecision),
         foldConvert(fakeQuantize->input_value(4), deqPrecision) }));
 

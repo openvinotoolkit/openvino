@@ -31,14 +31,14 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
 
     const std::shared_ptr<opset1::Reshape> newReshape = ov::as_type_ptr<opset1::Reshape>(reshape->clone_with_new_inputs({
         elementwise->input_value(0),
-        reshapeValues->output(0) }));
+        reshapeValues }));
 
     std::shared_ptr<Node> newElementwiseValues;
 
-    const Shape elementwiseValuesShape = elementwiseValues->output(0).get_shape();
+    const Shape elementwiseValuesShape = elementwiseValues->get_output_shape(0);
     if (!elementwiseValuesShape.empty() && (elementwiseValuesShape.size() != 1ul)) {
         // update shape constant value to avoid eltwise constan value broadcasting
-        const Shape elementwiseShape = elementwise->output(0).get_shape();
+        const Shape elementwiseShape = elementwise->get_output_shape(0);
         const std::vector<size_t> reshapeValuesVector = ov::as_type_ptr<opset1::Constant>(reshapeValues)->cast_vector<size_t>();
 
         const std::vector<size_t> newReshapeValuesVector = ngraph::pass::low_precision::NetworkHelper::updateReshapeValues(
@@ -47,23 +47,23 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
             reshapeValuesVector);
 
         const auto newReshapeValues = std::make_shared<opset1::Constant>(
-            reshapeValues->output(0).get_element_type(),
+            reshapeValues->get_output_element_type(0),
             Shape{ newReshapeValuesVector.size() },
             newReshapeValuesVector);
 
         newElementwiseValues = ngraph::pass::low_precision::fold_reshape<opset1::Reshape>(
-            elementwiseValues->output(0),
-            newReshapeValues->output(0),
+            elementwiseValues,
+            newReshapeValues,
             ov::as_type_ptr<opset1::Reshape>(reshape)->get_special_zero());
         assert(ov::is_type<opset1::Constant>(newElementwiseValues));
     } else {
         newElementwiseValues = elementwiseValues;
     }
     const auto newElementwise = elementwise->clone_with_new_inputs({
-        newReshape->output(0),
+        newReshape,
         elementwiseValuesConvert == nullptr ?
-            newElementwiseValues->output(0) :
-            std::make_shared<opset1::Convert>(newElementwiseValues->output(0), elementwiseValuesConvert->get_destination_type()) });
+            newElementwiseValues :
+            std::make_shared<opset1::Convert>(newElementwiseValues, elementwiseValuesConvert->get_destination_type()) });
 
     replace_node(reshape, newElementwise);
     copy_runtime_info({ elementwise, reshape }, { newReshape, newElementwise });
@@ -81,7 +81,7 @@ std::shared_ptr<Node> moveThroughConvert(const std::shared_ptr<Node>& reshape, c
 
 void fuseConstant(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& constant) {
     ngraph::OutputVector result(1);
-    reshape->constant_fold(result, { constant->output(0), reshape->input_value(1) });
+    reshape->constant_fold(result, { constant, reshape->input_value(1) });
     const auto newConstant = result[0].get_node_shared_ptr();
     replace_node(reshape, newConstant);
     copy_runtime_info({ constant, reshape }, newConstant);

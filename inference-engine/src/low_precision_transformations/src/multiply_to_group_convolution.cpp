@@ -119,7 +119,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{ element::f32 },
         ngraph::op::TemporaryReplaceOutputType(dequantization.data, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(weightsNode->output(0), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(weightsNode, element::f32).get(),
         strides,
         pads,
         pads,
@@ -129,12 +129,12 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     std::shared_ptr<Node> lastNode = convolution;
     if (dequantization.subtract != nullptr) {
         lastNode = std::make_shared<opset1::Add>(
-            convolution->output(0),
-            fold<opset1::Negative>(foldConvert(dequantization.subtractConstant->output(0), element::f32)));
+            convolution,
+            fold<opset1::Negative>(foldConvert(dequantization.subtractConstant, element::f32)));
         lastNode->set_friendly_name(convolution->get_friendly_name() + "/Add");
     }
 
-    lastNode = multiply->copy_with_new_inputs({ lastNode->output(0), constant->output(0) });
+    lastNode = multiply->copy_with_new_inputs({ lastNode, constant });
 
     replace_node(multiply, lastNode);
     NetworkHelper::copyInfo(multiply, lastNode);

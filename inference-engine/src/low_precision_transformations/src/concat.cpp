@@ -73,7 +73,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     // FakeQuantize constant shape must be broadcastable to the shape on data.
     auto broadcastElementWiseConst = [](std::shared_ptr<opset1::Constant> operation, const Shape targetShape) {
         auto targetShapeConst = std::make_shared<opset1::Constant>(element::i64, Shape{ targetShape.size() }, targetShape);
-        auto broadcast = fold<ngraph::opset1::Broadcast>(operation->output(0), targetShapeConst);
+        auto broadcast = fold<ngraph::opset1::Broadcast>(operation, targetShapeConst);
         return broadcast;
     };
 
@@ -239,7 +239,7 @@ void ConcatTransformation::fillDequantizationNodes(
             std::shared_ptr<ngraph::opset1::Constant> operation,
             const ngraph::Shape targetShape) -> std::shared_ptr<Node> {
                 auto targetShapeConst = opset1::Constant::create(element::i64, ngraph::Shape{ targetShape.size() }, targetShape);
-                auto broadcast = fold<ngraph::opset1::Broadcast>(operation->output(0), targetShapeConst->output(0));
+                auto broadcast = fold<ngraph::opset1::Broadcast>(operation, targetShapeConst);
                 return broadcast;
         };
 

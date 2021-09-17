@@ -43,7 +43,7 @@ std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
         constantShape = newConstantShape;
 
         const auto newConstant = fold<ngraph::opset1::Broadcast>(
-            constant->output(0),
+            constant,
             ngraph::opset1::Constant::create(ngraph::element::i32, { newConstantShape.size() }, newConstantShape));
         constant = ov::as_type_ptr<ngraph::opset1::Constant>(newConstant);
     }
@@ -61,7 +61,7 @@ std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
     }
 
     const auto result = fold<ngraph::opset1::StridedSlice>(
-        constant->output(0),
+        constant,
         stridedSlice->input_value(1),
         stridedSlice->input_value(2),
         stridedSlice->input_value(3),
