@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/layout.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {
@@ -49,6 +50,12 @@ public:
     void set_element_type(const element::Type& element_type) {
         m_element_type = element_type;
     }
+
+    bool has_layout() const;
+
+    Layout get_layout() const;
+
+    void set_layout(const Layout& layout);
 
 protected:
     PartialShape m_partial_shape;

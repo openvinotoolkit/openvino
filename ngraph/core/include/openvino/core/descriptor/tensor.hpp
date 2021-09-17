@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -14,6 +15,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/variant.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -74,6 +76,15 @@ public:
     }
     size_t size() const;
 
+    using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+
+    RTMap& get_rt_info() {
+        return m_rt_info;
+    }
+    const RTMap& get_rt_info() const {
+        return m_rt_info;
+    }
+
 protected:
     element::Type m_element_type;
 
@@ -97,6 +108,7 @@ protected:
     ngraph::HostTensorPtr m_lower_value, m_upper_value;
     std::string m_name;
     std::unordered_set<std::string> m_names;
+    std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
 };
 
 OPENVINO_API
