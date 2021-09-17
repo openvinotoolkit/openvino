@@ -189,27 +189,15 @@ private:
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> parseInputDescription(
-        const pugi::xml_node& node);
-    /// \brief Traverses port_map in order to create vector of MultiSubGraphOp::InputDescription shared_ptrs.
-    /// Shall be used only for ops which have attributes similar to port_maps.
-    /// \param node xml op representation
-    /// \param port_map_name port_map attribute name in IR
-    std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>
-    parseMSInputDescription(const pugi::xml_node& node, std::string port_map_name);
+        const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
     /// \brief Traverses port_map in order to create vector of OutputDescription shared_ptrs.
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> parseOutputDescription(
-        const pugi::xml_node& node);
-    /// \brief Traverses port_map in order to create vector of MultiSubGraphOp::OutputDescription shared_ptrs.
-    /// Shall be used only for ops which have attributes similar to port_maps.
-    /// \param node xml op representation
-    /// \param port_map_name port_map attribute name in IR
-    std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>
-    parseMSOutputDescription(const pugi::xml_node& node, std::string port_map_name);
+        const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
 
     // TODO consider to call only once per layer/TI-Loop node
-    IoMap updated_io_map(const pugi::xml_node& node);
+    IoMap updated_io_map(const pugi::xml_node& node, const pugi::xml_node& body_node);
     /// \brief Generates maps of dependencies of layer_id and parameters/results of internal subgraphs
     /// Shall be used only for ops with independent among themselves subgraphs.
     /// \param node xml op representation
@@ -248,9 +236,7 @@ private:
     bool m_use_framework_node{false};
 };
 
-XmlDeserializer::IoMap XmlDeserializer::updated_io_map(const pugi::xml_node& node) {
-    auto body_node = node.child("body");
-
+XmlDeserializer::IoMap XmlDeserializer::updated_io_map(const pugi::xml_node& node, const pugi::xml_node& body_node) {
     if (body_node.empty()) {
         IE_THROW() << "Missing body part.";
     }
@@ -304,13 +290,15 @@ XmlDeserializer::IoMap XmlDeserializer::gen_internal_layer_id_offsets(const pugi
 
 
 std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> XmlDeserializer::parseInputDescription(
-    const pugi::xml_node& node) {
+    const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name) {
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> inputs;
-    const auto up_io_map = updated_io_map(node);
+    auto body_node = node.child(body_name.c_str());
+
+    const auto up_io_map = updated_io_map(node, body_node);
 
     // Parse PortMap: external_port_id for inputs does not always appear in consecutive order
     std::map<uint64_t, pugi::xml_node> input_map;
-    FOREACH_CHILD (input, node.child("port_map"), "input") {
+    FOREACH_CHILD (input, node.child(port_map_name.c_str()), "input") {
         int64_t ext_port_id = XMLParseUtils::GetInt64Attr(input, "external_port_id");
         input_map.emplace(ext_port_id, input);
     }
@@ -374,49 +362,15 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> Xml
     return inputs;
 }
 
-std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>
-    XmlDeserializer::parseMSInputDescription(const pugi::xml_node& node, std::string port_map_name) {
-    std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>> inputs;
-    std::string body_name = "";
-    if (port_map_name == "then_port_map") {
-        body_name = "then_body";
-    } else if (port_map_name == "else_port_map") {
-        body_name = "else_body";
-    } else {
-        body_name = "body";
-    }
-    const auto up_io_map = gen_internal_layer_id_offsets(node, body_name);
-
-    // Parse PortMap: external_port_id for inputs does not always appear in consecutive order
-    std::map<uint64_t, pugi::xml_node> input_map;
-    FOREACH_CHILD(input, node.child(port_map_name.c_str()), "input") {
-        int64_t ext_port_id = XMLParseUtils::GetInt64Attr(input, "external_port_id");
-        input_map.emplace(ext_port_id, input);
-    }
-
-    for (const auto& input : input_map) {
-        auto& xml_input = input.second;
-        int64_t ti_input_index = XMLParseUtils::GetInt64Attr(xml_input, "external_port_id");
-        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(xml_input, "internal_layer_id");
-        if (ti_input_index >= 0) {
-            const auto input_index = up_io_map.inputs.at(body_parameter_index);
-
-            inputs.push_back(
-                std::make_shared<ngraph::op::util::MultiSubGraphOp::InvariantInputDescription>(
-                    ti_input_index, input_index));
-        }
-    }
-    return inputs;
-}
-
 std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> XmlDeserializer::parseOutputDescription(
-    const pugi::xml_node& node) {
+    const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name) {
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> outputs;
-    const auto up_io_map = updated_io_map(node);
+    auto body_node = node.child(body_name.c_str());
+    const auto up_io_map = updated_io_map(node, body_node);
 
     // Parse PortMap: outputs
     std::map<int64_t, pugi::xml_node> output_map;
-    FOREACH_CHILD (output, node.child("port_map"), "output") {
+    FOREACH_CHILD (output, node.child(port_map_name.c_str()), "output") {
         int64_t ext_port_id = XMLParseUtils::GetInt64Attr(output, "external_port_id");
         output_map.emplace(ext_port_id, output);
     }
@@ -462,50 +416,10 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> Xm
     return outputs;
 }
 
-std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>
-    XmlDeserializer::parseMSOutputDescription(const pugi::xml_node& node, std::string port_map_name) {
-    std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>> outputs;
-    std::string body_name = "";
-    if (port_map_name == "then_port_map") {
-        body_name = "then_body";
-    } else if (port_map_name == "else_port_map") {
-        body_name = "else_body";
-    } else {
-        body_name = "body";
-    }
-    const auto up_io_map = gen_internal_layer_id_offsets(node, body_name);
-
-    // Parse PortMap: outputs
-    std::map<int64_t, pugi::xml_node> output_map;
-    FOREACH_CHILD(output, node.child(port_map_name.c_str()), "output") {
-        int64_t ext_port_id = XMLParseUtils::GetInt64Attr(output, "external_port_id");
-        output_map.emplace(ext_port_id, output);
-    }
-
-    uint64_t output_number = 0;
-    for (const auto& output : output_map) {
-        auto& xml_output = output.second;
-
-        size_t body_result_index = XMLParseUtils::GetUIntAttr(xml_output, "internal_layer_id");
-
-        // if external_port_id < 0 it means that this body result isn't connected to the Loop output
-        // and is used only for internal needs. For TensorIterator external_port_id is always > 0.
-        if (XMLParseUtils::GetInt64Attr(xml_output, "external_port_id") >= 0) {
-            const auto output_index = up_io_map.outputs.at(body_result_index);
-
-            outputs.push_back(
-                std::make_shared<ngraph::op::util::MultiSubGraphOp::BodyOutputDescription>(
-                    output_index, output_number));
-
-            output_number++;
-        }
-    }
-    return outputs;
-}
-
 ngraph::op::v5::Loop::SpecialBodyPorts XmlDeserializer::parsePurposeAttribute(const pugi::xml_node& node) {
     ngraph::op::v5::Loop::SpecialBodyPorts result = {-1, -1};
-    const auto up_io_map = updated_io_map(node);
+    auto body_node = node.child("body");
+    const auto up_io_map = updated_io_map(node, body_node);
 
     NGRAPH_CHECK(!up_io_map.inputs.empty() || !up_io_map.outputs.empty(),
                  "No parameters or results found in body Function.");
@@ -551,31 +465,26 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
     std::string val;
 
     // for TensorIterator look for 'port_map' as 'data' does not exist
-    if (m_node.child("port_map")) {
+    if (m_node.child("port_map") || m_node.child("then_port_map") || m_node.child("else_port_map")) {
+        std::string body_name = "body";
+        std::string port_map_name = "port_map";
+        if (name == "then_inputs" || name == "then_outputs") {
+            body_name = "then_body";
+            port_map_name = "then_port_map";
+        } else if (name == "else_inputs" || name == "else_outputs") {
+            body_name = "else_body";
+            port_map_name = "else_port_map";
+        }
         if (auto a = ngraph::as_type<
                 ngraph::AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(
                 &adapter)) {
-            a->set(parseInputDescription(m_node));
+            a->set(parseInputDescription(m_node, body_name, port_map_name));
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
                        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-            a->set(parseOutputDescription(m_node));
+            a->set(parseOutputDescription(m_node, body_name, port_map_name));
         } else if (auto a =
                        ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
             a->set(parsePurposeAttribute(m_node));
-        }
-    }
-    
-    if (m_node.child("then_port_map") || m_node.child("else_port_map")) {
-        bool is_then_portmap = m_node.child("then_port_map") && (name == "then_inputs" || name == "then_outputs");
-        auto port_map_name = (is_then_portmap) ? "then_port_map" : "else_port_map";
-        if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-            std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>>(
-                &adapter)) {
-            a->set(parseMSInputDescription(m_node, port_map_name));
-        } else if ( auto a = ngraph::as_type<ngraph::AttributeAdapter<
-            std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>>(
-                &adapter)) {
-            a->set(parseMSOutputDescription(m_node, port_map_name));
         }
     }
 
