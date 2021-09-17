@@ -77,7 +77,10 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
-                                                 cldnn::data_types::i32);
+                                                 cldnn::data_types::i32,
+                                                 std::vector<float>(),
+                                                 cldnn::reorder_mean_mode::subtract,
+                                                 op->get_friendly_name());
             p.AddPrimitive(preprocessPrim);
             p.AddInnerPrimitiveToProfiler(reorderPrimName, layerName, op);
             reorderedInputs[portIndex] = reorderPrimName;
@@ -94,7 +97,8 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
                                     outLayout,
                                     CldnnTensorFromIEDims(op->get_output_shape(0)),
                                     batch_dim,
-                                    support_neg_ind);
+                                    support_neg_ind,
+                                    op->get_friendly_name());
 
     p.AddPrimitive(gatherPrim);
     p.AddPrimitiveToProfiler(op);
