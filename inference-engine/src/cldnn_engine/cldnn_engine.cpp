@@ -29,6 +29,7 @@
 
 #include "cldnn/runtime/device_query.hpp"
 #include "cldnn/runtime/debug_configuration.hpp"
+#include <performance_heuristics.hpp>
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -678,9 +679,25 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         }
         IE_SET_METRIC_RETURN(GPU_UARCH_VERSION, s.str());
     } else if (name == METRIC_KEY(OPTIMAL_BATCH)) {
-        // auto network = options.find("MODEL_ADDRESS")->second.as<InferenceEngine::CNNNetwork const*>();
-        // auto transformedNetwork = CloneAndTransformNetwork(*network, _impl->m_config);
-        unsigned int batch = 8;
+        auto network = options.find("MODEL_ADDRESS")->second.as<InferenceEngine::CNNNetwork const*>();
+        auto networkCloned = CloneAndTransformNetwork(*network, _impl->m_config);
+        // i7_1185G7
+        const float L2_cache_size = 6*1024*1024;
+        const float L3_cache_size = 12*1024*1024;
+        unsigned int batch = 1;
+        ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(
+                networkCloned.getFunction(),
+                L2_cache_size, L3_cache_size);
+        if (memPressure.max_mem_tolerance > 8*ov::MemBandwidthPressure::LIMITED) {
+            batch = 32;
+        } else if (memPressure.max_mem_tolerance > 4*ov::MemBandwidthPressure::LIMITED) {
+            batch = 16;
+        } else if (memPressure.max_mem_tolerance > 2*ov::MemBandwidthPressure::LIMITED) {
+            batch = 8;
+        } else if (memPressure.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
+            batch = 4;
+        }
+        std::cout << "memPressure.max_mem_tolerance: " << memPressure.max_mem_tolerance << std::endl;
         std::cout << "SELECTED BATCH: " << batch << std::endl;
         IE_SET_METRIC_RETURN(OPTIMAL_BATCH, batch);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
