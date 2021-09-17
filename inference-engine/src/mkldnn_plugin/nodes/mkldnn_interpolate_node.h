@@ -59,6 +59,10 @@ struct jit_interpolate_config_params {
     int indices_size;
     int spatial_dim_size;
     int C, ID, IH, IW, OD, OH, OW;
+    std::vector<int> row_steps;
+    std::vector<int> row_index;
+    // InferenceEngine::SizeVector row_steps;
+    // InferenceEngine::SizeVector colum_steps;
 };
 
 struct jit_interpolate_call_args {
@@ -178,6 +182,10 @@ private:
     InterpolateLayoutType configured_for_layout;
 
     std::vector<int> indexTable;
+
+    bool isSpecifickernel = false;
+    std::vector<int> colum_accumulate_steps; // specificIndex;
+    std::vector<int> colum_steps;
 
     std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
 

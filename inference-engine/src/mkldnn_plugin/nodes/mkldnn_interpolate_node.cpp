@@ -162,6 +162,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         if ((jcp_.mode == InterpolateMode::cubic) && (jcp_.layout == InterpolateLayoutType::planar)) {
             prepare_cubic_planar_table();
         }
+        if (jcp_.mode == InterpolateMode::nearest && jcp_.OW >= jcp_.IW) {
+            prepare_nn_planar_table();
+        }
     }
 
 private:
@@ -260,6 +263,51 @@ private:
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
     void nn_planar() {
+        if (jcp_.OW >= jcp_.IW && jcp_.C == 1) {
+            // |....loop 1....|      |...loop2....|
+            // |____|____|____|  --> |____|____|__|____|____|__|____|____|__| |
+            //   |                   |____|____|__|____|____|__|____|____|__|\|/
+            //   |                   |____________|                         loop3
+            //   |                          /|\
+            //   |___________________________|
+            mov(reg_table, l_table_constant);
+            Xbyak::Reg64 reg_dst_aux = reg_src_aux;
+            int elt_in_vmm = vlen / jcp_.src_data_size;  // vlen is 16(128/8)
+            for (int step_num_src = 0; step_num_src < jcp_.row_steps.size(); step_num_src++) {
+                int ld_num = std::min(jcp_.IW - elt_in_vmm * step_num_src, elt_in_vmm);
+                load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                    std::make_shared<load_emitter_context>(jcp_.src_prc, jcp_.dst_prc, ld_num), {}, {load_pool_gpr_idxs});
+                int step_num_dst = dnnl::impl::utils::div_up(jcp_.row_steps[step_num_src], elt_in_vmm);
+                for (int step_dst = 0; step_dst < step_num_dst; step_dst++) {
+                    uni_vpshufb(vmm_val, vmm_val, ptr[reg_table + step_dst * elt_in_vmm * jcp_.dst_data_size]);
+
+                    Xbyak::Label nn_loop_label;
+                    Xbyak::Label nn_loop_end_label;
+                    mov(reg_dst_aux, reg_dst);
+                    L(nn_loop_label);   // loop for each out rows
+                    {
+                        cmp(reg_work_amount, 1);
+                        jl(nn_loop_end_label, T_NEAR);
+
+                        int store_num = std::min(jcp_.row_steps[step_num_src] - elt_in_vmm * step_dst, elt_in_vmm);
+                        int store_offset = step_dst * elt_in_vmm * jcp_.dst_data_size;
+                        store_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst_aux.getIdx())},
+                            std::make_shared<store_emitter_context>(jcp_.src_prc, jcp_.dst_prc, store_num, store_offset),
+                            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+
+                        add(reg_dst_aux, jcp_.OW * jcp_.dst_data_size);
+                        sub(reg_work_amount, 1);
+
+                        jmp(nn_loop_label, T_NEAR);
+                    }
+                    L(nn_loop_end_label);
+                }
+                add(reg_src, elt_in_vmm * jcp_.src_data_size);
+                add(reg_dst, jcp_.row_steps[step_num_src] * jcp_.dst_data_size);
+                add(reg_table, jcp_.row_steps[step_num_src] * jcp_.dst_data_size);
+            }
+            return;
+        }
         Xbyak::Reg64 reg_index_h = reg_src_aux1;
         Xbyak::Reg64 reg_index_w = reg_src_aux2;
         mov(reg_index_h, reg_index);
@@ -352,6 +400,28 @@ private:
             jmp(out_loop_label, T_NEAR);
         }
         L(out_loop_end);
+    }
+
+    inline void prepare_nn_planar_table() {
+        align(64);
+        L(l_table_constant);
+        int elt_in_vmm = vlen / jcp_.src_data_size;
+        int row_id = 0;
+        for (int step_num = 0; step_num < jcp_.row_steps.size(); ++step_num) {
+            for (int step_size = 0; step_size < jcp_.row_steps[step_num]; ++step_size) {
+                int mask = jcp_.row_index[row_id++] - step_num * elt_in_vmm;  // mask is in [0,3] for d, [0,7] for w, [0,15] for b
+                // printf("row_id: %d, mask: %d.\n", row_id, mask);
+                for (int data_size = 0; data_size < jcp_.src_data_size; data_size++) {
+                    mask = mask * jcp_.src_data_size + data_size;
+                    uint8_t mask_byte = static_cast<uint8_t>(mask);
+                    db(mask_byte);
+                }
+            }
+        }
+        // 16 paddings
+        for (int p = 0; p < vlen; p++) {
+            db(0);
+        }
     }
 
     void nn_blk() {
@@ -1765,42 +1835,40 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
 
     if (!mayiuse(cpu::x64::sse41) || mode == InterpolateMode::linear) {
         pushDesc(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(DATA_ID)->getShape().getRank()), ref);
-    } else {
+    } else if (channels != 1) {
         // blk and by_channel JIT kernel on sse41 or above machine
         if (getParentEdgeAt(DATA_ID)->getShape().getRank() == 4) {
             if (mayiuse(cpu::x64::avx512_common)) {
                 pushDesc(memory::format_tag::nhwc, jit_avx512);
-                if (channels != 1)
-                    pushDesc(memory::format_tag::nChw16c, jit_avx512);
+                pushDesc(memory::format_tag::nChw16c, jit_avx512);
             } else if (mayiuse(cpu::x64::avx2)) {
                 pushDesc(memory::format_tag::nhwc, jit_avx2);
-                if (channels != 1)
-                    pushDesc(memory::format_tag::nChw8c, jit_avx2);
+                pushDesc(memory::format_tag::nChw8c, jit_avx2);
             } else {
                 pushDesc(memory::format_tag::nhwc, jit_sse42);
-                if (channels != 1)
-                    pushDesc(memory::format_tag::nChw8c, jit_sse42);
+                pushDesc(memory::format_tag::nChw8c, jit_sse42);
             }
         } else if (getParentEdgeAt(DATA_ID)->getShape().getRank() == 5 && mode != InterpolateMode::cubic) {
             if (mayiuse(cpu::x64::avx512_common)) {
                 pushDesc(memory::format_tag::ndhwc, jit_avx512);
-                if (channels != 1)
-                    pushDesc(memory::format_tag::nCdhw16c, jit_avx512);
+                pushDesc(memory::format_tag::nCdhw16c, jit_avx512);
             } else if (mayiuse(cpu::x64::avx2)) {
                 pushDesc(memory::format_tag::ndhwc, jit_avx2);
-                if (channels != 1)
-                    pushDesc(memory::format_tag::nCdhw8c, jit_avx2);
+                pushDesc(memory::format_tag::nCdhw8c, jit_avx2);
             } else {
                 pushDesc(memory::format_tag::ndhwc, jit_sse42);
-                if (channels != 1)
-                    pushDesc(memory::format_tag::nCdhw8c, jit_sse42);
+                pushDesc(memory::format_tag::nCdhw8c, jit_sse42);
             }
         }
-
-        // planar for 1.ref on machine without sse41(if no sse41, canFuse() is false). 2.JIT kernel for f32 && avx2(gather).(with fuse)
-        if (mayiuse(cpu::x64::avx2) && inputPrec == Precision::FP32) {
-            pushDesc(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(DATA_ID)->getShape().getRank()), jit_avx2);
-        }
+    }
+    // planar w/o jit kernel for 1.ref on machine without sse41 and linear(canFuse() is false)
+    // planar w/  jit kernel for 1.fp32 && avx2(gather).(with fusion)
+    //                           2.any precision with nn mode and c is 1(no fusion for precision other than fp32)
+    if (mayiuse(cpu::x64::avx2) && inputPrec == Precision::FP32) {
+        pushDesc(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(DATA_ID)->getShape().getRank()), jit_avx2);
+    }
+    if (mayiuse(cpu::x64::sse41) && channels == 1 && mode == InterpolateMode::nearest) {
+        pushDesc(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(DATA_ID)->getShape().getRank()), jit_sse42);
     }
 }
 
@@ -1856,25 +1924,6 @@ void MKLDNNInterpolateNode::createPrimitive() {
 
     configured_for_layout = jcp.layout;
 
-    if (mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx || mode == InterpolateMode::cubic) {
-        if (jcp.layout != InterpolateLayoutType::planar) {
-            if (mayiuse(cpu::x64::avx512_common)) {
-                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
-            } else if (mayiuse(cpu::x64::avx2)) {
-                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
-            } else if (mayiuse(cpu::x64::sse41)) {
-                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
-            }
-        } else {
-            // gather ISA(for planar JIT kernel) for avx2 and fp32
-            if (mayiuse(cpu::x64::avx2) && inputPrec == Precision::FP32) {
-                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
-            }
-        }
-        if (interpolateKernel)
-            interpolateKernel->create_ker();
-    }
-
     // build indices table
     std::vector<float> dataScales = getScales();
     if (dimSize > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f)) {
@@ -1901,6 +1950,67 @@ void MKLDNNInterpolateNode::createPrimitive() {
         default: {
             IE_THROW() << errorPrefix << " does not support interpolate mode:" << mode;
             break;
+        }
+    }
+
+    if (jcp.mode == InterpolateMode::nearest && jcp.layout == InterpolateLayoutType::planar && jcp.OW >= jcp.IW) {
+        // row step
+        int srcStep = 16 / jcp.src_data_size;
+        int stepNum = div_up(jcp.IW, srcStep);
+        jcp.row_steps.resize(stepNum);
+        int *indexWStart = static_cast<int*>(&indexTable[jcp.OD + jcp.OH]);
+        int *indexWEnd = static_cast<int*>(&indexTable[jcp.OD + jcp.OH + jcp.OW]);
+        for (int i = 0; i < stepNum; i++) {
+            int val = std::min(i * srcStep + srcStep, jcp.IW) - 1;
+            auto pos = std::upper_bound(indexWStart, indexWEnd, val);
+            jcp.row_steps[i] = pos - indexWStart;
+            indexWStart += jcp.row_steps[i];
+
+            // std::cout << "stepNum:" << i << " value:" << jcp.row_steps[i] << std::endl;
+        }
+        jcp.row_index.assign(indexTable.begin() + jcp.OD + jcp.OH, indexTable.begin() + jcp.OD + jcp.OH + jcp.OW);
+
+        // colum_steps
+        colum_steps.resize(jcp.IH);
+        colum_accumulate_steps.resize(jcp.IH, 0);
+        int *indexHStart = static_cast<int*>(&indexTable[jcp.OD]);
+        int *indexHEnd = static_cast<int*>(&indexTable[jcp.OD + jcp.OH]);
+        for (int i = 0; i < jcp.IH; i++) {
+            auto pos = std::upper_bound(indexHStart, indexHEnd, i);
+            colum_steps[i] = pos - indexHStart;
+            indexHStart += colum_steps[i];
+
+            colum_accumulate_steps[i] = colum_steps[i] + colum_accumulate_steps[std::max(i-1, 0)];
+
+            // std::cout << "IH:" << i << " value:" << colum_accumulate_steps[i] << std::endl;
+        }
+
+        for (int i = 0; i < jcp.IH; i++) {
+            colum_accumulate_steps[i] = std::max(std::min(colum_accumulate_steps[i] - 1, jcp.OH - 1), 0);
+        }
+    }
+
+    if (mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx || mode == InterpolateMode::cubic) {
+        if (jcp.layout != InterpolateLayoutType::planar) {
+            if (mayiuse(cpu::x64::avx512_common)) {
+                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+            } else if (mayiuse(cpu::x64::avx2)) {
+                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+            } else if (mayiuse(cpu::x64::sse41)) {
+                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
+            }
+        } else {
+            // specific kernel for this case
+            isSpecifickernel = mayiuse(cpu::x64::sse41) && srcDimPad5d[1] == 1 && mode == InterpolateMode::nearest && srcDimPad5d[4] <= dstDim5d[4];
+            if (isSpecifickernel) {
+                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
+            } else if (mayiuse(cpu::x64::avx2) && inputPrec == Precision::FP32) {
+                // gather ISA(for planar JIT kernel) for avx2 and fp32
+                interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+            }
+        }
+        if (interpolateKernel) {
+            interpolateKernel->create_ker();
         }
     }
 }
@@ -1938,6 +2048,7 @@ void MKLDNNInterpolateNode::buildTblNN(SizeVector& srcDimPad5d, SizeVector& dstD
         float ix = coordTransToInput(ox, fx, IW, OW);
         indexTable[OD + OH + ox] = nearestRound(ix, isWDownsample);
         indexTable[OD + OH + ox] = clipCoord(indexTable[OD + OH + ox], IW);
+        // std::cout << "OW: " << ox << " index:" << indexTable[OD + OH + ox] << std::endl;
     }
 }
 
@@ -2470,6 +2581,20 @@ void MKLDNNInterpolateNode::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, 
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
     int *index_w = static_cast<int*>(&indexTable[OD + OH]);
+
+    if (isSpecifickernel) {
+        parallel_for3d(B, C, IH, [&](size_t b, size_t c, size_t ih) {
+            const uint8_t *in_ptr = in_ptr_ + (IW * IH * ID * C * b + IW * IH * ID * c + IW * ih) * srcDataSize;
+            uint8_t *out_ptr = out_ptr_ + (OW * OH * OD * C * b + OW * OH * OD * c + OW * colum_accumulate_steps[ih]) * dstDataSize;
+
+            auto arg = jit_interpolate_call_args();
+            arg.src_ptr[0] = in_ptr;
+            arg.dst = out_ptr;
+            arg.work_amount = colum_steps[ih];
+            (*interpolateKernel)(&arg);
+        });
+        return;
+    }
 
     std::vector<int> index_kernel(OH + OW);
     // index_h * IW * srcDataSize to reduce and simplify redundant compute
@@ -3066,6 +3191,7 @@ inline int MKLDNNInterpolateNode::nearestRound(float originCoord, bool isDownsam
 }
 
 bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
+    return false;
     if (!mayiuse(cpu::x64::sse41) || mode == InterpolateMode::linear) {
         return false;
     }
