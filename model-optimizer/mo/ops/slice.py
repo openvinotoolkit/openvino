@@ -3,7 +3,8 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import get_shape_from_slice
+from mo.front.common.partial_infer.utils import get_shape_from_slice, shape_array, dynamic_dimension_value, \
+    dynamic_dimension, is_dynamic_slice
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -121,30 +122,27 @@ class Slice(Op):
 
         starts = node.in_port(1).data.get_value()
         ends = node.in_port(2).data.get_value()
-        if starts is None or ends is None:
-            raise Error('The non-constant start/end values for Slice operation "{}" are not supported'.format(node.name))
+        if node.is_in_port_connected(4):
+            steps = node.in_port(4).data.get_value()
+        else:
+            steps = np.ones(len(starts), dtype=np.int64)
 
         if node.is_in_port_connected(3):
             axes = node.in_port(3).data.get_value()
-            if axes is None:
-                raise Error('The non-constant axes values for Slice operation "{}" is not supported'.format(node.name))
         else:
             axes = [x for x in range(len(starts))]
 
-        if node.is_in_port_connected(4):
-            steps = node.in_port(4).data.get_value()
-            if steps is None:
-                raise Error('The non-constant steps values for Slice operation "{}" is not supported'.format(node.name))
-        else:
-            steps = np.ones(len(starts), dtype=np.int64)
+        if starts is None or ends is None or steps is None or axes is None:
+            node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value] * len(input_shape)))
+            return
 
         slice_idx = [slice(0, in_shape, 1) for in_shape in input_shape]
         for i in range(len(axes)):
             # Ranged for output value for specified axis
             slice_idx[axes[i]] = slice(starts[i], ends[i], steps[i])
-        if input_value is None:
+        if input_value is None or any(is_dynamic_slice(s) for s in slice_idx):
             output_shape = get_shape_from_slice(input_shape, slice_idx)
-            if np.any(output_shape <= 0):
+            if np.ma.any(output_shape <= 0):
                 raise Error('Output shape: {} of node "{}" contains non-positive values'.format(output_shape, node.name))
             node.out_port(0).data.set_shape(output_shape)
         else:

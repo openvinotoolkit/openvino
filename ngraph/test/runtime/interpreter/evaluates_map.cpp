@@ -35,7 +35,6 @@
 #include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
-#include <ngraph/runtime/reference/fake_quantize.hpp>
 #include <ngraph/runtime/reference/fft.hpp>
 #include <ngraph/runtime/reference/gather.hpp>
 #include <ngraph/runtime/reference/gather_elements.hpp>
@@ -2435,28 +2434,6 @@ namespace
     }
 
     template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v0::FakeQuantize>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::fake_quantize<T>(inputs[0]->get_data_ptr<const T>(),
-                                             inputs[1]->get_data_ptr<const T>(),
-                                             inputs[2]->get_data_ptr<const T>(),
-                                             inputs[3]->get_data_ptr<const T>(),
-                                             inputs[4]->get_data_ptr<const T>(),
-                                             outputs[0]->get_data_ptr<T>(),
-                                             op->get_input_shape(0),
-                                             op->get_input_shape(1),
-                                             op->get_input_shape(2),
-                                             op->get_input_shape(3),
-                                             op->get_input_shape(4),
-                                             op->get_levels(),
-                                             op->get_auto_broadcast());
-        return true;
-    }
-
-    template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::NormalizeL2>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
@@ -2959,18 +2936,7 @@ namespace
         {
             element_type = node->get_input_element_type(0);
         }
-        for (size_t i = 1; i < node->outputs().size(); i++)
-        {
-            if ((ov::is_type<op::v5::NonMaxSuppression>(node) ||
-                 ov::is_type<op::v8::MulticlassNms>(node) ||
-                 ov::is_type<op::v8::MatrixNms>(node) ||
-                 ov::is_type<op::v6::ExperimentalDetectronDetectionOutput>(node) ||
-                 ov::is_type<op::v8::AdaptiveMaxPool>(node)) &&
-                 i == 1)
-            {
-                continue;
-            }
-        }
+
         switch (element_type)
         {
         case element::Type_t::boolean:

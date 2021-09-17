@@ -16,7 +16,6 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 #include "ngraph/opsets/opset6.hpp"
 
@@ -79,9 +78,6 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         }
     }
 
-    const auto scalesConst = ov::as_type_ptr<opset1::Constant>(NetworkHelper::getConstantInput(mvn->get_input_node_shared_ptr(0)));
-    bool isScalarScales = NetworkHelper::isScalarLike(scalesConst);
-
     AxisSet reduction_axes;
     if (ov::is_type<op::MVN>(mvn)) {
         reduction_axes = ov::as_type_ptr<op::MVN>(mvn)->get_reduction_axes();
@@ -106,6 +102,7 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         }
     }
 
+    bool isScalarScales = NetworkHelper::isScalarLike(dequantization.multiplyConstant);
     return perTensor && isScalarScales;
 }
 
@@ -128,13 +125,10 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
     }
 
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn);
-    auto scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
-    if (scalesConst == nullptr) {
-        scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
-    }
+    const auto scalesConst = dequantization.multiplyConstant;
+    const auto type = scalesConst->get_element_type();
 
     auto newScalesConst = scalesConst;
-    const auto type = scalesConst->get_output_element_type(0);
     if (normalizeVariance) {
         switch (type) {
             case ngraph::element::Type_t::f16: {
@@ -150,6 +144,7 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
             }
         }
     }
+
     std::shared_ptr<Node> newMVN;
     if (ov::is_type<op::MVN>(mvn)) {
         newMVN = mvn->copy_with_new_inputs({dequantization.data});
@@ -159,8 +154,8 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMVN, deqPrecision);
     NetworkHelper::copyInfo(mvn, newMVN);
 
-    auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
-        DequantizationMultiply(newMVN, newScalesConst),
+    auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        opset1::Multiply(newMVN, newScalesConst),
         mvn->get_output_element_type(0));
     ngraph::copy_runtime_info({ mvn, newMultiply }, newMultiply);
 

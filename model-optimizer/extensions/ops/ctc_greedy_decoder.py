@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, compatible_dims
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -44,21 +44,13 @@ class CTCGreedyDecoderOp(Op):
         # check shapes of input tensors
         assert len(logits_shape) == 3, \
             'Incorrect rank of logits for {} node'.format(node_name)
-        if node.has_valid('use_mask_format') and node.use_mask_format is True:
-            # it is a case when CTCGreedyDecoder still uses an original format for sequence_length
-            assert len(sequence_mask_shape) == 1, \
-                'Incorrect rank of sequence length tensor for {} node'.format(node_name)
-            assert logits_shape[1] == sequence_mask_shape[0], \
-                'Batch dimensions of input tensors must be the same for {} node'.format(node_name)
-        else:
-            # it is a case when CTCGreedyDecoder uses a sequence mask
-            assert len(sequence_mask_shape) == 2, \
-                'Incorrect rank of sequence length tensor for {} node'.format(node_name)
-            assert logits_shape[1] == sequence_mask_shape[1], \
-                'Batch dimensions of input tensors must be the same for {} node'.format(node_name)
-            assert logits_shape[0] == sequence_mask_shape[0], \
-                'Time dimensions of input tensors must be the same for {} node'.format(node_name)
+        assert len(sequence_mask_shape) == 2, \
+            'Incorrect rank of sequence length tensor for {} node'.format(node_name)
+        assert compatible_dims(logits_shape[1], sequence_mask_shape[1]), \
+            'Batch dimensions of input tensors must be the same for {} node'.format(node_name)
+        assert compatible_dims(logits_shape[0], sequence_mask_shape[0]), \
+            'Time dimensions of input tensors must be the same for {} node'.format(node_name)
 
         batch_size = logits_shape[1]
         time_size = logits_shape[0]
-        node.out_port(0).data.set_shape(int64_array([batch_size, time_size, 1, 1]))
+        node.out_port(0).data.set_shape([batch_size, time_size, 1, 1])

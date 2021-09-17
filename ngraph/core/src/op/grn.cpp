@@ -16,7 +16,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::GRN, "GRN", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::GRN, "GRN", 0);
 
 op::v0::GRN::GRN(const Output<Node>& data, float bias) : Op({data}), m_bias(bias) {
     constructor_validate_and_infer_types();
@@ -33,7 +33,7 @@ void op::v0::GRN::validate_and_infer_types() {
     const auto& data_pshape = get_input_partial_shape(0);
 
     if (data_pshape.is_static()) {
-        const Shape& data_shape{data_pshape.to_shape()};
+        const ov::Shape& data_shape{data_pshape.to_shape()};
 
         // Input data must be 2, 3 or 4D tensor.
         NODE_VALIDATION_CHECK(this,

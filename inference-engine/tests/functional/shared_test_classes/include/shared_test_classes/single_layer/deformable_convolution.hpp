@@ -44,7 +44,7 @@ typedef std::tuple<
 class DeformableConvolutionLayerTest : public testing::WithParamInterface<deformableConvLayerTestParamsSet>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<deformableConvLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<deformableConvLayerTestParamsSet>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:

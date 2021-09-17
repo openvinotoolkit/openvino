@@ -8,6 +8,7 @@ from collections import deque
 import networkx as nx
 import numpy as np
 
+from mo.front.common.partial_infer.utils import is_fully_defined, compatible_shapes
 from mo.utils.error import Error
 from mo.utils.utils import deprecated_api
 
@@ -107,7 +108,7 @@ def mark_const_producer_nodes(graph):
                 graph.node[input]['is_const_producer'] = False
                 graph.node[output]['is_const_producer'] = False
 
-        if not node.has('value') or node.value is None:
+        if not node.has('value') or node.value is None or not is_fully_defined(node.value):
             for input, _ in graph.in_edges(node.id):
                 graph.node[input]['is_const_producer'] = False
 
@@ -162,7 +163,9 @@ def shape_inference(graph):
             new_out_shapes = [port.data.get_shape() for port in node.out_ports().values() if not port.disconnected()]
             if not node.has_and_set('override_output_shape'):
                 for shape1, shape2 in zip(old_out_shapes, new_out_shapes):
-                    if shape1 is not None and not np.array_equal(shape1, shape2):
+                    # do not use strict shapes comparison because after applying transformation the output shape may be
+                    # specialized and some dynamic dimension become static
+                    if shape1 is not None and not compatible_shapes(shape1, shape2):
                         raise Error("After partial shape inference were found shape collision for node {} (old shape: "
                                     "{}, new shape: {})".format(node.name, shape1, shape2))
             else:
