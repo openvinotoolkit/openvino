@@ -230,17 +230,6 @@ auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
 
     return true;
 }
-// Check that subgraph has body to avoid creation of single-noded subgraphs
-// Note: this does not mean that a node will be necessarily attached to the Start
-// It still could be skipped due to merging problems. See AttachToSubgraph() for details.
-auto subgraph_has_body(std::shared_ptr<Node> node) -> bool {
-    using namespace ngraph::snippets::pass;
-    for (const auto& child : node->get_users()) {
-        if (GetSnippetsNodeType(child) == SnippetsNodeType::SubgraphBody)
-            return true;
-    }
-    return false;
-}
 
 auto has_result_child(std::shared_ptr<Node> node) -> bool {
     for (const auto &child : node->get_users()) {
@@ -291,7 +280,7 @@ ngraph::snippets::pass::StartSubgraph::StartSubgraph() : MatcherPass() {
     register_matcher(std::make_shared<pattern::Matcher>(
         std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](std::shared_ptr<Node> n) {
-            return (GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphStart) && subgraph_has_body(n);
+            return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphStart;
         })),
         [](ngraph::pattern::Matcher &m) -> bool {
         auto node = m.get_match_root();
