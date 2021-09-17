@@ -94,19 +94,17 @@ struct TBBStreamsExecutor::Impl {
                               : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
             auto concurrency =
                 (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
-            auto masterThreads = externStream ? 1u : 0u;
+            custom::task_arena::constraints constraints;
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
                 if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
                     if (Config::PreferredCoreType::ANY == _impl->_config._threadPreferredCoreType) {
-                        _arena.initialize(concurrency);
+                        constraints.set_max_concurrency(concurrency);
                     } else {
                         const auto selected_core_type =
                             Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
                                 ? custom::info::core_types().back()    // running on Big cores only
                                 : custom::info::core_types().front();  // running on Little cores only
-                        _arena.initialize(custom::task_arena::constraints{}
-                                              .set_core_type(selected_core_type)
-                                              .set_max_concurrency(concurrency));
+                        constraints.set_core_type(selected_core_type).set_max_concurrency(concurrency);
                     }
                 } else {
                     // assigning the stream to the core type in the round-robin fashion
@@ -121,15 +119,15 @@ struct TBBStreamsExecutor::Impl {
                                          return p.second > streamId_wrapped;
                                      })
                             ->first;
-                    _arena.initialize(custom::task_arena::constraints{}
-                                          .set_core_type(selected_core_type)
-                                          .set_max_concurrency(concurrency));
+                    constraints.set_core_type(selected_core_type).set_max_concurrency(concurrency);
                 }
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-                _arena.initialize(custom::task_arena::constraints{_numaNodeId, concurrency});
+                constraints.set_max_concurrency(concurrency).set_numa_id(_numaNodeId);
             } else {
-                _arena.initialize(concurrency, masterThreads);
+                constraints.set_max_concurrency(concurrency);
             }
+            auto masterThreads = externStream ? 1u : 0u;
+            _arena.initialize(constraints, masterThreads);
             _observer.reset(new Observer{_arena,
                                          this,
                                          &(_impl->_localStream),
