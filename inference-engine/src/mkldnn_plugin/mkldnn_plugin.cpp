@@ -420,6 +420,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     ngraph::pass::Manager postCommonPassManager;
     postCommonPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     postCommonPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
+    postCommonPassManager.register_pass<ReshapePRelu>();
 
     postCommonPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
         std::string errMsg;
