@@ -346,6 +346,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
                                              dyn_length_id,
                                              weights_id,
                                              bias_id,
+                                             "",
                                              node.get_primitive()->output_padding);
     auto& lstm_dynamic_input_node = p.get_or_create(lstm_dynamic_input_primitive);
     p.add_connection(node.input(), lstm_dynamic_input_node);  // connect real input to dlstm_input
@@ -372,6 +373,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
                                                 init_cell_id,
                                                 node.clip(),
                                                 node.input_forget(),
+                                                "",
                                                 lstm_dynamic_input_primitive->output_padding);
     auto& lstm_dynamic_timeloop_node = p.get_or_create(lstm_dynamic_timeloop_primitive);
     p.add_connection(lstm_dynamic_input_node, lstm_dynamic_timeloop_node);  // connect dlstm_input to dlstm_timeloop

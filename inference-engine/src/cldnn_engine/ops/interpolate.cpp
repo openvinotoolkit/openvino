@@ -193,7 +193,8 @@ void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Inter
                                         cldnnSampleType,
                                         shapeCalcMode,
                                         coordTransMode,
-                                        nearestMode);
+                                        nearestMode,
+                                        op->get_friendly_name());
 
     p.AddPrimitive(resamplePrim);
     p.AddPrimitiveToProfiler(op);

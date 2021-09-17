@@ -41,7 +41,10 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
-                                                 cldnn::data_types::i32);
+                                                 cldnn::data_types::i32,
+                                                 std::vector<float>(),
+                                                 cldnn::reorder_mean_mode::subtract,
+                                                 op->get_friendly_name());
             p.AddPrimitive(preprocessPrim);
             p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
             reorderedInputs[portIndex] = (reorderPrimName);
@@ -77,8 +80,9 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
             shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayoutSecond));
 
             cldnn::primitive_id non_max_supression_mutable_id_w_second = layer_type_name_ID(op) + "_md_write_second";
-            auto nms_mutable_prim_second = cldnn::mutable_data(non_max_supression_mutable_id_w_second, shared_memory.back());
-            p.primitivesToIRLayersMap[non_max_supression_mutable_id_w_second] = { op->get_friendly_name() };
+            auto nms_mutable_prim_second = cldnn::mutable_data(non_max_supression_mutable_id_w_second,
+                                                               shared_memory.back(),
+                                                               op->get_friendly_name());
             p.primitiveIDs[non_max_supression_mutable_id_w_second] = non_max_supression_mutable_id_w_second;
             p.AddPrimitive(nms_mutable_prim_second);
             inputPrimitives.push_back(non_max_supression_mutable_id_w_second);
@@ -94,8 +98,9 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
             shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayoutFirst));
 
             cldnn::primitive_id non_max_supression_mutable_id_w_first = layer_type_name_ID(op) + "_md_write_first";
-            auto nms_mutable_prim_first = cldnn::mutable_data(non_max_supression_mutable_id_w_first, shared_memory.back());
-            p.primitivesToIRLayersMap[non_max_supression_mutable_id_w_first] = { op->get_friendly_name() };
+            auto nms_mutable_prim_first = cldnn::mutable_data(non_max_supression_mutable_id_w_first,
+                                                              shared_memory.back(),
+                                                              op->get_friendly_name());
             p.primitiveIDs[non_max_supression_mutable_id_w_first] = non_max_supression_mutable_id_w_first;
             p.AddPrimitive(nms_mutable_prim_first);
             inputPrimitives.push_back(non_max_supression_mutable_id_w_first);
@@ -112,7 +117,9 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
             reorderedInputs[1],
             static_cast<int>(outputIndices),
             op->m_center_point_box,
-            op->m_sort_result_descending);
+            op->m_sort_result_descending,
+            "", "", "", "", "", "",
+            op->get_friendly_name());
 
     prim.output_data_type = DataTypeFromPrecision(out_type);
 
@@ -136,15 +143,19 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
     switch (num_output) {
         case 3: {
             cldnn::primitive_id non_max_supression_id_r_second = layer_type_name_ID(op) + ".2";
-            auto nms_mutable_prim_r_second = cldnn::mutable_data(non_max_supression_id_r_second, { nonMaxSupressionLayerName }, shared_memory.front());
-            p.primitivesToIRLayersMap[non_max_supression_id_r_second] = { op->get_friendly_name() };
+            auto nms_mutable_prim_r_second = cldnn::mutable_data(non_max_supression_id_r_second,
+                                                                 { nonMaxSupressionLayerName },
+                                                                 shared_memory.front(),
+                                                                 op->get_friendly_name());
             p.primitiveIDs[non_max_supression_id_r_second] = non_max_supression_id_r_second;
             p.AddPrimitive(nms_mutable_prim_r_second);
         }
         case 2: {
             cldnn::primitive_id non_max_supression_id_r_first = layer_type_name_ID(op) + ".1";
-            auto nms_mutable_prim_r_first = cldnn::mutable_data(non_max_supression_id_r_first, { nonMaxSupressionLayerName }, shared_memory.back());
-            p.primitivesToIRLayersMap[non_max_supression_id_r_first] = { op->get_friendly_name() };
+            auto nms_mutable_prim_r_first = cldnn::mutable_data(non_max_supression_id_r_first,
+                                                                { nonMaxSupressionLayerName },
+                                                                shared_memory.back(),
+                                                                op->get_friendly_name());
             p.primitiveIDs[non_max_supression_id_r_first] = non_max_supression_id_r_first;
             p.AddPrimitive(nms_mutable_prim_r_first);
         }

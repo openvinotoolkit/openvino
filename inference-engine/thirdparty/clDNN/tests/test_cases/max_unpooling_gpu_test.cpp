@@ -63,7 +63,7 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("arg_max", arg_max));
-    topology.add(max_unpooling("max_unpooling", "input", "arg_max", { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
+    topology.add(max_unpooling("max_unpooling", "input", "arg_max", { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, { 0, 0, 0, 0 }, ""));
 
     network network(engine, topology);
 
@@ -145,7 +145,7 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2_output_padding) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("arg_max", arg_max));
-    topology.add(max_unpooling("max_unpooling", "input", "arg_max", { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, { 0, 0, 0, 0 }, padding({ 0, 0, 1, 1 }, 0)));
+    topology.add(max_unpooling("max_unpooling", "input", "arg_max", { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, { 0, 0, 0, 0 }, "", padding({ 0, 0, 1, 1 }, 0)));
 
     network network(engine, topology);
 
@@ -317,7 +317,7 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2_fp16) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("arg_max", arg_max));
-    topology.add(max_unpooling("max_unpooling", "input", "arg_max", { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
+    topology.add(max_unpooling("max_unpooling", "input", "arg_max", { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, { 0, 0, 0, 0 }, ""));
 
     network network(engine, topology);
 
@@ -395,7 +395,7 @@ TEST(max_unpooling_gpu, basic_in2x2x3x2_max_with_argmax_pooling_unpooling) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(mutable_data("arg_max", arg_max));
     topology.add(pooling("pooling_max_with_argmax", "input", "arg_max", pooling_mode::max_with_argmax, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
-    topology.add(max_unpooling("max_unpooling", "pooling_max_with_argmax", "arg_max", { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
+    topology.add(max_unpooling("max_unpooling", "pooling_max_with_argmax", "arg_max", { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, { 0, 0, 0, 0 }, ""));
 
     network network(engine, topology);
 

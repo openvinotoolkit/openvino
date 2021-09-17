@@ -38,7 +38,8 @@ void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                                 strides,
                                                                 rates,
                                                                 auto_pad,
-                                                                CldnnTensorFromIEDims(op->get_output_shape(0)));
+                                                                CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                                op->get_friendly_name());
 
     p.AddPrimitive(extractImagePatchesPrim);
     p.AddPrimitiveToProfiler(op);

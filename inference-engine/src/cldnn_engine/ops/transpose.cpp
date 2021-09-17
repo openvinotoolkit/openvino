@@ -37,7 +37,8 @@ void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Transpo
 
     auto permutePrim = cldnn::permute(layerName,
                                       inputPrimitives[0],
-                                      cldnn_permute_order);
+                                      cldnn_permute_order,
+                                      op->get_friendly_name());
 
     p.AddPrimitive(permutePrim);
     p.AddPrimitiveToProfiler(op);

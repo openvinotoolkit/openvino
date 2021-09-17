@@ -50,9 +50,10 @@ struct fused_conv_eltwise : public primitive_base<fused_conv_eltwise> {
                        float conv_activation_slp = 0.0f,
                        bool eltw_with_activation = false,
                        float eltw_activation_slp = 0.0f,
+                       const primitive_id& ext_prim_id = "",
                        const padding& output_padding = padding(),
                        optional_data_type output_data_type = {})
-        : primitive_base(id, {input, input2}, output_padding, output_data_type),
+        : primitive_base(id, {input, input2}, ext_prim_id, output_padding, output_data_type),
           conv((primitive_id_arr)weights,
               (primitive_id_arr)bias),
           eltw(),

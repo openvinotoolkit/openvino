@@ -93,8 +93,9 @@ struct resample : public primitive_base<resample> {
              tensor output_size,
              uint32_t num_filter,
              resample_type operation_type = resample_type::nearest,
+             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           output_size(output_size),
           num_filter(num_filter),
           axesAndScales({}),
@@ -126,8 +127,9 @@ struct resample : public primitive_base<resample> {
              std::vector<int32_t> pads_end = {},
              int32_t align_corners = 1,
              resample_type operation_type = resample_type::bilinear,
+             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           output_size(output_size),
           num_filter(0),
           axesAndScales({}),
@@ -158,8 +160,9 @@ struct resample : public primitive_base<resample> {
              shape_calculation_mode shape_calc_mode = shape_calculation_mode::sizes,
              coordinate_transformation_mode ctm = coordinate_transformation_mode::half_pixel,
              nearest_mode nm = nearest_mode::round_prefer_floor,
+             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           output_size(output_size),
           num_filter(0),
           axesAndScales(axesAndScales),

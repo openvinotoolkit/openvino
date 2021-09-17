@@ -63,6 +63,7 @@ TEST(concat_gpu, mixed_input_types) {
                           { "input0", "input1", "input2", "input3", "input4" },
                           concatenation::concatenation_axis::along_f,
                           data_types::f32,
+                          "",
                           padding{ { 0,0,0,0 }, 0 })
     );
 
@@ -136,6 +137,7 @@ TEST(concat_gpu, mixed_input_types_5d) {
                           { "input0", "input1", "input2", "input3" },
                           concatenation::concatenation_axis::along_f,
                           data_types::f32,
+                          "",
                           padding{ { 0,0,0,0 }, 0 })
     );
 
@@ -210,6 +212,7 @@ TEST(concat_gpu, i8_optimization_with_pool) {
                                     {"pool0", "pool1"},
                                     concatenation::concatenation_axis::along_f,
                                     data_types::i8,
+                                    "",
                                     padding{{0, 0, 0, 0}, 0}),
                       reorder("reorder", "concat", reorder_layout));
     cldnn::build_options options;
@@ -310,6 +313,7 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                                     {"input0", "input1", "input2"},
                                     concatenation::concatenation_axis::along_f,
                                     data_types::i8,
+                                    "",
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
                       convolution("conv", "concat", { "weights" }, { 1,1,1,2 }),
@@ -411,6 +415,7 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
                                     {"pool0", "pool1"},
                                     concatenation::concatenation_axis::along_f,
                                     data_types::i8,
+                                    "",
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
                       convolution("conv", "concat", {"weights"}, {1, 1, 1, 1}, {0, 0, -1, 0}),

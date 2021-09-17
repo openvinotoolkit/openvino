@@ -53,7 +53,8 @@ void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::OneHot>& o
                                      DataTypeFromPrecision(op->get_output_element_type(0)),
                                      static_cast<uint16_t>(axis),
                                      on_value,
-                                     off_value);
+                                     off_value,
+                                     op->get_friendly_name());
 
     p.AddPrimitive(oneHotPrim);
     p.AddPrimitiveToProfiler(op);

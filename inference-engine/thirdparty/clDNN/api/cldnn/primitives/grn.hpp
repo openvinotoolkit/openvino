@@ -26,8 +26,9 @@ struct grn : public primitive_base<grn> {
         const primitive_id& input,
         const float bias,
         const data_types data_type,
+        const primitive_id& ext_prim_id = "",
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{ data_type }),
+        : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{ data_type }),
         bias(bias)
     {}
 

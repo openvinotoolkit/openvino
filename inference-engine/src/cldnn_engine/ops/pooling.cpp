@@ -70,7 +70,8 @@ void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::AvgPool>&
                                    params.stride,
                                    params.pad_begin,
                                    CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                   DataTypeFromPrecision(op->get_output_element_type(0)));
+                                   DataTypeFromPrecision(op->get_output_element_type(0)),
+                                   op->get_friendly_name());
     poolPrim.pad_end = params.pad_end;
     p.AddPrimitive(poolPrim);
     p.AddPrimitiveToProfiler(op);
@@ -89,7 +90,8 @@ void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::MaxPool>&
                                    params.stride,
                                    params.pad_begin,
                                    CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                   DataTypeFromPrecision(op->get_output_element_type(0)));
+                                   DataTypeFromPrecision(op->get_output_element_type(0)),
+                                   op->get_friendly_name());
     poolPrim.pad_end = params.pad_end;
     p.AddPrimitive(poolPrim);
     p.AddPrimitiveToProfiler(op);

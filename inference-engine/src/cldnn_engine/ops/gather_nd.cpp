@@ -22,10 +22,11 @@ void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::GatherND
     auto batch_dims = op->get_batch_dims();
 
     auto primitive = cldnn::gather_nd(layerName,
-                                           inputPrimitives[0],
-                                           inputPrimitives[1],
-                                           indices_rank,
-                                           batch_dims);
+                                      inputPrimitives[0],
+                                      inputPrimitives[1],
+                                      indices_rank,
+                                      batch_dims,
+                                      op->get_friendly_name());
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

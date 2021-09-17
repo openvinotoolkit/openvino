@@ -51,8 +51,9 @@ struct crop : public primitive_base<crop> {
          const primitive_id& input,
          const tensor& reference_input,
          const tensor& offsets,
+         const primitive_id& ext_prim_id = "",
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), reference_input(reference_input), offsets(offsets) {}
+        : primitive_base(id, {input}, ext_prim_id, output_padding), reference_input(reference_input), offsets(offsets) {}
 
     /// @brief Constructs crop primitive (borders variant).
     ///
@@ -71,8 +72,9 @@ struct crop : public primitive_base<crop> {
          const tensor& lt_borders,
          const tensor& rb_borders,
          const crop_borders_t,
+         const primitive_id& ext_prim_id = "",
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), reference_input(rb_borders.negate()), offsets(lt_borders) {}
+        : primitive_base(id, {input}, ext_prim_id, output_padding), reference_input(rb_borders.negate()), offsets(lt_borders) {}
 
     /// @brief Constructs crop primitive (symmetric borders variant).
     ///
@@ -88,8 +90,9 @@ struct crop : public primitive_base<crop> {
          const primitive_id& input,
          const tensor& xy_borders,
          const crop_borders_t,
+         const primitive_id& ext_prim_id = "",
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), reference_input(xy_borders.negate()), offsets(xy_borders) {}
+        : primitive_base(id, {input}, ext_prim_id, output_padding), reference_input(xy_borders.negate()), offsets(xy_borders) {}
 
     /// @brief Reference input tensor with the required dimensions.
     tensor reference_input;

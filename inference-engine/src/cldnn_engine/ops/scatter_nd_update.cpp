@@ -19,10 +19,11 @@ void CreateScatterNDUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::S
     auto indices_rank = op->get_input_shape(1).size();
 
     auto primitive = cldnn::scatter_nd_update(layerName,
-                                           inputPrimitives[0],
-                                           inputPrimitives[1],
-                                           inputPrimitives[2],
-                                           indices_rank);
+                                              inputPrimitives[0],
+                                              inputPrimitives[1],
+                                              inputPrimitives[2],
+                                              indices_rank,
+                                              op->get_friendly_name());
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);
