@@ -1085,6 +1085,10 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         auto parent1 = graphNode->getParentEdgesAtPort(0)[0]->getParent();
         auto parent2 = graphNode->getParentEdgesAtPort(1)[0]->getParent();
 
+        if ((parent1->getChildEdges().size() != 1ul) && (parent2->getChildEdges().size() != 1ul)) {
+            continue;
+        }
+
         bool isSuitableParent1 = parent1->getType() == Convolution || parent1->getType() == BinaryConvolution;
         bool isSuitableParent2 = parent2->getType() == Convolution || parent2->getType() == BinaryConvolution;
 
@@ -1134,8 +1138,27 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         if (!isSuitableParent1 && !isSuitableParent2)
             continue;
 
-        auto mergedConv = isSuitableParent1 ? parent1 : parent2;
-        auto peerNode = isSuitableParent1 ? parent2 : parent1;
+        std::shared_ptr<MKLDNNNode> mergedConv;
+        std::shared_ptr<MKLDNNNode> peerNode;
+
+        if (isSuitableParent1 && isSuitableParent2) {
+            // not merged operation (peerNode) has to be in low precision
+            const auto branch2Parent = graphNode->getParentEdgesAtPort(1)[0]->getParent();
+            const auto fused = branch2Parent->getFusedWith();
+            auto branch2Precision = fused.empty() ?
+                branch2Parent->getOriginalOutputPrecisionAtPort(0) :
+                fused[fused.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+            const auto isBranch2Quantized = (branch2Precision == Precision::I8) || (branch2Precision == Precision::U8);
+            const auto parent1CanBeMerged = parent1->getChildEdges().size() == 1ul;
+
+            // if both branches are quantized, then parent1 is selected (result is not changed)
+            mergedConv = isBranch2Quantized && parent1CanBeMerged ? parent1 : parent2;
+            peerNode = isBranch2Quantized && parent1CanBeMerged ? parent2 : parent1;
+        } else {
+            mergedConv = isSuitableParent1 ? parent1 : parent2;
+            peerNode = isSuitableParent1 ? parent2 : parent1;
+        }
+
         if (isSuitableParent1 && isSuitableParent2) {
             if ((peerNode->getType() == Convolution || peerNode->getType() == BinaryConvolution) &&
                 mergedConv->getChildEdges().size() != 1) {
