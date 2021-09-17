@@ -16,10 +16,10 @@ using namespace GNATestIRs;
 // Recursive Algorithm
 // Precision Threshold
 
-TEST_F(QueryStateTest, returnEmptyCollectionOfStatesIfNoMemoryInIR) {
+TEST_F(QueryStateTest, DISABLED_returnEmptyCollectionOfStatesIfNoMemoryInIR) {
     assert_that().afterLoadingModel(TanhActivationModel()).withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).queryState().isEmpty();
 }
 
-TEST_F(QueryStateTest, returnNonEmptyCollectionOfStatesForMemoryIR) {
+TEST_F(QueryStateTest, DISABLED_returnNonEmptyCollectionOfStatesForMemoryIR) {
     assert_that().afterLoadingModel(affineToMemoryModel()).withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).queryState().isNotEmpty();
 }
