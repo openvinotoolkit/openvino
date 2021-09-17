@@ -20,7 +20,8 @@ void CreateReorgYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::ReorgYo
 
     auto reorgPrim = cldnn::reorg_yolo(layerName,
                                        inputPrimitives[0],
-                                       stride);
+                                       stride,
+                                       op->get_friendly_name());
 
     p.AddPrimitive(reorgPrim);
     p.AddPrimitiveToProfiler(op);

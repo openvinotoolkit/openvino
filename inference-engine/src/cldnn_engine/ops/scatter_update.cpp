@@ -57,7 +57,8 @@ void CreateScatterUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::Sca
                                            inputPrimitives[0],
                                            inputPrimitives[1],
                                            inputPrimitives[2],
-                                           GetScatterUpdateAxis(axis, rank));
+                                           GetScatterUpdateAxis(axis, rank),
+                                           op->get_friendly_name());
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

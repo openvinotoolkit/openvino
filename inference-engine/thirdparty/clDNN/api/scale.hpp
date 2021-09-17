@@ -40,8 +40,9 @@ struct scale : public primitive_base<scale> {
           const primitive_id& scale_input,  // should be bfyx or yxfb, where each dimension can be 1, if all dimensions
                                             // are 1 then this is scalar
           const optional_data_type& output_dt = {},
+          const primitive_id& ext_prim_id = "",
           const padding& output_padding = padding())
-        : primitive_base(id, {input, scale_input}, output_padding, output_dt), bias("") {}
+        : primitive_base(id, {input, scale_input}, ext_prim_id, output_padding, output_dt), bias("") {}
 
     /// @brief Constructs scale primitive with optional adding bias.
     /// @param id This primitive id.
@@ -54,8 +55,9 @@ struct scale : public primitive_base<scale> {
                                             // are 1 then this is scalar
           const primitive_id& bias,  // should be same size as scale_input
           const optional_data_type& output_dt = {},
+          const primitive_id& ext_prim_id = "",
           const padding& output_padding = padding())
-        : primitive_base(id, {input, scale_input}, output_padding, output_dt), bias(bias) {}
+        : primitive_base(id, {input, scale_input}, ext_prim_id, output_padding, output_dt), bias(bias) {}
 
     /// @brief Primitive id containing bias data.
     primitive_id bias;

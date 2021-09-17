@@ -32,8 +32,9 @@ struct reshape : public primitive_base<reshape> {
     reshape(const primitive_id& id,
             const primitive_id& input,
             const tensor& output_shape,
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), output_shape(output_shape) {}
+        : primitive_base(id, {input}, ext_prim_id, output_padding), output_shape(output_shape) {}
 
     /// @brief Requested memory shape.
     tensor output_shape;

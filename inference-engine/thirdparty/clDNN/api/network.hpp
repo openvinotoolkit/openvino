@@ -112,6 +112,9 @@ struct network {
     /// @brief Returns description of final runtime graph
     std::vector<primitive_info> get_primitives_info();
 
+    /// @brief Returns mapping between IR and plugin names
+    std::map<primitive_id, primitive_id> get_ext_id_mapping() const;
+
     /// @brief Returns description of all optimization stages
     std::vector<std::pair<std::string, std::vector<primitive_info>>> get_optimization_steps_info();
 

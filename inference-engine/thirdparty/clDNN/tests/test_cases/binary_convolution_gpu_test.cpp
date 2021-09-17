@@ -382,6 +382,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel)
                                { 1,4,2,2 },
                                0, 0.0f,
                                data_types::f32,
+                               "",
                                padding{ { 0,0,0,0 }, 0 })
     );
 
@@ -465,6 +466,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
                                { 1,4,2,2 },
                                0, 0.0f,
                                data_types::f16,
+                               "",
                                padding{ { 0,0,0,0 }, 0 })
     );
 

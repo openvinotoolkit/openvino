@@ -39,8 +39,9 @@ struct lstm_dynamic_input : public primitive_base<lstm_dynamic_input> {
                        const primitive_id& dyn_length,
                        const primitive_id& weights,
                        const primitive_id& bias = "",
+                       const primitive_id& ext_prim_id = "",
                        const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), dyn_length(dyn_length), weights(weights), bias(bias) {}
+        : primitive_base(id, {input}, ext_prim_id, output_padding), dyn_length(dyn_length), weights(weights), bias(bias) {}
 
     /// @brief Primitive id containing the dynamic sequence lengths.
     primitive_id dyn_length;
