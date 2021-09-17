@@ -22,7 +22,7 @@
 
 namespace LayerTestsUtils {
 
-LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), absThreshold(-1.0f) {
+LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), relThreshold(-1.0f) {
     core = PluginCache::get().ie(targetDevice);
 }
 
@@ -96,67 +96,67 @@ InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                                const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs,
-                               float threshold, float absThreshold) {
+                               float threshold, float relThreshold) {
     for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
         const auto &expected = expectedOutputs[outputIndex];
         const auto &actual = actualOutputs[outputIndex];
-        Compare(expected, actual, threshold, absThreshold);
+        Compare(expected, actual, threshold, relThreshold);
     }
 }
 
 template <typename T_IE>
 inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
-                        const T_IE* actualBuffer, size_t size, float threshold, float absThreshold) {
+                        const T_IE* actualBuffer, size_t size, float threshold, float relThreshold) {
     auto expectedBuffer = expected.second.data();
     switch (expected.first) {
         case ngraph::element::Type_t::i64:
             LayerTestsCommon::Compare<T_IE, int64_t>(reinterpret_cast<const int64_t *>(expectedBuffer),
-                                                     actualBuffer, size, threshold, absThreshold);
+                                                     actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::i32:
             LayerTestsCommon::Compare<T_IE, int32_t>(reinterpret_cast<const int32_t *>(expectedBuffer),
-                                                     actualBuffer, size, threshold, absThreshold);
+                                                     actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::i16:
             LayerTestsCommon::Compare<T_IE, int16_t>(reinterpret_cast<const int16_t *>(expectedBuffer),
-                                                     actualBuffer, size, threshold, absThreshold);
+                                                     actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::i8:
             LayerTestsCommon::Compare<T_IE, int8_t>(reinterpret_cast<const int8_t *>(expectedBuffer),
-                                                    actualBuffer, size, threshold, absThreshold);
+                                                    actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::u64:
             LayerTestsCommon::Compare<T_IE, uint64_t>(reinterpret_cast<const uint64_t *>(expectedBuffer),
-                                                      actualBuffer, size, threshold, absThreshold);
+                                                      actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::u32:
             LayerTestsCommon::Compare<T_IE, uint32_t>(reinterpret_cast<const uint32_t *>(expectedBuffer),
-                                                      actualBuffer, size, threshold, absThreshold);
+                                                      actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::u16:
             LayerTestsCommon::Compare<T_IE, uint16_t>(reinterpret_cast<const uint16_t *>(expectedBuffer),
-                                                      actualBuffer, size, threshold, absThreshold);
+                                                      actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::boolean:
         case ngraph::element::Type_t::u8:
             LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer),
-                                                     actualBuffer, size, threshold, absThreshold);
+                                                     actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::f64:
             LayerTestsCommon::Compare<T_IE, double>(reinterpret_cast<const double *>(expectedBuffer),
-                                                   actualBuffer, size, threshold, absThreshold);
+                                                   actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::f32:
             LayerTestsCommon::Compare<T_IE, float>(reinterpret_cast<const float *>(expectedBuffer),
-                                                   actualBuffer, size, threshold, absThreshold);
+                                                   actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::f16:
             LayerTestsCommon::Compare<T_IE, ngraph::float16>(reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
-                                                             actualBuffer, size, threshold, absThreshold);
+                                                             actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::bf16:
             LayerTestsCommon::Compare<T_IE, ngraph::bfloat16>(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
-                                                              actualBuffer, size, threshold, absThreshold);
+                                                              actualBuffer, size, threshold, relThreshold);
             break;
         case ngraph::element::Type_t::i4: {
             auto expectedOut = ngraph::helpers::convertOutputPrecision(
@@ -165,7 +165,7 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
                     ngraph::element::Type_t::i8,
                     size);
             LayerTestsCommon::Compare<T_IE, int8_t>(reinterpret_cast<const int8_t *>(expectedOut.data()),
-                                                    actualBuffer, size, threshold, absThreshold);
+                                                    actualBuffer, size, threshold, relThreshold);
             break;
         }
         case ngraph::element::Type_t::u4: {
@@ -175,12 +175,12 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
                     ngraph::element::Type_t::u8,
                     size);
             LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedOut.data()),
-                                                     actualBuffer, size, threshold, absThreshold);
+                                                     actualBuffer, size, threshold, relThreshold);
             break;
         }
         case ngraph::element::Type_t::dynamic:
         case ngraph::element::Type_t::undefined:
-            LayerTestsCommon::Compare<T_IE, T_IE>(reinterpret_cast<const T_IE *>(expectedBuffer), actualBuffer, size, threshold, absThreshold);
+            LayerTestsCommon::Compare<T_IE, T_IE>(reinterpret_cast<const T_IE *>(expectedBuffer), actualBuffer, size, threshold, relThreshold);
             break;
         default: FAIL() << "Comparator for " << expected.first << " precision isn't supported";
     }
@@ -189,7 +189,7 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
 
 void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                                const InferenceEngine::Blob::Ptr &actual,
-                               float threshold, float absThreshold) {
+                               float threshold, float relThreshold) {
     const auto &precision = actual->getTensorDesc().getPrecision();
     auto k =  static_cast<float>(expected.first.size()) / precision.size();
     // W/A for int4, uint4
@@ -208,35 +208,35 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
     const auto &size = actual->size();
     switch (precision) {
         case InferenceEngine::Precision::FP32:
-            callCompare<float>(expected, reinterpret_cast<const float *>(actualBuffer), size, threshold, absThreshold);
+            callCompare<float>(expected, reinterpret_cast<const float *>(actualBuffer), size, threshold, relThreshold);
             break;
         case InferenceEngine::Precision::I32:
-            callCompare<int32_t>(expected, reinterpret_cast<const int32_t *>(actualBuffer), size, threshold, absThreshold);
+            callCompare<int32_t>(expected, reinterpret_cast<const int32_t *>(actualBuffer), size, threshold, relThreshold);
             break;
         case InferenceEngine::Precision::I64:
-            callCompare<int64_t>(expected, reinterpret_cast<const int64_t *>(actualBuffer), size, threshold, absThreshold);
+            callCompare<int64_t>(expected, reinterpret_cast<const int64_t *>(actualBuffer), size, threshold, relThreshold);
             break;
         case InferenceEngine::Precision::I8:
-            callCompare<int8_t>(expected, reinterpret_cast<const int8_t *>(actualBuffer), size, threshold, absThreshold);
+            callCompare<int8_t>(expected, reinterpret_cast<const int8_t *>(actualBuffer), size, threshold, relThreshold);
             break;
         case InferenceEngine::Precision::U16:
-            callCompare<uint16_t>(expected, reinterpret_cast<const uint16_t *>(actualBuffer), size, threshold, absThreshold);
+            callCompare<uint16_t>(expected, reinterpret_cast<const uint16_t *>(actualBuffer), size, threshold, relThreshold);
             break;
         case InferenceEngine::Precision::I16:
-            callCompare<int16_t>(expected, reinterpret_cast<const int16_t *>(actualBuffer), size, threshold, absThreshold);
+            callCompare<int16_t>(expected, reinterpret_cast<const int16_t *>(actualBuffer), size, threshold, relThreshold);
             break;
         case InferenceEngine::Precision::BOOL:
         case InferenceEngine::Precision::U8:
-            callCompare<uint8_t>(expected, reinterpret_cast<const uint8_t *>(actualBuffer), size, threshold, absThreshold);
+            callCompare<uint8_t>(expected, reinterpret_cast<const uint8_t *>(actualBuffer), size, threshold, relThreshold);
             break;
         case InferenceEngine::Precision::U64:
-            callCompare<uint64_t>(expected, reinterpret_cast<const uint64_t *>(actualBuffer), size, threshold, absThreshold);
+            callCompare<uint64_t>(expected, reinterpret_cast<const uint64_t *>(actualBuffer), size, threshold, relThreshold);
             break;
         case InferenceEngine::Precision::BF16:
-            callCompare<ngraph::bfloat16>(expected, reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, threshold, absThreshold);
+            callCompare<ngraph::bfloat16>(expected, reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, threshold, relThreshold);
             break;
         case InferenceEngine::Precision::FP16:
-            callCompare<ngraph::float16>(expected, reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, threshold, absThreshold);
+            callCompare<ngraph::float16>(expected, reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, threshold, relThreshold);
             break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
@@ -245,7 +245,7 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
 
 void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                                const InferenceEngine::Blob::Ptr &actual) {
-    Compare(expected, actual, threshold, absThreshold);
+    Compare(expected, actual, threshold, relThreshold);
 }
 
 void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual) {
@@ -263,7 +263,7 @@ void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const
     switch (precision) {
         case InferenceEngine::Precision::FP32:
             Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer),
-                    size, threshold, absThreshold);
+                    size, threshold, relThreshold);
             break;
         case InferenceEngine::Precision::I32:
             Compare(reinterpret_cast<const std::int32_t *>(expectedBuffer),
@@ -422,7 +422,7 @@ std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                                const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
-    Compare(expectedOutputs, actualOutputs, threshold, absThreshold);
+    Compare(expectedOutputs, actualOutputs, threshold, relThreshold);
 }
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,

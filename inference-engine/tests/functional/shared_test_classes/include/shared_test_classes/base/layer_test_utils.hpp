@@ -59,11 +59,11 @@ public:
 
     static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
-                        float threshold, float absThreshold);
+                        float threshold, float relThreshold);
 
     static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                         const InferenceEngine::Blob::Ptr &actual,
-                        float threshold, float absThreshold);
+                        float threshold, float relThreshold);
 
     static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
@@ -97,36 +97,12 @@ public:
 
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
-        Compare(expected, actual, size, threshold, -1);
-/*
-        // Only use relative threshold for legacy call
-        for (std::size_t i = 0; i < size; ++i) {
-            const T_NGRAPH &ref = expected[i];
-            const auto &res = actual[i];
-            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
-            double max;
-            if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
-                max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
-            } else {
-                max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
-            }
-            double diff = static_cast<float>(absoluteDifference) / max;
-            if (max == 0) {
-                continue; // only both res and ref are 0
-            }
-            if ((diff > static_cast<float>(threshold)) ||
-                (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref)))) {
-                IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
-                           << " at index " << i << " with relative threshold " << threshold
-                           << " failed";
-            }
-        }
-*/        
+        Compare(expected, actual, size, threshold, -1); //Disable relThreshold
     }
 
     template<class T_IE, class T_NGRAPH>
-    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float absThreshold) {
-        if ((threshold < 0) && (absThreshold < 0)) {
+    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float relThreshold) {
+        if ((threshold < 0) && (relThreshold < 0)) {
             IE_THROW() << "Both relative threshold and absolute threshold aren't set properly";
         }
         std::vector<double> absoluteDifferences;
@@ -137,37 +113,34 @@ public:
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
             const float diff = static_cast<float>(CommonTestUtils::ie_abs(res - ref));
+            double max;
+            double relDiff;
 
             absoluteDifferences.push_back(diff);
 
-            if (absThreshold >= 0) {
-                if (diff > absThreshold)
+            if ((threshold >= 0) && (diff > threshold))
                     absoluteErrorCount++;
+
+            if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
+                max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
+            } else {
+                max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
             }
 
-            if (threshold >= 0) {
-                double max;
-                double relDiff;
-                if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
-                    max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
-                } else {
-                    max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
-                }
+            if (max == 0) {
+                relDiff = 0; // only both res and ref are 0
+            } else {
+                relDiff = (diff / max);
+            }
 
-                if (max == 0) {
-                    relativeDifferences.push_back(0); // only both res and ref are 0
-                } else {
-                    relDiff = (diff / max);
-                    relativeDifferences.push_back(relDiff);
-                }
+            if ((relThreshold >= 0) && (relDiff > static_cast<float>(relThreshold)))
+                relativeErrorCount++;
 
-                if (relDiff > static_cast<float>(threshold))
-                    relativeErrorCount++;
+            relativeDifferences.push_back(relDiff);
 
-                if (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref))) {
-                    IE_THROW() << "One of return values is NaN.  Expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
-                            << " at index " << i << " failed";
-                }
+            if (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref))) {
+                IE_THROW() << "One of return values is NaN.  Expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                        << " at index " << i << " failed";
             }
         }
 
@@ -181,10 +154,10 @@ public:
 
             IE_THROW() << "\nRelative comparison diff tensor mean: " << relDiffMean << ", \tmax: " << relativeDifferences[relDiffMaxIndex]
                        << " @ index: " << relDiffMaxIndex << ", \t# failure(" << relativeErrorCount << "/" << relativeDifferences.size()
-                       << ") of threshold: " << threshold << "\n"
+                       << ") of threshold: " << relThreshold << "\n"
                        << "Absolute comparison diff tensor mean: " << absDiffMean << ", \tmax: " << absoluteDifferences[absDiffMaxIndex]
                        << " @ index: " << absDiffMaxIndex << ", \t# failure(" << absoluteErrorCount << "/" << absoluteDifferences.size()
-                       << ") of threshold: " << absThreshold << "\n";
+                       << ") of threshold: " << threshold << "\n";
         }
     }
 
@@ -217,8 +190,8 @@ protected:
     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED;
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
-    float threshold; // relative threshold: when it is negative value, the comparison will be skipped
-    float absThreshold; // absolute threshold: when it is negative value, the comparison will be skipped
+    float threshold; // absolute threshold: when it is negative value, the comparison will be skipped
+    float relThreshold; // relative threshold: when it is negative value, the comparison will be skipped
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
 
