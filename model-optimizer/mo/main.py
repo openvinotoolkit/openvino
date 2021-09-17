@@ -112,6 +112,8 @@ def load_moc_frontends(argv: argparse.Namespace) -> (Optional[FrontEnd], List[st
 
     if argv.input_model and not argv.framework:
         moc_front_end = fem.load_by_model(argv.input_model)
+        if not moc_front_end:
+            return None, available_moc_front_ends
         argv.framework = moc_front_end.get_name()
     elif argv.framework in available_moc_front_ends:
         moc_front_end = fem.load_by_framework(argv.framework)
