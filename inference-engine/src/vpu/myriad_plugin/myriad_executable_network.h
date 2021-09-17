@@ -94,7 +94,7 @@ public:
 
     ie::Parameter GetMetric(const std::string &name) const override;
 
-    ie::CNNNetwork GetExecGraphInfo() override;
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
 
     void Import(std::istream& strm, std::vector<DevicePtr> &devicePool, const PluginConfiguration& configuration);
 

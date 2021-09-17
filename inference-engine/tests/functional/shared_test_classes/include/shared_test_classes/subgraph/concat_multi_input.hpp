@@ -33,7 +33,7 @@ public:
     void GenerateStridedSliceModel();
     void GenerateConstOnlyModel();
     void GenerateMemoryModel();
-    static std::string getTestCaseName(testing::TestParamInfo<concatMultiParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<concatMultiParams>& obj);
 
 protected:
     void SetUp() override;

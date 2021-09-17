@@ -98,9 +98,9 @@ const std::vector<Precision> netPrecisions = {
 
 INSTANTIATE_TEST_SUITE_P(concat_Concat4D_CPU_Block8inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(1),
-                                ::testing::Values(std::vector<std::vector<size_t>>{{1, 8,  3, 5},
-                                                                                   {1, 16, 3, 5}}),
+                                ::testing::Values(0, 1),
+                                ::testing::Values(std::vector<std::vector<size_t>>{{1, 8, 3, 5},
+                                                                                   {1, 8, 3, 5}}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(planar_4D, planarChannels_4D, blocked8_4D)),
@@ -108,7 +108,7 @@ INSTANTIATE_TEST_SUITE_P(concat_Concat4D_CPU_Block8inPlace, ConcatLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block8, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(0, 2, 3),
+                                ::testing::Values(1, 2, 3),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 16, 3, 5},
                                                                                    {2, 16, 3, 5}}),
                                 ::testing::ValuesIn(netPrecisions),
@@ -118,9 +118,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block8, ConcatLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(1),
-                                ::testing::Values(std::vector<std::vector<size_t>>{{2, 16, 3, 5},
-                                                                                   {2, 32, 3, 5}}),
+                                ::testing::Values(0, 1),
+                                ::testing::Values(std::vector<std::vector<size_t>>{{1, 32, 3, 5},
+                                                                                   {1, 32, 3, 5}}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(blocked16_4D)),
@@ -128,9 +128,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16inPlace, ConcatLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(0, 2, 3),
-                                ::testing::Values(std::vector<std::vector<size_t>>{{2, 32, 3, 5},
-                                                                                   {2, 32, 3, 5}}),
+                                ::testing::Values(1, 2, 3),
+                                ::testing::Values(std::vector<std::vector<size_t>>{{3, 32, 3, 5},
+                                                                                   {3, 32, 3, 5}}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(blocked16_4D_ref)),
@@ -138,8 +138,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16, ConcatLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(concat_Concat5D_CPU_Block8inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(1),
-                                ::testing::Values(std::vector<std::vector<size_t>>{{1, 8,  3, 5, 7},
+                                ::testing::Values(0, 1),
+                                ::testing::Values(std::vector<std::vector<size_t>>{{1, 16, 3, 5, 7},
                                                                                    {1, 16, 3, 5, 7}}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -148,7 +148,7 @@ INSTANTIATE_TEST_SUITE_P(concat_Concat5D_CPU_Block8inPlace, ConcatLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block8, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(0, 2, 3, 4),
+                                ::testing::Values(2, 3, 4),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 16, 3, 5, 7},
                                                                                    {2, 16, 3, 5, 7}}),
                                 ::testing::ValuesIn(netPrecisions),
@@ -158,9 +158,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block8, ConcatLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block16inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(1),
-                                ::testing::Values(std::vector<std::vector<size_t>>{{2, 16, 3, 5, 7},
-                                                                                   {2, 32, 3, 5, 7}}),
+                                ::testing::Values(0, 1),
+                                ::testing::Values(std::vector<std::vector<size_t>>{{1, 32, 3, 5, 7},
+                                                                                   {1, 32, 3, 5, 7}}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(blocked16_5D)),
@@ -168,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block16inPlace, ConcatLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block16, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(0, 2, 3, 4),
+                                ::testing::Values(2, 3, 4),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 32, 3, 5, 7},
                                                                                    {2, 32, 3, 5, 7}}),
                                 ::testing::ValuesIn(netPrecisions),
@@ -179,19 +179,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block16, ConcatLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat_inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(1),
-                                ::testing::Values(std::vector<std::vector<size_t>>{{2, 3, 5},
-                                                                                   {2, 4, 5}},
-                                                  std::vector<std::vector<size_t>>{{2, 3},
-                                                                                   {2, 4}}),
+                                ::testing::Values(0, 1, 2),
+                                ::testing::Values(std::vector<std::vector<size_t>>{{1, 1, 1, 10},
+                                                                                   {1, 1, 1, 10}},
+                                                  std::vector<std::vector<size_t>>{{1, 1, 5},
+                                                                                   {1, 1, 5}}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Concat3D, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_byBatch, ConcatLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Values(0),
+                                 ::testing::Values(std::vector<std::vector<size_t>>{{5, 2, 2, 2},
+                                                                                    {2, 2, 2, 2}},
+                                                   std::vector<std::vector<size_t>>{{1, 3, 5},
+                                                                                    {3, 3, 5}},
+                                                   std::vector<std::vector<size_t>>{{4, 3, 2},
+                                                                                    {1, 3, 2}}),
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                                 ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_3D, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(0, 2),
+                                ::testing::Values(1, 2),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 4, 5},
                                                                                    {2, 4, 5}}),
                                 ::testing::ValuesIn(netPrecisions),
@@ -199,16 +213,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat3D, ConcatLayerCPUTest,
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Concat_1D_2D, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_2D, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(0),
-                                ::testing::Values(std::vector<std::vector<size_t>>{{2, 4},
-                                                                                   {3, 4}},
-                                                  std::vector<std::vector<size_t>>{{2}, {3}}),
+                                ::testing::Values(1),
+                                ::testing::Values(std::vector<std::vector<size_t>>{{3, 2},
+                                                                                   {3, 10}}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_1D, ConcatLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Values(0),
+                                 ::testing::Values(std::vector<std::vector<size_t>>{{5},
+                                                                                    {2},
+                                                                                    {1},
+                                                                                    {3}}),
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                                 ConcatLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

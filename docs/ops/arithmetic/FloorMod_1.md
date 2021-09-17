@@ -2,7 +2,7 @@
 
 **Versioned name**: *FloorMod-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *FloorMod* performs an element-wise floor modulo operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 

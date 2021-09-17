@@ -7,6 +7,10 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
     add_subdirectory(paddlepaddle)
 endif()
 
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
+    add_subdirectory(onnx)
+endif()
+
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
 add_library(mock1_ngraph_frontend SHARED ${SRC})
 
@@ -20,5 +24,5 @@ add_dependencies(unit-test mock1_ngraph_frontend)
 add_clang_format_target(mock1_ngraph_frontend_clang FOR_TARGETS mock1_ngraph_frontend)
 
 install(TARGETS mock1_ngraph_frontend
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL)
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)

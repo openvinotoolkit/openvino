@@ -2,7 +2,7 @@
 
 **Versioned name**: *ExperimentalDetectronGenerateProposalsSingleImage-6*
 
-**Category**: Object detection
+**Category**: *Object detection*
 
 **Short description**: The *ExperimentalDetectronGenerateProposalsSingleImage* operation computes ROIs and their scores
 based on input data.

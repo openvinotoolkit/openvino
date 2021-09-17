@@ -80,14 +80,18 @@ private:
     FrameworkNodeAttrs m_attrs;
 };
 } // namespace op
+} // namespace ngraph
+
+namespace ov {
 
 template <>
-class TRANSFORMATIONS_API AttributeAdapter<op::FrameworkNodeAttrs>
-    : public DirectValueAccessor<op::FrameworkNodeAttrs> {
+class TRANSFORMATIONS_API AttributeAdapter<ngraph::op::FrameworkNodeAttrs>
+    : public DirectValueAccessor<ngraph::op::FrameworkNodeAttrs> {
 public:
-    AttributeAdapter(op::FrameworkNodeAttrs& value);
+    AttributeAdapter(ngraph::op::FrameworkNodeAttrs& value);
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<FrameworkNodeAttr>", 0};
     const DiscreteTypeInfo& get_type_info() const override { return type_info; }
 };
-} // namespace ngraph
+
+}  // namespace ov

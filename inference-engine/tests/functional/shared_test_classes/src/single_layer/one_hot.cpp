@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string OneHotLayerTest::getTestCaseName(testing::TestParamInfo<oneHotLayerTestParamsSet> obj) {
+std::string OneHotLayerTest::getTestCaseName(const testing::TestParamInfo<oneHotLayerTestParamsSet>& obj) {
     int64_t axis;
     ngraph::element::Type depth_type, set_type;
     int64_t depth_val;

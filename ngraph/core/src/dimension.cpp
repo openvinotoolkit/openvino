@@ -11,7 +11,7 @@
 
 using namespace ngraph;
 
-std::ostream& ngraph::operator<<(std::ostream& str, const Dimension& dimension) {
+std::ostream& ov::operator<<(std::ostream& str, const Dimension& dimension) {
     if (dimension.is_static()) {
         return str << dimension.get_length();
     } else if (dimension.get_interval().has_upper_bound()) {

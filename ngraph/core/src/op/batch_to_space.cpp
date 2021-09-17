@@ -23,7 +23,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::BatchToSpace, "BatchToSpace", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::BatchToSpace, "BatchToSpace", 1);
 
 ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& data,
                                            const ngraph::Output<ngraph::Node>& block_shape,
@@ -57,16 +57,16 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
                           "block_shape and crops inputs must have integer element type. Got: ",
                           inputs_integer_et);
 
-    const PartialShape& data_pshape = get_input_partial_shape(0);
-    const PartialShape& block_shape_ps = get_input_partial_shape(1);
-    const PartialShape& crops_begin_ps = get_input_partial_shape(2);
-    const PartialShape& crops_end_ps = get_input_partial_shape(3);
+    const ov::PartialShape& data_pshape = get_input_partial_shape(0);
+    const ov::PartialShape& block_shape_ps = get_input_partial_shape(1);
+    const ov::PartialShape& crops_begin_ps = get_input_partial_shape(2);
+    const ov::PartialShape& crops_end_ps = get_input_partial_shape(3);
 
-    PartialShape inputs_same_ps{PartialShape::dynamic()};
+    ov::PartialShape inputs_same_ps{ov::PartialShape::dynamic()};
     NODE_VALIDATION_CHECK(this,
-                          PartialShape::merge_into(inputs_same_ps, crops_begin_ps) &&
-                              PartialShape::merge_into(inputs_same_ps, crops_end_ps) &&
-                              PartialShape::merge_into(inputs_same_ps, block_shape_ps),
+                          ov::PartialShape::merge_into(inputs_same_ps, crops_begin_ps) &&
+                              ov::PartialShape::merge_into(inputs_same_ps, crops_end_ps) &&
+                              ov::PartialShape::merge_into(inputs_same_ps, block_shape_ps),
                           "block_shape, crops_begin and crops_end inputs must have the same shape. Got: ",
                           block_shape_ps,
                           ", ",
@@ -103,7 +103,7 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
     const auto crops_end_const = get_constant_from_source(input_value(3));
 
     if (block_const && crops_begin_const && crops_end_const && data_pshape.is_static()) {
-        const Shape& data_sshape = data_pshape.to_shape();
+        const ov::Shape& data_sshape = data_pshape.to_shape();
 
         auto block_val = block_const->cast_vector<int64_t>();
         auto crops_begin_val = crops_begin_const->cast_vector<int64_t>();
@@ -143,7 +143,7 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
                                   "block_shape[i] * input_shape[i]");
         }
 
-        Shape output_sshape = {static_cast<size_t>(data_sshape[0] / block_prod)};
+        ov::Shape output_sshape = {static_cast<size_t>(data_sshape[0] / block_prod)};
         for (size_t idx = 1; idx < data_sshape.size(); ++idx) {
             output_sshape.push_back(
                 static_cast<size_t>(data_sshape[idx] * block_val[idx] - crops_begin_val[idx] - crops_end_val[idx]));
@@ -152,7 +152,7 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
         set_output_size(1);
         set_output_type(0, data_et, output_sshape);
     } else {
-        set_output_type(0, data_et, PartialShape::dynamic(data_rank));
+        set_output_type(0, data_et, ov::PartialShape::dynamic(data_rank));
     }
 }
 
@@ -219,12 +219,12 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
                      "Invalid crops values (out of bounds) with respect to the shape of data input");
     }
 
-    Shape dispersed_shape(1);
+    ov::Shape dispersed_shape(1);
     dispersed_shape.insert(dispersed_shape.end(), data_shape.begin(), data_shape.end());
     std::vector<size_t> axes_order(block_values_size + 1);
     std::vector<size_t> plain_axes_order(block_values_size + 1);
     std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
-    Shape squeezed_shape(data_shape.begin(), data_shape.end());
+    ov::Shape squeezed_shape(data_shape.begin(), data_shape.end());
     if (squeezed_shape.size() > block_values_size) {
         return false;
     }
@@ -232,7 +232,7 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
     auto* flat_data = data->get_data_ptr<char>();
     std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
 
-    Shape post_transpose_shape(axes_order.size());
+    ov::Shape post_transpose_shape(axes_order.size());
     std::vector<char> post_transpose_data(shape_size(data_shape) * elem_size);
 
     for (size_t block_idx = 1; block_idx < block_values_size; ++block_idx) {

@@ -198,8 +198,6 @@ class Node:
                                      self.get_inputs(control_flow=control_flow)})
 
     def in_nodes(self, control_flow: bool = False):
-        assert self.has('kind')  # TODO: remove as it always exists
-        assert self.kind in ['op', 'data']  # TODO: remove as it always exists
         if self.kind == 'op':
             return dict_to_ordered_dict({x[1]['in']: Node(self.graph, x[0]) for x in
                                          self.get_inputs(control_flow=control_flow)})

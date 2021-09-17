@@ -3,9 +3,9 @@
 The Inference Engine sample applications are simple console applications that show how to utilize specific Inference Engine capabilities within an application, assist developers in executing specific tasks such as loading a model, running inference, querying specific device capabilities and etc.
 
 After installation of Intel® Distribution of OpenVINO™ toolkit, С, C++ and Python* sample applications are available in the following directories, respectively:
-* `<INSTALL_DIR>/inference_engine/samples/c`
-* `<INSTALL_DIR>/inference_engine/samples/cpp`
-* `<INSTALL_DIR>/inference_engine/samples/python`
+* `<INSTALL_DIR>/samples/c`
+* `<INSTALL_DIR>/samples/cpp`
+* `<INSTALL_DIR>/samples/python`
 
 Inference Engine sample applications include the following:
 
@@ -64,7 +64,7 @@ The officially supported Linux* build environment is the following:
 
 > **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/inference_engine/samples/c` or `<INSTALL_DIR>/inference_engine/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
+To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
 build_samples.sh
 ```
@@ -91,11 +91,11 @@ cd build
 3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
   - For release configuration:
   ```sh
-  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/inference_engine/samples/cpp
+  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
   ```
   - For debug configuration:
   ```sh
-  cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/inference_engine/samples/cpp
+  cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/samples/cpp
   ```
 4. Run `make` to build the samples:
 ```sh
@@ -109,12 +109,12 @@ for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 
 The recommended Windows* build environment is the following:
 * Microsoft Windows* 10
-* Microsoft Visual Studio* 2017, or 2019
+* Microsoft Visual Studio* 2017, or 2019. Make sure that C++ CMake tools for Windows is [enabled](https://docs.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-160#:~:text=The%20Visual%20C%2B%2B%20Tools%20for,Visual%20Studio%20generators%20are%20supported).
 * CMake* version 3.10 or higher
 
 > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
 
-To build the C or C++ sample applications on Windows, go to the `<INSTALL_DIR>\inference_engine\samples\c` or `<INSTALL_DIR>\inference_engine\samples\cpp` directory, respectively, and run the `build_samples_msvc.bat` batch file:
+To build the C or C++ sample applications on Windows, go to the `<INSTALL_DIR>\samples\c` or `<INSTALL_DIR>\samples\cpp` directory, respectively, and run the `build_samples_msvc.bat` batch file:
 ```sh
 build_samples_msvc.bat
 ```
@@ -123,7 +123,7 @@ By default, the script automatically detects the highest Microsoft Visual Studio
 a solution for a sample code. Optionally, you can also specify the preferred Microsoft Visual Studio version to be used by the script. Supported
 versions are `VS2017` and `VS2019`. For example, to build the C++ samples using the Microsoft Visual Studio 2017, use the following command:
 ```sh
-<INSTALL_DIR>\inference_engine\samples\cpp\build_samples_msvc.bat VS2017
+<INSTALL_DIR>\samples\cpp\build_samples_msvc.bat VS2017
 ```
 
 Once the build is completed, you can find sample binaries in the following folders:
@@ -144,7 +144,7 @@ The officially supported macOS* build environment is the following:
 
 > **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-To build the C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/inference_engine/samples/c` or `<INSTALL_DIR>/inference_engine/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
+To build the C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
 build_samples.sh
 ```
@@ -177,11 +177,11 @@ cd build
 3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
   - For release configuration:
   ```sh
-  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/inference_engine/samples/cpp
+  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
   ```
   - For debug configuration:
   ```sh
-  cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/inference_engine/samples/cpp
+  cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/samples/cpp
   ```
 4. Run `make` to build the samples:
 ```sh
@@ -199,7 +199,7 @@ Before running compiled binary files, make sure your application can find the
 Inference Engine and OpenCV libraries.
 Run the `setupvars` script to set all necessary environment variables:
 ```sh
-source <INSTALL_DIR>/bin/setupvars.sh
+source <INSTALL_DIR>/setupvars.sh
 ```
 
 **(Optional)**: The OpenVINO environment variables are removed when you close the
@@ -212,7 +212,7 @@ vi <user_home_directory>/.bashrc
 
 2. Add this line to the end of the file:
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2022/setupvars.sh
 ```
 
 3. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
@@ -228,7 +228,7 @@ Before running compiled binary files, make sure your application can find the
 Inference Engine and OpenCV libraries.
 Use the `setupvars` script, which sets all necessary environment variables:
 ```sh
-<INSTALL_DIR>\bin\setupvars.bat
+<INSTALL_DIR>\setupvars.bat
 ```
 
 To debug or run the samples on Windows in Microsoft Visual Studio, make sure you
@@ -240,7 +240,7 @@ For example, for the **Debug** configuration, go to the project's
 variable in the **Environment** field to the following:
 
 ```sh
-PATH=<INSTALL_DIR>\deployment_tools\inference_engine\bin\intel64\Debug;<INSTALL_DIR>\opencv\bin;%PATH%
+PATH=<INSTALL_DIR>\runtime\bin;<INSTALL_DIR>\opencv\bin;%PATH%
 ```
 where `<INSTALL_DIR>` is the directory in which the OpenVINO toolkit is installed.
 

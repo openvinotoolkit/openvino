@@ -20,7 +20,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string GroupConvolutionQDqTransformation::getTestCaseName(testing::TestParamInfo<GroupConvolutionQDqTransformationParams> obj) {
+std::string GroupConvolutionQDqTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionQDqTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;

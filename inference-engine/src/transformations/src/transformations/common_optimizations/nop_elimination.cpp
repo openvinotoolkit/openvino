@@ -20,7 +20,7 @@ using namespace ngraph;
 //`simplify_gather`, optimizes gather if Gather is gathering the
 // whole input tensor
 static bool simplify_gather(std::shared_ptr<Node> node) {
-    if (auto gather = as_type_ptr<opset3::Gather>(node)) {
+    if (auto gather = ov::as_type_ptr<opset3::Gather>(node)) {
         // check if we are gathering the whole input
         auto data = gather->input_value(0);
         auto indices = gather->input_value(1);
@@ -56,7 +56,7 @@ static bool simplify_gather(std::shared_ptr<Node> node) {
 
         // check if the indices is constant
         auto constant_indices =
-                as_type_ptr<opset3::Constant>(gather->input_value(1).get_node_shared_ptr());
+                ov::as_type_ptr<opset3::Constant>(gather->input_value(1).get_node_shared_ptr());
         if (!constant_indices) {
             return false;
         } else {
@@ -98,9 +98,9 @@ static bool eliminate_reshape_v1(const std::shared_ptr<Node>& node) {
     }
     // eliminate redundant reshape, squeeze, or unsqueeze
     auto input_node = input.get_node_shared_ptr();
-    if (as_type_ptr<opset3::Squeeze>(input_node) ||
-        as_type_ptr<opset3::Unsqueeze>(input_node) ||
-        as_type_ptr<opset3::Reshape>(input_node)) {
+    if (ov::as_type_ptr<opset3::Squeeze>(input_node) ||
+        ov::as_type_ptr<opset3::Unsqueeze>(input_node) ||
+        ov::as_type_ptr<opset3::Reshape>(input_node)) {
         auto shape = node->get_output_shape(0);
         std::vector<int64_t> vi;
         vi.assign(shape.begin(), shape.end());
@@ -151,8 +151,8 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
     auto pat =
         opset3::Constant::create<int64_t>(element::i64, Shape{target_shape.size()}, target_shape);
 
-    if (is_type<opset3::Reshape>(input) || is_type<opset3::Squeeze>(input) ||
-        is_type<opset3::Unsqueeze>(input)) {
+    if (ov::is_type<opset3::Reshape>(input) || ov::is_type<opset3::Squeeze>(input) ||
+        ov::is_type<opset3::Unsqueeze>(input)) {
         reshape = make_shared<opset3::Reshape>(input->input_value(0), pat, false);
     } else {
         reshape = make_shared<opset3::Reshape>(node->input_value(0), pat, false);
@@ -205,11 +205,11 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
         return replace_squeeze_unsqueeze(node);
     }
 
-    auto unsqueeze = as_type_ptr<opset3::Unsqueeze>(node);
+    auto unsqueeze = ov::as_type_ptr<opset3::Unsqueeze>(node);
     if (unsqueeze == nullptr)
         return false;
     auto input = unsqueeze->input_value(0).get_node_shared_ptr();
-    auto squeeze = as_type_ptr<opset3::Squeeze>(input);
+    auto squeeze = ov::as_type_ptr<opset3::Squeeze>(input);
     auto replace_unsqueeze_only = [&](const vector<int64_t>& axes) {
         auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
         auto new_unsq = make_shared<opset3::Unsqueeze>(input->input_value(0), axes_const);
@@ -253,7 +253,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
         return false;
     }
     // eliminate redundant unsqueeze->unsqueeze
-    auto unsqueeze_i = as_type_ptr<opset3::Unsqueeze>(input);
+    auto unsqueeze_i = ov::as_type_ptr<opset3::Unsqueeze>(input);
     if (unsqueeze_i) {
         const auto& data_shape = unsqueeze_i->input_value(0).get_partial_shape();
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
@@ -273,7 +273,7 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
         return replace_squeeze_unsqueeze(node);
     }
 
-    auto squeeze = as_type_ptr<opset3::Squeeze>(node);
+    auto squeeze = ov::as_type_ptr<opset3::Squeeze>(node);
     if (squeeze == nullptr)
         return false;
     auto input = squeeze->input_value(0).get_node_shared_ptr();
@@ -286,7 +286,7 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
         return false;
     };
     // eliminate redundant unsqueeze->squeeze
-    if (auto unsqueeze = as_type_ptr<opset3::Unsqueeze>(input)) {
+    if (auto unsqueeze = ov::as_type_ptr<opset3::Unsqueeze>(input)) {
         PartialShape data_shape;
         if (op::is_parameter(input)) {
             data_shape = unsqueeze->input(0).get_partial_shape();
@@ -324,7 +324,7 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
         return false;
     }
     // eliminate redundant squeeze->squeeze
-    if (auto squeeze_i = as_type_ptr<opset3::Squeeze>(input)) {
+    if (auto squeeze_i = ov::as_type_ptr<opset3::Squeeze>(input)) {
         PartialShape data_shape;
         if (op::is_parameter(input)) {
             data_shape = squeeze_i->input(0).get_partial_shape();

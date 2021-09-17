@@ -42,19 +42,31 @@ void ImportNetworkTestBase::exportImportNetwork() {
 }
 
 void ImportNetworkTestBase::Run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    TestRun(false);
+}
 
+void ImportNetworkTestBase::TestRun(bool isModelChanged) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // load export configuration and save outputs
     configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
     LoadNetwork();
     GenerateInputs();
     Infer();
+    auto actualOutputs = GetOutputs();
 
-    const auto& actualOutputs = GetOutputs();
     auto referenceOutputs = CalculateRefs();
     Compare(referenceOutputs, actualOutputs);
 
     for (auto const& configItem : importConfiguration) {
         configuration[configItem.first] = configItem.second;
+    }
+
+    // for import with different scale factor need to use import configuration to get refference outputs.
+    if (isModelChanged) {
+        LoadNetwork();
+        GenerateInputs();
+        Infer();
+        actualOutputs = GetOutputs();
     }
 
     const auto compiledExecNetwork = executableNetwork;
@@ -75,6 +87,7 @@ void ImportNetworkTestBase::Run() {
         ASSERT_NO_THROW(compiledExecNetwork.GetOutputsInfo()[next_output.first]);
     }
     auto importedOutputs = GetOutputs();
+
     ASSERT_EQ(actualOutputs.size(), importedOutputs.size());
 
     for (size_t i = 0; i < actualOutputs.size(); i++) {

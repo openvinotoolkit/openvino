@@ -18,20 +18,98 @@ OpenVINO™ Model Server is measured in multiple-client-single-server configurat
 
 * **Execution Controller** is launched on the client platform. It is responsible for synchronization of the whole measurement process, downloading metrics from the load balancer, and presenting the final report of the execution.
 
-## 3D U-Net (FP32)
-![](../img/throughput_ovms_3dunet.png)
 ## resnet-50-TF (INT8)
 ![](../img/throughput_ovms_resnet50_int8.png)
 ## resnet-50-TF (FP32)
-![](../img/throughput_ovms_resnet50_fp32.png)
-## bert-large-uncased-whole-word-masking-squad-int8-0001 (INT8)
-![](../img/throughput_ovms_bertlarge_int8.png)
-
+![](../img/throughput_ovms_resnet50_fp32_bs_1.png)
+## 3D U-Net (FP32)
+![](../img/throughput_ovms_3dunet.png)
+## yolo-v3-tf (FP32)
+![](../img/throughput_ovms_yolo3_fp32.png)
+## yolo-v3-tiny-tf (FP32)
+![](../img/throughput_ovms_yolo3tiny_fp32.png)
+## yolo-v4-tf (FP32)
+![](../img/throughput_ovms_yolo4_fp32.png)
+## bert-small-uncased-whole-word-masking-squad-0002 (FP32)
+![](../img/throughput_ovms_bertsmall_fp32.png)
+## bert-small-uncased-whole-word-masking-squad-int8-0002 (INT8)
+![](../img/throughput_ovms_bertsmall_int8.png)
 ## bert-large-uncased-whole-word-masking-squad-0001 (FP32)
 ![](../img/throughput_ovms_bertlarge_fp32.png)
+## bert-large-uncased-whole-word-masking-squad-int8-0001 (INT8)
+![](../img/throughput_ovms_bertlarge_int8.png)
+## mobilenet-v3-large-1.0-224-tf (FP32)
+![](../img/throughput_ovms_mobilenet3large_fp32.png)
+## ssd_mobilenet_v1_coco (FP32)
+![](../img/throughput_ovms_ssdmobilenet1_fp32.png)
+
 ## Platform Configurations
 
-OpenVINO™ Model Server performance benchmark numbers are based on release 2021.3. Performance results are based on testing as of March 15, 2021 and may not reflect all publicly available updates. 
+OpenVINO™ Model Server performance benchmark numbers are based on release 2021.4. Performance results are based on testing as of June 17, 2021 and may not reflect all publicly available updates. 
+
+**Platform with Intel® Xeon® Platinum 8260M**
+
+<table>
+  <tr>
+    <th></th>
+    <th><strong>Server Platform</strong></th>
+    <th><strong>Client Platform</strong></th>
+  </tr>
+  <tr>
+    <td><strong>Motherboard</strong></td>
+    <td>Inspur YZMB-00882-104 NF5280M5</td>
+    <td>Intel® Server Board S2600WF H48104-872</td>
+  </tr>
+  <tr>
+    <td><strong>Memory</strong></td>
+    <td>Samsung 16 x 16GB @ 2666 MT/s DDR4</td>
+    <td>Hynix 16 x 16GB @ 2666 MT/s DDR4</td>
+  </tr>
+  <tr>
+    <td><strong>CPU</strong></td>
+    <td>Intel® Xeon® Platinum 8260M CPU @ 2.40GHz</td>
+    <td>Intel® Xeon® Gold 6252 CPU @ 2.10GHz</td>
+  </tr>
+  <tr>
+    <td><strong>Selected CPU Flags</strong></td>
+    <td>Hyper Threading, Turbo Boost, DL Boost</td>
+    <td>Hyper Threading, Turbo Boost, DL Boost</td>
+  </tr>
+  <tr>
+    <td><strong>CPU Thermal Design Power</strong></td>
+    <td>162 W</td>
+    <td>150 W</td>
+  </tr>
+  <tr>
+    <td><strong>Operating System</strong></td>
+    <td>Ubuntu 20.04.2 LTS</td>
+    <td>Ubuntu 20.04.2 LTS</td>
+  </tr>
+  <tr>
+    <td><strong>Kernel Version</strong></td>
+    <td>5.4.0-54-generic</td>
+    <td>5.4.0-65-generic</td>
+  </tr>
+  <tr>
+    <td><strong>BIOS Vendor</strong></td>
+    <td>American Megatrends Inc.</td>
+    <td>Intel® Corporation</td>
+  </tr>
+  <tr>
+    <td><strong>BIOS Version & Release</strong></td>
+    <td>4.1.16, date: 06/23/2020</td>
+    <td>SE5C620.86B.02.01, date: 03/26/2020</td>
+  </tr>
+  <tr>
+    <td><strong>Docker Version</strong></td>
+    <td>20.10.3</td>
+    <td>20.10.3</td>
+  </tr>
+  <tr>
+    <td><strong>Network Speed</strong></td>
+    <td colspan="2">40 Gb/s</td>
+  </tr>
+</table>
 
 **Platform with Intel® Xeon® Gold 6252**
 
@@ -65,7 +143,7 @@ OpenVINO™ Model Server performance benchmark numbers are based on release 2021
     <td><strong>CPU Thermal Design Power</strong></td>
     <td>150 W</td>
     <td>162 W</td>
-  </tr>
+</tr>
   <tr>
     <td><strong>Operating System</strong></td>
     <td>Ubuntu 20.04.2 LTS</td>

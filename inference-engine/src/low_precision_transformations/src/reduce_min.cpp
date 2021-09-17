@@ -31,7 +31,7 @@ ReduceMinTransformation::ReduceMinTransformation(const Params& params) : ReduceB
 }
 
 bool ReduceMinTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
-    if (!is_type<opset1::ReduceMin>(reduce)) {
+    if (!ov::is_type<opset1::ReduceMin>(reduce)) {
         return false;
     }
 
@@ -40,7 +40,7 @@ bool ReduceMinTransformation::canBeTransformed(const TransformationContext& cont
     }
 
     const auto dequantization = NetworkHelper::getDequantization(reduce);
-    const std::vector<float> scales = as_type_ptr<opset1::Constant>(dequantization.multiplyConstant)->cast_vector<float>();
+    const std::vector<float> scales = ov::as_type_ptr<opset1::Constant>(dequantization.multiplyConstant)->cast_vector<float>();
     if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.0; })) {
         return false;
     }

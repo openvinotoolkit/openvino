@@ -100,7 +100,7 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
         return false;
     }
 
-    const std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
+    const std::shared_ptr<opset1::Constant> constant = ov::as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
     if (constant == nullptr) {
         return false;
     }
@@ -113,7 +113,7 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
             }
         }
         if (dequantization.multiply != nullptr) {
-            const auto mulConst = as_type_ptr<ngraph::op::v0::Constant>(dequantization.multiplyConstant);
+            const auto mulConst = ov::as_type_ptr<ngraph::op::v0::Constant>(dequantization.multiplyConstant);
             if (!NetworkHelper::isScalarLike(mulConst)) {
                 return false;
             }

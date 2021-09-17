@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator, "ExperimentalDetectronPriorGridGenerator", 6);
+OPENVINO_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator, "ExperimentalDetectronPriorGridGenerator", 6);
 
 op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
     const Output<Node>& priors,
@@ -94,9 +94,9 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
     validate();
 
     set_output_size(1);
-    PartialShape out_shape = {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
+    ov::PartialShape out_shape = {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
     if (m_attrs.flatten) {
-        out_shape = PartialShape{Dimension::dynamic(), 4};
+        out_shape = ov::PartialShape{Dimension::dynamic(), 4};
     }
 
     if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic()) {
@@ -109,9 +109,9 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
     auto featmap_width = featmap_shape[3];
 
     if (m_attrs.flatten) {
-        out_shape = PartialShape{featmap_height * featmap_width * num_priors, 4};
+        out_shape = ov::PartialShape{featmap_height * featmap_width * num_priors, 4};
     } else {
-        out_shape = PartialShape{featmap_height, featmap_width, num_priors, 4};
+        out_shape = ov::PartialShape{featmap_height, featmap_width, num_priors, 4};
     }
     set_output_type(0, input_et, out_shape);
 }

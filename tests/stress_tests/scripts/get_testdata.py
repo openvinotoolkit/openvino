@@ -9,13 +9,12 @@ Usage: ./scrips/get_testdata.py
 # pylint:disable=line-too-long
 
 import argparse
+import json
 import logging as log
 import os
 import shutil
 import subprocess
 import sys
-import json
-
 from distutils.dir_util import copy_tree
 from inspect import getsourcefile
 from pathlib import Path

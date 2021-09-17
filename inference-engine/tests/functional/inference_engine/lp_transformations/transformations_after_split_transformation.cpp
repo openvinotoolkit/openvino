@@ -39,7 +39,6 @@
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
-#include "low_precision/subtract_multiply_to_multiply_add.hpp"
 
 #include "lpt_ngraph_functions/transformations_after_split_function.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -149,10 +148,6 @@ void getTransformerWithTransformationByName(
         transformer.add<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(params);
         return;
     }
-    if (name == "SubtractMultiplyToMultiplyAddTransformation") {
-        transformer.add<SubtractMultiplyToMultiplyAddTransformation, ngraph::opset1::Multiply>(params);
-        return;
-    }
     throw std::runtime_error("unexpected transformation name");
 }
 
@@ -210,8 +205,7 @@ const std::vector<std::string> transformationNames = {
     "FuseConvertTransformation",
     "FuseSubtractToFakeQuantizeTransformation",
     "FuseMultiplyToFakeQuantizeTransformation",
-    "MultiplyToGroupConvolutionTransformation",
-    "SubtractMultiplyToMultiplyAddTransformation",
+    "MultiplyToGroupConvolutionTransformation"
 };
 
 INSTANTIATE_TEST_SUITE_P(

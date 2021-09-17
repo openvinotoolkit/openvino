@@ -19,7 +19,7 @@ Mask::Ptr getMask(const Output<const Node> & output) {
     if (!rtInfo.count(MaskWrapper::type_info.name)) return nullptr;
 
     const auto &attr = rtInfo.at(MaskWrapper::type_info.name);
-    return as_type_ptr<MaskWrapper>(attr)->get();
+    return ov::as_type_ptr<MaskWrapper>(attr)->get();
 }
 
 Mask::Ptr getMask(const Output<Node> & output) {
@@ -29,7 +29,7 @@ Mask::Ptr getMask(const Output<Node> & output) {
     if (!rtInfo.count(MaskWrapper::type_info.name)) return nullptr;
 
     const auto &attr = rtInfo.at(MaskWrapper::type_info.name);
-    return as_type_ptr<MaskWrapper>(attr)->get();
+    return ov::as_type_ptr<MaskWrapper>(attr)->get();
 }
 
 void setMask(Output<Node> output, const Mask::Ptr & mask) {

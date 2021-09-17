@@ -99,17 +99,17 @@ constexpr VariantTypeInfo VariantWrapper<Ship>::type_info;
 
 TEST(op, variant) {
     shared_ptr<Variant> var_std_string = make_variant<std::string>("My string");
-    ASSERT_TRUE((is_type<VariantWrapper<std::string>>(var_std_string)));
-    EXPECT_EQ((as_type_ptr<VariantWrapper<std::string>>(var_std_string)->get()), "My string");
+    ASSERT_TRUE((ov::is_type<VariantWrapper<std::string>>(var_std_string)));
+    EXPECT_EQ((ov::as_type_ptr<VariantWrapper<std::string>>(var_std_string)->get()), "My string");
 
     shared_ptr<Variant> var_int64_t = make_variant<int64_t>(27);
-    ASSERT_TRUE((is_type<VariantWrapper<int64_t>>(var_int64_t)));
-    EXPECT_FALSE((is_type<VariantWrapper<std::string>>(var_int64_t)));
-    EXPECT_EQ((as_type_ptr<VariantWrapper<int64_t>>(var_int64_t)->get()), 27);
+    ASSERT_TRUE((ov::is_type<VariantWrapper<int64_t>>(var_int64_t)));
+    EXPECT_FALSE((ov::is_type<VariantWrapper<std::string>>(var_int64_t)));
+    EXPECT_EQ((ov::as_type_ptr<VariantWrapper<int64_t>>(var_int64_t)->get()), 27);
 
     shared_ptr<Variant> var_ship = make_variant<Ship>(Ship{"Lollipop", 3, 4});
-    ASSERT_TRUE((is_type<VariantWrapper<Ship>>(var_ship)));
-    Ship& ship = as_type_ptr<VariantWrapper<Ship>>(var_ship)->get();
+    ASSERT_TRUE((ov::is_type<VariantWrapper<Ship>>(var_ship)));
+    Ship& ship = ov::as_type_ptr<VariantWrapper<Ship>>(var_ship)->get();
     EXPECT_EQ(ship.name, "Lollipop");
     EXPECT_EQ(ship.x, 3);
     EXPECT_EQ(ship.y, 4);
@@ -118,22 +118,22 @@ TEST(op, variant) {
     // Check Node RTInfo
     node->get_rt_info()["A"] = var_ship;
     auto node_var_ship = node->get_rt_info().at("A");
-    ASSERT_TRUE((is_type<VariantWrapper<Ship>>(node_var_ship)));
-    Ship& node_ship = as_type_ptr<VariantWrapper<Ship>>(node_var_ship)->get();
+    ASSERT_TRUE((ov::is_type<VariantWrapper<Ship>>(node_var_ship)));
+    Ship& node_ship = ov::as_type_ptr<VariantWrapper<Ship>>(node_var_ship)->get();
     EXPECT_EQ(&node_ship, &ship);
 
     // Check Node Input<Node> RTInfo
     auto relu = make_shared<op::Relu>(node);
     relu->input(0).get_rt_info()["A"] = var_ship;
     auto node_input_var_ship = node->get_rt_info().at("A");
-    ASSERT_TRUE((is_type<VariantWrapper<Ship>>(node_input_var_ship)));
-    Ship& node_input_ship = as_type_ptr<VariantWrapper<Ship>>(node_input_var_ship)->get();
+    ASSERT_TRUE((ov::is_type<VariantWrapper<Ship>>(node_input_var_ship)));
+    Ship& node_input_ship = ov::as_type_ptr<VariantWrapper<Ship>>(node_input_var_ship)->get();
     EXPECT_EQ(&node_input_ship, &ship);
 
     // Check Node Input<Node> RTInfo
     node->output(0).get_rt_info()["A"] = var_ship;
     auto node_output_var_ship = node->get_rt_info().at("A");
-    ASSERT_TRUE((is_type<VariantWrapper<Ship>>(node_output_var_ship)));
-    Ship& node_output_ship = as_type_ptr<VariantWrapper<Ship>>(node_input_var_ship)->get();
+    ASSERT_TRUE((ov::is_type<VariantWrapper<Ship>>(node_output_var_ship)));
+    Ship& node_output_ship = ov::as_type_ptr<VariantWrapper<Ship>>(node_input_var_ship)->get();
     EXPECT_EQ(&node_output_ship, &ship);
 }

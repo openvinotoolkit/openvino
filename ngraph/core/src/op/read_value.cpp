@@ -11,9 +11,8 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::ReadValueBase, "ReadValueBase", 0);
-NGRAPH_RTTI_DEFINITION(op::v3::ReadValue, "ReadValue", 3);
-NGRAPH_RTTI_DEFINITION(op::v6::ReadValue, "ReadValue", 6);
+OPENVINO_RTTI_DEFINITION(ov::op::v3::ReadValue, "ReadValue", 3);
+OPENVINO_RTTI_DEFINITION(ov::op::v6::ReadValue, "ReadValue", 6);
 
 op::v3::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& variable_id)
     : ReadValueBase({init_value}),
@@ -62,7 +61,7 @@ void op::v6::ReadValue::validate_and_infer_types() {
                           element::Type::merge(var_info.data_type, m_variable->get_info().data_type, arg_t),
                           "Variables types are inconsistent.");
     NODE_VALIDATION_CHECK(this,
-                          PartialShape::merge_into(var_info.data_shape, m_variable->get_info().data_shape),
+                          ov::PartialShape::merge_into(var_info.data_shape, m_variable->get_info().data_shape),
                           "Variable shape and output shape are inconsistent.");
     m_variable->update(var_info);
     set_output_type(0, arg_t, output_shape);
@@ -81,7 +80,7 @@ bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v6::ReadValue::revalidate_and_infer_types() {
-    VariableInfo var_info{PartialShape::dynamic(), element::dynamic, m_variable->get_info().variable_id};
+    VariableInfo var_info{ov::PartialShape::dynamic(), element::dynamic, m_variable->get_info().variable_id};
     m_variable->update(var_info);
     Node::revalidate_and_infer_types();
 }
@@ -101,7 +100,7 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     bool use_context = var_value != variable_values.end() && !var_value->second->get_reset();
 
     // initial value (inputs[0]) is not supported, use zeros
-    auto zero_const = make_shared<Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
+    auto zero_const = make_shared<v0::Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
     auto zero_tensor = make_shared<HostTensor>(zero_const);
     const auto& input_tensor = use_context ? var_value->second->get_value() : zero_tensor;
     outputs[0]->set_unary(input_tensor);

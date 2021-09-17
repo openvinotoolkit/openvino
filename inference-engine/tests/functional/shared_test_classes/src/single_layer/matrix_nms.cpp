@@ -10,7 +10,7 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
 
-std::string MatrixNmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsParams> obj) {
+std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams>& obj) {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     op::v8::MatrixNms::SortResultType sortResultType;
