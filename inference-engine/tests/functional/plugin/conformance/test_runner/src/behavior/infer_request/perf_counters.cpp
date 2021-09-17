@@ -18,6 +18,10 @@ const std::vector<std::map<std::string, std::string>> MulticonfigsPerfCounters =
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice }}
 };
 
+const std::vector<std::map<std::string, std::string>> AutoconfigsPerfCounters = {
+        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice }}
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPerfCountersTest,
                         ::testing::Combine(
                                 ::testing::Values(targetDevice),
@@ -29,5 +33,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPerfCountersTest
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                 ::testing::ValuesIn(MulticonfigsPerfCounters)),
                          InferRequestPerfCountersTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPerfCountersTest,
+                        ::testing::Combine(
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(AutoconfigsPerfCounters)),
+                         InferRequestPerfCountersTest::getTestCaseName);
+
 
 }  // namespace

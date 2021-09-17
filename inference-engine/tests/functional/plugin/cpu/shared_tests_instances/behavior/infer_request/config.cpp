@@ -62,18 +62,5 @@ namespace {
                                      ::testing::ValuesIn(MultiInConfigs)),
                                      InferRequestConfigTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestConfigTest,
-                         ::testing::Combine(
-                             ::testing::Values(1u),
-                             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                             ::testing::ValuesIn(multiConfigs)),
-                         InferRequestConfigTest::getTestCaseName);
 
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_, InferRequestConfigTest,
-                         ::testing::Combine(
-                             ::testing::Values(1u),
-                             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                             ::testing::ValuesIn(MultiInConfigs)),
-                         InferRequestConfigTest::getTestCaseName);
 }  // namespace
