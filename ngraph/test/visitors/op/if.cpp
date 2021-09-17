@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <util/ngraph_test_utils.hpp>
+
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
@@ -37,6 +39,11 @@ TEST(attributes, if_op) {
     if_op->set_output(res0, res1);
     if_op->validate_and_infer_types();
     NodeBuilder builder(if_op);
-    auto g_if  = ov::as_type_ptr<If>(builder.create());
-
+    auto g_if = ov::as_type_ptr<If>(builder.create());
+    EXPECT_EQ(g_if->get_input_descriptions(0), if_op->get_input_descriptions(0));
+    EXPECT_EQ(g_if->get_input_descriptions(1), if_op->get_input_descriptions(1));
+    EXPECT_EQ(g_if->get_output_descriptions(0), if_op->get_output_descriptions(0));
+    EXPECT_EQ(g_if->get_output_descriptions(1), if_op->get_output_descriptions(1));
+    compare_functions(g_if->get_then_body(), if_op->get_then_body());
+    compare_functions(g_if->get_else_body(), if_op->get_else_body());
 }

@@ -188,13 +188,13 @@ private:
     /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
-    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> parseInputDescription(
-        const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
+    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>
+    parseInputDescription(const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
     /// \brief Traverses port_map in order to create vector of OutputDescription shared_ptrs.
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
-    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> parseOutputDescription(
-        const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
+    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>
+    parseOutputDescription(const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
 
     // TODO consider to call only once per layer/TI-Loop node
     IoMap updated_io_map(const pugi::xml_node& node, const pugi::xml_node& body_node);
@@ -258,39 +258,10 @@ XmlDeserializer::IoMap XmlDeserializer::updated_io_map(const pugi::xml_node& nod
     return extend_io_map;
 }
 
-XmlDeserializer::IoMap XmlDeserializer::gen_internal_layer_id_offsets(const pugi::xml_node& node,
-                                                                      std::string body_name = "body") {
-    auto body_node = node.child(body_name.c_str());
-
-    if (body_node.empty()) {
-        IE_THROW() << "Missing" << body_name << " part.";
-    }
-    // Fill map: parameter/result id to parameter/result number in Function
-
-    auto extend_io_map = XmlDeserializer::IoMap();
-
-    size_t parameter_counter = 0;
-    size_t result_counter = 0;
-    FOREACH_CHILD (layer, body_node.child("layers"), "layer") {
-        auto type = XMLParseUtils::GetStrAttr(layer, "type");
-
-        if (type == "Parameter") {
-            auto id = XMLParseUtils::GetUIntAttr(layer, "id");
-            extend_io_map.inputs.insert(
-                {id, parameter_counter});  // add mapping old internal_layer_id and parameter number
-            parameter_counter++;
-        } else if (type == "Result") {
-            auto id = XMLParseUtils::GetUIntAttr(layer, "id");
-            extend_io_map.outputs.insert({id, result_counter});  // add mapping old internal_layer_id and result number
-            result_counter++;
-        }
-    }
-    return extend_io_map;
-}
-
-
 std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> XmlDeserializer::parseInputDescription(
-    const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name) {
+    const pugi::xml_node& node,
+    const std::string& body_name,
+    const std::string& port_map_name) {
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> inputs;
     auto body_node = node.child(body_name.c_str());
 
@@ -363,7 +334,9 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> Xml
 }
 
 std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> XmlDeserializer::parseOutputDescription(
-    const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name) {
+    const pugi::xml_node& node,
+    const std::string& body_name,
+    const std::string& port_map_name) {
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> outputs;
     auto body_node = node.child(body_name.c_str());
     const auto up_io_map = updated_io_map(node, body_node);
@@ -459,9 +432,13 @@ ngraph::op::v5::Loop::SpecialBodyPorts XmlDeserializer::parsePurposeAttribute(co
 }
 
 void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
-    static const std::unordered_set<std::string> skip_names = {
-        "input_descriptions", "output_descriptions", "special_body_ports", "then_inputs",
-        "else_inputs", "then_outputs", "else_outputs" };
+    static const std::unordered_set<std::string> skip_names = {"input_descriptions",
+                                                               "output_descriptions",
+                                                               "special_body_ports",
+                                                               "then_inputs",
+                                                               "else_inputs",
+                                                               "then_outputs",
+                                                               "else_outputs"};
     std::string val;
 
     // for TensorIterator look for 'port_map' as 'data' does not exist
@@ -622,7 +599,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
 void XmlDeserializer::on_adapter(const std::string& name,
                                  ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) {
     std::shared_ptr<ngraph::Function> ngraph_function;
-    
+
     if (!name.compare("body") || !name.compare("then_body") || !name.compare("else_body")) {
         auto body_node = m_node.child(name.c_str());
         if (body_node.empty()) {

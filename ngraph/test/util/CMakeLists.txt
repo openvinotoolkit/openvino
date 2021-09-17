@@ -8,6 +8,7 @@ set (SRC
     engine/interpreter_engine.cpp
     engine/shared_utils.cpp
     float_util.cpp
+    ngraph_test_utils.cpp
     test_tools.cpp
     test_case.cpp
     test_control.cpp
@@ -28,7 +29,7 @@ endif()
 
 target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..
     $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
-target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend gtest gmock)
+target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend gtest gmock inference_engine_transformations)
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     target_link_libraries(ngraph_test_util PRIVATE onnx_common)
 endif()

@@ -305,7 +305,6 @@ public:
             {"else_body", "else_port_map", {"else_inputs", "else_outputs"}} };
         BodyTargetNames bnames;
         bool is_body_target = false;
-        std::vector<BodyTargetNames> serialize_bodies;
         for (const auto& _body_target : body_names) {
             if (m_xml_node.parent().child(std::get<0>(_body_target).c_str())) {
                 auto vec_names = std::get<2>(_body_target);
