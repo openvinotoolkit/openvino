@@ -22,7 +22,7 @@
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
-#include <ngraph_ops/framework_node.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
 
 namespace {
 inline namespace tools {

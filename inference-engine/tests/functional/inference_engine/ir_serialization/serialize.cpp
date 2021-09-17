@@ -15,8 +15,8 @@
 
 typedef std::tuple<std::string, std::string> SerializationParams;
 
-class SerializationTest : public CommonTestUtils::TestsCommon,
-    public testing::WithParamInterface<SerializationParams> {
+class SerializationTest: public CommonTestUtils::TestsCommon,
+                         public testing::WithParamInterface<SerializationParams> {
 public:
     std::string m_model_path;
     std::string m_binary_path;
@@ -31,7 +31,7 @@ public:
                 IR_SERIALIZATION_MODELS_PATH + std::get<1>(GetParam()));
         }
 
-        const std::string test_name = GetTestName() + "_" + GetTimestamp();
+        const std::string test_name =  GetTestName() + "_" + GetTimestamp();
         m_out_xml_path = test_name + ".xml";
         m_out_bin_path = test_name + ".bin";
     }
@@ -45,7 +45,7 @@ public:
 TEST_P(SerializationTest, CompareFunctions) {
     InferenceEngine::Core ie;
     InferenceEngine::CNNNetwork expected;
-    //  auto exp_function = ie.read_model();
+
     expected = ie.ReadNetwork(m_model_path, m_binary_path);
     expected.serialize(m_out_xml_path, m_out_bin_path);
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
@@ -57,34 +57,34 @@ TEST_P(SerializationTest, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_SUITE_P(IRSerialization, SerializationTest,
-    testing::Values(std::make_tuple("add_abc.xml", "add_abc.bin"),
-        std::make_tuple("add_abc_f64.xml", ""),
-        std::make_tuple("add_abc_bin.xml", ""),
-        std::make_tuple("split_equal_parts_2d.xml", "split_equal_parts_2d.bin"),
-        std::make_tuple("addmul_abc.xml", "addmul_abc.bin"),
-        std::make_tuple("add_abc_initializers.xml", "add_abc_initializers.bin"),
-        std::make_tuple("add_abc_initializers.xml", "add_abc_initializers_f32_nan_const.bin"),
-        std::make_tuple("add_abc_initializers_nan_const.xml", "add_abc_initializers_nan_const.bin"),
-        std::make_tuple("add_abc_initializers_u1_const.xml", "add_abc_initializers_u1_const.bin"),
-        std::make_tuple("experimental_detectron_roi_feature_extractor.xml", ""),
-        std::make_tuple("experimental_detectron_roi_feature_extractor_opset6.xml", ""),
-        std::make_tuple("experimental_detectron_detection_output.xml", ""),
-        std::make_tuple("experimental_detectron_detection_output_opset6.xml", ""),
-        std::make_tuple("nms5.xml", "nms5.bin"),
-        std::make_tuple("shape_of.xml", ""),
-        std::make_tuple("dynamic_input_shape.xml", ""),
-        std::make_tuple("pad_with_shape_of.xml", ""),
-        std::make_tuple("conv_with_rt_info.xml", ""),
-        std::make_tuple("loop_2d_add.xml", "loop_2d_add.bin"),
-        std::make_tuple("nms5_dynamism.xml", "nms5_dynamism.bin"),
-        std::make_tuple("if_diff_case.xml", "if_diff_case.bin")));
+        testing::Values(std::make_tuple("add_abc.xml", "add_abc.bin"),
+                        std::make_tuple("add_abc_f64.xml", ""),
+                        std::make_tuple("add_abc_bin.xml", ""),
+                        std::make_tuple("split_equal_parts_2d.xml", "split_equal_parts_2d.bin"),
+                        std::make_tuple("addmul_abc.xml", "addmul_abc.bin"),
+                        std::make_tuple("add_abc_initializers.xml", "add_abc_initializers.bin"),
+                        std::make_tuple("add_abc_initializers.xml", "add_abc_initializers_f32_nan_const.bin"),
+                        std::make_tuple("add_abc_initializers_nan_const.xml", "add_abc_initializers_nan_const.bin"),
+                        std::make_tuple("add_abc_initializers_u1_const.xml", "add_abc_initializers_u1_const.bin"),
+                        std::make_tuple("experimental_detectron_roi_feature_extractor.xml", ""),
+                        std::make_tuple("experimental_detectron_roi_feature_extractor_opset6.xml", ""),
+                        std::make_tuple("experimental_detectron_detection_output.xml", ""),
+                        std::make_tuple("experimental_detectron_detection_output_opset6.xml", ""),
+                        std::make_tuple("nms5.xml", "nms5.bin"),
+                        std::make_tuple("shape_of.xml", ""),
+                        std::make_tuple("dynamic_input_shape.xml", ""),
+                        std::make_tuple("pad_with_shape_of.xml", ""),
+                        std::make_tuple("conv_with_rt_info.xml", ""),
+                        std::make_tuple("loop_2d_add.xml", "loop_2d_add.bin"),
+                        std::make_tuple("nms5_dynamism.xml", "nms5_dynamism.bin"),
+                        std::make_tuple("if_diff_case.xml", "if_diff_case.bin")));
 
 #ifdef NGRAPH_ONNX_FRONTEND_ENABLE
 
 INSTANTIATE_TEST_SUITE_P(ONNXSerialization, SerializationTest,
-    testing::Values(std::make_tuple("add_abc.onnx", ""),
-        std::make_tuple("split_equal_parts_2d.onnx", ""),
-        std::make_tuple("addmul_abc.onnx", ""),
-        std::make_tuple("add_abc_initializers.onnx", "")));
+        testing::Values(std::make_tuple("add_abc.onnx", ""),
+                        std::make_tuple("split_equal_parts_2d.onnx", ""),
+                        std::make_tuple("addmul_abc.onnx", ""),
+                        std::make_tuple("add_abc_initializers.onnx", "")));
 
 #endif

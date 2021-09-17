@@ -601,8 +601,8 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         interpreter_backend
                                         Threads::Threads
                                         openvino::conditional_compilation
-                                        frontend_manager)
-target_link_libraries(unit-test PUBLIC commonTestUtils)
+                                        frontend_manager
+                                PUBLIC commonTestUtils)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled

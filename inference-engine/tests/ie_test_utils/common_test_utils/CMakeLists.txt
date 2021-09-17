@@ -19,7 +19,6 @@ function(add_common_utils ADD_TARGET_NAME)
                     gtest
                     gtest_main
                     inference_engine_transformations
-                    ngraph_test_util
     )
 
     # USE_STATIC_IE is passed

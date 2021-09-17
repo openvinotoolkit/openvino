@@ -13,9 +13,11 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/pass.hpp>
 #include <ngraph/opsets/opset6.hpp>
-#include <ngraph_ops/framework_node.hpp>
 
 #include "ie_common.h"
+#include <ngraph_ops/framework_node.hpp>
+
+#include "test_common.hpp"
 
 #define DYN ngraph::Dimension::dynamic()
 
