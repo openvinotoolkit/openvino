@@ -225,10 +225,6 @@ auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
             if (ov::is_type<ngraph::op::v5::Loop>(in_out.get_node()->shared_from_this())) {
                 return false;
             }
-//            Todo: Why a subgraph is not allowed before the result?
-            if (ov::is_type<ngraph::op::v0::Result>(in_out.get_node()->shared_from_this())) {
-                return false;
-            }
         }
     }
 
@@ -246,6 +242,43 @@ auto subgraph_has_body(std::shared_ptr<Node> node) -> bool {
     return false;
 }
 
+auto has_result_child(std::shared_ptr<Node> node) -> bool {
+    for (const auto &child : node->get_users()) {
+        if (ov::is_type<ngraph::opset1::Result>(child)) {
+            return true;
+        }
+    }
+    return false;
+}
+// todo: do we really need this function? Can a node have >1 Results output?
+auto get_num_result_children(std::shared_ptr<Node> node) -> size_t {
+    size_t result = 0;
+    for (const auto &child : node->get_users()) {
+        if (ov::is_type<ngraph::opset1::Result>(child)) {
+            result++;
+        }
+    }
+    return result;
+}
+// Need to update tensor name manually, since MKLDNNGraph::Replicate() looks at input.get_tensor().get_name();
+// If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
+// todo: remove this function when MKLDNNGraph::Replicate() will rely only on node->get_friendly_name()
+auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> subgraph) -> void {
+    if (subgraph->get_output_size() != 1) {
+        bool not_set = true;
+        for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
+            for (auto &in : subgraph->get_output_target_inputs(i)) {
+                if (ov::is_type<opset1::Result>(in.get_node())) {
+                    NGRAPH_SUPPRESS_DEPRECATED_START
+                    subgraph->output(i).get_tensor_ptr()->set_name(subgraph->get_friendly_name());
+                    NGRAPH_SUPPRESS_DEPRECATED_END
+                    not_set = false;
+                    break;
+                }
+            }
+        }
+    }
+}
 } // namespace
 
 bool ngraph::snippets::pass::AppropriateForSubgraph(std::shared_ptr<Node> n) {
@@ -269,6 +302,7 @@ ngraph::snippets::pass::StartSubgraph::StartSubgraph() : MatcherPass() {
 
         auto subgraph = op::Subgraph::wrap_node_as_subgraph(node);
         ngraph::replace_node(node, subgraph);
+        update_out_tensor_name(subgraph);
 
         remark(1) << "Replacement (new) done for: "
                   << subgraph->get_friendly_name()
@@ -293,6 +327,22 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
 
         remark(1) << "Match root (Attach): " << node->get_friendly_name() << " " << node << std::endl;
 
+        auto abort_with_strategy = [&node, strategy](const std::string message_reset,
+                                                     const std::string message_abort = "", int priority = 3) {
+            if (strategy == continuation_strategy::reset) {
+                remark(priority) << message_reset << std::endl;
+                auto single_node_subgraph = op::Subgraph::wrap_node_as_subgraph(node);
+                single_node_subgraph->validate_and_infer_types();
+                ngraph::replace_node(node, single_node_subgraph);
+                return true;
+            } else if (strategy == continuation_strategy::abort) {
+                if (!message_abort.empty()) {
+                    remark(priority) << message_abort << std::endl;
+                }
+                return false;
+            }
+            return false;
+        };
         // inputs that are already subgraphs
         std::unordered_set<std::shared_ptr<Node>> input_subgraphs;
         // clone bodies because we need a rollback if loop is found
@@ -417,9 +467,18 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                 }
             }
         }
+        size_t num_result_children = get_num_result_children(node);
+        std::string newSubgraphName = num_result_children <= 1 ? node->get_friendly_name() : "";
+        for (const auto& subgraph : input_subgraphs) {
+            if (has_result_child(subgraph)) {
+                num_result_children++;
+                newSubgraphName = subgraph->get_friendly_name();
+            }
+        }
+        if (num_result_children > 1)
+            return abort_with_strategy("New subgraph is created since too many Result children are detected");
 
         auto body_node = node->copy_with_new_inputs(internal_inputs);
-        // todo: set friendly name of the first input subgraph to comply with eltwise naming
         body_node->set_friendly_name(node->get_friendly_name());
 
         remark(1) << "Original node outputs = " << node->get_output_size()
@@ -472,26 +531,18 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         }
 
         if (body_parameters.size() + body_results.size() > 7) {
-            if (strategy == continuation_strategy::reset) {
-                remark(13) << "new subgraph is created. Impossible to schedule subgraph with "
-                        << body_parameters.size() << " inputs and " << body_results.size() << " outputs." << std::endl;
-
-                auto single_node_subgraph = op::Subgraph::wrap_node_as_subgraph(node);
-                ngraph::replace_node(node, single_node_subgraph);
-                return true;
-            } else {
-                remark(13) << "failed to continue subgraph. Impossible to schedule subgraph with "
-                           << body_parameters.size() << " inputs and " << body_results.size() << " outputs." << std::endl;
-                return false;
-            }
+            const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
+            std::to_string(body_parameters.size()) + " inputs and " + std::to_string(body_results.size()) + " outputs.";
+            const std::string message_abort = "failed to continue subgraph. Impossible to schedule subgraph with " +
+            std::to_string(body_parameters.size()) + " inputs and " + std::to_string(body_results.size()) + " outputs.";
+            return abort_with_strategy(message_reset, message_abort);
         }
 
-        auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
+        auto body = op::create_body(newSubgraphName, body_results, body_parameters);
         for (size_t i = 0; i < body->get_parameters().size(); i++) {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-
-        auto subgraph = op::build_subgraph(node, external_inputs, body);
+        auto subgraph = op::build_subgraph(node, external_inputs, body, newSubgraphName);
         auto act_body = subgraph->get_body();
         for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
             act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
@@ -501,37 +552,19 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
             throw ngraph_error("newly create subgraph doesn't much number of results");
         }
 
-        if (outputs_are_not_broadcastable(subgraph)) {
-            if (strategy == continuation_strategy::reset) {
-                remark(13) << "New subgraph is created due to outputs of a subgraph not broadcastable." << std::endl;
+        if (outputs_are_not_broadcastable(subgraph))
+            return abort_with_strategy("New subgraph is created due to outputs of a subgraph not broadcastable.");
 
-                auto single_node_subgraph = op::Subgraph::wrap_node_as_subgraph(node);
-                single_node_subgraph->validate_and_infer_types();
-                ngraph::replace_node(node, single_node_subgraph);
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        if (has_cycles_of_dependencies(subgraph_result_inputs, subgraph->inputs())) {
-            if (strategy == continuation_strategy::reset) {
-                remark(13) << "New subgraph is created due to loop dependency introduced by one of input subgraphs." << std::endl;
-
-                auto single_node_subgraph = op::Subgraph::wrap_node_as_subgraph(node);
-                single_node_subgraph->validate_and_infer_types();
-                ngraph::replace_node(node, single_node_subgraph);
-                return true;
-            } else {
-                return false;
-            }
-        }
+        if (has_cycles_of_dependencies(subgraph_result_inputs, subgraph->inputs()))
+            return abort_with_strategy("New subgraph is created due to loop dependency introduced by one of input subgraphs.");
 
         for (size_t i = 0; i < subgraph->get_output_size(); ++i) {
             for (auto target_input : subgraph_result_inputs[i]) {
                 target_input.replace_source_output(subgraph->output(i));
             }
         }
+        if (num_result_children == 1)
+            update_out_tensor_name(subgraph);
 
         subgraph->validate_and_infer_types();
 
