@@ -57,7 +57,7 @@ set the mentioned flags to `ON`. Note the `CMAKE_INSTALL_PREFIX`, which defaults
 The Python module is installed in the `${OPENVINO_BASEDIR}/openvino_dist/python/python<version>/` folder. 
 Set up the OpenVINO™ environment in order to add the module path to `PYTHONPATH`:
 
-    source ${OPENVINO_BASEDIR}/openvino_dist/bin/setupvars.sh
+    source ${OPENVINO_BASEDIR}/openvino_dist/setupvars.sh
 
 If you would like to use a specific version of Python, or use a virtual environment, you can set the `PYTHON_EXECUTABLE` 
 variable. For example: 
@@ -136,7 +136,7 @@ adjust the number of threads used in the building process to your machine's capa
 
 Set up the OpenVINO™ environment in order to add a module path to `PYTHONPATH`:
 
-    %OPENVINO_BASEDIR%\openvino_dist\bin\setupvars.bat
+    %OPENVINO_BASEDIR%\openvino_dist\setupvars.bat
 
 ### Build an nGraph Python Wheel on Windows
 
@@ -173,7 +173,7 @@ You should now be able to run tests.
 
 You may need to run the `setupvars` script from the OpenVINO™ Toolkit to set paths to OpenVINO™ components.
 
-    source ${OPENVINO_BASEDIR}/openvino_dist/bin/setupvars.sh
+    source ${OPENVINO_BASEDIR}/openvino_dist/setupvars.sh
 
 Now you can run tests using `pytest`:
 
