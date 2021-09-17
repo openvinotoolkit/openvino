@@ -55,6 +55,10 @@ Place::Ptr PlaceInputEdgeONNX::get_producing_operation() const {
     return get_source_tensor()->get_producing_operation();
 }
 
+Place::Ptr PlaceInputEdgeONNX::get_producing_port() const {
+    return get_source_tensor()->get_producing_port();
+}
+
 PlaceOutputEdgeONNX::PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge,
                                          std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{edge},

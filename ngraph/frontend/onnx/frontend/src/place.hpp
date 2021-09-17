@@ -27,6 +27,7 @@ public:
     Place::Ptr get_source_tensor() const override;
     std::vector<Place::Ptr> get_consuming_operations() const override;
     Place::Ptr get_producing_operation() const override;
+    Place::Ptr get_producing_port() const override;
 
 private:
     onnx_editor::InputEdge m_edge;

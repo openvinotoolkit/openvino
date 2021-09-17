@@ -880,3 +880,21 @@ def test_get_producing_operation():
     out2_tensor = model.get_place_by_tensor_name(tensorName="out2")
     sin_op = out2_tensor.get_producing_operation()
     assert sin_op.get_producing_operation(inputPortIndex=0).is_equal(split_op)
+
+
+def test_get_producing_port():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    split_op_in_port = split_op.get_input_port()
+    split_op_in_port_prod_port = split_op_in_port.get_producing_port()
+
+    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
+    add_op = add_out_tensor.get_producing_operation()
+    add_op_out_port = add_op.get_output_port()
+
+    assert split_op_in_port_prod_port.is_equal(add_op_out_port)
