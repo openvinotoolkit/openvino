@@ -18,17 +18,25 @@ using namespace reference_tests;
 
 struct ExperimentalROIFunctional {
     std::shared_ptr<Function> create_function(const std::vector<Tensor>& ed_inputs,
-                                              const std::vector<Tensor>& results) {
+                                              const std::vector<Tensor>& results,
+                                              const std::vector<Shape>& input_shapes) {
         op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
         attrs.aligned = false;
         attrs.output_size = 3;
         attrs.sampling_ratio = 2;
         attrs.pyramid_scales = {4};
 
-        auto input = std::make_shared<op::Parameter>(element::f32, Shape{2, 4});
-        auto pyramid_layer0 = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2, 3});
+        const size_t num_of_inputs = input_shapes.size();
+        NodeVector parameters(num_of_inputs);
+        for (size_t i = 0; i < num_of_inputs; ++i) {
+            parameters[i] = std::make_shared<op::Parameter>(element::f32, input_shapes[i]);
+        }
 
-        auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(NodeVector{input, pyramid_layer0}, attrs);
+//         auto input = std::make_shared<op::Parameter>(element::f32, Shape{2, 4});
+//         auto pyramid_layer0 = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2, 3});
+//
+//         auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(NodeVector{input, pyramid_layer0}, attrs);
+        auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(parameters, attrs);
 
         auto fun = std::make_shared<Function>(OutputVector{roi->output(0), roi->output(1)},
                                               ParameterVector{input, pyramid_layer0});
@@ -38,15 +46,18 @@ struct ExperimentalROIFunctional {
 
 struct ExperimentalROIParams {
     ExperimentalROIParams(const std::shared_ptr<ExperimentalROIFunctional>& functional,
+                          const std::vector<Shape>& input_shapes,
                           const std::vector<Tensor>& experimental_detectron_roi_feature_inputs,
                           const std::vector<Tensor>& expected_results,
                           const std::string& test_case_name)
         : function{functional},
+          input_shapes{input_shapes},
           inputs{experimental_detectron_roi_feature_inputs},
           expected_results{expected_results},
           test_case_name{test_case_name} {}
 
     std::shared_ptr<ExperimentalROIFunctional> function;
+    std::vector<Shape> input_shapes;
     std::vector<Tensor> inputs;
     std::vector<Tensor> expected_results;
     std::string test_case_name;
@@ -56,7 +67,7 @@ class ReferenceExperimentalROILayerTest : public testing::TestWithParam<Experime
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = params.function->create_function(params.inputs, params.expected_results);
+        function = params.function->create_function(params.inputs, params.expected_results, params.input_shapes);
         inputData.reserve(params.inputs.size());
         refOutData.reserve(params.expected_results.size());
         for (auto& input_tensor : params.inputs) {
@@ -82,6 +93,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         ExperimentalROIParams(
             std::make_shared<ExperimentalROIFunctional>(),
+            std::vector<Shape>{Shape{2, 4}, Shape{1, 2, 2, 3}},
             std::vector<Tensor>{Tensor(Shape{2, 4},
                                        ngraph::element::f32,
                                        std::vector<float>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}),
