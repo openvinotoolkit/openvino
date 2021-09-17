@@ -65,6 +65,10 @@ public:
         return _request.GetBlob(name);
     }
 
+    void setBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) {
+        _request.SetBlob(name, data);
+    }
+
     double getExecutionTimeInMilliseconds() const {
         auto execTime = std::chrono::duration_cast<ns>(_endTime - _startTime);
         return static_cast<double>(execTime.count()) * 0.000001;
