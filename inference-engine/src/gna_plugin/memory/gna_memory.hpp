@@ -17,6 +17,7 @@
 #include <iomanip>
 #include "gna_lib_ver_selector.hpp"
 #include "gna_allocator.hpp"
+#include "gna_plugin_log.hpp"
 
 namespace GNAPluginNS {
 namespace memory {
@@ -136,12 +137,14 @@ class GNAMemory : public GNAMemoryInterface {
                     *reinterpret_cast<void **>(re._ptr_out) = cptr;
                 }
                 gnalog() << "ALLOCATED=" << static_cast<void*>(cptr) << ", size=" << re._element_size * re._num_elements << "\n";
-                getQueue(REGION_AUTO)->iterate_binded(re, [](MemRequest & reference, MemRequest & binded) {
-                    *reinterpret_cast<void **>(binded._ptr_out) =
-                        binded._offset + reinterpret_cast<uint8_t *>(*reinterpret_cast<void **>(reference._ptr_out));
+
+                std::function<void(MemRequest&, MemRequest&)> visitor = [](MemRequest& reference, MemRequest& binded) {
+                    *reinterpret_cast<void**>(binded._ptr_out) =
+                        binded._offset + reinterpret_cast<uint8_t*>(*reinterpret_cast<void**>(reference._ptr_out));
                     binded._num_elements = reference._num_elements;
                     binded._element_size = reference._element_size;
-                });
+                };
+                getQueue(REGION_AUTO)->iterate_binded(re, visitor);
 
                 // std::cout << "size=" << ALIGN(sz, re._alignment) << "\n" << std::flush;
 
