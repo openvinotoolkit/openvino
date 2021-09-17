@@ -8,7 +8,7 @@ The tool compiles networks for the following target devices using corresponding 
 
 
 The tool is delivered as an executable file that can be run on both Linux* and Windows*.
-The tool is located in the `<INSTALLROOT>/deployment_tools/tools/compile_tool` directory.
+The tool is located in the `<INSTALLROOT>/tools/compile_tool` directory.
 
 The workflow of the Compile tool is as follows:
 
