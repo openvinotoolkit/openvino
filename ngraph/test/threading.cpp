@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
 #include <mutex>
 #include <thread>
 #include <vector>
+
+#include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 
 using namespace ngraph;
 using namespace std;
 
-TEST(threading, get_friendly_name)
-{
-    const size_t number = 200;
+TEST(threading, get_friendly_name) {
+    const size_t number = 20;
     Shape shape{};
     auto a = make_shared<op::Parameter>(element::i32, shape);
     auto iconst0 = op::Constant::create(element::i32, Shape{}, {0});
@@ -32,21 +31,32 @@ TEST(threading, get_friendly_name)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{graph}, ParameterVector{a, b});
 
+    const auto compare_names = [](const std::vector<std::string>& names) {
+        static std::unordered_set<std::string> ref_names;
+        static std::once_flag flag;
+        std::call_once(flag, [&]() {
+            for (const auto& name : names)
+                ref_names.insert(name);
+        });
+        for (const auto& name : names) {
+            ASSERT_TRUE(ref_names.count(name));
+        }
+    };
+
     const auto get_friendly_name = [&](const std::shared_ptr<ngraph::Function>& f) {
         std::vector<std::string> names;
-        for (const auto& op : f->get_ops())
-        {
+        for (const auto& op : f->get_ops()) {
             names.emplace_back(op->get_friendly_name());
         }
+        compare_names(names);
     };
 
     std::vector<std::thread> threads(number);
 
-    for (size_t i = 0; i < threads.size(); i++)
-        threads[i] = std::thread(get_friendly_name, f);
+    for (auto&& thread : threads)
+        thread = std::thread(get_friendly_name, f);
 
-    for (auto& th : threads)
-    {
+    for (auto&& th : threads) {
         th.join();
     }
 }
