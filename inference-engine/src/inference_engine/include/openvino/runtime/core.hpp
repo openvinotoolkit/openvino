@@ -188,11 +188,11 @@ public:
      * @param deviceName A name of a device to query
      * @param network Network object to query
      * @param config Optional map of pairs: (config parameter name, config parameter value)
-     * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
+     * @return An object containing a map of pairs a operation name -> a device name supporting this operation.
      */
-    ie::QueryNetworkResult query_model(const std::shared_ptr<const ov::Function>& network,
-                                       const std::string& deviceName,
-                                       const ConfigMap& config = {}) const;
+    SupportedOpsMap query_model(const std::shared_ptr<const ov::Function>& network,
+                                const std::string& deviceName,
+                                const ConfigMap& config = {}) const;
 
     /**
      * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
