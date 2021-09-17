@@ -45,6 +45,44 @@ private:
                                  const std::string& context_info,
                                  const std::string& explanation);
 };
+
+/// @cond
+#define OPENVINO_DECLARE_EXCEPTION(exc_class, what)                                                                    \
+    struct OPENVINO_API exc_class final : public ::ov::AssertFailure {                                                 \
+        exc_class(const CheckLocInfo& check_loc_info, const std::string& context_info, const std::string& explanation) \
+            : AssertFailure(check_loc_info, context_info + ": [ " what " ]", explanation) {}                           \
+    };
+
+OPENVINO_DECLARE_EXCEPTION(NotImplemented, "NOT_IMPLEMENTED")
+OPENVINO_DECLARE_EXCEPTION(NetworkNotLoaded, "NETWORK_NOT_LOADED")
+OPENVINO_DECLARE_EXCEPTION(ParameterMismatch, "PARAMETER_MISMATCH")
+OPENVINO_DECLARE_EXCEPTION(NotFound, "NOT_FOUND")
+OPENVINO_DECLARE_EXCEPTION(OutOfBounds, "OUT_OF_BOUNDS")
+OPENVINO_DECLARE_EXCEPTION(Unexpected, "UNEXPECTED")
+OPENVINO_DECLARE_EXCEPTION(RequestBusy, "REQUEST_BUSY")
+OPENVINO_DECLARE_EXCEPTION(ResultNotReady, "RESULT_NOT_READY")
+OPENVINO_DECLARE_EXCEPTION(NotAllocated, "NOT_ALLOCATED")
+OPENVINO_DECLARE_EXCEPTION(InferNotStarted, "INFER_NOT_STARTED")
+OPENVINO_DECLARE_EXCEPTION(NetworkNotRead, "NETWORK_NOT_READ")
+OPENVINO_DECLARE_EXCEPTION(InferCancelled, "INFER_CANCELLED")
+
+#undef OPENVINO_DECLARE_EXCEPTION
+
+#if defined(__GNUC__) || (defined(__ICC) && (__ICC >= 600))
+#    define OPENVINO_FUNCTION_NAME __PRETTY_FUNCTION__
+#elif defined(__FUNCSIG__)
+#    define OPENVINO_FUNCTION_NAME __FUNCSIG__
+#elif (defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 600))
+#    define OPENVINO_FUNCTION_NAME __FUNCTION__
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901)
+#    define OPENVINO_FUNCTION_NAME __func__
+#elif defined(__cplusplus) && (__cplusplus >= 201103)
+#    define OPENVINO_FUNCTION_NAME __func__
+#else
+#    error "Function name is N/A"
+#endif
+/// @endcond
+
 }  // namespace ov
 
 //
@@ -132,6 +170,23 @@ private:
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ov::AssertFailure if `cond` is false.
 #define OPENVINO_ASSERT(...) OPENVINO_ASSERT_HELPER(::ov::AssertFailure, "", __VA_ARGS__)
+
+/// \brief Macro to check whether a boolean condition holds and throw exception of specified type
+/// \param exc_class Type of exception to throw
+/// \param cond Condition to check
+/// \param ... Additional error message info to be added to the error message via the `<<`
+///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
+///            i.e., only if the `cond` evalutes to `false`.
+/// \throws ::ov::exc_class if `cond` is false.
+#define OPENVINO_ASSERT_THROW(exc_class, ...) \
+    OPENVINO_ASSERT_HELPER(::ov::exc_class, OPENVINO_FUNCTION_NAME, __VA_ARGS__)
+
+/// \brief Throw exception of specified type
+/// \param exc_class Type of exception to throw
+/// \param ... Additional error message info to be added to the error message via the `<<`
+///            stream-insertion operator. Note that the expressions here will always be evaluated
+/// \throws ::ov::exc_class
+#define OPENVINO_THROW(exc_class, ...) OPENVINO_ASSERT_HELPER1(::ov::exc_class, OPENVINO_FUNCTION_NAME, false)
 
 /// \brief Macro to signal a code path that is unreachable in a successful execution. It's
 /// implemented with OPENVINO_ASSERT macro.
