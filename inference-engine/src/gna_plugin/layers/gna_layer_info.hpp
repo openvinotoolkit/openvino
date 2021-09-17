@@ -61,8 +61,9 @@ class LayerInfo {
         IS_VALID();
         static InferenceEngine::details::caseless_set<std::string> layersWith8BOr16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
         return layersWith8BOr16BOutputs.find(layer->type) != layersWith8BOr16BOutputs.end() ||
-                                                                        isActivation() ||
-                                                            (isCrop() && !isCropAffined());
+               isActivation() ||
+               (isCrop() && !isCropAffined()) ||
+               isPermute();
     }
     bool has32BOutput() const noexcept {
         IS_VALID();

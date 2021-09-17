@@ -8,11 +8,8 @@ cmake_minimum_required (VERSION 3.13)
 # Set the project name
 project (ie_python_api)
 
-if(DEFINED OpenVINO_SOURCE_DIR)
-    set(InferenceEngine_LIBRARIES inference_engine)
-else()
+if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
-    set(InferenceEngine_LIBRARIES IE::inference_engine)
 endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
@@ -102,7 +99,8 @@ install(PROGRAMS src/openvino/__init__.py
 ie_cpack_add_component(python_samples)
 
 install(DIRECTORY sample/
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/python
+        DESTINATION samples/python
+        USE_SOURCE_PERMISSIONS
         COMPONENT python_samples)
 
 ie_cpack(${PYTHON_COMPONENT} python_samples)

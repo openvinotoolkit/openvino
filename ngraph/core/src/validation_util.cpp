@@ -23,6 +23,7 @@
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
@@ -1150,9 +1151,9 @@ bool ngraph::could_propagate(const Output<Node>& output, std::vector<Node*>& ord
         auto current_node = nodes_to_calculate.front();
         nodes_to_calculate.pop_front();
 
-        if (current_node->inputs().empty() && !ov::is_type<op::Constant>(current_node))
+        if (current_node->inputs().empty() && !is_type<op::Constant>(current_node))
             status = false;
-        else if (!ov::is_type<op::v0::ShapeOf>(current_node) && !ov::is_type<op::v3::ShapeOf>(current_node)) {
+        else if (!is_type<op::v0::ShapeOf>(current_node) && !is_type<op::v3::ShapeOf>(current_node)) {
             // not a leaf, not a shape_of -- continue to search
             for (const auto& input_value : current_node->input_values()) {
                 const auto& input_node = input_value.get_node();

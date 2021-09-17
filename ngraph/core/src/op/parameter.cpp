@@ -12,9 +12,9 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Parameter, "Parameter", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Parameter, "Parameter", 0);
 
-op::Parameter::Parameter(const element::Type& element_type, const PartialShape& pshape)
+op::Parameter::Parameter(const element::Type& element_type, const ov::PartialShape& pshape)
     : m_partial_shape(pshape),
       m_element_type(element_type),
       m_is_relevant_to_shapes(false) {
@@ -68,7 +68,7 @@ bool ov::AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& v
         }
         visitor.on_attribute(index.str(), id);
         if (!m_ref[i]) {
-            m_ref[i] = ov::as_type_ptr<op::v0::Parameter>(visitor.get_registered_node(id));
+            m_ref[i] = ov::as_type_ptr<ngraph::op::v0::Parameter>(visitor.get_registered_node(id));
         }
     }
     return true;

@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::TensorIterator, "TensorIterator", 0, op::util::SubGraphOp);
+OPENVINO_RTTI_DEFINITION(op::v0::TensorIterator, "TensorIterator", 0, op::util::SubGraphOp);
 
 op::v0::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
 
@@ -99,11 +99,11 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                 // +1 because the left and right borders are included [start, end]
                 m_num_iterations = (abs(end - start) + 1) / part_size;
                 // infer type for m_body_parameter
-                Shape out_shape{input_shape};
+                ov::Shape out_shape{input_shape};
                 out_shape[axis] = part_size;
                 body_parameter->set_partial_shape(out_shape);
             } else {
-                body_parameter->set_partial_shape(PartialShape::dynamic(input_partial_shape.rank()));
+                body_parameter->set_partial_shape(ov::PartialShape::dynamic(input_partial_shape.rank()));
             }
         } else if (auto merged_input_description = ov::as_type_ptr<MergedInputDescription>(input_description)) {
             auto body_value = m_bodies[0]->get_results().at(merged_input_description->m_body_value_index)->input(0);
@@ -135,14 +135,14 @@ void op::v0::TensorIterator::validate_and_infer_types() {
         auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
 
         if (auto concat_output_description = ov::as_type_ptr<ConcatOutputDescription>(output_description)) {
-            auto body_value_partial_shape = body_value.get_partial_shape();
-            set_output_type(index, body_value.get_element_type(), PartialShape::dynamic());
+            const auto& body_value_partial_shape = body_value.get_partial_shape();
+            set_output_type(index, body_value.get_element_type(), ov::PartialShape::dynamic());
             if (body_value_partial_shape.is_static()) {
                 auto body_value_shape = body_value_partial_shape.to_shape();
                 auto part_size = concat_output_description->m_part_size;
                 auto axis = concat_output_description->m_axis;
 
-                Shape out_shape{body_value_shape};
+                ov::Shape out_shape{body_value_shape};
 
                 if (body_value_shape.empty()) {
                     NODE_VALIDATION_CHECK(this,
@@ -151,7 +151,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                                           "tensor slices are scalars. "
                                           "TensorIterator output index: ",
                                           index);
-                    out_shape = Shape(1);
+                    out_shape = ov::Shape(1);
                 }
 
                 if (m_num_iterations != -1) {
@@ -162,7 +162,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
             } else {
                 set_output_type(index,
                                 body_value.get_element_type(),
-                                PartialShape::dynamic(body_value.get_partial_shape().rank()));
+                                ov::PartialShape::dynamic(body_value.get_partial_shape().rank()));
             }
         } else if (auto body_output_description = ov::as_type_ptr<BodyOutputDescription>(output_description)) {
             set_output_type(index, body_value.get_element_type(), body_value.get_partial_shape());
@@ -204,7 +204,7 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
     op->set_output_size(m_output_descriptions[0].size());
 
     std::vector<::ngraph::element::Type> types(m_bodies[0]->get_parameters().size());
-    std::vector<::ngraph::PartialShape> new_shapes(m_bodies[0]->get_parameters().size());
+    std::vector<ov::PartialShape> new_shapes(m_bodies[0]->get_parameters().size());
 
     for (size_t input_index = 0; input_index < new_args.size(); ++input_index) {
         for (auto& input_description : m_input_descriptions[0]) {

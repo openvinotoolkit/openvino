@@ -19,7 +19,6 @@ using namespace ngraph::frontend;
 using VariantString = VariantWrapper<std::string>;
 using VariantWString = VariantWrapper<std::wstring>;
 using VariantIstreamPtr = VariantWrapper<std::istream*>;
-using VariantIstringstreamPtr = VariantWrapper<std::istringstream*>;
 
 extern "C" ONNX_FRONTEND_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
@@ -48,13 +47,8 @@ InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Varian
         return std::make_shared<InputModelONNX>(path);
     }
 #endif
-    std::istream* stream = nullptr;
     if (ov::is_type<VariantIstreamPtr>(variants[0])) {
-        stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
-    } else if (ov::is_type<VariantIstringstreamPtr>(variants[0])) {
-        stream = ov::as_type_ptr<VariantIstringstreamPtr>(variants[0])->get();
-    }
-    if (stream != nullptr) {
+        const auto stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
         if (variants.size() > 1 && ov::is_type<VariantString>(variants[1])) {
             const auto path = ov::as_type_ptr<VariantString>(variants[1])->get();
             return std::make_shared<InputModelONNX>(*stream, path);
@@ -133,13 +127,8 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         model_stream.close();
         return is_valid_model;
     }
-    std::istream* stream = nullptr;
     if (ov::is_type<VariantIstreamPtr>(variants[0])) {
-        stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
-    } else if (ov::is_type<VariantIstringstreamPtr>(variants[0])) {
-        stream = ov::as_type_ptr<VariantIstringstreamPtr>(variants[0])->get();
-    }
-    if (stream != nullptr) {
+        const auto stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
         StreamRewinder rwd{*stream};
         return onnx_common::is_valid_model(*stream);
     }

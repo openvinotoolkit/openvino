@@ -379,11 +379,11 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     ss << "{" << node->get_element_type().get_type_name() << "}";
     ss << pretty_partial_shape(node->get_output_partial_shape(0));
 
-    if (!op::is_constant(node))
+    if (!ngraph::op::is_constant(node))
         return ss.str();
 
     ss << "\nvalue: ";
-    const auto constant = ov::as_type_ptr<op::Constant>(node);
+    const auto constant = ov::as_type_ptr<ngraph::op::Constant>(node);
     switch (constant->get_output_element_type(0)) {
     case element::Type_t::undefined:
         ss << "[ undefined value ]";

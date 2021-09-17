@@ -8,7 +8,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -91,12 +90,12 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         }
 
         if (dequantization.subtract) {
-            const auto subtract = std::make_shared<DequantizationSubtract>(parent, splitedSub[i]);
+            const auto subtract = std::make_shared<opset1::Subtract>(parent, splitedSub[i]);
             copy_runtime_info({ newSplit, subtract }, subtract);
             parent = subtract;
         }
 
-        const auto multiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(parent, splitedMul[i]);
+        const auto multiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(parent, splitedMul[i]);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
         copy_runtime_info({ newSplit, multiply }, multiply);
 

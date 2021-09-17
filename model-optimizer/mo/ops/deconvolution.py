@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import mark_input_bins, assign_dims_to_weights, tf_window_op_pad_infer
-from mo.front.extractor import spatial_getter
+from mo.front.common.partial_infer.utils import mark_input_bins, assign_dims_to_weights, tf_window_op_pad_infer, \
+    shape_array, compatible_shapes
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
@@ -46,10 +46,9 @@ class Deconvolution(Op):
         They also deliver output shape that is interpreted here as input shape for convolution.
         We need to check that the real input shape and shape inferred by those utility functions match.
         """
-        output_shape = np.array(node.in_node(2).value)
-        batch = np.array(node.in_node(0).shape)[0]
-        output_shape[0] = batch
-        kernel_shape = node.in_node(1).shape
+        output_shape = shape_array(node.in_node(2).value)
+        output_shape[0] = node.in_port(0).data.get_shape()[0]
+        kernel_shape = node.in_port(1).data.get_shape()
         node['kernel_shape'] = kernel_shape
         if output_shape is None or kernel_shape is None or node.spatial_dims is None or node.stride is None:
             return
@@ -62,13 +61,13 @@ class Deconvolution(Op):
             node['dilation'] = np.full([len(output_shape)], 1, dtype=np.int64)
 
         spatial_dims = node.spatial_dims
-        output_spatial = np.array(output_shape[spatial_dims])
-        stride_spatial = np.array(node.stride[spatial_dims])
-        node['kernel_spatial'] = np.array(kernel_shape[node.kernel_spatial_idx])
+        output_spatial = shape_array(output_shape[spatial_dims])
+        stride_spatial = shape_array(node.stride[spatial_dims])
+        node['kernel_spatial'] = shape_array(kernel_shape[node.kernel_spatial_idx])
         node.pad_spatial_shape, input_spatial_for_check = tf_window_op_pad_infer(
             output_spatial, node.kernel_spatial, stride_spatial, node.auto_pad)
 
-        assert all(input_spatial_for_check == node.in_node(0).shape[spatial_dims])
+        assert compatible_shapes(input_spatial_for_check, node.in_node(0).shape[spatial_dims])
 
         pad = np.zeros((len(output_shape), 2), dtype=np.int64)
         pad[spatial_dims] = node.pad_spatial_shape
@@ -76,7 +75,7 @@ class Deconvolution(Op):
 
         node.output = output_shape[node.channel_dims][0]
         node.output_shape = output_shape
-        node.out_node().shape = output_shape
+        node.out_port(0).data.set_shape(output_shape)
 
         mark_input_bins(node, ['weights'], 1)
         assign_dims_to_weights(node.in_node(1), node.kernel_spatial_idx, node.input_feature_channel,
