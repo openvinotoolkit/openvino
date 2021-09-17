@@ -27,19 +27,23 @@ struct ExperimentalROIFunctional {
         attrs.pyramid_scales = {4};
 
         const size_t num_of_inputs = input_shapes.size();
-        NodeVector parameters(num_of_inputs);
+        NodeVector node_vector(num_of_inputs);
+        ParameterVector parameter_vector(num_of_inputs);
         for (size_t i = 0; i < num_of_inputs; ++i) {
-            parameters[i] = std::make_shared<op::Parameter>(element::f32, input_shapes[i]);
+            auto current_parameter = std::make_shared<op::Parameter>(element::f32, input_shapes[i]);
+            node_vector[i] = current_parameter;
+            parameter_vector[i] = current_parameter;
         }
 
 //         auto input = std::make_shared<op::Parameter>(element::f32, Shape{2, 4});
 //         auto pyramid_layer0 = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2, 3});
 //
 //         auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(NodeVector{input, pyramid_layer0}, attrs);
-        auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(parameters, attrs);
+        auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(node_vector, attrs);
 
-        auto fun = std::make_shared<Function>(OutputVector{roi->output(0), roi->output(1)},
-                                              ParameterVector{input, pyramid_layer0});
+//         auto fun = std::make_shared<Function>(OutputVector{roi->output(0), roi->output(1)},
+//                                               ParameterVector{input, pyramid_layer0});
+        auto fun = std::make_shared<Function>(OutputVector{roi->output(0), roi->output(1)}, parameter_vector);
         return fun;
     }
 };
