@@ -43,6 +43,6 @@ TEST(attributes, if_op) {
     EXPECT_EQ(g_if->get_input_descriptions(1), if_op->get_input_descriptions(1));
     EXPECT_EQ(g_if->get_output_descriptions(0), if_op->get_output_descriptions(0));
     EXPECT_EQ(g_if->get_output_descriptions(1), if_op->get_output_descriptions(1));
-    compare_functions(g_if->get_then_body(), if_op->get_then_body());
-    compare_functions(g_if->get_else_body(), if_op->get_else_body());
+    EXPECT_TRUE(compare_functions(g_if->get_then_body(), if_op->get_then_body()).first);
+    EXPECT_TRUE(compare_functions(g_if->get_else_body(), if_op->get_else_body()).first);
 }
