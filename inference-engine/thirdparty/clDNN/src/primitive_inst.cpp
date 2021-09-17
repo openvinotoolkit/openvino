@@ -198,7 +198,9 @@ void primitive_inst::allocate_internal_buffers(void) {
     }
 
     auto device_mem_acc = [&](size_t a, std::shared_ptr<primitive_inst> b) {
-        if (b->output_memory().get_allocation_type() == allocation_type::usm_device)
+        if (!b->mem_allocated()) return a;
+        if (b->output_memory().get_allocation_type() == allocation_type::usm_device ||
+            b->output_memory().get_allocation_type() == allocation_type::cl_mem)
             return a + b->output_memory().size();
         else
             return a;
@@ -241,7 +243,8 @@ memory::ptr primitive_inst::allocate_output() {
     const auto& inst_deps = _network.get_primitives(_node.get_dependencies());
     auto device_mem_acc = [&](size_t a, std::shared_ptr<primitive_inst> b) {
         if (!b->mem_allocated()) return a;
-        if (b->output_memory().get_allocation_type() == allocation_type::usm_device)
+        if (b->output_memory().get_allocation_type() == allocation_type::usm_device
+            || b->output_memory().get_allocation_type() == allocation_type::cl_mem)
             return a + b->output_memory().size();
         else
             return a;
