@@ -52,7 +52,7 @@ inline int parallel_get_num_threads() {
     return parallel_get_max_threads();
 }
 inline int parallel_get_thread_num() {
-    return tbb::this_task_arena::current_thread_index();
+    return (tbb::this_task_arena::max_concurrency() > 1) ? tbb::this_task_arena::current_thread_index() : 0;
 }
 inline void parallel_set_num_threads(int) {
     return;

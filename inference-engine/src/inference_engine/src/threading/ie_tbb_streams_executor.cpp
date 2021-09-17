@@ -65,10 +65,7 @@ struct TBBStreamsExecutor::Impl {
             void on_scheduler_entry(bool) override {
                 _localStream->local() = _thisStream;
                 if (nullptr != _mask) {
-                    PinThreadToVacantCore(_offset + tbb::this_task_arena::current_thread_index(),
-                                          _threadBindingStep,
-                                          _ncpus,
-                                          _mask);
+                    PinThreadToVacantCore(_offset + parallel_get_thread_num(), _threadBindingStep, _ncpus, _mask);
                 }
             }
             void on_scheduler_exit(bool) override {
