@@ -12,6 +12,7 @@
 #include "cldnn_remote_context.h"
 #include "cldnn_executable_network.h"
 #include "cldnn_itt.h"
+#include "cldnn/runtime/debug_configuration.hpp"
 #include <ie_algorithm.hpp>
 #include <debug.h>
 
@@ -622,6 +623,10 @@ void CLDNNInferRequest::allocate_inputs() {
                 IE_THROW() << "Input layout for " << name << " is not found";
             }
 
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                GPU_DEBUG_COUT << "[" << name << ": input blob]" << std::endl;
+            }
             if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16) {
                 TensorDesc desc_fp32 = desc;
                 desc_fp32.setPrecision(Precision::FP32);
@@ -673,6 +678,10 @@ void CLDNNInferRequest::allocate_outputs() {
         const cldnn::layout output_layout = m_graph->GetNetwork()->get_output_memory(outputID)->get_layout();
         const TensorDesc& desc = no.second->getTensorDesc();
 
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << no.first << ": output blob]" << std::endl;
+        }
         auto blobPtr = create_device_blob(desc, output_layout);
         _deviceOutputs[no.first] = blobPtr;
         _outputs[no.first] = blobPtr;

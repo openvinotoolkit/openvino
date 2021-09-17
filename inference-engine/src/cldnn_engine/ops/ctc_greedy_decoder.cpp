@@ -11,6 +11,7 @@
 #include "cldnn/primitives/ctc_greedy_decoder.hpp"
 #include "cldnn/primitives/reorder.hpp"
 #include "cldnn/primitives/mutable_data.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -73,6 +74,10 @@ void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::No
             DefaultFormatForDims(op->get_output_shape(1).size()),
             CldnnTensorFromIEDims(op->get_output_shape(1)));
 
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+        }
         shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayout));
 
         cldnn::primitive_id ctc_gd_mutable_id_w = layer_type_name_ID(op) + "_md_write";

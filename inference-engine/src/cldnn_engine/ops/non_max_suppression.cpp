@@ -12,6 +12,7 @@
 #include "cldnn/primitives/reorder.hpp"
 #include "cldnn/primitives/mutable_data.hpp"
 #include "cldnn/primitives/non_max_suppression.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 namespace CLDNNPlugin {
 
@@ -66,6 +67,7 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
     std::size_t num_output = op->get_output_size();
 
     std::vector<cldnn::memory::ptr> shared_memory;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     switch (num_output) {
         case 3: {
             auto mutable_precision_second = op->get_output_element_type(2);
@@ -77,6 +79,9 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
                 DefaultFormatForDims(op->get_output_shape(2).size()),
                 CldnnTensorFromIEDims(op->get_output_shape(2)));
 
+            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                GPU_DEBUG_COUT << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+            }
             shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayoutSecond));
 
             cldnn::primitive_id non_max_supression_mutable_id_w_second = layer_type_name_ID(op) + "_md_write_second";
@@ -95,6 +100,9 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
                 cldnn::format::bfyx,
                 cldnn::tensor(static_cast<int32_t>(outputIndices), 3, 1, 1));
 
+            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                GPU_DEBUG_COUT << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+            }
             shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayoutFirst));
 
             cldnn::primitive_id non_max_supression_mutable_id_w_first = layer_type_name_ID(op) + "_md_write_first";

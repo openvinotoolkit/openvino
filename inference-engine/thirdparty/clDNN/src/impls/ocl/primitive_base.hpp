@@ -9,6 +9,7 @@
 #include "primitive_inst.h"
 #include "cldnn/graph/program.hpp"
 #include "cldnn/runtime/error_handler.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 #include "kernel_selector_helper.h"
 #include "cldnn/graph/network.hpp"
 #include "register.hpp"
@@ -46,6 +47,10 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
             _kernels.emplace_back(other._kernels[k]->clone());
         }
         for (auto& mem : other._intermediates_memory) {
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                GPU_DEBUG_COUT << "[" << _kernel_data.params->layerID << ": internal buf]" << std::endl;
+            }
             auto& engine = _outer.get_program().get_engine();
             auto new_mem = engine.allocate_memory(mem->get_layout(), mem->get_allocation_type());
             _intermediates_memory.push_back(new_mem);
@@ -75,6 +80,10 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
                                       {1, 1, 1, (tensor::value_type)(size / bpp)}};
 
             auto& eimpl = arg.get_program().get_engine();
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                GPU_DEBUG_COUT << "[" << _kernel_data.params->layerID << ": internal buf]" << std::endl;
+            }
             _intermediates_memory.push_back(eimpl.allocate_memory(expected_layout));
         }
     }
