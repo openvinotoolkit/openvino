@@ -662,6 +662,21 @@ const program::graph_optimizer_info& network::get_optimizer_passes_info() const 
     return _program->get_optimizer_passes_info();
 }
 
+std::map<primitive_id, primitive_id> network::get_ext_id_mapping() const {
+    std::map<primitive_id, primitive_id> result;
+    for (auto& prim : _primitives) {
+        result.emplace(prim.first, prim.second->get_ext_prim_id());
+    }
+    for (auto& opt_id : _program->get_optimized_out()) {
+        std::string ext_id = opt_id;
+        if (opt_id.find(":") != std::string::npos) {
+            ext_id = opt_id.substr(opt_id.find(":") + 1, opt_id.length());
+        }
+        result.emplace(opt_id, ext_id);
+    }
+    return result;
+}
+
 std::shared_ptr<primitive_inst> network::get_primitive(const primitive_id& id) {
     if (!_primitives.count(id))
         allocate_primitive_instance(_program->get_node(id));
