@@ -372,7 +372,8 @@ def add_meta_data(net: Element, meta_info: dict):
         parameters = SubElement(meta, 'cli_parameters')
         [SubElement(parameters, str(key)).set('value', str(meta_info[key])) for key in sorted(meta_info.keys()) if
          key not in ('unset', 'quantization_parameters')]
-        SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
+        if 'unset' in meta_info:
+            SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
 
 
 def serialize_network(graph, net_element, unsupported):

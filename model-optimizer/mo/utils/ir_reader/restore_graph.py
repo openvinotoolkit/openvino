@@ -65,8 +65,9 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
     if name is None:
         name = graph.name
 
-    if meta_data == {}:
-        log.warning('Provided graph does not contain `meta_info` section! Trying to define `data_type` from the model.')
+    if 'data_type' not in meta_data:
+        log.warning('Provided graph does not contain `data_type` parameter in `meta_info` section! Trying to '
+                    'define `data_type` parameter value from the model.')
         data_type = define_data_type(graph)
 
         # We need to specify this attribute to pass graph transformations. This information will not be saved into IR.
