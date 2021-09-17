@@ -10,11 +10,11 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 NamedOutputs matmul_v2(const NodeContext& node) {
-    auto x = node.get_ng_input("X");
-    auto y = node.get_ng_input("Y");
-    auto transpose_a = node.get_attribute<bool>("trans_x", false);
-    auto transpose_b = node.get_attribute<bool>("trans_y", false);
-    auto mm = std::make_shared<default_opset::MatMul>(x, y, transpose_a, transpose_b);
+    const auto x = node.get_ng_input("X");
+    const auto y = node.get_ng_input("Y");
+    const auto transpose_a = node.get_attribute<bool>("trans_x", false);
+    const auto transpose_b = node.get_attribute<bool>("trans_y", false);
+    const auto mm = std::make_shared<default_opset::MatMul>(x, y, transpose_a, transpose_b);
     return node.default_single_output_mapping({mm}, {"Out"});
 }
 
