@@ -315,6 +315,30 @@ Place::Ptr PlaceOpONNX::get_target_tensor(const std::string& output_name) const 
     return nullptr;
 }
 
+Place::Ptr PlaceOpONNX::get_source_tensor() const {
+    const auto input_port = get_input_port();
+    if (input_port != nullptr) {
+        return input_port->get_source_tensor();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_source_tensor(int input_port_index) const {
+    const auto input_port = get_input_port(input_port_index);
+    if (input_port != nullptr) {
+        return input_port->get_source_tensor();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_source_tensor(const std::string& input_name) const {
+    const auto input_port = get_input_port(input_name);
+    if (input_port != nullptr) {
+        return input_port->get_source_tensor();
+    }
+    return nullptr;
+}
+
 bool PlaceOpONNX::is_input() const {
     return false;
 }

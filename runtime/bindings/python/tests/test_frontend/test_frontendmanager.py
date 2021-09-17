@@ -571,3 +571,13 @@ def test_place_get_source_tensor():
     stat = get_place_stat(place)
     assert stat.get_source_tensor == 2
     assert stat.lastArgInt == 22
+    assert place.get_source_tensor(inputName="2") is not None
+    stat = get_place_stat(place)
+    assert stat.get_source_tensor == 3
+    assert stat.lastArgInt == -1
+    assert stat.lastArgString == "2"
+    assert place.get_source_tensor(inputName="3", inputPortIndex=33) is not None
+    stat = get_place_stat(place)
+    assert stat.get_source_tensor == 4
+    assert stat.lastArgInt == 33
+    assert stat.lastArgString == "3"

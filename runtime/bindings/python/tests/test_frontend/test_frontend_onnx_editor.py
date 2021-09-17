@@ -833,3 +833,25 @@ def test_get_target_tensor():
     abs_op = model.get_place_by_operation_name(operationName="abs1")
     out1_tensor = model.get_place_by_tensor_name(tensorName="out1")
     assert abs_op.get_target_tensor().is_equal(out1_tensor)
+
+
+def test_get_source_tensor():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
+    add_op = add_out_tensor.get_producing_operation()
+    assert not add_op.get_source_tensor()
+
+    add_op_in_tensor_1 = add_op.get_source_tensor(inputPortIndex=1)
+    in2_tensor = model.get_place_by_tensor_name(tensorName="in2")
+    assert add_op_in_tensor_1.is_equal(in2_tensor)
+
+    add_op_in_tensor_in2 = add_op.get_source_tensor(inputName="in2")
+    assert add_op_in_tensor_in2.is_equal(in2_tensor)
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    assert split_op.get_source_tensor().is_equal(add_out_tensor)

@@ -103,6 +103,10 @@ public:
     Place::Ptr get_target_tensor(int output_port_index) const override;
     Place::Ptr get_target_tensor(const std::string& output_name) const override;
 
+    Place::Place::Ptr get_source_tensor() const override;
+    Place::Ptr get_source_tensor(int input_port_index) const override;
+    Place::Ptr get_source_tensor(const std::string& input_name) const override;
+
     bool is_equal(Place::Ptr another) const override;
     bool is_input() const override;
     bool is_output() const override;
