@@ -16,13 +16,10 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace reference_tests;
 
-using Attrs = op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes;
-using ExperimentalROI = op::v6::ExperimentalDetectronROIFeatureExtractor;
-
 struct ExperimentalROIFunctional {
     std::shared_ptr<Function> create_function(const std::vector<Tensor>& ed_inputs,
                                               const std::vector<Tensor>& results) {
-        Attrs attrs;
+        op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
         attrs.aligned = false;
         attrs.output_size = 3;
         attrs.sampling_ratio = 2;
@@ -31,7 +28,7 @@ struct ExperimentalROIFunctional {
         auto input = std::make_shared<op::Parameter>(element::f32, Shape{2, 4});
         auto pyramid_layer0 = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2, 3});
 
-        auto roi = std::make_shared<ExperimentalROI>(NodeVector{input, pyramid_layer0}, attrs);
+        auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(NodeVector{input, pyramid_layer0}, attrs);
 
         auto fun = std::make_shared<Function>(OutputVector{roi->output(0), roi->output(1)},
                                               ParameterVector{input, pyramid_layer0});
