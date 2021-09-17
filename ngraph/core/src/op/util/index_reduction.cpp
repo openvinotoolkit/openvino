@@ -37,7 +37,7 @@ void ov::op::util::IndexReduction::set_index_element_type(const element::Type& i
 void ov::op::util::IndexReduction::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_IndexReduction_validate_and_infer_types);
     // TODO(amprocte): Should reject if size of reduction axis is zero.
-    const Shape& arg_shape = get_input_partial_shape(0);
+    const PartialShape& arg_shape = get_input_partial_shape(0);
     Rank rank = arg_shape.rank();
 
     NODE_VALIDATION_CHECK(this, rank.is_dynamic() || rank.get_length() >= 1, "Argument rank is zero.");
@@ -52,7 +52,7 @@ void ov::op::util::IndexReduction::validate_and_infer_types() {
                           m_index_element_type == element::i32 || m_index_element_type == element::i64,
                           "Index element is neither i64 or i32.");
 
-    Shape output_shape{Shape::dynamic()};
+    PartialShape output_shape{PartialShape::dynamic()};
 
     if (rank.is_static()) {
         Dimension d = arg_shape[m_axis];
@@ -73,7 +73,7 @@ void ov::op::util::IndexReduction::validate_and_infer_types() {
             output_dims[i] = arg_shape[j++];
         }
 
-        output_shape = Shape(output_dims);
+        output_shape = PartialShape(output_dims);
     }
 
     set_output_type(0, m_index_element_type, output_shape);

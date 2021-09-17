@@ -5,7 +5,7 @@ OpenVINO™ toolkit quickly deploys applications and solutions that emulate huma
 OpenVINO™ toolkit:
 
 - Enables CNN-based deep learning inference on the edge
-- Supports heterogeneous execution across an Intel® CPU, Intel® Integrated Graphics, Intel® FPGA,  Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+- Supports heterogeneous execution across an Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 - Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
 - Includes optimized calls for computer vision standards, including OpenCV\* and OpenCL™
 

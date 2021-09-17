@@ -79,7 +79,6 @@ file(GLOB_RECURSE legacy_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/lp_transformations/*.cpp" # CVS-55376
     "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
     "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
-    "${CMAKE_CURRENT_SOURCE_DIR}/local_test.cpp" # CVS-55386
     )
 
 set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
