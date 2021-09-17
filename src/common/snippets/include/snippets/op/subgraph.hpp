@@ -134,11 +134,12 @@ static inline auto create_body(std::string name, const ngraph::ResultVector& res
     return body;
 };
 
-static inline auto build_subgraph(const std::shared_ptr<ngraph::Node>& node, const ngraph::OutputVector& inputs, const std::shared_ptr<ngraph::Function>& body)
+static inline auto build_subgraph(const std::shared_ptr<ngraph::Node>& node, const ngraph::OutputVector& inputs,
+                                  const std::shared_ptr<ngraph::Function>& body, const std::string name = "")
     -> std::shared_ptr<Subgraph>{
     auto subgraph = std::make_shared<Subgraph>(inputs, body);
     copy_runtime_info(node, subgraph);
-    subgraph->set_friendly_name(node->get_friendly_name());
+    subgraph->set_friendly_name(name.empty() ? node->get_friendly_name() : name);
     return subgraph;
 };
 
