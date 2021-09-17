@@ -128,7 +128,7 @@ const std::vector<Precision> netPRCs {
 namespace fullyConnected {
 
 const auto fusingBiasFC = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-            {[](std::shared_ptr<Node> inpNode, const element::Type& ngPrc, ParameterVector& params) {
+            {[](std::shared_ptr<Node> inpNode, const element::Type& ngPrc, ParameterVector& params, ChannelOrderIndex chOrdIdx) {
                 auto bias = builder::makeConstant(ngPrc, Shape({inpNode->get_output_shape(0).back()}), std::vector<float>{}, true);
                 return std::make_shared<opset1::Add>(inpNode, bias);
             }, "fusingBiasFC"}}), {"Add"}};

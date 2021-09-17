@@ -1172,7 +1172,8 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             if (i == fusingPort)
                 continue;
             auto& weightShape = getInputShapeAtPort(i).getDims();
-            if (getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() != 1 || !isPerTensorOrPerChannelBroadcastable(dataShape, weightShape))
+            if (getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() != 1 ||
+               !isPerTensorOrPerChannelBroadcastable(dataShape, weightShape, getChannelOrderIndex()))
                 return false;
         }
         return true;
@@ -1307,7 +1308,8 @@ void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<f
         IE_THROW() << "Can't fill scale and shifts for node: " << getName() << " with type: " << NameFromType(getType());
     }
 
-    const size_t bufferSize = static_cast<size_t>(outputShapes[0].getStaticDims()[outputShapes[0].getRank() > 1 ? 1 : 0]);
+    const size_t bufferSize = channelOrderIndex >= 0 ?
+                              static_cast<size_t>(outputShapes[0].getStaticDims()[outputShapes[0].getRank() > 1 ? channelOrderIndex : 0]) : 1;
     if (align == -1) {
         align = bufferSize;
     }

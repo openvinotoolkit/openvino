@@ -26,11 +26,12 @@ std::string CpuTestWithFusing::getTestCaseName(fusingSpecificParams params) {
 }
 
 std::shared_ptr<ngraph::Node>
-CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
-    CPUTestsBase::modifyGraph(ngPrc, params, lastNode);
+CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode,
+                               ChannelOrderIndex chOrdIdx) const {
+    CPUTestsBase::modifyGraph(ngPrc, params, lastNode, chOrdIdx);
     std::shared_ptr<ngraph::Node> retNode = lastNode;
     if (postOpMgrPtr) {
-        retNode = postOpMgrPtr->addPostOps(ngPrc, params, lastNode);
+        retNode = postOpMgrPtr->addPostOps(ngPrc, params, lastNode, chOrdIdx);
     }
 
     return retNode;
@@ -75,7 +76,8 @@ void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNet
 }
 
 std::shared_ptr<ngraph::Node>
-postFunctionMgr::addPostOps(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+postFunctionMgr::addPostOps(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode,
+                 ChannelOrderIndex chOrdIdx) const {
     auto clonedPostFunction = ngraph::clone_function(*_pFunction);
     clonedPostFunction->set_friendly_name(_pFunction->get_friendly_name());
     clonedPostFunction->replace_node(clonedPostFunction->get_parameters()[0], lastNode);
@@ -89,11 +91,12 @@ std::string postFunctionMgr::getFusedOpsNames() const {
 postNodesMgr::postNodesMgr(std::vector<postNodeBuilder> postNodes) : _postNodes(std::move(postNodes)) {}
 
 std::shared_ptr<ngraph::Node>
-postNodesMgr::addPostOps(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+postNodesMgr::addPostOps(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode,
+                         ChannelOrderIndex chOrdIdx) const {
     std::shared_ptr<ngraph::Node> tmpNode = lastNode;
 
     for (auto postNode : _postNodes) {
-        tmpNode = postNode.makeNode(tmpNode, ngPrc, params);
+        tmpNode = postNode.makeNode(tmpNode, ngPrc, params, chOrdIdx);
     }
     return tmpNode;
 }

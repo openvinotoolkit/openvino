@@ -34,16 +34,20 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 * shape which should be broadcastable
 * @return true if broadcastable, false otherwise.
 */
-inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, const InferenceEngine::SizeVector& secondInputDims) {
+inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, const InferenceEngine::SizeVector& secondInputDims,
+                                                 const int channelOrderIndex) {
     if (secondInputDims.size() > firstInputDims.size())
         return false;
     if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), 1, std::multiplies<size_t>()) == 1)
         return true;
 
     std::vector<size_t> normalizedSecondInputDims = getNormalizedDimsBySize(secondInputDims, firstInputDims.size());
-    for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
-        if ((i == 1 && normalizedSecondInputDims[i] != firstInputDims[1]) || (i != 1 && normalizedSecondInputDims[i] != 1))
-            return false;
+    if (channelOrderIndex >= 0) {
+        for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
+            if ((i == channelOrderIndex && normalizedSecondInputDims[i] != firstInputDims[channelOrderIndex]) ||
+                (i != channelOrderIndex && normalizedSecondInputDims[i] != 1))
+                return false;
+        }
     }
     return true;
 }

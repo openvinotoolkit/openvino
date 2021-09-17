@@ -262,8 +262,8 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
 
 std::shared_ptr<ngraph::Function>
 CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
-                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name) const {
-   auto newLastNode = modifyGraph(ngPrc, params, lastNode);
+                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name, ChannelOrderIndex chOrdIdx) const {
+   auto newLastNode = modifyGraph(ngPrc, params, lastNode, chOrdIdx);
    ngraph::ResultVector results;
 
    for (int i = 0; i < newLastNode->get_output_size(); i++)
@@ -273,7 +273,8 @@ CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::Par
 }
 
 std::shared_ptr<ngraph::Node>
-CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode,
+                          ChannelOrderIndex chOrdIdx) const {
     lastNode->get_rt_info() = getCPUInfo();
     return lastNode;
 }

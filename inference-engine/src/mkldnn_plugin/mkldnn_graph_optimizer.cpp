@@ -1298,6 +1298,7 @@ void MKLDNNGraphOptimizer::FuseNormalizeL2AndSimpleOperation(MKLDNNGraph &graph)
         }
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        childNode->setChannelOrderIndex(parentNode->getChannelOrderIndex());
         if (!parentNode->canFuse(childNode)) {
             parent++;
             continue;

@@ -567,6 +567,13 @@ protected:
 
     virtual size_t getMaxBatch() const;
 
+    int getChannelOrderIndex() const {
+        return channelOrderIndex;
+    }
+
+    void setChannelOrderIndex(int idx) {
+        channelOrderIndex = idx;
+    }
 
     virtual MemoryDescPtr getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
     virtual MemoryDescPtr getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
@@ -723,6 +730,8 @@ private:
     std::vector<InferenceEngine::Precision> originalOutputPrecisions;
 
     int fusingPort;
+
+    int channelOrderIndex = 1;
 
     mkldnn::engine engine;
 
