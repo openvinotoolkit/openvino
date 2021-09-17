@@ -67,7 +67,7 @@ public:
     }
 
     details::SOPointer<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
-                                                               const std::shared_ptr<IRemoteContext>& context,
+                                                               const std::shared_ptr<RemoteContext>& context,
                                                                const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
     }
@@ -95,7 +95,7 @@ public:
     }
 
     details::SOPointer<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
-                                                                 const std::shared_ptr<IRemoteContext>& context,
+                                                                 const std::shared_ptr<RemoteContext>& context,
                                                                  const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});
     }
@@ -104,11 +104,11 @@ public:
         PLUGIN_CALL_STATEMENT(return _ptr->GetMetric(name, options));
     }
 
-    details::SOPointer<IRemoteContext> CreateContext(const ParamMap& params) {
+    details::SOPointer<RemoteContext> CreateContext(const ParamMap& params) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->CreateContext(params)});
     }
 
-    details::SOPointer<IRemoteContext> GetDefaultContext(const ParamMap& params) {
+    details::SOPointer<RemoteContext> GetDefaultContext(const ParamMap& params) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetDefaultContext(params)});
     }
 
@@ -166,7 +166,7 @@ struct InferencePlugin {
     }
 
     SoPtr<ie::IExecutableNetworkInternal> load_model(const ie::CNNNetwork& network,
-                                                               const std::shared_ptr<ie::IRemoteContext>& context,
+                                                               const std::shared_ptr<ie::RemoteContext>& context,
                                                                const ConfigMap& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
     }
@@ -194,7 +194,7 @@ struct InferencePlugin {
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
-                                                                 const std::shared_ptr<ie::IRemoteContext>& context,
+                                                                 const std::shared_ptr<ie::RemoteContext>& context,
                                                                  const ConfigMap& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});
     }
@@ -203,11 +203,11 @@ struct InferencePlugin {
         PLUGIN_CALL_STATEMENT(return _ptr->GetMetric(name, options));
     }
 
-    SoPtr<ie::IRemoteContext> create_context(const ie::ParamMap& params) {
+    SoPtr<ie::RemoteContext> create_context(const ie::ParamMap& params) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->CreateContext(params)});
     }
 
-    SoPtr<ie::IRemoteContext> get_default_context(const ie::ParamMap& params) {
+    SoPtr<ie::RemoteContext> get_default_context(const ie::ParamMap& params) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetDefaultContext(params)});
     }
 

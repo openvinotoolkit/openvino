@@ -13,6 +13,7 @@
 #include "ngraph/type/element_type_traits.hpp"
 
 constexpr ngraph::DiscreteTypeInfo ngraph::AttributeAdapter<ov::element::Type>::type_info;
+constexpr ngraph::DiscreteTypeInfo ngraph::AttributeAdapter<ov::element::TypeVector>::type_info;
 
 namespace {
 class TypeInfo {
