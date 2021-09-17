@@ -18,17 +18,17 @@ NGRAPH_RTTI_DEFINITION(pass::ConvertMaxPool8ToMaxPool1, "ConvertMaxPool8ToMaxPoo
 pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     MATCHER_SCOPE(ConvertMaxPool8ToMaxPool1);
 
-    auto maxpool_v8_pattern = pattern::wrap_type<opset8::MaxPool>();
+    auto maxpool_v8_pattern = pattern::wrap_type<ngraph::opset8::MaxPool>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto maxpool_v8_node = std::dynamic_pointer_cast<opset8::MaxPool>(m.get_match_root());
+        auto maxpool_v8_node = std::dynamic_pointer_cast<ngraph::opset8::MaxPool>(m.get_match_root());
         if (!maxpool_v8_node)
             return false;
 
         if (maxpool_v8_node->get_output_target_inputs(1).size() != 0)
             return false;
 
-        auto maxpool_v1_node = make_shared<opset1::MaxPool>(maxpool_v8_node->input_value(0),
+        auto maxpool_v1_node = make_shared<ngraph::opset1::MaxPool>(maxpool_v8_node->input_value(0),
                                                             maxpool_v8_node->get_strides(),
                                                             maxpool_v8_node->get_pads_begin(),
                                                             maxpool_v8_node->get_pads_end(),
@@ -38,8 +38,7 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
 
         maxpool_v1_node->set_friendly_name(maxpool_v8_node->get_friendly_name());
         ngraph::copy_runtime_info(maxpool_v8_node, maxpool_v1_node);
-        ngraph::replace_output_update_name(maxpool_v1_node, maxpool_v8_node->input_value(0));
-        ngraph::replace_output_update_name(maxpool_v8_node->output(0), maxpool_v1_node);
+        maxpool_v8_node->output(0).replace(maxpool_v1_node->output(0));
         return true;
     };
 
