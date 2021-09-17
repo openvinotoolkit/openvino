@@ -22,6 +22,8 @@ class NmsStaticShapeIE : public BaseNmsOp {
 public:
     NGRAPH_RTTI_DECLARATION;
 
+    NmsStaticShapeIE() = default;
+
     using Attributes = typename BaseNmsOp::Attributes;
 
     /// \brief Constructs a NmsStaticShapeIE operation
@@ -38,6 +40,16 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
         return std::make_shared<NmsStaticShapeIE>(new_args.at(0), new_args.at(1), this->m_attrs);
     }
+
+private:
+    typedef struct {} init_rt_result;
+
+    init_rt_result init_rt_info() {
+        BaseNmsOp::get_rt_info()["opset"] = std::make_shared<ngraph::VariantWrapper<std::string>>("ie_internal_opset");
+        return {};
+    }
+
+    init_rt_result init_rt = init_rt_info();
 };
 
 template <typename BaseNmsOp>

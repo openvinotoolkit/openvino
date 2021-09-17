@@ -55,6 +55,8 @@ class TRANSFORMATIONS_API FrameworkNode : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
+    FrameworkNode() = default;
+
     explicit FrameworkNode(const OutputVector& inputs, size_t output_size = 1);
 
     void validate_and_infer_types() override;

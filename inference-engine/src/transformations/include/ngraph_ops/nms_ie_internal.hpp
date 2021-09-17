@@ -21,6 +21,8 @@ public:
     static constexpr NodeTypeInfo type_info{"NonMaxSuppressionIEInternal", 0};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
 
+    NonMaxSuppressionIEInternal() = default;
+
     NonMaxSuppressionIEInternal(const Output<Node>& boxes,
                                 const Output<Node>& scores,
                                 const Output<Node>& max_output_boxes_per_class,
