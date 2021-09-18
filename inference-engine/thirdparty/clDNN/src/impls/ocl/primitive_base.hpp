@@ -20,9 +20,6 @@
 namespace cldnn {
 namespace ocl {
 
-// checks if any user in a list is a cpu primitive
-bool is_any_user_cpu(const std::list<const program_node*>& users);
-
 /*
 Base class for all GPU implementation of specified primitive type.
 For example, all gpu convolution implementations should derive from typed_primitive_impl_ocl<convolution>.
@@ -33,27 +30,16 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
-    std::vector<memory::cptr> _intermediates_memory;
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name)
     , _outer(other._outer)
     , _kernel_data(other._kernel_data)
     , _kernel_ids(other._kernel_ids)
-    , _kernels({})
-    , _intermediates_memory({}) {
+    , _kernels({}) {
         _kernels.reserve(other._kernels.size());
         for (size_t k = 0; k < other._kernels.size(); ++k) {
             _kernels.emplace_back(other._kernels[k]->clone());
-        }
-        for (auto& mem : other._intermediates_memory) {
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                GPU_DEBUG_COUT << "[" << _kernel_data.params->layerID << ": internal buf]" << std::endl;
-            }
-            auto& engine = _outer.get_program().get_engine();
-            auto new_mem = engine.allocate_memory(mem->get_layout(), mem->get_allocation_type());
-            _intermediates_memory.push_back(new_mem);
         }
     }
 
@@ -71,22 +57,8 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
             _kernel_ids.emplace_back(_outer.get_program().add_kernel(kd.kernels[i].code.kernelString));
         }
-
-        for (auto size : kd.internalBufferSizes) {
-            auto dtype = from_data_type(kd.internalBufferDataType);
-            const auto bpp = data_type_traits::size_of(dtype);
-            layout expected_layout = {dtype,
-                                      format::bfyx,  // simple linear format (flatten to x channel)
-                                      {1, 1, 1, (tensor::value_type)(size / bpp)}};
-
-            auto& eimpl = arg.get_program().get_engine();
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                GPU_DEBUG_COUT << "[" << _kernel_data.params->layerID << ": internal buf]" << std::endl;
-            }
-            _intermediates_memory.push_back(eimpl.allocate_memory(expected_layout));
-        }
     }
+
     bool is_cpu() const override { return false; }
 
 protected:
@@ -137,6 +109,21 @@ protected:
         }
     }
 
+    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+        if (_kernel_data.internalBufferSizes.empty())
+            return {};
+
+        std::vector<layout> layouts;
+        auto dtype = from_data_type(_kernel_data.internalBufferDataType);
+        const auto bpp = data_type_traits::size_of(dtype);
+        for (auto size : _kernel_data.internalBufferSizes) {
+            layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
+                                    {1, 1, 1, (tensor::value_type)(size / bpp)}};
+            layouts.push_back(inbuf_layout);
+        }
+        return layouts;
+    }
+
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
         if (optimized_out(instance) || is_cpu()) {
             return;
@@ -153,7 +140,7 @@ protected:
                 args.scalars = &_kernel_data.kernels[k].params.scalars;
                 args.split = i;
 
-                for (const auto& m : _intermediates_memory) {
+                for (const auto& m : instance.get_intermediates_memories()) {
                     args.intermediates.push_back(m);
                 }
 
@@ -188,7 +175,7 @@ protected:
                 args.scalars = &_kernel_data.kernels[k].params.scalars;
                 args.split = i;
 
-                for (const auto& m : _intermediates_memory) {
+                for (const auto& m : instance.get_intermediates_memories()) {
                     args.intermediates.push_back(m);
                 }
 
