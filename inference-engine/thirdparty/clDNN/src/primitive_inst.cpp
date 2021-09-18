@@ -192,11 +192,6 @@ void primitive_inst::allocate_internal_buffers(void) {
     const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
     if (ibuf_layouts.empty()) return;
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 2) {
-        GPU_DEBUG_COUT << "[" << _node.id() << ": internal buf]" << std::endl;
-    }
-
     auto device_mem_acc = [&](size_t a, std::shared_ptr<primitive_inst> b) {
         if (!b->mem_allocated()) return a;
         if (b->output_memory().get_allocation_type() == allocation_type::usm_device ||
@@ -230,6 +225,10 @@ void primitive_inst::allocate_internal_buffers(void) {
     }
 
     for (auto layout : ibuf_layouts) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": internal buf]" << std::endl;
+        }
         if (input_device_mem && (available_device_mem_size - (int64_t)layout.bytes_count() >= 0))
             _intermediates_memory.push_back(engine.allocate_memory(layout, allocation_type::usm_device));
         else
