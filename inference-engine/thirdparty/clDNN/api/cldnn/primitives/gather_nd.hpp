@@ -25,12 +25,13 @@ struct gather_nd : public primitive_base<gather_nd> {
     /// @param indices_rank Rank of indices.
     /// @param batch_dims batch_dims as an attribute of GatherND. Optional.
     gather_nd(const primitive_id& id,
-                   const primitive_id& data,
-                   const primitive_id& indices,
-                   const uint8_t indices_rank,
-                   const uint8_t batch_dims = 0,
-                   const padding& output_padding = padding())
-        : primitive_base(id, {data, indices}, output_padding), indices_rank(indices_rank), batch_dims(batch_dims) {}
+              const primitive_id& data,
+              const primitive_id& indices,
+              const uint8_t indices_rank,
+              const uint8_t batch_dims = 0,
+              const primitive_id& ext_prim_id = "",
+              const padding& output_padding = padding())
+        : primitive_base(id, {data, indices}, ext_prim_id, output_padding), indices_rank(indices_rank), batch_dims(batch_dims) {}
 
     /// @brief GatherND indices_rank
     uint8_t indices_rank;
