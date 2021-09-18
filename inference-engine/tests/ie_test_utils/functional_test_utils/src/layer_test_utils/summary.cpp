@@ -36,6 +36,7 @@ Summary::Summary() {
     opsets.push_back(ngraph::get_opset5());
     opsets.push_back(ngraph::get_opset6());
     opsets.push_back(ngraph::get_opset7());
+    opsets.push_back(ngraph::get_opset8());
 }
 
 Summary &Summary::getInstance() {
@@ -149,6 +150,17 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
         }
     }
 }
+
+#ifdef IE_TEST_DEBUG
+void Summary::saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
+                             unsigned long skipped, unsigned long crashed) {
+    std::string outputFilePath = "./part_report.txt";
+    std::ofstream file;
+    file.open(outputFilePath, std::ios_base::app);
+    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << '\n';
+    file.close();
+}
+#endif  //IE_TEST_DEBUG
 
 void Summary::saveReport() {
     if (isReported) {

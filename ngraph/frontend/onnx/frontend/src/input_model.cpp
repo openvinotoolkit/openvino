@@ -5,14 +5,31 @@
 #include "input_model.hpp"
 
 #include <frontend_manager/frontend_exceptions.hpp>
+#include <ngraph/file_util.hpp>
 
 #include "place.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 InputModelONNX::InputModelONNX(const std::string& path)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+InputModelONNX::InputModelONNX(const std::wstring& path)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
+#endif
+
+InputModelONNX::InputModelONNX(std::istream& model_stream)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream)} {}
+
+InputModelONNX::InputModelONNX(std::istream& model_stream, const std::string& path)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path)} {}
+
+InputModelONNX::InputModelONNX(std::istream& model_stream, const std::wstring& path)
+    : InputModelONNX(model_stream, file_util::wstring_to_string(path)) {}
 
 std::vector<Place::Ptr> InputModelONNX::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();
@@ -35,15 +52,24 @@ std::vector<Place::Ptr> InputModelONNX::get_outputs() const {
 }
 
 Place::Ptr InputModelONNX::get_place_by_tensor_name(const std::string& tensor_name) const {
-    NGRAPH_CHECK(m_editor->is_correct_tensor_name(tensor_name),
-                 "The tensor with name: " + tensor_name + " does not exist in the graph");
-    return std::make_shared<PlaceTensorONNX>(tensor_name, m_editor);
+    if (m_editor->is_correct_tensor_name(tensor_name)) {
+        return std::make_shared<PlaceTensorONNX>(tensor_name, m_editor);
+    }
+    return nullptr;
+}
+
+Place::Ptr InputModelONNX::get_place_by_operation_name(const std::string& operation_name) const {
+    if (m_editor->is_correct_and_unambiguous_node(operation_name)) {
+        return std::make_shared<PlaceOpONNX>(onnx_editor::EditorNode{operation_name}, m_editor);
+    }
+    return nullptr;
 }
 
 Place::Ptr InputModelONNX::get_place_by_operation_name_and_input_port(const std::string& operation_name,
                                                                       int input_port_index) {
-    const auto edge = m_editor->find_input_edge(onnx_editor::EditorNode(operation_name), input_port_index);
-    return std::make_shared<PlaceInputEdgeONNX>(edge, m_editor);
+    return std::make_shared<PlaceInputEdgeONNX>(
+        m_editor->find_input_edge(onnx_editor::EditorNode(operation_name), input_port_index),
+        m_editor);
 }
 
 void InputModelONNX::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) {

@@ -12,6 +12,7 @@
 #include <mutex>
 
 #include <cpp/ie_cnn_network.h>
+#include <ngraph/ngraph.hpp>
 
 #include "cldnn_config.h"
 
@@ -25,12 +26,6 @@ struct activation_additional_params;
 enum class reduce_mode : uint16_t;
 enum class eltwise_mode : int32_t;
 }  // namespace cldnn
-
-// Forward declarations for ngraph part
-namespace ngraph {
-class Node;
-class DiscreteTypeInfo;
-}  // namespace ngraph
 
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
 void __register ## _ ## op_name ## _ ## op_version() {                                            \
@@ -81,8 +76,6 @@ public:
     static const cldnn::primitive_id m_postCustomLayerTag;
 
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
-    std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;
-    std::map<cldnn::primitive_id, std::string> IRToNgraphLayersMap;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
 

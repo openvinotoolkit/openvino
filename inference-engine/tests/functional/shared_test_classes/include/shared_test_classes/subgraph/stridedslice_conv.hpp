@@ -32,7 +32,7 @@ typedef std::tuple<
 class SliceConvTest : public testing::WithParamInterface<SliceConvParams>,
                       public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SliceConvParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<SliceConvParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:

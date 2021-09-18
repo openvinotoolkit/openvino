@@ -30,7 +30,7 @@ bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Functi
             if (auto sub_graph = sub_graph_node->get_function())
                 graph_rewritten |= run_on_function(sub_graph);
 
-        if (is_type<ngraph::opset1::ShapeOf>(node) || is_type<ngraph::opset3::ShapeOf>(node))
+        if (ov::is_type<ngraph::opset1::ShapeOf>(node) || ov::is_type<ngraph::opset3::ShapeOf>(node))
             source_to_shape_of[node->input_value(0)].push_back(node);
     }
 
@@ -59,12 +59,12 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
         while (inputs.size() > i + 1) {
             auto curr = inputs[i].get_node_shared_ptr(), next = inputs[i + 1].get_node_shared_ptr();
             if (curr->get_type_info() != next->get_type_info() ||
-                (!is_type<opset1::Gather>(curr) && !is_type<opset7::Gather>(curr)) ||
+                (!ov::is_type<opset1::Gather>(curr) && !ov::is_type<opset7::Gather>(curr)) ||
                 (curr->input_value(0) != next->input_value(0))) {
                 ++i;
                 continue;
             } // curr and next are the same type of gather which takes data from the same source
-            bool is_opset1 = is_type<opset1::Gather>(curr);
+            bool is_opset1 = ov::is_type<opset1::Gather>(curr);
             auto joint_indices = ngraph::op::util::make_try_fold<opset1::Concat>(OutputVector{curr->input_value(1), next->input_value(1)}, 0);
             std::shared_ptr<Node> new_gather;
             if (is_opset1)
@@ -131,7 +131,7 @@ ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto node = m.get_match_root();
-        auto gather = as_type_ptr<opset3::Gather>(node->input_value(0).get_node_shared_ptr());
+        auto gather = ov::as_type_ptr<opset3::Gather>(node->input_value(0).get_node_shared_ptr());
         if (!gather) {
             return false;
         }

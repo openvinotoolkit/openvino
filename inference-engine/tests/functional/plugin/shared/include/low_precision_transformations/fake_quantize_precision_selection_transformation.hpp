@@ -59,7 +59,7 @@ class FakeQuantizePrecisionSelectionTransformation :
     public testing::WithParamInterface<FakeQuantizeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;

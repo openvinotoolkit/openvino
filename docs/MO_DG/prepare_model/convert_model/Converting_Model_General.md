@@ -5,7 +5,7 @@ To simply convert a model trained by any supported framework, run the Model Opti
 python3 mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-The script is in `$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/`. The output directory must have write permissions, so you can run mo.py from the output directory or specify an output path with the `--output_dir` option.
+The script is in `$INTEL_OPENVINO_DIR/tools/model_optimizer/`. The output directory must have write permissions, so you can run mo.py from the output directory or specify an output path with the `--output_dir` option.
 
 > **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For details, refer to [When to Reverse Input Channels](#when_to_reverse_input_channels).
 
@@ -212,8 +212,7 @@ Launch the Model Optimizer for the Caffe bvlc_alexnet model with reversed input 
 python3 mo.py --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16 --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto.
- file For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
+Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto file. For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
 ```sh
 python3 mo.py --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
 ```

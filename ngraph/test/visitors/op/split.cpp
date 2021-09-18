@@ -23,7 +23,7 @@ TEST(attributes, split_op) {
     auto num_splits = 2;
     auto split = make_shared<opset1::Split>(data, axis, num_splits);
     NodeBuilder builder(split);
-    auto g_split = as_type_ptr<opset1::Split>(builder.create());
+    auto g_split = ov::as_type_ptr<opset1::Split>(builder.create());
 
     EXPECT_EQ(g_split->get_num_splits(), split->get_num_splits());
 }

@@ -139,6 +139,7 @@ TEST(bfloat16, numeric_limits) {
 }
 
 TEST(benchmark, bfloat16) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     size_t buffer_size = 128 * 3 * 224 * 224;
     ngraph::runtime::AlignedBuffer data(buffer_size * sizeof(float), 4096);
     float* f = static_cast<float*>(data.get_ptr());
@@ -197,6 +198,7 @@ TEST(benchmark, bfloat16) {
         timer.stop();
         NGRAPH_INFO << "float to bfloat16 round to nearest even " << timer.get_milliseconds() << "ms";
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 TEST(bfloat16, assigns) {

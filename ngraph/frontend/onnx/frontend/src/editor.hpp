@@ -31,6 +31,17 @@ public:
     ///
     /// \param model_path Path to the file containing the model.
     ONNXModelEditor(const std::string& model_path);
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    ONNXModelEditor(const std::wstring& model_path);
+#endif
+
+    /// \brief Creates an editor from a model stream. The stream is parsed and loaded
+    ///        into the m_model_proto member variable.
+    ///
+    /// \param model_stream The stream containing the model.
+    /// \param model_path Path to the file containing the model. This information can be used
+    ///                   for ONNX external weights feature support.
+    ONNXModelEditor(std::istream& model_stream, const std::string& path = "");
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
@@ -192,6 +203,20 @@ public:
     /// \param name The name of tensor in a graph.
     ///
     bool is_correct_tensor_name(const std::string& name) const;
+
+    /// \brief     Get names of input ports of given node.
+    ///
+    /// \param node An EditorNode helper structure created based on a node name
+    ///             or a node output name.
+    ///
+    std::vector<std::string> get_input_ports(const EditorNode& node) const;
+
+    /// \brief     Get names of output ports of given node.
+    ///
+    /// \param node An EditorNode helper structure created based on a node name
+    ///             or a node output name.
+    ///
+    std::vector<std::string> get_output_ports(const EditorNode& node) const;
 
     /// \brief Returns a nGraph function based on edited model
     ///        decoded to framework nodes

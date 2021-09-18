@@ -34,7 +34,7 @@ public:
 
     CLDNNGraph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
     explicit CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id = 0);
-    InferenceEngine::CNNNetwork GetExecGraphInfo();
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     bool IsLoaded() const;
 
@@ -61,8 +61,6 @@ protected:
     InferenceEngine::gpu::ClContext::Ptr m_context;
     std::vector<std::shared_ptr<cldnn::network>> m_networks;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
-    std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;
-    std::map<cldnn::primitive_id, std::string> IRToNgraphLayersMap;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
 
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
@@ -78,8 +76,8 @@ protected:
     void Build();
     void UpdateLayersMaps();
     void UpdateImplementationsMap();
-    InferenceEngine::CNNNetwork GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& pi,
-                                                                 bool filter_const_primitives = true);
+    std::shared_ptr<ngraph::Function> GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& pi,
+                                                                       bool filter_const_primitives = true);
 };
 
 }  // namespace CLDNNPlugin

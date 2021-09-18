@@ -165,10 +165,6 @@ OPENVINO_API
 std::ostream& operator<<(std::ostream& out, const ov::element::Type& obj);
 }  // namespace element
 
-}  // namespace ov
-
-namespace ngraph {
-
 template <>
 class OPENVINO_API AttributeAdapter<ov::element::Type_t> : public EnumAttributeAdapterBase<ov::element::Type_t> {
 public:
@@ -199,4 +195,15 @@ public:
 protected:
     ov::element::Type& m_ref;
 };
-}  // namespace ngraph
+
+template <>
+class NGRAPH_API AttributeAdapter<ov::element::TypeVector> : public DirectValueAccessor<ov::element::TypeVector> {
+public:
+    AttributeAdapter(ov::element::TypeVector& value) : DirectValueAccessor<ov::element::TypeVector>(value) {}
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<element::Type>>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+};
+
+}  // namespace ov

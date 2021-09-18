@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::Elu, "Elu", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Elu, "Elu", 0);
 
 op::Elu::Elu(const Output<Node>& data, const double alpha) : Op({data}), m_alpha{alpha} {
     constructor_validate_and_infer_types();

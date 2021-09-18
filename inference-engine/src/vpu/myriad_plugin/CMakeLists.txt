@@ -55,6 +55,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 # install
 if (LINUX)
     install(FILES ${mvnc_SOURCE_DIR}/src/97-myriad-usbboot.rules
-        DESTINATION ${IE_CPACK_IE_DIR}/external
+        DESTINATION runtime/3rdparty
         COMPONENT myriad)
 endif()

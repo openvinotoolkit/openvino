@@ -60,8 +60,6 @@ CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
 void CLDNNGraph::UpdateLayersMaps() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::UpdateLayersMaps");
     primitiveIDs = m_program->primitiveIDs;
-    primitivesToIRLayersMap = m_program->primitivesToIRLayersMap;
-    IRToNgraphLayersMap = m_program->IRToNgraphLayersMap;
     prevPrimitiveIDs = m_program->prevPrimitiveIDs;
     profilingIDs = m_program->profilingIDs;
     perfMap = m_program->perfMap;
@@ -106,7 +104,7 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
     return network;
 }
 
-InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
+std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetExecGraphInfoByPrimitivesInfo");
     if (m_config.useProfiling) {
@@ -219,25 +217,6 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         return res;
     };
 
-    auto split_string = [](std::string src, std::string delimiter = ",") -> std::vector<std::string> {
-        std::vector<std::string> tokens;
-        std::string tokenBuf;
-        size_t prev = 0, pos = 0, srcLength = src.length(), delimLength = delimiter.length();
-        do {
-            pos = src.find(delimiter, prev);
-            if (pos == std::string::npos) {
-                pos = srcLength;
-            }
-            tokenBuf = src.substr(prev, pos - prev);
-            if (!tokenBuf.empty()) {
-                tokens.push_back(tokenBuf);
-            }
-            prev = pos + delimLength;
-        } while (pos < srcLength && prev < srcLength);
-
-        return tokens;
-    };
-
     auto remove_type_from_name = [](const std::string& name) -> std::string {
         auto it = std::find(name.begin(), name.end(), ':');
         if (it == name.end() || (it + 1) == name.end())
@@ -246,22 +225,13 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         return std::string((it+1), name.end());
     };
 
+    auto extIdMap = GetNetwork()->get_ext_id_mapping();
+
     auto find_origin_layers = [&](const std::string& name) -> std::vector<std::string> {
-        if (primitivesToIRLayersMap.find(name) == primitivesToIRLayersMap.end())
+        if (extIdMap.find(name) == extIdMap.end()) {
             return {};
-
-        auto cnn_names = primitivesToIRLayersMap.at(name);
-        std::vector<std::string> res;
-
-        for (auto& cnn_name : cnn_names) {
-            if (IRToNgraphLayersMap.find(cnn_name) != IRToNgraphLayersMap.end()) {
-                auto ngraph_names = split_string(IRToNgraphLayersMap.at(cnn_name));
-                res.insert(res.end(), ngraph_names.begin(), ngraph_names.end());
-            } else {
-                res.push_back(cnn_name);
-            }
         }
-        return res;
+        return { extIdMap.at(name) };
     };
 
     auto get_inputs = [&] (const cldnn::primitive_info& prim_info) {
@@ -467,12 +437,10 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         create_ngraph_node(pi);
     }
 
-    auto function = std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
-    InferenceEngine::CNNNetwork net(function);
-    return net;
+    return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
 }
 
-InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfo() {
     auto primitives_info = GetNetwork()->get_primitives_info();
     return GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
 }
@@ -601,10 +569,18 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
     auto allIds = GetNetwork()->get_all_primitive_org_ids();
     auto executedPrimitives = GetNetwork()->get_executed_primitives();
     auto primitivesInfo = GetNetwork()->get_primitives_info();
+    auto extIdMap = GetNetwork()->get_ext_id_mapping();
 
-    auto getUpperCaseName = [&](std::string name) {
+    auto getUpperCaseName = [](std::string name) {
         if (name.length() > 0)
             name[0] = toupper(name[0]);
+        return name;
+    };
+
+    auto getClearName = [](std::string name) {
+        if (name.find(":") != std::string::npos) {
+            name = name.substr(name.find(":") + 1, name.length());
+        }
         return name;
     };
 
@@ -698,10 +674,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
                 }
             }
 
-            std::string layerName = primId;
-            if (primId.find(":") != std::string::npos) {
-                layerName = primId.substr(primId.find(":") + 1, primId.length());
-            }
+            std::string layerName = getClearName(primId);
 
             for (auto& pi : primitivesInfo) {
                 if (pi.original_id == primId) {
@@ -737,10 +710,27 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
     }
 
     // Step 3. Checking primitives which has been deleted from execution order but added by clDNNPlugin
-    for (auto& primId : profilingIDs)
+    for (auto& primId : profilingIDs) {
         if (std::find(allIds.begin(), allIds.end(), primId) == allIds.end()) {
             getFromProfiling(primId);
         }
+    }
+
+    for (auto& p : extIdMap) {
+        if (p.first.find(p.second) != std::string::npos) {
+            continue;
+        }
+        auto first_res = result.find(getClearName(p.first));
+        auto second_res = result.find(getClearName(p.second));
+
+        if (first_res != result.end() && second_res != result.end() && first_res != second_res) {
+            std::swap(first_res->second.cpu_uSec,        second_res->second.cpu_uSec);
+            std::swap(first_res->second.realTime_uSec,   second_res->second.realTime_uSec);
+            std::swap(first_res->second.status,          second_res->second.status);
+            std::swap(first_res->second.exec_type,       second_res->second.exec_type);
+            std::swap(first_res->second.execution_index, second_res->second.execution_index);
+        }
+    }
     return result;
 }
 

@@ -57,7 +57,7 @@ public:
     }
 
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
-    void PullOutputData(const InferenceEngine::BlobMap &out);
+    void PullOutputData(InferenceEngine::BlobMap &out);
 
     void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
 
@@ -83,6 +83,20 @@ public:
 
     std::map<std::string, MKLDNNNodePtr>& GetOutputNodesMap() {
         return outputNodesMap;
+    }
+
+    MKLDNNNodePtr getInputNodeByName(const std::string &name) {
+        auto input = inputNodesMap.find(name);
+        if (input == inputNodesMap.end())
+            IE_THROW() << "CPU execution graph doesn't contain input node with name: " << name;
+        return input->second;
+    }
+
+    MKLDNNNodePtr getOutputNodeByName(const std::string &name) {
+        auto output = outputNodesMap.find(name);
+        if (output == outputNodesMap.end())
+            IE_THROW() << "CPU execution graph doesn't contain output node with name: " << name;
+        return output->second;
     }
 
     bool hasInputWithName(const std::string& name) const {
@@ -162,7 +176,7 @@ public:
      */
     bool InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort, bool initNode = false);
 
-    InferenceEngine::CNNNetwork dump() const;
+    std::shared_ptr<ngraph::Function> dump() const;
 
     void ResetInferCount() { infer_count = 0; }
 
@@ -170,6 +184,10 @@ public:
 
     bool isQuantized() const {
         return isQuantizedFlag;
+    }
+
+    bool hasDynamicInput() const {
+        return graphHasDynamicInput;
     }
 
 protected:
@@ -196,8 +214,6 @@ protected:
 
     MKLDNNMemoryPtr memWorkspace;
 
-    std::map<std::string, MKLDNNNodePtr> inputNodesMap;
-    std::map<std::string, MKLDNNNodePtr> outputNodesMap;
     std::vector<MKLDNNNodePtr> graphNodes;
     std::vector<MKLDNNEdgePtr> graphEdges;
 
@@ -205,6 +221,7 @@ protected:
     std::string _name;
 
     bool isQuantizedFlag = false;
+    bool graphHasDynamicInput = false;
 
     static mkldnn::engine eng;
 
@@ -223,9 +240,12 @@ protected:
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
-    friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
+    friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
+    // TODO: change std::map to std::unordered_map
+    std::map<std::string, MKLDNNNodePtr> inputNodesMap;
+    std::map<std::string, MKLDNNNodePtr> outputNodesMap;
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constant node in ExecuteConstantNodesOnly and Infer methods
     std::vector<MKLDNNNodePtr> constantGraphNodes;

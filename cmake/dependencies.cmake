@@ -89,7 +89,7 @@ if(THREADING STREQUAL "OMP")
     ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list} 
-            DESTINATION "deployment_tools/inference_engine/external/omp/lib"
+            DESTINATION "runtime/3rdparty/omp/lib"
             COMPONENT omp)
 endif()
 
@@ -297,45 +297,4 @@ if(ENABLE_GNA)
     endif()
     update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA})
-endif()
-
-if(ENABLE_SPEECH_DEMO)
-    reset_deps_cache(SPEECH_LIBS_AND_DEMOS)
-    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
-        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
-    elseif(DEFINED THIRDPARTY_SERVER_PATH)
-        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
-    else()
-        message(WARNING "Unable to locate Speech Demo")
-    endif()
-    if(DEFINED IE_PATH_TO_DEPS)
-        if(WIN32 AND X86_64)
-            RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_WIN "speech_demo_1.0.0.780_windows.zip"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.780"
-                    SHA256 "957bd274a1f6dc1d83a46879c7ef3b3b06f17d11af85cc45c18919051d145abd")
-            debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
-        elseif(LINUX AND X86_64)
-            if(LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
-                RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.780_centos.tgz"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.780"
-                    SHA256 "6d8d1111d0e662fe71d71cd3debad2995f6fb6fe5df3b92196dae06ff7abdf44")
-                debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
-            else()
-                RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.780_linux.tgz"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.780"
-                    SHA256 "0ec6f1e47c00d781dc918af5d3055ab474ff47b9978dd6fe2add73e3339b0763")
-                debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
-            endif()
-        else()
-            message(FATAL_ERROR "Speech Demo is not available on current platform")
-        endif()
-        unset(IE_PATH_TO_DEPS)
-    endif()
-    update_deps_cache(SPEECH_LIBS_AND_DEMOS "${SPEECH_LIBS_AND_DEMOS}" "Path to SPEECH_LIBS_AND_DEMOS root folder")
 endif()

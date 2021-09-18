@@ -45,12 +45,12 @@ void MockNotEmptyICNNNetwork::getInputsInfo(InputsDataMap &inputs) const noexcep
         "Input",
         Precision::FP32 });
     getInputTo(inData)[MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME] = inputLayer;
-    inData->setDims(MockNotEmptyICNNNetwork::INPUT_DIMENTIONS);
+    inData->setDims(MockNotEmptyICNNNetwork::INPUT_DIMENSIONS);
     inData->setLayout(Layout::NCHW);
     inputInfo->setInputData(inData);
 
     auto outData = std::make_shared<Data>(MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME, Precision::UNSPECIFIED);
-    outData->setDims(MockNotEmptyICNNNetwork::OUTPUT_DIMENTIONS);
+    outData->setDims(MockNotEmptyICNNNetwork::OUTPUT_DIMENSIONS);
     outData->setLayout(Layout::NCHW);
     getInputTo(outData)[""] = std::make_shared<CNNLayer>(LayerParams{
         MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME,

@@ -51,3 +51,7 @@ std::shared_ptr<InferenceEngine::ILayerImplFactory> MKLDNNExtensionManager::Crea
     }
     return factory;
 }
+
+const std::vector<InferenceEngine::IExtensionPtr> & MKLDNNExtensionManager::Extensions() const {
+    return _extensions;
+}

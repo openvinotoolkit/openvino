@@ -35,7 +35,7 @@ def parse_args():
                       help='Optional. '
                            'Path to a folder with images and/or binaries or to specific image or binary file.')
     args.add_argument('-m', '--path_to_model', type=str, required=True,
-                      help='Required. Path to an .xml/.onnx/.prototxt file with a trained model or '
+                      help='Required. Path to an .xml/.onnx file with a trained model or '
                            'to a .blob file with a trained compiled model.')
     args.add_argument('-d', '--target_device', type=str, required=False, default='CPU',
                       help='Optional. Specify a target device to infer on (the list of available devices is shown below). '
@@ -48,6 +48,11 @@ def parse_args():
     args.add_argument('-c', '--path_to_cldnn_config', type=str, required=False,
                       help='Optional. Required for GPU custom kernels. Absolute path to an .xml file with the '
                            'kernels description.')
+    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'latency'],
+                      help='Optional. Performance hint (optimize for latency or throughput).'
+                            'The hint allows the OpenVINO device to select the right network-specific settings,'
+                            'as opposite to accepting specific values like  \'nstreams\' from the command line.'
+                            'So you can specify just the hint without adding explicit device-specific options')
     args.add_argument('-api', '--api_type', type=str, required=False, default='async', choices=['sync', 'async'],
                       help='Optional. Enable using sync/async API. Default value is async.')
     args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,

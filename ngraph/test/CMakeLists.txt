@@ -8,11 +8,11 @@ set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
-    message(STATUS "unit tests disabled")
+    message(STATUS "nGraph unit tests disabled")
     return()
 endif()
 
-message(STATUS "unit tests enabled")
+message(STATUS "nGraph unit tests enabled")
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
@@ -44,11 +44,13 @@ set(SRC
     input_output_assign.cpp
     int4.cpp
     intervals.cpp
+    layout.cpp
     main.cpp
     matcher_pass.cpp
     misc.cpp
     node_input_output.cpp
     op.cpp
+    opset.cpp
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/clamp.cpp
@@ -62,10 +64,6 @@ set(SRC
     op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
-    op_eval/reduce_max.cpp
-    op_eval/reduce_min.cpp
-    op_eval/reduce_prod.cpp
-    op_eval/reduce_sum.cpp
     op_eval/roi_align.cpp
     op_eval/roi_pooling.cpp
     op_eval/round.cpp
@@ -80,6 +78,7 @@ set(SRC
     pass_config.cpp
     pass_manager.cpp
     pattern.cpp
+    preprocess.cpp
     provenance.cpp
     replace_node.cpp
     reshape_opt_kernel.cpp
@@ -156,6 +155,7 @@ set(SRC
     type_prop/idft.cpp
     type_prop/interpolate.cpp
     type_prop/logical_and.cpp
+    type_prop/logical_not.cpp
     type_prop/logical_or.cpp
     type_prop/logical_xor.cpp
     type_prop/lrn.cpp
@@ -218,6 +218,7 @@ set(SRC
     type_prop/sign.cpp
     type_prop/sin.cpp
     type_prop/sinh.cpp
+    type_prop/slice.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
@@ -256,6 +257,7 @@ set(SRC
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
+    visitors/op/ctc_loss.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
     visitors/op/deformable_psroi_pooling.cpp
@@ -270,6 +272,7 @@ set(SRC
     visitors/op/floor_mod.cpp
     visitors/op/floor.cpp
     visitors/op/gather.cpp
+    visitors/op/gather_tree.cpp
     visitors/op/gelu.cpp
     visitors/op/greater_equal.cpp
     visitors/op/greater.cpp
@@ -281,6 +284,7 @@ set(SRC
     visitors/op/log.cpp
     visitors/op/logical_and.cpp
     visitors/op/logical_or.cpp
+    visitors/op/logical_not.cpp
     visitors/op/logical_xor.cpp
     visitors/op/lrn.cpp
     visitors/op/lstm_cell.cpp
@@ -325,14 +329,17 @@ set(SRC
     visitors/op/reverse.cpp
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
+    visitors/op/rnn_sequence.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/scatter_elements_update.cpp
     visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/sign.cpp
     visitors/op/sinh.cpp
+    visitors/op/slice.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
     visitors/op/space_to_batch.cpp
@@ -407,7 +414,6 @@ set(MULTI_TEST_SRC
     backend/api.in.cpp
     backend/asin.in.cpp
     backend/asinh.in.cpp
-    backend/atan.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
@@ -416,7 +422,6 @@ set(MULTI_TEST_SRC
     backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
-    backend/comparison.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convolution_backprop.in.cpp
@@ -427,7 +432,6 @@ set(MULTI_TEST_SRC
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
-    backend/cum_sum.in.cpp
     backend/deformable_psroi_pooling.in.cpp
     backend/detection_output.in.cpp
     backend/dft.in.cpp
@@ -448,7 +452,6 @@ set(MULTI_TEST_SRC
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
-    backend/fused_op.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
@@ -460,13 +463,11 @@ set(MULTI_TEST_SRC
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
-    backend/logical_not.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
-    backend/minimum.in.cpp
     backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiclass_nms.in.cpp
@@ -489,19 +490,11 @@ set(MULTI_TEST_SRC
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/recurrent_cells.in.cpp
-    backend/reduce_l1.in.cpp
-    backend/reduce_l2.in.cpp
-    backend/reduce_max.in.cpp
-    backend/reduce_mean.in.cpp
-    backend/reduce_min.in.cpp
-    backend/reduce_prod.in.cpp
-    backend/reduce_sum.in.cpp
     backend/region_yolo.in.cpp
     backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
     backend/result.in.cpp
-    backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
     backend/round.in.cpp

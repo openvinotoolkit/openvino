@@ -12,9 +12,9 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Parameter, "Parameter", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Parameter, "Parameter", 0);
 
-op::Parameter::Parameter(const element::Type& element_type, const PartialShape& pshape)
+op::Parameter::Parameter(const element::Type& element_type, const ov::PartialShape& pshape)
     : m_partial_shape(pshape),
       m_element_type(element_type),
       m_is_relevant_to_shapes(false) {
@@ -48,11 +48,11 @@ void op::Parameter::set_is_relevant_to_shapes(bool is_relevant) {
     m_is_relevant_to_shapes = is_relevant;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ParameterVector>::type_info;
+constexpr DiscreteTypeInfo ov::AttributeAdapter<ParameterVector>::type_info;
 
-AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
+ov::AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
 
-bool AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visitor) {
+bool ov::AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visitor) {
     size_t size = m_ref.size();
     visitor.on_attribute("size", size);
     if (size != m_ref.size()) {
@@ -68,7 +68,7 @@ bool AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visit
         }
         visitor.on_attribute(index.str(), id);
         if (!m_ref[i]) {
-            m_ref[i] = as_type_ptr<op::v0::Parameter>(visitor.get_registered_node(id));
+            m_ref[i] = ov::as_type_ptr<ngraph::op::v0::Parameter>(visitor.get_registered_node(id));
         }
     }
     return true;

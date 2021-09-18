@@ -2,7 +2,7 @@
 
 **Versioned name**: *Ceiling-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Ceiling* performs element-wise ceiling operation with given tensor.
 

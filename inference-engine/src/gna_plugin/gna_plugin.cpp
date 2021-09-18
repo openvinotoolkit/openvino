@@ -64,8 +64,12 @@
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
-#include "transformations/decompose_2d_conv.hpp"
-#include "transformations/convert_padded2valid_conv.hpp"
+#include "transformations/decompose_2d_convolution.hpp"
+#include "transformations/convert_padded_to_valid_convolution.hpp"
+#include "transformations/insert_reshape_around_matmul.hpp"
+#include "transformations/convert_dwsc_to_scaleshifts.hpp"
+#include "transformations/op_conversions/lstm_cell_decomposition.hpp"
+#include "transformations/remove_single_input_concat.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -484,15 +488,10 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
                     << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
 
-            auto fp32eq = [](float p1, float p2) -> bool {
-                return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-            };
-            float scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
-            auto minAbsVal = std::min(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
-            auto maxAbsVal = std::max(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
-            if (fp32eq(minAbsVal, 0.0f) && !fp32eq(maxAbsVal, 0.0f)) {
-                scaleInput = (fqLayer.getLevels() - 1) / (2 * maxAbsVal);
-            }
+            // GNA input is always quantized to int16, so number of levels can't be greater than max uint16
+            // todo: should be solved in POT (issue 63330)
+            size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
+            auto scaleInput = frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
 
             IE_ASSERT(config.inputScaleFactors.size() > inputIdx);
             IE_ASSERT(inputsDesc->inputScaleFactors.size() > inputIdx);
@@ -512,6 +511,33 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
         }
 
         inputIdx++;
+    }
+}
+
+void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork & network) {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputsAndOutputsInfoFromNetwork");
+
+    // update inputs
+    {
+        InputsDataMap inputs = network.getInputsInfo();
+        if (inputsDesc->inputPrecisions.size() != 0) {
+            inputsDesc->inputPrecisions.clear();
+        }
+        for (const auto input : inputs) {
+            inputsDesc->inputPrecisions.push_back(input.second->getPrecision().getPrecVal());
+        }
+    }
+
+    // update outputs
+    {
+        OutputsDataMap outputs = network.getOutputsInfo();
+        outputsDesc.resize(outputs.size());
+
+        size_t outputIdx = 0;
+        for (const auto output : outputs) {
+            outputsDesc[outputIdx].precision = output.second->getPrecision().getPrecVal();
+            ++outputIdx;
+        }
     }
 }
 
@@ -680,6 +706,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         InitGNADevice();
     }
 
+    bool isNgraphPassesUsed = false;
+
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
@@ -688,7 +716,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<ConvertPadded2ValidConv>();
+        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+        manager.register_pass<ConvertDWSCToScaleShifts>();
+        manager.register_pass<ConvertPaddedToValidConv>();
         if (config.gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
             manager.register_pass<Decompose2DConvTransposedWithBiasAF>();
             manager.register_pass<Decompose2DConvTransposedWithBias>();
@@ -703,25 +733,24 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SplitConvolutionWithFq>();
         manager.register_pass<SplitConvolutionWithBias>();
         manager.register_pass<SplitConvolution>();
-        manager.register_pass<HandleTransposesAroundMatMul>();
+        manager.register_pass<InsertReshapeAroundMatmulWithTranspose>();
+        manager.register_pass<InsertReshapeAroundMatmulWithFq>();
+        manager.register_pass<InsertReshapeAroundMatmulWithAdd>();
+        manager.register_pass<InsertReshapeAroundMatmul>();
         manager.register_pass<SwapInputMatMulWithFq>();
         manager.register_pass<SwapInputMatMulWithBias>();
         manager.register_pass<SwapInputMatMul>();
+        manager.register_pass<HandleTransposesAroundMatMul>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
+        manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         manager.register_pass<RemoveExtraReshapes>();
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-
         const auto& pass_config = manager.get_pass_config();
-        pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
-                [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
-                    // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
-                    return node->get_rt_info().count("UNROLL_TI") == 0;
-            });
         pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
         pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
         pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
@@ -732,6 +761,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::TransposeReduction>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
+
+        isNgraphPassesUsed = true;
     }
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
@@ -751,6 +782,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     UpdateGnaQuantModeFromNetwork(network);
     UpdateInputScaleFromNetwork(network);
 
+    // Set input and output information from orginal network
+    UpdateInputsAndOutputsInfoFromNetwork(network);
+
     if (MustBeConvertedFromNCHWToNHWC(details::CNNNetSortTopologically(network))) {
         FillInputsAndOutputsTranspositionInfo(network);
     }
@@ -760,10 +794,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision) {
         auto passes = make_shared<PassManager>(PassManagerSettings{runBeforeCopy, lowPrecision}, network);
         passes->registerPass<RemoveConstPass>();
-        passes->registerPass<UnrollTIPass>();
-        passes->registerPass<RemoveConstPass>();
-        passes->registerPass<UnrollLSTMCellPass>();
-        passes->registerPass<RemoveSingleInputConcatPass>();
+        if (!isNgraphPassesUsed) {
+            passes->registerPass<UnrollTIPass>();
+            passes->registerPass<RemoveConstPass>();
+            passes->registerPass<UnrollLSTMCellPass>();
+            passes->registerPass<RemoveSingleInputConcatPass>();
+        }
 
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
@@ -913,7 +949,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         inputsDesc->getPtrInputsGlobal(input.first).resize(gnaFlags->gna_lib_async_threads_num);
     }
 
-    // CreatingLayer primitives
+    // Creating Layer primitives
     for (auto & layer : sortedNoMem) {
         graphCompiler.CreateLayerPrimitive(layer);
     }
@@ -931,8 +967,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     /// setting-up output layers information
-    outputsDesc.resize(outputsDataMap.size());
-
     int portId = 0;
     for (auto && outPort : outputsDataMap) {
         // gets output layer pointer in original topology not in cloned
@@ -1002,10 +1036,14 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #else
     nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
 #endif
+    std::string effectiveGnaCompileTarget = config.gnaCompileTarget;
+    if (gnadevice) {
+        effectiveGnaCompileTarget = gnadevice->getEffectiveGnaCompileTarget();
+    }
     if (!gnaFlags->sw_fp32 && !graphCompiler.dnnComponents.components.empty()) {
         // number of layer gets calculated inside that InitGNAStruct function
 #if GNA_LIB_VER == 2
-        dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj, config.gnaCompileTarget);
+        dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj, effectiveGnaCompileTarget);
 #else
         dnn->InitGNAStruct(&std::get<0>(nnets.front())->obj);
 #endif
@@ -1016,7 +1054,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #if GNA_LIB_VER == 2
         gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
         // this can be improved by just copy all structures, but we are too lazy
-        dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, config.gnaCompileTarget);
+        dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, effectiveGnaCompileTarget);
 #else
         nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
         dnn->InitGNAStruct(&std::get<0>(nnets.back())->obj);
@@ -1578,6 +1616,18 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
             outputsDataMap,
             transpose_inputs_info,
             transpose_outputs_info);
+
+    // If scale factors are defined in configuration we still need to use them instead of imported values,
+    // for example to change the scale factors for the old models.
+    if (!config.inputScaleFactors.empty()) {
+        IE_ASSERT(config.inputScaleFactors.size() <= inputsDesc->inputScaleFactors.size());
+        for (size_t i = 0; i < config.inputScaleFactors.size(); ++i) {
+            if (config.inputScaleFactors[i] != GNAPluginNS::kScaleFactorDefault) {
+                gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << i << std::endl;
+                inputsDesc->inputScaleFactors[i] = config.inputScaleFactors[i];
+            }
+        }
+    }
 
 #if GNA_LIB_VER == 2
     auto getOrientation = [](Gna2Operation & gnaOperation) {

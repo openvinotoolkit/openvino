@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include "frontend.hpp"

@@ -10,6 +10,7 @@
  */
 #pragma once
 
+#include <ie_remote_context.hpp>
 #include <memory>
 #include <string>
 
@@ -18,7 +19,6 @@
 #include "gpu/gpu_params.hpp"
 #include "ie_compound_blob.h"
 #include "ie_core.hpp"
-#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 

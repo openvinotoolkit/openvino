@@ -9,20 +9,19 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::util::ArithmeticReduction, "ArithmeticReduction", 0);
+NGRAPH_RTTI_DEFINITION(ov::op::util::ArithmeticReduction, "ArithmeticReduction", 0);
 
-op::util::ArithmeticReduction::ArithmeticReduction() {}
+ov::op::util::ArithmeticReduction::ArithmeticReduction() = default;
 
-op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg, const Output<Node>& reduction_axes)
+ov::op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg, const Output<Node>& reduction_axes)
     : ReductionBase(arg, reduction_axes) {}
 
-bool op::util::ArithmeticReduction::reduction_axes_constant() const {
-    return is_type<op::Constant>(input_value(1).get_node());
+bool ov::op::util::ArithmeticReduction::reduction_axes_constant() const {
+    return ov::is_type<ngraph::op::Constant>(input_value(1).get_node());
 }
 
-const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const {
+const ov::AxisSet ov::op::util::ArithmeticReduction::get_reduction_axes() const {
     AxisSet axes;
     if (const auto& const_op = get_constant_from_source(input_value(1))) {
         const auto const_data = const_op->cast_vector<int64_t>();
@@ -33,12 +32,13 @@ const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const {
     return axes;
 }
 
-void op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_axes) {
+void ov::op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_axes) {
     this->input(1).replace_source_output(
-        op::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())->output(0));
+        ngraph::op::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())
+            ->output(0));
 }
 
-void op::util::ArithmeticReduction::validate_and_infer_types() {
+void ov::op::util::ArithmeticReduction::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_ArithmeticReduction_validate_and_infer_types);
 
     const PartialShape& axes_shape = get_input_partial_shape(1);

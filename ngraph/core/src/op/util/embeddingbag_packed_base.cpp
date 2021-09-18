@@ -8,23 +8,22 @@
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-constexpr NodeTypeInfo op::util::EmbeddingBagPackedBase::type_info;
+OPENVINO_RTTI_DEFINITION(ov::op::util::EmbeddingBagPackedBase, "EmbeddingBagPackedBase", 3);
 
-op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>& emb_table,
-                                                         const Output<Node>& indices,
-                                                         const Output<Node>& per_sample_weights)
+ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>& emb_table,
+                                                             const Output<Node>& indices,
+                                                             const Output<Node>& per_sample_weights)
     : Op({emb_table, indices, per_sample_weights}) {
     constructor_validate_and_infer_types();
 }
 
-op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>& emb_table, const Output<Node>& indices)
+ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>& emb_table, const Output<Node>& indices)
     : Op({emb_table, indices}) {
     constructor_validate_and_infer_types();
 }
 
-void op::util::EmbeddingBagPackedBase::validate_and_infer_types() {
+void ov::op::util::EmbeddingBagPackedBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_EmbeddingBagPackedBase_validate_and_infer_types);
     NODE_VALIDATION_CHECK(
         this,
@@ -71,7 +70,7 @@ void op::util::EmbeddingBagPackedBase::validate_and_infer_types() {
     set_output_type(0, result_et, result_shape);
 }
 
-bool op::util::EmbeddingBagPackedBase::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::EmbeddingBagPackedBase::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_EmbeddingBagPackedBase_visit_attributes);
     return true;
 }

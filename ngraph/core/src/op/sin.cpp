@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Sin::type_info;
+OPENVINO_RTTI_DEFINITION(op::v0::Sin, "Sin", 0, util::UnaryElementwiseArithmetic);
 
 op::Sin::Sin(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

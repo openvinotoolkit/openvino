@@ -27,7 +27,7 @@ TEST(attributes, max_pool_op) {
 
     auto max_pool = make_shared<opset1::MaxPool>(data, strides, pads_begin, pads_end, kernel, rounding_mode, auto_pad);
     NodeBuilder builder(max_pool);
-    auto g_max_pool = as_type_ptr<opset1::MaxPool>(builder.create());
+    auto g_max_pool = ov::as_type_ptr<opset1::MaxPool>(builder.create());
 
     EXPECT_EQ(g_max_pool->get_strides(), max_pool->get_strides());
     EXPECT_EQ(g_max_pool->get_pads_begin(), max_pool->get_pads_begin());
@@ -60,7 +60,7 @@ TEST(attributes, max_pool_v8_op) {
                                                        auto_pad,
                                                        index_element_type);
     NodeBuilder builder(max_pool);
-    auto g_max_pool = as_type_ptr<opset8::MaxPool>(builder.create());
+    auto g_max_pool = ov::as_type_ptr<opset8::MaxPool>(builder.create());
 
     EXPECT_EQ(g_max_pool->get_strides(), max_pool->get_strides());
     EXPECT_EQ(g_max_pool->get_dilations(), max_pool->get_dilations());

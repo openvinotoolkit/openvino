@@ -15,6 +15,7 @@
 #include "cldnn/runtime/memory.hpp"
 
 #include "cldnn/runtime/error_handler.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 #include "json_object.h"
 #include <string>
 #include <stack>
@@ -174,8 +175,11 @@ memory::ptr primitive_inst::allocate_output() {
     allocation_type alloc_type = use_lockable_memory ?
                                  engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d())
                                                      : allocation_type::usm_device;
-
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     if (!_network.is_internal() && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
+        }
         return _network.get_memory_from_pool(layout,
                                              _node.id(),
                                              _node.get_memory_dependencies(),
@@ -183,12 +187,21 @@ memory::ptr primitive_inst::allocate_output() {
                                              false);
     } else if (_network.is_internal() && _node.is_output() && _node.is_type<generic_layer>() &&
                engine.supports_allocation(allocation_type::usm_device)) {
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
+        }
         return engine.allocate_memory(layout, allocation_type::usm_device, false);
     } else if (_network.is_internal() && !_node.is_output() && _node.is_type<input_layout>()) {
         // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
         // or just reuse primitive's memory
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": constant]" << std::endl;
+        }
         return engine.allocate_memory(layout, alloc_type, false);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
+        }
         return engine.allocate_memory(layout, alloc_type);
     } else {
         return _network.get_memory_from_pool(layout,

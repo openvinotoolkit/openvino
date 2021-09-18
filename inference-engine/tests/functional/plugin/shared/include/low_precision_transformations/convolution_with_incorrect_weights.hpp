@@ -32,7 +32,7 @@ class ConvolutionWIthIncorrectWeightsTransformation :
     public testing::WithParamInterface<ConvolutionWIthIncorrectWeightsParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams>& obj);
 
 protected:
     void SetUp() override;

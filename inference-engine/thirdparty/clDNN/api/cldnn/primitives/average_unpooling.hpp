@@ -32,8 +32,9 @@ struct average_unpooling : public primitive_base<average_unpooling> {
         const tensor output_size,
         const tensor& size,
         const tensor& stride,
+        const primitive_id& ext_prim_id = "",
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), stride(stride), size(size), output_size(output_size) {}
+        : primitive_base(id, {input}, ext_prim_id, output_padding), stride(stride), size(size), output_size(output_size) {}
 
     /// @brief Defines shift in output buffer.
     tensor stride;
