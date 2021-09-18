@@ -96,3 +96,27 @@ TEST(node_input_output, output_create_const) {
 
     EXPECT_THROW(add->output(1), std::out_of_range);
 }
+
+TEST(node_input_output, input_set_argument) {
+    auto x = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto y = make_shared<op::Parameter>(element::f32, Shape{2});
+    auto z = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    auto add = make_shared<op::v1::Add>(x, y);
+
+    EXPECT_EQ(add->get_input_size(), 2);
+    EXPECT_EQ(add->input(0).get_shape(), Shape{1});
+    EXPECT_EQ(add->input(1).get_shape(), Shape{2});
+
+    add->set_argument(1, z);
+
+    EXPECT_EQ(add->get_input_size(), 2);
+    EXPECT_EQ(add->input(0).get_shape(), Shape{1});
+    EXPECT_EQ(add->input(1).get_shape(), Shape{3});
+
+    add->set_arguments(NodeVector{z, x});
+
+    EXPECT_EQ(add->get_input_size(), 2);
+    EXPECT_EQ(add->input(0).get_shape(), Shape{3});
+    EXPECT_EQ(add->input(1).get_shape(), Shape{1});
+}
