@@ -6,13 +6,61 @@
 
 #include <frontend_manager/frontend.hpp>
 
+#include "node_def.pb.h"
+//#include "node_context_new.hpp"
+//#include "decoder_new.hpp"
+
+/*
 namespace tensorflow {
-class OpDef;
-class TensorProto;
+namespace framework {
+namespace proto {
+class NodeDef;
+}  // namespace proto
+}  // namespace framework
 }  // namespace tensorflow
+*/
 
 namespace ngraph {
 namespace frontend {
+using InPortName = size_t;
+using OutPortName = size_t;
+using NamedOutputs = std::map<OutPortName, OutputVector>;
+using NamedInputs = std::map<InPortName, OutputVector>;
+
+class DecoderBase {
+public:
+    /// \brief Get attribute value by name and requested type
+    ///
+    /// \param name Attribute name
+    /// \param type_info Attribute type information
+    /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
+    virtual std::shared_ptr<Variant> get_attribute(const std::string& name, const VariantTypeInfo& type_info) const = 0;
+
+    virtual size_t get_input_size() const = 0;
+
+    virtual void get_input_node(const size_t input_port_idx, std::string& producer_name,
+        size_t& producer_output_port_index) const = 0;
+
+    virtual std::vector<OutPortName> get_output_names() const = 0;
+
+    virtual size_t get_output_size() const = 0;
+
+    /// \brief Get output port type
+    ///
+    /// Current API assumes that output port has only one output type.
+    /// If decoder supports multiple types for specified port, it shall throw general
+    /// exception
+    ///
+    /// \param port_name Port name for the node
+    ///
+    /// \return Type of specified output port
+    virtual ngraph::element::Type get_out_port_type(const size_t& port_index) const = 0;
+
+    virtual std::string get_op_type() const = 0;
+
+    virtual std::string get_op_name() const = 0;
+};
+
 class TensorPlaceTF;
 class OpPlaceTF;
 
@@ -105,6 +153,8 @@ public:
     OpPlaceTF(const InputModel& input_model,
               std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def);
 
+    OpPlaceTF(const InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder);
+
     void add_in_port(const std::shared_ptr<InPortPlaceTF>& input, const std::string& name);
     void add_out_port(const std::shared_ptr<OutPortPlaceTF>& output, int idx);
 
@@ -113,6 +163,8 @@ public:
     const std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>>& get_input_ports() const;
     std::shared_ptr<InPortPlaceTF> get_input_port_tf(const std::string& inputName, int inputPortIndex) const;
     std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> get_desc() const;
+    std::shared_ptr<DecoderBase> get_desc_new() const;
+    //::ngraph::frontend::DecoderTFProto* get_desc_new() const;
 
     // External API methods
     std::vector<Place::Ptr> get_consuming_ports() const override;
@@ -148,6 +200,7 @@ public:
     // Ptr get_target_tensor(int outputPortIndex) const override;
 
 private:
+    std::shared_ptr<DecoderBase> m_op_decoder;
     std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> m_op_def;
     std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>> m_input_ports;
     std::vector<std::shared_ptr<OutPortPlaceTF>> m_output_ports;
@@ -185,7 +238,6 @@ public:
     bool is_equal_data(Ptr another) const override;
 
 private:
-    // const ::tensorflow::TensorProto& m_tensor;
     PartialShape m_pshape;
     element::Type m_type;
 

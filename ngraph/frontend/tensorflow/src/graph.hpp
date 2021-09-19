@@ -19,9 +19,13 @@
 #include <ngraph/variant.hpp>
 #include <tensorflow_frontend/frontend.hpp>
 #include <tensorflow_frontend/utility.hpp>
+#include <tensorflow_frontend/place.hpp>
+#include <tensorflow_frontend/model.hpp>
 
 #include "ngraph_conversions.h"
 #include "node_context_impl.hpp"
+#include "node_context_new.hpp"
+#include "decoder_new.hpp"
 
 namespace tensorflow {
 class GraphDef;
@@ -30,32 +34,6 @@ namespace ngraph_bridge {
 class GraphIteratorProto;
 }
 }  // namespace tensorflow
-
-namespace ngraph {
-namespace frontend {
-namespace tensorflow {
-
-/// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class GraphIterator {
-public:
-    virtual size_t size() const = 0;
-
-    /// Set iterator to the start position
-    virtual void reset() = 0;
-
-    /// Moves to the next node in the graph
-    virtual void next() = 0;
-
-    /// Returns true if iterator goes out of the range of available nodes
-    virtual bool is_end() const = 0;
-
-    /// Return NodeContext for the current node that iterator points to
-    virtual std::shared_ptr<detail::TFNodeDecoder> get() const = 0;
-};
-
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ngraph
 
 namespace tensorflow {
 namespace ngraph_bridge {
@@ -194,8 +172,7 @@ public:
     }
 };
 
-class GraphIteratorProto : public ngraph::frontend::tensorflow::GraphIterator {
-    // const GraphDef* graph;
+class GraphIteratorProto : public ::ngraph::frontend::GraphIterator {
     std::vector<const ::tensorflow::NodeDef*> nodes;
     size_t node_index = 0;
 
@@ -234,6 +211,10 @@ public:
     /// Return NodeContext for the current node that iterator points to
     virtual std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> get() const override {
         return std::make_shared<NodeProtoWrapper>(nodes[node_index]);
+    }
+
+    virtual std::shared_ptr<ngraph::frontend::DecoderBase> get_new() const override {
+        return std::make_shared<::ngraph::frontend::DecoderTFProto>(nodes[node_index]);
     }
 };
 
