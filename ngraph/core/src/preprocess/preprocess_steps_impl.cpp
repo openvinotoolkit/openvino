@@ -77,7 +77,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_mean_impl(const std::vector<float
         false));
 }
 
-void PreProcessSteps::PreProcessStepsImpl::add_convert_impl(const element::Type& type) {
+void PreProcessSteps::PreProcessStepsImpl::add_convert_impl(const ov::element::Type& type) {
     m_actions.emplace_back(std::make_tuple(
         [type](const std::vector<std::shared_ptr<Node>>& nodes, PreprocessingContext&) {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't set element type for empty input.");

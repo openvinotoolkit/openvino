@@ -51,10 +51,10 @@ public:
         m_element_type = element_type;
     }
 
-    bool has_layout() const;
-
+    /// \brief Returns current layout, or empty Layout if it is not set
     Layout get_layout() const;
 
+    /// \brief Sets layout runtime information to tensor
     void set_layout(const Layout& layout);
 
 protected:

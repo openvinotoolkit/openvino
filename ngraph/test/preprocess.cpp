@@ -72,7 +72,6 @@ TEST(pre_post_process, convert_element_type_and_scale) {
                                        .convert_element_type(element::i8)))
             .build(f);
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::i16);
-    EXPECT_FALSE(f->get_parameters().front()->has_layout());
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
 
     auto result = std::make_shared<HostTensor>();
@@ -129,8 +128,7 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
 
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
-    EXPECT_FALSE(f->get_parameters().front()->has_layout());
-    EXPECT_THROW(f->get_parameters().front()->get_layout(), ov::AssertFailure);
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), Layout());
 
     auto result = std::make_shared<HostTensor>();
     f->evaluate({result}, {make_host_tensor<element::f32>(Shape{1, 3, 1, 1}, {2., 4., 6.})});
@@ -192,7 +190,6 @@ TEST(pre_post_process, test_lvalue) {
     f = p.build(f);
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
     EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
-    EXPECT_TRUE(f->get_parameters().front()->has_layout());
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "?CHW");
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
@@ -219,6 +216,29 @@ TEST(pre_post_process, test_2_inputs_basic) {
     EXPECT_TRUE(all_close_f(std::vector<float>{1, 2, 3}, result2_val));
 }
 
+TEST(pre_post_process, reuse_network_layout_no_tensor_info) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
+    f->get_parameters().front()->set_layout("NC??");
+    f = PrePostProcessor()
+            .input(InputInfo().preprocess(PreProcessSteps().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f})))
+            .build(f);
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
+}
+
+TEST(pre_post_process, reuse_network_layout_tensor_info) {
+    auto f = create_simple_function(element::u8, PartialShape{Dimension::dynamic(), 3, 2, 1});
+    f->get_parameters().front()->set_layout("NC??");
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_element_type(element::f32))
+                       .preprocess(PreProcessSteps()
+                                       .mean({1.f, 2.f, 3.f})
+                                       .scale({2.f, 3.f, 4.f})
+                                       .convert_element_type(element::u8)))
+            .build(f);
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
+}
+
 TEST(pre_post_process, mean_scale_vector_tensor_layout) {
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
     auto name = f->get_parameters().front()->get_friendly_name();
@@ -230,7 +250,6 @@ TEST(pre_post_process, mean_scale_vector_tensor_layout) {
                        .preprocess(PreProcessSteps().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f})))
             .build(f);
     EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
-    EXPECT_TRUE(f->get_parameters().front()->has_layout());
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
 
@@ -253,7 +272,6 @@ TEST(pre_post_process, mean_scale_dynamic_layout) {
             .build(f);
 
     EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
-    EXPECT_TRUE(f->get_parameters().front()->has_layout());
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "N...C");
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
 

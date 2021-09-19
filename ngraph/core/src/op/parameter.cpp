@@ -48,15 +48,13 @@ void op::Parameter::set_is_relevant_to_shapes(bool is_relevant) {
     m_is_relevant_to_shapes = is_relevant;
 }
 
-bool op::Parameter::has_layout() const {
-    return get_output_tensor(0).get_rt_info().find("LAYOUT") != get_output_tensor(0).get_rt_info().end();
-}
-
 ov::Layout op::Parameter::get_layout() const {
     auto it = get_output_tensor(0).get_rt_info().find("LAYOUT");
-    OPENVINO_ASSERT(it != get_output_tensor(0).get_rt_info().end(), "Layout for parameter is not set");
+    if (it == get_output_tensor(0).get_rt_info().end()) {
+        return Layout();
+    }
     auto layout = std::dynamic_pointer_cast<VariantWrapper<Layout>>(it->second);
-    OPENVINO_ASSERT(layout, "Layout runtime info for node is invalid");
+    OPENVINO_ASSERT(layout, "'LAYOUT' runtime info for node is invalid, use set_layout API");
     return layout->get();
 }
 

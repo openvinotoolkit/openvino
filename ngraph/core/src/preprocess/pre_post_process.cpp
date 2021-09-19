@@ -12,12 +12,38 @@ namespace ov {
 namespace preprocess {
 
 /// \brief InputTensorInfoImpl - internal data structure
-struct InputTensorInfo::InputTensorInfoImpl {
+class InputTensorInfo::InputTensorInfoImpl {
+public:
     InputTensorInfoImpl() = default;
-    explicit InputTensorInfoImpl(const element::Type& type) : m_type(type) {}
 
+    void set_element_type(const element::Type& type) {
+        m_type = type;
+        m_type_set = true;
+    }
+    bool is_element_type_set() const {
+        return m_type_set;
+    }
+    const element::Type& get_element_type() const {
+        return m_type;
+    }
+
+    void set_layout(const Layout& layout) {
+        m_layout = layout;
+        m_layout_set = true;
+    }
+    bool is_layout_set() const {
+        return m_layout_set;
+    }
+    const Layout& get_layout() const {
+        return m_layout;
+    }
+
+private:
     element::Type m_type = element::dynamic;
+    bool m_type_set = false;
+
     Layout m_layout = Layout();
+    bool m_layout_set = false;
 };
 
 /// \brief InputInfoImpl - internal data structure
@@ -29,9 +55,11 @@ struct InputInfo::InputInfoImpl {
         return m_has_index;
     }
 
-    void create_tensor_data(const element::Type& type) {
-        m_tensor_data =
-            std::unique_ptr<InputTensorInfo::InputTensorInfoImpl>(new InputTensorInfo::InputTensorInfoImpl(type));
+    void create_tensor_data(const element::Type& type, const Layout& layout) {
+        auto data = std::unique_ptr<InputTensorInfo::InputTensorInfoImpl>(new InputTensorInfo::InputTensorInfoImpl());
+        data->set_layout(layout);
+        data->set_element_type(type);
+        m_tensor_data = std::move(data);
     }
 
     bool m_has_index = false;
@@ -106,12 +134,14 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         }
         auto consumers = param->output(0).get_target_inputs();
         if (!input->m_tensor_data) {
-            input->create_tensor_data(param->get_element_type());
+            input->create_tensor_data(param->get_element_type(), param->get_layout());
         }
         auto new_param_shape = param->get_partial_shape();
-        auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->m_type, new_param_shape);
-        if (input->m_tensor_data->m_layout != Layout()) {
-            new_param->set_layout(input->m_tensor_data->m_layout);
+        auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->get_element_type(), new_param_shape);
+        if (input->m_tensor_data->is_layout_set()) {
+            new_param->set_layout(input->m_tensor_data->get_layout());
+        } else if (param->get_layout() != Layout()) {
+            new_param->set_layout(param->get_layout());
         }
         // Old param will be removed, so friendly name can be reused
         new_param->set_friendly_name(param->get_friendly_name());
@@ -120,7 +150,7 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         new_param->get_output_tensor(0).set_names(param->get_output_tensor(0).get_names());
 
         std::shared_ptr<Node> node = new_param;
-        PreprocessingContext context(input->m_tensor_data->m_layout);
+        PreprocessingContext context(new_param->get_layout());
         // 2. Apply preprocessing
         for (const auto& action : input->m_preprocess->actions()) {
             node = std::get<0>(action)({node}, context);
@@ -155,22 +185,22 @@ InputTensorInfo& InputTensorInfo::operator=(InputTensorInfo&&) noexcept = defaul
 InputTensorInfo::~InputTensorInfo() = default;
 
 InputTensorInfo& InputTensorInfo::set_element_type(const element::Type& type) & {
-    m_impl->m_type = type;
+    m_impl->set_element_type(type);
     return *this;
 }
 
 InputTensorInfo&& InputTensorInfo::set_element_type(const element::Type& type) && {
-    m_impl->m_type = type;
+    m_impl->set_element_type(type);
     return std::move(*this);
 }
 
 InputTensorInfo& InputTensorInfo::set_layout(const Layout& layout) & {
-    m_impl->m_layout = layout;
+    m_impl->set_layout(layout);
     return *this;
 }
 
 InputTensorInfo&& InputTensorInfo::set_layout(const Layout& layout) && {
-    m_impl->m_layout = layout;
+    m_impl->set_layout(layout);
     return std::move(*this);
 }
 
