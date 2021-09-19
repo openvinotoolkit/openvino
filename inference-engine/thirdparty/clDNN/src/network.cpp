@@ -470,12 +470,6 @@ void network::allocate_primitives() {
     for (auto node : _program->get_processing_order()) {
         nodes_to_allocate.push_back(_program->get_node_ptr(node->id()));
     }
-    std::sort(nodes_to_allocate.begin(),
-              nodes_to_allocate.end(),
-              [](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
-                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
-              });
-
     for (auto const& node : nodes_to_allocate) {
         allocate_primitive_instance(*node);
     }
