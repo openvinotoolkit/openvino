@@ -138,6 +138,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         const auto convert = convertNodes[0]->clone_with_new_inputs({ newConcat });
 
         NetworkHelper::copyInfo({ concat, convert }, convert);
+        convert->set_friendly_name(concat->get_friendly_name() + "/DequantizationConvert");
         lastDequantization = convert;
     }
 
@@ -150,6 +151,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
                 ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1)));
 
         NetworkHelper::copyInfo({ concat, subtract }, subtract);
+        subtract->set_friendly_name(concat->get_friendly_name() + "/DequantizationSubtract");
         lastDequantization = subtract;
     }
 
@@ -163,6 +165,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             layerDequantizations[0].multiply->get_output_element_type(0));
 
         NetworkHelper::copyInfo({ concat, multiply }, multiply);
+        multiply->set_friendly_name(concat->get_friendly_name() + "/DequantizationMultyply");
         lastDequantization = multiply;
     }
 
@@ -325,13 +328,12 @@ bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& 
         return false;
     }
 
-    const auto axis = concat->get_axis();
     const auto outputRank = concat->get_output_partial_shape(0).rank();
-    if (axis < 0 && outputRank.is_dynamic()) {
+    if (outputRank.is_dynamic()) {
         return false;
     }
 
-    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outputRank);
+    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), concat->get_axis(), outputRank);
     return normalizedAxis == 1ul;
 }
 

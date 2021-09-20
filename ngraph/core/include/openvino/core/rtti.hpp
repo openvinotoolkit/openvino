@@ -88,13 +88,6 @@
 /// OPENVINO_RTTI(name, version_id)
 /// OPENVINO_RTTI(name, version_id, parent)
 /// OPENVINO_RTTI(name, version_id, parent, old_version)
-#define OPENVINO_RTTI_DEFINITION(CLASS, ...)                                                               \
-    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                                  \
-                                                             _OPENVINO_RTTI_DEF_WITH_TYPE_VERSIONS_PARENT, \
-                                                             _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION_PARENT,  \
-                                                             _OPENVINO_RTTI_DEF_WITH_TYPE_VERSION,         \
-                                                             _OPENVINO_RTTI_DEF_WITH_TYPE)(CLASS, __VA_ARGS__))
-
 #define OPENVINO_RTTI(...)                                                                             \
     _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                              \
                                                              _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT, \
