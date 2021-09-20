@@ -28,7 +28,7 @@ namespace CLDNNPlugin {
 
 static void createDirectory(std::string _path) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widepath = FileUtils::multiByteCharToWString(_path.c_str());
+    std::wstring widepath = ov::util::string_to_wstring(_path.c_str());
     const wchar_t* path = widepath.c_str();
 #else
     const char* path = _path.c_str();

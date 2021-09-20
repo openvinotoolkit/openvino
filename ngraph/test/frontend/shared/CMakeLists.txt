@@ -12,6 +12,6 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
-        ngraph::ngraph cnpy ie_backend ngraph_test_util commonTestUtils)
+        ngraph::ngraph cnpy ie_backend ngraph_test_util commonTestUtils openvino::util)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

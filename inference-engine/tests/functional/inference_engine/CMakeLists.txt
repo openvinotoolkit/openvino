@@ -13,6 +13,7 @@ set(LINK_LIBRARIES
     lptNgraphFunctions
     inference_engine_transformations
     openvino::itt
+    openvino::util
     openvino::conditional_compilation
     sharedTestClasses
     inference_engine_snippets

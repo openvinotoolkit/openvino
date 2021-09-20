@@ -12,7 +12,6 @@
 #include <unordered_map>
 
 #include "itt.hpp"
-#include "ngraph/env_util.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
@@ -21,6 +20,7 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/util/env_util.hpp"
 #include "perf_counters.hpp"
 
 using namespace std;
@@ -38,7 +38,7 @@ PerfCounters& perf_counters() {
 
 ov::pass::Manager::Manager()
     : m_pass_config(std::make_shared<PassConfig>()),
-      m_visualize(ngraph::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING")) {}
+      m_visualize(ov::util::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING")) {}
 
 ov::pass::Manager::~Manager() = default;
 
@@ -48,7 +48,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::Manager::run_passes");
 
-    static bool profile_enabled = ngraph::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
+    static bool profile_enabled = ov::util::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
 
     size_t index = 0;
     ngraph::stopwatch pass_timer;
@@ -114,7 +114,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
             auto base_filename = func->get_name() + std::string("_") + index_str + std::string("_") + pass->get_name();
 
             if (m_visualize) {
-                static const string format = ngraph::getenv_string("NGRAPH_VISUALIZE_TRACING_FORMAT");
+                static const string format = ov::util::getenv_string("NGRAPH_VISUALIZE_TRACING_FORMAT");
                 auto file_ext = format.empty() ? "svg" : format;
                 pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
                 vt.run_on_function(func);

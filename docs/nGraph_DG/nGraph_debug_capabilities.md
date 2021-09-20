@@ -3,7 +3,7 @@
 nGraph representation provides an API to get detailed information about the graph structure.
 
 To receive additional messages about applied graph modifications, rebuild the nGraph library with 
-the `-DNGRAPH_DEBUG_ENABLE=ON` option.
+the `-DOPENVINO_DEBUG_ENABLE=ON` option.
 
 To visualize the nGraph function to the xDot format or to an image file, use the 
 `ngraph::pass::VisualizeTree` graph transformation pass:

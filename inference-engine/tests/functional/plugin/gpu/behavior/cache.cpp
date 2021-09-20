@@ -60,7 +60,7 @@ TEST_F(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
         std::wstring cache_path_w = CommonTestUtils::addUnicodePostfixToPath(cache_path, postfix);
 
         try {
-            auto cache_path_mb = FileUtils::wStringtoMBCSstringChar(cache_path_w);
+            auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
             std::map<std::string, std::string> config = {{ CONFIG_KEY(CACHE_DIR), cache_path_mb }};
             // Load CNNNetwork to target plugins
             auto execNet = ie->LoadNetwork(cnnNet, "GPU", config);

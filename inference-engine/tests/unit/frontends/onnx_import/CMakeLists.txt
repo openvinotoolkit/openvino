@@ -12,6 +12,7 @@ addIeTargetTest(
             gtest_main
             commonTestUtils
             onnx_ngraph_frontend
+            openvino::util
         DEFINES
             ONNX_MODELS_DIR=\"${TEST_MODEL_ZOO}/onnx_import\"
         ADD_CPPLINT

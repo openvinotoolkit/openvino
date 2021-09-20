@@ -123,7 +123,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt
+target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util
                                      PUBLIC inference_engine)
 
 target_include_directories(${TARGET_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")

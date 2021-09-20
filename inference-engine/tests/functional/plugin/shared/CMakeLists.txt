@@ -26,6 +26,7 @@ addIeTarget(
                 lptNgraphFunctions
                 sharedTestClasses
             PRIVATE
+                openvino::util
                 inference_engine_transformations
         DEPENDENCIES
             inference_engine

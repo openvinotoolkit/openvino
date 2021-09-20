@@ -45,13 +45,13 @@ class Reader : public IReader {
 
     InferenceEngine::details::SOPointer<IReader> getReaderPtr() {
         std::call_once(readFlag, [&]() {
-            FileUtils::FilePath libraryName = FileUtils::toFilePath(location);
-            FileUtils::FilePath readersLibraryPath =
+            ov::util::FilePath libraryName = ov::util::to_file_path(location);
+            ov::util::FilePath readersLibraryPath =
                 FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
             if (!FileUtils::fileExist(readersLibraryPath)) {
                 IE_THROW() << "Please, make sure that Inference Engine ONNX reader library "
-                           << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
+                           << ov::util::from_file_path(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
                            << getIELibraryPath();
             }
             ptr = {readersLibraryPath};
@@ -111,8 +111,8 @@ void registerReaders() {
 
     // TODO: Read readers info from XML
     auto create_if_exists = [](const std::string name, const std::string library_name) {
-        FileUtils::FilePath libraryName = FileUtils::toFilePath(library_name);
-        FileUtils::FilePath readersLibraryPath =
+        ov::util::FilePath libraryName = ov::util::to_file_path(library_name);
+        ov::util::FilePath readersLibraryPath =
             FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
         if (!FileUtils::fileExist(readersLibraryPath))
@@ -165,7 +165,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     // Fix unicode name
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring model_path = FileUtils::multiByteCharToWString(modelPath.c_str());
+    std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
 #else
     std::string model_path = modelPath;
 #endif
@@ -201,7 +201,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
             if (!bPath.empty()) {
                 // Open weights file
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                std::wstring weights_path = FileUtils::multiByteCharToWString(bPath.c_str());
+                std::wstring weights_path = ov::util::string_to_wstring(bPath.c_str());
 #else
                 std::string weights_path = bPath;
 #endif
@@ -238,7 +238,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     ngraph::frontend::InputModel::Ptr inputModel;
     if (!binPath.empty()) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        std::wstring weights_path = FileUtils::multiByteCharToWString(binPath.c_str());
+        std::wstring weights_path = ov::util::string_to_wstring(binPath.c_str());
 #else
         std::string weights_path = binPath;
 #endif
