@@ -233,13 +233,12 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "MulticlassNms", MulticlassNms}
 };
 
-Type TypeFromName(const std::string type) {
+Type TypeFromName(const std::string & type) {
     auto itType = type_to_name_tbl.find(type);
     if (type_to_name_tbl.end() != itType) {
         return itType->second;
-    } else {
-        return Unknown;
     }
+    return Unknown;
 }
 
 template<>
@@ -260,6 +259,173 @@ DnnlMemoryDescPtr MKLDNNNode::getOutputMemDescAtPort<DnnlMemoryDesc, 0, 0>(size_
 template<>
 BlockedMemoryDescPtr MKLDNNNode::getOutputMemDescAtPort<BlockedMemoryDesc, 0, 0>(size_t portNum) const {
     return MemoryDescUtils::convertToBlockedMemoryDesc(getBaseMemDescAtOutputPort(portNum));
+}
+
+std::string NameFromType(Type type) {
+    switch (type) {
+        case Generic:
+            return "Generic";
+        case Reorder:
+            return "Reorder";
+        case Input:
+            return "Input";
+        case Output:
+            return "Output";
+        case Convolution:
+            return "Convolution";
+        case Deconvolution:
+            return "Deconvolution";
+        case Lrn:
+            return "Lrn";
+        case Pooling:
+            return "Pooling";
+        case AdaptivePooling:
+            return "AdaptivePooling";
+        case FullyConnected:
+            return "FullyConnected";
+        case MatMul:
+            return "MatMul";
+        case Softmax:
+            return "Softmax";
+        case Split:
+            return "Split";
+        case Concatenation:
+            return "Concatenation";
+        case StridedSlice:
+            return "StridedSlice";
+        case Reshape:
+            return "Reshape";
+        case Tile:
+            return "Tile";
+        case ROIAlign:
+            return "ROIAlign";
+        case ROIPooling:
+            return "ROIPooling";
+        case PSROIPooling:
+            return "PSROIPooling";
+        case DepthToSpace:
+            return "DepthToSpace";
+        case BatchToSpace:
+            return "BatchToSpace";
+        case Pad:
+            return "Pad";
+        case Transpose:
+            return "Transpose";
+        case SpaceToDepth:
+            return "SpaceToDepth";
+        case SpaceToBatch:
+            return "SpaceToBatch";
+        case MemoryOutput:
+            return "MemoryOutput";
+        case MemoryInput:
+            return "MemoryInput";
+        case RNNSeq:
+            return "RNNSeq";
+        case RNNCell:
+            return "RNNCell";
+        case Eltwise:
+            return "Eltwise";
+        case FakeQuantize:
+            return "FakeQuantize";
+        case BinaryConvolution:
+            return "BinaryConvolution";
+        case DeformableConvolution:
+            return "DeformableConvolution";
+        case MVN:
+            return "MVN";
+        case TensorIterator:
+            return "TensorIterator";
+        case Convert:
+            return "Convert";
+        case NormalizeL2:
+            return "NormalizeL2";
+        case ScatterUpdate:
+            return "ScatterUpdate";
+        case ScatterElementsUpdate:
+            return "ScatterElementsUpdate";
+        case ScatterNDUpdate:
+            return "ScatterNDUpdate";
+        case Interpolate:
+            return "Interpolate";
+        case Reduce:
+            return "Reduce";
+        case Broadcast:
+            return "Broadcast";
+        case EmbeddingSegmentsSum:
+            return "EmbeddingSegmentsSum";
+        case EmbeddingBagPackedSum:
+            return "EmbeddingBagPackedSum";
+        case EmbeddingBagOffsetsSum:
+            return "EmbeddingBagOffsetsSum";
+        case Gather:
+            return "Gather";
+        case GatherElements:
+            return "GatherElements";
+        case GatherND:
+            return "GatherND";
+        case OneHot:
+            return "OneHot";
+        case RegionYolo:
+            return "RegionYolo";
+        case Select:
+            return "Select";
+        case Roll:
+            return "Roll";
+        case ShuffleChannels:
+            return "ShuffleChannels";
+        case DFT:
+            return "DFT";
+        case Math:
+            return "Math";
+        case CTCLoss:
+            return "CTCLoss";
+        case Bucketize:
+            return "Bucketize";
+        case CTCGreedyDecoder:
+            return "CTCGreedyDecoder";
+        case CTCGreedyDecoderSeqLen:
+            return "CTCGreedyDecoderSeqLen";
+        case CumSum:
+            return "CumSum";
+        case DetectionOutput:
+            return "DetectionOutput";
+        case ExperimentalDetectronDetectionOutput:
+            return "ExperimentalDetectronDetectionOutput";
+        case LogSoftmax:
+            return "LogSoftmax";
+        case TopK:
+            return "TopK";
+        case GatherTree:
+            return "GatherTree";
+        case GRN:
+            return "GRN";
+        case Range:
+            return "Range";
+        case Proposal:
+            return "Proposal";
+        case ReorgYolo:
+            return "ReorgYolo";
+        case ReverseSequence:
+            return "ReverseSequence";
+        case ExperimentalDetectronTopKROIs:
+            return "ExperimentalDetectronTopKROIs";
+        case ExperimentalDetectronROIFeatureExtractor:
+            return "ExperimentalDetectronROIFeatureExtractor";
+        case ExperimentalDetectronPriorGridGenerator:
+            return "ExperimentalDetectronPriorGridGenerator";
+        case ExperimentalDetectronGenerateProposalsSingleImage:
+            return "ExperimentalDetectronGenerateProposalsSingleImage";
+        case ExtractImagePatches:
+            return "ExtractImagePatches";
+        case NonMaxSuppression:
+            return "NonMaxSuppression";
+        case MatrixNms:
+            return "MatrixNms";
+        case MulticlassNms:
+            return "MulticlassNms";
+        default:
+            return "Unknown";
+    }
 }
 
 }  //  namespace MKLDNNPlugin
@@ -1254,22 +1420,30 @@ InferenceEngine::Precision MKLDNNNode::getRuntimePrecision() const {
 
 MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
                                              const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
+    // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
+    // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
+    // An example for gather node:
+    // /path-to-openVino-root/inference-engine/src/mkldnn_plugin/nodes/mkldnn_gather_node.cpp:42 [ NOT_IMPLEMENTED ] Only opset7 Gather operation is supported
+    // The most important part of the message is the reason, so the lambda trims everything up to "]"
+    // Note that the op type and its friendly name will also be provided if we fail to create the node.
+    auto getExceptionDescWithoutStatus = [](const InferenceEngine::Exception& ex) {
+        std::string desc = ex.what();
+        size_t pos = desc.find("]");
+        if (pos != std::string::npos) {
+            if (desc.size() == pos + 1) {
+                desc.erase(0, pos + 1);
+            } else {
+                desc.erase(0, pos + 2);
+            }
+        }
+        return desc;
+    };
     MKLDNNNode *newNode = nullptr;
     std::string errorMessage;
-    try {
+    {
         std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, Generic, op, eng, w_cache));
         if (ol != nullptr && ol->created(extMgr))
             newNode = ol.release();
-    } catch (const InferenceEngine::Exception& ex) {
-        IE_SUPPRESS_DEPRECATED_START
-        if (ex.getStatus() != NOT_IMPLEMENTED) {
-            throw;
-        } else {
-            const auto currErrorMess = getExceptionDescWithoutStatus(ex);
-            if (!currErrorMess.empty())
-                errorMessage += "\n" + currErrorMess;
-        }
-        IE_SUPPRESS_DEPRECATED_END
     }
 
     if (newNode == nullptr) {
@@ -1278,15 +1452,11 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            IE_SUPPRESS_DEPRECATED_START
-            if (ex.getStatus() != NOT_IMPLEMENTED) {
-                throw;
+            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
+                errorMessage += getExceptionDescWithoutStatus(ex);
             } else {
-                const auto currErrorMess = getExceptionDescWithoutStatus(ex);
-                if (!currErrorMess.empty())
-                    errorMessage += "\n" + currErrorMess;
+                throw;
             }
-            IE_SUPPRESS_DEPRECATED_END
         }
     }
 
@@ -1296,15 +1466,13 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            IE_SUPPRESS_DEPRECATED_START
-            if (ex.getStatus() != NOT_IMPLEMENTED) {
-                throw;
-            } else {
+            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
                 const auto currErrorMess = getExceptionDescWithoutStatus(ex);
                 if (!currErrorMess.empty())
-                    errorMessage += "\n" + currErrorMess;
+                    errorMessage += errorMessage.empty() ? currErrorMess : "\n" + currErrorMess;
+            } else {
+                throw;
             }
-            IE_SUPPRESS_DEPRECATED_END
         }
     }
 
@@ -1318,7 +1486,7 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
     if (!newNode) {
         std::string errorDetails;
         if (!errorMessage.empty()) {
-            errorDetails = "\nDetails: " + errorMessage;
+            errorDetails = "\nDetails:\n" + errorMessage;
         }
         IE_THROW() << "Unsupported operation of type: " << op->get_type_name() << " name: " << op->get_friendly_name() << errorDetails;
     }

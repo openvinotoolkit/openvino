@@ -16,9 +16,9 @@ OPENVINO_RTTI_DEFINITION(ov::op::v1::AvgPool, "AvgPool", 1);
 
 ov::op::v1::AvgPool::AvgPool(const Output<Node>& arg,
                              const Strides& strides,
-                             const StaticShape& pads_begin,
-                             const StaticShape& pads_end,
-                             const StaticShape& kernel,
+                             const Shape& pads_begin,
+                             const Shape& pads_end,
+                             const Shape& kernel,
                              bool exclude_pad,
                              op::RoundingType rounding_type,
                              const PadType& auto_pad)
@@ -52,14 +52,14 @@ void ov::op::v1::AvgPool::validate_and_infer_types() {
     }
 
     if (0 == m_pads_begin.size()) {
-        m_pads_begin = StaticShape(m_kernel.size(), 0);
+        m_pads_begin = Shape(m_kernel.size(), 0);
     }
 
     if (0 == m_pads_end.size()) {
-        m_pads_end = StaticShape(m_kernel.size(), 0);
+        m_pads_end = Shape(m_kernel.size(), 0);
     }
 
-    const ov::Shape& arg_shape = get_input_partial_shape(0);
+    const ov::PartialShape& arg_shape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(
         this,
@@ -87,7 +87,7 @@ void ov::op::v1::AvgPool::validate_and_infer_types() {
                               m_kernel.size());
     }
 
-    auto output_shape = ov::Shape::dynamic();
+    auto output_shape = ov::PartialShape::dynamic();
     if (arg_shape.rank().is_static()) {
         output_shape = std::vector<Dimension>(arg_shape.rank().get_max_length(), Dimension::dynamic());
         if (arg_shape[0].is_static()) {
@@ -108,15 +108,15 @@ void ov::op::v1::AvgPool::validate_and_infer_types() {
                                                                      m_auto_pad,
                                                                      pads_end,
                                                                      pads_begin);
-        m_pads_end = StaticShape(pads_end.begin(), pads_end.end());
-        m_pads_begin = StaticShape(pads_begin.begin(), pads_begin.end());
+        m_pads_end = Shape(pads_end.begin(), pads_end.end());
+        m_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
     }
     if (m_auto_pad == PadType::VALID) {
-        m_pads_end = StaticShape(m_pads_end.size(), 0);
-        m_pads_begin = StaticShape(m_pads_begin.size(), 0);
+        m_pads_end = Shape(m_pads_end.size(), 0);
+        m_pads_begin = Shape(m_pads_begin.size(), 0);
     }
     // infer_batched_forward_pooling wants CoordinateDiffs for these, while the pooling ops for
-    // now still take StaticShape (no negative padding).
+    // now still take Shape (no negative padding).
     CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
     CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
     set_output_type(0,
@@ -134,11 +134,11 @@ void ov::op::v1::AvgPool::validate_and_infer_types() {
                         : output_shape);
 }
 
-const ov::StaticShape& ov::op::v1::AvgPool::get_kernel() const {
+const ov::Shape& ov::op::v1::AvgPool::get_kernel() const {
     return m_kernel;
 }
 
-void ov::op::v1::AvgPool::set_kernel(const StaticShape& kernel) {
+void ov::op::v1::AvgPool::set_kernel(const Shape& kernel) {
     m_kernel = kernel;
 }
 
@@ -150,19 +150,19 @@ void ov::op::v1::AvgPool::set_strides(const Strides& strides) {
     m_strides = strides;
 }
 
-const ov::StaticShape& ov::op::v1::AvgPool::get_pads_begin() const {
+const ov::Shape& ov::op::v1::AvgPool::get_pads_begin() const {
     return m_pads_begin;
 }
 
-void ov::op::v1::AvgPool::set_pads_begin(const StaticShape& pads_begin) {
+void ov::op::v1::AvgPool::set_pads_begin(const Shape& pads_begin) {
     m_pads_begin = pads_begin;
 }
 
-const ov::StaticShape& ov::op::v1::AvgPool::get_pads_end() const {
+const ov::Shape& ov::op::v1::AvgPool::get_pads_end() const {
     return m_pads_end;
 }
 
-void ov::op::v1::AvgPool::set_pads_end(const StaticShape& pads_end) {
+void ov::op::v1::AvgPool::set_pads_end(const Shape& pads_end) {
     m_pads_end = pads_end;
 }
 
