@@ -126,7 +126,7 @@ def run(args):
                 elif key not in config[device].keys() and args.api_type == "async" and not is_flag_set_in_command_line('hint'):
                     ## set the _AUTO value for the #streams
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
-                                   "Although the automatic selection usually provides a reasonable performance,"
+                                   "Although the automatic selection usually provides a reasonable performance, "
                                    "but it still may be non-optimal for some cases, for more information look at README.")
                     if device != MYRIAD_DEVICE_NAME:  ## MYRIAD sets the default number of streams implicitly
                         config[device][key] = device + "_THROUGHPUT_AUTO"

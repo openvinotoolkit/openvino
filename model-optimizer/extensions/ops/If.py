@@ -232,10 +232,10 @@ class If(Op):
         else_outputs = [node for node in if_node.else_graph.get_op_nodes() if node.has('output_id')]
         outputs_mapping = {}
         outputs_number = len(if_node.out_ports())
-        assert outputs_number == len(then_outputs), 'Incorrect number outputs in then_graph of If with"' \
+        assert outputs_number == len(then_outputs), 'Incorrect number outputs in then_graph of If with ' \
                                                     'name {0}! then_graph must has {1} outputs' \
             .format(if_node.name, outputs_number)
-        assert outputs_number == len(else_outputs), 'Incorrect number outputs in else_graph of If with"' \
+        assert outputs_number == len(else_outputs), 'Incorrect number outputs in else_graph of If with ' \
                                                     'name {0}! else_graph must has {1} outputs' \
             .format(if_node.name, outputs_number)
         for port_id in if_node.out_ports().keys():

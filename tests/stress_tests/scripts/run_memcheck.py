@@ -140,7 +140,7 @@ def main():
         else:
             if list(glob(os.path.join(args.output_dir, '**', '*.log'), recursive=True)):
                 logging.error(
-                    'Output directory %s already has test logs.'
+                    'Output directory %s already has test logs. '
                     'Please specify an empty directory for output logs',
                     args.output_dir)
                 sys.exit(1)
