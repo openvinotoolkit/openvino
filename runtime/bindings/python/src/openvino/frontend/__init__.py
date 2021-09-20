@@ -2,21 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Package: ngraph
+Package: openvino
 Low level wrappers for the FrontEnd c++ api.
 """
 
 # flake8: noqa
 
 # main classes
-from _pyngraph import FrontEndManager
-from _pyngraph import FrontEnd
-from _pyngraph import InputModel
-from _pyngraph import Place
+from openvino.pyopenvino import FrontEndManager
+from openvino.pyopenvino import FrontEnd
+from openvino.pyopenvino import InputModel
+from openvino.pyopenvino import Place
 
 # exceptions
-from _pyngraph import NotImplementedFailure
-from _pyngraph import InitializationFailure
-from _pyngraph import OpConversionFailure
-from _pyngraph import OpValidationFailure
-from _pyngraph import GeneralFailure
+from openvino.pyopenvino import NotImplementedFailure
+from openvino.pyopenvino import InitializationFailure
+from openvino.pyopenvino import OpConversionFailure
+from openvino.pyopenvino import OpValidationFailure
+from openvino.pyopenvino import GeneralFailure
