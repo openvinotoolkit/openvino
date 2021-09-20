@@ -95,6 +95,9 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
         throw ngraph::ngraph_error("original node outputs size and extracted subgraph node outputs size doesn't much");
     }
 
+    // Clear the node dependencies so graph::topological_sort will not find any extra ops in get_ordered_ops()
+    //  This is needed so the body function will be created correctly
+    body_node->clear_control_dependencies();
     ngraph::ResultVector body_results;
     for (auto output : node->outputs()) {
         body_results.push_back(std::make_shared<ngraph::opset1::Result>(body_node->output(output.get_index())));
@@ -102,6 +105,8 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
 
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
     auto subgraph = build_subgraph(node, subgraph_inputs, body);
+    // todo: do we need to preserve initial dependencies?
+    // subgraph->add_node_control_dependencies(node);
 
     for (size_t i = 0; i < body->get_parameters().size(); i++) {
         body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
