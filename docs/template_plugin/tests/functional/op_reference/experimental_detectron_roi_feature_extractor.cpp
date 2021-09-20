@@ -36,14 +36,7 @@ struct ExperimentalROIFunctional {
             parameter_vector[i] = current_parameter;
         }
 
-//         auto input = std::make_shared<op::Parameter>(element::f32, Shape{2, 4});
-//         auto pyramid_layer0 = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2, 3});
-//
-//         auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(NodeVector{input, pyramid_layer0}, attrs);
         auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(node_vector, attrs);
-
-//         auto fun = std::make_shared<Function>(OutputVector{roi->output(0), roi->output(1)},
-//                                               ParameterVector{input, pyramid_layer0});
         auto fun = std::make_shared<Function>(OutputVector{roi->output(0), roi->output(1)}, parameter_vector);
         return fun;
     }
