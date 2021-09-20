@@ -136,12 +136,16 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         if (!input->m_tensor_data) {
             input->create_tensor_data(param->get_element_type(), param->get_layout());
         }
+        if (!input->m_tensor_data->is_layout_set() && param->get_layout() != Layout()) {
+            input->m_tensor_data->set_layout(param->get_layout());
+        }
+        if (!input->m_tensor_data->is_element_type_set()) {
+            input->m_tensor_data->set_element_type(param->get_element_type());
+        }
         auto new_param_shape = param->get_partial_shape();
         auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->get_element_type(), new_param_shape);
         if (input->m_tensor_data->is_layout_set()) {
             new_param->set_layout(input->m_tensor_data->get_layout());
-        } else if (param->get_layout() != Layout()) {
-            new_param->set_layout(param->get_layout());
         }
         // Old param will be removed, so friendly name can be reused
         new_param->set_friendly_name(param->get_friendly_name());

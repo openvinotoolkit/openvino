@@ -26,7 +26,12 @@ static Shape construct_mean_scale_shape(const std::shared_ptr<Node>& node,
         channels_index = node_rank.get_length() + channels_index;
     }
     OPENVINO_ASSERT(node_rank.get_length() > channels_index, "Channels dimension is out of bounds");
-    OPENVINO_ASSERT(node_shape[channels_index] == values_size, "Number of channels and mean/values size mismatch");
+
+    OPENVINO_ASSERT(node_shape[channels_index].is_dynamic() || node_shape[channels_index] == values_size,
+                    "Number of channels and mean/values size mismatch: Channels = ",
+                    node_shape[channels_index].get_length(),
+                    ", mean/scale = ",
+                    values_size);
     v[channels_index] = values_size;
     return {v};
 }

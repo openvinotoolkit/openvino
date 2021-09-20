@@ -243,7 +243,6 @@ TEST(pre_post_process, mean_scale_vector_tensor_layout) {
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
     auto name = f->get_parameters().front()->get_friendly_name();
     auto tensor_names = f->get_parameters().front()->get_output_tensor(0).get_names();
-    ASSERT_EQ(f->get_output_element_type(0), element::f32);
     f = PrePostProcessor()
             .input(InputInfo()
                        .tensor(InputTensorInfo().set_layout("NC??"))
@@ -252,6 +251,7 @@ TEST(pre_post_process, mean_scale_vector_tensor_layout) {
     EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
+    EXPECT_EQ(f->get_output_element_type(0), element::f32);
 
     auto result = std::make_shared<HostTensor>();
     f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 3, 2, 1}, {5., 1., 5., 11., 11., -1.})});
@@ -264,7 +264,6 @@ TEST(pre_post_process, mean_scale_dynamic_layout) {
                                     PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 3});
     auto name = f->get_parameters().front()->get_friendly_name();
     auto tensor_names = f->get_parameters().front()->get_output_tensor(0).get_names();
-    ASSERT_EQ(f->get_output_element_type(0), element::f32);
     f = PrePostProcessor()
             .input(InputInfo()
                        .tensor(InputTensorInfo().set_layout("N...C"))
@@ -274,6 +273,7 @@ TEST(pre_post_process, mean_scale_dynamic_layout) {
     EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "N...C");
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
+    EXPECT_EQ(f->get_output_element_type(0), element::f32);
 
     auto result = std::make_shared<HostTensor>();
     f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 2, 1, 3}, {5., 2., 7., 7., 8., -1.})});
@@ -283,11 +283,22 @@ TEST(pre_post_process, mean_scale_dynamic_layout) {
 
 TEST(pre_post_process, scale_vector_no_channels_layout) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
-    ASSERT_EQ(f->get_output_element_type(0), element::f32);
-    ASSERT_THROW(f = PrePostProcessor()
+    EXPECT_EQ(f->get_output_element_type(0), element::f32);
+    EXPECT_THROW(f = PrePostProcessor()
                          .input(InputInfo()
                                     .tensor(InputTensorInfo().set_layout("N?HW"))
                                     .preprocess(PreProcessSteps().scale({0.1f, 0.2f, 0.3f})))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, scale_vector_dim_mismatch) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_EQ(f->get_output_element_type(0), element::f32);
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NCHW"))
+                                    .preprocess(PreProcessSteps().scale({0.1f, 0.2f, 0.3f, 0.4f})))
                          .build(f),
                  ov::AssertFailure);
 }
@@ -315,11 +326,15 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
     auto f = create_simple_function(
         element::f32,
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
-    ASSERT_EQ(f->get_output_element_type(0), element::f32);
-    ASSERT_THROW(f = PrePostProcessor()
-                         .input(InputInfo()
-                                    .tensor(InputTensorInfo().set_layout("NCHW"))
-                                    .preprocess(PreProcessSteps().mean({0.1f, 0.2f, 0.3f})))
-                         .build(f),
-                 ov::AssertFailure);
+    EXPECT_EQ(f->get_output_element_type(0), element::f32);
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_layout("NCHW"))
+                       .preprocess(PreProcessSteps().mean({0.1f, 0.2f, 0.3f})))
+            .build(f);
+    EXPECT_EQ(f->get_output_element_type(0), element::f32);
+    auto result = std::make_shared<HostTensor>();
+    EXPECT_NO_THROW(f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 3, 1, 1}, {1., 2., 3.})}));
+    EXPECT_ANY_THROW(
+        f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 4, 1, 1}, {1., 2., 3., 4.})}));
 }
