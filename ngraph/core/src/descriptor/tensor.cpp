@@ -94,7 +94,8 @@ const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const
     if (m_names.empty()) {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (m_names.empty()) {
-            const_cast<ov::descriptor::Tensor*>(this)->m_names.insert("Tensor_" + to_string(m_next_instance_id.fetch_add(1)));
+            const_cast<ov::descriptor::Tensor*>(this)->m_names.insert("Tensor_" +
+                                                                      to_string(m_next_instance_id.fetch_add(1)));
         }
     }
     return m_names;
