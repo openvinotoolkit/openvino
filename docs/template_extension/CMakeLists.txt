@@ -10,7 +10,7 @@ set(TARGET_NAME "template_extension")
 find_package(OpenVINO REQUIRED COMPONENTS Runtime OPTIONAL_COMPONENTS ONNX)
 find_package(OpenCV QUIET COMPONENTS core)
 
-set(SRC cpu_kernel.cpp extension.cpp op.cpp)
+set(SRC cpu_kernel.cpp extension.cpp op.cpp ov_extension.cpp)
 
 if(OpenCV_FOUND)
     set(SRC ${SRC} fft_kernel.cpp fft_op.cpp)
@@ -24,6 +24,7 @@ if(OpenCV_FOUND)
 endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_OPENVINO_EXTENSION_API)
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::core openvino::runtime)
 
 if(OpenVINO_Frontend_ONNX_FOUND)

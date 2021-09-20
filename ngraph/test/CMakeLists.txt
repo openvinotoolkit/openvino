@@ -37,6 +37,7 @@ set(SRC
     copy.cpp
     element_type.cpp
     eval.cpp
+    extension.cpp
     file_util.cpp
     float16.cpp
     graph_rewrite.cpp
@@ -366,6 +367,8 @@ set(SRC
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
 
+list(APPEND UNIT_TESTS_DEPENDENCIES template_extension)
+
 if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
@@ -602,6 +605,7 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         interpreter_backend
                                         Threads::Threads
                                         openvino::conditional_compilation
+                                        openvino::util
                                         frontend_manager)
 
 # Protobuf-lite does not support parsing files from prototxt format
