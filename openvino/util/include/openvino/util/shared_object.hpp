@@ -4,21 +4,23 @@
 
 /**
  * @brief A header file for definition of abstraction over platform specific shared objects
- * @file ie_system_conf.h
+ * @file shared_object.hpp
  */
 
 #pragma once
 
-#include "ie_api.h"
+#include <memory>
+
+#include "openvino/util/util.hpp"
 
 namespace ov {
-namespace runtime {
+namespace util {
 /**
  * @brief Loads a library with the name specified.
  * @param path Full or relative path to the plugin library
  * @return Reference to shared object
  */
-INFERENCE_ENGINE_API_CPP(std::shared_ptr<void>) load_shared_object(const char* path);
+std::shared_ptr<void> load_shared_object(const char* path);
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 /**
@@ -26,7 +28,7 @@ INFERENCE_ENGINE_API_CPP(std::shared_ptr<void>) load_shared_object(const char* p
  * @param path Full or relative path to the plugin library
  * @return Reference to shared object
  */
-INFERENCE_ENGINE_API_CPP(std::shared_ptr<void>) load_shared_object(const wchar_t* path);
+std::shared_ptr<void> load_shared_object(const wchar_t* path);
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
 /**
  * @brief Searches for a function symbol in the loaded module
@@ -35,6 +37,6 @@ INFERENCE_ENGINE_API_CPP(std::shared_ptr<void>) load_shared_object(const wchar_t
  * @return A pointer to the function if found
  * @throws Exception if the function is not found
  */
-INFERENCE_ENGINE_API_CPP(void*) get_symbol(const std::shared_ptr<void>& shared_object, const char* symbolName);
-}  // namespace runtime
+void* get_symbol(const std::shared_ptr<void>& shared_object, const char* symbolName);
+}  // namespace util
 }  // namespace ov
