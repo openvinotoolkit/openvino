@@ -130,10 +130,8 @@ namespace runtime {
     OPENVINO_ASSERT(_ptr != nullptr, "InferencePlugin was not initialized."); \
     try {                                                                     \
         __VA_ARGS__;                                                          \
-    } catch (const std::exception& ex) {                                      \
-        throw ov::Exception(ex.what());                                       \
     } catch (...) {                                                           \
-        OPENVINO_ASSERT(false, "Unexpected exception");                       \
+        ::InferenceEngine::details::Rethrow();                                \
     }
 
 /**
@@ -171,17 +169,17 @@ struct InferencePlugin {
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> load_model(const ie::CNNNetwork& network, const ConfigMap& config) {
+    SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network, const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config)});
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> load_model(const ie::CNNNetwork& network,
-                                                               const std::shared_ptr<ie::RemoteContext>& context,
-                                                               const ConfigMap& config) {
+    SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network,
+                                                        const std::shared_ptr<ie::RemoteContext>& context,
+                                                        const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> load_model(const std::string& modelPath, const ConfigMap& config) {
+    SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::string& modelPath, const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(modelPath, config)});
     }
 
@@ -194,7 +192,7 @@ struct InferencePlugin {
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(const std::string& modelFileName,
-                                                                 const ConfigMap& config) {
+                                                       const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(modelFileName, config)});
     }
 
@@ -204,8 +202,8 @@ struct InferencePlugin {
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
-                                                                 const std::shared_ptr<ie::RemoteContext>& context,
-                                                                 const ConfigMap& config) {
+                                                       const std::shared_ptr<ie::RemoteContext>& context,
+                                                       const ConfigMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});
     }
 

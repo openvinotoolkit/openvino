@@ -211,7 +211,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return supported;
     }
 
-    ov::runtime::SoPtr<ie::IExecutableNetworkInternal> load_model_impl(
+    ov::runtime::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(
         const InferenceEngine::CNNNetwork& network,
         InferencePlugin& plugin,
         const std::map<std::string, std::string>& parsedConfig,
@@ -219,10 +219,10 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         const std::string& blobID,
         const std::string& modelPath = std::string(),
         bool forceDisableCache = false) {
-        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::load_model_impl");
+        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
         ov::runtime::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
         execNetwork =
-            context ? plugin.load_model(network, context, parsedConfig) : plugin.load_model(network, parsedConfig);
+            context ? plugin.compile_model(network, context, parsedConfig) : plugin.compile_model(network, parsedConfig);
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
@@ -253,7 +253,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         ov::runtime::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
         struct HeaderException {};
 
-        IE_ASSERT(cacheManager != nullptr);
+        OPENVINO_ASSERT(cacheManager != nullptr);
         try {
             cacheManager->readCacheEntry(blobId, [&](std::istream& networkStream) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
@@ -461,10 +461,10 @@ public:
             auto lock = cacheGuard.getHashLock(hash);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, context, loadedFromCache);
             if (!loadedFromCache) {
-                res = load_model_impl(network, plugin, parsed._config, context, hash);
+                res = compile_model_impl(network, plugin, parsed._config, context, hash);
             }
         } else {
-            res = load_model_impl(network, plugin, parsed._config, context, {});
+            res = compile_model_impl(network, plugin, parsed._config, context, {});
         }
         return res;
     }
@@ -488,10 +488,10 @@ public:
             auto lock = cacheGuard.getHashLock(hash);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache);
             if (!loadedFromCache) {
-                res = load_model_impl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
+                res = compile_model_impl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
             }
         } else {
-            res = load_model_impl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);
+            res = compile_model_impl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);
         }
         return {{res._so}, res._ptr};
     }
@@ -511,13 +511,13 @@ public:
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache, modelPath);
             if (!loadedFromCache) {
                 auto cnnNetwork = ReadNetwork(modelPath, std::string());
-                res = load_model_impl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
+                res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
             }
         } else if (cacheManager) {
-            res = plugin.load_model(modelPath, parsed._config);
+            res = plugin.compile_model(modelPath, parsed._config);
         } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
-            res = load_model_impl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
+            res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
         }
         return {{res._so}, res._ptr};
     }
@@ -610,6 +610,8 @@ public:
                 const ie::Parameter p = GetMetric(deviceName, propertyName);
                 devicesIDs = p.as<std::vector<std::string>>();
             } catch (ie::Exception&) {
+                // plugin is not created by e.g. invalid env
+            } catch (ov::Exception&) {
                 // plugin is not created by e.g. invalid env
             } catch (const std::exception& ex) {
                 IE_THROW() << "An exception is thrown while trying to create the " << deviceName
