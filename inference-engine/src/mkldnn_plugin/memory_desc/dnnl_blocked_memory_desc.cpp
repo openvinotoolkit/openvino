@@ -793,7 +793,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithUndefStridesAndOffset() const {
     DnnlBlockedMemoryDescPtr newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
     auto &dnnlBlkDesc = newDesc->desc.data.format_desc.blocking;
     std::fill(std::begin(dnnlBlkDesc.strides), std::begin(dnnlBlkDesc.strides) + getShape().getRank(), DNNL_RUNTIME_DIM_VAL);
-    std::fill(newDesc->strides.begin(), newDesc->strides.begin() + getShape().getRank(), Shape::UNDEFINED_DIM);
+    newDesc->initStrides();
     newDesc->desc.data.offset0 = DNNL_RUNTIME_DIM_VAL;
     newDesc->status = descStatus::Undefined;
     return newDesc;
@@ -806,7 +806,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithDefaultStridesAndOffset() const {
     auto &dnnlBlkDesc = newDesc->desc.data.format_desc.blocking;
     if (std::any_of(blockedDims.begin(), blockedDims.end(), [](Dim val) { return val == DNNL_RUNTIME_DIM_VAL; })) {
         std::fill(std::begin(dnnlBlkDesc.strides), std::begin(dnnlBlkDesc.strides) + rank, DNNL_RUNTIME_DIM_VAL);
-        std::fill(newDescStrides.begin(), newDescStrides.begin() + rank, Shape::UNDEFINED_DIM);
+        newDesc->initStrides();
     } else {
         newDescStrides[order.size() - 1] = 1;
         for (size_t i = 2; i <= order.size(); i++) {

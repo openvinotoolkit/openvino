@@ -357,7 +357,7 @@ TEST(isSameMethodTest, CheckTensorWithSameStrides) {
         ASSERT_TRUE(isSameDataFormat(tc.first, tc.second));
 }
 
-TEST(cloneWithParamsChange, UndefainedAndDefaultParams) {
+TEST(cloneWithParamsChange, UndefinedAndDefaultParams) {
     dnnl::memory::format_tag testCases[] {
         dnnl::memory::format_tag::nchw,
         dnnl::memory::format_tag::nhwc,
