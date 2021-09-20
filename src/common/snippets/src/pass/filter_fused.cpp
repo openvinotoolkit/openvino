@@ -113,13 +113,12 @@ bool isSuitableMiscParent(std::shared_ptr<Node> node) {
                                   ov::is_type<ngraph::op::v6::MVN>(node) ||
                                   ov::is_type<ngraph::op::v0::NormalizeL2>(node) ||
                                   ov::is_type<ngraph::op::v0::Interpolate>(node) ||
+                                  ov::is_type<ngraph::op::v4::Interpolate>(node) ||
                                   ov::is_type<ngraph::op::v0::LSTMCell>(node) ||
                                   ov::is_type<ngraph::op::v4::LSTMCell>(node) ||
-                                  // FullyConnected has a special shape restriction
-                                  // Plus Matmul is converted to FC in convert_to_cpu_specific_opset
-                                  ( (ov::is_type<ngraph::op::FullyConnected>(node)
-                                     || ov::is_type<ngraph::op::MatMul>(node)) &&
-                                    node->input_value(0).get_shape().size() != 3);
+                                  ov::is_type<ngraph::opset1::ConvolutionBackpropData>(node) ||
+                                  ov::is_type<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
+                                  ov::is_type<ngraph::op::MatMul>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
