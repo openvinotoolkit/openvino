@@ -49,9 +49,9 @@ std::string parseXmlConfig(const std::string& xmlFile) {
     std::string xmlConfigFile_ = xmlFile;
     if (xmlConfigFile_.empty()) {
         // register plugins from default plugins.xml config
-        FileUtils::FilePath xmlConfigFileDefault =
-            FileUtils::makePath(ie::getInferenceEngineLibraryPath(), FileUtils::toFilePath("plugins.xml"));
-        xmlConfigFile_ = FileUtils::fromFilePath(xmlConfigFileDefault);
+        ov::util::FilePath xmlConfigFileDefault =
+            FileUtils::makePath(ie::getInferenceEngineLibraryPath(), ov::util::to_file_path("plugins.xml"));
+        xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
     }
     return xmlConfigFile_;
 }
@@ -166,9 +166,9 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     ie::CacheGuard cacheGuard;
 
     struct PluginDescriptor {
-        FileUtils::FilePath libraryLocation;
+        ov::util::FilePath libraryLocation;
         std::map<std::string, std::string> defaultConfig;
-        std::vector<FileUtils::FilePath> listOfExtentions;
+        std::vector<ov::util::FilePath> listOfExtentions;
     };
 
     mutable std::unordered_set<std::string> opsetNames;
@@ -375,7 +375,7 @@ public:
 
         FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
-            FileUtils::FilePath pluginPath = FileUtils::toFilePath(GetStrAttr(pluginNode, "location").c_str());
+            ov::util::FilePath pluginPath = ov::util::to_file_path(GetStrAttr(pluginNode, "location").c_str());
 
             if (deviceName.find('.') != std::string::npos) {
                 IE_THROW() << "Device name must not contain dot '.' symbol";
@@ -383,7 +383,7 @@ public:
 
             // append IR library path for default IE plugins
             {
-                FileUtils::FilePath absFilePath = FileUtils::makePath(ie::getInferenceEngineLibraryPath(), pluginPath);
+                ov::util::FilePath absFilePath = FileUtils::makePath(ie::getInferenceEngineLibraryPath(), pluginPath);
                 if (FileUtils::fileExist(absFilePath))
                     pluginPath = absFilePath;
             }
@@ -402,12 +402,12 @@ public:
 
             // check extensions
             auto extensionsNode = pluginNode.child("extensions");
-            std::vector<FileUtils::FilePath> listOfExtentions;
+            std::vector<ov::util::FilePath> listOfExtentions;
 
             if (extensionsNode) {
                 FOREACH_CHILD (extensionNode, extensionsNode, "extension") {
-                    FileUtils::FilePath extensionLocation =
-                        FileUtils::toFilePath(GetStrAttr(extensionNode, "location").c_str());
+                    ov::util::FilePath extensionLocation =
+                        ov::util::to_file_path(GetStrAttr(extensionNode, "location").c_str());
                     listOfExtentions.push_back(extensionLocation);
                 }
             }
@@ -696,7 +696,7 @@ public:
 
                 return result;
             } catch (const ie::Exception& ex) {
-                IE_THROW() << "Failed to create plugin " << FileUtils::fromFilePath(desc.libraryLocation)
+                IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation)
                            << " for device " << deviceName << "\n"
                            << "Please, check your environment\n"
                            << ex.what() << "\n";
@@ -737,11 +737,11 @@ public:
         }
 
         // append IR library path for default IE plugins
-        FileUtils::FilePath pluginPath;
+        ov::util::FilePath pluginPath;
         {
-            pluginPath = FileUtils::makePluginLibraryName({}, FileUtils::toFilePath(pluginName.c_str()));
+            pluginPath = FileUtils::makePluginLibraryName({}, ov::util::to_file_path(pluginName.c_str()));
 
-            FileUtils::FilePath absFilePath = FileUtils::makePath(ie::getInferenceEngineLibraryPath(), pluginPath);
+            ov::util::FilePath absFilePath = FileUtils::makePath(ie::getInferenceEngineLibraryPath(), pluginPath);
             if (FileUtils::fileExist(absFilePath))
                 pluginPath = absFilePath;
         }

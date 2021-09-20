@@ -15,71 +15,9 @@
 
 #include "ie_api.h"
 #include "details/ie_so_pointer.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace FileUtils {
-
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-
-/**
- * @brief Conversion from wide character string to a single-byte chain.
- * @param wstr A wide-char string
- * @return A multi-byte string
- */
-INFERENCE_ENGINE_API_CPP(std::string) wStringtoMBCSstringChar(const std::wstring& wstr);
-
-/**
- * @brief Conversion from single-byte chain to wide character string.
- * @param str A null-terminated string
- * @return A wide-char string
- */
-INFERENCE_ENGINE_API_CPP(std::wstring) multiByteCharToWString(const char* str);
-
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
-
-template <typename T> struct FileTraits;
-
-#ifdef _WIN32
-
-/// @brief File path separator
-const char FileSeparator = '\\';
-
-template<> struct FileTraits<char> {
-    constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
-    static std::string PluginLibraryPrefix() { return { }; }
-    static std::string PluginLibraryExt() { return { "dll" }; }
-};
-template<> struct FileTraits<wchar_t> {
-    constexpr static const auto FileSeparator = L'\\';
-    static std::wstring PluginLibraryPrefix() { return { }; }
-    static std::wstring PluginLibraryExt() { return { L"dll" }; }
-};
-#elif defined __APPLE__
-/// @brief File path separator
-const char FileSeparator = '/';
-template<> struct FileTraits<char> {
-    constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
-    static std::string PluginLibraryPrefix() { return { "lib" }; }
-    static std::string PluginLibraryExt() { return { "so" }; }
-};
-template<> struct FileTraits<wchar_t> {
-    constexpr static const auto FileSeparator = L'/';
-    static std::wstring PluginLibraryPrefix() { return { L"lib" }; }
-    static std::wstring PluginLibraryExt() { return { L"so" }; }
-};
-#else
-/// @brief File path separator
-const char FileSeparator = '/';
-template<> struct FileTraits<char> {
-    constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
-    static std::string PluginLibraryPrefix() { return { "lib" }; }
-    static std::string PluginLibraryExt() { return { "so" }; }
-};
-template<> struct FileTraits<wchar_t> {
-    constexpr static const auto FileSeparator = L'/';
-    static std::wstring PluginLibraryPrefix() { return { L"lib" }; }
-    static std::wstring PluginLibraryExt() { return { L"so" }; }
-};
-#endif
 
 /**
  * @brief Interface function to get absolute path of file
@@ -125,7 +63,7 @@ INFERENCE_ENGINE_API(long long) fileSize(const char *fileName);
  * @return     { description_of_the_return_value }
  */
 inline long long fileSize(const wchar_t* fileName) {
-    return fileSize(::FileUtils::wStringtoMBCSstringChar(fileName).c_str());
+    return fileSize(::ov::util::wstring_to_string(fileName).c_str());
 }
 
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
@@ -175,12 +113,8 @@ template <typename C, typename = InferenceEngine::details::enableIfSupportedChar
 inline std::basic_string<C> makePath(const std::basic_string<C> &folder, const std::basic_string<C> &file) {
     if (folder.empty())
         return file;
-    return folder + FileTraits<C>::FileSeparator + file;
+    return folder + ov::util::FileTraits<C>::file_separator + file;
 }
-
-template <typename C> struct DotSymbol;
-template <> struct DotSymbol<char> { constexpr static const char value = '.'; };
-template <> struct DotSymbol<wchar_t> { constexpr static const wchar_t value = L'.'; };
 
 /**
  * @brief CPP Interface function to extract extension from filename
@@ -190,7 +124,7 @@ template <> struct DotSymbol<wchar_t> { constexpr static const wchar_t value = L
  */
 template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
 inline std::basic_string<C> fileExt(const std::basic_string<C> &filename) {
-    auto pos = filename.rfind(DotSymbol<C>::value);
+    auto pos = filename.rfind(ov::util::FileTraits<C>::dot_symbol);
     if (pos == std::string::npos)
         return {};
     return filename.substr(pos + 1);
@@ -198,37 +132,11 @@ inline std::basic_string<C> fileExt(const std::basic_string<C> &filename) {
 
 template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
 inline std::basic_string<C> makePluginLibraryName(const std::basic_string<C> &path, const std::basic_string<C> &input) {
-    std::basic_string<C> separator(1, FileTraits<C>::FileSeparator);
+    std::basic_string<C> separator(1, ov::util::FileTraits<C>::file_separator);
     if (path.empty())
         separator = {};
-    return path + separator + FileTraits<C>::PluginLibraryPrefix() + input + DotSymbol<C>::value + FileTraits<C>::PluginLibraryExt();
+    return path + separator + ov::util::FileTraits<C>::library_prefix() + input + ov::util::FileTraits<C>::dot_symbol + ov::util::FileTraits<C>::library_ext();
 }
-
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-
-using FilePath = std::wstring;
-
-inline std::string fromFilePath(const FilePath & path) {
-    return ::FileUtils::wStringtoMBCSstringChar(path);
-}
-
-inline FilePath toFilePath(const std::string & path) {
-    return ::FileUtils::multiByteCharToWString(path.c_str());
-}
-
-#else
-
-using FilePath = std::string;
-
-inline std::string fromFilePath(const FilePath & path) {
-    return path;
-}
-
-inline FilePath toFilePath(const std::string & path) {
-    return path;
-}
-
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
 
 }  // namespace FileUtils
 // clang-format on
@@ -251,7 +159,7 @@ INFERENCE_ENGINE_API_CPP(std::string) getIELibraryPath();
  */
 INFERENCE_ENGINE_API_CPP(std::wstring) getIELibraryPathW();
 
-inline ::FileUtils::FilePath getInferenceEngineLibraryPath() {
+inline ::ov::util::FilePath getInferenceEngineLibraryPath() {
     return getIELibraryPathW();
 }
 
