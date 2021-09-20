@@ -32,8 +32,10 @@ class Parameter(Op):
             mandatory_props['data_type'] = np.float32
         super().__init__(graph, mandatory_props, attrs)
 
-        self.attrs['original_shape'] = self.attrs['shape']
-        self.attrs['original_type'] = self.attrs['data_type']
+        if 'shape' in self.attrs:
+            self.attrs['original_shape'] = self.attrs['shape']
+        if 'data_type' in self.attrs:
+            self.attrs['original_type'] = self.attrs['data_type']
 
     @staticmethod
     def type_infer(node):

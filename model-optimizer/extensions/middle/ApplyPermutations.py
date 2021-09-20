@@ -5,19 +5,16 @@ import logging as log
 
 import numpy as np
 
-from extensions.middle.ApplyNHWCtoNCHWpermutation import ApplyNHWCtoNCHWpermutation
 from extensions.middle.InsertLayoutPropagationTransposes import is_input_data_in_correct_layout, \
     is_output_data_in_correct_layout
 from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
-from extensions.middle.pass_separator import PostMiddleStart
-from mo.front.common.partial_infer.utils import int64_array, shape_array
-from mo.graph.graph import Graph, Node
+from extensions.middle.PreserveRuntimeInfo import PreserveRuntimeInfo
+from mo.front.common.partial_infer.utils import shape_array
+from mo.graph.graph import Graph
 from mo.graph.perm_inputs import get_node_with_permutation
 from mo.graph.port import Port
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
-from extensions.ops.transpose import Transpose
-from mo.front.tf.graph_utils import create_op_node_with_second_input
 
 
 class ApplyPermutation(MiddleReplacementPattern):
@@ -38,48 +35,6 @@ class ApplyPermutation(MiddleReplacementPattern):
         self.shape_of_sub_graph_reinference(graph)
         self.permute_input_data(graph)
         graph.graph['layout'] = 'NCHW'
-
-    @staticmethod
-    def merge_nodes_permutations(graph: Graph):
-        # Iterate over all data nodes and check all permutations for similarity
-        # In case of equal permutations, this permutation will be set as attribute for data node
-        # otherwise exception will be raised
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.kind != 'data':
-                continue
-
-            permutations = []
-
-            # Get all permutations from in edges
-            for in_node in node.in_nodes():
-                edge_attrs = node.graph.get_edge_data(in_node.id, node.id)[0]
-                if 'permutation' in edge_attrs:
-                    permutations.append(edge_attrs['permutation'])
-
-            # Get all permutations from out edges
-            for out_node in node.out_nodes():
-                edge_attrs = node.graph.get_edge_data(node.id, out_node.id)[0]
-                if 'permutation' in edge_attrs:
-                    permutations.append(edge_attrs['permutation'])
-
-            # Check that all permutations are equal
-            final_permutations = []
-            for p in permutations:
-                if p is not None:
-                    final_permutations.append(p.perm)
-                else:
-                    final_permutations.append(int64_array(np.arange(node.shape.size)))
-
-            if len(final_permutations) == 0:
-                continue
-
-            if not all([np.array_equal(final_permutations[0], perm) for perm in final_permutations]):
-                raise Error('Permutations requested for {} data node are not equal! List of permutations: {}'
-                            ''.format(node.name, [p.perm for p in permutations]))
-
-            assert not node.has_valid('permutation') or np.array_equal(node.permutation, permutations[0])
-            node['permutation'] = permutations[0]
 
     @staticmethod
     def permute_data_nodes_attrs(graph: Graph):
@@ -152,78 +107,3 @@ class ApplyPermutation(MiddleReplacementPattern):
 
         LayoutChangeForConstantShapePaths().find_shape_subgraph_endpoints(
             out_ports=[shape.out_port(0) for shape in shape_ops], action=reinfer_once)
-
-    @staticmethod
-    def preserve_rt_info(graph: Graph):
-        for op in graph.get_op_nodes():
-            op_name = op.soft_get('name', op.id)
-            op_type = op.soft_get('type')
-            op_shape = op.soft_get('shape')
-            if op_type == 'Parameter' and op.has_valid('permute_attrs') and not op.has_and_set('nchw_layout'):
-                permutation = op.out_port(0).permutation
-                # rt info update
-                assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op_name)
-
-                if not op['original_shape']:
-                    op['original_shape'] = op_shape
-                op.rt_info.old_api_transpose(op['original_shape'][permutation.perm], permutation.inv)
-
-                # keep input in the framework format
-                transpose = create_op_node_with_second_input(
-                    graph, Transpose, permutation.perm, {'name': op_name + '/Transpose({})'.format(permutation.perm)})
-
-                # source mode is used to keep tensor names at Parameter node
-                op.out_port(0).get_connection().insert_node(transpose, "source")
-
-                del op['permute_attrs']
-                del op.out_node(0)['permutation']
-
-                op['old_api_map'] = op.rt_info.serialize_for_parameter(op)['old_api_map']
-
-            elif op_type == 'Result' and len(op_shape) > 3 and op.in_ports():
-                prev_node_out_port = op.in_port(0).get_connection().get_source()
-                in_node = prev_node_out_port.node
-                if in_node.out_node(prev_node_out_port.idx).has_and_set('permutation'):
-                    permutation = in_node.out_node(prev_node_out_port.idx)['permutation']
-                    # rt info update
-                    assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op)
-                    op.rt_info.old_api_transpose_result(permutation.perm)
-
-                    # keep result in the framework format
-                    transpose = create_op_node_with_second_input(
-                        graph, Transpose, permutation.inv,
-                        {'name': op_name + '/Transpose({})'.format(permutation.inv)})
-
-                    prev_node_out_port.get_connection().insert_node(transpose)
-
-                    del in_node.out_node(prev_node_out_port.idx)['permutation']
-
-                    op['old_api_map'] = op.rt_info.serialize_for_result()['old_api_map']
-
-
-class MergeNodesPermutations(MiddleReplacementPattern):
-    enabled = True
-    force_clean_up = True
-    # can't be turned on for Kaldi until permutation logic will be aligned
-    graph_condition = [lambda graph: graph.graph['fw'] != 'kaldi']
-
-    def run_after(self):
-        return [ApplyNHWCtoNCHWpermutation, PostMiddleStart]
-
-    def find_and_replace_pattern(self, graph: Graph):
-        ApplyPermutation.merge_nodes_permutations(graph)
-
-
-class PreserveRuntimeInfo(MiddleReplacementPattern):
-    enabled = True
-    force_clean_up = True
-    # can't be turned on for Kaldi until permutation logic will be aligned
-    graph_condition = [lambda graph: graph.graph['fw'] != 'kaldi']
-    run_not_recursively = True
-
-    def run_after(self):
-        return [MergeNodesPermutations]
-
-    def find_and_replace_pattern(self, graph: Graph):
-        ApplyPermutation.preserve_rt_info(graph)
-
