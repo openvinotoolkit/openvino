@@ -20,6 +20,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    void prepareParams() override {}
     void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
