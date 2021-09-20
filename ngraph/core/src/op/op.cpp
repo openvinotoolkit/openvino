@@ -11,7 +11,6 @@
 #include "ngraph/node.hpp"
 #include "ngraph/type/element_type.hpp"
 
-using namespace ngraph;
 using namespace std;
 
-op::Op::Op(const OutputVector& args) : Node(args) {}
+ov::op::Op::Op(const ov::OutputVector& args) : Node(args) {}

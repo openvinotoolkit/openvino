@@ -835,7 +835,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
 }
 
 namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Node>>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<shared_ptr<Node>>);
 
 AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>& value) : m_ref(value) {}
 
@@ -849,7 +849,7 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     return true;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<NodeVector>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<NodeVector>);
 
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 
