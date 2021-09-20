@@ -37,9 +37,9 @@
 #    include <sys/time.h>
 #    include <unistd.h>
 
+#    include <locale>
 #    ifdef ENABLE_UNICODE_PATH_SUPPORT
 #        include <codecvt>
-#        include <locale>
 #    endif
 
 /// @brief Max length of absolute file path
@@ -158,7 +158,7 @@ static void iterate_files_worker(const std::string& path,
         } catch (...) {
             std::exception_ptr p = std::current_exception();
             closedir(dir);
-            rethrow_exception(p);
+            std::rethrow_exception(p);
         }
         closedir(dir);
     } else {
