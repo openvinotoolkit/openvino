@@ -156,7 +156,7 @@ DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize>
 }
 
 // TODO: LPT: refactor: use one way to decompose FakeQuantize
-std::shared_ptr<ngraph::Node> decomposeFakeQuantize(
+std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
     MatcherPass* matcherPass,
     std::shared_ptr<opset1::FakeQuantize>& layer,
     const std::shared_ptr<IntervalsAlignmentAttribute>& intervalsAlignment,
@@ -164,6 +164,8 @@ std::shared_ptr<ngraph::Node> decomposeFakeQuantize(
     const bool updatePrecisions,
     const element::Type deqPrecision) {
     std::shared_ptr<ngraph::Node> dequantize;
+    std::shared_ptr<ngraph::Node> newFQ;
+
     if (intervalsAlignment != nullptr) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "decomposeFakeQuantize1");
         const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
@@ -186,12 +188,12 @@ std::shared_ptr<ngraph::Node> decomposeFakeQuantize(
             updatedOutputHighValue);
 
         if ((updatePrecisions == false) && (dequantizationMul == 1.f) && (dequantizationSub == 0.f)) {
-            return nullptr;
+            return { nullptr, nullptr };
         }
 
         //TODO: pass min levels as a parameter?
         if (levels < 2ul) {
-            return nullptr;
+            return { nullptr, nullptr };
         }
 
         // 2. update FakeQuantize - one time action
@@ -226,6 +228,7 @@ std::shared_ptr<ngraph::Node> decomposeFakeQuantize(
         NetworkHelper::copyInfo(sourceNodes, targetNodes);
 
         dequantize = dequantization.multiply;
+        newFQ = newFakeQuantizeLayer;
     } else {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "decomposeFakeQuantize2");
         // Split FakeQuantize to two parts: Quantize and Dequantize
@@ -239,13 +242,14 @@ std::shared_ptr<ngraph::Node> decomposeFakeQuantize(
 
         const auto newFakeQuantize = std::get<0>(QDQ);
         if (newFakeQuantize == nullptr) {
-            return nullptr;
+            return { nullptr, nullptr };
         }
         matcherPass->register_new_node(newFakeQuantize);
         dequantize = std::get<1>(QDQ);
+        newFQ = newFakeQuantize;
     }
 
-    return dequantize;
+    return { dequantize, newFQ };
 }
 
 } // namespace fq_decomposition
@@ -388,18 +392,21 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         }
     }
 
-    std::shared_ptr<ngraph::Node> dequantize = fq_decomposition::decomposeFakeQuantize(
+    auto QDQ = fq_decomposition::decomposeFakeQuantize(
         this,
         layer,
         intervalsAlignment,
         dataPrecision,
         updatePrecisions,
         deqPrecision);
-    if (dequantize == nullptr) {
+
+    std::shared_ptr<ngraph::Node> dequantize = std::get<0>(QDQ);
+    std::shared_ptr<ngraph::Node> newFakeQuantize = std::get<1>(QDQ);
+    if (dequantize == nullptr || newFakeQuantize == nullptr) {
         return false;
     }
 
-    updateOutput(context, dequantize, layer);
+    updateOutput(context, dequantize, newFakeQuantize);
 
     if (precisionsAttribute->sharedValue->precisions.size() != 1ul) {
         precisionsAttribute->sharedValue->precisions = { dataPrecision.precision };
