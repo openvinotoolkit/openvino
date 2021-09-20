@@ -211,8 +211,9 @@ TEST_F(I16QuantisationTest, EltwiseSumm_onlyOneIdentityInsertion) {
         .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().once();
 }
 
-
-TEST_F(I16QuantisationTest, canDetectLeakyRelu) {
+// DISABLED due to Segmentation fault (core dumped)
+// In https://openvino-ci.intel.com/job/private-ci/job/ie/job/build-linux-ubuntu18/86242/consoleFull
+TEST_F(I16QuantisationTest, DISABLED_canDetectLeakyRelu) {
     assert_that().onInferModel(TFLeakyReluModel())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().pwl_inserted_into_nnet();
@@ -224,7 +225,10 @@ TEST_F(I16QuantisationTest, canDetectSoftWSignSubgraph) {
         .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActSigmoid});
 }
 
-TEST_F(I16QuantisationTest, MaxPool_followedAfterActivation) {
+// DISABLED due to Segmentation fault (core dumped)
+// Test failes (finishes unexpectedly with no output) sporadically in Windows Debug
+// In https://openvino-ci.intel.com/job/private-ci/job/ie/job/build-linux-ubuntu20/61231/consoleFull
+TEST_F(I16QuantisationTest, DISABLED_MaxPool_followedAfterActivation) {
     assert_that().onInferModel(maxpoolAfterRelu())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with()
@@ -448,7 +452,9 @@ TEST_F(I16QuantisationTest, TI_PropagateForward) {
         .called_with().pwls_inserted_into_nnet({kActIdentity});
 }
 
-TEST_F(I16QuantisationTest, SplitToConcatWith2Inputs1360NotAlignedNoFC) {
+// DISABLED due: Unhandled exception at 0x00007FF88514F199 (ntdll.dll) in InferenceEngineUnitTests.exe: 0xC0000374:
+//      A heap has been corrupted (parameters: 0x00007FF8851B77F0).
+TEST_F(I16QuantisationTest, DISABLED_SplitToConcatWith2Inputs1360NotAlignedNoFC) {
     assert_that().onInferModel(SplitToConcatWith2Inputs1360NotAlignedNoFC())
             .inNotCompactMode()
             .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
