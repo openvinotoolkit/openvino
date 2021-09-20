@@ -174,7 +174,7 @@ std::vector<Place::Ptr> PlaceTensorONNX::get_consuming_operations() const {
     std::transform(std::begin(consuming_ports),
                    std::end(consuming_ports),
                    std::back_inserter(consuming_ops),
-                   [](const Place::Ptr place) {
+                   [](const Place::Ptr& place) {
                        return place->get_consuming_operations().at(0);
                    });
 
