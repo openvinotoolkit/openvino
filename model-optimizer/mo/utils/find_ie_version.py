@@ -34,7 +34,7 @@ def setup_env(module="", libs=[]):
     os.environ[python_path_key] = os.pathsep.join([module, os.environ[python_path_key]])
     os.environ[lib_env_key] = os.pathsep.join([*libs, os.environ[lib_env_key]])
     if len(os.getenv(ov_frontend_path_key)) == 0:
-        os.environ[ov_frontend_path_key] = os.pathsep.join([*libs, os.environ[lib_env_key]])
+        os.environ[ov_frontend_path_key] = os.pathsep.join([*libs])
 
 
 def reset_env():
