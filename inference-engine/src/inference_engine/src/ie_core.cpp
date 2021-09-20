@@ -221,8 +221,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
         ov::runtime::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
-        execNetwork =
-            context ? plugin.compile_model(network, context, parsedConfig) : plugin.compile_model(network, parsedConfig);
+        execNetwork = context ? plugin.compile_model(network, context, parsedConfig)
+                              : plugin.compile_model(network, parsedConfig);
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
