@@ -1,23 +1,23 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Factory functions for all ngraph ops."""
+"""Factory functions for all openvino ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
 from functools import partial
 
-from ngraph.impl import Node, PartialShape, Shape
-from ngraph.impl.op import Constant, Parameter
-from ngraph.opset_utils import _get_node_factory
-from ngraph.utils.decorators import binary_op, nameable_op, unary_op
-from ngraph.utils.input_validation import (
+from openvino.impl import Node, PartialShape, Shape
+from openvino.impl.op import Constant, Parameter
+from openvino.opset_utils import _get_node_factory
+from openvino.utils.decorators import binary_op, nameable_op, unary_op
+from openvino.utils.input_validation import (
     check_valid_attributes,
     is_non_negative_value,
     is_positive_value,
 )
-from ngraph.utils.node_factory import NodeFactory
-from ngraph.utils.tensor_iterator_types import (
+from openvino.utils.node_factory import NodeFactory
+from openvino.utils.tensor_iterator_types import (
     GraphBody,
     TensorIteratorSliceInputDesc,
     TensorIteratorMergedInputDesc,
@@ -25,7 +25,7 @@ from ngraph.utils.tensor_iterator_types import (
     TensorIteratorBodyOutputDesc,
     TensorIteratorConcatOutputDesc,
 )
-from ngraph.utils.types import (
+from openvino.utils.types import (
     NodeInput,
     NumericData,
     NumericType,
@@ -1433,16 +1433,16 @@ def lstm_cell(
 
     node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, W, R, B)
 
-    # P - nGraph additional input, no such input in the OV spec
-    peepholes_count = 3  # nGraph default
+    # P - openvino additional input, no such input in the OV spec
+    peepholes_count = 3  # openvino default
     peepholes_shape = [peepholes_count * hidden_size]
-    peepholes_array = np.zeros(peepholes_shape)  # nGraph default
+    peepholes_array = np.zeros(peepholes_shape)  # openvino default
     data_dtype = get_dtype(node_inputs[0].get_output_element_type(0))
     default_P = make_constant_node(peepholes_array, dtype=data_dtype)
     node_inputs.append(default_P)
 
     weights_format = "fico"  # IE LSTMWeightsFormat, no such attribute in the OV spec
-    input_forget = False  # nGraph default, no such attribute in the OV spec
+    input_forget = False  # openvino default, no such attribute in the OV spec
 
     attributes = {
         "hidden_size": hidden_size,
@@ -1507,20 +1507,20 @@ def lstm_sequence(
 
     node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B)
 
-    # P - nGraph additional input, no such input in the OV spec
-    peepholes_count = 3  # nGraph default
+    # P - openvino additional input, no such input in the OV spec
+    peepholes_count = 3  # openvino default
     if direction.lower() == "bidirectional":
         num_directions = 2
     else:
         num_directions = 1
     peepholes_shape = [num_directions, peepholes_count * hidden_size]
-    peepholes_array = np.zeros(peepholes_shape)  # nGraph default
+    peepholes_array = np.zeros(peepholes_shape)  # openvino default
     data_dtype = get_dtype(node_inputs[0].get_output_element_type(0))
     default_P = make_constant_node(peepholes_array, dtype=data_dtype)
     node_inputs.append(default_P)
 
     weights_format = "fico"  # IE LSTMWeightsFormat, no such attribute in the OV spec
-    input_forget = False  # nGraph default, no such attribute in the OV spec
+    input_forget = False  # openvino default, no such attribute in the OV spec
 
     attributes = {
         "hidden_size": hidden_size,
@@ -1801,7 +1801,7 @@ def pad(
 def parameter(
     shape: TensorShape, dtype: NumericType = np.float32, name: Optional[str] = None
 ) -> Parameter:
-    """Return an ngraph Parameter object."""
+    """Return an openvino Parameter object."""
     element_type = get_element_type(dtype)
     return Parameter(element_type, PartialShape(shape))
 
