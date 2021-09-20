@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,8 +40,6 @@ void SplitConcatWith3InputsTest::SetUp() {
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1, tanh1, split->output(2)}, 1);
     auto relu2 = std::make_shared<ngraph::opset3::Relu>(concat);
 
-//    ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(relu1), std::make_shared<ngraph::op::Result>(relu2) };
-//    auto result = std::make_shared<ngraph::op::Result>(relu2);
     function = std::make_shared<ngraph::Function>(relu2, params, "SplitConcatWith3InputsTest");
 }
 }  // namespace SubgraphTestsDefinitions

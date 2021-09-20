@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,15 +14,14 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-std::map<std::string, std::string> additional_config = {};
-//const std::vector<std::map<std::string, std::string>> additional_config = {
-//     {
-//         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
-//     },
-//     {
-//         {"GNA_DEVICE_MODE", "GNA_SW_FP32"}
-//     }
-//};
+const std::vector<std::map<std::string, std::string>> additional_config = {
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
+    },
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_FP32"}
+    }
+};
 
 const std::vector<std::vector<size_t>> inputShapes = {
     {1, 384},
@@ -34,7 +33,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SplitConcatWith3Inputs, SplitConcatWith3InputsTes
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                            ::testing::Values(additional_config),
+                            ::testing::ValuesIn(additional_config),
                             ::testing::ValuesIn(inputShapes)),
                         SplitConcatWith3InputsTest::getTestCaseName);
 }  // namespace SubgraphTestsDefinitions
