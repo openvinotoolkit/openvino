@@ -120,12 +120,6 @@ void registerReaders() {
         return std::make_shared<Reader>(name, library_name);
     };
 
-    // try to load IR reader v10 if library exists
-    auto irReaderv10 =
-        create_if_exists("IRv10", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
-    if (irReaderv10)
-        readers.emplace("xml", irReaderv10);
-
     // try to load IR reader v7 if library exists
     auto irReaderv7 =
         create_if_exists("IRv7", std::string("inference_engine_ir_v7_reader") + std::string(IE_BUILD_POSTFIX));
@@ -155,6 +149,19 @@ void assertIfIRv7LikeModel(std::istream& modelStream) {
                   "version of the OpenVINO to generate supported IR version.";
 }
 
+ov::Extensions get_extensions_map(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
+    ov::Extensions extensions;
+    for (const auto& ext : exts) {
+        for (const auto& item : ext->getOpSets()) {
+            if (extensions.count(item.first)) {
+                IE_THROW() << "Extension with " << item.first << " name already exists";
+            }
+            extensions[item.first] = item.second;
+        }
+    }
+    return extensions;
+}
+
 }  // namespace
 
 CNNNetwork details::ReadNetwork(const std::string& modelPath,
@@ -176,7 +183,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     assertIfIRv7LikeModel(modelStream);
 
-    // Find reader for model extension
+    // TODO: this code is needed only by V7 IR reader. So we need to remove it in future.
     auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
     for (auto it = readers.lower_bound(fileExt); it != readers.upper_bound(fileExt); it++) {
         auto reader = it->second;
@@ -232,24 +239,30 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
             return reader->read(modelStream, exts);
         }
     }
+
     // Try to load with FrontEndManager
     auto& manager = get_frontend_manager();
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
+
+    ov::VariantVector params{ov::make_variant(model_path)};
+    if (!exts.empty()) {
+        params.emplace_back(ov::make_variant(get_extensions_map(exts)));
+    }
+
     if (!binPath.empty()) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        std::wstring weights_path = ov::util::string_to_wstring(binPath.c_str());
+        const std::wstring& weights_path = ov::util::string_to_wstring(binPath.c_str());
 #else
-        std::string weights_path = binPath;
+        const std::string& weights_path = binPath;
 #endif
-        FE = manager.load_by_model(model_path, weights_path);
-        if (FE)
-            inputModel = FE->load(model_path, weights_path);
-    } else {
-        FE = manager.load_by_model(model_path);
-        if (FE)
-            inputModel = FE->load(model_path);
+        params.emplace_back(ov::make_variant(weights_path));
     }
+
+    FE = manager.load_by_model(params);
+    if (FE)
+        inputModel = FE->load(params);
+
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
         return CNNNetwork(ngFunc, exts);
@@ -277,14 +290,26 @@ CNNNetwork details::ReadNetwork(const std::string& model,
             return reader->read(modelStream, exts);
         }
     }
+
     // Try to load with FrontEndManager
-    // NOTE: weights argument is ignored
     auto& manager = get_frontend_manager();
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
-    FE = manager.load_by_model(&modelStream);
+
+    ov::VariantVector params{ov::make_variant(&modelStream)};
+    if (weights) {
+        char* data = weights->cbuffer().as<char*>();
+        ov::Weights weights_buffer =
+            std::make_shared<ngraph::runtime::SharedBuffer<Blob::CPtr>>(data, weights->byteSize(), weights);
+        params.emplace_back(ov::make_variant(weights_buffer));
+    }
+    if (!exts.empty()) {
+        params.emplace_back(ov::make_variant(get_extensions_map(exts)));
+    }
+
+    FE = manager.load_by_model(params);
     if (FE)
-        inputModel = FE->load(&modelStream);
+        inputModel = FE->load(params);
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
         return CNNNetwork(ngFunc, exts);
