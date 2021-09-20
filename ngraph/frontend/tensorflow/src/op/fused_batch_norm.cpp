@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
@@ -15,7 +16,7 @@ namespace ngraph_bridge {
 
 OutputVector TranslateFusedBatchNormOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0), ng_scale = node.get_ng_input(1), ng_offset = node.get_ng_input(2),
-            ng_mean = node.get_ng_input(3), ng_variance = node.get_ng_input(4);
+         ng_mean = node.get_ng_input(3), ng_variance = node.get_ng_input(4);
     bool is_v3 = node.get_op_type() == "FusedBatchNormV3";
 
     auto tf_data_format = node.get_attribute<std::string>("data_format");
@@ -51,5 +52,5 @@ OutputVector TranslateFusedBatchNormOp(const NodeContext& node) {
     }
     return result;
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

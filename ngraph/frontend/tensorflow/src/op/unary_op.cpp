@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <default_opset.h>
 
 #include <op_table.hpp>
-#include <default_opset.h>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
@@ -37,9 +37,7 @@ namespace ngraph_bridge {
 //                           (Output<opset::Multiply>(n,n));
 //                       });
 //  }
-OutputVector TranslateUnaryOp(
-        const NodeContext& op,
-        std::function<Output<Node>(Output<Node>)> create_unary_op) {
+OutputVector TranslateUnaryOp(const NodeContext& op, std::function<Output<Node>(Output<Node>)> create_unary_op) {
     Output<Node> ng_input = op.get_ng_input(0);
     auto ng_node = create_unary_op(ng_input);
     if (ng_node != ng_input) {
@@ -67,6 +65,5 @@ OutputVector TranslateUnaryOp(const NodeContext& node) {
     });
 }
 
-
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

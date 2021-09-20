@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::frontend::tensorflow::detail;
-
 
 namespace tensorflow {
 namespace ngraph_bridge {
@@ -60,18 +60,18 @@ OutputVector TranslateAvgPoolOp(const NodeContext& node) {
     Shape ng_padding_above(padding_above.begin(), padding_above.end());
 
     Output<Node> ng_avgpool = ConstructNgNode<opset::AvgPool>(node.get_name(),
-                                                                      ng_input,
-                                                                      ng_strides,
-                                                                      ng_padding_below,
-                                                                      ng_padding_above,
-                                                                      ng_kernel_shape,
-                                                                      true,
-                                                                      op::RoundingType::FLOOR);
+                                                              ng_input,
+                                                              ng_strides,
+                                                              ng_padding_below,
+                                                              ng_padding_above,
+                                                              ng_kernel_shape,
+                                                              true,
+                                                              op::RoundingType::FLOOR);
 
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_avgpool);
     NGRAPH_VLOG(3) << "avgpool outshape: {" << join(ng_avgpool.get_shape()) << "}";
 
     return {ng_avgpool};
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

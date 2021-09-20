@@ -28,7 +28,7 @@ namespace ng = ngraph;
 namespace tensorflow {
 namespace ngraph_bridge {
 
-    void Builder::SetTracingInfo(const std::string& op_name, const ng::Output<ng::Node> ng_node) {
+void Builder::SetTracingInfo(const std::string& op_name, const ng::Output<ng::Node> ng_node) {
     auto node = ng_node.get_node_shared_ptr();
     node->set_friendly_name(op_name);
     node->add_provenance_tag(op_name);
@@ -36,20 +36,20 @@ namespace ngraph_bridge {
 
 const Builder::ConstMap& Builder::TF_NGRAPH_CONST_MAP() {
     static const Builder::ConstMap the_map = {
-            {ng::element::f32, make_pair(MakeConstOp<float>, ng::element::f32)},
-            {ng::element::f64, make_pair(MakeConstOp<double>, ng::element::f64)},
-            {ng::element::i8, make_pair(MakeConstOp<int8_t>, ng::element::i8)},
-            {ng::element::i16, make_pair(MakeConstOp<int16_t>, ng::element::i16)},
+        {ng::element::f32, make_pair(MakeConstOp<float>, ng::element::f32)},
+        {ng::element::f64, make_pair(MakeConstOp<double>, ng::element::f64)},
+        {ng::element::i8, make_pair(MakeConstOp<int8_t>, ng::element::i8)},
+        {ng::element::i16, make_pair(MakeConstOp<int16_t>, ng::element::i16)},
 #if 0
             {DataType::DT_QINT8, make_pair(MakeConstOp<qint8>, ng::element::i8)},
   {DataType::DT_QUINT8, make_pair(MakeConstOp<quint8>, ng::element::u8)},
   {DataType::DT_QUINT16, make_pair(MakeConstOp<quint16>, ng::element::u16)},
 #endif
-            {ng::element::i32, make_pair(MakeConstOp<int32_t>, ng::element::i32)},
-            {ng::element::i64, make_pair(MakeConstOp<int64_t>, ng::element::i64)},
-            {ng::element::u8, make_pair(MakeConstOp<uint8_t>, ng::element::u8)},
-            {ng::element::u16, make_pair(MakeConstOp<uint16_t>, ng::element::u16)},
-            {ng::element::boolean, make_pair(MakeConstOp<bool, char>, ng::element::boolean)}
+        {ng::element::i32, make_pair(MakeConstOp<int32_t>, ng::element::i32)},
+        {ng::element::i64, make_pair(MakeConstOp<int64_t>, ng::element::i64)},
+        {ng::element::u8, make_pair(MakeConstOp<uint8_t>, ng::element::u8)},
+        {ng::element::u16, make_pair(MakeConstOp<uint16_t>, ng::element::u16)},
+        {ng::element::boolean, make_pair(MakeConstOp<bool, char>, ng::element::boolean)}
     };
     return the_map;
 }

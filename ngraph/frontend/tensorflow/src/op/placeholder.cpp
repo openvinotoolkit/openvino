@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
@@ -17,8 +18,8 @@ OutputVector PlaceholderOp(const NodeContext& node) {
     auto ng_et = node.get_attribute<ngraph::element::Type>("dtype");
     auto overridden_shape = node.get_overridden_shapes().find(node.get_name());
     auto ng_shape = overridden_shape == node.get_overridden_shapes().end()
-                    ? node.get_attribute<ngraph::PartialShape>("shape", ngraph::PartialShape())
-                    : overridden_shape->second;
+                        ? node.get_attribute<ngraph::PartialShape>("shape", ngraph::PartialShape())
+                        : overridden_shape->second;
     return {ConstructNgNode<opset::Parameter>(node.get_name(), ng_et, ng_shape)};
 
 #if 0  // Old code
@@ -60,5 +61,5 @@ OutputVector PlaceholderOp(const NodeContext& node) {
     SaveNgOp(ng_op_map, parm->name(), ng_param);
 #endif
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

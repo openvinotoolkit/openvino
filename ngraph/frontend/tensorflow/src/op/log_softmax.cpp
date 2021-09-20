@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
@@ -21,5 +22,5 @@ OutputVector TranslateLogSoftmaxOp(const NodeContext& node) {
 
     return {ConstructNgNode<opset::LogSoftmax>(node.get_name(), ng_inp, axes)};
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

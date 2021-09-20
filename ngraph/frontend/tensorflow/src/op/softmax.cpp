@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::frontend::tensorflow::detail;
-
 
 namespace tensorflow {
 namespace ngraph_bridge {
@@ -26,5 +26,5 @@ OutputVector TranslateSoftmaxOp(const NodeContext& node) {
     return {ConstructNgNode<opset::Softmax>(node.get_name(), ng_inp, axes)};
 }
 
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

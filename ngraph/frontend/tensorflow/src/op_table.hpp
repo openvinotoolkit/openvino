@@ -4,14 +4,15 @@
 
 #pragma once
 
-#include <map>
-#include <string>
+#include <default_opset.h>
+
 #include <functional>
+#include <map>
+#include <ngraph/output_vector.hpp>
+#include <string>
+#include <tensorflow_frontend/node_context.hpp>
 
 #include "utils.h"
-#include <default_opset.h>
-#include <ngraph/output_vector.hpp>
-#include <tensorflow_frontend/node_context.hpp>
 
 namespace tensorflow {
 namespace ngraph_bridge {

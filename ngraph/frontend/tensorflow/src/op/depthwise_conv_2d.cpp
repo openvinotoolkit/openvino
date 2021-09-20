@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::frontend::tensorflow::detail;
-
 
 namespace tensorflow {
 namespace ngraph_bridge {
@@ -65,17 +65,15 @@ OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
 
     // H W I M -> H W I 1 M
     auto filter_shape = ConstructNgNode<opset::Constant>(
-            node.get_name(),
-            element::u64,
-            Shape{5},
-            ngraph::Shape{ng_filter_shape[0], ng_filter_shape[1], ng_filter_shape[2], 1, ng_filter_shape[3]});
+        node.get_name(),
+        element::u64,
+        Shape{5},
+        ngraph::Shape{ng_filter_shape[0], ng_filter_shape[1], ng_filter_shape[2], 1, ng_filter_shape[3]});
     auto reshaped_filter = ConstructNgNode<opset::Reshape>(node.get_name(), ng_filter, filter_shape, false);
 
     // H W I 1 M -> I M 1 H W
-    auto order = ConstructNgNode<opset::Constant>(node.get_name(),
-                                                  element::i64,
-                                                  Shape{5},
-                                                  vector<int64_t>{2, 4, 3, 0, 1});
+    auto order =
+        ConstructNgNode<opset::Constant>(node.get_name(), element::i64, Shape{5}, vector<int64_t>{2, 4, 3, 0, 1});
     auto transposed_filter = ConstructNgNode<opset::Transpose>(node.get_name(), reshaped_filter, order);
 
     auto ng_conv = ConstructNgNode<opset::GroupConvolution>(node.get_name(),
@@ -89,5 +87,5 @@ OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_conv);
     return {ng_conv};
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

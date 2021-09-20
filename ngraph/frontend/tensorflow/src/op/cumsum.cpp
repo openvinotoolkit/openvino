@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
@@ -19,5 +20,5 @@ OutputVector TranslateCumsumOp(const NodeContext& node) {
 
     return {ConstructNgNode<opset::CumSum>(node.get_name(), ng_x, ng_axis, exclusive, reverse)};
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

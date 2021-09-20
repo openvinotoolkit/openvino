@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::frontend::tensorflow::detail;
-
 
 namespace tensorflow {
 namespace ngraph_bridge {
@@ -24,8 +24,7 @@ OutputVector TranslateFusedMatMulOp(const NodeContext& node) {
 
     auto ng_lhs = node.get_ng_input(0), ng_rhs = node.get_ng_input(1), ng_bias = node.get_ng_input(2);
 
-    Output<Node> ng_matmul =
-            ConstructNgNode<opset::MatMul>(node.get_name(), ng_lhs, ng_rhs, transpose_a, transpose_b);
+    Output<Node> ng_matmul = ConstructNgNode<opset::MatMul>(node.get_name(), ng_lhs, ng_rhs, transpose_a, transpose_b);
 
     auto ng_matmul_shape = ng_matmul.get_shape();
     auto ng_bias_shape = ng_bias.get_shape();
@@ -50,5 +49,5 @@ OutputVector TranslateFusedMatMulOp(const NodeContext& node) {
         throw errors::Internal("Unsupported combination");
     }
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

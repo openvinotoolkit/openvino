@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::frontend::tensorflow::detail;
-
 
 namespace tensorflow {
 namespace ngraph_bridge {
@@ -42,8 +42,7 @@ OutputVector TranslateBiasAddOp(const NodeContext& node) {
                 target_shape[i] = 1;
             }
         }
-        auto target_shape_node =
-                make_shared<opset::Constant>(element::i64, Shape{ng_input_shape.size()}, target_shape);
+        auto target_shape_node = make_shared<opset::Constant>(element::i64, Shape{ng_input_shape.size()}, target_shape);
         ng_bias_reshaped = ConstructNgNode<opset::Reshape>(node.get_name(), ng_bias, target_shape_node, false);
     }
 
@@ -51,5 +50,5 @@ OutputVector TranslateBiasAddOp(const NodeContext& node) {
 
     return {ng_add};
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

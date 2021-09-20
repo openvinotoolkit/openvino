@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
@@ -24,5 +25,5 @@ OutputVector RetvalOp(const NodeContext& node) {
 
     return {ConstructNgNode<opset::Result>(node.get_name(), node.get_ng_input(0))};
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

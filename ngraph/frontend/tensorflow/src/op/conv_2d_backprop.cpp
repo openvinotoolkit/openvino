@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
@@ -30,8 +31,8 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
     GetStaticInputVector(node, 0, &tf_input_sizes);
 
     if (std::any_of(tf_input_sizes.begin(), tf_input_sizes.end(), [](int32_t size) {
-        return size <= 0;
-    })) {
+            return size <= 0;
+        })) {
         throw errors::InvalidArgument("Conv2DBackpropInput input sizes must be positive integers");
     }
 
@@ -87,10 +88,10 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
                          ng_padding_above);
 
     auto ng_output_shape =
-            ConstructNgNode<opset::Constant>(node.get_name(),
-                                             element::i64,
-                                             Shape{ng_batch_shape.size() - 2},
-                                             vector<size_t>(ng_batch_shape.begin() + 2, ng_batch_shape.end()));
+        ConstructNgNode<opset::Constant>(node.get_name(),
+                                         element::i64,
+                                         Shape{ng_batch_shape.size() - 2},
+                                         vector<size_t>(ng_batch_shape.begin() + 2, ng_batch_shape.end()));
 
     auto ng_data = ConstructNgNode<opset::ConvolutionBackpropData>(node.get_name(),
                                                                    ng_out_backprop,
@@ -104,5 +105,5 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_data);
     return {ng_data};
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

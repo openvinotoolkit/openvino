@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
@@ -29,10 +30,9 @@ OutputVector TranslateDepthToSpaceOp(const NodeContext& node) {
 
     NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
     auto ng_mode = opset::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
-    Output<Node> depth_to_space =
-            ConstructNgNode<opset::DepthToSpace>(node.get_name(), ng_input, ng_mode, block_size);
+    Output<Node> depth_to_space = ConstructNgNode<opset::DepthToSpace>(node.get_name(), ng_input, ng_mode, block_size);
     NCHWtoNHWC(node.get_name(), is_nhwc, depth_to_space);
     return {depth_to_space};
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

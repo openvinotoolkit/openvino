@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <default_opset.h>
 
 #include <op_table.hpp>
-#include <default_opset.h>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::frontend::tensorflow::detail;
-
 
 // Helper function to translate a binary op
 // Parameters:
@@ -38,16 +37,15 @@ using namespace ngraph::frontend::tensorflow::detail;
 
 namespace tensorflow {
 namespace ngraph_bridge {
-OutputVector TranslateBinaryOp(
-        const NodeContext& node,
-        std::function<Output<Node>(Output<Node>&, Output<Node>&)> create_binary_op) {
+OutputVector TranslateBinaryOp(const NodeContext& node,
+                               std::function<Output<Node>(Output<Node>&, Output<Node>&)> create_binary_op) {
     Output<Node> ng_lhs = node.get_ng_input(0), ng_rhs = node.get_ng_input(1);
     auto ng_node = create_binary_op(ng_lhs, ng_rhs);
 
     // TODO do we need it?
-/*    if (ng_node != ng_lhs && ng_node != ng_rhs) {
-        Builder::SetTracingInfo(node.get_name(), ng_node);
-    }*/
+    /*    if (ng_node != ng_lhs && ng_node != ng_rhs) {
+            Builder::SetTracingInfo(node.get_name(), ng_node);
+        }*/
     return {ng_node};
 }
 
@@ -57,8 +55,8 @@ OutputVector TranslateFloorDivOp(const NodeContext& node) {
     };
     return TranslateBinaryOp(node, floordiv_fn);
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow
 
 // Helper function to translate a binary op in cases where there is a one-to-one
 // mapping from TensorFlow ops to nGraph ops.
@@ -81,6 +79,5 @@ OutputVector TranslateBinaryOp(const NodeContext& node) {
         return ConstructNgNode<T>(node.get_name(), ng_lhs, ng_rhs);
     });
 }
-}
-}
-
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

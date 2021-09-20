@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
@@ -48,18 +49,17 @@ OutputVector TranslateGatherV2Op(const NodeContext& node) {
         axis = tf_axis[0] + ng_input_rank;
     }
     if (axis < 0 || axis >= ng_input_rank) {
-        std:
+    std:
         ostringstream buf;
         buf << "Expected axis in the range [-" << ng_input_rank << ", " << ng_input_rank << "), but got " << tf_axis[0];
         throw errors::InvalidArgument(buf.str());
     }
 
-    auto ng_axis =
-            ConstructNgNode<opset::Constant>(node.get_name(), element::i64, Shape{tf_axis.size()}, tf_axis);
+    auto ng_axis = ConstructNgNode<opset::Constant>(node.get_name(), element::i64, Shape{tf_axis.size()}, tf_axis);
 
     auto gather_op = ConstructNgNode<opset::Gather>(node.get_name(), ng_input, ng_input_coords, ng_axis);
 
     return {gather_op};
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

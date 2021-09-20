@@ -7,8 +7,8 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 
-#include "tensorflow_frontend/node_context.hpp"
 #include "graph.pb.h"
+#include "tensorflow_frontend/node_context.hpp"
 
 namespace tensorflow {
 

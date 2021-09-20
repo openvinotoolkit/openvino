@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::frontend::tensorflow::detail;
-
 
 // Translate TopKV2 Op using ngraph core op TopK
 namespace tensorflow {
@@ -57,5 +57,5 @@ OutputVector TranslateTopKV2Op(
 }
 
 #endif
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

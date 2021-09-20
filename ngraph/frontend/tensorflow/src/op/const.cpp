@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
@@ -36,5 +37,5 @@ OutputVector TranslateConstOp(const NodeContext& node) {
 
     return {ng_node};
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <default_opset.h>
 
 #include <op_table.hpp>
-#include <default_opset.h>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
@@ -14,9 +14,8 @@ using namespace ngraph::frontend::tensorflow::detail;
 namespace tensorflow {
 namespace ngraph_bridge {
 
-OutputVector TranslateReduceOp(
-        const NodeContext& node,
-        std::function<Output<Node>(Output<Node>, Output<Node>, const bool)> create_ng_node) {
+OutputVector TranslateReduceOp(const NodeContext& node,
+                               std::function<Output<Node>(Output<Node>, Output<Node>, const bool)> create_ng_node) {
     Output<Node> ng_input = node.get_ng_input(0);
     auto tf_keep_dims = node.get_attribute<bool>("keep_dims", false);
 
@@ -30,7 +29,7 @@ OutputVector TranslateReduceOp(
 
     std::vector<size_t> ng_reduction_axes_vect(axes.size());
     std::transform(axes.begin(), axes.end(), ng_reduction_axes_vect.begin(), [input_rank](int idx) {
-    return idx + (idx < 0 ? (int)input_rank : 0);
+        return idx + (idx < 0 ? (int)input_rank : 0);
     });
     auto ng_reduction_axes = ConstructNgNode<opset::Constant>(node.get_name(),
                                                               element::i64,
@@ -50,11 +49,10 @@ OutputVector TranslateDirectReduceOp(const NodeContext& node) {
         throw errors::InvalidArgument("Expected node to be either a valid logical or arithmetic reduction "
                                       "type");
     }
-    return TranslateReduceOp(
-            node,
-            [&node](Output<Node> ng_input, Output<Node> ng_reduction_axes, const bool keep_dims) {
-                return ConstructNgNode<T>(node.get_name(), ng_input, ng_reduction_axes, keep_dims);
-            });
+    return TranslateReduceOp(node,
+                             [&node](Output<Node> ng_input, Output<Node> ng_reduction_axes, const bool keep_dims) {
+                                 return ConstructNgNode<T>(node.get_name(), ng_input, ng_reduction_axes, keep_dims);
+                             });
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

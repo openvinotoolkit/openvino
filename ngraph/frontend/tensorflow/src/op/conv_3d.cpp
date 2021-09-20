@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::frontend::tensorflow::detail;
-
 
 // Translate Conv3D Op
 namespace tensorflow {
@@ -77,15 +77,15 @@ OutputVector TranslateConv3DOp(const NodeContext& node) {
                          ng_padding_above);
 
     Output<Node> ng_conv = ConstructNgNode<opset::Convolution>(node.get_name(),
-                                                                       ng_input,
-                                                                       ng_filter,
-                                                                       ng_strides,
-                                                                       ng_padding_below,
-                                                                       ng_padding_above,
-                                                                       ng_dilations);
+                                                               ng_input,
+                                                               ng_filter,
+                                                               ng_strides,
+                                                               ng_padding_below,
+                                                               ng_padding_above,
+                                                               ng_dilations);
 
     NCHWtoNHWC(node.get_name(), is_ndhwc, ng_conv);
     return {ng_conv};
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow

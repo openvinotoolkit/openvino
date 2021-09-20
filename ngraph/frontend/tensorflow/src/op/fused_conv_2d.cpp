@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
 #include <default_opset.h>
+
+#include <op_table.hpp>
 #include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::frontend::tensorflow::detail;
-
 
 namespace tensorflow {
 namespace ngraph_bridge {
@@ -90,7 +90,7 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
         }
 
         auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1), ng_bias = node.get_ng_input(2),
-                ng_conv = CreateNgConv(ng_input, ng_filter);
+             ng_conv = CreateNgConv(ng_input, ng_filter);
 
         auto ng_conv_shape = ng_conv.get_shape();
         auto ng_bias_shape = ng_bias.get_shape();
@@ -100,9 +100,8 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
 
         std::vector<size_t> reshape_pattern_values(ng_conv_shape.size(), 1U);
         reshape_pattern_values[1] = ng_bias.get_shape().front();
-        auto reshape_pattern = make_shared<opset::Constant>(element::u64,
-                                                            Shape{reshape_pattern_values.size()},
-                                                            reshape_pattern_values);
+        auto reshape_pattern =
+            make_shared<opset::Constant>(element::u64, Shape{reshape_pattern_values.size()}, reshape_pattern_values);
         auto ng_bias_reshaped = ConstructNgNode<opset::Reshape>(node.get_name(), ng_bias, reshape_pattern, false);
 
         auto ng_add = ConstructNgNode<opset::Add>(node.get_name() + "_FusedConv2D_BiasAdd", ng_conv, ng_bias_reshaped);
@@ -126,8 +125,8 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
         }
 
         auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1), ng_scale = node.get_ng_input(2),
-                ng_offset = node.get_ng_input(3), ng_mean = node.get_ng_input(4), ng_variance = node.get_ng_input(5),
-                ng_conv = CreateNgConv(ng_input, ng_filter);
+             ng_offset = node.get_ng_input(3), ng_mean = node.get_ng_input(4), ng_variance = node.get_ng_input(5),
+             ng_conv = CreateNgConv(ng_input, ng_filter);
 
         auto tf_epsilon = node.get_attribute<float>("epsilon");
 
@@ -145,7 +144,7 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
             return {ng_relu};
         } else if (VecStrCmp(fused_ops, {"FusedBatchNorm", "Relu6"})) {
             auto ng_relu6 =
-                    ConstructNgNode<opset::Clamp>(node.get_name() + "_FusedConv2D_BatchNormRelu", ng_batch_norm, 0, 6);
+                ConstructNgNode<opset::Clamp>(node.get_name() + "_FusedConv2D_BatchNormRelu", ng_batch_norm, 0, 6);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu6);
             return {ng_relu6};
         } else {
@@ -156,5 +155,5 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
         throw errors::Unimplemented("Unsupported _FusedConv2D " + StrJoin(fused_ops, ","));
     }
 }
-}
-}
+}  // namespace ngraph_bridge
+}  // namespace tensorflow
