@@ -89,6 +89,13 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     auto dims = MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims());
 
     size_t outer_ndims = dims.size();
+
+    auto lastIter = order.begin() + outer_ndims;
+    for (size_t dim = 0; dim < outer_ndims; dim++) {
+        if (std::find(order.begin(), lastIter, dim) == lastIter)
+            IE_THROW() << "Can not construct DnnlBlockedMemoryDesc because of incorrect order: " << vec2str(order);
+    }
+
     size_t inner_ndims = order.size() - dims.size();
 
     if (!strides.empty()) {
@@ -156,7 +163,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     initOffsetPadding();
 
     if (strides.empty()) {
-        this->recomputeStrides();
+        this->recomputeDefaultStrides();
     } else {
         for (size_t i = 0; i < outer_ndims; i++) {
             auto dnnlStrides = MKLDNNExtensionUtils::convertToDnnlDims(strides);
@@ -780,7 +787,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithUndefStridesAndOffset() const {
 
 MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithDefaultStridesAndOffset() const {
     DnnlBlockedMemoryDescPtr newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
-    newDesc->recomputeStrides();
+    newDesc->recomputeDefaultStrides();
     newDesc->desc.data.offset0 = 0;
     newDesc->status = descStatus::Unknown;
     return newDesc;
@@ -792,7 +799,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine
     return newDesc;
 }
 
-void DnnlBlockedMemoryDesc::recomputeStrides() {
+void DnnlBlockedMemoryDesc::recomputeDefaultStrides() {
     const auto &rank = getShape().getRank();
 
     if (order.size() != blockedDims.size())
