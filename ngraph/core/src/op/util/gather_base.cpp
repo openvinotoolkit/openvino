@@ -151,9 +151,9 @@ bool evaluate(const ngraph::HostTensorPtr& arg0,
               int64_t axis,
               int64_t batch_dims) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    ngraph::Shape params_shape = arg0->get_shape();
-    ngraph::Shape indices_shape = arg1->get_shape();
-    ngraph::Shape out_shape(params_shape.size() + indices_shape.size() - 1 - batch_dims);
+    ov::Shape params_shape = arg0->get_shape();
+    ov::Shape indices_shape = arg1->get_shape();
+    ov::Shape out_shape(params_shape.size() + indices_shape.size() - 1 - batch_dims);
     int64_t i = 0;
     for (; i < axis; i++) {
         out_shape[i] = params_shape[i];
@@ -261,7 +261,7 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
     auto gathered = gathered_concat_input;
     if (indices_shape.empty()) {
         // gathering a scalar
-        const auto axis_const = ngraph::op::Constant::create(ov::element::i64, ngraph::Shape{1}, {0});
+        const auto axis_const = ngraph::op::Constant::create(ov::element::i64, ov::Shape{1}, {0});
         gathered = make_shared<ngraph::op::v0::Squeeze>(gathered_concat_input, axis_const);
     }
 

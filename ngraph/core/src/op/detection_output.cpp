@@ -56,9 +56,9 @@ void ov::op::v0::DetectionOutput::validate_and_infer_types() {
                           proposals_et.is_real(),
                           "Proposals' data type must be floating point. Got " + proposals_et.get_type_name());
 
-    const PartialShape& box_logits_pshape = get_input_partial_shape(0);
-    const PartialShape& class_preds_pshape = get_input_partial_shape(1);
-    const PartialShape& proposals_pshape = get_input_partial_shape(2);
+    const ov::PartialShape& box_logits_pshape = get_input_partial_shape(0);
+    const ov::PartialShape& class_preds_pshape = get_input_partial_shape(1);
+    const ov::PartialShape& proposals_pshape = get_input_partial_shape(2);
 
     int num_loc_classes = m_attrs.share_location ? 1 : m_attrs.num_classes;
     int prior_box_size = m_attrs.normalized ? 4 : 5;
@@ -174,8 +174,8 @@ void ov::op::v0::DetectionOutput::validate_and_infer_types() {
                               "Additional box predictions' data type must be the same as box logits data type (" +
                                   box_logits_et.get_type_name() + "). Got " + aux_box_preds_et.get_type_name());
 
-        const PartialShape& aux_class_preds_pshape = get_input_partial_shape(3);
-        const PartialShape& aux_box_preds_pshape = get_input_partial_shape(4);
+        const ov::PartialShape& aux_class_preds_pshape = get_input_partial_shape(3);
+        const ov::PartialShape& aux_box_preds_pshape = get_input_partial_shape(4);
         if (aux_class_preds_pshape.rank().is_static()) {
             NODE_VALIDATION_CHECK(this,
                                   aux_class_preds_pshape[0].compatible(num_images),

@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from extensions.back.Reshape0DToSqueeze import Reshape0DToSqueeze
-from extensions.back.ScalarConstNormalize import ScalarNormalize
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
@@ -22,9 +21,6 @@ class TopKNormalizer(BackReplacementPattern):
     TODO this pass should be removed when IE supports 0D tensors.
     """
     enabled = True
-
-    def run_after(self):
-        return [ScalarNormalize]
 
     def run_before(self):
         return [Reshape0DToSqueeze]

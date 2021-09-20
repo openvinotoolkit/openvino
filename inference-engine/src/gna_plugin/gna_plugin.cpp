@@ -64,9 +64,12 @@
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
-#include "transformations/decompose_2d_conv.hpp"
-#include "transformations/convert_padded2valid_conv.hpp"
+#include "transformations/decompose_2d_convolution.hpp"
+#include "transformations/convert_padded_to_valid_convolution.hpp"
+#include "transformations/insert_reshape_around_matmul.hpp"
+#include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
+#include "transformations/remove_single_input_concat.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -485,9 +488,6 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
                     << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
 
-            auto fp32eq = [](float p1, float p2) -> bool {
-                return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-            };
             // GNA input is always quantized to int16, so number of levels can't be greater than max uint16
             // todo: should be solved in POT (issue 63330)
             size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
@@ -717,7 +717,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-        manager.register_pass<ConvertPadded2ValidConv>();
+        manager.register_pass<ConvertDWSCToScaleShifts>();
+        manager.register_pass<ConvertPaddedToValidConv>();
         if (config.gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
             manager.register_pass<Decompose2DConvTransposedWithBiasAF>();
             manager.register_pass<Decompose2DConvTransposedWithBias>();
@@ -732,19 +733,23 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SplitConvolutionWithFq>();
         manager.register_pass<SplitConvolutionWithBias>();
         manager.register_pass<SplitConvolution>();
-        manager.register_pass<HandleTransposesAroundMatMul>();
+        manager.register_pass<InsertReshapeAroundMatmulWithTranspose>();
+        manager.register_pass<InsertReshapeAroundMatmulWithFq>();
+        manager.register_pass<InsertReshapeAroundMatmulWithAdd>();
+        manager.register_pass<InsertReshapeAroundMatmul>();
         manager.register_pass<SwapInputMatMulWithFq>();
         manager.register_pass<SwapInputMatMulWithBias>();
         manager.register_pass<SwapInputMatMul>();
+        manager.register_pass<HandleTransposesAroundMatMul>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
+        manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         manager.register_pass<RemoveExtraReshapes>();
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-
         const auto& pass_config = manager.get_pass_config();
         pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
         pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
@@ -793,9 +798,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             passes->registerPass<UnrollTIPass>();
             passes->registerPass<RemoveConstPass>();
             passes->registerPass<UnrollLSTMCellPass>();
+            passes->registerPass<RemoveSingleInputConcatPass>();
         }
-
-        passes->registerPass<RemoveSingleInputConcatPass>();
 
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();

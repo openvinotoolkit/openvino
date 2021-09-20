@@ -33,7 +33,7 @@ typedef std::tuple<
 class ConstConvConcatTest : public testing::WithParamInterface<ConstConvConcatParams>,
                             public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConstConvConcatParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConstConvConcatParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:

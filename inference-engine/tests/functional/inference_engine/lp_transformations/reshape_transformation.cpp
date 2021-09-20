@@ -931,7 +931,47 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
                 {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3}}
             }
         }
-    }
+    },
+    // U8: without subtract 2D -> 2D
+    {
+        { Dimension::dynamic(), 2 },
+        { -1, 6 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.02f}, ngraph::element::f32, {1, 2}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f,  0.02f, 0.1f, 0.02f, 0.1f, 0.02f}, ngraph::element::f32, {1, 6}}
+            }
+        }
+    },
+    // Nondequantization multiply (I32 precision)
+    {
+        { 1, 384, 1024 },
+        { 1, 384, 16, 64 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i32,
+            {{}, {}, {2}}
+        },
+        {
+            ngraph::element::i32,
+            {{}, {}, {2}},
+            ngraph::element::i32,
+            {}
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Unsqueeze, "Unsqueeze", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Unsqueeze, "Unsqueeze", 0);
 
 op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
     constructor_validate_and_infer_types();
@@ -40,7 +40,7 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
                           axes_pshape.rank().get_length());
 
     if (data_rank.is_dynamic() || !axes_constant) {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
         return;
     }
 
@@ -58,7 +58,7 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
 
         output_shape.insert(next(begin(output_shape), axis), 1);
     }
-    set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
+    set_output_type(0, get_input_element_type(0), ov::PartialShape{output_shape});
 }
 
 bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
@@ -166,8 +166,8 @@ bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values, const OutputV
 
     const auto& shape = get_output_shape(0);
 
-    if (auto data_const = std::dynamic_pointer_cast<op::Constant>(inputs_values[0].get_node_shared_ptr())) {
-        output_values[0] = std::make_shared<op::Constant>(*data_const, shape);
+    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
+        output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);
         return true;
     }
     return false;

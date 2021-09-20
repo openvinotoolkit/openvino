@@ -51,6 +51,10 @@ struct GenericLayerParams {
     }
 };
 
+void operator>>(const std::stringstream& in, ngraph::element::Type& type) {
+    type = details::convertPrecision(ngraph::trim(in.str()));
+}
+
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
     if (!node)
         return false;
@@ -558,6 +562,11 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         }
 
         a->set(node_attrs);
+    } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
+        ngraph::element::TypeVector types;
+        if (!getParameters<ngraph::element::Type>(m_node.child("data"), name, types))
+            return;
+        a->set(types);
     } else {
         IE_THROW() << "Error IR reading. Attribute adapter can not be found for " << name << " parameter";
     }
@@ -651,8 +660,11 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(const pugi::xm
     //  Following topological order create nGraph operations
     for (auto& layer_id : order) {
         auto& p = params[layer_id];
-        ngraph::OutputVector inputs(edges[layer_id].size());
-        for (auto& e : edges[layer_id]) {
+        const auto& edgeIt = edges.find(layer_id);
+        if (edgeIt == edges.end())
+            continue;
+        ngraph::OutputVector inputs(edgeIt->second.size());
+        for (auto& e : edgeIt->second) {
             auto input_node = id_to_node[e.fromLayerId];
             if (!input_node) {
                 IE_THROW() << "Attempt to access node " << e.fromLayerId << " that not in graph.";

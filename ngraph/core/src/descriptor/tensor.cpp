@@ -55,7 +55,7 @@ void ov::descriptor::Tensor::set_upper_value(const ngraph::HostTensorPtr& value)
     m_upper_value = value;
 }
 
-const ngraph::Shape& ov::descriptor::Tensor::get_shape() const {
+const ov::Shape& ov::descriptor::Tensor::get_shape() const {
     if (m_partial_shape.is_static()) {
         if (m_shape_changed.load(std::memory_order_relaxed)) {
             std::lock_guard<std::mutex> guard(shape_mutex);
