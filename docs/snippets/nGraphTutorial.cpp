@@ -23,12 +23,10 @@ acos0->set_argument(0, add0);
 add1->set_argument(0, acos0);
 add1->set_argument(1, abs0);
 
-// Run shape inference on the nodes
-NodeVector ops{arg0, arg1, add0, abs0, acos0, add1};
-validate_nodes_and_infer_types(ops);
-
 // Create a graph with one output (add1) and four inputs (arg0, arg1)
 auto ng_function = make_shared<Function>(OutputVector{add1}, ParameterVector{arg0, arg1});
+// Run shape inference on the nodes
+ng_function->validate_nodes_and_infer_types();
 
 //! [part0]
 
