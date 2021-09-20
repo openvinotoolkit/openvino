@@ -15,8 +15,9 @@ def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
 
     network = function_to_cnn(ngraph_function)
-    from mo.back.offline_transformations import apply_moc_transformations
-    apply_moc_transformations(network, parse_transform(argv.transform))
+    from mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations
+    apply_user_transformations(network, parse_transform(argv.transform))
+    apply_moc_transformations(network)
 
     orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
     network.serialize(orig_model_name + ".xml", orig_model_name + ".bin")

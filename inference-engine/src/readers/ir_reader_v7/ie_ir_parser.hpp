@@ -4,15 +4,6 @@
 
 #pragma once
 
-#ifdef IR_READER_V10
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/node.hpp>
-#include <ngraph/op/util/sub_graph_base.hpp>
-#include <ngraph/op/util/variable.hpp>
-#include <ngraph/opsets/opset.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#endif  // IR_READER_V10
-
 #include <cpp/ie_cnn_network.h>
 #include <ie_blob.h>
 #include <ie_iextension.h>
@@ -55,22 +46,5 @@ public:
     CNNNetwork parse(
         const pugi::xml_node& root, const Blob::CPtr& weights) override;
 };
-
-#ifdef IR_READER_V10
-class V10Parser : public IParser {
-public:
-    explicit V10Parser(const std::vector<IExtensionPtr>& exts);
-
-    CNNNetwork parse(
-        const pugi::xml_node& root, const Blob::CPtr& weights) override;
-
-private:
-    void parsePreProcess(
-        CNNNetwork& network, const pugi::xml_node& root, const Blob::CPtr& weights);
-
-    const std::vector<IExtensionPtr> _exts;
-};
-
-#endif  // IR_READER_V10
 
 }  // namespace InferenceEngine

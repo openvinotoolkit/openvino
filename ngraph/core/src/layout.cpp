@@ -5,6 +5,7 @@
 #include "openvino/core/layout.hpp"
 
 #include <algorithm>
+#include <cctype>
 
 #include "ngraph/except.hpp"
 #include "ngraph/util.hpp"

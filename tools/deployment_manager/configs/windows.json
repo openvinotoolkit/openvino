@@ -19,7 +19,6 @@
         "runtime/bin/intel64/Release/inference_engine.dll",
         "runtime/bin/intel64/Release/inference_engine_transformations.dll",
         "runtime/bin/intel64/Release/inference_engine_preproc.dll",
-        "runtime/bin/intel64/Release/inference_engine_ir_reader.dll",
         "runtime/bin/intel64/Release/inference_engine_c_api.dll",
         "runtime/bin/intel64/Release/HeteroPlugin.dll",
         "runtime/bin/intel64/Release/MultiDevicePlugin.dll",

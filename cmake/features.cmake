@@ -122,7 +122,7 @@ endif()
 
 ie_dependent_option(NGRAPH_ONNX_FRONTEND_ENABLE "Enable ONNX FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
-ie_option(IR_FRONTEND_ENABLE "Enable IR FrontEnd" ON)
+ie_option(NGRAPH_IR_FRONTEND_ENABLE "Enable IR FrontEnd" ON)
 ie_dependent_option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" ON
     "NGRAPH_ONNX_FRONTEND_ENABLE" OFF)
 ie_dependent_option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system protobuf" OFF

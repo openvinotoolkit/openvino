@@ -111,6 +111,11 @@ void FrontEndManager::register_front_end(const std::string& name, FrontEndFactor
     m_impl->register_front_end(name, creator);
 }
 
+template <>
+FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants) {
+    return load_by_model_impl(variants);
+}
+
 //----------- FrontEnd ---------------------------
 
 FrontEnd::FrontEnd() = default;
@@ -372,9 +377,3 @@ Place::Ptr Place::get_producing_operation(const std::string& inputName, int inpu
 std::vector<Place::Ptr> Place::get_consuming_operations(const std::string& outputPortName) const {
     return {};
 }
-
-constexpr VariantTypeInfo VariantWrapper<std::istream*>::type_info;
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-constexpr VariantTypeInfo VariantWrapper<std::wstring>::type_info;
-#endif

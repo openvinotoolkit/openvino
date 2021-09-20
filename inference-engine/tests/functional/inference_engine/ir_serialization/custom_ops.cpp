@@ -123,6 +123,10 @@ public:
         versionInfo = &ExtensionDescription;
     }
 
+    std::map<std::string, ngraph::OpSet> getOpSets() override {
+        return {{"framework_node_ext", ngraph::OpSet()}};
+    }
+
     void Unload() noexcept override {}
 };
 

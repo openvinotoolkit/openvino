@@ -88,5 +88,6 @@ if(ngraph_onnx_importer_FOUND)
 endif()
 
 set(ngraph_paddlepaddle_frontend_FOUND ${OpenVINO_Frontend_PaddlePaddle_FOUND})
+set(ngraph_ir_frontend_FOUND ${OpenVINO_Frontend_IR_FOUND})
 
 check_required_components(ngraph)
