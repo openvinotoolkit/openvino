@@ -37,8 +37,10 @@
 #    include <sys/time.h>
 #    include <unistd.h>
 
-#    include <codecvt>
-#    include <locale>
+#    ifdef ENABLE_UNICODE_PATH_SUPPORT
+#        include <codecvt>
+#        include <locale>
+#    endif
 
 /// @brief Max length of absolute file path
 #    define MAX_ABS_PATH                    PATH_MAX
