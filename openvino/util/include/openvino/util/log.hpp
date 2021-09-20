@@ -4,22 +4,13 @@
 
 #pragma once
 
-#include <chrono>
-#include <cstdarg>
 #include <deque>
 #include <functional>
-#include <iomanip>
-#include <locale>
 #include <sstream>
-#include <stdexcept>
-#if defined(__linux) || defined(__APPLE__)
-#    include <sys/time.h>
-#    include <unistd.h>
-#endif
-#include <ngraph/ngraph_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
+namespace util {
 class ConstString {
 public:
     template <size_t SIZE>
@@ -62,7 +53,7 @@ enum class LOG_TYPE {
     _LOG_TYPE_DEBUG,
 };
 
-class NGRAPH_API LogHelper {
+class LogHelper {
 public:
     LogHelper(LOG_TYPE, const char* file, int line, std::function<void(const std::string&)> m_handler_func);
     ~LogHelper();
@@ -92,40 +83,39 @@ private:
     static std::deque<std::string> m_queue;
 };
 
-NGRAPH_API
 void default_logger_handler_func(const std::string& s);
 
 #ifndef PROJECT_ROOT_DIR
 #    define PROJECT_ROOT_DIR ""
 #endif
 
-#define NGRAPH_ERR                                                        \
-    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_ERROR,                  \
-                      ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                      __LINE__,                                           \
-                      ngraph::default_logger_handler_func)                \
+#define OPENVINO_ERR                                                              \
+    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_ERROR,                  \
+                          ::ov::util::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
+                          __LINE__,                                               \
+                          ::ov::util::default_logger_handler_func)                \
         .stream()
 
-#define NGRAPH_WARN                                                       \
-    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_WARNING,                \
-                      ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                      __LINE__,                                           \
-                      ngraph::default_logger_handler_func)                \
+#define OPENVINO_WARN                                                             \
+    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_WARNING,                \
+                          ::ov::util::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
+                          __LINE__,                                               \
+                          ::ov::util::default_logger_handler_func)                \
         .stream()
 
-#define NGRAPH_INFO                                                       \
-    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_INFO,                   \
-                      ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                      __LINE__,                                           \
-                      ngraph::default_logger_handler_func)                \
+#define OPENVINO_INFO                                                             \
+    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_INFO,                   \
+                          ::ov::util::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
+                          __LINE__,                                               \
+                          ::ov::util::default_logger_handler_func)                \
         .stream()
 
 #ifdef OPENVINO_DEBUG_ENABLE
-#    define NGRAPH_DEBUG                                                      \
-        ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
-                          ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                          __LINE__,                                           \
-                          ngraph::default_logger_handler_func)                \
+#    define OPENVINO_DEBUG                                                            \
+        ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
+                              ::ov::util::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
+                              __LINE__,                                               \
+                              ::ov::util::default_logger_handler_func)                \
             .stream()
 #else
 
@@ -147,7 +137,8 @@ inline NullLogger&& operator<<(
     return std::move(logger);
 }
 
-#    define NGRAPH_DEBUG \
-        ::ngraph::NullLogger {}
+#    define OPENVINO_DEBUG \
+        ::ov::util::NullLogger {}
 #endif
-}  // namespace ngraph
+}  // namespace util
+}  // namespace ov

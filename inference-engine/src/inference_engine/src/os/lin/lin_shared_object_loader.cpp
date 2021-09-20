@@ -8,6 +8,7 @@
 
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
+#include "openvino/util/file_util.hpp"
 #include "shared_object.hpp"
 
 namespace ov {
@@ -28,7 +29,7 @@ std::shared_ptr<void> load_shared_object(const char* path) {
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<void> load_shared_object(const wchar_t* path) {
-    return load_shared_object(FileUtils::wStringtoMBCSstringChar(path).c_str());
+    return load_shared_object(ov::util::wstring_to_string(path).c_str());
 }
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
 
@@ -57,7 +58,7 @@ struct SharedObjectLoader::Impl {
     explicit Impl(const char* pluginName) : shared_object{ov::runtime::load_shared_object(pluginName)} {}
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-    explicit Impl(const wchar_t* pluginName) : Impl(FileUtils::wStringtoMBCSstringChar(pluginName).c_str()) {}
+    explicit Impl(const wchar_t* pluginName) : Impl(ov::util::wstring_to_string(pluginName).c_str()) {}
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
 
     void* get_symbol(const char* symbolName) const {
