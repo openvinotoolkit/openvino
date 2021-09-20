@@ -1,4 +1,3 @@
-INTERPRETER.onnx_model_quant_conv_linear
 INTERPRETER.onnx_top_k_opset_10
 
 # Temporarily disabled:
@@ -80,8 +79,6 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
-INTERPRETER.onnx_model_quant_conv_linear_2d
-INTERPRETER.onnx_model_quant_conv_linear_3d
 INTERPRETER.onnx_model_conv_integer
 INTERPRETER.onnx_model_conv_integer_zero_point_zero
 INTERPRETER.onnx_model_conv_integer_no_zero_point

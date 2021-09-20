@@ -6,7 +6,7 @@
 
 #include <ie_blob.h>
 #include "cpu_shape.h"
-#include "cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "mkldnn_weights_cache.hpp"
 
 #include <map>
@@ -51,7 +51,6 @@ public:
     const std::shared_ptr<MKLDNNNode> getParent() const;
     const std::shared_ptr<MKLDNNNode> getChild() const;
 
-    const Shape &getShape();
     const MKLDNNMemory& getMemory();
     MKLDNNMemoryPtr& getMemoryPtr();
 
@@ -68,6 +67,10 @@ public:
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
+    bool hasDefinedMaxSize() const {
+        return getDesc().hasDefinedMaxSize();
+    }
+
 private:
     std::string name() const;
 
@@ -78,7 +81,6 @@ private:
 
     bool useExternalMemory = false;
     MKLDNNEdgeWeakPtr memoryFromEdge;
-    Shape shape;
     MKLDNNMemoryPtr memoryPtr;
     Status status = Status::Uninitialized;
 

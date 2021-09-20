@@ -19,7 +19,6 @@
 #include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
-class IRemoteContext;
 class RemoteBlob;
 }  // namespace InferenceEngine
 
@@ -35,8 +34,8 @@ class Core;
  * networks and remote memory blobs can exist, function and exchange data.
  */
 class INFERENCE_ENGINE_API_CLASS(RemoteContext) {
-    ie::details::SharedObjectLoader _so;
-    std::shared_ptr<ie::IRemoteContext> _impl;
+    std::shared_ptr<void> _so;
+    std::shared_ptr<ie::RemoteContext> _impl;
 
     /**
      * @brief Constructs RemoteContext from the initialized std::shared_ptr
@@ -44,7 +43,7 @@ class INFERENCE_ENGINE_API_CLASS(RemoteContext) {
      * object is destroyed.
      * @param impl Initialized shared pointer
      */
-    RemoteContext(const ie::details::SharedObjectLoader& so, const std::shared_ptr<ie::IRemoteContext>& impl);
+    RemoteContext(const std::shared_ptr<void>& so, const std::shared_ptr<ie::RemoteContext>& impl);
     friend class Core;
 
 public:

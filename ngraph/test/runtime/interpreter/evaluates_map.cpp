@@ -35,7 +35,6 @@
 #include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
-#include <ngraph/runtime/reference/fake_quantize.hpp>
 #include <ngraph/runtime/reference/fft.hpp>
 #include <ngraph/runtime/reference/gather.hpp>
 #include <ngraph/runtime/reference/gather_elements.hpp>
@@ -51,7 +50,6 @@
 #include <ngraph/runtime/reference/lrn.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>
 #include <ngraph/runtime/reference/matrix_nms.hpp>
-#include <ngraph/runtime/reference/max_pool.hpp>
 #include <ngraph/runtime/reference/mod.hpp>
 #include <ngraph/runtime/reference/multiclass_nms.hpp>
 #include <ngraph/runtime/reference/mvn.hpp>
@@ -2436,28 +2434,6 @@ namespace
     }
 
     template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v0::FakeQuantize>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::fake_quantize<T>(inputs[0]->get_data_ptr<const T>(),
-                                             inputs[1]->get_data_ptr<const T>(),
-                                             inputs[2]->get_data_ptr<const T>(),
-                                             inputs[3]->get_data_ptr<const T>(),
-                                             inputs[4]->get_data_ptr<const T>(),
-                                             outputs[0]->get_data_ptr<T>(),
-                                             op->get_input_shape(0),
-                                             op->get_input_shape(1),
-                                             op->get_input_shape(2),
-                                             op->get_input_shape(3),
-                                             op->get_input_shape(4),
-                                             op->get_levels(),
-                                             op->get_auto_broadcast());
-        return true;
-    }
-
-    template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::NormalizeL2>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
@@ -2942,47 +2918,6 @@ namespace
                                                    op->get_batch_dims());
         } else {
             throw ngraph_error("Unexpected indices type for Gather operation");
-        }
-        return true;
-    }
-
-    template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v8::MaxPool>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-        if (op->get_index_element_type() == element::i32)
-        {
-            runtime::reference::max_pool(inputs[0]->get_data_ptr<const T>(),
-                                         outputs[0]->get_data_ptr<T>(),
-                                         outputs[1]->get_data_ptr<int32_t>(),
-                                         inputs[0]->get_shape(),
-                                         outputs[0]->get_shape(),
-                                         op->get_kernel(),
-                                         op->get_strides(),
-                                         op->get_dilations(),
-                                         op->get_pads_begin(),
-                                         op->get_pads_end(),
-                                         op->get_axis());
-        }
-        else if (op->get_index_element_type() == element::i64)
-        {
-            runtime::reference::max_pool(inputs[0]->get_data_ptr<const T>(),
-                                         outputs[0]->get_data_ptr<T>(),
-                                         outputs[1]->get_data_ptr<int64_t>(),
-                                         inputs[0]->get_shape(),
-                                         outputs[0]->get_shape(),
-                                         op->get_kernel(),
-                                         op->get_strides(),
-                                         op->get_dilations(),
-                                         op->get_pads_begin(),
-                                         op->get_pads_end(),
-                                         op->get_axis());
-        }
-        else
-        {
-            return false;
         }
         return true;
     }

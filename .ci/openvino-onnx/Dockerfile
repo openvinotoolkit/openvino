@@ -74,8 +74,8 @@ RUN cmake .. \
 RUN make -j $(nproc) install
 
 # Run tests via tox
-WORKDIR /openvino/ngraph/python
-ENV ngraph_DIR=/openvino/dist/deployment_tools/ngraph
-ENV LD_LIBRARY_PATH=/openvino/dist/deployment_tools/ngraph/lib
+WORKDIR /openvino/runtime/bindings/python
+ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
+ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib:/openvino/dist/runtime/3rdparty/tbb/lib
 ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/lib/python_api/python3.8:${PYTHONPATH}
 CMD tox

@@ -28,7 +28,7 @@ class ConcatWithSplitTransformation :
     public testing::WithParamInterface<ConcatWithSplitTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConcatWithSplitTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConcatWithSplitTransformationParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:

@@ -33,7 +33,7 @@ public:
     /// \code{.cpp}
     /// auto add = a + b; // a and b are op::Parameter in this example
     /// auto label = std::make_shared<pattern::op::Label>(element::f32,
-    ///                                                   Shape{2,2},
+    ///                                                   PartialShape{2,2},
     ///                                                   nullptr,
     ///                                                   OutputVector{add});
     /// \endcode

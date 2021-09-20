@@ -130,7 +130,6 @@ onnx_model_scatterND_param_i64_indices
 IE_CPU.onnx_constant_sparse_tensor_int64_3x4
 IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
 
-
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
 onnx_model_argmin_int32
@@ -241,6 +240,9 @@ onnx_size_op_single
 onnx_size_op_graph_end
 onnx_size_op_graph_middle
 
+# /openvino/inference-engine/src/mkldnn_plugin/mkldnn_graph.cpp:747
+# Output blob byte size is not equal network output byte size (64!=216)." thrown in the test body.
+onnx_model_quant_conv_linear_3d
 
 #-------------------------------------------------------------------------------
 #
@@ -288,7 +290,6 @@ zero_sized_lesseq
 zero_sized_maximum
 zero_sized_minimum
 zero_sized_multiply
-zero_sized_not_equal
 zero_sized_power
 zero_sized_subtract
 sum_trivial
@@ -642,11 +643,6 @@ gemm_broadcast_axes_0_input_C
 gemm_broadcast_axes_1_input_C
 scale_shift_no_broadcast
 scale_shift
-
-# Detected op not belonging to opset1!
-onnx_model_quant_conv_linear
-onnx_model_quant_conv_linear_2d
-onnx_model_quant_conv_linear_3d
 
 # Cannot cast ngraph node Dot to CNNLayer!
 dot_4d_5d_multi_axis
@@ -1445,6 +1441,7 @@ onnx_controlflow_loop_2d_const_no_identity_termination_cond
 onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 onnx_controlflow_loop_no_variadic_inputs_and_outputs
 onnx_controlflow_loop_power
+onnx_if_dynamic_inputs
 
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference
@@ -1497,8 +1494,6 @@ IE_GPU.onnx_model_gather_elements_float_3D_axis_2
 # not supported fp16 blob input
 IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
 
-# incorrect result for Minimum if u16 type is used
-minimum_u16
 IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
 
 # not yet implemented on CPU/GPU Gather 7

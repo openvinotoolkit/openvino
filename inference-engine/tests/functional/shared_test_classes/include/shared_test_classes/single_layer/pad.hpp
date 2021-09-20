@@ -29,7 +29,7 @@ typedef std::tuple<
 class PadLayerTest : public testing::WithParamInterface<padLayerTestParamsSet>,
                      virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<padLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<padLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

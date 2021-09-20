@@ -33,7 +33,7 @@ jobs:
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
     INSTALL_DIR: $(WORK_DIR)\install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)\tests
-    SETUPVARS: $(INSTALL_DIR)\bin\setupvars.bat
+    SETUPVARS: $(INSTALL_DIR)\setupvars.bat
 
   steps:
   - script: |
@@ -122,11 +122,11 @@ jobs:
   - script: dir $(INSTALL_DIR) /s
     displayName: 'List install files'
 
-  - script: $(INSTALL_DIR)\deployment_tools\inference_engine\samples\cpp\build_samples_msvc.bat
+  - script: $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
 
-  - script: $(INSTALL_DIR)\deployment_tools\inference_engine\samples\c\build_samples_msvc.bat
+  - script: $(INSTALL_DIR)\samples\c\build_samples_msvc.bat
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
 

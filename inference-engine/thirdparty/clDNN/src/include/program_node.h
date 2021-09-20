@@ -41,6 +41,7 @@ struct fused_primitive_desc {
     std::vector<primitive_id> fused_deps;
     activation_func activation;
     activation_additional_params activation_params;
+    layout input_layout = layout(data_types::f32, format::bfyx, tensor());
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 };
 
@@ -80,6 +81,8 @@ public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
     virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
+
+    const primitive_id& get_ext_prim_id() const { return desc->ext_prim_id; }
 
     template <class PType>
     bool is_type() const {
