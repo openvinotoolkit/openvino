@@ -147,7 +147,7 @@ INSTANTIATE_TEST_SUITE_P(
         ExperimentalROIParams(
             std::make_shared<ExperimentalROIFunctional>(),
             std::vector<Shape>{Shape{2, 4}, Shape{1, 2, 2, 3}},
-            ngraph::element::f32,
+            ngraph::element::f16,
             std::vector<Tensor>{Tensor(Shape{2, 4},
                                        ngraph::element::f16,
                                        std::vector<ngraph::float16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}),
