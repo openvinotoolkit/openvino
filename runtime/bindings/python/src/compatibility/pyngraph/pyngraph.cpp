@@ -17,6 +17,7 @@
 #    include "pyngraph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyngraph/dimension.hpp"
+#include "pyngraph/discrete_type_info.hpp"
 #include "pyngraph/frontend/frontend.hpp"
 #include "pyngraph/frontend/frontend_manager.hpp"
 #include "pyngraph/frontend/inputmodel.hpp"
@@ -58,6 +59,7 @@ PYBIND11_MODULE(_pyngraph, m) {
     regclass_pyngraph_NodeFactory(m);
     regclass_pyngraph_Strides(m);
     regclass_pyngraph_CoordinateDiff(m);
+    regclass_pyngraph_DiscreteTypeInfo(m);
     regclass_pyngraph_AxisSet(m);
     regclass_pyngraph_AxisVector(m);
     regclass_pyngraph_Coordinate(m);
