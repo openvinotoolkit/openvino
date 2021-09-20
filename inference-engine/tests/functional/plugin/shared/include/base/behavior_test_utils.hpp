@@ -134,6 +134,14 @@ inline ov::runtime::Core createCoreWithTemplate() {
     return ie;
 }
 
+inline InferenceEngine::Core createIECoreWithTemplate() {
+    InferenceEngine::Core ie;
+    std::string pluginName = "templatePlugin";
+    pluginName += IE_BUILD_POSTFIX;
+    ie.RegisterPlugin(pluginName, "TEMPLATE");
+    return ie;
+}
+
 class OVClassNetworkTest : public ::testing::Test {
 public:
     std::shared_ptr<ngraph::Function> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
@@ -158,7 +166,7 @@ public:
         }
     }
 
-    void setHeteroNetworkAffinity(const std::string &targetDevice) {
+    virtual void setHeteroNetworkAffinity(const std::string &targetDevice) {
         const std::map<std::string, std::string> deviceMapping = {{"Split_2",       targetDevice},
                                                                   {"Convolution_4", targetDevice},
                                                                   {"Convolution_7", CommonTestUtils::DEVICE_CPU},
@@ -181,6 +189,60 @@ public:
     std::string deviceName;
     void SetUp() override {
         OVClassNetworkTest::SetUp();
+        deviceName = GetParam();
+    }
+};
+
+
+class IEClassNetworkTest : public OVClassNetworkTest {
+public:
+    InferenceEngine::CNNNetwork actualCnnNetwork, simpleCnnNetwork, multinputCnnNetwork, ksoCnnNetwork;
+
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        OVClassNetworkTest::SetUp();
+        // Generic network
+        {
+            ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
+        }
+        // Quite simple network
+        {
+            ASSERT_NO_THROW(simpleCnnNetwork = InferenceEngine::CNNNetwork(simpleNetwork));
+        }
+        // Multinput to substruct network
+        {
+            ASSERT_NO_THROW(multinputCnnNetwork = InferenceEngine::CNNNetwork(multinputNetwork));
+        }
+        // Network with KSO
+        {
+            ASSERT_NO_THROW(ksoCnnNetwork = InferenceEngine::CNNNetwork(ksoNetwork));
+        }
+    }
+    void setHeteroNetworkAffinity(const std::string& targetDevice) override {
+        const std::map<std::string, std::string> deviceMapping = {
+                {"Split_2",         targetDevice},
+                {"Convolution_4",   targetDevice},
+                {"Convolution_7",   CommonTestUtils::DEVICE_CPU},
+                {"Relu_5",          CommonTestUtils::DEVICE_CPU},
+                {"Relu_8",          targetDevice},
+                {"Concat_9",        CommonTestUtils::DEVICE_CPU}
+        };
+
+        for (const auto & op : actualCnnNetwork.getFunction()->get_ops()) {
+            auto it = deviceMapping.find(op->get_friendly_name());
+            if (it != deviceMapping.end()) {
+                std::string affinity = it->second;
+                op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+            }
+        }
+    }
+};
+
+class IEClassBaseTestP : public IEClassNetworkTest, public ::testing::WithParamInterface<std::string> {
+public:
+    std::string deviceName;
+    void SetUp() override {
+        IEClassNetworkTest::SetUp();
         deviceName = GetParam();
     }
 };

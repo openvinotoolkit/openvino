@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/config.hpp"
+#include "behavior/plugin/config.hpp"
 #include <template/template_config.hpp>
 
 using namespace BehaviorTestsDefinitions;
@@ -35,18 +35,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(inconfigs)),
                         IncorrectConfigAPITests::getTestCaseName);
-
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
-                        ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-                                ::testing::ValuesIn(configs)),
-                        CorrectConfigAPITests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigTests,
-                        ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-                                ::testing::ValuesIn(configs)),
-                        CorrectConfigAPITests::getTestCaseName);
-
 } // namespace

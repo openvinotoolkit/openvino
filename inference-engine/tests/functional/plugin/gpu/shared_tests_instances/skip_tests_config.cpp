@@ -70,6 +70,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
             R"(.*Behavior_Multi.*InferRequestSetBlobByType.*Batched.*)",
             R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+            R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
             // TODO: until issue is xxx-59670 is resolved
             R"(.*Gather8LayerTest.*)",
             // Not implemented yet:

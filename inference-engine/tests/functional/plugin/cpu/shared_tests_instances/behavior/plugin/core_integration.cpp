@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/core_integration.hpp"
+#include "behavior/plugin/core_integration.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
@@ -20,10 +20,6 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassNetworkTestP, IEClassNetworkTestP,
         ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassImportExportTestP, IEClassImportExportTestP,
-        ::testing::Values("HETERO:CPU"));
 
 //
 // IE Class GetMetric
@@ -75,62 +71,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetConfigTest, IEClassGetConfigTest,
-        ::testing::Values("CPU"));
-
-//
-// Executable Network GetMetric
-//
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
-        ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
-
-//
-// Executable Network GetConfig / SetConfig
-//
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassExecutableNetworkGetConfigTest, IEClassExecutableNetworkGetConfigTest,
-        ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassExecutableNetworkSetConfigTest, IEClassExecutableNetworkSetConfigTest,
-        ::testing::Values("CPU"));
-
-//
-// Hetero Executable Network GetMetric
-//
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassHeteroExecutableNetworkGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassHeteroExecutableNetworkGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassHeteroExecutableNetworkGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_IEClassHeteroExecutableNetworkGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
         ::testing::Values("CPU"));
 
 //////////////////////////////////////////////////////////////////////////////////////////

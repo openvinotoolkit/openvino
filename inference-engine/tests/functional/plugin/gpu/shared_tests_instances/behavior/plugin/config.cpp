@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/config.hpp"
+#include "behavior/plugin/config.hpp"
 #include "cldnn/cldnn_config.hpp"
 #include "gpu/gpu_config.hpp"
 
@@ -107,30 +107,6 @@ namespace {
                 {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
                 {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}}
     };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
-            ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                ::testing::ValuesIn(conf)),
-            CorrectConfigAPITests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, CorrectConfigAPITests,
-            ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                ::testing::ValuesIn(conf_gpu)),
-            CorrectConfigAPITests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigAPITests,
-            ::testing::Combine(
-                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                    ::testing::ValuesIn(multiconf)),
-            CorrectConfigAPITests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigTests,
-            ::testing::Combine(
-                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                    ::testing::ValuesIn(multiconf)),
-            CorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(

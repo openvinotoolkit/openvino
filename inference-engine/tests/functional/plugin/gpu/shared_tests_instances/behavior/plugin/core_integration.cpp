@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/core_integration.hpp"
+#include "behavior/plugin/core_integration.hpp"
 
 #ifdef _WIN32
 # include "gpu/gpu_context_api_dx.hpp"
@@ -96,7 +96,7 @@ INSTANTIATE_TEST_SUITE_P(
 //
 // GPU specific metrics
 //
-using IEClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE = IEClassBaseTestP;
+using IEClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE = BehaviorTestsUtils::IEClassBaseTestP;
 TEST_P(IEClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
@@ -107,7 +107,7 @@ TEST_P(IEClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow)
 
     std::cout << "GPU device total memory size: " << t << std::endl;
 
-    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+    ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -115,7 +115,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("GPU")
 );
 
-using IEClassGetMetricTest_GPU_UARCH_VERSION = IEClassBaseTestP;
+using IEClassGetMetricTest_GPU_UARCH_VERSION = BehaviorTestsUtils::IEClassBaseTestP;
 TEST_P(IEClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
@@ -126,7 +126,7 @@ TEST_P(IEClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
 
     std::cout << "GPU device uarch: " << t << std::endl;
 
-    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(UARCH_VERSION));
+    ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(UARCH_VERSION));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -134,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("GPU")
 );
 
-using IEClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT = IEClassBaseTestP;
+using IEClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT = BehaviorTestsUtils::IEClassBaseTestP;
 TEST_P(IEClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
@@ -145,7 +145,7 @@ TEST_P(IEClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow)
 
     std::cout << "GPU EUs count: " << t << std::endl;
 
-    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
+    ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -159,73 +159,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassGetConfigTest, IEClassGetConfigTest,
-        ::testing::Values("GPU")
-);
-
-//
-// Executable Network GetMetric
-//
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-        ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU")
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU")
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU")
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU")
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
-        ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU")
-);
-
-//
-// Executable Network GetConfig / SetConfig
-//
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassExecutableNetworkGetConfigTest, IEClassExecutableNetworkGetConfigTest,
-        ::testing::Values("GPU")
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassExecutableNetworkSetConfigTest, IEClassExecutableNetworkSetConfigTest,
-        ::testing::Values("GPU")
-);
-
-//
-// Hetero Executable Network GetMetric
-//
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("GPU")
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("GPU")
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values("GPU")
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
         ::testing::Values("GPU")
 );
 

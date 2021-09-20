@@ -5,7 +5,7 @@
 #include "vpu/vpu_plugin_config.hpp"
 #include "vpu/private_plugin_config.hpp"
 #include "vpu/utils/optional.hpp"
-#include "behavior/config.hpp"
+#include "behavior/plugin/config.hpp"
 #include "myriad_devices.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
@@ -909,18 +909,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigSingleOptionTests,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::Values("INCORRECT_KEY")));
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
-    ::testing::Combine(
-        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-        ::testing::Values(std::map<std::string, std::string>{})),
-    CorrectConfigAPITests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigAPITests,
-    ::testing::Combine(
-        ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-        ::testing::ValuesIn(getCorrectMultiConfigs())),
-    CorrectConfigAPITests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
     ::testing::Combine(

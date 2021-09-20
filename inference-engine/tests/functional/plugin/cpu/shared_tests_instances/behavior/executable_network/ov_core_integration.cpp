@@ -14,9 +14,7 @@ namespace {
 // IE Class Common tests with <pluginName, deviceName params>
 //
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassNetworkTestP, OVClassNetworkTestP,
-        ::testing::Values("CPU"));
+
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassImportExportTestP, OVClassImportExportTestP,

@@ -3,7 +3,7 @@
 //
 
 #include "gna/gna_config.hpp"
-#include "behavior/config.hpp"
+#include "behavior/plugin/config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -42,17 +42,4 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                     ::testing::ValuesIn(Inconfigs)),
                             IncorrectConfigAPITests::getTestCaseName);
-
-
-
-    const std::vector<std::map<std::string, std::string>> conf = {
-            {}
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
-                            ::testing::Combine(
-                                    ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                    ::testing::ValuesIn(conf)),
-                            CorrectConfigAPITests::getTestCaseName);
-
 } // namespace

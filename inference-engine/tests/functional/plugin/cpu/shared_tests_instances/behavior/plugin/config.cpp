@@ -3,7 +3,7 @@
 //
 
 #include "ie_plugin_config.hpp"
-#include "behavior/config.hpp"
+#include "behavior/plugin/config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -96,24 +96,6 @@ namespace {
              {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
     };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
-            ::testing::Combine(
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-            ::testing::ValuesIn(conf)),
-            CorrectConfigAPITests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigAPITests,
-            ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                ::testing::ValuesIn(multiconf)),
-            CorrectConfigAPITests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigAPITests,
-            ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(multiconf)),
-            CorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(

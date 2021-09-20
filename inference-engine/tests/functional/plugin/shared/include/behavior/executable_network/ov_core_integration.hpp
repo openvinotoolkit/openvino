@@ -25,7 +25,7 @@ namespace BehaviorTestsDefinitions {
         ASSERT_NE(metrics.end(), it);                                                           \
     }
 
-using OVClassNetworkTestP = BehaviorTestsUtils::OVClassBaseTestP;
+
 using OVClassImportExportTestP = BehaviorTestsUtils::OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = BehaviorTestsUtils::OVClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = BehaviorTestsUtils::OVClassBaseTestP;
@@ -77,59 +77,6 @@ using OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClas
 using OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVClassHeteroExecutableNetworkGetMetricTest;
 using OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME = OVClassHeteroExecutableNetworkGetMetricTest;
 using OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK = OVClassHeteroExecutableNetworkGetMetricTest;
-
-bool supportsAvaliableDevices(ov::runtime::Core& ie, const std::string& deviceName) {
-    auto supportedMetricKeys = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-    return supportedMetricKeys.end() !=
-           std::find(std::begin(supportedMetricKeys), std::end(supportedMetricKeys), METRIC_KEY(AVAILABLE_DEVICES));
-}
-//
-// LoadNetwork
-//
-
-TEST_P(OVClassNetworkTestP, LoadNetworkActualNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
-    ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName));
-}
-
-TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
-    ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName));
-}
-
-TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
-    ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK", deviceName}}));
-}
-
-TEST_P(OVClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
-    auto ie = BehaviorTestsUtils::createCoreWithTemplate();
-    auto net = ie.compile_model(actualNetwork, deviceName);
-    auto runtime_function = net.get_runtime_function();
-    ASSERT_NE(nullptr, runtime_function);
-    auto actual_parameters = runtime_function->get_parameters();
-    auto actual_results = runtime_function->get_results();
-    auto expected_parameters = actualNetwork->get_parameters();
-    auto expected_results = actualNetwork->get_results();
-    ASSERT_EQ(expected_parameters.size(), actual_parameters.size());
-    for (std::size_t i = 0; i < expected_parameters.size(); ++i) {
-        auto expected_element_type = expected_parameters[i]->get_output_element_type(0);
-        auto actual_element_type = actual_parameters[i]->get_output_element_type(0);
-        ASSERT_EQ(expected_element_type, actual_element_type) << "For index: " << i;
-        auto expected_shape = expected_parameters[i]->get_output_shape(0);
-        auto actual_shape = actual_parameters[i]->get_output_shape(0);
-        ASSERT_EQ(expected_shape, actual_shape) << "For index: " << i;
-    }
-    ASSERT_EQ(expected_results.size(), actual_results.size());
-    for (std::size_t i = 0; i < expected_results.size(); ++i) {
-        auto expected_element_type = expected_results[i]->get_input_element_type(0);
-        auto actual_element_type = actual_results[i]->get_input_element_type(0);
-        ASSERT_EQ(expected_element_type, actual_element_type) << "For index: " << i;
-        auto expected_shape = expected_results[i]->get_input_shape(0);
-        auto actual_shape = actual_results[i]->get_input_shape(0);
-        ASSERT_EQ(expected_shape, actual_shape) << "For index: " << i;
-    }
-}
 
 //
 // ImportExportNetwork
