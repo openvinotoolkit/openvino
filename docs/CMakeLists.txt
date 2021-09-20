@@ -50,10 +50,7 @@ set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation dir.")
 set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation dir.")
 set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation dir.")
 set(OPENVINO_NOTEBOOKS_DIR "" CACHE PATH "Path to openvino notebooks dir.")
-
-# python packages
-set(NGRAPH_PYTHON_PACKAGE "" CACHE PATH "Path to generated ngraph python package.")
-set(IE_PYTHON_PACKAGE "" CACHE PATH "Path to generated inference engine python package.")
+set(GITHUB_API_TOKEN "" CACHE PATH "Path to file containing github api token.")
 
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
@@ -69,12 +66,8 @@ function(build_docs)
     set(DOCS_SOURCE_DIR "${OpenVINO_MAIN_SOURCE_DIR}/docs")
     set(DOXYGEN_DIR "${DOCS_SOURCE_DIR}/doxygen")
 
-    set(OPENVINO_BIN_DIR "${OpenVINO_MAIN_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/")
-    set(NGRAPH_PYTHON_PACKAGE "${OPENVINO_BIN_DIR}/python_api/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/ngraph")
-    set(IE_PYTHON_PACKAGE "${OPENVINO_BIN_DIR}/python_api/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/openvino")
-
     # API INPUT
-    
+
     set(NGRAPH_DIR "${OpenVINO_MAIN_SOURCE_DIR}/ngraph")
 
     # markdown docs
@@ -85,11 +78,6 @@ function(build_docs)
     
     # IE C API
     set(IE_C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
-    
-    # IE Python API
-    set(IE_PYTHON_API_IN "${IE_SOURCE_DIR}/ie_bridges/python/src/openvino/inference_engine/ie_api.pyx")
-    set(IE_PYTHON_API_OUT "${DOCS_BUILD_DIR}/python_api/ie_api.pyx")
-    configure_file(${IE_PYTHON_API_IN} ${IE_PYTHON_API_OUT} @ONLY)
     
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
@@ -107,6 +95,10 @@ function(build_docs)
     set(SPHINX_OUTPUT "${DOCS_BUILD_DIR}/_build")
 
     # Sphinx folders, doxyrest templates and config
+    set(IE_PYTHON_API_IN "${DOCS_SOURCE_DIR}/ie_python_api")
+    set(IE_PYTHON_API_OUT "${RST_OUTPUT}/ie_python_api")
+    set(NGRAPH_PYTHON_API_IN "${DOCS_SOURCE_DIR}/ngraph_python_api")
+    set(NGRAPH_PYTHON_API_OUT "${RST_OUTPUT}/ngraph_python_api")
     set(SPHINX_CONF_IN "${DOCS_SOURCE_DIR}/conf.py")
     set(SPHINX_CONF_OUT "${RST_OUTPUT}/conf.py")
     set(SPHINX_STATIC_IN "${DOCS_SOURCE_DIR}/_static")
@@ -128,12 +120,6 @@ function(build_docs)
     configure_file(${DOXYREST_CONFIG_IN} ${DOXYREST_CONFIG_OUT} @ONLY)
     configure_file(${SPHINX_CONF_IN} ${SPHINX_CONF_OUT} @ONLY)
 
-    # ie python package
-    list(APPEND commands COMMAND sphinx-apidoc "${IE_PYTHON_PACKAGE}" -o "${RST_OUTPUT}/ie_python_api")
-    
-    # ngraph python package
-    list(APPEND commands COMMAND sphinx-apidoc "${NGRAPH_PYTHON_PACKAGE}" -o "${RST_OUTPUT}/ngraph_python_api")
-
     # Doxygen config
     set(DOXYFILE_SOURCE "${DOXYGEN_DIR}/Doxyfile.config")
     set(DOXYFILE_BUILD "${DOCS_BUILD_DIR}/Doxyfile.config")
@@ -148,13 +134,10 @@ function(build_docs)
     # include additional repositories
 
     # openvino notebooks dir
-    if(EXISTS "${OPENVINO_NOTEBOOKS_DIR}")
-        set(OPENVINO_NOTEBOOKS_DIR_OUT "${RST_OUTPUT}/openvino_notebooks")
+    if(GITHUB_API_TOKEN)
+        set(NBDOC_SCRIPT "${DOCS_SOURCE_DIR}/nbdoc/nbdoc.py")
         list(APPEND commands
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${OPENVINO_NOTEBOOKS_DIR_OUT}
-        )
-        list(APPEND commands
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${OPENVINO_NOTEBOOKS_DIR} ${OPENVINO_NOTEBOOKS_DIR_OUT}
+            COMMAND ${PYTHON_EXECUTABLE} "${NBDOC_SCRIPT}" "${GITHUB_API_TOKEN}" "${RST_OUTPUT}/notebooks"
         )
     endif()
 
@@ -232,6 +215,8 @@ function(build_docs)
                        COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_MAIN_SOURCE_DIR}/../
                        COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${IE_PYTHON_API_IN} ${IE_PYTHON_API_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${NGRAPH_PYTHON_API_IN} ${NGRAPH_PYTHON_API_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${RST_FILES_IN} ${RST_FILES_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_SPHINX_IN} ${DOXYREST_SPHINX_OUT}

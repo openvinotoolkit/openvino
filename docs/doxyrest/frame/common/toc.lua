@@ -23,14 +23,14 @@ function getCompoundTocTree(compound)
 	for i = 1, #compound.groupArray do
 		local item = compound.groupArray[i]
 		local fileName = getItemFileName(item)
-		s = s .. "\t" .. item.name .. " <" .. fileName .. ">" .. "\n"
+		s = s .. "\t" .. fileName .. "\n"
 	end
 
 	for i = 1, #compound.namespaceArray do
 		local item = compound.namespaceArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. item.name .. " <" .. fileName .. ">" .. "\n"
+			s = s .. "\t" .. fileName .. "\n"
 		end
 	end
 
@@ -38,7 +38,7 @@ function getCompoundTocTree(compound)
 		local item = compound.enumArray[i]
 		if isTocTreeItem(compound, item) and not isUnnamedItem(item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. item.name .. " <" .. fileName .. ">" .. "\n"
+			s = s .. "\t" .. fileName .. "\n"
 		end
 	end
 
@@ -46,7 +46,7 @@ function getCompoundTocTree(compound)
 		local item = compound.structArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. item.name .. " <" .. fileName .. ">" .. "\n"
+			s = s .. "\t" .. fileName .. "\n"
 		end
 	end
 
@@ -54,7 +54,7 @@ function getCompoundTocTree(compound)
 		local item = compound.unionArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. item.name .. " <" .. fileName .. ">" .. "\n"
+			s = s .. "\t" .. fileName .. "\n"
 		end
 	end
 
@@ -62,7 +62,7 @@ function getCompoundTocTree(compound)
 		local item = compound.interfaceArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. item.name .. " <" .. fileName .. ">" .. "\n"
+			s = s .. "\t" .. fileName .. "\n"
 		end
 	end
 
@@ -70,7 +70,7 @@ function getCompoundTocTree(compound)
 		local item = compound.protocolArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. item.name .. " <" .. fileName .. ">" .. "\n"
+			s = s .. "\t" .. fileName .. "\n"
 		end
 	end
 
@@ -78,7 +78,7 @@ function getCompoundTocTree(compound)
 		local item = compound.exceptionArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. item.name .. " <" .. fileName .. ">" .. "\n"
+			s = s .. "\t" .. fileName .. "\n"
 		end
 	end
 
@@ -86,7 +86,7 @@ function getCompoundTocTree(compound)
 		local item = compound.classArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. item.name .. " <" .. fileName .. ">" .. "\n"
+			s = s .. "\t" .. fileName .. "\n"
 		end
 	end
 
@@ -94,7 +94,7 @@ function getCompoundTocTree(compound)
 		local item = compound.singletonArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. item.name .. " <" .. fileName .. ">" .. "\n"
+			s = s .. "\t" .. fileName .. "\n"
 		end
 	end
 
@@ -102,7 +102,7 @@ function getCompoundTocTree(compound)
 		local item = compound.serviceArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. item.name .. " <" .. fileName .. ">" .. "\n"
+			s = s .. "\t" .. fileName .. "\n"
 		end
 	end
 

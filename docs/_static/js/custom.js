@@ -25,8 +25,8 @@ $(document).ready(function() {
 
 function initViewerJS() {
     try {
-        var imageContainer =document.querySelector('main');
-        new Viewer(imageContainer);
+        var images =$('main img[src*="_images"]');
+        new Viewer(images);
     }
     catch(err) {
         console.log(err);
