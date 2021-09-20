@@ -163,6 +163,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
 
         auto pass_config = manager.get_pass_config();
 
+        pass_config->enable<ngraph::pass::ConvertPrecision>();
+
         // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
         pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
                                   ngraph::pass::ConvertDepthToSpace>(

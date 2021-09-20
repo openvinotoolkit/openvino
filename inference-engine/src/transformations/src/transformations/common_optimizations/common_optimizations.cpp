@@ -78,6 +78,9 @@
 #include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
+#include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/convert_precision.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -98,6 +101,13 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
     manager.register_pass<ngraph::pass::MOCTransformations>(true, false);
+
+    if (ngraph::op::util::has_decompression_converts(f)) {
+        const precisions_array convert_precision_list{
+            {ngraph::element::f32, ngraph::element::f16}
+        };
+        manager.register_pass<ngraph::pass::ConvertPrecision, false>(convert_precision_list);
+    }
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();

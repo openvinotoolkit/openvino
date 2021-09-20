@@ -1,0 +1,23 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "transformations_visibility.hpp"
+#include "openvino/pass/pass.hpp"
+
+
+namespace ov {
+namespace pass {
+
+class TRANSFORMATIONS_API MarkPrecisionSensitiveSubgraphs;
+
+}  // namespace pass
+}  // namespace ov
+
+class ov::pass::MarkPrecisionSensitiveSubgraphs : public FunctionPass {
+public:
+    OPENVINO_RTTI("MarkPrecisionSensitiveSubgraphs", "0");
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+};
