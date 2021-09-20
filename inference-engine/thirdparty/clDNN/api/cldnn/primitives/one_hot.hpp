@@ -52,8 +52,9 @@ struct one_hot : public primitive_base<one_hot> {
             const uint16_t& one_hot_axis,
             const float& on_value = 1.0f,
             const float& off_value = 0.0f,
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), shape(shape), one_hot_axis(one_hot_axis),
+        : primitive_base(id, {input}, ext_prim_id, output_padding), shape(shape), one_hot_axis(one_hot_axis),
           on_value(on_value), off_value(off_value) {}
 
     /// @brief Constructs one-hot primitive layer.
@@ -70,8 +71,9 @@ struct one_hot : public primitive_base<one_hot> {
             const uint16_t& one_hot_axis,
             const float& on_value = 1.0f,
             const float& off_value = 0.0f,
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt}), shape(shape), one_hot_axis(one_hot_axis),
+        : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_dt}), shape(shape), one_hot_axis(one_hot_axis),
           on_value(on_value), off_value(off_value) {}
 
     /// @brief Output size reference.
