@@ -52,8 +52,8 @@ public:
 
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
-    bool isShapeInferNeeded() const override { return false; }
-    bool isPrepareParamsNeeded() const override { return false; }
+    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override { return false; }
 
 private:
     // input

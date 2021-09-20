@@ -1227,11 +1227,11 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
     inputNum = getParentEdges().size();
     currentInBlkDims.resize(inputNum);
-    currentInDims.resize(inputNum);
+    lastInputDims.resize(inputNum);
 }
 
 void MKLDNNEltwiseNode::prepareParams() {
-    if (!isInputShapesDefined()) {
+    if (!inputShapesDefined()) {
         IE_THROW() << "Can't prepare params for eltwise node with name: " << getName();
     }
 
@@ -1456,7 +1456,7 @@ void MKLDNNEltwiseNode::prepareParams() {
     }
 }
 
-bool MKLDNNEltwiseNode::isPrepareParamsNeeded() const {
+bool MKLDNNEltwiseNode::needPrepareParams() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (getParentEdgesAtPort(i)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims[i])
             return true;
@@ -1469,10 +1469,10 @@ void MKLDNNEltwiseNode::selectOptimalPrimitiveDescriptor() {
 }
 
 void MKLDNNEltwiseNode::createPrimitive() {
-    if (isInputShapesDefined()) {
-        if (isPrepareParamsNeeded())
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
             prepareParams();
-        initCurrentDims();
+        updateLastInputDims();
     }
 }
 
@@ -1641,6 +1641,8 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
         }
 
         pPrim->exec(*this, args_ptrs, dims_out);
+    } else {
+        IE_THROW() << "Can't execute eltwise node. Primitive didn't created";
     }
 }
 

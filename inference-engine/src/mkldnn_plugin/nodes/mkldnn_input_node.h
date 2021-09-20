@@ -34,7 +34,7 @@ public:
         return std::vector<VectorDims>();
     }
 
-    bool isPrepareParamsNeeded() const override {
+    bool needPrepareParams() const override {
         return false;
     }
 

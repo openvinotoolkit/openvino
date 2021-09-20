@@ -68,6 +68,9 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
 
     isDynamic = !(config.inConfs[0].desc->isDefined() && config.outConfs[0].desc->isDefined());
 
+    if (isDynamic && (config.inConfs[0].desc->getShape().getRank() != config.outConfs[0].desc->getShape().getRank()))
+        IE_THROW() << "Reorder node doesn't support case when input and output shapes have different rank and dynamic";
+
     if (!isOptimized) {
         const auto &inShape = getInputShapeAtPort(0);
         if (MKLDNNPlugin::one_of(inShape.getRank(), 4, 5) &&
@@ -87,20 +90,20 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
             canUseNcsp2Nspc = true;
         }
     }
-    currentInDims.resize(1);
+    lastInputDims.resize(1);
 }
 
 void MKLDNNReorderNode::createPrimitive() {
-    if (isInputShapesDefined()) {
-        if (isPrepareParamsNeeded())
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
             prepareParams();
-        initCurrentDims();
+        updateLastInputDims();
     }
 }
 
 void MKLDNNReorderNode::prepareParams() {
     if (!isOptimized) {
-        if (!isInputShapesDefined()) {
+        if (!inputShapesDefined()) {
             IE_THROW() << "Can't prepare params for eltwise node with name: " << getName();
         }
 
@@ -359,6 +362,10 @@ void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemor
             IE_THROW() << "Could not make mkldnn reorder.";
         }
     }
+}
+
+std::vector<VectorDims> MKLDNNReorderNode::shapeInfer() const {
+    return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNReorderNode, Reorder);

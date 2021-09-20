@@ -44,7 +44,7 @@ void MKLDNNReferenceNode::initSupportedPrimitiveDescriptors() {
 
     addSupportedPrimDesc(inputConfigurators, outputConfigurators, impl_desc_type::ref);
 
-    currentInDims.resize(inputConfigurators.size());
+    lastInputDims.resize(inputConfigurators.size());
 }
 
 void MKLDNNReferenceNode::createPrimitive() {}

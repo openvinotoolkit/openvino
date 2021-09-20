@@ -414,7 +414,7 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::unknown);
 
     if (getType() == Output) {
-        currentInDims.resize(1);
+        lastInputDims.resize(1);
     }
 }
 
