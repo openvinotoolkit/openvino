@@ -165,7 +165,7 @@ inline ::ov::util::FilePath getInferenceEngineLibraryPath() {
 
 #else
 
-inline ::FileUtils::FilePath getInferenceEngineLibraryPath() {
+inline ::ov::util::FilePath getInferenceEngineLibraryPath() {
     return getIELibraryPath();
 }
 
