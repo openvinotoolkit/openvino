@@ -32,8 +32,6 @@ namespace tensorflow {
 
 namespace ngraph_bridge {
 
-
-
 void Builder::SetTracingInfo(const std::string& op_name, const ng::Output<ng::Node> ng_node) {
     auto node = ng_node.get_node_shared_ptr();
     node->set_friendly_name(op_name);
