@@ -680,8 +680,11 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(const pugi::xm
     //  Following topological order create nGraph operations
     for (auto& layer_id : order) {
         auto& p = params[layer_id];
-        ngraph::OutputVector inputs(edges[layer_id].size());
-        for (auto& e : edges[layer_id]) {
+        const auto& edgeIt = edges.find(layer_id);
+        if (edgeIt == edges.end())
+            continue;
+        ngraph::OutputVector inputs(edgeIt->second.size());
+        for (auto& e : edgeIt->second) {
             auto input_node = id_to_node[e.fromLayerId];
             if (!input_node) {
                 IE_THROW() << "Attempt to access node " << e.fromLayerId << " that not in graph.";
