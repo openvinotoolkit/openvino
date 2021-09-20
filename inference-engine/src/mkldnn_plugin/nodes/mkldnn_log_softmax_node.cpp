@@ -37,6 +37,9 @@ MKLDNNLogSoftmaxNode::MKLDNNLogSoftmaxNode(const std::shared_ptr<ngraph::Node>& 
 
     errorPrefix = "LogSoftmax layer with name '" + op->get_friendly_name() + "'";
     const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
+    if (logSoftMax == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of LogSoftmax from opset5.";
 
     if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";

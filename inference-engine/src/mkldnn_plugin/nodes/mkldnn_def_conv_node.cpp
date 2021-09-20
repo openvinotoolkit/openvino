@@ -766,6 +766,9 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
         IE_THROW(NotImplemented) << errorMessage;
     }
     auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(op);
+    if (defConvNodeBase == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of DeformableConvolutionBase.";
 
     group = defConvNodeBase->get_group();
     deformable_group = defConvNodeBase->get_deformable_group();
@@ -783,6 +786,9 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
 
     if (op->get_type_info() == ngraph::op::v8::DeformableConvolution::type_info) {
         auto defConvNode = std::dynamic_pointer_cast<ngraph::op::v8::DeformableConvolution>(op);
+        if (defConvNode == nullptr)
+            IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+                "' is not an instance of DeformableConvolution from opset8.";
         with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();
     } else {
         with_bilinear_pad = false;

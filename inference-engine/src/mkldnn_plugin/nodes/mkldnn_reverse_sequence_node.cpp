@@ -38,6 +38,9 @@ MKLDNNReverseSequenceNode::MKLDNNReverseSequenceNode(const std::shared_ptr<ngrap
 
     errorPrefix = "ReverseSequence layer with name '" + op->get_friendly_name() + "'";
     const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
+    if (revSeq == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of ReverseSequence from opset1.";
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
