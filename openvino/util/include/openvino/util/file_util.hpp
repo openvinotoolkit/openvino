@@ -130,9 +130,9 @@ inline uint64_t file_size(const char* path) {
     const wchar_t* file_name = widefilename.c_str();
 #elif defined(__ANDROID__) || defined(ANDROID)
     std::string file_name = path;
-    std::string::size_type pos = file_path.find('!');
+    std::string::size_type pos = file_name.find('!');
     if (pos != std::string::npos) {
-        file_path = file_path.substr(0, pos);
+        file_name = file_name.substr(0, pos);
     }
 #else
     const char* file_name = path;
