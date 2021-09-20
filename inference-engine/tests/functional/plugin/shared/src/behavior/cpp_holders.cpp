@@ -5,16 +5,10 @@
 #include <fstream>
 
 #include <ngraph_functions/subgraph_builders.hpp>
+#include <base/behavior_test_utils.hpp>
 #include "behavior/cpp_holders.hpp"
 
 namespace BehaviorTestsDefinitions {
-    inline InferenceEngine::Core createCoreWithTemplate() {
-        InferenceEngine::Core ie;
-        std::string pluginName = "templatePlugin";
-        pluginName += IE_BUILD_POSTFIX;
-        ie.RegisterPlugin(pluginName, "TEMPLATE");
-        return ie;
-    }
     std::string HoldersTest::getTestCaseName(testing::TestParamInfo<HoldersParams> obj) {
         std::string targetDevice;
         std::vector<int> order;
@@ -54,7 +48,7 @@ namespace BehaviorTestsDefinitions {
     void release_order_test(std::vector<int> order, const std::string &deviceName,
                             std::shared_ptr<ngraph::Function> function) {
         InferenceEngine::CNNNetwork cnnNet(function);
-        InferenceEngine::Core core = createCoreWithTemplate();
+        InferenceEngine::Core core = BehaviorTestsUtils::createIECoreWithTemplate();
         auto exe_net = core.LoadNetwork(cnnNet, deviceName);
         auto request = exe_net.CreateInferRequest();
         std::vector<InferenceEngine::VariableState> states = {};
@@ -67,7 +61,7 @@ namespace BehaviorTestsDefinitions {
         auto release = [&](int i) {
             switch (i) {
                 case 0:
-                    core = createCoreWithTemplate();
+                    core = BehaviorTestsUtils::createIECoreWithTemplate();
                     break;
                 case 1:
                     exe_net = {};
@@ -91,7 +85,7 @@ namespace BehaviorTestsDefinitions {
             std::vector<int> order, const std::string &deviceName,
             std::shared_ptr<ngraph::Function> function) {
         InferenceEngine::CNNNetwork cnnNet(function);
-        InferenceEngine::Core core = createCoreWithTemplate();
+        InferenceEngine::Core core = BehaviorTestsUtils::createIECoreWithTemplate();
         std::stringstream stream;
         {
             auto exe_net = core.LoadNetwork(cnnNet, deviceName);
@@ -149,7 +143,7 @@ namespace BehaviorTestsDefinitions {
 
     TEST_P(HoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
         InferenceEngine::CNNNetwork cnnNet(function);
-        InferenceEngine::Core core = createCoreWithTemplate();
+        InferenceEngine::Core core = BehaviorTestsUtils::createIECoreWithTemplate();
         std::stringstream stream;
         {
             auto exe_net = core.LoadNetwork(cnnNet, targetDevice);

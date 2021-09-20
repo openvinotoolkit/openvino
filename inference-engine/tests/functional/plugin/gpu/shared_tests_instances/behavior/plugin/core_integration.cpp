@@ -99,8 +99,8 @@ INSTANTIATE_TEST_SUITE_P(
 using IEClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE = BehaviorTestsUtils::IEClassBaseTestP;
 TEST_P(IEClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
-    Parameter p;
+    InferenceEngine::Core ie;
+    InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
     uint64_t t = p;
@@ -118,8 +118,8 @@ INSTANTIATE_TEST_SUITE_P(
 using IEClassGetMetricTest_GPU_UARCH_VERSION = BehaviorTestsUtils::IEClassBaseTestP;
 TEST_P(IEClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
-    Parameter p;
+    InferenceEngine::Core ie;
+    InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(UARCH_VERSION)));
     std::string t = p;
@@ -137,8 +137,8 @@ INSTANTIATE_TEST_SUITE_P(
 using IEClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT = BehaviorTestsUtils::IEClassBaseTestP;
 TEST_P(IEClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
-    Parameter p;
+    InferenceEngine::Core ie;
+    InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
     int t = p;

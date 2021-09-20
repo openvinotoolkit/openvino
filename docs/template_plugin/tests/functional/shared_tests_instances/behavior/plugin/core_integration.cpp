@@ -73,8 +73,8 @@ using IEClassSetConfigTestHETERO = BehaviorTestsUtils::IEClassNetworkTest;
 
 TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
     {
-        Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-        Parameter p;
+        InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
+        InferenceEngine::Parameter p;
 
         ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(YES)}}, "HETERO"));
         ASSERT_NO_THROW(p = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)));
@@ -84,8 +84,8 @@ TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
     }
 
     {
-        Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-        Parameter p;
+        InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
+        InferenceEngine::Parameter p;
 
         ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(NO)}}, "HETERO"));
         ASSERT_NO_THROW(p = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)));
@@ -95,8 +95,8 @@ TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
     }
 
     {
-        Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-        Parameter p;
+        InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
+        InferenceEngine::Parameter p;
 
         ASSERT_NO_THROW(ie.GetMetric("HETERO", METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
         ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(YES)}}, "HETERO"));
@@ -118,8 +118,8 @@ INSTANTIATE_TEST_SUITE_P(
 using IEClassGetConfigTestTEMPLATE = BehaviorTestsUtils::IEClassNetworkTest;
 
 TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
-    Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    Parameter p;
+    InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    InferenceEngine::Parameter p;
     std::string deviceName = CommonTestUtils::DEVICE_TEMPLATE;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));

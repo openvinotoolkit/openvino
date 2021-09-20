@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(
 //////////////////////////////////////////////////////////////////////////////////////////
 
 TEST(IEClassBasicTest, smoke_SetConfigAfterCreatedThrow) {
-    Core ie;
+    InferenceEngine::Core ie;
     std::string value = {};
 
     ASSERT_NO_THROW(ie.SetConfig({{KEY_CPU_THREADS_NUM, "1"}}, "CPU"));

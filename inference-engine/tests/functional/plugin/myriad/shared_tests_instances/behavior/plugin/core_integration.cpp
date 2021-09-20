@@ -38,10 +38,10 @@ INSTANTIATE_TEST_SUITE_P(
 using IEClassNetworkTestP_VPU_GetMetric = IEClassNetworkTestP;
 
 TEST_P(IEClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsFP16) {
-    Core ie;
+    InferenceEngine::Core ie;
     ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(OPTIMIZATION_CAPABILITIES))
 
-    Parameter optimizationCapabilitiesParameter;
+    InferenceEngine::Parameter optimizationCapabilitiesParameter;
     ASSERT_NO_THROW(optimizationCapabilitiesParameter = ie.GetMetric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
 
     const auto optimizationCapabilities = optimizationCapabilitiesParameter.as<std::vector<std::string>>();
