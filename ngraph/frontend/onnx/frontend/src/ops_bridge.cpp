@@ -91,10 +91,6 @@
 #include "op/not.hpp"
 #include "op/onehot.hpp"
 #include "op/or.hpp"
-#include "op/pad.hpp"
-#include "op/pow.hpp"
-#include "op/prelu.hpp"
-// #include "op/quant_conv.hpp"
 #include "op/org.openvinotoolkit/deformable_conv_2d.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
@@ -107,6 +103,10 @@
 #include "op/org.openvinotoolkit/normalize.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
 #include "op/org.openvinotoolkit/swish.hpp"
+#include "op/pad.hpp"
+#include "op/pow.hpp"
+#include "op/prelu.hpp"
+#include "op/qlinear_conv.hpp"
 #include "op/quantize_linear.hpp"
 #include "op/random_uniform.hpp"
 #include "op/random_uniform_like.hpp"
@@ -368,7 +368,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Pad", 11, pad);
     REGISTER_OPERATOR("Pow", 1, pow);
     REGISTER_OPERATOR("PRelu", 1, prelu);
-    // REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
+    REGISTER_OPERATOR("QLinearConv", 1, qlinear_conv);
     REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
     REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
     REGISTER_OPERATOR("Range", 1, range);

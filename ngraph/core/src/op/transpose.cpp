@@ -42,6 +42,7 @@ void op::v1::Transpose::validate_and_infer_types() {
 
     set_input_is_relevant_to_shape(1);
 
+    NGRAPH_SUPPRESS_DEPRECATED_START
     if (const auto& input_const = get_constant_from_source(input_value(1))) {
         auto permutation = input_const->get_axis_vector_val();
         if (permutation.empty()) {
@@ -58,6 +59,7 @@ void op::v1::Transpose::validate_and_infer_types() {
     } else {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic(arg_shape.rank()));
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& new_args) const {

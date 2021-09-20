@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdio>
+#include <numeric>
 #include <vector>
 
 #include "ngraph/attribute_adapter.hpp"
@@ -43,6 +44,20 @@ size_t shape_size(const SHAPE_TYPE& shape) {
         size *= d;
     }
     return size;
+}
+
+/// Number of elements in a subset of dimensions of a shape.
+/// Returns a product of dimensions in a range [start_dim;end_dim)
+template <typename ForwardIt>
+size_t shape_size(ForwardIt start_dim, const ForwardIt end_dim) {
+    static_assert(std::is_arithmetic<typename std::iterator_traits<ForwardIt>::value_type>::value,
+                  "shape_size expects 2 forward iterators as inputs. value_type of those iterators has to be an "
+                  "arithmetic type so that they can be used in multiplication operation.");
+
+    return std::accumulate(start_dim,
+                           end_dim,
+                           typename std::iterator_traits<ForwardIt>::value_type{1},
+                           std::multiplies<typename std::iterator_traits<ForwardIt>::value_type>());
 }
 
 /// Row-major strides for a shape

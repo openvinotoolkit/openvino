@@ -489,13 +489,9 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
                 return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
             };
             // GNA input is always quantized to int16, so number of levels can't be greater than max uint16
-            size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max()));
-            float scaleInput = (levels - 1) / (inputRange.second[0] - inputRange.first[0]);
-            auto minAbsVal = std::min(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
-            auto maxAbsVal = std::max(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
-            if (fp32eq(minAbsVal, 0.0f) && !fp32eq(maxAbsVal, 0.0f)) {
-                scaleInput = (fqLayer.getLevels() - 1) / (2 * maxAbsVal);
-            }
+            // todo: should be solved in POT (issue 63330)
+            size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
+            auto scaleInput = frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
 
             IE_ASSERT(config.inputScaleFactors.size() > inputIdx);
             IE_ASSERT(inputsDesc->inputScaleFactors.size() > inputIdx);
@@ -1616,7 +1612,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     // If scale factors are defined in configuration we still need to use them instead of imported values,
     // for example to change the scale factors for the old models.
     if (!config.inputScaleFactors.empty()) {
-        IE_ASSERT(config.inputScaleFactors.size() == inputsDesc->inputScaleFactors.size());
+        IE_ASSERT(config.inputScaleFactors.size() <= inputsDesc->inputScaleFactors.size());
         for (size_t i = 0; i < config.inputScaleFactors.size(); ++i) {
             if (config.inputScaleFactors[i] != GNAPluginNS::kScaleFactorDefault) {
                 gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << i << std::endl;

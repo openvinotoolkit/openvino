@@ -11,7 +11,9 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/select.hpp"
+#include "ngraph/runtime/reference/fake_quantize.hpp"
 #include "ngraph/shape.hpp"
+#include "ngraph/type/element_type.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -72,4 +74,81 @@ shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new
                                      new_args.at(4),  // output_high
                                      m_levels,
                                      m_auto_broadcast);
+}
+
+namespace fakequantizeop {
+template <element::Type_t ET>
+bool evaluate(const HostTensorPtr& arg0,
+              const HostTensorPtr& arg1,
+              const HostTensorPtr& arg2,
+              const HostTensorPtr& arg3,
+              const HostTensorPtr& arg4,
+              const HostTensorPtr& out,
+              const ngraph::op::FakeQuantize* parent) {
+    NGRAPH_OP_SCOPE(v0_FakeQuantize_evaluate);
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::fake_quantize<T>(arg0->get_data_ptr<const T>(),
+                                         arg1->get_data_ptr<const T>(),
+                                         arg2->get_data_ptr<const T>(),
+                                         arg3->get_data_ptr<const T>(),
+                                         arg4->get_data_ptr<const T>(),
+                                         out->get_data_ptr<T>(),
+                                         parent->get_input_shape(0),
+                                         parent->get_input_shape(1),
+                                         parent->get_input_shape(2),
+                                         parent->get_input_shape(3),
+                                         parent->get_input_shape(4),
+                                         parent->get_levels(),
+                                         parent->get_auto_broadcast());
+    return true;
+}
+
+bool evaluate_fakequantize(const HostTensorPtr& arg0,
+                           const HostTensorPtr& arg1,
+                           const HostTensorPtr& arg2,
+                           const HostTensorPtr& arg3,
+                           const HostTensorPtr& arg4,
+                           const HostTensorPtr& out,
+                           const ngraph::op::FakeQuantize* parent) {
+    bool rc = true;
+    switch (arg0->get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_fakequantize, i32, arg0, arg1, arg2, arg3, arg4, out, parent);
+        NGRAPH_TYPE_CASE(evaluate_fakequantize, i64, arg0, arg1, arg2, arg3, arg4, out, parent);
+        NGRAPH_TYPE_CASE(evaluate_fakequantize, u32, arg0, arg1, arg2, arg3, arg4, out, parent);
+        NGRAPH_TYPE_CASE(evaluate_fakequantize, u64, arg0, arg1, arg2, arg3, arg4, out, parent);
+        NGRAPH_TYPE_CASE(evaluate_fakequantize, f16, arg0, arg1, arg2, arg3, arg4, out, parent);
+        NGRAPH_TYPE_CASE(evaluate_fakequantize, f32, arg0, arg1, arg2, arg3, arg4, out, parent);
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+}  // namespace fakequantizeop
+
+bool ngraph::op::FakeQuantize::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v0_FakeQuantize_evaluate);
+    return fakequantizeop::evaluate_fakequantize(inputs[0],
+                                                 inputs[1],
+                                                 inputs[2],
+                                                 inputs[3],
+                                                 inputs[4],
+                                                 outputs[0],
+                                                 this);
+}
+
+bool ngraph::op::FakeQuantize::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v0_FakeQuantize_has_evaluate);
+    switch (get_input_element_type(0)) {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+        return true;
+    default:
+        break;
+    }
+    return false;
 }

@@ -52,7 +52,7 @@ OpPlaceTF::OpPlaceTF(const InputModel& input_model,
                      std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def)
     : OpPlaceTF(input_model, op_def, {op_def->name()}) {}
 
-const std::map<std::string, std::vector<std::shared_ptr<OutPortPlaceTF>>>& OpPlaceTF::get_output_ports() const {
+const std::vector<std::shared_ptr<OutPortPlaceTF>>& OpPlaceTF::get_output_ports() const {
     return m_output_ports;
 }
 
@@ -60,12 +60,12 @@ const std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>>& OpPlac
     return m_input_ports;
 }
 
-std::shared_ptr<OutPortPlaceTF> OpPlaceTF::get_output_port_tf(const std::string& outputName,
+/*std::shared_ptr<OutPortPlaceTF> OpPlaceTF::get_output_port_tf(const std::string& outputName,
                                                               int outputPortIndex) const {
     FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(),
                             "outputPortIndex is out of bounds.");
     return m_output_ports.at(outputName)[outputPortIndex];
-}
+}*/
 
 std::shared_ptr<InPortPlaceTF> OpPlaceTF::get_input_port_tf(const std::string& inputName, int inputPortIndex) const {
     FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
@@ -76,18 +76,21 @@ std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> OpPlaceTF::
     return m_op_def;
 }
 
-void OpPlaceTF::add_out_port(const std::shared_ptr<OutPortPlaceTF>& output, const std::string& name) {
-    m_output_ports[name].push_back(output);
+void OpPlaceTF::add_out_port(const std::shared_ptr<OutPortPlaceTF>& output, int idx) {
+    while (idx >= m_output_ports.size()) {
+        m_output_ports.push_back(std::shared_ptr<OutPortPlaceTF>());
+    }
+    m_output_ports[idx] = output;
 }
 
 void OpPlaceTF::add_in_port(const std::shared_ptr<InPortPlaceTF>& input, const std::string& name) {
     m_input_ports[name].push_back(input);
 }
 
-Place::Ptr OpPlaceTF::get_output_port(const std::string& name) const {
+/*Place::Ptr OpPlaceTF::get_output_port(const std::string& name) const {
     FRONT_END_GENERAL_CHECK(m_output_ports.at(name).size() == 1, "Only one output port should exist.");
     return m_output_ports.at(name)[0];
-}
+}*/
 
 Place::Ptr OpPlaceTF::get_input_port(const std::string& name) const {
     FRONT_END_GENERAL_CHECK(m_input_ports.at(name).size() == 1, "Only one input port should exist.");
@@ -100,14 +103,13 @@ Place::Ptr OpPlaceTF::get_input_port(int outputPortIndex) const {
 }
 
 Place::Ptr OpPlaceTF::get_output_port(int outputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(m_output_ports.size() == 1, "Only one named output port should exist.");
-    return m_output_ports.begin()->second[outputPortIndex];
+    FRONT_END_GENERAL_CHECK(m_output_ports.size() > outputPortIndex, "No port with index: ", outputPortIndex);
+    return m_output_ports[outputPortIndex];
 }
 
 Place::Ptr OpPlaceTF::get_output_port() const {
-    FRONT_END_GENERAL_CHECK(m_output_ports.size() == 1 && m_output_ports.begin()->second.size() == 1,
-                            "Only one output port should exist.");
-    return m_output_ports.begin()->second[0];
+    FRONT_END_GENERAL_CHECK(m_output_ports.size() == 1, "Only one output port should exist.");
+    return m_output_ports[0];
 }
 
 Place::Ptr OpPlaceTF::get_input_port() const {
@@ -119,43 +121,39 @@ Place::Ptr OpPlaceTF::get_input_port() const {
 std::vector<Place::Ptr> OpPlaceTF::get_consuming_operations() const {
     std::vector<Place::Ptr> consuming_ops;
     for (const auto& out_port : m_output_ports) {
-        for (const auto& out_port_place : out_port.second) {
-            auto consuming_ops_out = out_port_place->get_consuming_operations();
-            consuming_ops.insert(consuming_ops.end(), consuming_ops_out.begin(), consuming_ops_out.end());
-        }
+        auto consuming_ops_out = out_port->get_consuming_operations();
+        consuming_ops.insert(consuming_ops.end(), consuming_ops_out.begin(), consuming_ops_out.end());
     }
     return consuming_ops;
 }
 
-std::vector<Place::Ptr> OpPlaceTF::get_consuming_operations(const std::string& outputPortName,
+/*std::vector<Place::Ptr> OpPlaceTF::get_consuming_operations(const std::string& outputPortName,
                                                             int outputPortIndex) const {
     return get_output_port(outputPortName, outputPortIndex)->get_consuming_operations();
-}
+}*/
 
 std::vector<Place::Ptr> OpPlaceTF::get_consuming_operations(int outputPortIndex) const {
     return get_output_port(outputPortIndex)->get_consuming_operations();
 }
 
-std::vector<Place::Ptr> OpPlaceTF::get_consuming_operations(const std::string& outputPortName) const {
+/*std::vector<Place::Ptr> OpPlaceTF::get_consuming_operations(const std::string& outputPortName) const {
     return get_output_port(outputPortName)->get_consuming_operations();
-}
+}*/
 
 std::vector<Place::Ptr> OpPlaceTF::get_consuming_ports() const {
     std::vector<Place::Ptr> consuming_ports;
     for (const auto& out_port : m_output_ports) {
-        for (const auto& out_port_place : out_port.second) {
-            auto consuming_ops_out = out_port_place->get_consuming_ports();
-            consuming_ports.insert(consuming_ports.end(), consuming_ops_out.begin(), consuming_ops_out.end());
-        }
+        auto consuming_ops_out = out_port->get_consuming_ports();
+        consuming_ports.insert(consuming_ports.end(), consuming_ops_out.begin(), consuming_ops_out.end());
     }
     return consuming_ports;
 }
 
-Place::Ptr OpPlaceTF::get_output_port(const std::string& outputName, int outputPortIndex) const {
+/*Place::Ptr OpPlaceTF::get_output_port(const std::string& outputName, int outputPortIndex) const {
     FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(),
                             "outputPortIndex is Out of bounds.");
     return m_output_ports.at(outputName)[outputPortIndex];
-}
+}*/
 
 Place::Ptr OpPlaceTF::get_input_port(const std::string& inputName, int inputPortIndex) const {
     FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
@@ -182,13 +180,13 @@ Place::Ptr OpPlaceTF::get_target_tensor() const {
     return get_output_port()->get_target_tensor();
 }
 
-Place::Ptr OpPlaceTF::get_target_tensor(const std::string& outputName) const {
+/*Place::Ptr OpPlaceTF::get_target_tensor(const std::string& outputName) const {
     return get_output_port(outputName)->get_target_tensor();
 }
 
 Place::Ptr OpPlaceTF::get_target_tensor(const std::string& outputName, int outputPortIndex) const {
     return get_output_port(outputName, outputPortIndex)->get_target_tensor();
-}
+}*/
 
 Place::Ptr OpPlaceTF::get_producing_operation(const std::string& inputName) const {
     return get_input_port(inputName)->get_producing_operation();
@@ -210,6 +208,7 @@ Place::Ptr OpPlaceTF::get_target_tensor(int outputPortIndex) const {
     return get_output_port(outputPortIndex)->get_target_tensor();
 }
 
+/*
 TensorPlaceTF::TensorPlaceTF(const InputModel& input_model,
                              const std::vector<std::string>& names,
                              const ::tensorflow::TensorProto& tensor)
@@ -224,6 +223,15 @@ TensorPlaceTF::TensorPlaceTF(const InputModel& input_model,
     }
     m_pshape = dims;
 }
+*/
+
+TensorPlaceTF::TensorPlaceTF(const InputModel& input_model,
+                             ngraph::PartialShape pshape,
+                             ngraph::element::Type type,
+                             const std::vector<std::string>& names)
+    : PlaceTF(input_model, names),
+      m_pshape(pshape),
+      m_type(type) {}
 
 std::vector<Place::Ptr> TensorPlaceTF::get_consuming_ports() const {
     std::vector<Place::Ptr> consuming_ports;
@@ -251,10 +259,6 @@ void TensorPlaceTF::add_producing_port(const std::shared_ptr<OutPortPlaceTF>& ou
 
 void TensorPlaceTF::add_consuming_port(const std::shared_ptr<InPortPlaceTF>& in_port) {
     m_consuming_ports.push_back(in_port);
-}
-
-const ::tensorflow::TensorProto& TensorPlaceTF::get_desc() const {
-    return m_tensor;
 }
 
 std::vector<Place::Ptr> TensorPlaceTF::get_consuming_operations() const {

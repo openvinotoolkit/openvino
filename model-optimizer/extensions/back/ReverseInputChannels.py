@@ -460,10 +460,6 @@ class ApplyReverseChannels(BackReplacementPattern):
     run_not_recursively = True
     force_clean_up = True
 
-    def run_before(self):
-        from extensions.back.GroupedConvWeightsNormalize import GroupedConvWeightsNormalize
-        return [GroupedConvWeightsNormalize]
-
     def find_and_replace_pattern(self, graph: Graph):
         """
         Following transformations should run in strict order, that is why we disabled them all and run here 

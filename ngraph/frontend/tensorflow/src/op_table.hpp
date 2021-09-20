@@ -20,7 +20,7 @@ using OutPortName = std::string;
 using NamedOutputs = ngraph::OutputVector;
 using CreatorFunction = std::function<NamedOutputs(const ngraph::frontend::tensorflow::detail::NodeContext&)>;
 
-std::map<const std::string, CreatorFunction> get_supported_ops();
+const std::map<const std::string, const CreatorFunction> get_supported_ops();
 
 }  // namespace ngraph_bridge
 }  // namespace tensorflow

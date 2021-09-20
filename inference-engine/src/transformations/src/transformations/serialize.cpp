@@ -811,7 +811,33 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         f.validate_nodes_and_infer_types();
     }
 }
+
+std::string valid_xml_path(const std::string &path) {
+    NGRAPH_CHECK(path.length() > 4, "Path for xml file is to short: \"" + path + "\"");
+
+    const char *const extension = ".xml";
+    const bool has_xml_extension = path.rfind(extension) == path.size() - std::strlen(extension);
+    NGRAPH_CHECK(has_xml_extension,
+                 "Path for xml file doesn't contains file name with 'xml' extension: \"" +
+                     path + "\"");
+    return path;
+}
+
+std::string provide_bin_path(const std::string &xmlPath, const std::string &binPath) {
+    if (!binPath.empty()) {
+        return binPath;
+    }
+    assert(xmlPath.size() > 4); // should be check by valid_xml_path
+    std::string bestPath = xmlPath;
+    const char *const extension = "bin";
+    const auto ext_size = std::strlen(extension);
+    bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
+    return bestPath;
+}
+
 }  // namespace
+
+namespace ngraph {
 
 // ! [function_pass:serialize_cpp]
 // serialize.cpp
@@ -868,33 +894,6 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     return false;
 }
 
-namespace {
-
-std::string valid_xml_path(const std::string &path) {
-    NGRAPH_CHECK(path.length() > 4, "Path for xml file is to short: \"" + path + "\"");
-
-    const char *const extension = ".xml";
-    const bool has_xml_extension = path.rfind(extension) == path.size() - std::strlen(extension);
-    NGRAPH_CHECK(has_xml_extension,
-                 "Path for xml file doesn't contains file name with 'xml' extension: \"" +
-                     path + "\"");
-    return path;
-}
-
-std::string provide_bin_path(const std::string &xmlPath, const std::string &binPath) {
-    if (!binPath.empty()) {
-        return binPath;
-    }
-    assert(xmlPath.size() > 4); // should be check by valid_xml_path
-    std::string bestPath = xmlPath;
-    const char *const extension = "bin";
-    const auto ext_size = std::strlen(extension);
-    bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
-    return bestPath;
-}
-
-} // namespace
-
 pass::Serialize::Serialize(std::ostream& xmlFile,
                            std::ostream& binFile,
                            pass::Serialize::Version version,
@@ -921,3 +920,4 @@ pass::Serialize::Serialize(const std::string& xmlPath,
 {
 }
 // ! [function_pass:serialize_cpp]
+}  // namespace ngraph

@@ -1,37 +1,38 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import logging as log
-
 import numpy as np
 
+from mo.front.common.partial_infer.utils import dynamic_dimension_value, is_fully_defined
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class SparseFillEmptyRows(Op):
-    ''' The operation fills empty rows in the input 2-D sparse tensor with a default value.
-        For more details see https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/sparse-fill-empty-rows
+    """
+    The operation fills empty rows in the input 2-D sparse tensor with a default value.
+    For more details see https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/sparse-fill-empty-rows
 
-        4 inputs:
-            - [0, required] input indices of the sparse tensor (2D),
-            - [1, required] input values of the sparse tensor (1D),
-            - [2, required] shape of the sparse tensor. Value of this input is required for the Model Optimizer (1D),
-            - [3, required] default value to insert at rows missing from the input sparse tensor (0D),
-        
-        3 outputs:
-            - [0, optional] indices of the filled sparse tensor (2D)
-            - [1, optional] values of the filled sparse tensor (1D)
-            - [2, optional] indicator of whether the dense row was missing in the input sparse tensor (1D)
-    '''
+    4 inputs:
+        - [0, required] input indices of the sparse tensor (2D),
+        - [1, required] input values of the sparse tensor (1D),
+        - [2, required] shape of the sparse tensor. Value of this input is required for the Model Optimizer (1D),
+        - [3, required] default value to insert at rows missing from the input sparse tensor (0D),
+
+    3 outputs:
+        - [0, optional] indices of the filled sparse tensor (2D)
+        - [1, optional] values of the filled sparse tensor (1D)
+        - [2, optional] indicator of whether the dense row was missing in the input sparse tensor (1D)
+    """
     op = 'SparseFillEmptyRows'
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': None,
+            'op': self.op,
             'version': 'experimental',
-            'infer': __class__.infer,
+            'infer': self.infer,
             'in_ports_count': 4,
             'out_ports_count': 3
         }
@@ -56,16 +57,15 @@ class SparseFillEmptyRows(Op):
         assert default_value.shape is not None and len(default_value.shape) == 0, \
             "Default value for SparseFillEmptyRows must be scalar"
 
-        for out_node_ind in node.out_nodes():
-            if out_node_ind == 0: # set a shape for output indices
-                node.out_node(0).shape = np.array([np.prod(shape_value), 2], dtype=np.int64)
-                continue
-            elif out_node_ind == 1: # set a shape for output values
-                node.out_node(1).shape = np.array([np.prod(shape_value)], dtype=np.int64)
-                continue
-            elif out_node_ind == 2: # set a shape for empty row indicator
-                node.out_node(2).shape = np.array([shape_value[0]], dtype=np.int64)
-                continue
+        if node.is_out_port_connected(0):  # set a shape for output indices
+            if is_fully_defined(shape_value):
+                node.out_port(0).data.set_shape([np.prod(shape_value), 2])
             else:
-                log.error("SparseFillEmptyRows has only three outputs")
-                return
+                node.out_port(0).data.set_shape([dynamic_dimension_value, 2])
+        if node.is_out_port_connected(1):  # set a shape for output values
+            if is_fully_defined(shape_value):
+                node.out_port(1).data.set_shape([np.prod(shape_value)])
+            else:
+                node.out_port(1).data.set_shape([dynamic_dimension_value])
+        if node.is_out_port_connected(2):  # set a shape for empty row indicator
+            node.out_port(2).data.set_shape([shape_value[0]])
