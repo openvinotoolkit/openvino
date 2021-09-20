@@ -76,8 +76,6 @@ public:
     }
     size_t size() const;
 
-    using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
-
     RTMap& get_rt_info() {
         return m_rt_info;
     }
