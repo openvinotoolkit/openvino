@@ -76,6 +76,7 @@ struct FileTraits<wchar_t> {
     }
 };
 
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
 /**
  * @brief Conversion from wide character string to a single-byte chain.
  * @param wstr A wide-char string
@@ -88,6 +89,8 @@ std::string wstring_to_string(const std::wstring& wstr);
  * @return A wide-char string
  */
 std::wstring string_to_wstring(const std::string& str);
+
+#endif
 
 /// \brief Remove path components which would allow traversing up a directory tree.
 /// \param path A path to file
