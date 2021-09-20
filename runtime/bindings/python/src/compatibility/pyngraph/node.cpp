@@ -257,6 +257,14 @@ void regclass_pyngraph_Node(py::module m) {
                     Operation version.
              )");
 
+    node.def("set_argument", &ngraph::Node::set_argument);
+    node.def("set_arguments", [](const std::shared_ptr<ngraph::Node>& self, const ngraph::NodeVector& args) {
+        self->set_arguments(args);
+    });
+    node.def("set_arguments", [](const std::shared_ptr<ngraph::Node>& self, const ngraph::OutputVector& args) {
+        self->set_arguments(args);
+    });
+
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
     node.def_property_readonly("name", &ngraph::Node::get_name);
     node.def_property_readonly("rt_info",
@@ -265,15 +273,21 @@ void regclass_pyngraph_Node(py::module m) {
     node.def_property_readonly("version", &ngraph::Node::get_version);
     node.def_property("friendly_name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
 
-    node.def("_get_attributes", [](const std::shared_ptr<ngraph::Node>& self) {
+    node.def("get_attributes", [](const std::shared_ptr<ngraph::Node>& self) {
         util::DictAttributeSerializer dict_serializer(self);
         return dict_serializer.get_attributes();
     });
-    node.def("_set_attribute", [](std::shared_ptr<ngraph::Node>& self, const std::string& atr_name, py::object value) {
+    node.def("set_attribute", [](std::shared_ptr<ngraph::Node>& self, const std::string& atr_name, py::object value) {
         py::dict attr_dict;
         attr_dict[atr_name.c_str()] = value;
         std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
         util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
         self->visit_attributes(dict_deserializer);
+    });
+    node.def("set_arguments", [](const std::shared_ptr<ngraph::Node>& self, const ngraph::OutputVector& arguments) {
+        return self->set_arguments(arguments);
+    });
+    node.def("validate", [](const std::shared_ptr<ngraph::Node>& self) {
+        return self->constructor_validate_and_infer_types();
     });
 }

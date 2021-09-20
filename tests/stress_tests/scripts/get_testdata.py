@@ -85,6 +85,22 @@ def run_in_subprocess(cmd, check_call=True):
         subprocess.call(cmd, shell=True)
 
 
+def get_model_recs(test_conf_root):
+    """Parse models from test config.
+       Model records in multi-model configs with static test definition are members of "device" sections
+    """
+    device_recs = test_conf_root.findall("device")
+    if device_recs:
+        model_recs = []
+        for device_rec in device_recs:
+            for model_rec in device_rec.findall("model"):
+                model_recs.append(model_rec)
+
+        return model_recs
+
+    return test_conf_root.find("models")
+
+
 def main():
     """Main entry point.
     """
@@ -141,10 +157,11 @@ def main():
         Venv.create_n_install_requirements(*requirements)
         python_executable = Venv.get_venv_executable()
 
-    # parse models from test config
     test_conf_obj = ET.parse(str(args.test_conf))
     test_conf_root = test_conf_obj.getroot()
-    for model_rec in test_conf_root.find("models"):
+    model_recs = get_model_recs(test_conf_root)
+
+    for model_rec in model_recs:
         if "name" not in model_rec.attrib or model_rec.attrib.get("source") != "omz":
             continue
         model_name = model_rec.attrib["name"]

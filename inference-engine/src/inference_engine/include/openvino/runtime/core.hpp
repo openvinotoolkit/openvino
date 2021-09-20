@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "common.hpp"
-#include "cpp/ie_executable_network.hpp"
+#include "executable_network.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
 #include "remote_context.hpp"
@@ -117,9 +117,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    ie::ExecutableNetwork compile_model(const std::shared_ptr<const ov::Function>& network,
-                                        const std::string& deviceName,
-                                        const ConfigMap& config = {});
+    ExecutableNetwork compile_model(const std::shared_ptr<const ov::Function>& network,
+                                    const std::string& deviceName,
+                                    const ConfigMap& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
@@ -134,9 +134,9 @@ public:
      *
      * @return An executable network reference
      */
-    ie::ExecutableNetwork compile_model(const std::string& modelPath,
-                                        const std::string& deviceName,
-                                        const ConfigMap& config = {});
+    ExecutableNetwork compile_model(const std::string& modelPath,
+                                    const std::string& deviceName,
+                                    const ConfigMap& config = {});
 
     /**
      * @brief Creates an executable network from a network object within a specified remote context.
@@ -146,9 +146,9 @@ public:
      * operation
      * @return An executable network object
      */
-    ie::ExecutableNetwork compile_model(const std::shared_ptr<const ov::Function>& network,
-                                        const RemoteContext& context,
-                                        const ConfigMap& config = {});
+    ExecutableNetwork compile_model(const std::shared_ptr<const ov::Function>& network,
+                                    const RemoteContext& context,
+                                    const ConfigMap& config = {});
 
     /**
      * @brief Registers extension
@@ -164,9 +164,9 @@ public:
      * operation*
      * @return An executable network reference
      */
-    ie::ExecutableNetwork import_model(std::istream& networkModel,
-                                       const std::string& deviceName,
-                                       const ConfigMap& config = {});
+    ExecutableNetwork import_model(std::istream& networkModel,
+                                   const std::string& deviceName,
+                                   const ConfigMap& config = {});
 
     /**
      * @brief Creates an executable network from a previously exported network within a specified
@@ -178,9 +178,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    ie::ExecutableNetwork import_model(std::istream& networkModel,
-                                       const RemoteContext& context,
-                                       const ConfigMap& config = {});
+    ExecutableNetwork import_model(std::istream& networkModel,
+                                   const RemoteContext& context,
+                                   const ConfigMap& config = {});
 
     /**
      * @brief Query device if it supports specified network with specified configuration
@@ -188,11 +188,11 @@ public:
      * @param deviceName A name of a device to query
      * @param network Network object to query
      * @param config Optional map of pairs: (config parameter name, config parameter value)
-     * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
+     * @return An object containing a map of pairs a operation name -> a device name supporting this operation.
      */
-    ie::QueryNetworkResult query_model(const std::shared_ptr<const ov::Function>& network,
-                                       const std::string& deviceName,
-                                       const ConfigMap& config = {}) const;
+    SupportedOpsMap query_model(const std::shared_ptr<const ov::Function>& network,
+                                const std::string& deviceName,
+                                const ConfigMap& config = {}) const;
 
     /**
      * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
@@ -230,7 +230,7 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> get_available_devices() const;
