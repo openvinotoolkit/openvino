@@ -30,6 +30,7 @@
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/variant.hpp"
@@ -521,8 +522,6 @@ using NodeTypeInfo = Node::type_info_t;
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node&);
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
 
-#define _OPENVINO_RTTI_EXPAND(X) X
-
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
 /// Should be used in the scope of class that requires type identification besides one provided by
 /// C++ RTTI.
@@ -585,8 +584,6 @@ OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
         return type_info_static;                                                          \
     }                                                                                     \
     _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)
-
-#define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
 
 /// Complementary to OPENVINO_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
 /// OPENVINO_RTTI_DECLARATION.
@@ -687,10 +684,8 @@ public:
     AttributeAdapter(std::shared_ptr<ov::Node>& value);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Node>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     std::shared_ptr<ov::Node>& m_ref;
@@ -703,10 +698,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<NodeVector>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<NodeVector>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::NodeVector& m_ref;
