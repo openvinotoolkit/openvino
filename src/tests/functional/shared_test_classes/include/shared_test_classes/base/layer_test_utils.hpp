@@ -87,6 +87,7 @@ public:
 
     std::string getRuntimePrecision(const std::string& layerName);
     std::string getRuntimePrecisionByType(const std::string& layerType);
+    std::map<std::string, ngraph::Node::RTMap> getRuntimeInfo();
 
 #ifndef NDEBUG
     void showRuntimePrecisions();

@@ -516,6 +516,16 @@ std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layer
     return "";
 }
 
+std::map<std::string, ngraph::Node::RTMap> LayerTestsCommon::getRuntimeInfo() {
+    const auto execGraph = executableNetwork.GetExecGraphInfo();
+    const auto function = execGraph.getFunction();
+    std::map<std::string, ngraph::Node::RTMap> runtimeInfo;
+    for (const auto& op : function->get_ops()) {
+        runtimeInfo[op->get_friendly_name()] = op->get_rt_info();
+    }
+    return runtimeInfo;
+}
+
 #ifndef NDEBUG
 void LayerTestsCommon::showRuntimePrecisions() {
     const auto execGraph = executableNetwork.GetExecGraphInfo();
