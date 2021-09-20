@@ -26,9 +26,7 @@ public:
 
     void createPrimitive() override;
 
-    std::vector<VectorDims> shapeInfer() const override {
-        return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
-    }
+    std::vector<VectorDims> shapeInfer() const override;
 
     void prepareParams() override;
 
@@ -64,8 +62,6 @@ public:
 private:
     std::shared_ptr<MemoryDesc> input;
     std::shared_ptr<MemoryDesc> output;
-
-    mkldnn::reorder::primitive_desc pd;
 
     MKLDNNMemoryPtr dst_blocked;
     MKLDNNMemoryPtr src_blocked;

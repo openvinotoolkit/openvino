@@ -89,7 +89,7 @@ public:
 
     void createPrimitive() override;
 
-    bool isPrepareParamsNeeded() const override;
+    bool needPrepareParams() const override;
     void prepareParams() override;
 
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }

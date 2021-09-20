@@ -474,7 +474,8 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
     isDynamic = std::any_of(inputShapes.begin(), inputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); }) ||
                 std::any_of(outputShapes.begin(), outputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); });
 
-    createShapeInferSubgraph(op);
+    if (isDynamic)
+        createShapeInferSubgraph(op);
 
     const auto& rtInfo = op->get_rt_info();
     if (rtInfo.count("originalLayersNames")) {
@@ -855,16 +856,16 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
-    bool isInShapeChanged = isInputShapeChanged();
+    bool isInShapeChanged = inputShapesModified();
     if (isInShapeChanged) {
-        if (isShapeInferNeeded())
+        if (needShapeInfer())
             redefineOutputMemory(shapeInfer());
     }
-    if (isPrepareParamsNeeded())
+    if (needPrepareParams())
         prepareParams();
     executeDynamicImpl(strm);
     if (isInShapeChanged)
-        initCurrentDims();
+        updateLastInputDims();
 }
 
 void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
@@ -1554,7 +1555,7 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             || isConvertablePowerStatic();
 }
 
-bool MKLDNNNode::isInputShapesDefined() const {
+bool MKLDNNNode::inputShapesDefined() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (!getParentEdgesAtPort(i)[0]->getMemory().getDesc().isDefined())
             return false;
@@ -1562,22 +1563,22 @@ bool MKLDNNNode::isInputShapesDefined() const {
     return true;
 }
 
-bool MKLDNNNode::isPrepareParamsNeeded() const {
-    return isInputShapeChanged();
+bool MKLDNNNode::needPrepareParams() const {
+    return inputShapesModified();
 }
 
-bool MKLDNNNode::isInputShapeChanged() const {
-    if (currentInDims.size() != getParentEdges().size())
+bool MKLDNNNode::inputShapesModified() const {
+    if (lastInputDims.size() != getParentEdges().size())
         IE_THROW() << "Input dims and parent edges number mismatch!";
-    for (size_t i = 0; i < currentInDims.size(); i++) {
-        if (currentInDims[i] != getParentEdgesAtPort(i)[0]->getMemory().getStaticDims())
+    for (size_t i = 0; i < lastInputDims.size(); i++) {
+        if (lastInputDims[i] != getParentEdgesAtPort(i)[0]->getMemory().getStaticDims())
             return true;
     }
     return false;
 }
 
 // should be called after isInputShapeChanged
-bool MKLDNNNode::isShapeInferNeeded() const {
+bool MKLDNNNode::needShapeInfer() const {
     return true;
 }
 
@@ -1603,11 +1604,11 @@ std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
     return newOutputShapes;
 }
 
-void MKLDNNNode::initCurrentDims() {
-    if (currentInDims.size() != getParentEdges().size())
+void MKLDNNNode::updateLastInputDims() {
+    if (lastInputDims.size() != getParentEdges().size())
         IE_THROW() << "Input dims and parent edges number mismatch!";
-    for (size_t i = 0; i < currentInDims.size(); i++)
-        currentInDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
+    for (size_t i = 0; i < lastInputDims.size(); i++)
+        lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
 }
 
 bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
@@ -1707,16 +1708,14 @@ void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<f
 }
 
 void MKLDNNNode::createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& op) {
-    if (isDynamic) {
-        ngraph::OutputVector inputsForShapeInfer;
-        for (size_t i = 0; i < inputShapes.size(); i++) {
-            if (dynamic_cast<ngraph::opset1::Constant *>(op->get_input_node_ptr(i))) {
-                inputsForShapeInfer.push_back(op->get_input_node_shared_ptr(i));
-            } else {
-                inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(op->get_input_element_type(i),
-                                                                                          op->get_input_partial_shape(i)));
-            }
+    ngraph::OutputVector inputsForShapeInfer;
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        if (dynamic_cast<ngraph::opset1::Constant *>(op->get_input_node_ptr(i))) {
+            inputsForShapeInfer.push_back(op->get_input_node_shared_ptr(i));
+        } else {
+            inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(op->get_input_element_type(i),
+                                                                                      op->get_input_partial_shape(i)));
         }
-        opToShapeInfer = op->clone_with_new_inputs(inputsForShapeInfer);
     }
+    opToShapeInfer = op->clone_with_new_inputs(inputsForShapeInfer);
 }

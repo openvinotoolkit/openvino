@@ -690,25 +690,25 @@ protected:
 
     bool isDynamic = false;
 
-    bool isInputShapesDefined() const;
-    void initCurrentDims();
+    bool inputShapesDefined() const;
+    void updateLastInputDims();
 
-    bool isInputShapeChanged() const;
-    virtual bool isShapeInferNeeded() const;
+    bool inputShapesModified() const;
+    virtual bool needShapeInfer() const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(mkldnn::stream strm) {
         IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
     }
 
-    virtual bool isPrepareParamsNeeded() const;
+    virtual bool needPrepareParams() const;
     // TODO [mandrono]: add description
     // called after memory allocation/reallocation
     virtual void prepareParams() {
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
-    std::vector<VectorDims> currentInDims = {};
+    std::vector<VectorDims> lastInputDims = {};
 
 private:
     std::shared_ptr<ngraph::Node> opToShapeInfer;

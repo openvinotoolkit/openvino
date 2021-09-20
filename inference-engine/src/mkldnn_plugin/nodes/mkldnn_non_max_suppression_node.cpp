@@ -145,7 +145,7 @@ void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
 
     addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
 
-    currentInDims.resize(inDataConf.size());
+    lastInputDims.resize(inDataConf.size());
 }
 
 void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
