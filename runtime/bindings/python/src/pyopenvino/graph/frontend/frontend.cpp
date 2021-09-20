@@ -9,11 +9,11 @@
 #include "frontend_manager.hpp"
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "frontend_manager/frontend_manager.hpp"
-#include "pyngraph/function.hpp"
+#include "openvino/core/function.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_FrontEnd(py::module m) {
+void regclass_graph_FrontEnd(py::module m) {
     py::class_<ngraph::frontend::FrontEnd, std::shared_ptr<ngraph::frontend::FrontEnd>> fem(m,
                                                                                             "FrontEnd",
                                                                                             py::dynamic_attr());
@@ -40,7 +40,7 @@ void regclass_pyngraph_FrontEnd(py::module m) {
              )");
 
     fem.def("convert",
-            static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(
+            static_cast<std::shared_ptr<ov::Function> (ngraph::frontend::FrontEnd::*)(
                 ngraph::frontend::InputModel::Ptr) const>(&ngraph::frontend::FrontEnd::convert),
             py::arg("model"),
             R"(
@@ -54,11 +54,11 @@ void regclass_pyngraph_FrontEnd(py::module m) {
                 Returns
                 ----------
                 convert : Function
-                    Fully converted nGraph function.
+                    Fully converted OV function.
              )");
 
     fem.def("convert",
-            static_cast<void (ngraph::frontend::FrontEnd::*)(std::shared_ptr<ngraph::Function>) const>(
+            static_cast<void (ngraph::frontend::FrontEnd::*)(std::shared_ptr<ov::Function>) const>(
                 &ngraph::frontend::FrontEnd::convert),
             py::arg("function"),
             R"(
@@ -67,12 +67,12 @@ void regclass_pyngraph_FrontEnd(py::module m) {
                 Parameters
                 ----------
                 function : Function
-                    Partially converted nGraph function.
+                    Partially converted OV function.
 
                 Returns
                 ----------
                 convert : Function
-                    Fully converted nGraph function.
+                    Fully converted OV function.
              )");
 
     fem.def("convert_partially",

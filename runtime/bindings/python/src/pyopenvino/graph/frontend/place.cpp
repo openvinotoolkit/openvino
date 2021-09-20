@@ -9,11 +9,10 @@
 #include "frontend_manager.hpp"
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "frontend_manager/frontend_manager.hpp"
-#include "pyngraph/function.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Place(py::module m) {
+void regclass_graph_Place(py::module m) {
     py::class_<ngraph::frontend::Place, std::shared_ptr<ngraph::frontend::Place>> place(m, "Place", py::dynamic_attr());
     place.doc() = "ngraph.impl.Place wraps ngraph::frontend::Place";
 

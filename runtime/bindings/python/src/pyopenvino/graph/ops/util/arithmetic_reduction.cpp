@@ -8,11 +8,11 @@
 #include <pybind11/stl.h>
 
 #include "ngraph/op/op.hpp"
-#include "pyngraph/ops/util/arithmetic_reduction.hpp"
+#include "pyopenvino/graph/ops/util/arithmetic_reduction.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_op_util_ArithmeticReduction(py::module m) {
+void regclass_graph_op_util_ArithmeticReduction(py::module m) {
     py::class_<ngraph::op::util::ArithmeticReduction, std::shared_ptr<ngraph::op::util::ArithmeticReduction>>
         arithmeticReduction(m, "ArithmeticReduction");
     // arithmeticReduction.def(py::init<const std::string&,

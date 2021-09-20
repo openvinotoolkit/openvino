@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pyngraph/passes/regmodule_pyngraph_passes.hpp"
+#include "regmodule_graph_passes.hpp"
 
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
 
-void regmodule_pyngraph_passes(py::module m) {
+void regmodule_graph_passes(py::module m) {
     py::module m_passes = m.def_submodule("passes", "Package ngraph.impl.passes wraps ngraph::passes");
-    regclass_pyngraph_passes_Manager(m_passes);
+    regclass_graph_passes_Manager(m_passes);
 }

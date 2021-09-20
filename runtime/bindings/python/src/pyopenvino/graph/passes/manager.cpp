@@ -10,7 +10,7 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/validate.hpp"
-#include "pyngraph/passes/manager.hpp"
+#include "pyopenvino/graph/passes/manager.hpp"
 
 namespace py = pybind11;
 
@@ -31,7 +31,7 @@ public:
 };
 }  // namespace
 
-void regclass_pyngraph_passes_Manager(py::module m) {
+void regclass_graph_passes_Manager(py::module m) {
     py::class_<ManagerWrapper> manager(m, "Manager");
     manager.doc() = "ngraph.impl.passes.Manager wraps ngraph::pass::Manager using ManagerWrapper";
 

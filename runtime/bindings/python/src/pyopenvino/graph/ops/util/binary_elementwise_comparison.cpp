@@ -7,11 +7,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "pyngraph/ops/util/binary_elementwise_comparison.hpp"
+#include "pyopenvino/graph/ops/util/binary_elementwise_comparison.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_op_util_BinaryElementwiseComparison(py::module m) {
+void regclass_graph_op_util_BinaryElementwiseComparison(py::module m) {
     py::class_<ngraph::op::util::BinaryElementwiseComparison,
                std::shared_ptr<ngraph::op::util::BinaryElementwiseComparison>>
         binaryElementwiseComparison(m, "BinaryElementwiseComparison");

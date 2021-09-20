@@ -8,11 +8,11 @@
 #include <pybind11/stl.h>
 
 #include "ngraph/op/op.hpp"
-#include "pyngraph/ops/util/index_reduction.hpp"
+#include "pyopenvino/graph/ops/util/index_reduction.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_op_util_IndexReduction(py::module m) {
+void regclass_graph_op_util_IndexReduction(py::module m) {
     py::class_<ngraph::op::util::IndexReduction, std::shared_ptr<ngraph::op::util::IndexReduction>> indexReduction(
         m,
         "IndexRedection");

@@ -8,11 +8,11 @@
 #include <pybind11/stl.h>
 
 #include "ngraph/op/parameter.hpp"
-#include "pyngraph/types/element_type.hpp"
+#include "pyopenvino/graph/types/element_type.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Type(py::module m) {
+void regclass_graph_Type(py::module m) {
     py::class_<ngraph::element::Type, std::shared_ptr<ngraph::element::Type>> type(m, "Type");
     type.doc() = "ngraph.impl.Type wraps ngraph::element::Type";
     type.attr("boolean") = ngraph::element::boolean;

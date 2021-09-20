@@ -8,10 +8,10 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_FrontEndManager(py::module m);
-void regclass_pyngraph_NotImplementedFailureFrontEnd(py::module m);
-void regclass_pyngraph_InitializationFailureFrontEnd(py::module m);
-void regclass_pyngraph_OpConversionFailureFrontEnd(py::module m);
-void regclass_pyngraph_OpValidationFailureFrontEnd(py::module m);
-void regclass_pyngraph_GeneralFailureFrontEnd(py::module m);
+void regclass_graph_FrontEndManager(py::module m);
+void regclass_graph_NotImplementedFailureFrontEnd(py::module m);
+void regclass_graph_InitializationFailureFrontEnd(py::module m);
+void regclass_graph_OpConversionFailureFrontEnd(py::module m);
+void regclass_graph_OpValidationFailureFrontEnd(py::module m);
+void regclass_graph_GeneralFailureFrontEnd(py::module m);
 

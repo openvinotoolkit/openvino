@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_op_Constant(py::module m);
+void regclass_graph_op_Constant(py::module m);

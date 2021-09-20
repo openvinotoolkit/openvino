@@ -5,8 +5,9 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
-#include "pyngraph/passes/manager.hpp"
+
+#include "pyopenvino/graph/types/element_type.hpp"
 
 namespace py = pybind11;
 
-void regmodule_pyngraph_passes(py::module m);
+void regmodule_graph_types(py::module m);

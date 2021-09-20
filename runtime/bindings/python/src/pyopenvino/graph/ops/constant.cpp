@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "ngraph/shape.hpp"
-#include "pyngraph/ops/constant.hpp"
+#include "pyopenvino/graph/ops/constant.hpp"
 
 namespace py = pybind11;
 
@@ -57,7 +57,7 @@ py::array _cast_vector(const ngraph::op::Constant& self) {
     return py::array(vec.size(), vec.data());
 }
 
-void regclass_pyngraph_op_Constant(py::module m) {
+void regclass_graph_op_Constant(py::module m) {
     py::class_<ngraph::op::Constant, std::shared_ptr<ngraph::op::Constant>, ngraph::Node> constant(
         m,
         "Constant",

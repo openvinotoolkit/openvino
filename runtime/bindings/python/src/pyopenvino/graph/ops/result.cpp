@@ -10,11 +10,11 @@
 #include <string>
 
 #include "ngraph/node.hpp"
-#include "pyngraph/ops/result.hpp"
+#include "pyopenvino/graph/ops/result.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_op_Result(py::module m) {
+void regclass_graph_op_Result(py::module m) {
     py::class_<ngraph::op::Result, std::shared_ptr<ngraph::op::Result>, ngraph::Node> result(m, "Result");
     result.doc() = "ngraph.impl.op.Result wraps ngraph::op::Result";
 }

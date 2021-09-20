@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Place(py::module m);
+void regclass_graph_Place(py::module m);

@@ -11,11 +11,11 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/partial_shape.hpp"  // ngraph::PartialShape
-#include "pyngraph/ops/parameter.hpp"
+#include "pyopenvino/graph/ops/parameter.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_op_Parameter(py::module m) {
+void regclass_graph_op_Parameter(py::module m) {
     py::class_<ngraph::op::Parameter, std::shared_ptr<ngraph::op::Parameter>, ngraph::Node> parameter(m, "Parameter");
     parameter.doc() = "ngraph.impl.op.Parameter wraps ngraph::op::Parameter";
     parameter.def("__repr__", [](const ngraph::Node& self) {

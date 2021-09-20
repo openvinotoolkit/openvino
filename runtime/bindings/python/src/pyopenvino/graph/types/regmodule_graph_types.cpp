@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
+#include "regmodule_graph_types.hpp"
 
 #include <pybind11/pybind11.h>
 
-#include "pyngraph/types/element_type.hpp"
-
 namespace py = pybind11;
 
-void regmodule_pyngraph_types(py::module m);
+void regmodule_graph_types(py::module m) {
+    regclass_graph_Type(m);
+}
