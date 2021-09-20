@@ -7,11 +7,11 @@
 #include <pybind11/stl.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "pyngraph/node_input.hpp"
+#include "pyopenvino/graph/node_input.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Input(py::module m) {
+void regclass_graph_Input(py::module m) {
     py::class_<ngraph::Input<ngraph::Node>, std::shared_ptr<ngraph::Input<ngraph::Node>>> input(m,
                                                                                                 "Input",
                                                                                                 py::dynamic_attr());

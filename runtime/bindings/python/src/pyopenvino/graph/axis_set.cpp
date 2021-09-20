@@ -11,11 +11,11 @@
 #include <sstream>
 #include <string>
 
-#include "pyngraph/axis_set.hpp"
+#include "pyopenvino/graph/axis_set.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_AxisSet(py::module m) {
+void regclass_graph_AxisSet(py::module m) {
     py::class_<ngraph::AxisSet, std::shared_ptr<ngraph::AxisSet>> axis_set(m, "AxisSet");
     axis_set.doc() = "ngraph.impl.AxisSet wraps ngraph::AxisSet";
     axis_set.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axes"));

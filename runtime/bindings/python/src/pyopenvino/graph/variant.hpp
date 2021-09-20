@@ -14,10 +14,10 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Variant(py::module m);
+void regclass_graph_Variant(py::module m);
 
 template <typename VT>
-extern void regclass_pyngraph_VariantWrapper(py::module m, std::string typestring)
+extern void regclass_graph_VariantWrapper(py::module m, std::string typestring)
 {
     auto pyclass_name = py::detail::c_str((std::string("Variant") + typestring));
     py::class_<ngraph::VariantWrapper<VT>,

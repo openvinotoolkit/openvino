@@ -7,11 +7,11 @@
 #include <pybind11/stl.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "pyngraph/node_output.hpp"
+#include "pyopenvino/graph/node_output.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Output(py::module m) {
+void regclass_graph_Output(py::module m) {
     py::class_<ngraph::Output<ngraph::Node>, std::shared_ptr<ngraph::Output<ngraph::Node>>> output(m,
                                                                                                    "Output",
                                                                                                    py::dynamic_attr());

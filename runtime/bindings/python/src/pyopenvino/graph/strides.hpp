@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Strides(py::module m);
+void regclass_graph_Strides(py::module m);

@@ -9,13 +9,13 @@
 
 #include "ngraph/op/parameter.hpp"  // ngraph::op::Parameter
 #include "ngraph/op/sink.hpp"
-#include "pyngraph/function.hpp"
+#include "pyopenvino/graph/function.hpp"
 
 namespace py = pybind11;
 
 static const char* CAPSULE_NAME = "ngraph_function";
 
-void regclass_pyngraph_Function(py::module m) {
+void regclass_graph_Function(py::module m) {
     py::class_<ngraph::Function, std::shared_ptr<ngraph::Function>> function(m, "Function");
     function.doc() = "ngraph.impl.Function wraps ngraph::Function";
 

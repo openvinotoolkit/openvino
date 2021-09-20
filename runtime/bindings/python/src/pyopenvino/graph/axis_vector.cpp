@@ -7,11 +7,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "pyngraph/axis_vector.hpp"
+#include "pyopenvino/graph/axis_vector.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_AxisVector(py::module m) {
+void regclass_graph_AxisVector(py::module m) {
     py::class_<ngraph::AxisVector, std::shared_ptr<ngraph::AxisVector>> axis_vector(m, "AxisVector");
     axis_vector.doc() = "ngraph.impl.AxisVector wraps ngraph::AxisVector";
     axis_vector.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axes"));

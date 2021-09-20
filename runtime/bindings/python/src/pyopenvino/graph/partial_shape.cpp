@@ -13,13 +13,13 @@
 
 #include "ngraph/dimension.hpp"  // ngraph::Dimension
 #include "ngraph/shape.hpp"      // ngraph::Shape
-#include "pyngraph/partial_shape.hpp"
+#include "pyopenvino/graph/partial_shape.hpp"
 
 namespace py = pybind11;
 
 static const char* CAPSULE_NAME = "ngraph_partial_shape";
 
-void regclass_pyngraph_PartialShape(py::module m) {
+void regclass_graph_PartialShape(py::module m) {
     py::class_<ngraph::PartialShape, std::shared_ptr<ngraph::PartialShape>> shape(m, "PartialShape");
     shape.doc() = "ngraph.impl.PartialShape wraps ngraph::PartialShape";
 

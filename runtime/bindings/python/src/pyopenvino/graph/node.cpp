@@ -14,9 +14,9 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/variant.hpp"
-#include "pyngraph/node.hpp"
-#include "pyngraph/rt_map.hpp"
-#include "pyngraph/variant.hpp"
+#include "pyopenvino/graph/node.hpp"
+#include "pyopenvino/graph/rt_map.hpp"
+#include "pyopenvino/graph/variant.hpp"
 
 namespace py = pybind11;
 
@@ -24,7 +24,7 @@ using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
-void regclass_pyngraph_Node(py::module m) {
+void regclass_graph_Node(py::module m) {
     py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
     node.def(

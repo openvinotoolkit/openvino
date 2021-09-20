@@ -11,11 +11,11 @@
 #include <sstream>
 #include <string>
 
-#include "pyngraph/dimension.hpp"
+#include "pyopenvino/graph/dimension.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Dimension(py::module m) {
+void regclass_graph_Dimension(py::module m) {
     using value_type = ngraph::Dimension::value_type;
 
     py::class_<ngraph::Dimension, std::shared_ptr<ngraph::Dimension>> dim(m, "Dimension");

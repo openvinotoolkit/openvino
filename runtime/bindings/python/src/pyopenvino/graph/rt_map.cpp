@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pyngraph/rt_map.hpp"
+#include "pyopenvino/graph/rt_map.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -15,8 +15,8 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/variant.hpp"
-#include "pyngraph/node.hpp"
-#include "pyngraph/variant.hpp"
+#include "pyopenvino/graph/node.hpp"
+#include "pyopenvino/graph/variant.hpp"
 
 namespace py = pybind11;
 
@@ -34,7 +34,7 @@ void _set_with_variant(PyRTMap& m, const std::string& k, const T v) {
         m.emplace(k, new_v);
 }
 
-void regclass_pyngraph_PyRTMap(py::module m) {
+void regclass_graph_PyRTMap(py::module m) {
     auto py_map = py::bind_map<PyRTMap>(m, "PyRTMap");
     py_map.doc() = "ngraph.impl.PyRTMap makes bindings for std::map<std::string, "
                    "std::shared_ptr<ngraph::Variant>>, which can later be used as ngraph::Node::RTMap";

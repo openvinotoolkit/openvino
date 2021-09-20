@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_PyRTMap(py::module m);
+void regclass_graph_PyRTMap(py::module m);

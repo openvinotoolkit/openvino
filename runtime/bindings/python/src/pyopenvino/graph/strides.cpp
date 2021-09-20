@@ -11,11 +11,11 @@
 #include <sstream>
 #include <string>
 
-#include "pyngraph/strides.hpp"
+#include "pyopenvino/graph/strides.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Strides(py::module m) {
+void regclass_graph_Strides(py::module m) {
     py::class_<ngraph::Strides, std::shared_ptr<ngraph::Strides>> strides(m, "Strides");
     strides.doc() = "ngraph.impl.Strides wraps ngraph::Strides";
     strides.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axis_strides"));
