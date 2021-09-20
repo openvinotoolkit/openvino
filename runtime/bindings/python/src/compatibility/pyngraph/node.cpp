@@ -18,6 +18,17 @@
 #include "pyngraph/rt_map.hpp"
 #include "pyngraph/variant.hpp"
 
+class PyNode : public ngraph::Node {
+public:
+    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& inputs) const override {
+        PYBIND11_OVERRIDE_PURE(std::shared_ptr<ngraph::Node>, ngraph::Node, clone_with_new_inputs, inputs);
+    }
+
+    const type_info_t& get_type_info() const override {
+        PYBIND11_OVERRIDE_PURE(type_info_t&, ngraph::Node, get_type_info, );
+    }
+};
+
 namespace py = pybind11;
 
 using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
@@ -25,7 +36,7 @@ using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_pyngraph_Node(py::module m) {
-    py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr());
+    py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>, PyNode> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
     node.def(
         "__add__",
@@ -146,7 +157,7 @@ void regclass_pyngraph_Node(py::module m) {
                 Returns
                 ----------
                 get_type_name : str
-                    String repesenting Type's name. 
+                    String repesenting Type's name.
              )");
     node.def("get_name",
              &ngraph::Node::get_name,
@@ -161,7 +172,7 @@ void regclass_pyngraph_Node(py::module m) {
     node.def("get_friendly_name",
              &ngraph::Node::get_friendly_name,
              R"(
-                Gets the friendly name for a node. If no friendly name has 
+                Gets the friendly name for a node. If no friendly name has
                 been set via set_friendly_name then the node's unique name
                 is returned.
 
@@ -170,12 +181,13 @@ void regclass_pyngraph_Node(py::module m) {
                 get_name : str
                     Friendly name of the node.
              )");
+    node.def("get_type_info", &ngraph::Node::get_type_info);
     node.def("set_friendly_name",
              &ngraph::Node::set_friendly_name,
              py::arg("name"),
              R"(
                 Sets a friendly name for a node. This does not overwrite the unique name
-                of the node and is retrieved via get_friendly_name(). Used mainly for 
+                of the node and is retrieved via get_friendly_name(). Used mainly for
                 debugging. The friendly name may be set exactly once.
 
                 Parameters
@@ -257,12 +269,21 @@ void regclass_pyngraph_Node(py::module m) {
                     Operation version.
              )");
 
+    node.def("set_argument", &ngraph::Node::set_argument);
+    node.def("set_arguments", [](const std::shared_ptr<ngraph::Node>& self, const ngraph::NodeVector& args) {
+        self->set_arguments(args);
+    });
+    node.def("set_arguments", [](const std::shared_ptr<ngraph::Node>& self, const ngraph::OutputVector& args) {
+        self->set_arguments(args);
+    });
+
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
     node.def_property_readonly("name", &ngraph::Node::get_name);
     node.def_property_readonly("rt_info",
                                (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info,
                                py::return_value_policy::reference_internal);
     node.def_property_readonly("version", &ngraph::Node::get_version);
+    node.def_property_readonly("type_info", &ngraph::Node::get_type_info);
     node.def_property("friendly_name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
 
     node.def("get_attributes", [](const std::shared_ptr<ngraph::Node>& self) {
