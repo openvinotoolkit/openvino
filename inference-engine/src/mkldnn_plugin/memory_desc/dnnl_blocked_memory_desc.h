@@ -88,6 +88,8 @@ private:
     void initStrides();
     void initOffsetPadding();
 
+    void recomputeStrides();
+
     /**
      * Try to define original format tag use on creation
      *
