@@ -155,12 +155,13 @@ void ov::Node::set_arguments(const NodeVector& arguments) {
 }
 
 void ov::Node::set_arguments(const OutputVector& arguments) {
+    // Remove existing inputs of this node
+    m_inputs.clear();
+
     // Add this node as a user of each argument.
     size_t i = 0;
     for (auto& output : arguments) {
-        auto output_node = output.get_node();
-        auto& output_descriptor = output_node->m_outputs.at(output.get_index());
-        m_inputs.emplace_back(this, i++, output_descriptor);
+        set_argument(i++, output);
     }
 }
 
@@ -834,7 +835,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
 }
 
 namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Node>>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<shared_ptr<Node>>);
 
 AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>& value) : m_ref(value) {}
 
@@ -848,7 +849,7 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     return true;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<NodeVector>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<NodeVector>);
 
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 

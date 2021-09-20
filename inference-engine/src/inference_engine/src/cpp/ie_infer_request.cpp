@@ -33,6 +33,8 @@ namespace InferenceEngine {
         __VA_ARGS__;                                                        \
     } catch (const std::exception& ex) {                                    \
         throw ov::Exception(ex.what());                                     \
+    } catch (...) {                                                         \
+        OPENVINO_ASSERT(false, "Unexpected exception");                     \
     }
 
 InferRequest::InferRequest(const details::SharedObjectLoader& so, const IInferRequestInternal::Ptr& impl)

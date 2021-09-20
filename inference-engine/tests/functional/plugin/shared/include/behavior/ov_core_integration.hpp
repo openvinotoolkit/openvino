@@ -276,14 +276,14 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << pluginXML << "' to '"
-                       << ::FileUtils::wStringtoMBCSstringChar(pluginsXmlW) << "'";
+                       << ::ov::util::wstring_to_string(pluginsXmlW) << "'";
             }
 
             GTEST_COUT << "Test " << testIndex << std::endl;
 
             ov::runtime::Core ie = createCoreWithTemplate();
             GTEST_COUT << "Core created " << testIndex << std::endl;
-            ASSERT_NO_THROW(ie.register_plugins(::FileUtils::wStringtoMBCSstringChar(pluginsXmlW)));
+            ASSERT_NO_THROW(ie.register_plugins(::ov::util::wstring_to_string(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
 #    if defined __linux__ && !defined(__APPLE__)
             ASSERT_NO_THROW(ie.get_versions("mock"));  // from pluginXML

@@ -29,6 +29,8 @@ namespace InferenceEngine {
         __VA_ARGS__;                                                             \
     } catch (const std::exception& ex) {                                         \
         throw ov::Exception(ex.what());                                          \
+    } catch (...) {                                                              \
+        OPENVINO_ASSERT(false, "Unexpected exception");                          \
     }
 
 ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader& so, const IExecutableNetworkInternal::Ptr& impl)

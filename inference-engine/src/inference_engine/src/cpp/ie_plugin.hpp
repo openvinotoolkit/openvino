@@ -126,6 +126,16 @@ public:
 namespace ov {
 namespace runtime {
 
+#define OV_PLUGIN_CALL_STATEMENT(...)                                         \
+    OPENVINO_ASSERT(_ptr != nullptr, "InferencePlugin was not initialized."); \
+    try {                                                                     \
+        __VA_ARGS__;                                                          \
+    } catch (const std::exception& ex) {                                      \
+        throw ov::Exception(ex.what());                                       \
+    } catch (...) {                                                           \
+        OPENVINO_ASSERT(false, "Unexpected exception");                       \
+    }
+
 /**
  * @brief This class is a C++ API wrapper for IInferencePlugin.
  *
@@ -138,81 +148,81 @@ struct InferencePlugin {
     InferencePlugin(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IInferencePlugin>& impl) :
         _so{so},
         _ptr{impl} {
-        IE_ASSERT(_ptr != nullptr);
+        OPENVINO_ASSERT(_ptr != nullptr, "InferencePlugin was not initialized.");
     }
 
     void set_name(const std::string& deviceName) {
-        PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
+        OV_PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
 
     void set_core(std::weak_ptr<ie::ICore> core) {
-        PLUGIN_CALL_STATEMENT(_ptr->SetCore(core));
+        OV_PLUGIN_CALL_STATEMENT(_ptr->SetCore(core));
     }
 
     const ie::Version get_version() const {
-        PLUGIN_CALL_STATEMENT(return _ptr->GetVersion());
+        OV_PLUGIN_CALL_STATEMENT(return _ptr->GetVersion());
     }
 
     void add_extension(const ie::IExtensionPtr& extension) {
-        PLUGIN_CALL_STATEMENT(_ptr->AddExtension(extension));
+        OV_PLUGIN_CALL_STATEMENT(_ptr->AddExtension(extension));
     }
 
     void set_config(const ConfigMap& config) {
-        PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
+        OV_PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
     }
 
     SoPtr<ie::IExecutableNetworkInternal> load_model(const ie::CNNNetwork& network, const ConfigMap& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config)});
+        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config)});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> load_model(const ie::CNNNetwork& network,
                                                                const std::shared_ptr<ie::RemoteContext>& context,
                                                                const ConfigMap& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
+        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> load_model(const std::string& modelPath, const ConfigMap& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(modelPath, config)});
+        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(modelPath, config)});
     }
 
     ie::QueryNetworkResult query_model(const ie::CNNNetwork& network,
                                        const ConfigMap& config) const {
         ie::QueryNetworkResult res;
-        PLUGIN_CALL_STATEMENT(res = _ptr->QueryNetwork(network, config));
-        if (res.rc != ie::OK) IE_THROW() << res.resp.msg;
+        OV_PLUGIN_CALL_STATEMENT(res = _ptr->QueryNetwork(network, config));
+        OPENVINO_ASSERT(res.rc == ie::OK, res.resp.msg);
         return res;
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(const std::string& modelFileName,
                                                                  const ConfigMap& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(modelFileName, config)});
+        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(modelFileName, config)});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
                                     const ConfigMap& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, config)});
+        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, config)});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
                                                                  const std::shared_ptr<ie::RemoteContext>& context,
                                                                  const ConfigMap& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});
+        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});
     }
 
     ie::Parameter get_metric(const std::string& name, const ie::ParamMap& options) const {
-        PLUGIN_CALL_STATEMENT(return _ptr->GetMetric(name, options));
+        OV_PLUGIN_CALL_STATEMENT(return _ptr->GetMetric(name, options));
     }
 
     SoPtr<ie::RemoteContext> create_context(const ie::ParamMap& params) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->CreateContext(params)});
+        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->CreateContext(params)});
     }
 
     SoPtr<ie::RemoteContext> get_default_context(const ie::ParamMap& params) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetDefaultContext(params)});
+        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetDefaultContext(params)});
     }
 
     ie::Parameter get_config(const std::string& name, const ie::ParamMap& options) const {
-        PLUGIN_CALL_STATEMENT(return _ptr->GetConfig(name, options));
+        OV_PLUGIN_CALL_STATEMENT(return _ptr->GetConfig(name, options));
     }
 };
 
@@ -220,3 +230,4 @@ struct InferencePlugin {
 }  // namespace ov
 
 #undef PLUGIN_CALL_STATEMENT
+#undef OV_PLUGIN_CALL_STATEMENT

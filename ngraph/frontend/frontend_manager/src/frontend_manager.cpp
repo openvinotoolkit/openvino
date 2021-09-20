@@ -5,8 +5,8 @@
 #include "frontend_manager/frontend_manager.hpp"
 
 #include <frontend_manager/place.hpp>
-#include <ngraph/env_util.hpp>
 #include <ngraph/except.hpp>
+#include <openvino/util/env_util.hpp>
 
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "plugin_loader.hpp"
@@ -72,7 +72,7 @@ private:
                 }
             }
         };
-        std::string env_path = ngraph::getenv_string("OV_FRONTEND_PATH");
+        std::string env_path = ov::util::getenv_string("OV_FRONTEND_PATH");
         if (!env_path.empty()) {
             auto start = 0u;
             auto sep_pos = env_path.find(PathSeparator, start);
