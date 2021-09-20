@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import is_fully_defined
+from mo.graph.graph import Error
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.broadcasting import bi_directional_shape_broadcasting, bi_directional_broadcasting
-from mo.graph.graph import Error
+
 
 class Select(Op):
     op = 'Select'
@@ -48,7 +48,7 @@ class Select(Op):
             raise Error("PDPD broadcasting rule is not implemented yet")
         else:  # broadcasting is not allowed
             assert np.array_equal(a_shape, b_shape) and condition_value is not None and np.array_equal(condition_value.shape, a_shape), \
-                'In node \'{}\' For Select operation when broadcasting is off all inputs must be of the same shape. ' \
+                'In node \'{}\' for Select operation when broadcasting is off all inputs must be of the same shape. ' \
                 'But instead got: cond_shape={}, then_shape={}, else_shape={}'.format(
                     node_name, condition_value.shape, a_shape, b_shape)
             output_shape = a_shape
@@ -58,11 +58,11 @@ class Select(Op):
 
         if condition_value is not None:
             if resulting_tensors[0] is None or resulting_tensors[1] is None:
-                assert np.all(condition_value == condition_value[0])
+                assert np.all(condition_value == condition_value.item(0))
                 # in some graphs Select condition is always True[False] and
                 # one of the branches is None (which is not selected)
                 # if we use np.where for such cases then dtype of output_value will be object (non numeric type)
-                # and subsequent numpy operation on a such tensors will fail
+                # and subsequent numpy operation on such tensors will fail
                 output_value = resulting_tensors[not np.bool(condition_value.item(0))]
                 if output_value is None:
                     return
