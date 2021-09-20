@@ -123,8 +123,8 @@ static inline std::ostream& operator<<(std::ostream& os, const op::Subgraph::Blo
 }
 
 static inline auto is_scalar_constant(const std::shared_ptr<ngraph::Node>& source_output_node) -> bool {
-    return !!ngraph::as_type_ptr<ngraph::opset1::Constant>(source_output_node) &&
-        (source_output_node->get_shape() == ngraph::Shape() || ngraph::shape_size(source_output_node->get_shape()) == 1);
+    return ngraph::is_type<ngraph::opset1::Constant>(source_output_node) &&
+        (source_output_node->get_shape().empty() || ngraph::shape_size(source_output_node->get_shape()) == 1);
 };
 
 static inline auto create_body(std::string name, const ngraph::ResultVector& results, const ngraph::ParameterVector& parameters) ->
