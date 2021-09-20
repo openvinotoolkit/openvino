@@ -27,7 +27,8 @@ void CreateSpaceToDepthOp(Program& p, const std::shared_ptr<ngraph::op::v0::Spac
     auto spaceToDepthPrim = cldnn::space_to_depth(layerName,
                                                   inputPrimitives[0],
                                                   GetDepthMode(op->get_mode()),
-                                                  op->get_block_size());
+                                                  op->get_block_size(),
+                                                  op->get_friendly_name());
 
     p.AddPrimitive(spaceToDepthPrim);
     p.AddPrimitiveToProfiler(op);
