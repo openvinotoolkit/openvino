@@ -66,6 +66,7 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder);
 
+    // must be to initialize here since shapes are unknown at the time of Reorder node creation
     isDynamic = !(config.inConfs[0].desc->isDefined() && config.outConfs[0].desc->isDefined());
 
     if (isDynamic && (config.inConfs[0].desc->getShape().getRank() != config.outConfs[0].desc->getShape().getRank()))
@@ -90,7 +91,6 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
             canUseNcsp2Nspc = true;
         }
     }
-    lastInputDims.resize(1);
 }
 
 void MKLDNNReorderNode::createPrimitive() {

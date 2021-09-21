@@ -856,16 +856,12 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
-    bool isInShapeChanged = inputShapesModified();
-    if (isInShapeChanged) {
-        if (needShapeInfer())
-            redefineOutputMemory(shapeInfer());
-    }
+    if (needShapeInfer())
+        redefineOutputMemory(shapeInfer());
     if (needPrepareParams())
         prepareParams();
     executeDynamicImpl(strm);
-    if (isInShapeChanged)
-        updateLastInputDims();
+    updateLastInputDims();
 }
 
 void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
@@ -1568,8 +1564,12 @@ bool MKLDNNNode::needPrepareParams() const {
 }
 
 bool MKLDNNNode::inputShapesModified() const {
-    if (lastInputDims.size() != getParentEdges().size())
+    if (lastInputDims.size() != getParentEdges().size()) {
+        if (lastInputDims.empty())
+            return true;
         IE_THROW() << "Input dims and parent edges number mismatch!";
+    }
+
     for (size_t i = 0; i < lastInputDims.size(); i++) {
         if (lastInputDims[i] != getParentEdgesAtPort(i)[0]->getMemory().getStaticDims())
             return true;
@@ -1577,9 +1577,8 @@ bool MKLDNNNode::inputShapesModified() const {
     return false;
 }
 
-// should be called after isInputShapeChanged
 bool MKLDNNNode::needShapeInfer() const {
-    return true;
+    return inputShapesModified();
 }
 
 std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
@@ -1605,8 +1604,12 @@ std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
 }
 
 void MKLDNNNode::updateLastInputDims() {
-    if (lastInputDims.size() != getParentEdges().size())
-        IE_THROW() << "Input dims and parent edges number mismatch!";
+    if (lastInputDims.size() != getParentEdges().size()) {
+        if (!lastInputDims.empty())
+            IE_THROW() << "Input dims and parent edges number mismatch!";
+        lastInputDims.resize(getParentEdges().size());
+    }
+
     for (size_t i = 0; i < lastInputDims.size(); i++)
         lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
 }
