@@ -10,6 +10,3 @@
 #pragma once
 
 #include "openvino/runtime/core.hpp"
-#include "openvino/runtime/executable_network.hpp"
-#include "openvino/runtime/infer_request.hpp"
-#include "openvino/runtime/profiling_info.hpp"
