@@ -188,12 +188,12 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
             updatedOutputHighValue);
 
         if ((updatePrecisions == false) && (dequantizationMul == 1.f) && (dequantizationSub == 0.f)) {
-            return { nullptr, nullptr };
+            std::make_tuple(nullptr, nullptr);
         }
 
         //TODO: pass min levels as a parameter?
         if (levels < 2ul) {
-            return { nullptr, nullptr };
+            std::make_tuple(nullptr, nullptr);
         }
 
         // 2. update FakeQuantize - one time action
@@ -242,7 +242,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
 
         const auto newFakeQuantize = std::get<0>(QDQ);
         if (newFakeQuantize == nullptr) {
-            return { nullptr, nullptr };
+            std::make_tuple(nullptr, nullptr);
         }
         matcherPass->register_new_node(newFakeQuantize);
         dequantize = std::get<1>(QDQ);
