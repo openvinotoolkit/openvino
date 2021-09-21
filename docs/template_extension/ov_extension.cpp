@@ -9,5 +9,4 @@
 #include "op.hpp"
 
 OPENVINO_CREATE_EXTENSIONS(
-    std::vector<ov::Extension::Ptr>({std::make_shared<ov::OpExtension<TemplateExtension::Operation>>(),
-                                     std::make_shared<ov::OpExtension<TemplateExtension::FFTOp>>()}));
+    std::vector<ov::Extension::Ptr>({std::make_shared<ov::OpExtension<TemplateExtension::Operation>>()}));
