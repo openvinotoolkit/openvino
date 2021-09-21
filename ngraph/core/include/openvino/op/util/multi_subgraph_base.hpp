@@ -273,7 +273,7 @@ public:
     /// \return    Number of sub-graphs.
     virtual size_t get_num_internal_subgraphs() const {
         return m_bodies.size();
-    } 
+    }
 
     MultiSubGraphOp(const MultiSubGraphOp&) = delete;
     MultiSubGraphOp(MultiSubGraphOp&&) = default;
