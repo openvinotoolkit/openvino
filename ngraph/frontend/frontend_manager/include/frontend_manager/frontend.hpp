@@ -34,7 +34,7 @@ public:
     /// \return true if model recognized, false - otherwise.
     template <typename... Types>
     inline bool supported(const Types&... vars) const {
-        return supported_impl({make_variant(vars)...});
+        return supported_impl({ov::make_variant(vars)...});
     }
 
     /// \brief Loads an input model by any specified arguments. Each FrontEnd separately
@@ -46,7 +46,11 @@ public:
     /// \return Loaded input model.
     template <typename... Types>
     inline InputModel::Ptr load(const Types&... vars) const {
-        return load_impl({make_variant(vars)...});
+        return load_impl({ov::make_variant(vars)...});
+    }
+
+    inline InputModel::Ptr load(const ov::VariantVector& vars) const {
+        return load_impl(vars);
     }
 
     /// \brief Completely convert and normalize entire function, throws if it is not
