@@ -44,7 +44,7 @@ TEST_F(PluginTest, canCreatePluginUsingSmartPtr) {
 }
 
 TEST_F(PluginTest, shouldThrowExceptionIfPluginNotExist) {
-    EXPECT_THROW(InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin>(std::string{"unknown_plugin"}), Exception);
+    EXPECT_THROW(InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin>(std::string{"unknown_plugin"}), std::runtime_error);
 }
 
 InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> PluginTest::getPtr() {
