@@ -16,14 +16,14 @@
 #include "openvino/core/visibility.hpp"
 
 #ifdef USE_STATIC_IE  // defined if we are building or calling OpenVINO Runtime as a static library
-#    define OPENVINO_RUNTIME_API_C(...)        OPENVINO_EXTERN __VA_ARGS__
+#    define OPENVINO_RUNTIME_API_C(...)        OPENVINO_EXTERN_C __VA_ARGS__
 #    define OPENVINO_RUNTIME_API
 #else
 #    ifdef IMPLEMENT_INFERENCE_ENGINE_API  // defined if we are building the OpenVINO runtime DLL (instead of using it)
-#        define OPENVINO_RUNTIME_API_C(...)    OPENVINO_EXTERN OPENVINO_CORE_EXPORTS __VA_ARGS__ OPENVINO_CDECL
+#        define OPENVINO_RUNTIME_API_C(...)    OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS __VA_ARGS__ OPENVINO_CDECL
 #        define OPENVINO_RUNTIME_API           OPENVINO_CORE_EXPORTS
 #    else
-#        define OPENVINO_RUNTIME_API_C(...)    OPENVINO_EXTERN OPENVINO_CORE_IMPORTS __VA_ARGS__ OPENVINO_CDECL
+#        define OPENVINO_RUNTIME_API_C(...)    OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS __VA_ARGS__ OPENVINO_CDECL
 #        define OPENVINO_RUNTIME_API           OPENVINO_CORE_IMPORTS
 #    endif  // IMPLEMENT_INFERENCE_ENGINE_API
 #endif      // USE_STATIC_IE
@@ -35,9 +35,9 @@
  */
 
 #ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#    define OPENVINO_PLUGIN_API(type) OPENVINO_EXTERN OPENVINO_CORE_EXPORTS type
+#    define OPENVINO_PLUGIN_API(type) OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS type
 #else
-#    define OPENVINO_PLUGIN_API(type) OPENVINO_EXTERN type
+#    define OPENVINO_PLUGIN_API(type) OPENVINO_EXTERN_C type
 #endif
 
 namespace InferenceEngine {}
