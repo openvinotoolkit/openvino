@@ -92,7 +92,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
 
         // Issue: 62746
-        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)"
+        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
+        // Issue: 65862
+        R"(smoke_PrePostProcess.*convert_element_type_and_mean.*)",
+        R"(smoke_PrePostProcess.*tensor_element_type_and_mean.*)",
+        R"(smoke_PrePostProcess.*lvalues_multiple_ops.*)"
     };
 
 #define FIX_62820 0
