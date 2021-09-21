@@ -7,7 +7,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include "behavior/executable_network/add_output.hpp"
+#include "execution_graph_tests/add_output.hpp"
 
 std::string AddOutputsTest::getTestCaseName(const testing::TestParamInfo<addOutputsParams> &obj) {
     std::ostringstream results;
