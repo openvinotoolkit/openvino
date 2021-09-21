@@ -27,8 +27,14 @@ namespace InferenceEngine {
 using ov::runtime::Parameter;
 using ov::runtime::ParamMap;
 
+}  // namespace InferenceEngine
+
+namespace ov {
+namespace runtime {
+
 #ifdef __ANDROID__
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
 #endif
 
-}  // namespace InferenceEngine
+}  // namespace runtime
+}  // namespace ov

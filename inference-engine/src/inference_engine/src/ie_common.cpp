@@ -151,14 +151,6 @@ template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long long>);
 template class INFERENCE_ENGINE_API_CLASS(TBlob<bool>);
 template class INFERENCE_ENGINE_API_CLASS(TBlob<char>);
 
-//
-// ie_parameter.hpp
-//
-
-#ifdef __ANDROID__
-template struct Parameter::RealData<Blob::Ptr>;
-#endif
-
 }  // namespace InferenceEngine
 
 namespace ov {
@@ -176,6 +168,7 @@ Parameter::~Parameter() {
 #ifdef __ANDROID__
 Parameter::Any::~Any() {}
 
+template struct Parameter::RealData<InferenceEngine::Blob::Ptr>;
 template struct Parameter::RealData<int>;
 template struct Parameter::RealData<bool>;
 template struct Parameter::RealData<float>;
