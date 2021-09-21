@@ -48,6 +48,14 @@ file(GLOB __CLDNN_Sources__gpu
     "${__CLDNN_Directory__impls}/ocl/*.cpp"
   )
 
+if (ENABLE_ONEDNN_FOR_GPU)
+  file(GLOB __CLDNN_Sources__onednn
+      "${__CLDNN_Directory__impls}/onednn/*.hpp"
+      "${__CLDNN_Directory__impls}/onednn/*.cpp"
+    )
+  list(APPEND __CLDNN_Sources__gpu ${__CLDNN_Sources__onednn})
+endif()
+
 set(__CLDNN_Directory__cg_cache        "${CLDNN__CODEGEN_INCDIR}")
 set(__CLDNN_CGDirectory__cg_cache      "${CLDNN__CODEGEN_DIR}/cache")
 set(__CLDNN_Label__cg_cache            "${__CLDNN_Label__cache}\\codegen")
@@ -112,7 +120,13 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
     cldnn_kernel_selector
     openvino::itt
     cldnn_runtime
-  )
+)
+
+if(ENABLE_ONEDNN_FOR_GPU)
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC ${ONEDNN_LIBRARY})
+  target_include_directories("${CLDNN_BUILD__PROJ}" PUBLIC ${ONEDNN_INCLUDE_DIRS})
+  target_compile_definitions("${CLDNN_BUILD__PROJ}" PUBLIC ENABLE_ONEDNN_FOR_GPU)
+endif()
 
 if(COMMAND add_cpplint_target)
   add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")
