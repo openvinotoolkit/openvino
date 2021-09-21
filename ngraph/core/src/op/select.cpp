@@ -117,10 +117,12 @@ bool evaluate_select(const HostTensorVector& output_values,
     bool rc = false;
 
     switch (et) {
+        NGRAPH_TYPE_CASE(evaluate_select, i4, output_values, input_values, autob);
         NGRAPH_TYPE_CASE(evaluate_select, i8, output_values, input_values, autob);
         NGRAPH_TYPE_CASE(evaluate_select, i16, output_values, input_values, autob);
         NGRAPH_TYPE_CASE(evaluate_select, i32, output_values, input_values, autob);
         NGRAPH_TYPE_CASE(evaluate_select, i64, output_values, input_values, autob);
+        NGRAPH_TYPE_CASE(evaluate_select, u4, output_values, input_values, autob);
         NGRAPH_TYPE_CASE(evaluate_select, u8, output_values, input_values, autob);
         NGRAPH_TYPE_CASE(evaluate_select, u16, output_values, input_values, autob);
         NGRAPH_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
@@ -150,10 +152,12 @@ bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostT
 bool op::v1::Select::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Select_has_evaluate);
     switch (get_output_element_type(0)) {
+    case ngraph::element::i4:
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:
     case ngraph::element::i64:
+    case ngraph::element::u4:
     case ngraph::element::u8:
     case ngraph::element::u16:
     case ngraph::element::u32:
