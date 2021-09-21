@@ -654,7 +654,28 @@ class DataQuantizer<Desc, InferenceEngine::WeightableLayer *> : public DataQuant
  public:
     explicit DataQuantizer(float scaleFactor) : DataQuantizerBase(scaleFactor) {}
     bool operator()(InferenceEngine::WeightableLayer *wl) const {
-        quantizeWeightsBiases<typename Desc::MandatoryType>(Desc::mandatory(), wl, Quant<typename Desc::MandatoryType>());
+        auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
+        if (quantData->_weights_quant.GetLevels() <= 255) {
+            typedef typename std::conditional<
+                std::is_same<Desc, QuantI8>::value,
+                QuantI8,
+                typename std::conditional<
+                    std::is_same<Desc, QuantI16>::value,
+                    QuantI8,
+                    FakeQuantI8>::type
+            >::type Type;
+            quantizeWeightsBiases<Type>(Type(), wl, Quant<Type>());
+        } else {
+            typedef typename std::conditional<
+                std::is_same<Desc, QuantI16>::value,
+                QuantI16,
+                typename std::conditional<
+                    std::is_same<Desc, QuantI8>::value,
+                    QuantI16,
+                    FakeQuantI16>::type
+            >::type Type;
+            quantizeWeightsBiases<Type>(Type(), wl, Quant<Type>());
+        }
         return true;
     }
 };
