@@ -2,14 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/pre_post_process/pre_post_process.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
 
-#include "pyngraph/pre_post_process.hpp"
+#include "pyngraph/preprocess/pre_post_process.hpp"
 
 namespace py = pybind11;
+
+PYBIND11_MAKE_OPAQUE(const std::vector<float>);
 
 static void regclass_pyngraph_PreProcessSteps(py::module m) {
     py::class_<ov::preprocess::PreProcessSteps, std::shared_ptr<ov::preprocess::PreProcessSteps>> steps(
@@ -28,12 +32,29 @@ static void regclass_pyngraph_PreProcessSteps(py::module m) {
         R"(
                 Subtracts single float value from each element in input tensor.
                 Input tensor must have ngraph.Type.f32 data type.
-
                 Parameters
                 ----------
                 value : float
                     Value to subtract.
-
+                Returns
+                ----------
+                mean : PreProcessSteps
+                    Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+              )");
+    steps.def(
+        "mean",
+        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, const std::vector<float> values) {
+            me->mean(values);
+            return me;
+        },
+        py::arg("value"),
+        R"(
+                Subtracts a given single float value from each element in a given channel from input tensor.
+                Input tensor must have ngraph.Type.f32 data type.
+                Parameters
+                ----------
+                value : float
+                    Value to subtract.
                 Returns
                 ----------
                 mean : PreProcessSteps
@@ -47,14 +68,31 @@ static void regclass_pyngraph_PreProcessSteps(py::module m) {
         },
         py::arg("value"),
         R"(
-                Divides each element in input tensor to specified constant float value.
+                Divides each element in input tensor by specified constant float value.
                 Input tensor must have ngraph.Type.f32 data type.
-
                 Parameters
                 ----------
                 value : float
                     Value to divide.
-
+                Returns
+                ----------
+                scale : PreProcessSteps
+                    Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+              )");
+    steps.def(
+        "scale",
+        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, const std::vector<float>& values) {
+            me->scale(values);
+            return me;
+        },
+        py::arg("value"),
+        R"(
+                Divides each element in input tensor by specified constant float value.
+                Input tensor must have ngraph.Type.f32 data type.
+                Parameters
+                ----------
+                value : float
+                    Value to divide.
                 Returns
                 ----------
                 scale : PreProcessSteps
@@ -70,12 +108,10 @@ static void regclass_pyngraph_PreProcessSteps(py::module m) {
         R"(
                 Converts input tensor element type to specified type.
                 Input tensor must have ngraph.Type.f32 data type.
-
                 Parameters
                 ----------
                 type : Type
                     Destination type.
-
                 Returns
                 ----------
                 convert_element_type : PreProcessSteps
@@ -91,11 +127,9 @@ static void regclass_pyngraph_PreProcessSteps(py::module m) {
         py::arg("operation"),
         R"(
                 Adds custom preprocessing operation.
-
                 Parameters
                 ----------
                 operation : function taking Node as input argument and returning Node after preprocessing.
-
                 Returns
                 ----------
                 custom : PreProcessSteps
@@ -120,12 +154,10 @@ static void regclass_pyngraph_InputTensorInfo(py::module m) {
         R"(
                 Set initial client's tensor element type. If type is not the same as network's element type, user must
                 add appropriate type conversion manually.
-
                 Parameters
                 ----------
                 type : Type
                     Client's input tensor element type.
-
                 Returns
                 ----------
                 tensor : InputTensorInfo
@@ -149,12 +181,10 @@ static void regclass_pyngraph_InputInfo(py::module m) {
         py::arg("tensor"),
         R"(
                 Adds builder for actual tensor information of client's input.
-
                 Parameters
                 ----------
                 tensor : InputTensorInfo
                     Client's input tensor information. It's internal data will be moved to parent InputInfo object.
-
                 Returns
                 ----------
                 tensor : InputInfo
@@ -171,12 +201,10 @@ static void regclass_pyngraph_InputInfo(py::module m) {
         R"(
                 Adds builder for actual preprocessing steps for input parameter.
                 Steps can specify various actions, like 'mean', 'scale' and others.
-
                 Parameters
                 ----------
                 pre_process_steps : PreProcessSteps
                     Preprocessing steps. It's internal data will be moved to parent InputInfo object.
-
                 Returns
                 ----------
                 preprocess : InputInfo
@@ -204,12 +232,10 @@ void regclass_pyngraph_PrePostProcessor(py::module m) {
         py::arg("input_info"),
         R"(
                 Adds builder for preprocessing info for input parameter.
-
                 Parameters
                 ----------
                 input_info : InputInfo
                     Preprocessing info for input parameter. It's internal data will be moved to PreProcessing object.
-
                 Returns
                 ----------
                 in : PrePostProcessor
@@ -222,12 +248,10 @@ void regclass_pyngraph_PrePostProcessor(py::module m) {
                 Apply pre- and post-processing steps to specified model represented by `function` object.
                 Parameters specified for inputs and outputs are validated on this stage
                 and exception is raised if some data is invalid or inconsistent.
-
                 Parameters
                 ----------
                 function : Function
                     Function representing existing model without pre-post-processing steps.
-
                 Returns
                 ----------
                 build : Function
