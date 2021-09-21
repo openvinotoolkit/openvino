@@ -6,6 +6,7 @@
 
 #include "moc_transformations.hpp"
 #include "disable_shapeof_constant_folding.hpp"
+#include "compress_quantize_weights.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -40,7 +41,6 @@
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 #include <transformations/common_optimizations/random_uniform_fusion.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
-#include <transformations/common_optimizations/compress_quantize_weights.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 

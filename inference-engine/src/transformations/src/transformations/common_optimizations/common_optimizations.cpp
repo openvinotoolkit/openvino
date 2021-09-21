@@ -49,7 +49,6 @@
 #include "transformations/common_optimizations/strides_optimization.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
-#include "transformations/common_optimizations/compress_quantize_weights.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -146,7 +145,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
-    manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
     manager.register_pass<ngraph::pass::BinarizeWeights>();
     manager.register_pass<ngraph::pass::ConvToBinaryConv>();
 
