@@ -35,6 +35,8 @@ class TRANSFORMATIONS_API VariantWrapper<ngraph::DisableConstantFolding> : publi
 public:
     OPENVINO_RTTI("DISABLED_CONSTANT_FOLDING");
 
+    VariantWrapper() : VariantImpl<value_type>() {}
+
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 
     bool is_copyable() const override { return false; }

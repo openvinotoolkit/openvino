@@ -9,6 +9,7 @@
 #include <ie_ngraph_utils.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/framework_node.hpp>
+#include <transformations/rt_info/attributes.hpp>
 #include <pugixml.hpp>
 
 using namespace ngraph;
@@ -69,20 +70,25 @@ bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::s
 }
 
 template <class T>
+void str_to_vec(const std::string & value, std::vector<T> & res) {
+    std::stringstream ss(value);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        if (field.empty())
+            IE_THROW() << "Cannot get vector of parameters! \"" << value << "\" is incorrect";
+        std::stringstream fs(field);
+        T val;
+        fs >> val;
+        res.emplace_back(val);
+    }
+}
+
+template <class T>
 bool getParameters(const pugi::xml_node& node, const std::string& name, std::vector<T>& value) {
     std::string param;
     if (!getStrAttribute(node, name, param))
         return false;
-    std::stringstream ss(param);
-    std::string field;
-    while (getline(ss, field, ',')) {
-        if (field.empty())
-            IE_THROW() << "Cannot get vector of parameters! \"" << param << "\" is incorrect";
-        std::stringstream fs(field);
-        T val;
-        fs >> val;
-        value.emplace_back(val);
-    }
+    str_to_vec(param, value);
     return true;
 }
 
@@ -95,6 +101,73 @@ T stringToType(const std::string& valStr) {
     }
     return ret;
 }
+
+class RTInfoDeserializer : public ngraph::AttributeVisitor {
+public:
+    explicit RTInfoDeserializer(const std::string & value) : m_value(value) {}
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
+        value.set(m_value);
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& value) override {
+        std::string val = m_value;
+        std::transform(val.begin(), val.end(), val.begin(), [](char ch) {
+            return std::tolower(static_cast<unsigned char>(ch));
+        });
+        std::set<std::string> true_names{"true", "1"};
+        std::set<std::string> false_names{"false", "0"};
+
+        bool is_true = true_names.find(val) != true_names.end();
+        bool is_false = false_names.find(val) != false_names.end();
+
+        if (!is_true && !is_false)
+            return;
+        value.set(is_true);
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
+        IE_THROW() << "Not implemented";
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
+        adapter.set(stringToType<double>(m_value));
+    }
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
+        adapter.set(stringToType<int64_t>(m_value));
+    }
+
+    void on_adapter(const std::string& name,
+                    ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override {
+        IE_THROW() << "Not implemented";
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
+        std::vector<int32_t> value;
+        str_to_vec(m_value, value);
+        adapter.set(value);
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+        std::vector<int64_t> value;
+        str_to_vec(m_value, value);
+        adapter.set(value);
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+        std::vector<float> value;
+        str_to_vec(m_value, value);
+        adapter.set(value);
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+        std::vector<std::string> value;
+        str_to_vec(m_value, value);
+        adapter.set(value);
+    }
+private:
+    std::string m_value;
+};
 
 class XmlDeserializer : public ngraph::AttributeVisitor {
 public:
@@ -897,6 +970,20 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
     for (size_t i = 0; i < params.outputPorts.size() && i < ngraphNode->get_output_size(); ++i) {
         if (!params.outputPorts[i].names.empty())
             ngraphNode->get_output_tensor(i).set_names(params.outputPorts[i].names);
+    }
+
+    ov::pass::Attributes attrs_factory;
+    pugi::xml_node rt_attrs = node.child("rt_info");
+    if (rt_attrs) {
+        for (const auto & item : rt_attrs) {
+            if (auto attr = attrs_factory.create(item.name(), 0)) {
+                RTInfoDeserializer attribute_visitor(item.value());
+                attr->visit_attributes(attribute_visitor);
+                rtInfo[attr->get_type_info().name] = std::shared_ptr<Variant>(attr);
+            } else {
+                IE_THROW() << "Attribute: " << item.name() << " is not recognized";
+            }
+        }
     }
 
     return ngraphNode;
