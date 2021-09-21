@@ -5,7 +5,7 @@
 #include "vpu/vpu_plugin_config.hpp"
 #include "vpu/private_plugin_config.hpp"
 #include "vpu/utils/optional.hpp"
-#include "behavior/plugin/config.hpp"
+#include "behavior/plugin/configuration_tests.hpp"
 #include "myriad_devices.hpp"
 
 IE_SUPPRESS_DEPRECATED_START

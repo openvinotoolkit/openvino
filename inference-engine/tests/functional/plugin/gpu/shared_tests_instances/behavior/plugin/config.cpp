@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/plugin/config.hpp"
+#include "behavior/plugin/configuration_tests.hpp"
 #include "cldnn/cldnn_config.hpp"
 #include "gpu/gpu_config.hpp"
 

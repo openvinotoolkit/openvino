@@ -3,7 +3,7 @@
 //
 
 #include "gna/gna_config.hpp"
-#include "behavior/plugin/config.hpp"
+#include "behavior/plugin/configuration_tests.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {

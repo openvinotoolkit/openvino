@@ -25,21 +25,17 @@ namespace BehaviorTestsDefinitions {
     }
 
     void HoldersTest::SetUp() {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(targetDevice, order) = this->GetParam();
         deathTestStyle = ::testing::GTEST_FLAG(death_test_style);
         if (deathTestStyle == "fast") {
             ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
         }
-        if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-            function = ngraph::builder::subgraph::makeReadConcatSplitAssign();
-        } else {
-            function = ngraph::builder::subgraph::makeConvPoolRelu();
-        }
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
 
     void HoldersTest::TearDown() {
         ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
-        function.reset();
     }
 
 #define EXPECT_NO_CRASH(_statement) \
@@ -51,7 +47,7 @@ namespace BehaviorTestsDefinitions {
         InferenceEngine::Core core = BehaviorTestsUtils::createIECoreWithTemplate();
         auto exe_net = core.LoadNetwork(cnnNet, deviceName);
         auto request = exe_net.CreateInferRequest();
-        std::vector<InferenceEngine::VariableState> states = {};
+        std::vector<InferenceEngine::VariableState> states;
         try {
             states = request.QueryState();
         } catch(...) {
@@ -81,39 +77,6 @@ namespace BehaviorTestsDefinitions {
             release(i);
     }
 
-    void release_order_test_import_network(
-            std::vector<int> order, const std::string &deviceName,
-            std::shared_ptr<ngraph::Function> function) {
-        InferenceEngine::CNNNetwork cnnNet(function);
-        InferenceEngine::Core core = BehaviorTestsUtils::createIECoreWithTemplate();
-        std::stringstream stream;
-        {
-            auto exe_net = core.LoadNetwork(cnnNet, deviceName);
-            exe_net.Export(stream);
-        }
-        auto exe_net = core.ImportNetwork(stream, deviceName);
-        auto request = exe_net.CreateInferRequest();
-
-        auto release = [&](int i) {
-            switch (i) {
-                case 0:
-                    core = InferenceEngine::Core{};
-                    break;
-                case 1:
-                    exe_net = {};
-                    break;
-                case 2:
-                    request = {};
-                    break;
-                default:
-                    break;
-            }
-        };
-
-        for (auto i : order)
-            release(i);
-    }
-
     TEST_P(HoldersTest, Orders) {
         // Test failed if crash happens
         EXPECT_NO_CRASH(release_order_test(order, targetDevice, function));
@@ -129,6 +92,7 @@ namespace BehaviorTestsDefinitions {
     }
 
     void HoldersTestOnImportedNetwork::SetUp() {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         targetDevice = this->GetParam();
         deathTestStyle = ::testing::GTEST_FLAG(death_test_style);
         if (deathTestStyle == "fast") {
@@ -150,7 +114,7 @@ namespace BehaviorTestsDefinitions {
             exe_net.Export(stream);
         }
         auto exe_net = core.ImportNetwork(stream, targetDevice);
-        core = InferenceEngine::Core{};
+        core = InferenceEngine::Core();
         auto request = exe_net.CreateInferRequest();
     }
 }  // namespace BehaviorTestsDefinitions
