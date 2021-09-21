@@ -62,7 +62,7 @@ OutputVector TranslateFloorDivOp(const NodeContext& node) {
 // Example usage:
 //
 //  if (n->type_string == "Add") {
-//    TF_RETURN_IF_ERROR(TranslateBinaryOp<opset::opset::Add>(op,
+//    TF_RETURN_IF_ERROR(TranslateBinaryOp<opset::Add>(op,
 //    static_input_map,
 //    ng_op_map));
 //  }
