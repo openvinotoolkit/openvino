@@ -38,12 +38,44 @@ public:
         return m_layout;
     }
 
+    bool is_spacial_shape_set() const {
+        return m_spacial_shape_set;
+    }
+
+    int get_spacial_width() const {
+        return m_spacial_width;
+    }
+
+    int get_spacial_height() const {
+        return m_spacial_height;
+    }
+
+    bool is_spacial_shape_dynamic() const {
+        return m_spacial_shape_set && m_spacial_width == -1 && m_spacial_height == -1;
+    }
+
+    void set_spacial_dynamic_shape() {
+        m_spacial_shape_set = true;
+        m_spacial_width = -1;
+        m_spacial_height = -1;
+    }
+
+    void set_spacial_static_shape(size_t height, size_t width) & {
+        m_spacial_shape_set = true;
+        m_spacial_height = static_cast<int>(height);
+        m_spacial_width = static_cast<int>(width);
+    }
+
 private:
     element::Type m_type = element::dynamic;
     bool m_type_set = false;
 
     Layout m_layout = Layout();
     bool m_layout_set = false;
+
+    int m_spacial_width = -1;
+    int m_spacial_height = -1;
+    bool m_spacial_shape_set = false;
 };
 
 /// \brief InputInfoImpl - internal data structure
@@ -143,6 +175,15 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             input->m_tensor_data->set_element_type(param->get_element_type());
         }
         auto new_param_shape = param->get_partial_shape();
+        if (input->m_tensor_data->is_spacial_shape_dynamic()) {
+            // Use dynamic spacial dimensions
+            OPENVINO_ASSERT(input->m_tensor_data->is_layout_set(),
+                            "Can't set spacial dynamic dimensions when tensor or network layout are not specified");
+            auto height_idx = get_and_check_height_idx(input->m_tensor_data->get_layout(), new_param_shape);
+            auto width_idx = get_and_check_width_idx(input->m_tensor_data->get_layout(), new_param_shape);
+            new_param_shape[height_idx] = Dimension::dynamic();
+            new_param_shape[width_idx] = Dimension::dynamic();
+        }
         auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->get_element_type(), new_param_shape);
         if (input->m_tensor_data->is_layout_set()) {
             new_param->set_layout(input->m_tensor_data->get_layout());
@@ -155,6 +196,8 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
 
         std::shared_ptr<Node> node = new_param;
         PreprocessingContext context(new_param->get_layout());
+        context.network_layout() = param->get_layout();
+        context.network_shape() = param->get_partial_shape();
         // 2. Apply preprocessing
         for (const auto& action : input->m_preprocess->actions()) {
             node = std::get<0>(action)({node}, context);
@@ -205,6 +248,26 @@ InputTensorInfo& InputTensorInfo::set_layout(const Layout& layout) & {
 
 InputTensorInfo&& InputTensorInfo::set_layout(const Layout& layout) && {
     m_impl->set_layout(layout);
+    return std::move(*this);
+}
+
+InputTensorInfo& InputTensorInfo::set_spacial_dynamic_shape() & {
+    m_impl->set_spacial_dynamic_shape();
+    return *this;
+}
+
+InputTensorInfo&& InputTensorInfo::set_spacial_dynamic_shape() && {
+    m_impl->set_spacial_dynamic_shape();
+    return std::move(*this);
+}
+
+InputTensorInfo& InputTensorInfo::set_spacial_static_shape(size_t height, size_t width) & {
+    m_impl->set_spacial_static_shape(height, width);
+    return *this;
+}
+
+InputTensorInfo&& InputTensorInfo::set_spacial_static_shape(size_t height, size_t width) && {
+    m_impl->set_spacial_static_shape(height, width);
     return std::move(*this);
 }
 
@@ -262,6 +325,26 @@ PreProcessSteps& PreProcessSteps::convert_element_type(const element::Type& type
 
 PreProcessSteps&& PreProcessSteps::convert_element_type(const element::Type& type) && {
     m_impl->add_convert_impl(type);
+    return std::move(*this);
+}
+
+PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) & {
+    m_impl->add_resize_impl(alg, static_cast<int>(dst_height), static_cast<int>(dst_width));
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) && {
+    m_impl->add_resize_impl(alg, static_cast<int>(dst_height), static_cast<int>(dst_width));
+    return std::move(*this);
+}
+
+PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg) & {
+    m_impl->add_resize_impl(alg, -1, -1);
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::resize(ResizeAlgorithm alg) && {
+    m_impl->add_resize_impl(alg, -1, -1);
     return std::move(*this);
 }
 

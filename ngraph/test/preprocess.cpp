@@ -239,6 +239,62 @@ TEST(pre_post_process, reuse_network_layout_tensor_info) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
 }
 
+TEST(pre_post_process, resize_to_network_width) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 1, 1, 2});
+    f->get_parameters().front()->set_layout("NCHW");
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_spacial_dynamic_shape())
+                       .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR)))
+            .build(f);
+
+    auto result = std::make_shared<HostTensor>();
+    f->evaluate({result}, {make_host_tensor<element::f32>(Shape{1, 1, 1, 6}, {0., 1., 2., 3., 4., 5.})});
+    auto result_val = read_vector<float>(result);
+    EXPECT_TRUE(all_close(std::vector<float>{1., 4.}, result_val));
+}
+
+TEST(pre_post_process, resize_to_network_height) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 1, 2, 1});
+    f->get_parameters().front()->set_layout("??HW");
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_spacial_dynamic_shape())
+                       .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR)))
+            .build(f);
+
+    auto result = std::make_shared<HostTensor>();
+    f->evaluate({result}, {make_host_tensor<element::f32>(Shape{1, 1, 4, 1}, {0., 2., 4., 6.})});
+    auto result_val = read_vector<float>(result);
+    EXPECT_TRUE(all_close(std::vector<float>{1., 5.}, result_val));
+}
+
+TEST(pre_post_process, resize_to_network_width_height) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 1, 4, 4});
+    f->get_parameters().front()->set_layout("...HW");
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_spacial_dynamic_shape())
+                       .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_NEAREST)))
+            .build(f);
+
+    auto result = std::make_shared<HostTensor>();
+    // clang-format off
+    std::vector<float> input = {0., 1., 2., 3., 4.,
+                                1., 2., 3., 4., 5.,
+                                2., 3., 4., 5., 6.,
+                                3., 4., 5., 6., 7.,
+                                2., 3., 4., 5., 6.};
+    std::vector<float> expected = {0., 1., 3., 4.,
+                                   1., 2., 4., 5.,
+                                   3., 4., 6., 7.,
+                                   2., 3., 5., 6.};
+    // clang-format on
+    f->evaluate({result}, {make_host_tensor<element::f32>(Shape{1, 1, 5, 5}, input)});
+    auto result_val = read_vector<float>(result);
+    EXPECT_TRUE(all_close(expected, result_val));
+}
+
 TEST(pre_post_process, mean_scale_vector_tensor_layout) {
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
     auto name = f->get_parameters().front()->get_friendly_name();
