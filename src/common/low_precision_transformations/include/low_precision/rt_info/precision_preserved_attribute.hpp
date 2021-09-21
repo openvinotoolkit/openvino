@@ -13,6 +13,11 @@
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 
 namespace ngraph {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PrecisionPreservedAttribute defines precision preserved operation. If attribute is absent then an operation is
+ * not precision preserved.
+ */
 class LP_TRANSFORMATIONS_API PrecisionPreservedAttribute : public SharedAttribute<bool> {
 public:
     OPENVINO_RTTI("LowPrecision::PrecisionPreserved", "", ov::RuntimeAttribute, 0);

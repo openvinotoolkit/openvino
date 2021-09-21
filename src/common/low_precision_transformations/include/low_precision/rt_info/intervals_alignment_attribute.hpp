@@ -15,6 +15,10 @@
 #include "low_precision/lpt_visibility.hpp"
 
 namespace ngraph {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief IntervalsAlignmentSharedValue is used by IntervalsAlignmentAttribute as attribute shared value.
+ */
 class LP_TRANSFORMATIONS_API IntervalsAlignmentSharedValue {
 public:
     class Interval {
@@ -45,6 +49,11 @@ public:
 #endif
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief IntervalsAlignmentAttribute defines subgraph with the same quantization intervals alignment.
+ * FakeQuantize operations are included. The attribute is used by quantization operations.
+ */
 class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedAttribute<IntervalsAlignmentSharedValue> {
 public:
     OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "", ov::RuntimeAttribute, 0);

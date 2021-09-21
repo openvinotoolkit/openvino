@@ -18,7 +18,10 @@
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 
 namespace ngraph {
-
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PrecisionsAttribute defines precision which is required for input/output port or an operation.
+ */
 class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedAttribute<std::vector<ngraph::element::Type>> {
 public:
     OPENVINO_RTTI("LowPrecision::Precisions", "", ov::RuntimeAttribute, 0);

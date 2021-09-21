@@ -14,6 +14,10 @@
 #include "attribute_parameters.hpp"
 
 namespace ngraph {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PerTensorQuantizationAttribute defines if operation input port requires per-tensor quantization.
+ */
 class LP_TRANSFORMATIONS_API PerTensorQuantizationAttribute : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("LowPrecision::PerTensorQuantization", "", ov::RuntimeAttribute, 0);

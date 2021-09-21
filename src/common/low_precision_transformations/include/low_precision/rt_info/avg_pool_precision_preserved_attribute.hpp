@@ -13,6 +13,12 @@
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 namespace ngraph {
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief AvgPoolPrecisionPreservedAttribute is utility attribute which is used only during `AvgPool` operation precision
+ * preserved property definition.
+ */
 class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
 public:
     OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute, 0);
