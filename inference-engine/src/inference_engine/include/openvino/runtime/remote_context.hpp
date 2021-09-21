@@ -123,7 +123,7 @@ public:
      * Abstract method.
      * @return A pointer to plugin object that implements RemoteTensor interface.
      */
-    std::shared_ptr<ie::RemoteBlob> create_blob(element::Type type,
+    std::shared_ptr<ie::RemoteBlob> create_blob(element::Type element_type,
                                                 const Shape& shape,
                                                 const ie::ParamMap& params = {});
 
