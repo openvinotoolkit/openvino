@@ -71,6 +71,6 @@ install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/offline_transformations
         COMPONENT ${PYTHON_COMPONENT})
 
-install(PROGRAMS __init__.py
+install(PROGRAMS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/offline_transformations
         COMPONENT ${PYTHON_COMPONENT})
