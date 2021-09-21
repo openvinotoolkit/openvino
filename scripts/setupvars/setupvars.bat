@@ -121,8 +121,8 @@ if exist %INTEL_OPENVINO_DIR%\tools\accuracy_checker (
     set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\accuracy_checker;%PYTHONPATH%
 )
 
-if exist %INTEL_OPENVINO_DIR%\post_training_optimization_toolkit (
-    set PYTHONPATH=%INTEL_OPENVINO_DIR%\post_training_optimization_toolkit;%PYTHONPATH%
+if exist %INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit (
+    set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit;%PYTHONPATH%
 )
 
 echo [setupvars.bat] OpenVINO environment initialized
