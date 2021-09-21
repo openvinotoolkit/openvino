@@ -25,7 +25,7 @@ using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_pyngraph_Node(py::module m) {
-    py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr());
+    py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr(), py::module_local());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
     node.def(
         "__add__",

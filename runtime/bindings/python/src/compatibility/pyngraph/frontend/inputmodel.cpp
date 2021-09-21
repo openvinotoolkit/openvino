@@ -14,7 +14,7 @@ namespace py = pybind11;
 void regclass_pyngraph_InputModel(py::module m) {
     py::class_<ngraph::frontend::InputModel, std::shared_ptr<ngraph::frontend::InputModel>> im(m,
                                                                                                "InputModel",
-                                                                                               py::dynamic_attr());
+                                                                                               py::dynamic_attr(), py::module_local());
     im.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
 
     im.def("get_place_by_tensor_name",
