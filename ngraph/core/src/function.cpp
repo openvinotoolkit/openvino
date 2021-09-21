@@ -519,4 +519,4 @@ ov::op::util::Variable::Ptr ov::Function::get_variable_by_id(const string& varia
         return ov::op::util::Variable::Ptr();
 }
 
-constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<shared_ptr<ov::Function>>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<shared_ptr<ov::Function>>);

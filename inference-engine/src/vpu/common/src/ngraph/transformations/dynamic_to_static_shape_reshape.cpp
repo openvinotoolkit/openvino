@@ -20,7 +20,7 @@ namespace vpu {
 void dynamicToStaticShapeReshape(std::shared_ptr<ngraph::Node> target) {
     const auto reshape = ngraph::as_type_ptr<ngraph::opset3::Reshape>(target);
     VPU_THROW_UNLESS(reshape, "dynamicToStaticShapeReshape transformation is not applicable for {}, it should be {} instead",
-                     target, ngraph::opset3::Reshape::type_info);
+                     target, ngraph::opset3::Reshape::get_type_info_static());
 
     const auto dsr = target->input_value(0).get_node_shared_ptr();
     VPU_THROW_UNLESS(ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(dsr),

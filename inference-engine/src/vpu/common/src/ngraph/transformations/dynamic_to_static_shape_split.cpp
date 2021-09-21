@@ -30,7 +30,7 @@ void dynamicToStaticShapeSplit(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(split,
                      "dynamicToStaticShapeSplit transformation is not applicable for {}, "
                      "it should be {} instead",
-                     target, ngraph::opset5::Split::type_info);
+                     target, ngraph::opset5::Split::get_type_info_static());
 
     const auto numSplits = split->get_num_splits();
 

@@ -38,9 +38,9 @@ std::shared_ptr<Variant> DecoderPDPDProto::get_attribute(const std::string& name
         return nullptr;
     }
 
-    if (type_info == VariantWrapper<std::string>::type_info) {
+    if (type_info == VariantWrapper<std::string>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<std::string>>(attrs[0].s());
-    } else if (type_info == VariantWrapper<int64_t>::type_info) {
+    } else if (type_info == VariantWrapper<int64_t>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<int64_t>>(attrs[0].l());
     } else if (type_info == VariantWrapper<std::vector<int64_t>>::type_info) {
         auto longs = std::vector<int64_t>(attrs[0].longs().begin(), attrs[0].longs().end());

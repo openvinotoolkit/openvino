@@ -2982,7 +2982,7 @@ namespace
 runtime::interpreter::EvaluatorsMap& runtime::interpreter::get_evaluators_map()
 {
     static runtime::interpreter::EvaluatorsMap evaluatorsMap{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::type_info, evaluate_node<NAMESPACE::NAME>},
+#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), evaluate_node<NAMESPACE::NAME>},
 
 #include "opset_int_tbl.hpp"
 
