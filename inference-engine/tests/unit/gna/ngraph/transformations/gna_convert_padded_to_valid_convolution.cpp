@@ -20,6 +20,7 @@ namespace {
 enum class modelType {
     TranspConvTransp = 0,               /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) */
     TranspConvBcastAddTransp,           /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Transpose(NCHW->NHWC) */
+    TranspConvActTransp,                /* Transpose(NHWC->NCHW) => Conv => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvBcastAddMaxPoolTransp,    /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPooling => Transpose(NCHW->NHWC) (2D Max Pool case) */
     TranspConvBcastAddActTransp,        /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvBcastAddMaxPoolActTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPool => Activation Function => Transpose(NCHW->NHWC) */
@@ -66,7 +67,7 @@ void GetConvParams(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& 
     conv_data.pads_end_width = conv->get_pads_end()[1];
 }
 
-std::shared_ptr<ngraph::opset7::FakeQuantize> createFQ(ngraph::Output<ngraph::Node>& in_node) {
+std::shared_ptr<ngraph::opset7::FakeQuantize> createFQ(std::shared_ptr<ngraph::Node>& in_node) {
     auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
     auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {5});
     auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
@@ -76,7 +77,7 @@ std::shared_ptr<ngraph::opset7::FakeQuantize> createFQ(ngraph::Output<ngraph::No
 
 ngraph::Output<ngraph::Node> createBiasFQ(const ngraph::Output<ngraph::Node>& in_node,
     std::shared_ptr<ngraph::opset7::Constant>& bias_const, const bool& fq) {
-    ngraph::Output<ngraph::Node> bcast_add = std::make_shared<ngraph::opset7::Add>(in_node, bias_const);
+    std::shared_ptr<ngraph::Node> bcast_add = std::make_shared<ngraph::opset7::Add>(in_node, bias_const);
 
     if (fq) {
         bcast_add = createFQ(bcast_add);
@@ -100,7 +101,7 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     ConvData* conv_data) {
     auto transpose_in_order = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
     auto transpose_in = std::make_shared<ngraph::opset7::Transpose>(input_node, transpose_in_order);
-    ngraph::Output<ngraph::Node> filters = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64,
+    std::shared_ptr<ngraph::Node> filters = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64,
         ngraph::Shape{4, input_node.get_shape()[3], filters_shape[0], filters_shape[1]});
 
     if (fq) {
@@ -120,6 +121,19 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     {
         auto bcast_add = createBiasFQ(conv, bias_const, fq);
         last_op = std::make_shared<ngraph::opset7::Transpose>(bcast_add, transpose_out_order);
+    }
+    break;
+
+    case modelType::TranspConvActTransp:
+    {
+        auto bcast_add = createBiasFQ(conv, bias_const, fq);
+        std::shared_ptr<ngraph::Node> activation = std::make_shared<ngraph::opset7::Relu>(bcast_add);
+
+        if (fq) {
+            activation = createFQ(activation);
+        }
+
+        last_op = std::make_shared<ngraph::opset7::Transpose>(activation, transpose_out_order);
     }
     break;
 
@@ -428,6 +442,9 @@ INSTANTIATE_TEST_SUITE_P(ConvertPaddedToValidConvTestSuite, ConvertPaddedToValid
             std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{1, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
                 ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
+            std::make_tuple(modelType::TranspConvActTransp, ngraph::PartialShape{1, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+                ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+                ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
             std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{1, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
                 ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
@@ -457,6 +474,9 @@ INSTANTIATE_TEST_SUITE_P(ConvertPaddedToValidConvInvalidTestSuite, ConvertPadded
                 ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
                 ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::SAME_UPPER),
             std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+                ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+                ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
+            std::make_tuple(modelType::TranspConvActTransp, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
                 ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
             std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{2, 16, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
