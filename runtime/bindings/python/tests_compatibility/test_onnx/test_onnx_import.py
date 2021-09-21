@@ -9,8 +9,8 @@ import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 from openvino.inference_engine import IECore
 
-from tests.runtime import get_runtime
-from tests.test_onnx.utils.onnx_helpers import import_onnx_model
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility.test_onnx.utils.onnx_helpers import import_onnx_model
 
 
 def test_import_onnx_function():

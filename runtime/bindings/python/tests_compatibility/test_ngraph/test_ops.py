@@ -8,7 +8,7 @@ import numpy as np
 import ngraph as ng
 from ngraph.impl import AxisSet, Function, Shape, Type
 from ngraph.impl.op import Constant, Parameter
-from tests.runtime import get_runtime
+from tests_compatibility.runtime import get_runtime
 
 
 def binary_op(op_str, a, b):

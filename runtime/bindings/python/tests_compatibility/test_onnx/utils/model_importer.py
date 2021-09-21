@@ -12,7 +12,7 @@ from onnx.backend.base import Backend, BackendRep
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
 from onnx.backend.test.runner import TestItem
 from pathlib import Path
-from tests.test_onnx.utils.onnx_helpers import import_onnx_model
+from tests_compatibility.test_onnx.utils.onnx_helpers import import_onnx_model
 from typing import Any, Dict, List, Optional, Pattern, Set, Text, Type, Union, Callable, Sequence
 
 

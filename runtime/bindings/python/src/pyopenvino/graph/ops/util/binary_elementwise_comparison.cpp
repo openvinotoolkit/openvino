@@ -7,7 +7,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "pyngraph/ops/util/binary_elementwise_comparison.hpp"
+#include "pyopenvino/graph/ops/util/binary_elementwise_comparison.hpp"
 
 namespace py = pybind11;
 

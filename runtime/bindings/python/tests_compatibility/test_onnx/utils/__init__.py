@@ -8,10 +8,10 @@ import numpy as np
 import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
-import tests
-from tests.runtime import get_runtime
-from tests.test_onnx.utils.onnx_backend import OpenVinoOnnxBackend
-from tests.test_onnx.utils.onnx_helpers import import_onnx_model
+import tests_compatibility
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility.test_onnx.utils.onnx_backend import OpenVinoOnnxBackend
+from tests_compatibility.test_onnx.utils.onnx_helpers import import_onnx_model
 
 
 def run_node(onnx_node, data_inputs, **kwargs):
@@ -23,7 +23,7 @@ def run_node(onnx_node, data_inputs, **kwargs):
     :param data_inputs: list of numpy ndarrays with input data
     :return: list of numpy ndarrays with computed output
     """
-    OpenVinoOnnxBackend.backend_name = tests.BACKEND_NAME
+    OpenVinoOnnxBackend.backend_name = tests_compatibility.BACKEND_NAME
     return OpenVinoOnnxBackend.run_node(onnx_node, data_inputs, **kwargs)
 
 

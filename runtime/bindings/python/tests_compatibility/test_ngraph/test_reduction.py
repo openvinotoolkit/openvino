@@ -7,8 +7,8 @@ from _pyngraph import PartialShape, Dimension
 
 import ngraph as ng
 from ngraph.utils.types import make_constant_node
-from tests.runtime import get_runtime
-from tests.test_ngraph.util import run_op_node
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility.test_ngraph.util import run_op_node
 
 
 @pytest.mark.parametrize(

@@ -6,8 +6,8 @@ import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 import pytest
 
-from tests.runtime import get_runtime
-from tests.test_onnx.utils import import_onnx_model
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility.test_onnx.utils import import_onnx_model
 
 
 def make_onnx_model_for_matmul_op(input_left, input_right):

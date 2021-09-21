@@ -14,7 +14,7 @@ from ngraph.impl import Function, Node, PartialShape, Type
 from ngraph.opset1.ops import result
 from ngraph.utils.types import NumericData, get_shape, get_dtype
 
-import tests
+import tests_compatibility
 
 log = logging.getLogger(__name__)
 
@@ -26,8 +26,8 @@ def runtime(backend_name: str = "CPU") -> "Runtime":
 
 def get_runtime():
     """Return runtime object."""
-    if tests.BACKEND_NAME is not None:
-        return runtime(backend_name=tests.BACKEND_NAME)
+    if tests_compatibility.BACKEND_NAME is not None:
+        return runtime(backend_name=tests_compatibility.BACKEND_NAME)
     else:
         return runtime()
 

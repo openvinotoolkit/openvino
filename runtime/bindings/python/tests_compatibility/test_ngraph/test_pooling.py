@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import ngraph as ng
-from tests.runtime import get_runtime
+from tests_compatibility.runtime import get_runtime
 
 
 @pytest.fixture

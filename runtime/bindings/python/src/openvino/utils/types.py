@@ -21,7 +21,7 @@ NumericType = Union[type, np.dtype]
 ScalarData = Union[int, float]
 NodeInput = Union[Node, NumericData]
 
-ngraph_to_numpy_types_map = [
+openvino_to_numpy_types_map = [
     (NgraphType.boolean, np.bool),
     (NgraphType.f16, np.float16),
     (NgraphType.f32, np.float32),
@@ -37,7 +37,7 @@ ngraph_to_numpy_types_map = [
     (NgraphType.bf16, np.uint16),
 ]
 
-ngraph_to_numpy_types_str_map = [
+openvino_to_numpy_types_str_map = [
     ("boolean", np.bool),
     ("f16", np.float16),
     ("f32", np.float32),
@@ -64,7 +64,7 @@ def get_element_type(data_type: NumericType) -> NgraphType:
         return NgraphType.f32
 
     ng_type = next(
-        (ng_type for (ng_type, np_type) in ngraph_to_numpy_types_map if np_type == data_type), None
+        (ng_type for (ng_type, np_type) in openvino_to_numpy_types_map if np_type == data_type), None
     )
     if ng_type:
         return ng_type
@@ -83,7 +83,7 @@ def get_element_type_str(data_type: NumericType) -> str:
         return "f32"
 
     ng_type = next(
-        (ng_type for (ng_type, np_type) in ngraph_to_numpy_types_str_map if np_type == data_type),
+        (ng_type for (ng_type, np_type) in openvino_to_numpy_types_str_map if np_type == data_type),
         None,
     )
     if ng_type:
@@ -95,7 +95,7 @@ def get_element_type_str(data_type: NumericType) -> str:
 def get_dtype(ngraph_type: NgraphType) -> np.dtype:
     """Return a numpy.dtype for an ngraph element type."""
     np_type = next(
-        (np_type for (ng_type, np_type) in ngraph_to_numpy_types_map if ng_type == ngraph_type),
+        (np_type for (ng_type, np_type) in openvino_to_numpy_types_map if ng_type == ngraph_type),
         None,
     )
 

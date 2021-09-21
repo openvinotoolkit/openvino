@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import ngraph as ng
-from tests.test_ngraph.util import run_op_node
+from tests_compatibility.test_ngraph.util import run_op_node
 
 
 @pytest.mark.parametrize(

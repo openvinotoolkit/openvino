@@ -32,6 +32,7 @@
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/ie_preprocess_info.hpp"
 #include "pyopenvino/core/ie_version.hpp"
+#include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/tensor_description.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"

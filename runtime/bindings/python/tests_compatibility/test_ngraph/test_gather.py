@@ -4,8 +4,8 @@
 import ngraph as ng
 import numpy as np
 
-from tests import xfail_issue_54630
-from tests.test_ngraph.util import run_op_node
+from tests_compatibility import xfail_issue_54630
+from tests_compatibility.test_ngraph.util import run_op_node
 
 
 def test_gather():

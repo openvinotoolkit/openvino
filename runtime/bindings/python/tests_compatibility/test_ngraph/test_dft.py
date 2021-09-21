@@ -1,6 +1,6 @@
 import ngraph as ng
 import numpy as np
-from tests.runtime import get_runtime
+from tests_compatibility.runtime import get_runtime
 
 
 def build_fft_input_data():

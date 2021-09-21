@@ -4,7 +4,7 @@
 import os
 import pytest
 
-import tests
+import tests_compatibility
 
 from pathlib import Path
 
@@ -66,9 +66,9 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     backend_name = config.getvalue("backend")
-    tests.BACKEND_NAME = backend_name
-    tests.MODEL_ZOO_DIR = Path(config.getvalue("model_zoo_dir"))
-    tests.MODEL_ZOO_XFAIL = config.getvalue("model_zoo_xfail")
+    tests_compatibility.BACKEND_NAME = backend_name
+    tests_compatibility.MODEL_ZOO_DIR = Path(config.getvalue("model_zoo_dir"))
+    tests_compatibility.MODEL_ZOO_XFAIL = config.getvalue("model_zoo_xfail")
 
     # register additional markers
     config.addinivalue_line("markers", "skip_on_cpu: Skip test on CPU")
@@ -82,8 +82,8 @@ def pytest_configure(config):
 
 def pytest_collection_modifyitems(config, items):
     backend_name = config.getvalue("backend")
-    tests.MODEL_ZOO_DIR = Path(config.getvalue("model_zoo_dir"))
-    tests.MODEL_ZOO_XFAIL = config.getvalue("model_zoo_xfail")
+    tests_compatibility.MODEL_ZOO_DIR = Path(config.getvalue("model_zoo_dir"))
+    tests_compatibility.MODEL_ZOO_XFAIL = config.getvalue("model_zoo_xfail")
 
     keywords = {
         "CPU": "skip_on_cpu",

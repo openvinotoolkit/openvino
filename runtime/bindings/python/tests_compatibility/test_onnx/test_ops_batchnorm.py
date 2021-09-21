@@ -4,7 +4,7 @@
 import numpy as np
 import onnx
 
-from tests.test_onnx.utils import run_node
+from tests_compatibility.test_onnx.utils import run_node
 
 
 def make_batch_norm_node(**node_attributes):

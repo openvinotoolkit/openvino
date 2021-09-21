@@ -7,7 +7,7 @@ import numpy as np
 
 import ngraph as ng
 from ngraph.utils.types import NumericData
-from tests.runtime import get_runtime
+from tests_compatibility.runtime import get_runtime
 from string import ascii_uppercase
 
 

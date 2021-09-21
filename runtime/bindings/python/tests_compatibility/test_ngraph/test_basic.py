@@ -12,8 +12,8 @@ import ngraph as ng
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
-from tests.runtime import get_runtime
-from tests.test_ngraph.util import run_op_node
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility.test_ngraph.util import run_op_node
 
 
 def test_ngraph_function_api():

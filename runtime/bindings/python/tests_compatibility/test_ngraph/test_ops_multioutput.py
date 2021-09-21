@@ -4,7 +4,7 @@
 import numpy as np
 
 import ngraph as ng
-from tests.runtime import get_runtime
+from tests_compatibility.runtime import get_runtime
 
 
 def test_split():

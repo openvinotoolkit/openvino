@@ -3,6 +3,6 @@
 
 # flake8: noqa
 
-from _pyngraph import util
+from openvino.pyopenvino import util
 
 numpy_to_c = util.numpy_to_c

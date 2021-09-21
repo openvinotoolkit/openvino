@@ -7,7 +7,7 @@ import numpy as np
 import ngraph as ng
 from openvino.inference_engine import IECore
 
-from tests.runtime import get_runtime
+from tests_compatibility.runtime import get_runtime
 
 
 def test_import_onnx_with_external_data():

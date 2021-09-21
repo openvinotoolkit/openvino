@@ -11,7 +11,7 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Function, PartialShape, Shape
 from ngraph.impl.passes import Manager
-from tests.test_ngraph.util import count_ops_of_type
+from tests_compatibility.test_ngraph.util import count_ops_of_type
 
 
 def test_constant_folding():

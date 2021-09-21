@@ -5,8 +5,8 @@ import numpy as np
 import onnx
 import pytest
 
-from tests.runtime import get_runtime
-from tests.test_onnx.utils import (
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility.test_onnx.utils import (
     run_node,
     import_onnx_model,
 )

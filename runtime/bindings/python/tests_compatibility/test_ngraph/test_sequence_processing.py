@@ -4,10 +4,10 @@
 import numpy as np
 
 import ngraph as ng
-from tests.runtime import get_runtime
-from tests.test_ngraph.util import run_op_node
-from tests import (xfail_issue_47337,
-                   xfail_issue_44848)
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility.test_ngraph.util import run_op_node
+from tests_compatibility import (xfail_issue_47337,
+                                 xfail_issue_44848)
 
 
 def test_onehot():

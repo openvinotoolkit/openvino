@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pyngraph/passes/regmodule_pyngraph_passes.hpp"
+#include "pyopenvino/graph/passes/regmodule_graph_passes.hpp"
 
 #include <pybind11/pybind11.h>
 

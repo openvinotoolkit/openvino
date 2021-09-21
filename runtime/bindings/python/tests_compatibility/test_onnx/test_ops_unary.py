@@ -8,8 +8,8 @@ import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 from ngraph.exceptions import NgraphTypeError
-from tests.runtime import get_runtime
-from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
 
 
 @pytest.mark.parametrize(

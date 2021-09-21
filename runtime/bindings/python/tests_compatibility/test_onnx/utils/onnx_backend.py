@@ -16,8 +16,8 @@ from onnx.backend.base import Backend, BackendRep
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 
 from ngraph.impl import Function
-from tests.runtime import get_runtime
-from tests.test_onnx.utils.onnx_helpers import import_onnx_model, np_dtype_to_tensor_type
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility.test_onnx.utils.onnx_helpers import import_onnx_model, np_dtype_to_tensor_type
 
 
 class OpenVinoOnnxBackendRep(BackendRep):

@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 
 import ngraph as ng
-from tests.runtime import get_runtime
-from tests import xfail_issue_36486
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility import xfail_issue_36486
 
 
 def test_elu_operator_with_scalar_and_array():

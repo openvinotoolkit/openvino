@@ -5,8 +5,8 @@ import numpy as np
 
 import ngraph as ng
 from ngraph.impl import Type, Shape
-from tests.runtime import get_runtime
-from tests.test_ngraph.util import run_op_node
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility.test_ngraph.util import run_op_node
 
 
 def test_reverse_sequence():
