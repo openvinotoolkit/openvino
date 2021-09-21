@@ -484,18 +484,18 @@ def test_layout():
     assert scalar2 != layout2
 
     assert scalar.to_string() == "**SCALAR**"
-    assert scalar.has_name("N") == False
-    assert scalar.has_name("C") == False
-    assert scalar.has_name("W") == False
-    assert scalar.has_name("H") == False
-    assert scalar.has_name("D") == False
+    assert not(scalar.has_name("N"))
+    assert not(scalar.has_name("C"))
+    assert not(scalar.has_name("W"))
+    assert not(scalar.has_name("H"))
+    assert not(scalar.has_name("D"))
 
     assert layout.to_string() == "[N,C,W,H]"
-    assert layout.has_name("N") == True
-    assert layout.has_name("C") == True
-    assert layout.has_name("W") == True
-    assert layout.has_name("H") == True
-    assert layout.has_name("D") == False
+    assert layout.has_name("N")
+    assert layout.has_name("C")
+    assert layout.has_name("W")
+    assert layout.has_name("H")
+    assert not(layout.has_name("D"))
     assert layout.get_index_by_name("N") == 0
     assert layout.get_index_by_name("C") == 1
     assert layout.get_index_by_name("W") == 2
@@ -503,26 +503,26 @@ def test_layout():
 
     layout = Layout("NC?")
     assert layout.to_string() == "[N,C,?]"
-    assert layout.has_name("N") == True
-    assert layout.has_name("C") == True
-    assert layout.has_name("W") == False
-    assert layout.has_name("H") == False
-    assert layout.has_name("D") == False
+    assert layout.has_name("N")
+    assert layout.has_name("C")
+    assert not(layout.has_name("W"))
+    assert not(layout.has_name("H"))
+    assert not(layout.has_name("D"))
     assert layout.get_index_by_name("N") == 0
     assert layout.get_index_by_name("C") == 1
 
     layout = Layout("N...C")
     assert layout.to_string() == "[N,...,C]"
-    assert layout.has_name("N") == True
-    assert layout.has_name("W") == False
-    assert layout.has_name("H") == False
-    assert layout.has_name("D") == False
-    assert layout.has_name("C") == True
+    assert layout.has_name("N")
+    assert not(layout.has_name("W"))
+    assert not(layout.has_name("H"))
+    assert not(layout.has_name("D"))
+    assert layout.has_name("C")
 
     layout = Layout()
     assert layout.to_string() == "[...]"
-    assert layout.has_name("W") == False
-    assert layout.has_name("W") == False
-    assert layout.has_name("H") == False
-    assert layout.has_name("D") == False
-    assert layout.has_name("C") == False
+    assert not(layout.has_name("W"))
+    assert not(layout.has_name("W"))
+    assert not(layout.has_name("H"))
+    assert not(layout.has_name("D"))
+    assert not(layout.has_name("C"))
