@@ -27,7 +27,7 @@
 #include "pyngraph/ops/util/regmodule_pyngraph_op_util.hpp"
 #include "pyngraph/partial_shape.hpp"
 #include "pyngraph/passes/regmodule_pyngraph_passes.hpp"
-#include "pyngraph/pre_post_process.hpp"
+#include "pyngraph/preprocess/pre_post_process.hpp"
 #include "pyngraph/rt_map.hpp"
 #include "pyngraph/shape.hpp"
 #include "pyngraph/strides.hpp"
