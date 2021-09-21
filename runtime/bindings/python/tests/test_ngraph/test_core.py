@@ -3,8 +3,8 @@
 
 import numpy as np
 
-import ngraph as ng
-from ngraph.impl import Dimension, Function, PartialShape, Shape
+import openvino as ov
+from openvino.impl import Dimension, Function, PartialShape, Shape
 
 
 def test_dimension():
@@ -224,8 +224,8 @@ def test_partial_shape_equals():
 
 def test_repr_dynamic_shape():
     shape = PartialShape([-1, 2])
-    parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
-    parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
+    parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
     model = parameter_a + parameter_b
     function = Function(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 

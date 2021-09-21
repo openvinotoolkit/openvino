@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import ngraph as ng
+import openvino as ov
 import numpy as np
 import pytest
 
@@ -16,9 +16,9 @@ def test_concat():
     expected = np.concatenate((a, b), axis=0)
 
     runtime = get_runtime()
-    parameter_a = ng.parameter(list(a.shape), name="A", dtype=np.float32)
-    parameter_b = ng.parameter(list(b.shape), name="B", dtype=np.float32)
-    node = ng.concat([parameter_a, parameter_b], axis)
+    parameter_a = ov.parameter(list(a.shape), name="A", dtype=np.float32)
+    parameter_b = ov.parameter(list(b.shape), name="B", dtype=np.float32)
+    node = ov.concat([parameter_a, parameter_b], axis)
     computation = runtime.computation(node, parameter_a, parameter_b)
     result = computation(a, b)
     assert np.allclose(result, expected)
@@ -29,7 +29,7 @@ def test_concat():
 )
 def test_constant_from_bool(val_type, value):
     expected = np.array(value, dtype=val_type)
-    result = run_op_numeric_data(value, ng.constant, val_type)
+    result = run_op_numeric_data(value, ov.constant, val_type)
     assert np.allclose(result, expected)
 
 
@@ -50,7 +50,7 @@ def test_constant_from_bool(val_type, value):
 )
 def test_constant_from_scalar(val_type, value):
     expected = np.array(value, dtype=val_type)
-    result = run_op_numeric_data(value, ng.constant, val_type)
+    result = run_op_numeric_data(value, ov.constant, val_type)
     assert np.allclose(result, expected)
 
 
@@ -64,7 +64,7 @@ def test_constant_from_scalar(val_type, value):
 def test_constant_from_float_array(val_type):
     np.random.seed(133391)
     input_data = np.array(-1 + np.random.rand(2, 3, 4) * 2, dtype=val_type)
-    result = run_op_numeric_data(input_data, ng.constant, val_type)
+    result = run_op_numeric_data(input_data, ov.constant, val_type)
     assert np.allclose(result, input_data)
 
 
@@ -86,7 +86,7 @@ def test_constant_from_integer_array(val_type, range_start, range_end):
     input_data = np.array(
         np.random.randint(range_start, range_end, size=(2, 2)), dtype=val_type
     )
-    result = run_op_numeric_data(input_data, ng.constant, val_type)
+    result = run_op_numeric_data(input_data, ov.constant, val_type)
     assert np.allclose(result, input_data)
 
 
@@ -94,12 +94,12 @@ def test_broadcast_numpy():
     data_shape = [16, 1, 1]
     target_shape_shape = [4]
 
-    data_parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
-    target_shape_parameter = ng.parameter(
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    target_shape_parameter = ov.parameter(
         target_shape_shape, name="Target_shape", dtype=np.int64
     )
 
-    node = ng.broadcast(data_parameter, target_shape_parameter)
+    node = ov.broadcast(data_parameter, target_shape_parameter)
 
     assert node.get_type_name() == "Broadcast"
     assert node.get_output_size() == 1
@@ -109,12 +109,12 @@ def test_broadcast_bidirectional():
     data_shape = [16, 1, 1]
     target_shape_shape = [4]
 
-    data_parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
-    target_shape_parameter = ng.parameter(
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    target_shape_parameter = ov.parameter(
         target_shape_shape, name="Target_shape", dtype=np.int64
     )
 
-    node = ng.broadcast(data_parameter, target_shape_parameter, "BIDIRECTIONAL")
+    node = ov.broadcast(data_parameter, target_shape_parameter, "BIDIRECTIONAL")
 
     assert node.get_type_name() == "Broadcast"
     assert node.get_output_size() == 1
@@ -126,7 +126,7 @@ def test_transpose():
     )
     input_order = np.array([0, 2, 3, 1], dtype=np.int32)
 
-    result = run_op_node([input_tensor], ng.transpose, input_order)
+    result = run_op_node([input_tensor], ov.transpose, input_order)
 
     expected = np.transpose(input_tensor, input_order)
 
@@ -140,7 +140,7 @@ def test_tile():
     input_tensor = np.arange(6, dtype=np.int32).reshape((2, 1, 3))
     repeats = np.array([2, 1], dtype=np.int32)
 
-    result = run_op_node([input_tensor], ng.tile, repeats)
+    result = run_op_node([input_tensor], ov.tile, repeats)
 
     expected = np.array([0, 1, 2, 0, 1, 2, 3, 4, 5, 3, 4, 5]).reshape((2, 2, 3))
 
@@ -163,7 +163,7 @@ def test_strided_slice():
 
     result = run_op_node(
         [input_tensor],
-        ng.strided_slice,
+        ov.strided_slice,
         begin,
         end,
         strides,
@@ -188,7 +188,7 @@ def test_reshape_v1():
 
     expected_shape = np.array([2, 150, 4])
     expected = np.reshape(A, expected_shape)
-    result = run_op_node([A], ng.reshape, shape, special_zero)
+    result = run_op_node([A], ov.reshape, shape, special_zero)
 
     assert np.allclose(result, expected)
 
@@ -196,6 +196,6 @@ def test_reshape_v1():
 def test_shape_of():
     input_tensor = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32)
 
-    result = run_op_node([input_tensor], ng.shape_of)
+    result = run_op_node([input_tensor], ov.shape_of)
 
     assert np.allclose(result, [3, 3])

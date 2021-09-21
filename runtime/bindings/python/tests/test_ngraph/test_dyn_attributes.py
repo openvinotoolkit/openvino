@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-import ngraph as ng
+import openvino as ov
 
 
 @pytest.fixture()
@@ -21,16 +21,16 @@ def _proposal_node():
     }
     batch_size = 7
 
-    class_probs = ng.parameter([batch_size, 12, 34, 62], np.float64, "class_probs")
-    bbox_deltas = ng.parameter([batch_size, 24, 34, 62], np.float64, "bbox_deltas")
-    image_shape = ng.parameter([3], np.float64, "image_shape")
-    return ng.proposal(class_probs, bbox_deltas, image_shape, attributes)
+    class_probs = ov.parameter([batch_size, 12, 34, 62], np.float64, "class_probs")
+    bbox_deltas = ov.parameter([batch_size, 24, 34, 62], np.float64, "bbox_deltas")
+    image_shape = ov.parameter([3], np.float64, "image_shape")
+    return ov.proposal(class_probs, bbox_deltas, image_shape, attributes)
 
 
 def test_dynamic_attributes_softmax():
     axis = 2
-    data = ng.parameter([1, 2, 3, 4], np.float32, "data_in")
-    node = ng.softmax(data, axis)
+    data = ov.parameter([1, 2, 3, 4], np.float32, "data_in")
+    node = ov.softmax(data, axis)
 
     assert node.get_axis() == axis
     node.set_axis(3)
@@ -72,13 +72,13 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
         "objectness_score": fp_dtype(0.77),
     }
 
-    box_logits = ng.parameter([4, 680], fp_dtype, "box_logits")
-    class_preds = ng.parameter([4, 170], fp_dtype, "class_preds")
-    proposals = ng.parameter([4, 1, 8], fp_dtype, "proposals")
-    aux_class_preds = ng.parameter([4, 4], fp_dtype, "aux_class_preds")
-    aux_box_preds = ng.parameter([4, 680], fp_dtype, "aux_box_preds")
+    box_logits = ov.parameter([4, 680], fp_dtype, "box_logits")
+    class_preds = ov.parameter([4, 170], fp_dtype, "class_preds")
+    proposals = ov.parameter([4, 1, 8], fp_dtype, "proposals")
+    aux_class_preds = ov.parameter([4, 4], fp_dtype, "aux_class_preds")
+    aux_box_preds = ov.parameter([4, 680], fp_dtype, "aux_box_preds")
 
-    node = ng.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
+    node = ov.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
 
     assert node.get_num_classes() == int_dtype(85)
     assert node.get_background_label_id() == int_dtype(13)
@@ -123,10 +123,10 @@ def test_dynamic_set_attribute_value(int_dtype, fp_dtype):
     }
     batch_size = 7
 
-    class_probs = ng.parameter([batch_size, 12, 34, 62], fp_dtype, "class_probs")
-    bbox_deltas = ng.parameter([batch_size, 24, 34, 62], fp_dtype, "bbox_deltas")
-    image_shape = ng.parameter([3], fp_dtype, "image_shape")
-    node = ng.proposal(class_probs, bbox_deltas, image_shape, attributes)
+    class_probs = ov.parameter([batch_size, 12, 34, 62], fp_dtype, "class_probs")
+    bbox_deltas = ov.parameter([batch_size, 24, 34, 62], fp_dtype, "bbox_deltas")
+    image_shape = ov.parameter([3], fp_dtype, "image_shape")
+    node = ov.proposal(class_probs, bbox_deltas, image_shape, attributes)
 
     node.set_base_size(int_dtype(15))
     node.set_pre_nms_topn(int_dtype(7))
@@ -193,11 +193,11 @@ def test_dynamic_attributes_simple():
     R_shape = [3 * hidden_size, hidden_size]
     B_shape = [4 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=np.float32)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=np.float32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=np.float32)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=np.float32)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=np.float32)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=np.float32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=np.float32)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=np.float32)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
 
     activations = ["tanh", "relu"]
     activations_alpha = [1.0, 2.0]
@@ -205,7 +205,7 @@ def test_dynamic_attributes_simple():
     clip = 0.5
     linear_before_reset = True
 
-    node = ng.gru_cell(
+    node = ov.gru_cell(
         parameter_X,
         parameter_H_t,
         parameter_W,

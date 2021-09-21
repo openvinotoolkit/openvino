@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 from _pyngraph import PartialShape, Dimension
 
-import ngraph as ng
-from ngraph.utils.types import make_constant_node
+import openvino as ov
+from openvino.utils.types import make_constant_node
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
@@ -14,18 +14,18 @@ from tests.test_ngraph.util import run_op_node
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [
-        (ng.reduce_max, np.max, np.array([0, 1, 2, 3])),
-        (ng.reduce_min, np.min, np.array([0, 1, 2, 3])),
-        (ng.reduce_sum, np.sum, np.array([0, 1, 2, 3])),
-        (ng.reduce_prod, np.prod, np.array([0, 1, 2, 3])),
-        (ng.reduce_max, np.max, np.array([0])),
-        (ng.reduce_min, np.min, np.array([0])),
-        (ng.reduce_sum, np.sum, np.array([0])),
-        (ng.reduce_prod, np.prod, np.array([0])),
-        (ng.reduce_max, np.max, np.array([0, 2])),
-        (ng.reduce_min, np.min, np.array([0, 2])),
-        (ng.reduce_sum, np.sum, np.array([0, 2])),
-        (ng.reduce_prod, np.prod, np.array([0, 2])),
+        (ov.reduce_max, np.max, np.array([0, 1, 2, 3])),
+        (ov.reduce_min, np.min, np.array([0, 1, 2, 3])),
+        (ov.reduce_sum, np.sum, np.array([0, 1, 2, 3])),
+        (ov.reduce_prod, np.prod, np.array([0, 1, 2, 3])),
+        (ov.reduce_max, np.max, np.array([0])),
+        (ov.reduce_min, np.min, np.array([0])),
+        (ov.reduce_sum, np.sum, np.array([0])),
+        (ov.reduce_prod, np.prod, np.array([0])),
+        (ov.reduce_max, np.max, np.array([0, 2])),
+        (ov.reduce_min, np.min, np.array([0, 2])),
+        (ov.reduce_sum, np.sum, np.array([0, 2])),
+        (ov.reduce_prod, np.prod, np.array([0, 2])),
     ],
 )
 def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
@@ -41,12 +41,12 @@ def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [
-        (ng.reduce_logical_and, np.logical_and.reduce, np.array([0])),
-        (ng.reduce_logical_or, np.logical_or.reduce, np.array([0])),
-        (ng.reduce_logical_and, np.logical_and.reduce, np.array([0, 2])),
-        (ng.reduce_logical_or, np.logical_or.reduce, np.array([0, 2])),
-        (ng.reduce_logical_and, np.logical_and.reduce, np.array([0, 1, 2, 3])),
-        (ng.reduce_logical_or, np.logical_or.reduce, np.array([0, 1, 2, 3])),
+        (ov.reduce_logical_and, np.logical_and.reduce, np.array([0])),
+        (ov.reduce_logical_or, np.logical_or.reduce, np.array([0])),
+        (ov.reduce_logical_and, np.logical_and.reduce, np.array([0, 2])),
+        (ov.reduce_logical_or, np.logical_or.reduce, np.array([0, 2])),
+        (ov.reduce_logical_and, np.logical_and.reduce, np.array([0, 1, 2, 3])),
+        (ov.reduce_logical_or, np.logical_or.reduce, np.array([0, 1, 2, 3])),
     ],
 )
 def test_reduction_logical_ops(ng_api_helper, numpy_function, reduction_axes):
@@ -61,10 +61,10 @@ def test_reduction_logical_ops(ng_api_helper, numpy_function, reduction_axes):
 
 def test_topk():
     data_shape = [6, 12, 10, 24]
-    data_parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     K = np.int32(3)
     axis = np.int32(1)
-    node = ng.topk(data_parameter, K, axis, "max", "value")
+    node = ov.topk(data_parameter, K, axis, "max", "value")
     assert node.get_type_name() == "TopK"
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [6, 3, 10, 24]
@@ -74,9 +74,9 @@ def test_topk():
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [
-        (ng.reduce_mean, np.mean, np.array([0, 1, 2, 3])),
-        (ng.reduce_mean, np.mean, np.array([0])),
-        (ng.reduce_mean, np.mean, np.array([0, 2])),
+        (ov.reduce_mean, np.mean, np.array([0, 1, 2, 3])),
+        (ov.reduce_mean, np.mean, np.array([0])),
+        (ov.reduce_mean, np.mean, np.array([0, 2])),
     ],
 )
 def test_reduce_mean_op(ng_api_helper, numpy_function, reduction_axes):
@@ -93,10 +93,10 @@ def test_non_max_suppression():
 
     boxes_shape = [1, 1000, 4]
     scores_shape = [1, 1, 1000]
-    boxes_parameter = ng.parameter(boxes_shape, name="Boxes", dtype=np.float32)
-    scores_parameter = ng.parameter(scores_shape, name="Scores", dtype=np.float32)
+    boxes_parameter = ov.parameter(boxes_shape, name="Boxes", dtype=np.float32)
+    scores_parameter = ov.parameter(scores_shape, name="Scores", dtype=np.float32)
 
-    node = ng.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(1000, np.int64))
+    node = ov.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(1000, np.int64))
 
     assert node.get_type_name() == "NonMaxSuppression"
     assert node.get_output_size() == 3
@@ -109,9 +109,9 @@ def test_non_zero():
 
     data_shape = [3, 10, 100, 200]
 
-    data_parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
-    node = ng.non_zero(data_parameter)
+    node = ov.non_zero(data_parameter)
 
     assert node.get_type_name() == "NonZero"
     assert node.get_output_size() == 1
@@ -124,16 +124,16 @@ def test_roi_align():
     batch_indices = [1000]
     expected_shape = [1000, 256, 6, 6]
 
-    data_parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
-    rois_parameter = ng.parameter(rois, name="Rois", dtype=np.float32)
-    batch_indices_parameter = ng.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
+    batch_indices_parameter = ov.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
     pooled_h = 6
     pooled_w = 6
     sampling_ratio = 2
     spatial_scale = np.float32(16)
     mode = "avg"
 
-    node = ng.roi_align(
+    node = ov.roi_align(
         data_parameter,
         rois_parameter,
         batch_indices_parameter,
@@ -162,7 +162,7 @@ def test_cum_sum(input_shape, cumsum_axis, reverse):
         expected = np.cumsum(input_data, axis=cumsum_axis)
 
     runtime = get_runtime()
-    node = ng.cum_sum(input_data, cumsum_axis, reverse=reverse)
+    node = ov.cum_sum(input_data, cumsum_axis, reverse=reverse)
     computation = runtime.computation(node)
     result = computation()
     assert np.allclose(result, expected)
@@ -177,7 +177,7 @@ def test_normalize_l2():
     eps_mode = "add"
 
     runtime = get_runtime()
-    node = ng.normalize_l2(input_data, axes, eps, eps_mode)
+    node = ov.normalize_l2(input_data, axes, eps, eps_mode)
     computation = runtime.computation(node)
     result = computation()
 

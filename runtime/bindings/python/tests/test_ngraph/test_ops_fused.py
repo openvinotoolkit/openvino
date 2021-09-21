@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-import ngraph as ng
+import openvino as ov
 from tests.runtime import get_runtime
 from tests import xfail_issue_36486
 
@@ -15,7 +15,7 @@ def test_elu_operator_with_scalar_and_array():
     data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
     alpha_value = np.float32(3)
 
-    model = ng.elu(data_value, alpha_value)
+    model = ov.elu(data_value, alpha_value)
     computation = runtime.computation(model)
 
     result = computation()
@@ -30,9 +30,9 @@ def test_elu_operator_with_scalar():
     alpha_value = np.float32(3)
 
     data_shape = [2, 2]
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
-    model = ng.elu(parameter_data, alpha_value)
+    model = ov.elu(parameter_data, alpha_value)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
@@ -52,13 +52,13 @@ def test_fake_quantize():
 
     data_shape = [1, 2, 3, 4]
     bound_shape = []
-    parameter_data = ng.parameter(data_shape, name="data", dtype=np.float32)
-    parameter_input_low = ng.parameter(bound_shape, name="input_low", dtype=np.float32)
-    parameter_input_high = ng.parameter(bound_shape, name="input_high", dtype=np.float32)
-    parameter_output_low = ng.parameter(bound_shape, name="output_low", dtype=np.float32)
-    parameter_output_high = ng.parameter(bound_shape, name="output_high", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="data", dtype=np.float32)
+    parameter_input_low = ov.parameter(bound_shape, name="input_low", dtype=np.float32)
+    parameter_input_high = ov.parameter(bound_shape, name="input_high", dtype=np.float32)
+    parameter_output_low = ov.parameter(bound_shape, name="output_low", dtype=np.float32)
+    parameter_output_high = ov.parameter(bound_shape, name="output_high", dtype=np.float32)
 
-    model = ng.fake_quantize(
+    model = ov.fake_quantize(
         parameter_data,
         parameter_input_low,
         parameter_input_high,
@@ -117,9 +117,9 @@ def test_depth_to_space():
     block_size = np.float32(2)
 
     data_shape = [1, 4, 2, 3]
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
-    model = ng.depth_to_space(parameter_data, mode, block_size)
+    model = ov.depth_to_space(parameter_data, mode, block_size)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
@@ -140,9 +140,9 @@ def test_space_to_batch():
     pads_begin = np.array([0, 0, 1, 0], dtype=np.int64)
     pads_end = np.array([0, 0, 0, 1], dtype=np.int64)
 
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
-    model = ng.space_to_batch(parameter_data, block_shape, pads_begin, pads_end)
+    model = ov.space_to_batch(parameter_data, block_shape, pads_begin, pads_end)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
@@ -192,9 +192,9 @@ def test_batch_to_space():
     crops_begin = np.array([0, 0, 1, 0], dtype=np.int64)
     crops_end = np.array([0, 0, 0, 1], dtype=np.int64)
 
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
-    model = ng.batch_to_space(parameter_data, block_shape, crops_begin, crops_end)
+    model = ov.batch_to_space(parameter_data, block_shape, crops_begin, crops_end)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data)
@@ -207,11 +207,11 @@ def test_clamp_operator():
     runtime = get_runtime()
 
     data_shape = [2, 2]
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
     min_value = np.float32(3)
     max_value = np.float32(12)
 
-    model = ng.clamp(parameter_data, min_value, max_value)
+    model = ov.clamp(parameter_data, min_value, max_value)
     computation = runtime.computation(model, parameter_data)
 
     data_value = np.array([[-5, 9], [45, 3]], dtype=np.float32)
@@ -228,7 +228,7 @@ def test_clamp_operator_with_array():
     min_value = np.float32(3)
     max_value = np.float32(12)
 
-    model = ng.clamp(data_value, min_value, max_value)
+    model = ov.clamp(data_value, min_value, max_value)
     computation = runtime.computation(model)
 
     result = computation()
@@ -241,10 +241,10 @@ def test_squeeze_operator():
     runtime = get_runtime()
 
     data_shape = [1, 2, 1, 3, 1, 1]
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
     data_value = np.arange(6.0, dtype=np.float32).reshape([1, 2, 1, 3, 1, 1])
     axes = [2, 4]
-    model = ng.squeeze(parameter_data, axes)
+    model = ov.squeeze(parameter_data, axes)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
@@ -258,13 +258,13 @@ def test_squared_difference_operator():
     x1_shape = [1, 2, 3, 4]
     x2_shape = [2, 3, 4]
 
-    parameter_x1 = ng.parameter(x1_shape, name="x1", dtype=np.float32)
-    parameter_x2 = ng.parameter(x2_shape, name="x2", dtype=np.float32)
+    parameter_x1 = ov.parameter(x1_shape, name="x1", dtype=np.float32)
+    parameter_x2 = ov.parameter(x2_shape, name="x2", dtype=np.float32)
 
     x1_value = np.arange(24.0, dtype=np.float32).reshape(x1_shape)
     x2_value = np.arange(start=4.0, stop=28.0, step=1.0, dtype=np.float32).reshape(x2_shape)
 
-    model = ng.squared_difference(parameter_x1, parameter_x2)
+    model = ov.squared_difference(parameter_x1, parameter_x2)
     computation = runtime.computation(model, parameter_x1, parameter_x2)
 
     result = computation(x1_value, x2_value)
@@ -279,11 +279,11 @@ def test_shuffle_channels_operator():
     axis = 1
     groups = 5
 
-    parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
     data_value = np.arange(60.0, dtype=np.float32).reshape(data_shape)
 
-    model = ng.shuffle_channels(parameter, axis, groups)
+    model = ov.shuffle_channels(parameter, axis, groups)
     computation = runtime.computation(model, parameter)
 
     result = computation(data_value)
@@ -316,10 +316,10 @@ def test_unsqueeze():
     runtime = get_runtime()
 
     data_shape = [3, 4, 5]
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
     data_value = np.arange(60.0, dtype=np.float32).reshape(3, 4, 5)
     axes = [0, 4]
-    model = ng.unsqueeze(parameter_data, axes)
+    model = ov.unsqueeze(parameter_data, axes)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
@@ -335,9 +335,9 @@ def test_grn_operator():
 
     data_shape = [1, 2, 3, 4]
 
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
-    model = ng.grn(parameter_data, bias)
+    model = ov.grn(parameter_data, bias)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
@@ -370,10 +370,10 @@ def test_prelu_operator():
 
     data_value = np.arange(start=1.0, stop=25.0, dtype=np.float32).reshape(data_shape)
     slope_value = np.arange(start=-10.0, stop=-4.0, dtype=np.float32).reshape(slope_shape)
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
-    parameter_slope = ng.parameter(slope_shape, name="Slope", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_slope = ov.parameter(slope_shape, name="Slope", dtype=np.float32)
 
-    model = ng.prelu(parameter_data, parameter_slope)
+    model = ov.prelu(parameter_data, parameter_slope)
     computation = runtime.computation(model, parameter_data, parameter_slope)
 
     result = computation(data_value, slope_value)
@@ -390,8 +390,8 @@ def test_selu_operator():
     alpha = np.array(1.6733, dtype=np.float32)
     lambda_value = np.array(1.0507, dtype=np.float32)
 
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
-    model = ng.selu(parameter_data, alpha, lambda_value)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    model = ov.selu(parameter_data, alpha, lambda_value)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data)
@@ -409,11 +409,11 @@ def test_hard_sigmoid_operator():
 
     data_value = np.array([-1, 0, 1], dtype=np.float32)
 
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
-    parameter_alpha = ng.parameter([], name="Alpha", dtype=np.float32)
-    parameter_beta = ng.parameter([], name="Beta", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_alpha = ov.parameter([], name="Alpha", dtype=np.float32)
+    parameter_beta = ov.parameter([], name="Beta", dtype=np.float32)
 
-    model = ng.hard_sigmoid(parameter_data, parameter_alpha, parameter_beta)
+    model = ov.hard_sigmoid(parameter_data, parameter_alpha, parameter_beta)
     computation = runtime.computation(model, parameter_data, parameter_alpha, parameter_beta)
 
     result = computation(data_value, alpha_value, beta_value)
@@ -451,9 +451,9 @@ def test_mvn_operator():
         dtype=np.float32,
     )
 
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
-    model = ng.mvn(parameter_data, axes, normalize_variance, eps, eps_mode)
+    model = ov.mvn(parameter_data, axes, normalize_variance, eps, eps_mode)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
@@ -490,9 +490,9 @@ def test_space_to_depth_operator():
     mode = "blocks_first"
     block_size = 2
 
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
-    model = ng.space_to_depth(parameter_data, mode, block_size)
+    model = ov.space_to_depth(parameter_data, mode, block_size)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
@@ -545,11 +545,11 @@ def test_space_to_depth_operator():
     R_shape = [hidden_size, hidden_size]
     B_shape = [hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=np.float32)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=np.float32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=np.float32)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=np.float32)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=np.float32)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=np.float32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=np.float32)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=np.float32)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
 
     X_value = np.array(
         [0.3432185, 0.612268, 0.20272376, 0.9513413, 0.30585995, 0.7265472], dtype=np.float32
@@ -591,7 +591,7 @@ def test_space_to_depth_operator():
     activation_beta = []
     clip = 2.88
 
-    model = ng.rnn_cell(
+    model = ov.rnn_cell(
         parameter_X,
         parameter_H_t,
         parameter_W,
@@ -621,8 +621,8 @@ def test_group_convolution_operator():
     data_shape = [1, 4, 2, 2]
     filters_shape = [2, 1, 2, 1, 1]
 
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
-    parameter_filters = ng.parameter(filters_shape, name="Filters", dtype=np.float32)
+    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_filters = ov.parameter(filters_shape, name="Filters", dtype=np.float32)
 
     data_value = np.arange(start=1.0, stop=17.0, dtype=np.float32).reshape(data_shape)
     filters_value = np.arange(start=1.0, stop=5.0, dtype=np.float32).reshape(filters_shape)
@@ -631,7 +631,7 @@ def test_group_convolution_operator():
     pads_begin = [0, 0]
     pads_end = [0, 0]
 
-    model = ng.group_convolution(parameter_data, parameter_filters, strides, pads_begin, pads_end, dilations)
+    model = ov.group_convolution(parameter_data, parameter_filters, strides, pads_begin, pads_end, dilations)
     computation = runtime.computation(model, parameter_data, parameter_filters)
     result = computation(data_value, filters_value)
 
@@ -651,9 +651,9 @@ def test_group_convolution_backprop_data():
     pads_begin = [1, 1]
     pads_end = [1, 1]
 
-    data_node = ng.parameter(data_shape, name="Data", dtype=np.float32)
-    filters_node = ng.parameter(filters_shape, name="Filters", dtype=np.float32)
-    model = ng.group_convolution_backprop_data(
+    data_node = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    filters_node = ov.parameter(filters_shape, name="Filters", dtype=np.float32)
+    model = ov.group_convolution_backprop_data(
         data_node, filters_node, strides, None, pads_begin, pads_end, output_padding=output_padding
     )
 
@@ -742,11 +742,11 @@ def test_group_convolution_backprop_data_output_shape():
     filters_shape = [1, 1, 1, 1, 5]
     strides = [1, 1]
 
-    data_node = ng.parameter(data_shape, name="Data", dtype=np.float32)
-    filters_node = ng.parameter(filters_shape, name="Filters", dtype=np.float32)
-    output_shape_node = ng.constant(np.array([1, 14], dtype=np.int64))
+    data_node = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    filters_node = ov.parameter(filters_shape, name="Filters", dtype=np.float32)
+    output_shape_node = ov.constant(np.array([1, 14], dtype=np.int64))
 
-    model = ng.group_convolution_backprop_data(
+    model = ov.group_convolution_backprop_data(
         data_node, filters_node, strides, output_shape_node, auto_pad="same_upper"
     )
 

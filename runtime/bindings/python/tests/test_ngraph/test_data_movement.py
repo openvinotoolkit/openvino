@@ -3,8 +3,8 @@
 
 import numpy as np
 
-import ngraph as ng
-from ngraph.impl import Type, Shape
+import openvino as ov
+from openvino.impl import Type, Shape
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
@@ -67,9 +67,9 @@ def test_reverse_sequence():
     batch_axis = 2
     sequence_axis = 1
 
-    input_param = ng.parameter(input_data.shape, name="input", dtype=np.int32)
-    seq_lengths_param = ng.parameter(seq_lengths.shape, name="sequence lengths", dtype=np.int32)
-    model = ng.reverse_sequence(input_param, seq_lengths_param, batch_axis, sequence_axis)
+    input_param = ov.parameter(input_data.shape, name="input", dtype=np.int32)
+    seq_lengths_param = ov.parameter(seq_lengths.shape, name="sequence lengths", dtype=np.int32)
+    model = ov.reverse_sequence(input_param, seq_lengths_param, batch_axis, sequence_axis)
 
     runtime = get_runtime()
     computation = runtime.computation(model, input_param, seq_lengths_param)
@@ -135,8 +135,8 @@ def test_pad_edge():
     pads_begin = np.array([0, 1], dtype=np.int32)
     pads_end = np.array([2, 3], dtype=np.int32)
 
-    input_param = ng.parameter(input_data.shape, name="input", dtype=np.int32)
-    model = ng.pad(input_param, pads_begin, pads_end, "edge")
+    input_param = ov.parameter(input_data.shape, name="input", dtype=np.int32)
+    model = ov.pad(input_param, pads_begin, pads_end, "edge")
 
     runtime = get_runtime()
     computation = runtime.computation(model, input_param)
@@ -159,8 +159,8 @@ def test_pad_constant():
     pads_begin = np.array([0, 1], dtype=np.int32)
     pads_end = np.array([2, 3], dtype=np.int32)
 
-    input_param = ng.parameter(input_data.shape, name="input", dtype=np.int32)
-    model = ng.pad(input_param, pads_begin, pads_end, "constant", arg_pad_value=np.array(100, dtype=np.int32))
+    input_param = ov.parameter(input_data.shape, name="input", dtype=np.int32)
+    model = ov.pad(input_param, pads_begin, pads_end, "constant", arg_pad_value=np.array(100, dtype=np.int32))
 
     runtime = get_runtime()
     computation = runtime.computation(model, input_param)
@@ -184,19 +184,19 @@ def test_select():
     else_node = np.array([[11, 10], [9, 8], [7, 6]], dtype=np.int32)
     excepted = np.array([[11, 10], [1, 8], [3, 4]], dtype=np.int32)
 
-    result = run_op_node([cond, then_node, else_node], ng.select)
+    result = run_op_node([cond, then_node, else_node], ov.select)
     assert np.allclose(result, excepted)
 
 
 def test_gather_nd():
     indices_type = np.int32
     data_dtype = np.float32
-    data = ng.parameter([2, 10, 80, 30, 50], dtype=data_dtype, name="data")
-    indices = ng.parameter([2, 10, 30, 40, 2], dtype=indices_type, name="indices")
+    data = ov.parameter([2, 10, 80, 30, 50], dtype=data_dtype, name="data")
+    indices = ov.parameter([2, 10, 30, 40, 2], dtype=indices_type, name="indices")
     batch_dims = 2
     expected_shape = [20, 30, 40, 50]
 
-    node = ng.gather_nd(data, indices, batch_dims)
+    node = ov.gather_nd(data, indices, batch_dims)
     assert node.get_type_name() == "GatherND"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
@@ -206,12 +206,12 @@ def test_gather_nd():
 def test_gather_elements():
     indices_type = np.int32
     data_dtype = np.float32
-    data = ng.parameter(Shape([2, 5]), dtype=data_dtype, name="data")
-    indices = ng.parameter(Shape([2, 100]), dtype=indices_type, name="indices")
+    data = ov.parameter(Shape([2, 5]), dtype=data_dtype, name="data")
+    indices = ov.parameter(Shape([2, 100]), dtype=indices_type, name="indices")
     axis = 1
     expected_shape = [2, 100]
 
-    node = ng.gather_elements(data, indices, axis)
+    node = ov.gather_elements(data, indices, axis)
     assert node.get_type_name() == "GatherElements"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape

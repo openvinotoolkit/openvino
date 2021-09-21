@@ -1,8 +1,8 @@
-import ngraph as ng
+import openvino as ov
 import numpy as np
 import pytest
 
-from ngraph.utils.types import get_element_type
+from openvino.utils.types import get_element_type
 from tests import xfail_issue_58033
 from tests.runtime import get_runtime
 
@@ -33,10 +33,10 @@ def einsum_op_exec(input_shapes: list, equation: str, data_type: np.dtype,
     for i in range(num_inputs):
         input_i = np.random.random_integers(10, size=input_shapes[i]).astype(data_type)
         np_inputs.append(input_i)
-        ng_inputs.append(ng.parameter(input_i.shape, dtype=data_type))
+        ng_inputs.append(ov.parameter(input_i.shape, dtype=data_type))
 
     expected_result = np.einsum(equation, *np_inputs)
-    einsum_model = ng.einsum(ng_inputs, equation)
+    einsum_model = ov.einsum(ng_inputs, equation)
 
     # check the output shape and type
     assert einsum_model.get_type_name() == "Einsum"

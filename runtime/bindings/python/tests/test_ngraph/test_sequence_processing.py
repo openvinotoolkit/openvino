@@ -3,7 +3,7 @@
 
 import numpy as np
 
-import ngraph as ng
+import openvino as ov
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 from tests import (xfail_issue_47337,
@@ -12,8 +12,8 @@ from tests import (xfail_issue_47337,
 
 def test_onehot():
     runtime = get_runtime()
-    param = ng.parameter([3], dtype=np.int32)
-    model = ng.one_hot(param, 3, 1, 0, 0)
+    param = ov.parameter([3], dtype=np.int32)
+    model = ov.one_hot(param, 3, 1, 0, 0)
     computation = runtime.computation(model, param)
 
     expected = np.eye(3)[np.array([1, 0, 2])]
@@ -31,7 +31,7 @@ def test_one_hot():
     axis = -1
     excepted = [[5, 10], [10, 5], [10, 10]]
 
-    result = run_op_node([data, depth, on_value, off_value], ng.one_hot, axis)
+    result = run_op_node([data, depth, on_value, off_value], ov.one_hot, axis)
     assert np.allclose(result, excepted)
 
 
@@ -41,5 +41,5 @@ def test_range():
     stop = 35
     step = 5
 
-    result = run_op_node([start, stop, step], ng.range)
+    result = run_op_node([start, stop, step], ov.range)
     assert np.allclose(result, [5, 10, 15, 20, 25, 30])

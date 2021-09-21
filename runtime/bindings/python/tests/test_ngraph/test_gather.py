@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import ngraph as ng
+import openvino as ov
 import numpy as np
 
 from tests import xfail_issue_54630
@@ -19,7 +19,7 @@ def test_gather():
         (3, 1, 2)
     )
 
-    result = run_op_node([input_data], ng.gather, input_indices, input_axis)
+    result = run_op_node([input_data], ov.gather, input_indices, input_axis)
     assert np.allclose(result, expected)
 
 
@@ -34,7 +34,7 @@ def test_gather_with_scalar_axis():
         (3, 1, 2)
     )
 
-    result = run_op_node([input_data], ng.gather, input_indices, input_axis)
+    result = run_op_node([input_data], ov.gather, input_indices, input_axis)
     assert np.allclose(result, expected)
 
 
@@ -51,7 +51,7 @@ def test_gather_batch_dims_1():
     expected = np.array([[1, 1, 5],
                          [10, 6, 6]], np.float32)
 
-    result = run_op_node([input_data], ng.gather, input_indices, input_axis, batch_dims)
+    result = run_op_node([input_data], ov.gather, input_indices, input_axis, batch_dims)
     assert np.allclose(result, expected)
 
 
@@ -67,7 +67,7 @@ def test_gather_negative_indices():
         (3, 1, 2)
     )
 
-    result = run_op_node([input_data], ng.gather, input_indices, input_axis)
+    result = run_op_node([input_data], ov.gather, input_indices, input_axis)
     assert np.allclose(result, expected)
 
 
@@ -85,5 +85,5 @@ def test_gather_batch_dims_1_negative_indices():
     expected = np.array([[1, 2, 4],
                          [9, 6, 6]], np.float32)
 
-    result = run_op_node([input_data], ng.gather, input_indices, input_axis, batch_dims)
+    result = run_op_node([input_data], ov.gather, input_indices, input_axis, batch_dims)
     assert np.allclose(result, expected)

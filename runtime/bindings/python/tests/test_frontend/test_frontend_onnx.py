@@ -7,7 +7,7 @@ import numpy as np
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 import pytest
 
-from ngraph.frontend import FrontEndManager
+from openvino.frontend import FrontEndManager
 from tests.runtime import get_runtime
 
 

@@ -9,10 +9,10 @@ from typing import Dict, List, Union
 import numpy as np
 from openvino.inference_engine import IECore, IENetwork, Blob, DataPtr
 
-from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, Node, PartialShape, Type
-from ngraph.opset1.ops import result
-from ngraph.utils.types import NumericData, get_shape, get_dtype
+from openvino.exceptions import UserInputError
+from openvino.impl import Function, Node, PartialShape, Type
+from openvino.opset1.ops import result
+from openvino.utils.types import NumericData, get_shape, get_dtype
 
 import tests
 

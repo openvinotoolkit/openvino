@@ -3,7 +3,7 @@
 
 import numpy as np
 
-import ngraph as ng
+import openvino as ov
 from tests.runtime import get_runtime
 from tests.test_ngraph.test_ops import convolution2d
 from tests.test_ngraph.util import run_op_node
@@ -38,7 +38,7 @@ def test_convolution_2d():
     dilations = np.array([1, 1])
 
     # convolution with padding=1 should produce 9 x 9 output:
-    result = run_op_node([input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations)
+    result = run_op_node([input_x, input_filter], ov.convolution, strides, pads_begin, pads_end, dilations)
 
     assert np.allclose(
         result,
@@ -67,7 +67,7 @@ def test_convolution_2d():
     pads_begin = np.array([0, 0])
     pads_end = np.array([0, 0])
     dilations = np.array([1, 1])
-    result = run_op_node([input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations)
+    result = run_op_node([input_x, input_filter], ov.convolution, strides, pads_begin, pads_end, dilations)
     assert np.allclose(
         result,
         np.array(
@@ -94,7 +94,7 @@ def test_convolution_2d():
     dilations = np.array([1, 1])
 
     # convolution with strides=2 should produce 4 x 4 output:
-    result = run_op_node([input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations)
+    result = run_op_node([input_x, input_filter], ov.convolution, strides, pads_begin, pads_end, dilations)
 
     assert np.allclose(
         result,
@@ -119,7 +119,7 @@ def test_convolution_2d():
     dilations = np.array([2, 2])
 
     # convolution with dilation=2 should produce 5 x 5 output:
-    result = run_op_node([input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations)
+    result = run_op_node([input_x, input_filter], ov.convolution, strides, pads_begin, pads_end, dilations)
     assert np.allclose(
         result,
         np.array(
@@ -147,11 +147,11 @@ def test_convolution_backprop_data():
     data_shape = [1, 1, 7, 7]
     strides = [1, 1]
 
-    data_node = ng.parameter(shape=data_shape)
-    filter_node = ng.parameter(shape=filter_shape)
-    output_shape_node = ng.constant(np.array(output_spatial_shape, dtype=np.int64))
+    data_node = ov.parameter(shape=data_shape)
+    filter_node = ov.parameter(shape=filter_shape)
+    output_shape_node = ov.constant(np.array(output_spatial_shape, dtype=np.int64))
 
-    deconvolution = ng.convolution_backprop_data(data_node, filter_node, strides, output_shape_node)
+    deconvolution = ov.convolution_backprop_data(data_node, filter_node, strides, output_shape_node)
 
     input_data = np.array(
         [
@@ -212,7 +212,7 @@ def test_convolution_v1():
     pads_end = np.array([0, 0])
     dilations = np.array([1, 1])
 
-    result = run_op_node([input_tensor, filters], ng.convolution, strides, pads_begin, pads_end, dilations)
+    result = run_op_node([input_tensor, filters], ov.convolution, strides, pads_begin, pads_end, dilations)
 
     expected = convolution2d(input_tensor[0, 0], filters[0, 0]).reshape(1, 1, 14, 14)
 

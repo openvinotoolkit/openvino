@@ -3,17 +3,17 @@
 
 import numpy as np
 
-import ngraph as ng
+import openvino as ov
 from tests.runtime import get_runtime
 
 
 def test_split():
     runtime = get_runtime()
-    input_tensor = ng.constant(np.array([0, 1, 2, 3, 4, 5], dtype=np.int32))
-    axis = ng.constant(0, dtype=np.int64)
+    input_tensor = ov.constant(np.array([0, 1, 2, 3, 4, 5], dtype=np.int32))
+    axis = ov.constant(0, dtype=np.int64)
     splits = 3
 
-    split_node = ng.split(input_tensor, axis, splits)
+    split_node = ov.split(input_tensor, axis, splits)
     computation = runtime.computation(split_node)
     split_results = computation()
     expected_results = np.array([[0, 1], [2, 3], [4, 5]], dtype=np.int32)
@@ -22,11 +22,11 @@ def test_split():
 
 def test_variadic_split():
     runtime = get_runtime()
-    input_tensor = ng.constant(np.array([[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11]], dtype=np.int32))
-    axis = ng.constant(1, dtype=np.int64)
-    splits = ng.constant(np.array([2, 4], dtype=np.int64))
+    input_tensor = ov.constant(np.array([[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11]], dtype=np.int32))
+    axis = ov.constant(1, dtype=np.int64)
+    splits = ov.constant(np.array([2, 4], dtype=np.int64))
 
-    v_split_node = ng.variadic_split(input_tensor, axis, splits)
+    v_split_node = ov.variadic_split(input_tensor, axis, splits)
     computation = runtime.computation(v_split_node)
     results = computation()
     split0 = np.array([[0, 1], [6, 7]], dtype=np.int32)
