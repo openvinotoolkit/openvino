@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pyngraph/util.hpp"
+#include "pyopenvino/graph/util.hpp"
 
 #include <pybind11/numpy.h>
 
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace py = pybind11;
 
@@ -15,11 +15,11 @@ void* numpy_to_c(py::array a) {
     return info.ptr;
 }
 
-void regmodule_pyngraph_util(py::module m) {
+void regmodule_graph_util(py::module m) {
     py::module mod = m.def_submodule("util", "ngraph.impl.util");
     mod.def("numpy_to_c", &numpy_to_c);
     mod.def("get_constant_from_source",
-            &ngraph::get_constant_from_source,
+            &ov::get_constant_from_source,
             py::arg("output"),
             R"(
                     Runs an estimation of source tensor.
