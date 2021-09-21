@@ -330,11 +330,11 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> Xml
     return inputs;
 }
 
-std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> XmlDeserializer::parseOutputDescription(
-    const pugi::xml_node& node,
-    const std::string& body_name,
-    const std::string& port_map_name) {
-    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> outputs;
+std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>
+XmlDeserializer::parseOutputDescription(const pugi::xml_node& node,
+                                        const std::string& body_name,
+                                        const std::string& port_map_name) {
+    std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>> outputs;
     auto body_node = node.child(body_name.c_str());
     const auto up_io_map = updated_io_map(node, body_node);
 
@@ -365,20 +365,22 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> Xm
 
                 const auto output_index = up_io_map.outputs.at(body_result_index);
 
-                outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_index,
-                                                                                                          output_number,
-                                                                                                          start,
-                                                                                                          stride,
-                                                                                                          part_size,
-                                                                                                          end,
-                                                                                                          axis));
+                outputs.push_back(
+                    std::make_shared<ngraph::op::util::MultiSubGraphOp::ConcatOutputDescription>(output_index,
+                                                                                                 output_number,
+                                                                                                 start,
+                                                                                                 stride,
+                                                                                                 part_size,
+                                                                                                 end,
+                                                                                                 axis));
             } else {
                 // otherwise create ngraph::TensorIterator::BodyOutput. -1 means last iteration.
                 const auto output_index = up_io_map.outputs.at(body_result_index);
 
-                outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::BodyOutputDescription>(output_index,
-                                                                                                        output_number,
-                                                                                                        -1));
+                outputs.push_back(
+                    std::make_shared<ngraph::op::util::MultiSubGraphOp::BodyOutputDescription>(output_index,
+                                                                                               output_number,
+                                                                                               -1));
             }
             output_number++;
         }
@@ -449,12 +451,11 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             body_name = "else_body";
             port_map_name = "else_port_map";
         }
-        if (auto a = ngraph::as_type<
-                ngraph::AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(
-                &adapter)) {
+        if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
+                std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>>(&adapter)) {
             a->set(parseInputDescription(m_node, body_name, port_map_name));
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                       std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+                       std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>>(&adapter)) {
             a->set(parseOutputDescription(m_node, body_name, port_map_name));
         } else if (auto a =
                        ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {

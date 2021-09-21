@@ -300,9 +300,9 @@ public:
         using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
 
         const std::vector<BodyTargetNames> body_names = {
-            {"body", "port_map", {"input_descriptions", "output_descriptions", "special_body_ports"}},
-            {"then_body", "then_port_map", {"then_inputs", "then_outputs"}},
-            {"else_body", "else_port_map", {"else_inputs", "else_outputs"}} };
+                BodyTargetNames{"body", "port_map", {"input_descriptions", "output_descriptions", "special_body_ports"}},
+                BodyTargetNames{"then_body", "then_port_map", {"then_inputs", "then_outputs"}},
+                BodyTargetNames{"else_body", "else_port_map", {"else_inputs", "else_outputs"}} };
         BodyTargetNames bnames;
         bool is_body_target = false;
         for (const auto& _body_target : body_names) {

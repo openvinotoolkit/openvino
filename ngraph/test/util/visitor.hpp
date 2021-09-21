@@ -65,10 +65,10 @@ namespace ngraph
             }
             virtual operator HostTensorPtr&() { NGRAPH_CHECK(false, "Invalid type access"); }
             virtual operator std::shared_ptr<ov::Function>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>&() { NGRAPH_CHECK(false, "Invalid type access"); }
+            virtual operator std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>&() { NGRAPH_CHECK(false, "Invalid type access"); }
+            virtual operator std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>&() { NGRAPH_CHECK(false, "Invalid type access"); }
+            virtual operator std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>&() { NGRAPH_CHECK(false, "Invalid type access"); }
+            virtual operator std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>&() { NGRAPH_CHECK(false, "Invalid type access"); }
             uint64_t get_index() { return m_index; }
 
         protected:
