@@ -5,7 +5,6 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
-#include "openvino/core/function.hpp"
 
 namespace ov {
 namespace preprocess {
