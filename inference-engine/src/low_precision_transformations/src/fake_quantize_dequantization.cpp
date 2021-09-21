@@ -6,6 +6,7 @@
 #include <memory>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <low_precision/network_helper.hpp>
 
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
@@ -71,7 +72,7 @@ bool FakeQuantizeDequantization::isShared() const {
 }
 
 bool FakeQuantizeDequantization::isLowPrecision() const {
-    return (data.get_element_type() == element::i8) || (data.get_element_type() == element::u8);
+    return DataPrecision::isSupported(data.get_element_type());
 }
 
 bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>& elementwise) noexcept {

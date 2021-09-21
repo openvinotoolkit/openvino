@@ -65,6 +65,8 @@ public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
     static bool isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function);
+    static bool isFQLevelsPresent(const std::shared_ptr<const ngraph::Function>& function, const std::set<size_t>& levels);
+    static void setDefaultPrecisions(const std::vector<element::Type>& precisions);
 
 protected:
     std::vector<OperationPrecisionRestriction> precisionRestrictions;
