@@ -31,7 +31,7 @@ public:
     ///
     /// \param model_path Path to the file containing the model.
     ONNXModelEditor(const std::string& model_path);
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     ONNXModelEditor(const std::wstring& model_path);
 #endif
 

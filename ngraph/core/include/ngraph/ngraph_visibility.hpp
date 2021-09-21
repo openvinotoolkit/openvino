@@ -6,3 +6,7 @@
 #include "openvino/core/core_visibility.hpp"
 
 #define NGRAPH_API OPENVINO_API
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#    define  OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#endif

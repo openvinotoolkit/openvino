@@ -61,7 +61,7 @@ public:
      */
     std::map<std::string, ie::Version> get_versions(const std::string& deviceName) const;
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Reads models from IR and ONNX formats
      * @param modelPath path to model

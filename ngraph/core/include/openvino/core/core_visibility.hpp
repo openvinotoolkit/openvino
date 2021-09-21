@@ -16,20 +16,21 @@
 
 #ifdef NGRAPH_STATIC_LIBRARY  // defined if we are building or calling NGRAPH as a static library
 #    define OPENVINO_API
+#    define OPENVINO_API
 #else
 #    ifdef ngraph_EXPORTS  // defined if we are building the NGRAPH DLL (instead of using it)
-#        define OPENVINO_API CORE_HELPER_DLL_EXPORT
+#        define OPENVINO_API OPENVINO_CORE_EXPORTS
 #    else
-#        define OPENVINO_API CORE_HELPER_DLL_IMPORT
+#        define OPENVINO_API OPENVINO_CORE_IMPORTS
 #    endif  // ngraph_EXPORTS
 #endif      // NGRAPH_STATIC_LIBRARY
 
-#ifndef ENABLE_UNICODE_PATH_SUPPORT
+#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    ifdef _WIN32
 #        if defined __INTEL_COMPILER || defined _MSC_VER
-#            define ENABLE_UNICODE_PATH_SUPPORT
+#            define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #        endif
 #    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#        define ENABLE_UNICODE_PATH_SUPPORT
+#        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    endif
 #endif
