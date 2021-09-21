@@ -6,12 +6,14 @@
 
 #include <memory>
 
+#include <transformations_visibility.hpp>
+
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class MOCTransformations;
+class TRANSFORMATIONS_API MOCTransformations;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -23,11 +25,11 @@ class MOCTransformations;
  */
 
 class ngraph::pass::MOCTransformations: public ngraph::pass::FunctionPass {
-    bool m_cf;
+    bool m_use_shapes;
 
 public:
     NGRAPH_RTTI_DECLARATION;
-    explicit MOCTransformations(bool cf) : m_cf(cf) {}
+    explicit MOCTransformations(bool use_shapes) : m_use_shapes(use_shapes) {}
 
     bool run_on_function(std::shared_ptr<ngraph::Function>) override;
 };

@@ -4,8 +4,8 @@
 
 #include <memory>
 
-#include "moc_transformations.hpp"
-#include "disable_shapeof_constant_folding.hpp"
+#include <transformations/common_optimizations/moc_transformations.hpp>
+#include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -40,7 +40,14 @@
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 #include <transformations/common_optimizations/random_uniform_fusion.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
-#include "transformations/common_optimizations/mul_conv_fusion.hpp"
+#include <transformations/common_optimizations/disable_random_uniform_constant_folding.hpp>
+#include <transformations/common_optimizations/optimize_strided_slice.hpp>
+#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
+#include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
+#include <transformations/common_optimizations/space_to_batch_fusion.hpp>
+#include <transformations/common_optimizations/transpose_to_reshape.hpp>
+#include <transformations/common_optimizations/batch_to_space_fusion.hpp>
+#include <transformations/common_optimizations/mul_conv_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -48,24 +55,35 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     // To avoid issues with dynamism we make nGraph Function dynamic and after we apply all
     // transformations we restore original shapes to the nGraph Function back
     std::unordered_map<ngraph::op::Parameter*, PartialShape> input_shapes;
-    for (auto && param : f->get_parameters()) {
-        input_shapes[param.get()] = param->get_partial_shape();
-        param->set_partial_shape(PartialShape::dynamic(param->get_partial_shape().rank()));
+    if (!m_use_shapes) {
+        for (auto &&param : f->get_parameters()) {
+            input_shapes[param.get()] = param->get_partial_shape();
+            param->set_partial_shape(PartialShape::dynamic(param->get_partial_shape().rank()));
+        }
+        f->validate_nodes_and_infer_types();
     }
-    f->validate_nodes_and_infer_types();
 
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
             element::TypeVector{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
-    manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
+    if (!m_use_shapes) {
+        manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
+    }
+    manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
+    if (!m_use_shapes) {
+        manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
+    }
     // workaround until dynamism in NMS is not supported
     manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
+
+    if (m_use_shapes)
+        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
 
     auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
     transpose_sinking->add_matcher<ngraph::pass::TransposeSinking>();
@@ -76,7 +94,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
 
     auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
     eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
-    eliminations->add_matcher<ngraph::pass::NopElimination>(false /* do not use shape for elimination */);
+    eliminations->add_matcher<ngraph::pass::NopElimination>(m_use_shapes /* do not use shape for elimination */);
     eliminations->set_name("ngraph::pass::CommonEliminations");
 
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -98,6 +116,14 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
+    if (m_use_shapes) {
+        common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
+        common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false);
+        common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
+        common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
+        common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
+    }
+
     manager.register_pass<ngraph::pass::BinarizeWeights>();
     manager.register_pass<ngraph::pass::ConvToBinaryConv>();
 
@@ -117,13 +143,17 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
     conv_fusions->set_name("ngraph::pass::ConvFusions");
 
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
     manager.run_passes(f);
 
-    // Restore original shapes to the nGraph Function
-    for (auto && param : f->get_parameters()) {
-        param->set_partial_shape(input_shapes.at(param.get()));
+    if (!m_use_shapes) {
+        // Restore original shapes to the nGraph Function
+        for (auto &&param : f->get_parameters()) {
+            param->set_partial_shape(input_shapes.at(param.get()));
+        }
+        f->validate_nodes_and_infer_types();
     }
-    f->validate_nodes_and_infer_types();
 
     return false;
 }
