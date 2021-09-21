@@ -125,16 +125,16 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
                                               v
 
                 where:
-                    scale = (output_high - output_low) / (input_high - input_low)
-                    zero_point = input_low - output_low / scale
+                    scale = (output_high - output_low) / (new_output_high - new_output_low)
+                    zero_point = new_output_low - output_low / scale
             */
             const auto& output_low = pattern_value_map.at(output_low_pattern);
             const auto& output_high = pattern_value_map.at(output_high_pattern);
             auto output_range = std::make_shared<opset8::Subtract>(output_high, output_low);
-            auto input_range = std::make_shared<opset8::Subtract>(input_high, input_low);
+            auto input_range = std::make_shared<opset8::Subtract>(new_output_high, new_output_low);
             std::shared_ptr<Node> scale = std::make_shared<opset8::Divide>(output_range, input_range);
             auto descaled_output_low = std::make_shared<opset8::Divide>(output_low, scale);
-            std::shared_ptr<Node> shift = std::make_shared<opset8::Subtract>(input_low, descaled_output_low);
+            std::shared_ptr<Node> shift = std::make_shared<opset8::Subtract>(new_output_low, descaled_output_low);
             if (auto constant = get_constant_from_source(scale))
                 scale = constant;
             auto zero = op::Constant::create(input_type, Shape{}, {0});

@@ -41,8 +41,8 @@ TEST(TransformationTests, CompressQuantizeWeightsI4) {
     {
         auto data = opset8::Constant::create(element::i4, Shape{2, 3, 1, 1}, {-8, -5, -4, -2, 0, 7});
         auto convert = std::make_shared<opset8::Convert>(data, element::f32);
-        auto scale = opset8::Constant::create(element::f32, Shape{}, {0.5});
-        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {2});
+        auto scale = opset8::Constant::create(element::f32, Shape{}, {5.0 / 15});
+        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {-8.0 + 15.0 / 5});
         auto sub = std::make_shared<opset8::Subtract>(convert, zero_point);
         auto mul = std::make_shared<opset8::Multiply>(sub, scale);
         f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{});
@@ -73,8 +73,8 @@ TEST(TransformationTests, CompressQuantizeWeightsI8) {
     {
         auto data = opset8::Constant::create(element::i8, Shape{2, 4, 1, 1}, {-128, -128, -128, -96, -64, -32, 0, 127});
         auto convert = std::make_shared<opset8::Convert>(data, element::f32);
-        auto scale = opset8::Constant::create(element::f32, Shape{}, {1});
-        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {3});
+        auto scale = opset8::Constant::create(element::f32, Shape{}, {8.0 / 255});
+        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {-128 + 2.0 * 255.0 / 8});
         auto sub = std::make_shared<opset8::Subtract>(convert, zero_point);
         auto mul = std::make_shared<opset8::Multiply>(sub, scale);
         f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{});
@@ -90,17 +90,17 @@ TEST(TransformationTests, CompressQuantizeWeightsWithDequantizationSubgraph) {
         auto data = opset8::Constant::create(element::f32, Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11});
         auto input_low = opset8::Constant::create(element::f32, Shape{}, {1});
         auto input_high = opset8::Constant::create(element::f32, Shape{}, {9});
-        auto output_low = opset8::Constant::create(element::f32, Shape{}, {-2});
-        auto output_high = opset8::Constant::create(element::f32, Shape{}, {6});
+        auto output_low = opset8::Constant::create(element::f32, Shape{}, {-128});
+        auto output_high = opset8::Constant::create(element::f32, Shape{}, {127});
         auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
         auto convert = std::make_shared<opset8::Convert>(fq, element::i8);
         auto second_convert = std::make_shared<opset8::Convert>(convert, element::f32);
-        auto scale = opset8::Constant::create(element::f32, Shape{}, {1});
-        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {3});
+        auto scale = opset8::Constant::create(element::f32, Shape{}, {10.0 / 255});
+        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {2 - 255.0 / 10});
         auto sub = std::make_shared<opset8::Subtract>(second_convert, zero_point);
         auto mul = std::make_shared<opset8::Multiply>(sub, scale);
 
-        f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{});
+        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{});
 
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
@@ -112,8 +112,8 @@ TEST(TransformationTests, CompressQuantizeWeightsWithDequantizationSubgraph) {
     {
         auto data = opset8::Constant::create(element::i8, Shape{2, 4, 1, 1}, {-128, -128, -128, -96, -64, -32, 0, 127});
         auto convert = std::make_shared<opset8::Convert>(data, element::f32);
-        auto scale = opset8::Constant::create(element::f32, Shape{}, {1});
-        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {3});
+        auto scale = opset8::Constant::create(element::f32, Shape{}, {10.0 / 255});
+        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {2 - 255.0 / 10});
         auto sub = std::make_shared<opset8::Subtract>(convert, zero_point);
         auto mul = std::make_shared<opset8::Multiply>(sub, scale);
         f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{});
