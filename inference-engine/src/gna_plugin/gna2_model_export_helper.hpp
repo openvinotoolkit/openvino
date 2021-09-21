@@ -14,6 +14,7 @@
 
 void * ExportSueLegacyUsingGnaApi2(
     uint32_t modelId,
+    uint32_t deviceIndex,
     Gna2ModelSueCreekHeader* modelHeader);
 
 void ExportLdForDeviceVersion(

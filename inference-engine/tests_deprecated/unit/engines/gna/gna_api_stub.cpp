@@ -44,6 +44,13 @@ GNA2_API enum Gna2Status Gna2MemoryAlloc(
     return Gna2StatusSuccess;
 }
 
+GNA2_API enum Gna2Status Gna2DeviceCreateForExport(
+    Gna2DeviceVersion targetDeviceVersion,
+    uint32_t * deviceIndex) {
+    *deviceIndex = 1;
+    return Gna2StatusSuccess;
+}
+
 GNA2_API enum Gna2Status Gna2DeviceOpen(
     uint32_t deviceIndex) {
     if (current != nullptr) {
@@ -135,15 +142,6 @@ GNA2_API enum Gna2Status Gna2RequestConfigEnableActiveList(
     uint32_t const * indices) {
     if (current != nullptr) {
         return current->Gna2RequestConfigEnableActiveList(requestConfigId, operationIndex, numberOfIndices, indices);
-    }
-    return Gna2StatusSuccess;
-}
-
-GNA2_API enum Gna2Status Gna2RequestConfigEnableHardwareConsistency(
-    uint32_t requestConfigId,
-    enum Gna2DeviceVersion deviceVersion) {
-    if (current != nullptr) {
-        return current->Gna2RequestConfigEnableHardwareConsistency(requestConfigId, deviceVersion);
     }
     return Gna2StatusSuccess;
 }
