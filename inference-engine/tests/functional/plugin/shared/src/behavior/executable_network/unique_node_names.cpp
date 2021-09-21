@@ -37,10 +37,6 @@ void ExecGraphUniqueNodeNames::SetUp() {
     fnPtr = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
 }
 
-void ExecGraphUniqueNodeNames::TearDown() {
-    fnPtr.reset();
-}
-
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
 

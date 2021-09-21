@@ -104,3 +104,9 @@ Intel® Distribution of OpenVINO™ toolkit includes the following components:
 - [Intel® Media SDK](https://software.intel.com/en-us/media-sdk) (in Intel® Distribution of OpenVINO™ toolkit for Linux only)
 
 OpenVINO™ Toolkit opensource version is available on [GitHub](https://github.com/openvinotoolkit/openvino). For building the Inference Engine from the source code, see the <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode">build instructions</a>.
+
+
+## OpenVINO™ API 2.0 
+
+The new OpenVINO™ API 2.0 was introduced to make OpenVINO™ interface more user-friendly and align OpenVINO™ with other frameworks.
+The [migration guide](@ref ov_2_0_transition_guide) should allow to simplify the process of migration application from old API to OpenVINO™ API 2.0.

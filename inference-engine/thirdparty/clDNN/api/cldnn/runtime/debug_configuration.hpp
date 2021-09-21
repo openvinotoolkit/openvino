@@ -12,7 +12,7 @@
 #define GPU_DEBUG_IF(cond) if (0)
 #endif
 
-#define GPU_DEBUG_COUT std::cout << debug_configuration::prefix
+#define GPU_DEBUG_COUT std::cout << cldnn::debug_configuration::prefix
 // Macro below is inserted to avoid unused variable warning when GPU_DEBUG_CONFIG is OFF
 #define GPU_DEBUG_GET_INSTANCE(name) auto name = cldnn::debug_configuration::get_instance(); (void)(name);
 
