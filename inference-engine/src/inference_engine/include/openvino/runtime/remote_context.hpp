@@ -32,7 +32,7 @@ class Core;
  * Such context represents a scope on the device within which executable
  * networks and remote memory blobs can exist, function and exchange data.
  */
-class INFERENCE_ENGINE_API_CLASS(RemoteContext) {
+class OPENVINO_RUNTIME_API RemoteContext {
     std::shared_ptr<void> _so;
     std::shared_ptr<ie::RemoteContext> _impl;
 

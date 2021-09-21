@@ -38,7 +38,7 @@ namespace runtime {
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(Core) {
+class OPENVINO_RUNTIME_API Core {
     class Impl;
     std::shared_ptr<Impl> _impl;
 

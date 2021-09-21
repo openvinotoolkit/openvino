@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-#include "ie_api.h"
+#include "openvino/runtime/common.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov {
@@ -30,7 +30,7 @@ namespace runtime {
  * @brief This class represents an object to work with different parameters
  *
  */
-class INFERENCE_ENGINE_API_CLASS(Parameter) {
+class OPENVINO_RUNTIME_API Parameter {
 public:
     /**
      * @brief Default constructor
@@ -342,19 +342,19 @@ private:
 using ParamMap = std::map<std::string, Parameter>;
 
 #ifdef __ANDROID__
-extern template struct INFERENCE_ENGINE_API_CLASS(ov::runtime::Parameter::RealData<int>);
-extern template struct INFERENCE_ENGINE_API_CLASS(ov::runtime::Parameter::RealData<bool>);
-extern template struct INFERENCE_ENGINE_API_CLASS(ov::runtime::Parameter::RealData<float>);
-extern template struct INFERENCE_ENGINE_API_CLASS(ov::runtime::Parameter::RealData<uint32_t>);
-extern template struct INFERENCE_ENGINE_API_CLASS(ov::runtime::Parameter::RealData<std::string>);
-extern template struct INFERENCE_ENGINE_API_CLASS(ov::runtime::Parameter::RealData<unsigned long>);
-extern template struct INFERENCE_ENGINE_API_CLASS(ov::runtime::Parameter::RealData<std::vector<int>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(ov::runtime::Parameter::RealData<std::vector<std::string>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(ov::runtime::Parameter::RealData<std::vector<unsigned long>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(
-    ov::runtime::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(
-    ov::runtime::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
+extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<int>;
+extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<bool>;
+extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<float>;
+extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<uint32_t>;
+extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<std::string>;
+extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<unsigned long>;
+extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<std::vector<int>>;
+extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<std::vector<std::string>>;
+extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<std::vector<unsigned long>>;
+extern template struct OPENVINO_RUNTIME_API
+    ov::runtime::Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
+extern template struct OPENVINO_RUNTIME_API
+    ov::runtime::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
 #endif
 
 }  // namespace runtime

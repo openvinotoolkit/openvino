@@ -10,8 +10,7 @@
 
 #pragma once
 
-#include <ie_api.h>
-#include <ie_blob.h>
+#include "ie_blob.h"
 
 #include <memory>
 #include <string>
@@ -31,7 +30,7 @@ class InferRequest;
 /**
  * @brief VariableState class
  */
-class INFERENCE_ENGINE_API_CLASS(VariableState) {
+class OPENVINO_RUNTIME_API VariableState {
     std::shared_ptr<void> _so;
     std::shared_ptr<ie::IVariableStateInternal> _impl;
 
