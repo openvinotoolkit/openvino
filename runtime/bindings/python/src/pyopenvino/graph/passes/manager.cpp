@@ -32,7 +32,7 @@ public:
 }  // namespace
 
 void regclass_graph_passes_Manager(py::module m) {
-    py::class_<ManagerWrapper> manager(m, "Manager");
+    py::class_<ManagerWrapper> manager(m, "Manager", py::module_local());
     manager.doc() = "ngraph.impl.passes.Manager wraps ngraph::pass::Manager using ManagerWrapper";
 
     manager.def(py::init<>());

@@ -11,7 +11,7 @@
 namespace py = pybind11;
 
 void regclass_graph_Variant(py::module m) {
-    py::class_<ngraph::Variant, std::shared_ptr<ngraph::Variant>> variant_base(m, "Variant");
+    py::class_<ngraph::Variant, std::shared_ptr<ngraph::Variant>> variant_base(m, "Variant", py::module_local());
     variant_base.doc() = "ngraph.impl.Variant wraps ngraph::Variant";
 }
 

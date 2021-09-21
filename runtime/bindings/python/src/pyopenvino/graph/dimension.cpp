@@ -18,7 +18,7 @@ namespace py = pybind11;
 void regclass_graph_Dimension(py::module m) {
     using value_type = ngraph::Dimension::value_type;
 
-    py::class_<ngraph::Dimension, std::shared_ptr<ngraph::Dimension>> dim(m, "Dimension");
+    py::class_<ngraph::Dimension, std::shared_ptr<ngraph::Dimension>> dim(m, "Dimension", py::module_local());
     dim.doc() = "ngraph.impl.Dimension wraps ngraph::Dimension";
     dim.def(py::init<>());
     dim.def(py::init<value_type&>(),

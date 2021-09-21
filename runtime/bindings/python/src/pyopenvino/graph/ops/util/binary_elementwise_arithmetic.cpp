@@ -14,5 +14,5 @@ namespace py = pybind11;
 void regclass_graph_op_util_BinaryElementwiseArithmetic(py::module m) {
     py::class_<ngraph::op::util::BinaryElementwiseArithmetic,
                std::shared_ptr<ngraph::op::util::BinaryElementwiseArithmetic>>
-        binaryElementwiseArithmetic(m, "BinaryElementwiseArithmetic");
+        binaryElementwiseArithmetic(m, "BinaryElementwiseArithmetic", py::module_local());
 }
