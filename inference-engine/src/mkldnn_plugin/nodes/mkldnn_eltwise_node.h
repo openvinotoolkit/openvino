@@ -98,38 +98,40 @@ public:
 
 private:
     struct EltwisePrim {
+        EltwisePrim(size_t batch) : batchDimIdx(batch) {}
         virtual void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) = 0;
         virtual const jit_eltwise_params& getJep() const = 0;
         virtual ~EltwisePrim() = default;
+
+        size_t batchDimIdx = 0;
     };
     using primPtr = std::shared_ptr<EltwisePrim>;
     primPtr pPrim = nullptr;
 
     struct EltwiseJitPrim : public EltwisePrim {
-        EltwiseJitPrim(const jit_eltwise_params &_jep, MKLDNNEltwiseNode& node);
+        EltwiseJitPrim(const jit_eltwise_params &_jep, MKLDNNEltwiseNode& node, const size_t schedWA, const size_t batch);
         void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
         const jit_eltwise_params& getJep() const override;
 
         std::shared_ptr<jit_uni_eltwise_kernel> pKernel;
+        size_t schedulerWorkAmount = 0;
     };
 
     struct EltwiseRefPrim : public EltwisePrim {
-        EltwiseRefPrim(const jit_eltwise_params &_jep) : jep(_jep) {}
+        EltwiseRefPrim(const jit_eltwise_params &_jep, const size_t fullWA, const size_t batch) : jep(_jep), fullWorkAmount(fullWA), EltwisePrim(batch) {}
         void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
         const jit_eltwise_params& getJep() const override { return jep; }
 
         jit_eltwise_params jep;
+        size_t fullWorkAmount = 0;
     };
 
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
 
-    const int optimalTensorRank = 6;
+    static const int optimalTensorRank = 6;
     bool canUseOptimizedImpl = false;
     bool isDynBatchEnabled = false;
     bool specialConvolutionAddFusing = false;
-    size_t batchDimIdx = 0;
-    size_t fullWorkAmount = 0;
-    size_t schedulerWorkAmount = 0;
     size_t inputNum = 0;
     std::vector<ptrdiff_t> start_offset_in = {};
     ptrdiff_t start_offset_out = 0;
@@ -151,8 +153,9 @@ private:
     void executeOptimized6D(const std::shared_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
                             const VectorDims &dims_out) const;
     void executeOptimizedGeneric(const std::shared_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
-                                 const VectorDims &dims_out) const;
-    void executeReference(const jit_eltwise_params &jep, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) const;
+                                 const VectorDims &dims_out, const size_t schedulerWorkAmount) const;
+    void executeReference(const jit_eltwise_params &jep, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out,
+                          const size_t fullWorkAmount) const;
 
     void offset_out_calc(VectorDims& offset, VectorDims& dims);
     void offset_in_calc(VectorDims& offset, VectorDims& dims_in, VectorDims& dims_out);

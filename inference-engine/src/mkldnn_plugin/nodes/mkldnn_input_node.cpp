@@ -412,10 +412,6 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfs,
                          outPortConfs,
                          impl_desc_type::unknown);
-
-    if (getType() == Output) {
-        lastInputDims.resize(1);
-    }
 }
 
 void MKLDNNInputNode::createPrimitive() {
