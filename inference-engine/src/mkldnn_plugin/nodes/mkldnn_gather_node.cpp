@@ -15,10 +15,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto gatherOp = ngraph::as_type_ptr<const ngraph::op::v7::Gather>(op);
         if (!gatherOp) {
             errorMessage = "Only opset7 Gather operation is supported";
@@ -50,28 +46,25 @@ MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ngraph::Node>& op, cons
     if (gatherOp->get_input_size() != 3 || gatherOp->get_output_size() != 1)
         IE_THROW() << errorPrefix_ << "has incorrect number of input/output edges!";
 
-    const SizeVector& srcDims = gatherOp->get_input_shape(GATHER_DATA);
-    const SizeVector& idxDims = gatherOp->get_input_shape(GATHER_INDEXES);
-    if (srcDims.size() == 0)
+    const auto& srcShape = inputShapes[GATHER_DATA];
+    const auto& idxShape = inputShapes[GATHER_INDEXES];
+    const auto srcRank = srcShape.getRank();
+    const auto idxRank = idxShape.getRank();
+    if (srcRank == 0)
         IE_THROW() << errorPrefix_ << "has incorrect input parameters dimension!";
 
     axis = static_cast<int>(gatherOp->get_axis());
     if (axis < 0)
-        axis += srcDims.size();
-    if (!(0 <= axis && axis < static_cast<int>(srcDims.size())))
+        axis += srcRank;
+    if (!(0 <= axis && axis < static_cast<int>(srcRank)))
         IE_THROW() << errorPrefix_ << "has incorrect input parameters dimensions and axis number!";
 
     batchDims = static_cast<int>(gatherOp->get_batch_dims());
     if (batchDims < 0)
-        batchDims += idxDims.size();
-    if (!(0 <= batchDims && batchDims <= std::min(static_cast<int>(srcDims.size()), static_cast<int>(idxDims.size()))) ||
+        batchDims += idxRank;
+    if (!(0 <= batchDims && batchDims <= std::min(static_cast<int>(srcRank), static_cast<int>(idxRank))) ||
         batchDims > axis)
         IE_THROW() << errorPrefix_ << "has incorrect batch_dims " << batchDims << "!";
-
-    for (int i = 0; i < batchDims; i++) {
-        if (srcDims[i] != idxDims[i])
-            IE_THROW() << errorPrefix_ << "has incorrect first " << batchDims << " data and indices dimensions!";
-    }
 }
 
 void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
@@ -86,9 +79,13 @@ void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNGatherNode::createPrimitive() {
+void MKLDNNGatherNode::prepareParams() {
+    if (!inputShapesDefined()) {
+        IE_THROW() << "Can't prepare params for eltwise node with name: " << getName();
+    }
+
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto& srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
         IE_THROW() << errorPrefix_ << " has not allocated destination memory.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
@@ -96,10 +93,10 @@ void MKLDNNGatherNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix_ << " has unidentified preferable primitive descriptor.";
 
-    const SizeVector srcDims = getParentEdgeAt(GATHER_DATA)->getMemory().getStaticDims();
+    const SizeVector srcDims = srcMemPtr->getStaticDims();
     const SizeVector idxDims = getParentEdgeAt(GATHER_INDEXES)->getMemory().getStaticDims();
     const SizeVector dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
-    dataSize = getParentEdgeAt(GATHER_DATA)->getMemory().getDesc().getPrecision().size();
+    dataSize = srcMemPtr->getDesc().getPrecision().size();
 
     indexRange = srcDims[axis];
     batchSize = std::accumulate(srcDims.begin(), srcDims.begin() + batchDims, 1, std::multiplies<size_t>());
@@ -112,6 +109,14 @@ void MKLDNNGatherNode::createPrimitive() {
 
     if (dataLength == 0)
         IE_THROW() << errorPrefix_ << "had incorrect input parameters dimension!";
+}
+
+void MKLDNNGatherNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
 }
 
 void MKLDNNGatherNode::execute(mkldnn::stream strm) {

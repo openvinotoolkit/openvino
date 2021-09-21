@@ -25,8 +25,6 @@ public:
     void withMeanImage();
     MKLDNNMemoryCPtr getMemoryPtr() const;
 
-    void executeDynamicImpl(mkldnn::stream strm) override {}
-
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
 

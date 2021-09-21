@@ -25,6 +25,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
+#include "/home/maximandronov/test_repo/openvino/inference-engine/tests/ie_test_utils/functional_test_utils/include/functional_test_utils/blob_utils.hpp"
 
 // TODO [mandrono]: move current test case inside CPU plug-in and return the original tests
 namespace BehaviorTestsDefinitions {
@@ -339,6 +340,72 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetBlob2times) {
     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
     ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape2);
+}
+
+template<typename vecElementType>
+inline std::string vec2str(const std::vector<vecElementType> &vec) {
+    if (!vec.empty()) {
+        std::ostringstream result;
+        result << "(";
+        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "."));
+        result << vec.back() << ")";
+        return result.str();
+    }
+    return std::string("()");
+}
+
+TEST_P(InferRequestDynamicTests, CPU_ONLY) {
+    const std::string param_name = "Param_1";
+
+    std::tuple<int, int> axis_batchIdx{1, 1};
+    std::vector<size_t> indicesShape{4, 2};
+    std::vector<size_t> inputShape{4, 5, 6, 7};
+    InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32;
+    int axis = std::get<0>(axis_batchIdx);
+    int batchIdx = std::get<1>(axis_batchIdx);
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto functionParams = ngraph::builder::makeParams(ngPrc, { inputShape });
+    functionParams[0]->set_friendly_name(param_name);
+    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
+    auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
+                                                          inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1, 0);
+    auto axisNode = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
+    auto gather = std::make_shared<ngraph::opset7::Gather>(paramOuts[0], indicesNode, axisNode, batchIdx);
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset7::Result>(gather) };
+    function = std::make_shared<ngraph::Function>(results, functionParams, "gather");
+
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    std::map<std::string, ngraph::PartialShape> shapes;
+    shapes[param_name] = {ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()};
+    cnnNet.reshape(shapes);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    InferenceEngine::Blob::Ptr blob = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShape, InferenceEngine::Layout::NCHW});
+
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
+    ASSERT_EQ(blob->getTensorDesc().getDims(), inputShape);
+    req.Infer();
+    InferenceEngine::StatusCode sts;
+    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
+    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
+    std::cout << vec2str(blob->getTensorDesc().getDims()) << std::endl;
+    // ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
+
+    std::vector<size_t> inputShape2{4, 10, 12, 14};
+    blob = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShape2, InferenceEngine::Layout::NCHW});
+    ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
+    ASSERT_EQ(blob->getTensorDesc().getDims(), inputShape2);
+    req.Infer();
+    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
+    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
+    std::cout << vec2str(blob->getTensorDesc().getDims()) << std::endl;
+    // ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape2);
 }
 
 }  // namespace BehaviorTestsDefinitions
