@@ -17,26 +17,18 @@ using namespace InferenceEngine;
 using namespace reference_tests;
 
 struct ExperimentalROIFunctional {
-    std::shared_ptr<Function> create_function(const std::vector<Tensor>& ed_inputs) {
+    std::shared_ptr<Function> create_function(const std::vector<Tensor>& inputs) {
         op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
         attrs.aligned = false;
         attrs.output_size = 3;
         attrs.sampling_ratio = 2;
         attrs.pyramid_scales = {4};
 
-//         const size_t num_of_inputs = input_shapes.size();
-//         NodeVector node_vector(num_of_inputs);
-//         ParameterVector parameter_vector(num_of_inputs);
-//         for (size_t i = 0; i < num_of_inputs; ++i) {
-//             auto current_parameter = std::make_shared<op::Parameter>(et, input_shapes[i]);
-//             node_vector[i] = current_parameter;
-//             parameter_vector[i] = current_parameter;
-//         }
-        const size_t num_of_inputs = ed_inputs.size();
+        const size_t num_of_inputs = inputs.size();
         NodeVector node_vector(num_of_inputs);
         ParameterVector parameter_vector(num_of_inputs);
         for (size_t i = 0; i < num_of_inputs; ++i) {
-            const auto& current_input = ed_inputs[i];
+            const auto& current_input = inputs[i];
             auto current_parameter = std::make_shared<op::Parameter>(current_input.type, current_input.shape);
             node_vector[i] = current_parameter;
             parameter_vector[i] = current_parameter;
