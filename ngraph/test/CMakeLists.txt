@@ -78,7 +78,6 @@ set(SRC
     pass_config.cpp
     pass_manager.cpp
     pattern.cpp
-    pre_post_process.cpp
     preprocess.cpp
     provenance.cpp
     replace_node.cpp
