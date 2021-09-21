@@ -50,3 +50,4 @@ from _pyngraph import Coordinate
 from _pyngraph import Output
 from _pyngraph import DiscreteTypeInfo
 from _pyngraph import util
+from _pyngraph import Layout
