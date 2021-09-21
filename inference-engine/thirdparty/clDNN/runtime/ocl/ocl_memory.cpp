@@ -11,6 +11,10 @@
 #include <stdexcept>
 #include <vector>
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl_ocl.hpp>
+#endif
+
 namespace cldnn {
 namespace ocl {
 
@@ -91,6 +95,15 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr) {
 
     return ev;
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc) {
+    auto onednn_engine = _engine->get_onednn_engine();
+    dnnl::memory dnnl_mem(desc, onednn_engine, DNNL_MEMORY_NONE);
+    dnnl::ocl_interop::set_mem_object(dnnl_mem, _buffer.get());
+    return dnnl_mem;
+}
+#endif
 
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
     : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, false), _row_pitch(0), _slice_pitch(0) {
@@ -342,6 +355,14 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr) {
 
     return ev;
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc) {
+    auto onednn_engine = _engine->get_onednn_engine();
+    dnnl::memory dnnl_mem = dnnl::ocl_interop::make_memory(desc, onednn_engine, dnnl::ocl_interop::memory_kind::usm, _buffer.get());
+    return dnnl_mem;
+}
+#endif
 
 shared_mem_params gpu_usm::get_internal_params() const {
     auto cl_engine = downcast<const ocl_engine>(_engine);

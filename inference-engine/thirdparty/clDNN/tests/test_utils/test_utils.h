@@ -45,8 +45,11 @@
 
 namespace tests {
 
-std::shared_ptr<cldnn::engine> create_test_engine();
+std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type = cldnn::queue_types::out_of_order);
 cldnn::engine& get_test_engine();
+#ifdef ENABLE_ONEDNN_FOR_GPU
+cldnn::engine& get_onednn_test_engine();
+#endif
 cldnn::stream& get_test_stream();
 
 #define USE_RANDOM_SEED 0

@@ -79,6 +79,10 @@ public:
 
     const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    dnnl::stream& get_onednn_stream() override;
+#endif
+
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
@@ -89,6 +93,10 @@ private:
     cl::Event _last_barrier_ev;
 
     sync_methods sync_method;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
+#endif
 };
 
 }  // namespace ocl
