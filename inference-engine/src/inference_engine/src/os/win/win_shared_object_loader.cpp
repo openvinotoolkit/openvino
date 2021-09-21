@@ -5,7 +5,7 @@
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
 #include "ie_common.h"
-#include "shared_object.hpp"
+#include "openvino/util/so_loader.hpp"
 
 //
 // LoadLibraryA, LoadLibraryW:
