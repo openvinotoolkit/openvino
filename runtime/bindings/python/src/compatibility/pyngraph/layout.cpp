@@ -9,8 +9,6 @@
 
 namespace py = pybind11;
 
-
-
 void regclass_pyngraph_Layout(py::module m) {
     py::class_<ov::Layout, std::shared_ptr<ov::Layout>> layout(m, "Layout");
     layout.doc() = "ngraph.impl.Layout wraps ov::Layout";
