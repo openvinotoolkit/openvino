@@ -10,7 +10,7 @@ from _pyngraph import VariantInt, VariantString
 
 import ngraph as ng
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, PartialShape, Shape, Type
+from ngraph.impl import Function, PartialShape, Shape, Type, Layout
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
@@ -470,3 +470,59 @@ def test_node_version():
 
     assert node.get_version() == 1
     assert node.version == 1
+
+
+def test_layout():
+    layout = Layout("NCWH")
+    layout2 = Layout("NCWH")
+    scalar = Layout.scalar()
+    scalar2 = Layout.scalar()
+
+    assert layout == layout2
+    assert layout != scalar
+    assert scalar == scalar2
+    assert scalar2 != layout2
+
+    assert scalar.to_string() == "**SCALAR**"
+    assert scalar.has_name("N") == False
+    assert scalar.has_name("C") == False
+    assert scalar.has_name("W") == False
+    assert scalar.has_name("H") == False
+    assert scalar.has_name("D") == False
+
+    assert layout.to_string() == "[N,C,W,H]"
+    assert layout.has_name("N") == True
+    assert layout.has_name("C") == True
+    assert layout.has_name("W") == True
+    assert layout.has_name("H") == True
+    assert layout.has_name("D") == False
+    assert layout.get_index_by_name("N") == 0
+    assert layout.get_index_by_name("C") == 1
+    assert layout.get_index_by_name("W") == 2
+    assert layout.get_index_by_name("H") == 3
+
+    layout = Layout("NC?")
+    assert layout.to_string() == "[N,C,?]"
+    assert layout.has_name("N") == True
+    assert layout.has_name("C") == True
+    assert layout.has_name("W") == False
+    assert layout.has_name("H") == False
+    assert layout.has_name("D") == False
+    assert layout.get_index_by_name("N") == 0
+    assert layout.get_index_by_name("C") == 1
+
+    layout = Layout("N...C")
+    assert layout.to_string() == "[N,...,C]"
+    assert layout.has_name("N") == True
+    assert layout.has_name("W") == False
+    assert layout.has_name("H") == False
+    assert layout.has_name("D") == False
+    assert layout.has_name("C") == True
+
+    layout = Layout()
+    assert layout.to_string() == "[...]"
+    assert layout.has_name("W") == False
+    assert layout.has_name("W") == False
+    assert layout.has_name("H") == False
+    assert layout.has_name("D") == False
+    assert layout.has_name("C") == False
