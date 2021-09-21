@@ -165,7 +165,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) 
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
-    ASSERT_THROW(p = exeNetwork.get_metric("unsupported_metric"), InferenceEngine::Exception);
+    ASSERT_THROW(p = exeNetwork.get_metric("unsupported_metric"), ov::Exception);
 }
 
 TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
@@ -190,7 +190,7 @@ TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigThrows) {
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
-    ASSERT_THROW(p = exeNetwork.get_config("unsupported_config"), InferenceEngine::Exception);
+    ASSERT_THROW(p = exeNetwork.get_config("unsupported_config"), ov::Exception);
 }
 
 TEST_P(OVClassExecutableNetworkSetConfigTest, SetConfigThrows) {
@@ -199,7 +199,7 @@ TEST_P(OVClassExecutableNetworkSetConfigTest, SetConfigThrows) {
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
-    ASSERT_THROW(exeNetwork.set_config({{"unsupported_config", "some_value"}}), InferenceEngine::Exception);
+    ASSERT_THROW(exeNetwork.set_config({{"unsupported_config", "some_value"}}), ov::Exception);
 }
 
 TEST_P(OVClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
@@ -218,7 +218,7 @@ TEST_P(OVClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
-    ASSERT_THROW(exeNetwork.set_config({{configKey, configValue}}), InferenceEngine::Exception);
+    ASSERT_THROW(exeNetwork.set_config({{configKey, configValue}}), ov::Exception);
 }
 
 TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {

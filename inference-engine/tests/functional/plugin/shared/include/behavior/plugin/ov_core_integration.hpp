@@ -87,7 +87,7 @@ TEST(OVClassBasicTest, smoke_createDefault) {
 
 TEST_P(OVClassBasicTestP, registerExistingPluginThrows) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
-    ASSERT_THROW(ie.register_plugin(pluginName, deviceName), InferenceEngine::Exception);
+    ASSERT_THROW(ie.register_plugin(pluginName, deviceName), ov::Exception);
 }
 
 TEST_P(OVClassBasicTestP, registerNewPluginNoThrows) {
@@ -98,11 +98,12 @@ TEST_P(OVClassBasicTestP, registerNewPluginNoThrows) {
 
 TEST(OVClassBasicTest, smoke_registerExistingPluginFileThrows) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
-    ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), InferenceEngine::Exception);
+    ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), ov::Exception);
+    ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), ov::Exception);
 }
 
 TEST(OVClassBasicTest, smoke_createNonExistingConfigThrows) {
-    ASSERT_THROW(ov::runtime::Core ie("nonExistPlugins.xml"), InferenceEngine::Exception);
+    ASSERT_THROW(ov::runtime::Core ie("nonExistPlugins.xml"), ov::Exception);
 }
 
 #ifdef __linux__
@@ -119,7 +120,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
     std::string filename{"mock_engine.xml"};
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(filename, content);
-    ASSERT_THROW(ov::runtime::Core ie(filename), InferenceEngine::Exception);
+    ASSERT_THROW(ov::runtime::Core ie(filename), ov::Exception);
     CommonTestUtils::removeFile(filename.c_str());
 }
 
@@ -142,14 +143,14 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << pluginXML << "' to '"
-                       << ::FileUtils::wStringtoMBCSstringChar(pluginsXmlW) << "'";
+                       << ::ov::util::wstring_to_string(pluginsXmlW) << "'";
             }
 
             GTEST_COUT << "Test " << testIndex << std::endl;
 
             ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
             GTEST_COUT << "Core created " << testIndex << std::endl;
-            ASSERT_NO_THROW(ie.register_plugins(::FileUtils::wStringtoMBCSstringChar(pluginsXmlW)));
+            ASSERT_NO_THROW(ie.register_plugins(::ov::util::wstring_to_string(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
 #    if defined __linux__ && !defined(__APPLE__)
             ASSERT_NO_THROW(ie.get_versions("mock"));  // from pluginXML
@@ -162,7 +163,7 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             GTEST_COUT << "Plugin registered and created " << testIndex << std::endl;
 
             GTEST_COUT << "OK" << std::endl;
-        } catch (const InferenceEngine::Exception& e_next) {
+        } catch (const ov::Exception& e_next) {
             CommonTestUtils::removeFile(pluginsXmlW);
             std::remove(pluginXML.c_str());
             FAIL() << e_next.what();
@@ -199,7 +200,7 @@ TEST_P(OVClassBasicTestP, getVersionsNonEmpty) {
 TEST_P(OVClassBasicTestP, unregisterExistingPluginNoThrow) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
     // device instance is not created yet
-    ASSERT_THROW(ie.unload_plugin(deviceName), InferenceEngine::Exception);
+    ASSERT_THROW(ie.unload_plugin(deviceName), ov::Exception);
 
     // make the first call to IE which created device instance
     ie.get_versions(deviceName);
@@ -209,7 +210,7 @@ TEST_P(OVClassBasicTestP, unregisterExistingPluginNoThrow) {
 
 TEST_P(OVClassBasicTestP, accessToUnregisteredPluginThrows) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
-    ASSERT_THROW(ie.unload_plugin(deviceName), InferenceEngine::Exception);
+    ASSERT_THROW(ie.unload_plugin(deviceName), ov::Exception);
     ASSERT_NO_THROW(ie.get_versions(deviceName));
     ASSERT_NO_THROW(ie.unload_plugin(deviceName));
     ASSERT_NO_THROW(ie.set_config({}, deviceName));
@@ -219,7 +220,7 @@ TEST_P(OVClassBasicTestP, accessToUnregisteredPluginThrows) {
 
 TEST(OVClassBasicTest, smoke_unregisterNonExistingPluginThrows) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
-    ASSERT_THROW(ie.unload_plugin("unkown_device"), InferenceEngine::Exception);
+    ASSERT_THROW(ie.unload_plugin("unkown_device"), ov::Exception);
 }
 
 //
@@ -234,7 +235,7 @@ TEST_P(OVClassBasicTestP, SetConfigAllThrows) {
 
 TEST_P(OVClassBasicTestP, SetConfigForUnRegisteredDeviceThrows) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
-    ASSERT_THROW(ie.set_config({{"unsupported_key", "4"}}, "unregistered_device"), InferenceEngine::Exception);
+    ASSERT_THROW(ie.set_config({{"unsupported_key", "4"}}, "unregistered_device"), ov::Exception);
 }
 
 TEST_P(OVClassBasicTestP, SetConfigNoThrow) {
@@ -289,7 +290,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkActualNoThrow) {
 
     try {
         ie.query_model(actualNetwork, deviceName);
-    } catch (const InferenceEngine::Exception& ex) {
+    } catch (const ov::Exception& ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
     }
@@ -306,7 +307,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkWithKSO) {
                 FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << deviceName;
             }
         }
-    } catch (const InferenceEngine::Exception& ex) {
+    } catch (const ov::Exception& ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
     }
@@ -374,7 +375,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithKSO) {
             op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
         }
         auto exeNetwork = ie.compile_model(ksoNetwork, deviceName);
-    } catch (const InferenceEngine::Exception& ex) {
+    } catch (const ov::Exception& ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
     }
@@ -390,7 +391,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 
 TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
-    ASSERT_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI), InferenceEngine::Exception);
+    ASSERT_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI), ov::Exception);
 }
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
@@ -429,7 +430,7 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
     // TODO: check
     std::string targetDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + CommonTestUtils::DEVICE_CPU;
-    ASSERT_THROW(ie.get_metric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)), InferenceEngine::Exception);
+    ASSERT_THROW(ie.get_metric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)), ov::Exception);
 }
 
 TEST_P(OVClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
@@ -599,7 +600,7 @@ TEST_P(OVClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_THROW(p = ie.get_metric(deviceName, "unsupported_metric"), InferenceEngine::Exception);
+    ASSERT_THROW(p = ie.get_metric(deviceName, "unsupported_metric"), ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest, GetConfigNoThrow) {
@@ -632,7 +633,7 @@ TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_THROW(p = ie.get_config(CommonTestUtils::DEVICE_HETERO, "unsupported_config"), InferenceEngine::Exception);
+    ASSERT_THROW(p = ie.get_config(CommonTestUtils::DEVICE_HETERO, "unsupported_config"), ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
@@ -641,14 +642,14 @@ TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
 
     ASSERT_THROW(p = ie.get_config(CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName,
                                    HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
-                 InferenceEngine::Exception);
+                 ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_THROW(p = ie.get_config(deviceName, "unsupported_config"), InferenceEngine::Exception);
+    ASSERT_THROW(p = ie.get_config(deviceName, "unsupported_config"), ov::Exception);
 }
 
 TEST_P(OVClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
@@ -702,7 +703,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithDeviceID) {
     if (supportsDeviceID(ie, deviceName)) {
         try {
             ie.query_model(simpleNetwork, deviceName + ".0");
-        } catch (const InferenceEngine::Exception& ex) {
+        } catch (const ov::Exception& ex) {
             std::string message = ex.what();
             ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
         }
@@ -715,7 +716,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.query_model(actualNetwork, deviceName + ".110"), InferenceEngine::Exception);
+        ASSERT_THROW(ie.query_model(actualNetwork, deviceName + ".110"), ov::Exception);
     } else {
         GTEST_SKIP();
     }
@@ -725,7 +726,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.query_model(actualNetwork, deviceName + ".l0"), InferenceEngine::Exception);
+        ASSERT_THROW(ie.query_model(actualNetwork, deviceName + ".l0"), ov::Exception);
     } else {
         GTEST_SKIP();
     }
@@ -738,7 +739,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
         ASSERT_THROW(ie.query_model(actualNetwork,
                                     CommonTestUtils::DEVICE_HETERO,
                                     {{"TARGET_FALLBACK", deviceName + ".100," + deviceName}}),
-                     InferenceEngine::Exception);
+                     ov::Exception);
     } else {
         GTEST_SKIP();
     }
@@ -829,7 +830,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.compile_model(actualNetwork, deviceName + ".10"), InferenceEngine::Exception);
+        ASSERT_THROW(ie.compile_model(actualNetwork, deviceName + ".10"), ov::Exception);
     } else {
         GTEST_SKIP();
     }
@@ -839,7 +840,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_THROW(ie.compile_model(actualNetwork, deviceName + ".l0"), InferenceEngine::Exception);
+        ASSERT_THROW(ie.compile_model(actualNetwork, deviceName + ".l0"), ov::Exception);
     } else {
         GTEST_SKIP();
     }
@@ -852,7 +853,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
         ASSERT_THROW(ie.compile_model(actualNetwork,
                                       "HETERO",
                                       {{"TARGET_FALLBACK", deviceName + ".100," + CommonTestUtils::DEVICE_CPU}}),
-                     InferenceEngine::Exception);
+                     ov::Exception);
     } else {
         GTEST_SKIP();
     }
@@ -866,7 +867,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
                                       CommonTestUtils::DEVICE_HETERO,
                                       {{"TARGET_FALLBACK", deviceName + "," + CommonTestUtils::DEVICE_CPU},
                                        {CONFIG_KEY(DEVICE_ID), "110"}}),
-                     InferenceEngine::Exception);
+                     ov::Exception);
     } else {
         GTEST_SKIP();
     }
