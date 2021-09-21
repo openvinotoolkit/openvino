@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
-#include "subgraph_tests/multiple_activations.hpp"
+#include "subgraph_tests/matmul_multiple_outputs.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -15,26 +15,22 @@ const std::vector<size_t> input_sizes = {
     50
 };
 
-// const std::vector<size_t> output_fc = {
-//     50,
-//     100,
-//     200
-// };
-
 const std::vector<InferenceEngine::Precision> net_precisions = {
     InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::FP16
 };
 
-std::map<std::string, std::string> additional_config = {};
+std::map<std::string, std::string> additional_config = {
+    {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
+};
 } // namespace
 
-INSTANTIATE_TEST_SUITE_P(smoke_MultipleActivations, MultipleActivationsTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulMultipleOutputs, MatMulMultipleOutputsTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(input_sizes),
                                 ::testing::ValuesIn(net_precisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                 ::testing::Values(additional_config)),
-                        MultipleActivationsTest::getTestCaseName);
+                        MatMulMultipleOutputsTest::getTestCaseName);
 
 } // namespace SubgraphTestsDefinitions

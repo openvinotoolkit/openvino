@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,15 +19,14 @@ typedef std::tuple<
         std::size_t,                        // Input Size
         InferenceEngine::Precision,         // Network Precision
         std::string,                        // Target Device
-//        std::size_t,                        // Output Size for FC layer
         std::map<std::string, std::string> //Configuration
-> MultipleActivationsParams;
+> MatMulMultipleOutputsParams;
 
-class MultipleActivationsTest:
-        public testing::WithParamInterface<MultipleActivationsParams>,
+class MatMulMultipleOutputsTest:
+        public testing::WithParamInterface<MatMulMultipleOutputsParams>,
         public LayerTestsUtils::LayerTestsCommon{
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MultipleActivationsParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulMultipleOutputsParams> &obj);
 protected:
     void SetUp() override;
 };
