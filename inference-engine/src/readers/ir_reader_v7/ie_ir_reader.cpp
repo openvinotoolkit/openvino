@@ -18,34 +18,22 @@
 using namespace InferenceEngine;
 
 bool IRReader::supportModel(std::istream& model) const {
-    OV_ITT_SCOPED_TASK(itt::domains::V10Reader, "IRReader::supportModel");
-
+    OV_ITT_SCOPED_TASK(itt::domains::V7Reader, "IRReader::supportModel");
     auto version = details::GetIRVersion(model);
-
-#ifdef IR_READER_V10
-    return version == 10;
-#else
     return version > 1 && version <= 7;
-#endif
 }
 
 CNNNetwork IRReader::read(std::istream& model, const std::vector<IExtensionPtr>& exts) const {
     return read(model, nullptr, exts);
 }
 
-static void loadXml(pugi::xml_document &xmlDoc, std::istream& model) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::V10Reader_RT, "loadXml");
+CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const {
+    OV_ITT_SCOPED_TASK(itt::domains::V7Reader, "IRReader::read");
+    pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load(model);
     if (res.status != pugi::status_ok) {
         IE_THROW() << res.description() << "at offset " << res.offset;
     }
-}
-
-CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const {
-    OV_ITT_SCOPED_TASK(itt::domains::V10Reader, "IRReader::read");
-
-    pugi::xml_document xmlDoc;
-    loadXml(xmlDoc, model);
     pugi::xml_node root = xmlDoc.document_element();
 
     auto version = details::GetIRVersion(root);
