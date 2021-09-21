@@ -55,8 +55,6 @@ OutputVector TranslateFloorDivOp(const NodeContext& node) {
     };
     return TranslateBinaryOp(node, floordiv_fn);
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
 
 // Helper function to translate a binary op in cases where there is a one-to-one
 // mapping from TensorFlow ops to nGraph ops.
@@ -64,14 +62,11 @@ OutputVector TranslateFloorDivOp(const NodeContext& node) {
 // Example usage:
 //
 //  if (n->type_string == "Add") {
-//    TF_RETURN_IF_ERROR(TranslateBinaryOp<opset::Add>(op,
+//    TF_RETURN_IF_ERROR(TranslateBinaryOp<opset::opset::Add>(op,
 //    static_input_map,
 //    ng_op_map));
 //  }
 //
-
-namespace tensorflow {
-namespace ngraph_bridge {
 
 template <typename T>
 OutputVector TranslateBinaryOp(const NodeContext& node) {
@@ -79,5 +74,25 @@ OutputVector TranslateBinaryOp(const NodeContext& node) {
         return ConstructNgNode<T>(node.get_name(), ng_lhs, ng_rhs);
     });
 }
+
+template OutputVector TranslateBinaryOp<opset::Add>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::Equal>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::FloorMod>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::Greater>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::GreaterEqual>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::Less>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::LessEqual>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::LogicalAnd>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::LogicalOr>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::Maximum>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::Minimum>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::Multiply>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::Mod>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::NotEqual>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::Power>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::Divide>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::SquaredDifference>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<opset::Subtract>(const NodeContext& node);
+
 }  // namespace ngraph_bridge
 }  // namespace tensorflow

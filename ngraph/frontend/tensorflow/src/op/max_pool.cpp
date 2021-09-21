@@ -14,7 +14,6 @@ using namespace ngraph::frontend::tensorflow::detail;
 namespace tensorflow {
 namespace ngraph_bridge {
 
-template <unsigned int N>
 OutputVector TranslateMaxPoolOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
 
@@ -30,6 +29,10 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
     NGRAPH_VLOG(3) << tf_padding_type;
     NGRAPH_VLOG(3) << tf_data_format;
 
+    int N = 2;
+    if (node.get_name() == "MaxPool3D") {
+        N = 3;
+    }
     Strides ng_strides(N);
     Shape ng_image_shape(N);
     Shape ng_kernel_shape(N);
@@ -72,5 +75,6 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
 
     return {ng_maxpool};
 }
+
 }  // namespace ngraph_bridge
 }  // namespace tensorflow

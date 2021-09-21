@@ -65,5 +65,30 @@ OutputVector TranslateUnaryOp(const NodeContext& node) {
     });
 }
 
+template OutputVector TranslateUnaryOp<opset::Abs>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Acos>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Acosh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Asin>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Asinh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Atan>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Atanh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Ceiling>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Cos>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Cosh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Exp>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Floor>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Log>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::LogicalNot>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Negative>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Relu>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Sigmoid>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Sin>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Sinh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Sign>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::SoftPlus>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Sqrt>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Tan>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<opset::Tanh>(const NodeContext& node);
+
 }  // namespace ngraph_bridge
 }  // namespace tensorflow

@@ -54,5 +54,13 @@ OutputVector TranslateDirectReduceOp(const NodeContext& node) {
                                  return ConstructNgNode<T>(node.get_name(), ng_input, ng_reduction_axes, keep_dims);
                              });
 }
+
+template OutputVector TranslateDirectReduceOp<opset::ReduceLogicalOr>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<opset::ReduceLogicalAnd>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<opset::ReduceMax>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<opset::ReduceMean>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<opset::ReduceMin>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<opset::ReduceProd>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<opset::ReduceSum>(const NodeContext& node);
 }  // namespace ngraph_bridge
 }  // namespace tensorflow
