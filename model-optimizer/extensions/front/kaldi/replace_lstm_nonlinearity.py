@@ -7,6 +7,7 @@ from extensions.ops.activation_ops import Sigmoid, Tanh
 from extensions.ops.elementwise import Add, Mul
 from extensions.ops.split import Split, AttributedVariadicSplit
 from mo.front.caffe.extractors.utils import input_as_const
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Node, Graph
@@ -33,10 +34,13 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         if node['use_dropout']:
             split_dropout = AttributedVariadicSplit(graph,
                                                     {'name': node_name + '/split_dropout',
-                                                     'size_splits': np.array([-1, 1, 1, 1],),
+                                                     'size_splits': int64_array([-1, 1, 1, 1]),
                                                      'axis': np.int64(1)}).create_node()
             input_port.get_connection().set_destination(split_dropout.in_port(0))
             input_port = split_dropout.out_port(0)
+            i_drop_scale = split_dropout.out_port(1)
+            f_drop_scale = split_dropout.out_port(2)
+            o_drop_scale = split_dropout.out_port(3)
 
         # split input to (i_part, f_part, c_part, o_part, ct_1)
         split_node = create_op_with_const_inputs(graph, Split, {1: np.int64(1)},
@@ -46,14 +50,16 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
 
         i_part = split_node.out_port(0)
         f_part = split_node.out_port(1)
+        c_part = split_node.out_port(2)
         o_part = split_node.out_port(3)
+        ct_1 = split_node.out_port(4)
 
         # i_t = Sigmoid(i_part + w_ic*ct_1)
         i_scale_attrs = {'name': node_name + '/i_scaleshift',
                          'bias_term': False}
         i_scale = ScaleShiftOp(graph, i_scale_attrs).create_node()
         input_as_const(i_scale, i_scale_attrs, 1, 'weights', node.i_weights)
-        split_node.out_port(4).connect(i_scale.in_port(0))
+        ct_1.connect(i_scale.in_port(0))
 
         sum_i_c = Add(graph, {'name': node_name + '/sum_i_c_'}).create_node()
         i_part.connect(sum_i_c.in_port(0))
@@ -65,7 +71,7 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         if node['use_dropout']:
             mul_dropout_i = Mul(graph, {'name': split_node.soft_get('name', split_node.id) + '/mul_i'}).create_node()
             mul_dropout_i.in_port(0).connect(i_sigmoid.out_port(0))
-            mul_dropout_i.in_port(1).connect(split_dropout.out_port(1))
+            mul_dropout_i.in_port(1).connect(i_drop_scale)
             i_sigmoid = mul_dropout_i
 
         # f_t = Sigmoid(f_part + w_fc*ct_1)
@@ -73,7 +79,7 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
                          'bias_term': False}
         f_scale = ScaleShiftOp(graph, f_scale_attrs).create_node()
         input_as_const(f_scale, f_scale_attrs, 1, 'weights', node.f_weights)
-        split_node.out_port(4).connect(f_scale.in_port(0))
+        ct_1.connect(f_scale.in_port(0))
 
         sum_f_c = Add(graph, {'name': node_name + '/sum_f_c_'}).create_node()
         f_part.connect(sum_f_c.in_port(0))
@@ -85,12 +91,12 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         if node['use_dropout']:
             mul_dropout_f = Mul(graph, {'name': split_node.soft_get('name', split_node.id) + '/mul_f'}).create_node()
             mul_dropout_f.in_port(0).connect(f_sigmoid.out_port(0))
-            mul_dropout_f.in_port(1).connect(split_dropout.out_port(2))
+            mul_dropout_f.in_port(1).connect(f_drop_scale)
             f_sigmoid = mul_dropout_f
 
         # c_t = f_t*ct_1 + i_t * tanh(c_part)
         c_tanh = Tanh(graph, {'name': node_name + '/c_tanh'}).create_node()
-        split_node.out_port(2).connect(c_tanh.in_port(0))
+        c_part.connect(c_tanh.in_port(0))
 
         prod_i_c_tanh = Mul(graph, {'name': node_name + '/prod_i_c_tanh_'}).create_node()
         i_sigmoid.out_port(0).connect(prod_i_c_tanh.in_port(0))
@@ -98,7 +104,7 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
 
         prod_f_ct_1 = Mul(graph, {'name': node_name + '/prod_f_ct_1_'}).create_node()
         f_sigmoid.out_port(0).connect(prod_f_ct_1.in_port(0))
-        split_node.out_port(4).connect(prod_f_ct_1.in_port(1))
+        ct_1.connect(prod_f_ct_1.in_port(1))
 
         sum_f_i = Add(graph, {'name': node_name + '/sum_f_i_'}).create_node()
         prod_f_ct_1.out_port(0).connect(sum_f_i.in_port(0))
@@ -121,7 +127,7 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         if node['use_dropout']:
             mul_dropout_o = Mul(graph, {'name': split_node.soft_get('name', split_node.id) + '/mul_o'}).create_node()
             mul_dropout_o.in_port(0).connect(o_sigmoid.out_port(0))
-            mul_dropout_o.in_port(1).connect(split_dropout.out_port(3))
+            mul_dropout_o.in_port(1).connect(o_drop_scale)
             o_sigmoid = mul_dropout_o
 
         # m_t = o_t * Tanh(c_t)

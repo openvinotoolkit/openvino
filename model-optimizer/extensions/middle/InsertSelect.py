@@ -20,6 +20,22 @@ from mo.utils.graph import bfs_search
 from mo.utils.error import Error
 
 
+def check_inputs(graph: Graph):
+    inputs = graph.get_op_nodes(op='Parameter')
+    if len(inputs) == 1:
+        return inputs[0]
+    elif len(inputs) == 2:
+        if inputs[0].name == 'ivector':
+            return inputs[1]
+        elif inputs[1].name == 'ivector':
+            return inputs[0]
+        else:
+            raise Error("There are 2 inputs for Kaldi model but we can't find out which one is ivector. " +
+                        "Use name \'ivector\' for the corresponding input")
+    else:
+        raise Error("There are {} inputs for Kaldi model but we expect only 1 or 2".format(len(inputs)))
+
+
 class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
     """
     Add Select before saving state with Memory to avoid garbage saving.
@@ -54,18 +70,8 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
         # Usually ivector input has name 'ivector'.
         max_frame_time = -2
         inputs = graph.get_op_nodes(op='Parameter')
-        if len(inputs) == 1:
-            inp_name = inputs[0].name
-        elif len(inputs) == 2:
-            if inputs[0].name == 'ivector':
-                inp_name = inputs[1].name
-            elif inputs[1].name == 'ivector':
-                inp_name = inputs[0].name
-            else:
-                raise Error("There are 2 inputs for Kaldi model but we can't find out which one is ivector. " +
-                            "Use name \'ivector\' for the corresponding input")
-        else:
-            raise Error("There are {} inputs for Kaldi model but we expect only 1 or 2".format(len(inputs)))
+        inp = check_inputs(graph)
+        inp_name = inp.soft_get('name', inp.id)
 
         # sort nodes to calculate delays
         nodes = list(bfs_search(graph, [inp_name]))
