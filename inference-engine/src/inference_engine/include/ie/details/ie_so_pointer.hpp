@@ -158,6 +158,8 @@ protected:
                 using CreateF = void(std::shared_ptr<T>&);
                 reinterpret_cast<CreateF*>(create)(_ptr);
             }
+        } catch (const std::runtime_error& ex) {
+            IE_THROW() << ex.what();
         } catch (...) {
             details::Rethrow();
         }
@@ -170,6 +172,8 @@ protected:
         try {
             using CreateF = void(std::shared_ptr<T>&);
             reinterpret_cast<CreateF*>(_so.get_symbol(SOCreatorTrait<T>::name))(_ptr);
+        } catch (const std::runtime_error& ex) {
+            IE_THROW() << ex.what();
         } catch (...) {
             details::Rethrow();
         }
