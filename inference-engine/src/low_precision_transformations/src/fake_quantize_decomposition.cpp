@@ -249,7 +249,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         newFQ = newFakeQuantize;
     }
 
-    return { dequantize, newFQ };
+    return std::make_tuple(dequantize, newFQ);
 }
 
 } // namespace fq_decomposition
