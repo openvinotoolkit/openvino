@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 
+#include "openvino/runtime/common.hpp"
 #include "mock_plugin.hpp"
 #include "description_buffer.hpp"
 

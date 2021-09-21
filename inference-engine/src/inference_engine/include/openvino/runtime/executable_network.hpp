@@ -16,9 +16,9 @@
 #include <string>
 #include <vector>
 
+#include "ie_parameter.hpp"
 #include "openvino/core/function.hpp"
 #include "openvino/runtime/infer_request.hpp"
-#include "openvino/runtime/parameter.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
 namespace InferenceEngine {
@@ -96,7 +96,7 @@ public:
      *
      * @param config Map of pairs: (config parameter name, config parameter value)
      */
-    void set_config(const ParamMap& config);
+    void set_config(const ie::ParamMap& config);
 
     /** @brief Gets configuration for current executable network.
      *
@@ -109,7 +109,7 @@ public:
      * @param name config key, can be found in ie_plugin_config.hpp
      * @return Configuration parameter value
      */
-    Parameter get_config(const std::string& name) const;
+    ie::Parameter get_config(const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for an executable network.
@@ -120,7 +120,7 @@ public:
      * @param name metric name to request
      * @return Metric parameter value
      */
-    Parameter get_metric(const std::string& name) const;
+    ie::Parameter get_metric(const std::string& name) const;
 
     /**
      * @brief Returns pointer to plugin-specific shared context

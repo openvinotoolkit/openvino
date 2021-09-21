@@ -1358,7 +1358,7 @@ void Core::set_config(const ConfigMap& config, const std::string& deviceName) {
         });
 }
 
-Parameter Core::get_config(const std::string& deviceName, const std::string& name) const {
+ie::Parameter Core::get_config(const std::string& deviceName, const std::string& name) const {
     OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
                     "You can only get_config of the HETERO itself (without devices). "
                     "get_config is also possible for the individual devices before creating the HETERO on top.");
@@ -1378,7 +1378,7 @@ Parameter Core::get_config(const std::string& deviceName, const std::string& nam
         return copyParameterValue(_impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config)););
 }
 
-Parameter Core::get_metric(const std::string& deviceName, const std::string& name) const {
+ie::Parameter Core::get_metric(const std::string& deviceName, const std::string& name) const {
     OV_CORE_CALL_STATEMENT(return _impl->GetMetric(deviceName, name););
 }
 
@@ -1400,7 +1400,7 @@ void Core::register_plugins(const std::string& xmlConfigFile) {
     OV_CORE_CALL_STATEMENT(_impl->RegisterPluginsInRegistry(xmlConfigFile););
 }
 
-RemoteContext Core::create_context(const std::string& deviceName, const ParamMap& params) {
+RemoteContext Core::create_context(const std::string& deviceName, const ie::ParamMap& params) {
     OPENVINO_ASSERT(deviceName.find("HETERO") != 0, "HETERO device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
@@ -1416,7 +1416,7 @@ RemoteContext Core::get_default_context(const std::string& deviceName) {
     OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
 
-    OV_CORE_CALL_STATEMENT(auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
+    OV_CORE_CALL_STATEMENT(auto parsed = parseDeviceNameIntoConfig(deviceName, ie::ParamMap());
                            auto remoteContext =
                                _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
                            return {remoteContext._so, remoteContext._ptr};);

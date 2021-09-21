@@ -21,6 +21,16 @@
 #    define OPENVINO_STDCALL
 #endif
 
+#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef _WIN32
+#        if defined __INTEL_COMPILER || defined _MSC_VER
+#            define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        endif
+#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
+#        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    endif
+#endif
+
 #if defined _WIN32 || defined __CYGWIN__
 #    define OPENVINO_CORE_IMPORTS __declspec(dllimport)
 #    define OPENVINO_CORE_EXPORTS __declspec(dllexport)

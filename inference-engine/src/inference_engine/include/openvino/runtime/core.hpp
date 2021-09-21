@@ -15,11 +15,11 @@
 #include <string>
 #include <vector>
 
+#include "common.hpp"
+#include "executable_network.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
-#include "openvino/runtime/common.hpp"
-#include "openvino/runtime/executable_network.hpp"
-#include "openvino/runtime/remote_context.hpp"
+#include "remote_context.hpp"
 
 namespace InferenceEngine {
 class IExtension;
@@ -213,7 +213,7 @@ public:
      * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
-    Parameter get_config(const std::string& deviceName, const std::string& name) const;
+    ie::Parameter get_config(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware.
@@ -225,7 +225,7 @@ public:
      * @param name - metric name to request.
      * @return Metric value corresponding to metric key.
      */
-    Parameter get_metric(const std::string& deviceName, const std::string& name) const;
+    ie::Parameter get_metric(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Returns devices available for neural networks inference
@@ -292,7 +292,7 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    RemoteContext create_context(const std::string& deviceName, const ParamMap& params);
+    RemoteContext create_context(const std::string& deviceName, const ie::ParamMap& params);
 
     /**
      * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.

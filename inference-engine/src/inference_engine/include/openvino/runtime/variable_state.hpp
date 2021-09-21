@@ -5,7 +5,7 @@
 /**
  * @brief A header file that provides VariableState
  *
- * @file openvino/runtime/variable_state.hpp
+ * @file variable_state.hpp
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 #include <memory>
 #include <string>
 
-#include "openvino/runtime/common.hpp"
+#include "common.hpp"
 
 namespace InferenceEngine {
 class IVariableStateInternal;

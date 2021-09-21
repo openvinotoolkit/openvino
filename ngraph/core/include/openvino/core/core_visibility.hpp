@@ -24,13 +24,3 @@
 #        define OPENVINO_API OPENVINO_CORE_IMPORTS
 #    endif  // ngraph_EXPORTS
 #endif      // NGRAPH_STATIC_LIBRARY
-
-#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#    ifdef _WIN32
-#        if defined __INTEL_COMPILER || defined _MSC_VER
-#            define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#        endif
-#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#    endif
-#endif
