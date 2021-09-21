@@ -969,17 +969,38 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     std::vector<float> shifts(outputSize, 0.f);
     std::vector<float> scales(outputSize);
 
-    for (size_t i = 0; i < outputSize; ++i) {
-        if (outputHighValues[i] != outputLowValues[i]) {
-            shifts[i] = (min*outputHighValues[i] - max*outputLowValues[i]) / (outputHighValues[i] - outputLowValues[i]);
-            scales[i] = (outputHighValues[i] - outputLowValues[i]) / (max - min);
-            if (shifts[i] == -0.f) {
-                shifts[i] = 0.f;
+    // compute dequantizations (in double for INT32)
+    if (precision == element::i32 || precision == element::u32) {
+        for (size_t i = 0; i < outputSize; ++i) {
+            if (outputHighValues[i] != outputLowValues[i]) {
+                shifts[i] = static_cast<float>(
+                            (static_cast<double>(min) * outputHighValues[i] - static_cast<double>(max) * outputLowValues[i]) /
+                            (static_cast<double>(outputHighValues[i]) - outputLowValues[i]));
+                scales[i] = static_cast<float>(
+                        (static_cast<double>(outputHighValues[i]) - outputLowValues[i]) / (static_cast<double>(max) - min));
+                if (shifts[i] == -0.f) {
+                    shifts[i] = 0.f;
+                }
+            } else {
+                scales[i] = outputHighValues[i];
+                minValues[i] = 1.f;
+                maxValues[i] = 1.f;
             }
-        } else {
-            scales[i] = outputHighValues[i];
-            minValues[i] = 1.f;
-            maxValues[i] = 1.f;
+        }
+    } else {
+        for (size_t i = 0; i < outputSize; ++i) {
+            if (outputHighValues[i] != outputLowValues[i]) {
+                shifts[i] = (min * outputHighValues[i] - max * outputLowValues[i]) /
+                            (outputHighValues[i] - outputLowValues[i]);
+                scales[i] = (outputHighValues[i] - outputLowValues[i]) / (max - min);
+                if (shifts[i] == -0.f) {
+                    shifts[i] = 0.f;
+                }
+            } else {
+                scales[i] = outputHighValues[i];
+                minValues[i] = 1.f;
+                maxValues[i] = 1.f;
+            }
         }
     }
 
@@ -1759,15 +1780,15 @@ std::vector<element::Type> NetworkHelper::precisionIntersection(
         const std::vector<element::Type>& v2) noexcept {
     std::vector<element::Type> v3;
 
-    auto v1Copy = v1;
-    auto v2Copy = v2;
+    for (auto i : v1) {
+        for (auto j : v2) {
+            if (i == j) {
+                v3.push_back(i);
+                break;
+            }
+        }
+    }
 
-    std::sort(v1Copy.begin(), v1Copy.end());
-    std::sort(v2Copy.begin(), v2Copy.end());
-
-    std::set_intersection(v1Copy.begin(), v1Copy.end(),
-                          v2Copy.begin(), v2Copy.end(),
-                          std::back_inserter(v3));
     return v3;
 }
 
