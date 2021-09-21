@@ -245,7 +245,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
 
-    ov::VariantVector params{ov::make_variant(model_path)};
+    ov::op::util::VariantVector params{ov::make_variant(model_path)};
     if (!exts.empty()) {
         params.emplace_back(ov::make_variant(get_extensions_map(exts)));
     }
