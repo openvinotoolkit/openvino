@@ -3,7 +3,7 @@
 //
 
 #include <vector>
-#include "behavior/invalid_cases/proposal.hpp"
+#include "single_layer_tests/invalid_cases/proposal.hpp"
 
 using namespace ngraph::helpers;
 using namespace LayerTestsDefinitions;

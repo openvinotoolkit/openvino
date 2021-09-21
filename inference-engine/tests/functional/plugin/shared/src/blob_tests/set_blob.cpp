@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/set_blob.hpp"
+#include "blob_tests/set_blob.hpp"
 #include <shared_test_classes/single_layer/cum_sum.hpp>
 
 using namespace InferenceEngine;

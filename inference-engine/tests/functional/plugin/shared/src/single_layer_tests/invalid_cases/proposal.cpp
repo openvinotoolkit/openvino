@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/invalid_cases/proposal.hpp"
+#include "single_layer_tests/invalid_cases/proposal.hpp"
 
 using namespace BehaviorTestsDefinitions;
 using namespace LayerTestsDefinitions;

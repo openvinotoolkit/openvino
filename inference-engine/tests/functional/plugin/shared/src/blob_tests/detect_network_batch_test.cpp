@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/detect_network_batch_test.hpp"
+#include "blob_tests/detect_network_batch_test.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "ngraph_functions/builders.hpp"
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <behavior/infer_request/dynamic_batch.hpp>
+#include <blob_tests/dynamic_batch.hpp>
 #include "common_test_utils/test_constants.hpp"
 
 namespace ConfigurationTestsDefinitions {

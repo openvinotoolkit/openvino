@@ -71,7 +71,6 @@ protected:
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
-        function.reset();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();

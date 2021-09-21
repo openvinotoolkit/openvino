@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/stress_tests.hpp"
+#include "stress_tests/stress_tests.hpp"
 
 using namespace LayerTestsDefinitions;
 

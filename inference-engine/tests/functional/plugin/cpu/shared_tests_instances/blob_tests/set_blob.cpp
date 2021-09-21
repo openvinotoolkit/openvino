@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/set_blob.hpp"
+#include "blob_tests/set_blob.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace BehaviorTestsDefinitions;
