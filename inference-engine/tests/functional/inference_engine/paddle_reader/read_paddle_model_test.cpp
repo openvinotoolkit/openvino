@@ -55,7 +55,7 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
     bool is_copy_successfully = CommonTestUtils::copyFile(win_dir_path, wmodel);
     if (!is_copy_successfully) {
         FAIL() << "Unable to copy from '" << win_dir_path << "' to '"
-                << FileUtils::wStringtoMBCSstringChar(wmodel) << "'";
+                << ov::util::wstring_to_string(wmodel) << "'";
     }
     InferenceEngine::Core ie;
     auto cnnNetwork = ie.ReadNetwork(wmodel);

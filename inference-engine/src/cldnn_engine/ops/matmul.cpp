@@ -89,7 +89,8 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             auto permuteName = op->get_friendly_name() + "/transpose_b";
             auto permutePrim = cldnn::permute(permuteName,
                                               weightsName,
-                                              cldnn_permute_order);
+                                              cldnn_permute_order,
+                                              op->get_friendly_name());
             p.AddPrimitive(permutePrim);
             p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
             weightsName = permuteName;
@@ -108,7 +109,8 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             auto permuteName = op->get_friendly_name() + "/transpose_a";
             auto permutePrim = cldnn::permute(permuteName,
                                               inputName,
-                                              cldnn_permute_order);
+                                              cldnn_permute_order,
+                                              op->get_friendly_name());
             p.AddPrimitive(permutePrim);
             p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
             inputName = permuteName;
@@ -124,7 +126,10 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
                 IE_THROW() << "Inconsistent reshape in Matmul op: " << op->get_friendly_name();
 
             auto reshapeInName = op->get_friendly_name() + suffix;
-            auto reshapeInPrim = cldnn::reshape(reshapeInName, inputName, CldnnTensorFromIEDims(reshapeSize));
+            auto reshapeInPrim = cldnn::reshape(reshapeInName,
+                                                inputName,
+                                                CldnnTensorFromIEDims(reshapeSize),
+                                                op->get_friendly_name());
             p.AddPrimitive(reshapeInPrim);
             p.AddInnerPrimitiveToProfiler(reshapeInName, layerName, op);
             return reshapeInName;
@@ -144,6 +149,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
                                              weightsName,
                                              "",
                                              DataTypeFromPrecision(op->get_output_element_type(0)),
+                                             op->get_friendly_name(),
                                              cldnn::padding(),
                                              input_rank);
 
@@ -153,7 +159,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
         if (reshape_fc) {
             auto outputShape = CldnnTensorFromIEDims(op->get_output_shape(0));
             auto outReshapeName = layerName + "_cldnn_out_reshape";
-            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape);
+            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape, op->get_friendly_name());
 
             p.AddPrimitive(outReshapePrim);
             p.AddInnerPrimitiveToProfiler(outReshapeName, layerName, op);
@@ -188,7 +194,13 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             if (targetFormat.value != DefaultFormatForDims(inputDimsN).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                 auto targetDatatype = DataTypeFromPrecision(op->get_output_element_type(0));
-                auto reorderPrim = cldnn::reorder(reorderName, inputPrimitives[i], targetFormat, targetDatatype);
+                auto reorderPrim = cldnn::reorder(reorderName,
+                                                  inputPrimitives[i],
+                                                  targetFormat,
+                                                  targetDatatype,
+                                                  std::vector<float>(),
+                                                  cldnn::reorder_mean_mode::subtract,
+                                                  op->get_friendly_name());
 
                 p.AddPrimitive(reorderPrim);
                 p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
@@ -227,7 +239,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
 
                 auto targetShape = gemmSpecificTensor(inputDims);
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
 
                 p.AddPrimitive(reshapePrim);
                 p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
@@ -248,7 +260,8 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
                                     transA,
                                     transB,
                                     alpha,
-                                    beta);
+                                    beta,
+                                    op->get_friendly_name());
 
         p.AddPrimitive(gemmPrim);
 
@@ -258,7 +271,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
         if (outDimsN < 4) {
             auto outputShape = CldnnTensorFromIEDims(outDims);
             auto outReshapeName = layerName + "_cldnn_out_reshape";
-            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape);
+            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape, op->get_friendly_name());
 
             p.AddPrimitive(outReshapePrim);
             p.AddInnerPrimitiveToProfiler(outReshapeName, layerName, op);

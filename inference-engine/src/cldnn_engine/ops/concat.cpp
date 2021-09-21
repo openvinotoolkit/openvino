@@ -45,7 +45,8 @@ void CreateConcatOp(Program& p, const std::shared_ptr<ngraph::op::v0::Concat>& o
         layerName,
         inputPrimitives,
         GetConcatAxis(op->get_axis(), op->get_input_shape(0).size()),
-        DataTypeFromPrecision(op->get_output_element_type(0)));
+        DataTypeFromPrecision(op->get_output_element_type(0)),
+        op->get_friendly_name());
 
     p.AddPrimitive(concatPrim);
     p.AddPrimitiveToProfiler(op);

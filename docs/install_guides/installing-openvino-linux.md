@@ -133,7 +133,7 @@ sudo ./install.sh -s silent.cfg
    By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>`:
       * For root or administrator: `/opt/intel/openvino_<version>/`
       * For regular users: `/home/<USER>/intel/openvino_<version>/`
-   For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/`.
+   For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/`.
 
 8. **Optional**: You can choose **Customize** to change the installation directory or the components you want to install:
 > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
@@ -156,7 +156,7 @@ These dependencies are required for:
 
 1. Change to the `install_dependencies` directory:
 ```sh
-cd /opt/intel/openvino_2021/install_dependencies
+cd /opt/intel/openvino_2022/install_dependencies
 ```
 2. Run a script to download and install the external software dependencies:
 ```sh
@@ -169,7 +169,7 @@ sudo -E ./install_openvino_dependencies.sh
 You must update several environment variables before you can compile and run OpenVINO™ applications. Run the following script to temporarily set your environment variables:
 
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2022/setupvars.sh
 ```  
 
 **Optional:** The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
@@ -181,7 +181,7 @@ vi <user_directory>/.bashrc
 
 2. Add this line to the end of the file:
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2022/setupvars.sh
 ```
 
 3. Save and close the file: press the **Esc** key and type `:wq`.
@@ -217,7 +217,7 @@ You can choose to either configure all supported frameworks at once **OR** confi
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
+cd /opt/intel/openvino_2022/tools/model_optimizer/install_prerequisites
 ```
 2.  Run the script to configure the Model Optimizer for Caffe,
     TensorFlow 1.x, MXNet, Kaldi\*, and ONNX:
@@ -231,7 +231,7 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
+cd /opt/intel/openvino_2022/tools/model_optimizer/install_prerequisites
 ```
 2.  Run the script for your model framework. You can run more than one script:
 
@@ -281,7 +281,7 @@ The steps in this section are required only if you want to enable the toolkit co
 
 1. Go to the install_dependencies directory:
 ```sh
-cd /opt/intel/openvino_2021/install_dependencies/
+cd /opt/intel/openvino_2022/install_dependencies/
 ```
 
 2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package and must be installed separately.
@@ -315,7 +315,7 @@ sudo usermod -a -G users "$(whoami)"
    Log out and log in for it to take effect.
 2. To perform inference on Intel® Neural Compute Stick 2, install the USB rules as follows:
    ```sh
-   sudo cp /opt/intel/openvino_2021/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/
+   sudo cp /opt/intel/openvino_2022/runtime/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/
    ```
    ```sh
    sudo udevadm control --reload-rules
@@ -341,7 +341,7 @@ After configuration is done, you are ready to run the verification scripts with 
 
 1. Go to the **Inference Engine demo** directory:
 ```sh
-cd /opt/intel/openvino_2021/deployment_tools/demo
+cd /opt/intel/openvino_2022/samples/scripts
 ```
 
 2. Run the **Image Classification verification script**. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
