@@ -122,7 +122,13 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
             const auto& pattern_value_map = m.get_pattern_value_map();
             const auto& input = pattern_value_map.at(data);
             bool is_auto_pad_explicit = conv->get_auto_pad() == op::PadType::EXPLICIT;
-            if (is_auto_pad_explicit || input.get_partial_shape().is_static()) {
+            const auto& pshape = input.get_partial_shape();
+            bool spatial_shapes_are_static = pshape.rank().is_static() &&
+                                             std::all_of(pshape.begin() + 2, pshape.end(),
+                                                         [] (const Dimension& dim) -> bool {
+                                                             return dim.is_static();
+                                                         });
+            if (is_auto_pad_explicit || spatial_shapes_are_static) {
                 // Retain original padding
                 // Make sure that setting strides does not change padding in cases when auto_pad is not EXPLICIT.
                 // When padding type is not EXPLICIT, strides make a role to paddings calculation.
