@@ -9,10 +9,7 @@
 
 namespace py = pybind11;
 
-// using Names = std::unordered_map<std::string, std::int64_t>;
-// using IndexMap = std::unordered_map<std::int64_t, std::string>;
 
-// PYBIND11_MAKE_OPAQUE(Names, IndexMap);
 
 void regclass_pyngraph_Layout(py::module m) {
     py::class_<ov::Layout, std::shared_ptr<ov::Layout>> layout(m, "Layout");
