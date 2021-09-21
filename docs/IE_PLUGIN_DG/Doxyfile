@@ -2046,10 +2046,19 @@ INCLUDE_FILE_PATTERNS  =
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
 PREDEFINED             = INFERENCE_PLUGIN_API \
+                         OPENVINO_PLUGIN_API \
                          INFERENCE_ENGINE_API \
                          INFERENCE_ENGINE_API_CPP \
                          INFERENCE_ENGINE_API_CLASS \
+                         OPENVINO_RUNTIME_API_C \
+                         OPENVINO_RUNTIME_API \
+                         OPENVINO_EXTERN_C \
+                         OPENVINO_CORE_IMPORTS \
+                         OPENVINO_CORE_EXPORTS \
+                         OPENVINO_CDECL \
+                         OPENVINO_STDCALL \
                          INFERENCE_ENGINE_DEPRECATED \
+                         OPENVINO_DEPRECATED \
                          IE_SUPPRESS_DEPRECATED_START \
                          IE_SUPPRESS_DEPRECATED_END \
                          _IE_SUPPRESS_DEPRECATED_START_GCC \

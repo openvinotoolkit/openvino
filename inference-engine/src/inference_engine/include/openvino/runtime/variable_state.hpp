@@ -10,12 +10,11 @@
 
 #pragma once
 
-#include "ie_blob.h"
-
 #include <memory>
 #include <string>
 
 #include "common.hpp"
+#include "ie_blob.h"
 
 namespace InferenceEngine {
 class IVariableStateInternal;

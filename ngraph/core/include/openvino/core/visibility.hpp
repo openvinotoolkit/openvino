@@ -14,7 +14,7 @@
 #endif
 
 #if defined _WIN32
-#    define OPENVINO_CDECL __cdecl
+#    define OPENVINO_CDECL   __cdecl
 #    define OPENVINO_STDCALL __stdcall
 #else
 #    define OPENVINO_CDECL
