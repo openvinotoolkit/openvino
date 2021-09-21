@@ -11,6 +11,7 @@
 #include <quantize/quantize_kernel_params.h>
 #include <eltwise/eltwise_kernel_base.h>
 #include <activation/activation_kernel_base.h>
+#include <inttypes.h>
 
 namespace {
 class JitTerm {
@@ -161,43 +162,38 @@ std::string getMeanOpString(MeanOp op) {
             return "";
     }
 }
+// Longest notation for value represented by double type has 24 chars
+static thread_local char buf[24 + 24 + 18] = "";
 
 std::string toCodeString(uint8_t val) {
-    std::stringstream ss;
-    ss.imbue(std::locale("C"));
-    ss << static_cast<int>(val);
-    return ss.str();
+    snprintf(buf, sizeof(buf), "%d", static_cast<int>(val));
+    return buf;
 }
 
 std::string toCodeString(int8_t val) {
-    std::stringstream ss;
-    ss.imbue(std::locale("C"));
-    ss << static_cast<int>(val);
-    return ss.str();
+    snprintf(buf, sizeof(buf), "%d", static_cast<int>(val));
+    return buf;
+}
+
+std::string toCodeString(size_t val) {
+    snprintf(buf, sizeof(buf), "%zu", val);
+    return buf;
 }
 
 std::string toCodeString(float val) {
     if (std::isinf(val))
         return std::signbit(val) ? "-INFINITY" : "INFINITY";
-    std::stringstream ss;
-    ss.imbue(std::locale("C"));
     // Workaround GCC compiler/STL bug
-    ss << "as_float(0x" << std::hex << *reinterpret_cast<uint32_t*>(&val) << ")";
-
-    ss << " /*" << std::scientific << val << "*/";
-    return ss.str();
+    snprintf(buf, sizeof(buf), "as_float(0x%" PRIx32 ")/*%.6e*/", *reinterpret_cast<uint32_t*>(&val), val);
+    return buf;
 }
 
 std::string toCodeString(double val) {
     if (std::isinf(val))
         return std::signbit(val) ? "-INFINITY" : "INFINITY";
-    std::stringstream ss;
-    ss.imbue(std::locale("C"));
     // Workaround GCC compiler/STL bug
-    ss << "as_double(0x" << std::hex << *reinterpret_cast<uint64_t*>(&val) << ")";
-
-    ss << " /*" << std::scientific << val << "*/";
-    return ss.str();
+    snprintf(buf, sizeof(buf), "as_double(0x%" PRIx64 ")/*%.6e*/", *reinterpret_cast<uint64_t*>(&val), val);
+    return buf;
 }
 
 JitDefinitions JitConstants::GetDefinitions() const {

@@ -22,6 +22,7 @@ namespace {
 enum class modelType {
     TranspConvTransp = 0,               /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) */
     TranspConvBcastAddTransp,           /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Transpose(NCHW->NHWC) */
+    TranspConvActTransp,                /* Transpose(NHWC->NCHW) => Conv => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvBcastAddMaxPoolTransp,    /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPooling => Transpose(NCHW->NHWC) (2D Max Pool case) */
     TranspConvBcastAddActTransp,        /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvBcastAddMaxPoolActTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPool => Activation Function => Transpose(NCHW->NHWC) */
@@ -154,6 +155,19 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     {
         fq_bias = createBiasFQ(conv, bias_const, bias, fq);
         last_op = std::make_shared<ngraph::opset7::Transpose>(fq_bias, transpose_out_order);
+    }
+    break;
+
+    case modelType::TranspConvActTransp:
+    {
+        fq_bias = createBiasFQ(conv, bias_const, bias, fq);
+        std::shared_ptr<ngraph::Node> activation = std::make_shared<ngraph::opset7::Relu>(fq_bias);
+
+        if (fq) {
+            activation = createFQ(activation);
+        }
+
+        last_op = std::make_shared<ngraph::opset7::Transpose>(activation, transpose_out_order);
     }
     break;
 
@@ -555,7 +569,7 @@ std::shared_ptr<ngraph::Node> CreateDeomposedConv(const GraphData& graph_data, C
             // We need to calculate some parameters in case horizontal stride > 1 is used, because if we use the ones available from the original convolution
             // we won't take into account the fact horizontal strides will be supported by the newly created 1D convolution, and not by decomposition
             size_t filter_dilation_width = conv_params.filter_width > 1 ? conv_params.filter_dilation_width : 1;
-            size_t output_width = (conv_params.input_width - (conv_params.filter_width + filter_dilation_width - 2));
+            size_t output_width = (conv_params.input_width - (filter_dilation_width * (conv_params.filter_width - 1)));
 
             if (conv_params.filter_width > 1) {
                 for (size_t filter_width = 0; filter_width < conv_params.filter_width; filter_width++) {
@@ -695,21 +709,23 @@ std::shared_ptr<ngraph::Function> Decompose2DConvTestFixture::get_reference(cons
 void execute_test(modelType model, std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
+    InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
 
     switch (model) {
     default:
     case modelType::TranspConvTransp:
     case modelType::TranspConvBcastAddTransp:
+    case modelType::TranspConvActTransp:
     case modelType::TranspConvBcastAddMaxPoolTransp:
     case modelType::TranspConvBcastAddActTransp:
     case modelType::TranspConvBcastAddMaxPoolActTransp:
-        manager.register_pass<GNAPluginNS::Decompose2DConv>();
+        manager.register_pass<GNAPluginNS::Decompose2DConv>("", gnaPrecision);
         break;
     case modelType::TranspConvTranspBcastAdd:
-        manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBias>();
+        manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBias>("", gnaPrecision);
         break;
     case modelType::TranspConvTranspBcastAddAct:
-        manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBiasAF>();
+        manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBiasAF>("", gnaPrecision);
         break;
     }
 
@@ -731,6 +747,8 @@ INSTANTIATE_TEST_SUITE_P(Decompose2DConvTestSuite, Decompose2DConvTestFixture,
             std::make_tuple(modelType::TranspConvTransp, ngraph::PartialShape{1, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1}),
             std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{1, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+                ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1}),
+            std::make_tuple(modelType::TranspConvActTransp, ngraph::PartialShape{1, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1}),
             std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{1, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1}),
@@ -755,6 +773,8 @@ INSTANTIATE_TEST_SUITE_P(Decompose2DConvInvalidTestSuite, Decompose2DConvTestInv
             std::make_tuple(modelType::TranspConvTransp, ngraph::PartialShape{1, 1, 4, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}),
             std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{2, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+                ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}),
+            std::make_tuple(modelType::TranspConvActTransp, ngraph::PartialShape{2, 4, 4, 32}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}),
             std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{1, 16, 16, 128}, ngraph::Shape{5, 5}, ngraph::Strides{1, 1},
                 ngraph::Strides{1, 1}, ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{2, 2}),
