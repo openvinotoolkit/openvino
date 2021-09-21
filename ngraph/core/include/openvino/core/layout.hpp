@@ -31,7 +31,7 @@ public:
     /// - partial layout specialization:
     ///   - "NC?" defines 3 dimensional layout, first two NC, 3rd one is not defined
     ///   - "N...C" defines layout with dynamic rank where 1st dimension is N, last one is C
-    ///   - "N...C" defines layout with dynamic rank where first two are NC, others are not
+    ///   - "NC..." defines layout with dynamic rank where first two are NC, others are not
     ///   defined
     /// - only order of dimensions "adbc" (0312)
     /// - Advanced syntax can be used for multi-character names like "[N,C,H,W,...,CustomName]"
