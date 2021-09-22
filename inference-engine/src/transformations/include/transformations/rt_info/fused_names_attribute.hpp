@@ -15,7 +15,8 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include "openvino/core/rtti.hpp"
+#include <openvino/core/rtti.hpp>
+#include <ngraph/attribute_visitor.hpp>
 #include <transformations_visibility.hpp>
 
 
@@ -31,6 +32,8 @@ private:
     std::set<std::string> fused_names;
 
 public:
+    friend class VariantWrapper<ngraph::FusedNames>;
+
     /**
      * A default constructor
      */
@@ -86,13 +89,28 @@ extern template class TRANSFORMATIONS_API VariantImpl<ngraph::FusedNames>;
 template<>
 class TRANSFORMATIONS_API VariantWrapper<ngraph::FusedNames> : public VariantImpl<ngraph::FusedNames> {
 public:
-    OPENVINO_RTTI("Variant::RuntimeAttribute::FusedNames");
+    OPENVINO_RTTI("fused_names", "0");
     BWDCMP_RTTI_DECLARATION;
+
+    VariantWrapper() = default;
 
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 
     std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector & nodes) override;
 
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
+
+    bool visit_attributes(AttributeVisitor & visitor) override {
+        visitor.on_attribute("value", m_value.fused_names);
+        return true;
+    }
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<std::set<std::string>> : public DirectValueAccessor<std::set<std::string>> {
+public:
+    AttributeAdapter(std::set<std::string>& value) : DirectValueAccessor<std::set<std::string>>(value) {}
+    OPENVINO_RTTI("AttributeAdapter<set<string>>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

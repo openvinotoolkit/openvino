@@ -27,7 +27,7 @@ namespace pass {
 class TRANSFORMATIONS_API Attributes {
 public:
     Attributes() {
-        register_factory<VariantWrapper<ngraph::DisableConstantFolding>>();
+        register_factory<VariantWrapper<ngraph::FusedNames>>();
     }
 
     Variant * create(const std::string & name, const uint64_t version) {
