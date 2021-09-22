@@ -4,4 +4,4 @@
 
 #include "ngraph/ngraph_visibility.hpp"
 
-NGRAPH_API_C(const char*) NGRAPH_VERSION_NUMBER;
+NGRAPH_EXTERN_C NGRAPH_API const char* NGRAPH_VERSION_NUMBER;
