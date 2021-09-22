@@ -189,6 +189,14 @@ int main(int argc, char* argv[]) {
         next_step();
 
         Core ie;
+        if (FLAGS_d == "TEMPLATE") {
+#ifdef _DEBUG
+            ie.RegisterPlugin("templatePlugind", "TEMPLATE");
+#else
+            ie.RegisterPlugin("templatePlugind", "TEMPLATE");
+#endif
+        }
+
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a
             // pointer to base extension
@@ -450,14 +458,15 @@ int main(int argc, char* argv[]) {
             app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape,
                                                             FLAGS_layout,
                                                             FLAGS_b,
+                                                            FLAGS_blob_shape,
                                                             FLAGS_iscale,
                                                             FLAGS_imean,
                                                             inputInfo,
                                                             reshape);
             if (reshape) {
-                InferenceEngine::ICNNNetwork::InputShapes shapes = {};
+                benchmark_app::PartialShapes shapes = {};
                 for (auto& item : app_inputs_info)
-                    shapes[item.first] = item.second.shape;
+                    shapes[item.first] = item.second.partialShape;
                 slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
                 cnnNetwork.reshape(shapes);
@@ -521,6 +530,7 @@ int main(int argc, char* argv[]) {
             app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
                                                              FLAGS_layout,
                                                              FLAGS_b,
+                                                             FLAGS_blob_shape,
                                                              FLAGS_iscale,
                                                              FLAGS_imean,
                                                              exeNetwork.GetInputsInfo());
@@ -736,6 +746,22 @@ int main(int argc, char* argv[]) {
 
         // wait the latest inference executions
         inferRequestsQueue.waitAll();
+
+        const auto outputs = exeNetwork.GetOutputsInfo();
+        // Touch all outputs
+        for (auto request : inferRequestsQueue.requests) {
+            for (auto output : outputs) {
+                auto dims = request->getBlob(output.first)->getTensorDesc().getDims();
+                std::cout << "Acquired output blob " << output.first << " with shape: ["
+                          << std::accumulate(dims.begin(),
+                                             dims.end(),
+                                             std::string(""),
+                                             [](std::string str, size_t x) {
+                                                 return str.empty() ? std::to_string(x) : str + "," + std::to_string(x);
+                                             })
+                          << "] ( dynamic: [" << output.second->getPartialShape() << "] }" << '\n';
+            }
+        }
 
         double latency = getMedianValue<double>(inferRequestsQueue.getLatencies(), FLAGS_latency_percentile);
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();

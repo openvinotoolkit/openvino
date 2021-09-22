@@ -8,10 +8,13 @@
 #include <string>
 #include <vector>
 
+#include "ngraph/partial_shape.hpp"
+
 namespace benchmark_app {
 struct InputInfo {
     InferenceEngine::Precision precision;
-    InferenceEngine::SizeVector shape;
+    ngraph::PartialShape partialShape;
+    InferenceEngine::SizeVector blobShape;
     std::string layout;
     std::vector<float> scale;
     std::vector<float> mean;
@@ -25,12 +28,14 @@ struct InputInfo {
     size_t depth() const;
 };
 using InputsInfo = std::map<std::string, InputInfo>;
+using PartialShapes = std::map<std::string, ngraph::PartialShape>;
 }  // namespace benchmark_app
 
 std::vector<std::string> parseDevices(const std::string& device_string);
 uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device);
 std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector<std::string>& devices,
                                                                const std::string& values_string);
+std::string getShapesString(const benchmark_app::PartialShapes& shapes);
 std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& shapes);
 size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info);
 std::vector<std::string> split(const std::string& s, char delim);
@@ -73,11 +78,13 @@ template <typename T>
 benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
                                         const std::string& layout_string,
                                         const size_t batch_size,
+                                        const std::string& blobs_shape_string,
                                         const std::string& scale_string,
                                         const std::string& mean_string,
                                         const std::map<std::string, T>& input_info,
                                         bool& reshape_required) {
     std::map<std::string, std::string> shape_map = parseInputParameters(shape_string, input_info);
+    std::map<std::string, std::string> blobs_shape_map = parseInputParameters(blobs_shape_string, input_info);
     std::map<std::string, std::string> layout_map = parseInputParameters(layout_string, input_info);
 
     reshape_required = false;
@@ -88,16 +95,40 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
         auto descriptor = item.second->getTensorDesc();
         // Precision
         info.precision = descriptor.getPrecision();
-        // Shape
+        // Partial Shape
         if (shape_map.count(name)) {
-            std::vector<size_t> parsed_shape;
-            for (auto& dim : split(shape_map.at(name), ',')) {
-                parsed_shape.push_back(std::stoi(dim));
+            std::vector<ngraph::Dimension> parsed_shape;
+            for (auto& dim : split(shape_map[name], ',')) {
+                if (dim == "?" || dim == "-1") {
+                    parsed_shape.push_back(ngraph::Dimension());
+                } else {
+                    const std::string range_divider = "..";
+                    size_t range_index = dim.find(range_divider);
+                    if (range_index != std::string::npos) {
+                        std::string min = dim.substr(0, range_index);
+                        std::string max = dim.substr(range_index + range_divider.length());
+                        parsed_shape.push_back(
+                            ngraph::Dimension(min.empty() ? 0 : std::stoi(min),
+                                              max.empty() ? ngraph::Interval::s_max : std::stoi(max)));
+                    } else {
+                        parsed_shape.push_back(std::stoi(dim));
+                    }
+                }
             }
-            info.shape = parsed_shape;
+            info.partialShape = parsed_shape;
             reshape_required = true;
         } else {
-            info.shape = descriptor.getDims();
+            info.partialShape = item.second->getPartialShape();
+        }
+        // Blob Shape
+        if (blobs_shape_map.count(name)) {
+            std::vector<size_t> parsed_shape;
+            for (auto& dim : split(blobs_shape_map.at(name), ',')) {
+                parsed_shape.push_back(std::stoi(dim));
+            }
+            info.blobShape = parsed_shape;
+        } else {
+            info.blobShape = descriptor.getDims();
         }
         // Layout
         if (layout_map.count(name)) {
@@ -109,10 +140,11 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
             info.layout = ss.str();
         }
         // Update shape with batch if needed
+        // Update blob shape only not affecting network shape to trigger dynamic batch size case
         if (batch_size != 0) {
             std::size_t batch_index = info.layout.find("N");
-            if ((batch_index != std::string::npos) && (info.shape.at(batch_index) != batch_size)) {
-                info.shape[batch_index] = batch_size;
+            if ((batch_index != std::string::npos) && (info.blobShape.at(batch_index) != batch_size)) {
+                info.blobShape[batch_index] = batch_size;
                 reshape_required = true;
             }
         }
@@ -144,6 +176,7 @@ template <typename T>
 benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
                                         const std::string& layout_string,
                                         const size_t batch_size,
+                                        const std::string& blobs_shape_string,
                                         const std::string& scale_string,
                                         const std::string& mean_string,
                                         const std::map<std::string, T>& input_info) {
@@ -151,6 +184,7 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
     return getInputsInfo<T>(shape_string,
                             layout_string,
                             batch_size,
+                            blobs_shape_string,
                             scale_string,
                             mean_string,
                             input_info,
