@@ -3,6 +3,7 @@
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
+from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from mo.utils.ir_reader.extender import Extender
 
 
@@ -27,15 +28,21 @@ class MaxPool_extender(Extender):
 
 
 def common_pool_extender(op: Node):
-    for attr in ['strides', 'pads_begin', 'pads_end', 'kernel']:
+    for attr in ['strides', 'pads_begin', 'pads_end', 'kernel', 'dilations']:
         Extender.attr_to_list(op, attr)
     op['stride'] = int64_array([1, 1] + op.strides)
     op['window'] = int64_array([1, 1] + op.kernel)
     op['kernel_spatial'] = op.kernel
     op['output_spatial_shape'] = None
 
+    op['dilation'] = int64_array([1, 1] + op.dilations)
+    op['index_element_type'] = destination_type_to_np_data_type(op.index_element_type)
+    op['axis'] = op.axis
+
     op['batch_dims'] = int64_array([0]),
     op['channel_dims'] = int64_array([1]),
+
+    op['pool_method'] = 'max' if op.type is 'MaxPool' else 'avg'
 
     dim = len(op.pads_begin)
 
