@@ -1,1 +1,3 @@
 # OpenVINO™ Low Precision Transformations: PullTransposeThroughDequantization {#openvino_docs_IE_DG_lpt_PullTransposeThroughDequantization}
+
+ngraph::pass::low_precision::PullTransposeThroughDequantization class represents the `PullTransposeThroughDequantization` transformation.

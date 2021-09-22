@@ -1,5 +1,7 @@
 # OpenVINO™ Low Precision Transformations: PerTensorQuantization {#openvino_docs_IE_DG_lpt_PerTensorQuantization}
 
+ngraph::PerTensorQuantizationAttribute class represents the `PerTensorQuantization` attribute.
+
 The attribute defines if operation input port requires per-tensor quantization.
 
 | Property name | Values                                       |

@@ -1,5 +1,7 @@
 # OpenVINO™ Low Precision Transformations: ConvolutionTransformation {#openvino_docs_IE_DG_lpt_ConvolutionTransformation}
 
+ngraph::pass::low_precision::ConvolutionTransformation class represents the `Convolution` operation transformation.
+
 The transformation propagate dequantization operations on activations and on weights through `Convolution` operation. The transformation supports several weights quantization approaches:
 * quantized weights in low precision with dequantization operations,
 * weights in original precision with `FakeQuantize` operation.
