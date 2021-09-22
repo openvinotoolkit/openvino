@@ -160,10 +160,10 @@ void roi_align(const T* feature_maps,
 
                         switch (pooling_mode) {
                         case ROIPoolingMode::MAX: {
-                            T sample_value = std::max({pooling_weights[sample_index] * sample_part_1,
-                                                       pooling_weights[sample_index + 1] * sample_part_2,
-                                                       pooling_weights[sample_index + 2] * sample_part_3,
-                                                       pooling_weights[sample_index + 3] * sample_part_4});
+                            T sample_value = pooling_weights[sample_index] * sample_part_1 +
+                                             pooling_weights[sample_index + 1] * sample_part_2 +
+                                             pooling_weights[sample_index + 2] * sample_part_3 +
+                                             pooling_weights[sample_index + 3] * sample_part_4;
 
                             pooled_value = sample_value > pooled_value ? sample_value : pooled_value;
                             break;
