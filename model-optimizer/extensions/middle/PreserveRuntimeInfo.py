@@ -50,11 +50,11 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                 if op.out_node(0).has_valid('permutation'):
                     del op.out_node(0)['permutation']
 
-                serialize_res = op.rt_info.serialize_for_parameter(op)
-                if len(serialize_res) > 0:
-                    op['old_api_element_type'] = serialize_res['element_type']
-                    op['old_api_shape'] = serialize_res['shape']
-                    op['old_api_transpose_order'] = serialize_res['transpose_order']
+                # serialize_res = op.rt_info.serialize_for_parameter(op)
+                # if len(serialize_res) > 0:
+                #     op['old_api_element_type'] = serialize_res['element_type']
+                #     op['old_api_shape'] = serialize_res['shape']
+                #     op['old_api_transpose_order'] = serialize_res['transpose_order']
 
             elif op_type == 'Result' and len(op_shape) > 3 and op.in_ports():
                 prev_node_out_port = op.in_port(0).get_connection().get_source()
@@ -75,5 +75,5 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                     if in_node.has_valid('permutation'):
                         del in_node.out_node(prev_node_out_port.idx)['permutation']
 
-                    op['old_api_transpose_order'] = op.rt_info.serialize_for_result()['transpose_order']
+                    #op['old_api_transpose_order'] = op.rt_info.serialize_for_result()['transpose_order']
 
