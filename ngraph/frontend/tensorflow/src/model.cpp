@@ -81,8 +81,8 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
         m_op_places.push_back(op_place);
         m_op_places_map[op_name] = op_place;
         if (op_type == "Placeholder") {
-            auto pshape = std::dynamic_pointer_cast<VariantWrapper<std::vector<int64_t>>>(
-                node_decoder->get_attribute("shape", VariantWrapper<std::vector<int64_t>>::type_info));
+            auto pshape = std::dynamic_pointer_cast<VariantWrapper<ngraph::PartialShape>>(
+                node_decoder->get_attribute("shape", VariantWrapper<ngraph::PartialShape>::type_info));
             auto type = std::dynamic_pointer_cast<VariantWrapper<ngraph::element::Type>>(
                 node_decoder->get_attribute("dtype", VariantWrapper<ngraph::element::Type> ::type_info));
             auto tmp = type->get();

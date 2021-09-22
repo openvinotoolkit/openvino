@@ -33,10 +33,13 @@
 
 #include "ngraph/ngraph.hpp"
 
+#include "node_context_new.hpp"
+
 namespace tensorflow {
 
 using ngraph::OutputVector;
-using ngraph::frontend::tensorflow::detail::NodeContext;
+//using ngraph::frontend::tensorflow::detail::NodeContext;
+using ngraph::frontend::tf::NodeContext;
 
 // TODO: Get rid of direct usage of this structures and remove the following usages:
 using ngraph::frontend::tensorflow::detail::TFNodeDecoder;

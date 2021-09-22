@@ -15,6 +15,7 @@
 
 #include "op_def.pb.h"
 #include "node_def.pb.h"
+#include "node_context_new.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -71,6 +72,18 @@ std::shared_ptr<Variant> DecoderTFProto::get_attribute(const std::string& name,
         return std::make_shared<VariantWrapper<ngraph::element::Type>>(TYPE_MAP[data_type]);
     } else if (type_info == VariantWrapper<bool>::type_info) {
         return std::make_shared<VariantWrapper<bool>>(attrs[0].b());
+    } else if (type_info == VariantWrapper<::tensorflow::DataType>::type_info) {
+        return std::make_shared<VariantWrapper<::tensorflow::DataType>>(attrs[0].type());
+    } else if (type_info == VariantWrapper<::tensorflow::TensorProto>::type_info) {
+        return std::make_shared<VariantWrapper<::tensorflow::TensorProto>>(attrs[0].tensor());
+    } else if (type_info == VariantWrapper<::ngraph::PartialShape>::type_info) {
+        std::vector<ngraph::Dimension> dims;
+        auto tf_shape = attrs[0].shape();
+        for (int i = 0; i < tf_shape.dim_size(); i++) {
+            dims.push_back(tf_shape.dim(i).size());
+        }
+        auto pshape = ngraph::PartialShape(dims);
+        return std::make_shared<VariantWrapper<::ngraph::PartialShape>>(pshape);
     }
 
     // type is not supported by decoder
@@ -96,7 +109,7 @@ void DecoderTFProto::get_input_node(const size_t input_port_idx,
     producer_output_port_index = 0;
 }
 
-std::vector<tf::OutPortName> DecoderTFProto::get_output_names() const {
+std::vector<OutPortName> DecoderTFProto::get_output_names() const {
     FRONT_END_NOT_IMPLEMENTED("DecoderTFProto::get_output_names");
 }
 

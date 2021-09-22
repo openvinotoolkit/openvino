@@ -1,19 +1,19 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #pragma once
 
 #include <frontend_manager/frontend_exceptions.hpp>
 #include <ngraph/node.hpp>
 
-#include "node_context.hpp"
+//#include "node_context_new.hpp"
 
-using namespace ngraph::frontend::tensorflow::detail;
 
 namespace ngraph {
 namespace frontend {
 namespace tf {
+
+class NodeContext;
 
 class OpValidationFailureTF : public OpValidationFailure {
 public:
@@ -23,7 +23,7 @@ public:
 private:
     static std::string get_error_msg_prefix_tf(const NodeContext& node) {
         std::stringstream ss;
-        ss << "While validating node '" << node.get_op_type() << '\'';
+        //ss << "While validating node '" << node.get_op_type() << '\'';
         return ss.str();
     }
 };

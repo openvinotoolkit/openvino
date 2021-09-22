@@ -6,20 +6,6 @@
 
 #include <frontend_manager/frontend.hpp>
 
-#include "node_def.pb.h"
-//#include "node_context_new.hpp"
-//#include "decoder_new.hpp"
-
-/*
-namespace tensorflow {
-namespace framework {
-namespace proto {
-class NodeDef;
-}  // namespace proto
-}  // namespace framework
-}  // namespace tensorflow
-*/
-
 namespace ngraph {
 namespace frontend {
 using InPortName = size_t;
@@ -63,12 +49,6 @@ public:
 
 class TensorPlaceTF;
 class OpPlaceTF;
-
-namespace tensorflow {
-namespace detail {
-class TFNodeDecoder;
-}  // namespace detail
-}  // namespace tensorflow
 
 class PlaceTF : public Place {
 public:
@@ -146,13 +126,6 @@ private:
 
 class OpPlaceTF : public PlaceTF {
 public:
-    OpPlaceTF(const InputModel& input_model,
-              std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def,
-              const std::vector<std::string>& names);
-
-    OpPlaceTF(const InputModel& input_model,
-              std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def);
-
     OpPlaceTF(const InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder);
 
     void add_in_port(const std::shared_ptr<InPortPlaceTF>& input, const std::string& name);
@@ -162,9 +135,7 @@ public:
     const std::vector<std::shared_ptr<OutPortPlaceTF>>& get_output_ports() const;
     const std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>>& get_input_ports() const;
     std::shared_ptr<InPortPlaceTF> get_input_port_tf(const std::string& inputName, int inputPortIndex) const;
-    std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> get_desc() const;
     std::shared_ptr<DecoderBase> get_desc_new() const;
-    //::ngraph::frontend::DecoderTFProto* get_desc_new() const;
 
     // External API methods
     std::vector<Place::Ptr> get_consuming_ports() const override;
@@ -201,7 +172,6 @@ public:
 
 private:
     std::shared_ptr<DecoderBase> m_op_decoder;
-    std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> m_op_def;
     std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>> m_input_ports;
     std::vector<std::shared_ptr<OutPortPlaceTF>> m_output_ports;
 };

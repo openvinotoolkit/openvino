@@ -18,6 +18,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <numeric>
 
+#include <ngraph/variant.hpp>
 #include "ngraph/op/util/logical_reduction.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
@@ -34,6 +35,7 @@
 #include "graph.hpp"
 #include "ngraph_builder.h"
 #include "ngraph_conversions.h"
+#include "node_context_new.hpp"
 
 using namespace std;
 namespace ng = ngraph;
@@ -370,17 +372,19 @@ static Status GetStaticInputNode(
 // in the vector does not match TensorFlow's notion of what the C++ type
 // should be (e.g. when T is `bool`, we actually need a vector of `char` for
 // compatibility with nGraph).
+
 template <typename T, typename VecT = T>
-static Status ValuesFromConstNode(const TFNodeDecoder* node,
+static Status ValuesFromConstNode(const DecoderBase* node,
                                   ngraph::Shape* const_tensor_shape,
                                   std::vector<VecT>* values) {
 #if 1
 
-    if (node->op() != "Const") {
+    if (node->get_op_type() != "Const") {
         return errors::InvalidArgument("TFNodeDecoder not a Const");
     }
-    DataType dt;
-    node->getAttrValue2("dtype", &dt);
+    auto dt1 = node->get_attribute("dtype", ::ov::VariantWrapper<::tensorflow::DataType>::type_info);
+    FRONT_END_GENERAL_CHECK(dt1);
+    auto dt = std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::DataType>>(dt1)->get();
 
     /*
     if (dt != DataTypeToEnum<T>::value) {
@@ -389,26 +393,29 @@ static Status ValuesFromConstNode(const TFNodeDecoder* node,
          << node.attr().at("dtype").type();
       return errors::InvalidArgument(ss.str());
     }
-     */
+    */
 
     // ngraph::frontend::tensorflow::detail::TensorWrapper represents the content of the tensor in either <type>_val or
     // tensor_content.
-    ngraph::frontend::tensorflow::detail::TensorWrapper* tensor;
-    node->getAttrValue2("value", &tensor);
+
+    auto tensor_proto_var = node->get_attribute("value", ::ov::VariantWrapper<::tensorflow::TensorProto>::type_info);
+    FRONT_END_GENERAL_CHECK(tensor_proto_var);
+    auto tensor_proto = std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::TensorProto>>(tensor_proto_var)->get();
+
     // typename checkpoint::SaveTypeTraits<T>::RepeatedField* tensor_values =
     //    checkpoint::MutableTensorProtoData<T>(const_cast<ngraph::frontend::tensorflow::detail::TensorWrapper*>(&tensor));
 
-    const TensorShapeProto& shape = tensor->tensor_def->tensor_shape();
+    const TensorShapeProto& shape = tensor_proto.tensor_shape();
     ngraph::PartialShape pshape;
     TFTensorShapeToNGraphShape(shape, &pshape);
     *const_tensor_shape = pshape.get_shape();
     if (pshape.is_dynamic())
         NGRAPH_TF_FE_NOT_IMPLEMENTED;
-    auto tensor_content = tensor->tensor_def->tensor_content();
+    auto tensor_content = tensor_proto.tensor_content();
     std::vector<char> tensor_values_plain(tensor_content.begin(), tensor_content.end());
     const T* tensor_values = reinterpret_cast<const T*>(tensor_values_plain.data());
 
-    if (!tensor_values_plain.empty() && tensor->tensor_def->has_tensor_shape()) {
+    if (!tensor_values_plain.empty() && tensor_proto.has_tensor_shape()) {
         // When tensor_shape is set, theoretically the representation of the data
         // could be compressed. So, before copying values to the returned vector,
         // make sure no compression happens.
@@ -418,7 +425,7 @@ static Status ValuesFromConstNode(const TFNodeDecoder* node,
         //}
     }
 
-    const auto tensor_content_size = tensor->tensor_def->tensor_content().size();
+    const auto tensor_content_size = tensor_proto.tensor_content().size();
     if (tensor_content_size % sizeof(VecT)) {
         std::cerr << "[ ERROR ] tensor_content_size (" << tensor_content_size << ") is not a multiple of "
                   << sizeof(VecT);
@@ -439,7 +446,6 @@ static Status ValuesFromConstNode(const TFNodeDecoder* node,
         auto val_lastsaved = (T)0;  // cast
 
         for (auto i = 0; i < n_elements; i++) {
-            auto& tensor_proto = *tensor->tensor_def;
             int64_t val_size = 0;
             auto val_i = (T)0;  // cast
             switch (dt) {
@@ -473,8 +479,8 @@ static Status ValuesFromConstNode(const TFNodeDecoder* node,
             default:
                 NGRAPH_VLOG(0) << "Const node has empty tensor_proto and we don't know how to "
                                   "handle this element type";
-                NGRAPH_VLOG(0) << node->DebugString();
-                NGRAPH_VLOG(0) << shape.DebugString();
+                //NGRAPH_VLOG(0) << node->DebugString();
+                //NGRAPH_VLOG(0) << shape.DebugString();
                 return errors::Unimplemented("Encountered unknown element type " + DataType_Name(dt) +
                                              " on an empty tensor_proto");
             }
@@ -2767,7 +2773,7 @@ void Builder::TranslateGraph(
 
     // create the nGraph ops from TensorFlow ops
     for (auto& operation_place : operation_places) {
-        auto operation_decoder = operation_place->get_desc();
+        auto operation_decoder = operation_place->get_desc_new();
         auto operation_name = operation_place->get_names()[0];
 
         // output for parameter nodes has been already generated
@@ -2784,14 +2790,15 @@ void Builder::TranslateGraph(
 
         // prepare a list of nGraph node inputs for each node
         ngraph::OutputVector ng_inputs;
-        for (size_t input_port_idx = 0; input_port_idx < operation_decoder->num_inputs(); ++input_port_idx) {
+        ::ngraph::frontend::tf::NamedInputs named_inputs;
+        for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
             std::string producer_name;
             size_t producer_port_idx;
             try {
-                operation_decoder->input_node(input_port_idx, &producer_name, &producer_port_idx);
+                operation_decoder->get_input_node(input_port_idx, producer_name, producer_port_idx);
             } catch (const std::exception& e) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
-                                " for op '" + operation_decoder->name() + "', expected input name: '" + producer_name +
+                                " for op '" + operation_decoder->get_op_name() + "', expected input name: '" + producer_name +
                                 "', expected input port index: " + std::to_string(producer_port_idx) + '\n');
             }
             // TODO: re-implement the logic below once Place graph structure is implemented
@@ -2806,17 +2813,20 @@ void Builder::TranslateGraph(
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
                                         "Input created with pruning must have one output");
                 ng_inputs.push_back(input_outputs_vector.at(0));
+                named_inputs[input_port_idx] = {input_outputs_vector.at(0)};
             } else if (ng_op_map.count(producer_name + ":" + std::to_string(producer_port_idx))) {
                 const auto& input_outputs_vector =
                     ng_op_map.at(producer_name + ":" + std::to_string(producer_port_idx));
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
                                         "Input created with pruning must have one output");
                 ng_inputs.push_back(input_outputs_vector.at(0));
+                named_inputs[input_port_idx] = {input_outputs_vector.at(0)};
             } else if (ng_op_map.count(producer_name)) {
                 const auto& input_outputs_vector = ng_op_map.at(producer_name);
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() > producer_port_idx,
                                         "Input created with pruning must have one output");
                 ng_inputs.push_back(input_outputs_vector.at(producer_port_idx));
+                named_inputs[input_port_idx] = {input_outputs_vector.at(producer_port_idx)};
             } else {
                 FRONT_END_GENERAL_CHECK(false,
                                         "No input is found for node \"" + operation_name + "\" by port" +
@@ -2827,16 +2837,19 @@ void Builder::TranslateGraph(
         // generate nGraph node output vector for the current operation node
         ngraph::OutputVector ng_outputs;
         try {
+            /*
             if (operation_decoder->IsControlFlow()) {
                 FRONT_END_THROW("Encountered a control flow op in the nGraph bridge: " +
                                 operation_decoder->DebugString());
             }
+            */
 
-            FRONT_END_OP_CONVERSION_CHECK(translate_map.count(operation_decoder->type_string()),
-                                          "No translator found for " + operation_decoder->type_string() + " node.");
-            auto op_fun = &(translate_map[operation_decoder->type_string()]);
-            NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
-
+            FRONT_END_OP_CONVERSION_CHECK(translate_map.count(operation_decoder->get_op_type()),
+                                          "No translator found for " + operation_decoder->get_op_type() + " node.");
+            auto op_fun = &(translate_map[operation_decoder->get_op_type()]);
+            //NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
+            //TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
+            ::ngraph::frontend::tf::NodeContext node_context(*operation_decoder.get(), named_inputs);
             // generate nGraph node output vector using translator for given operation type
             ng_outputs = (*op_fun)(node_context);
         } catch (...) {
@@ -2895,16 +2908,16 @@ void Builder::TranslateGraph(
                 }
             }
             FRONT_END_GENERAL_CHECK(operation_place, "There is no operation place with a name: " + operation_name);
-            auto operation_decoder = operation_place->get_desc();
+            auto operation_decoder = operation_place->get_desc_new();
 
             // get to know a producer node and by which its output port data is generated
             std::string producer_name;
             size_t producer_port_idx;
             try {
-                operation_decoder->input_node(port_index, &producer_name, &producer_port_idx);
+                operation_decoder->get_input_node(port_index, producer_name, producer_port_idx);
             } catch (const std::exception& e) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(port_index) +
-                                " for op '" + operation_decoder->name() + "', expected input name: '" + producer_name +
+                                " for op '" + operation_decoder->get_op_name() + "', expected input name: '" + producer_name +
                                 "', expected input port index: " + std::to_string(producer_port_idx) + '\n');
             }
 
@@ -2949,11 +2962,14 @@ void Builder::TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
     ngraph::OutputVector ng_inputs;
+    NamedInputs named_inputs;
+    size_t input_port_idx = 0;
     for (auto& input : node->inputs()) {
         ng_inputs.push_back(input.get_source_output());
+        named_inputs[input_port_idx++] = {input.get_source_output()};
     }
 
-    NodeContext node_ctx(ng_inputs, node->get_decoder(), {}, {});
+    NodeContext node_ctx(*node->get_decoder(), named_inputs);
     auto new_node_outputs = translator_it->second(node_ctx);
     Builder::SetTracingInfo(node_ctx.get_name(), new_node_outputs.front());
 

@@ -8,6 +8,9 @@
 #include <tensorflow_frontend/utility.hpp>
 #include <tensorflow_frontend/place.hpp>
 
+#include "types.pb.h"
+#include "tensor.pb.h"
+
 #define NGRAPH_VARIANT_DECLARATION(TYPE, info)                                            \
     template <>                                                                           \
     class VariantWrapper<TYPE> : public VariantImpl<TYPE> {                               \
@@ -25,9 +28,14 @@ NGRAPH_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
 NGRAPH_VARIANT_DECLARATION(float, "Variant::float");
 NGRAPH_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
 NGRAPH_VARIANT_DECLARATION(bool, "Variant::bool");
-NGRAPH_VARIANT_DECLARATION(ngraph::element::Type, "Variant::element_type");
+NGRAPH_VARIANT_DECLARATION(ov::element::Type, "Variant::ov_element_type");
 NGRAPH_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
+NGRAPH_VARIANT_DECLARATION(ngraph::PartialShape, "Variant::ngraph_PartialShape");
+NGRAPH_VARIANT_DECLARATION(std::vector<std::string>, "Variant::string_vector");
+NGRAPH_VARIANT_DECLARATION(::tensorflow::DataType, "Variant::DataType");
+NGRAPH_VARIANT_DECLARATION(::tensorflow::TensorProto, "Variant::TensorProto");
 }  // namespace ov
+
 
 namespace ngraph {
 namespace frontend {
@@ -39,14 +47,16 @@ using NamedInputs = std::map<InPortName, OutputVector>;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
-class NodeContextNew {
-    const DecoderBase& decoder;
+class NodeContext {
+    const ::ngraph::frontend::DecoderBase& decoder;
     const NamedInputs& name_map;
+    std::map<std::string, ngraph::PartialShape> m_overridden_shapes;
 
 public:
-    NodeContextNew(const ::ngraph::frontend::DecoderBase& _decoder, const NamedInputs& _name_map)
+    NodeContext(const ::ngraph::frontend::DecoderBase& _decoder,
+                const NamedInputs& _name_map)
         : decoder(_decoder),
-          name_map(_name_map) {}
+          name_map(_name_map){}
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <typename T>
@@ -59,6 +69,7 @@ public:
         } else {
             return def;
         }
+        return def;
     }
 
     template <typename T>
@@ -108,7 +119,7 @@ public:
     std::vector<OutPortName> get_output_names() const {
         return decoder.get_output_names();
     }
-
+    
     ngraph::element::Type get_out_port_type(const size_t& port_index) const {
         return decoder.get_out_port_type(port_index);
     }
@@ -119,9 +130,38 @@ public:
 
     NamedOutputs default_single_output_mapping(const std::shared_ptr<Node>& ngraph_node,
                                                const std::vector<OutPortName>& required_tf_port_indices) const;
+
+    // adds methods
+    size_t get_ng_input_size() const {
+        return name_map.size();
+    }
+
+    std::string get_name() const {
+        return decoder.get_op_name();
+    }
+    
+    std::vector<std::string> get_names() const {
+        return {decoder.get_op_name()};
+    }
+
+    OutputVector get_ng_inputs() const {
+        OutputVector res;
+        for (const auto& entry : name_map) {
+            res.insert(res.end(), entry.second.begin(), entry.second.end());
+        }
+        return res;
+    }
+    
+    const std::map<std::string, ngraph::PartialShape>& get_overridden_shapes() const {
+        return m_overridden_shapes;
+    }
+    
+    const ::ngraph::frontend::DecoderBase* _get_decoder() const {
+        return &decoder;
+    }
 };
 
-inline NamedOutputs NodeContextNew::default_single_output_mapping(
+inline NamedOutputs NodeContext::default_single_output_mapping(
     const std::shared_ptr<Node>& ngraph_node,
     const std::vector<OutPortName>& required_tf_port_indices) const {
     NamedOutputs named_outputs;

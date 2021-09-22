@@ -18,7 +18,7 @@
 
 #include "attr_value.pb.h"
 #include "types.pb.h"
-#include "node_context_new.hpp"
+//#include "node_context_new.hpp"
 #include "node_def.pb.h"
 
 namespace ngraph {
@@ -37,7 +37,7 @@ public:
                                 std::string& producer_name,
                                 size_t& producer_output_port_index) const override;
 
-    std::vector<tf::OutPortName> get_output_names() const override;
+    std::vector<OutPortName> get_output_names() const override;
 
     size_t get_output_size() const override;
 

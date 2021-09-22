@@ -42,25 +42,9 @@ bool PlaceTF::is_output() const {
     return std::find_if(model_outs.begin(), model_outs.end(), cmp) != model_outs.end();
 }
 
-OpPlaceTF::OpPlaceTF(const InputModel& input_model,
-                     std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def,
-                     const std::vector<std::string>& names)
-    : PlaceTF(input_model, names),
-      m_op_def(op_def) {}
-
-OpPlaceTF::OpPlaceTF(const InputModel& input_model,
-                     std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def)
-    : OpPlaceTF(input_model, op_def, {op_def->name()}) {}
-
 OpPlaceTF::OpPlaceTF(const InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder)
     : PlaceTF(input_model, {op_decoder->get_op_name()}),
       m_op_decoder(op_decoder) {}
-
-/*
-OpPlaceTF::OpPlaceTF(const InputModel& input_model, ::ngraph::frontend::DecoderTFProto* op_decoder)
-    : PlaceTF(input_model, {op_decoder->get_op_type()}),
-      m_op_decoder(op_decoder) {}
-*/
 
 const std::vector<std::shared_ptr<OutPortPlaceTF>>& OpPlaceTF::get_output_ports() const {
     return m_output_ports;
@@ -82,19 +66,9 @@ std::shared_ptr<InPortPlaceTF> OpPlaceTF::get_input_port_tf(const std::string& i
     return m_input_ports.at(inputName)[inputPortIndex];
 }
 
-std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> OpPlaceTF::get_desc() const {
-    return m_op_def;
-}
-
 std::shared_ptr<DecoderBase> OpPlaceTF::get_desc_new() const {
     return m_op_decoder;
 }
-
-/*
-::ngraph::frontend::DecoderTFProto* OpPlaceTF::get_desc_new() const {
-    return m_op_decoder;
-}
-*/
 
 void OpPlaceTF::add_out_port(const std::shared_ptr<OutPortPlaceTF>& output, int idx) {
     while (idx >= m_output_ports.size()) {

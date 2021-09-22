@@ -18,7 +18,9 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 
-#include "../include/tensorflow_frontend/node_context.hpp"
+#include <tensorflow_frontend/place.hpp>
+#include <tensorflow_frontend/utility.hpp>
+
 #include "graph.pb.h"
 
 namespace tensorflow {
