@@ -109,7 +109,6 @@ TEST_P(InferRequestConfigTest, ReusableCPUStreamsExecutor) {
         // Load CNNNetwork to target plugins
         execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
         execNet.CreateInferRequest();
-
         if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
             (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
             ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
@@ -120,12 +119,6 @@ TEST_P(InferRequestConfigTest, ReusableCPUStreamsExecutor) {
             ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
             ASSERT_GE(2u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
         }
-    }
-    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-        ASSERT_NE(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
-        ASSERT_NO_THROW(ie->UnregisterPlugin("CPU"));
-        ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-        ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
     }
 }
 }  // namespace BehaviorTestsDefinitions

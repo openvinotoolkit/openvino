@@ -7,6 +7,7 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
+
     const std::vector<std::map<std::string, std::string>> configs = {
             {},
     };
@@ -44,6 +45,10 @@ namespace {
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
     };
 
+    const std::vector<std::map<std::string, std::string>> AutoConfigsSetPrc = {
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}},
+    };
+
     const std::vector<std::map<std::string, std::string>> MultiConfigsSetPrc = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
@@ -68,6 +73,6 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(MultiConfigsSetPrc)),
+                                    ::testing::ValuesIn(AutoConfigsSetPrc)),
                             ExecNetSetPrecision::getTestCaseName);
 }  // namespace
