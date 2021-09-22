@@ -11,7 +11,7 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API CompressQuantizeWeights;
+class CompressQuantizeWeights;
 
 }  // namespace pass
 }  // namespace ngraph
