@@ -109,6 +109,7 @@ set(SRC
     type_prop/concat.cpp
     type_prop/constant.cpp
     type_prop/convert.cpp
+    type_prop/convert_color_nv12.cpp
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
     type_prop/cos.cpp
@@ -256,6 +257,7 @@ set(SRC
     visitors/op/ceiling.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
+    visitors/op/convert_color_nv12.cpp
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp

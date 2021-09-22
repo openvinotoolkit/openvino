@@ -170,3 +170,6 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/variadic_split.hpp"
 #include "ngraph/op/xor.hpp"
+
+#include "openvino/op/nv12_to_bgr.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
