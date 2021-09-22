@@ -45,7 +45,8 @@ void scatter_update(const dataType* input_data,
         updates_step = updates_shape[axis];
     }
 
-    const auto data_start_idx_step = data_last_dim ? data_size_after_axis : data_size_after_axis * data_size_before_axis;
+    const auto data_start_idx_step =
+        data_last_dim ? data_size_after_axis : data_size_after_axis * data_size_before_axis;
     const auto data_step = data_last_dim ? data_shape.back() : 1;
 
     const auto data_num_swaps = data_size_after_axis * data_size_before_axis;
