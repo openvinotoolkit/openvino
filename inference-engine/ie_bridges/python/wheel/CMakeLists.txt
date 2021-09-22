@@ -34,14 +34,6 @@ endif()
 
 configure_file(${SETUP_ENV} "${CMAKE_CURRENT_SOURCE_DIR}/.env" @ONLY)
 
-add_custom_target(ie_wheel ALL DEPENDS ie_api offline_transformations_api)
-
-foreach(_target ie_libraries ie_plugins _pyngraph)
-    if(TARGET ${_target})
-        add_dependencies(ie_wheel ${_target})
-    endif()
-endforeach()
-
 if(LINUX)
     find_host_program(patchelf_program
                       NAMES patchelf
@@ -51,21 +43,33 @@ if(LINUX)
     endif()
 endif()
 
-add_custom_command(TARGET ie_wheel
-    PRE_BUILD
-        COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
-        COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
-            --dist-dir ${CMAKE_BINARY_DIR}/wheels
-            --build=${WHEEL_BUILD}
-            --plat-name=${WHEEL_PLATFORM}
-    POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/.env"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMENT "Building Python wheel ${WHEEL_PACKAGE_NAME}"
-    VERBATIM
-)
+# create target for openvino.wheel
 
-set_property(TARGET ie_wheel
-    APPEND
-    PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_BINARY_DIR}/wheels"
-)
+set(openvino_wheel_deps ie_api offline_transformations_api)
+foreach(_target ie_libraries ie_plugins _pyngraph)
+    if(TARGET ${_target})
+        list(APPEND openvino_wheel_deps ${_target})
+    endif()
+endforeach()
+
+set(cp_python "cp${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
+set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${cp_python}-${cp_python}-${WHEEL_PLATFORM}.whl")
+set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
+set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
+
+add_custom_command(OUTPUT ${openvino_wheel_path}
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
+    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
+        --dist-dir ${openvino_wheels_output_dir}
+        --build=${WHEEL_BUILD}
+        --plat-name=${WHEEL_PLATFORM}
+    COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_CURRENT_SOURCE_DIR}/.env"
+    DEPENDS ${openvino_wheel_deps}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMENT "Building Python wheel ${openvino_wheel_name}"
+    VERBATIM)
+
+add_custom_target(ie_wheel DEPENDS ${openvino_wheel_path})
+
+set_target_properties(ie_wheel
+    PROPERTIES ADDITIONAL_CLEAN_FILES "${openvino_wheel_path}")
