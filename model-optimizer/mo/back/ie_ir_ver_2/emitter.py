@@ -254,11 +254,11 @@ def serialize_runtime_info(node, schema: list, parent_element: Element):
 
     if 'rt_info' in node:
         if node.soft_get('type') == 'Parameter':
-            assert 'original_type' in node, 'Lack of information for `old_api_map` serialization, {}'.format(self.info)
-            assert 'inverse_order' in self.info['old_api'], 'Lack of information for `old_api_map` serialization, {}'.format(self.info)
+            assert 'original_type' in node, 'Lack of information for `old_api_map` serialization, {}'.format(node.rt_info.info)
+            assert 'inverse_order' in node.rt_info.info['old_api'], 'Lack of information for `old_api_map` serialization, {}'.format(node.rt_info.info)
 
         if node.soft_get('type') == 'Result':
-            assert 'order' in self.info['old_api'], 'Lack of information for `old_api_map` serialization, {}'.format(self.info)
+            assert 'order' in node.rt_info.info['old_api'], 'Lack of information for `old_api_map` serialization, {}'.format(node.rt_info.info)
 
         for attr in attrs:
             key = attr

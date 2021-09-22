@@ -476,7 +476,8 @@ class PermuteAttrs:
 
 
 class RTInfo:
-    info = defaultdict(dict)
+    def __init__(self):
+        self.info = defaultdict(dict)
 
     def old_api_transpose(self, legacy_shape: np.array, inv: np.array):
         self.info['old_api']['legacy_shape'] = legacy_shape
@@ -487,33 +488,3 @@ class RTInfo:
 
     def old_api_convert(self, legacy_type: np.dtype):
         self.info['old_api']['legacy_type'] = legacy_type
-
-    def serialize_for_parameter(self, node) -> Dict:
-        result = {}
-        if len(self.info) == 0:
-            return result
-        #
-        # assert 'original_type' in node and 'original_shape' in node, \
-        #     'Lack of information for `old_api_map` serialization, {}'.format(self.info)
-        # assert 'inverse_order' in self.info['old_api'] or 'legacy_type' in self.info['old_api'], \
-        #     'Lack of information for `old_api_map` serialization, {}'.format(self.info)
-
-
-        result['element_type'] = "{}".format(np_data_type_to_destination_type(node['original_type']))
-        result['shape'] = "{}".format(unmask_shape(self.info['old_api'].get('legacy_shape', node['original_shape']))).replace(' ', '')
-        if 'inverse_order' in self.info['old_api']:
-            result['transpose_order'] = '{}'.format(self.info['old_api']['inverse_order']).replace(' ', ',')
-        if 'legacy_type' in self.info['old_api']:
-            result['convert_dst_type'] = '{}'.format(self.info['old_api']['legacy_type'])
-        return result
-
-    def serialize_for_result(self) -> Dict:
-        result = {}
-        if len(self.info) == 0:
-            return result
-
-        assert 'order' in self.info['old_api'], \
-            'Lack of information for `old_api_map` serialization, {}'.format(self.info)
-        #result['old_api_map'] = "Transpose({order})->Result".format(order=self.info['old_api']['order'])
-        result['transpose_order'] = '{}'.format(self.info['old_api']['order']).replace(' ', ',')
-        return result
