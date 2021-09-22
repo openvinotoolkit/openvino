@@ -33,7 +33,7 @@ std::shared_ptr<ov::Function> nGraphFunc;
 ngraph::pass::Manager manager;
 auto pass_config = manager.get_pass_config();
 //! [lpt_common]
-// check if function is quantized to ignore LPT transformations for not quantized function to speed up model loading
+// check if the function is quantized to ignore LPT transformations for not quantized function to speed up model loading
 const bool useLpt = ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
 if (useLpt) {
     // disable constant folding on constant subgraph to use the subgraph for LPT
@@ -42,15 +42,15 @@ if (useLpt) {
     });
 }
 
-// nGraph common transformations are happened here
+// nGraph common transformations happen here
 
 if (useLpt) {
-    // convert subtract constant to INT8 to prevent unnecessary conversion FP16 to FP32
+    // convert subtract constant to INT8 to prevent unnecessary FP16 to FP32 conversion 
     manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(std::vector<ngraph::element::Type>{
         ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
 }
 
-// nGraph common transformations are happened here
+// nGraph common transformations happen here
 
 if (useLpt) {
     // convert not supported cases FakeQuantize -> Convert -> Convert -> Subtract -> Multiply to a single FakeQuantize
@@ -90,7 +90,7 @@ if (useLpt) {
         }),
     });
 
-    // Low precision transformations plugin specific configuration: per tensor quantization operations definition
+    // Low precision transformations plugin specific configuration: per-tensor quantization operations definition
     auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
         OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
         OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})

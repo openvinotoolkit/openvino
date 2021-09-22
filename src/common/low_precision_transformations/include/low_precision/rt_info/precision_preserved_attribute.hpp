@@ -15,7 +15,7 @@
 namespace ngraph {
 /**
  * @ingroup ie_transformation_common_api
- * @brief PrecisionPreservedAttribute defines precision preserved operation. If attribute is absent then an operation is
+ * @brief PrecisionPreservedAttribute defines the precision preserved operation. If the attribute is absent, then an operation is
  * not precision preserved.
  */
 class LP_TRANSFORMATIONS_API PrecisionPreservedAttribute : public SharedAttribute<bool> {

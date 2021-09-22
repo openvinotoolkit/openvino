@@ -2,7 +2,7 @@
 
 ngraph::IntervalsAlignmentAttribute class represents the `IntervalsAlignment` attribute.
 
-The attribute defines subgraph with the same quantization intervals alignment. `FakeQuantize` operations are included. The attribute is used by quantization operations.
+The attribute defines a subgraph with the same quantization intervals alignment. `FakeQuantize` operations are included. The attribute is used by quantization operations.
 
 | Property name | Values                                       |
 |---------------|----------------------------------------------|

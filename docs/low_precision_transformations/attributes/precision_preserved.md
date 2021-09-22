@@ -2,7 +2,7 @@
 
 ngraph::PrecisionPreservedAttribute class represents the `PrecisionPreserved` attribute.
 
-The attribute defines precision preserved operation. If attribute is absent then an operation is not precision preserved. 
+The attribute defines a precision preserved operation. If the attribute is absent, then an operation is not precision preserved. 
 
 | Property name | Values                                       |
 |---------------|----------------------------------------------|

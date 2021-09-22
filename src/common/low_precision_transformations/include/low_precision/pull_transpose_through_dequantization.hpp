@@ -22,7 +22,7 @@ class LP_TRANSFORMATIONS_API PullTransposeThroughDequantization;
 /**
  * @ingroup ie_transformation_common_api
  * @brief PullTransposeThroughDequantization propagates dequantization operations through Transpose operations.
- * The transformation is used on constant subgraph on weights to prepare a model for next low precision transformations.
+ * The transformation is used on constant subgraph weights to prepare a model for the next low precision transformations.
  */
 class ngraph::pass::low_precision::PullTransposeThroughDequantization : public ngraph::pass::MatcherPass {
 public:

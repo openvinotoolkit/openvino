@@ -21,7 +21,7 @@ class LP_TRANSFORMATIONS_API MarkupCanBeQuantized;
 /**
  * @ingroup ie_transformation_common_api
  * @brief MarkupCanBeQuantized transformation marks Convolution, ConvolutionBackpropData, GroupConvolution and Concat
- * operations as can be quantized or not. If an operation is not quantized, then PrecisionsAttribute attribute instance
+ * operations as able to be quantized or not. If an operation is not quantized, then PrecisionsAttribute attribute instance
  * is created with empty precisions.
  */
 class ngraph::pass::low_precision::MarkupCanBeQuantized : public ngraph::pass::FunctionPass {

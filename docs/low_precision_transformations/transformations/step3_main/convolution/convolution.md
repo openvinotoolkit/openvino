@@ -2,7 +2,7 @@
 
 ngraph::pass::low_precision::ConvolutionTransformation class represents the `Convolution` operation transformation.
 
-The transformation propagate dequantization operations on activations and on weights through `Convolution` operation. The transformation supports several weights quantization approaches:
+The transformation propagates dequantization operations on activations and weights through the `Convolution` operation. The transformation supports several weights quantization approaches:
 * quantized weights in low precision with dequantization operations,
 * weights in original precision with `FakeQuantize` operation.
 
@@ -13,8 +13,8 @@ result_{i} = a_{i} \cdot b_{i}
 \f]
 
 ## Limitations
-* `Subtract` dequantization operations on activations and weights are not propagated and .
-* Dequantization on activations have to be per-tensor. It means that dequantization `Multiply` constant value on activations has to be scalar.
+
+* Dequantization on activations must be per-tensor. It means that dequantization `Multiply` constant value on activations must be scalar.
 
 ## Subgraph before transformation
 

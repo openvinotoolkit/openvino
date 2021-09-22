@@ -27,7 +27,7 @@ class LP_TRANSFORMATIONS_API MarkupPrecisions;
  * @ingroup ie_transformation_common_api
  * @brief MarkupPrecisions transformation marks:
  *    1) not supported operations by PrecisionsAttribute attribute with empty precisions,
- *    2) operations with required precisions by PrecisionsAttribute attribute in accordance with provided restrictions,
+ *    2) operations with required precisions by PrecisionsAttribute attribute according to the provided restrictions,
  *    3) precision preserved operations by PrecisionPreservedAttribute attribute.
  */
 class ngraph::pass::low_precision::MarkupPrecisions : public ngraph::pass::FunctionPass {

@@ -22,7 +22,7 @@ class LP_TRANSFORMATIONS_API PullReshapeThroughDequantization;
 /**
  * @ingroup ie_transformation_common_api
  * @brief PullReshapeThroughDequantization propagates dequantization operations through Reshape operations.
- * The transformation is used on constant subgraph on weights to prepare a model for next low precision transformations.
+ * The transformation is used on constant subgraph weights to prepare a model for the next low precision transformations.
  */
 class ngraph::pass::low_precision::PullReshapeThroughDequantization : public ngraph::pass::MatcherPass {
 public:

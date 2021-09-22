@@ -2,7 +2,7 @@
 
 ngraph::PerTensorQuantizationAttribute class represents the `PerTensorQuantization` attribute.
 
-The attribute defines if operation input port requires per-tensor quantization.
+The attribute defines if the operation input port requires per-tensor quantization.
 
 | Property name | Values                                       |
 |---------------|----------------------------------------------|

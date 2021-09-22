@@ -1,9 +1,9 @@
 # OpenVINO™ Low Precision Transformations {#openvino_docs_IE_DG_lpt}
 
 ## Introduction
-`Low precision transformations` (known as `LPT`) are a set of nGraph transformations, which are combined in one library. The library is mandatory part of OpenVINO to infer quantized model in low precision with the maximum performance on Intel CPU, GPU and ARM platforms. The library includes more than 45 transformations and supports more then 30 operations. Some transformations are mandatory, some of them are optional and developed for specific device.
+Low precision transformations (known as LPT) are a set of nGraph transformations, which are combined in one library. The library is mandatory part of OpenVINO to infer quantized model in low precision with the maximum performance on Intel CPU, GPU and ARM platforms. The library includes more than 45 transformations and supports more then 30 operations. Some transformations are mandatory, some of them are optional and developed for specific device.
 
-The goal of `Low Precision Transformations` (`LPT`) is transform quantized model from original precisions (FP16 or FP32) to low precision (INT8: `signed int8` or `unsigned int8`) model to prepare model for low precision inference in OpenVINO™ plugin. It achieved by two main principles:
+The goal of Low Precision Transformations (LPT) is transform quantized model from original precisions (FP16 or FP32) to low precision (INT8: `signed int8` or `unsigned int8`) model to prepare model for low precision inference in OpenVINO™ plugin. It achieved by two main principles:
 1. `FakeQuantize` operation decomposition to two parts:  
     - part #1: quantize operation - new `FakeQuantize` operation with output quantization intervals in low precision range (signed int8: [-128, 127] or [-127, 127], unsigned int8: [0, 255] or [0, 256]) and with low precision output (`signed int8` or `unsigned int8`), 
     - part #2: dequantization operations with low precision input and original precision output.
@@ -92,44 +92,6 @@ LPT result model:
 LPT transformation pipeline has several steps. For each transformation inside one step pattern matcher is unique per transformation, but each operation can be assigned to several transformations.
 
 ![](img/low_precision_transformation_pipeline.png)
-
-<details>
-<summary>Click to explore all LPT transformations by steps in one table</summary>
-
-| Step #1: Prerequisites             | Step #2: Markup transformations | Step #3: Main transformations           | Step #4: Cleanup transformations            |
-|------------------------------------|---------------------------------|-----------------------------------------|---------------------------------------------|
-| PullReshapeThroughDequantization   | MarkupCanBeQuantized            | AddTransformation                       | FoldConvertTransformation                   |
-| PullTransposeThroughDequantization | MarkupPrecisions                | AvgPoolTransformation                   | FuseConvertTransformation                   |
-| ngraph::pass::LinOpSequenceFusion  | MarkupPerTensorQuantization     | ClampTransformation                     | FuseSubtractToFakeQuantizeTransformation    |
-|                                    | MarkupAvgPoolPrecisionPreserved | ConcatTransformation                    | FuseMultiplyToFakeQuantizeTransformation    |
-|                                    | PropagatePrecisions             | ConvolutionTransformation               | MultiplyToGroupConvolutionTransformation    |
-|                                    | AlignQuantizationIntervals      | ConvolutionBackpropDataTransformation   | SubtractMultiplyToMultiplyAddTransformation |
-|                                    | AlignQuantizationParameters     | DepthToSpaceTransformation              | FoldFakeQuantizeTransformation              |
-|                                    |                                 | FakeQuantizeDecompositionTransformation |                                             |
-|                                    |                                 | FakeQuantizeTransformation              |                                             |
-|                                    |                                 | InterpolateTransformation               |                                             |
-|                                    |                                 | GroupConvolutionTransformation          |                                             |
-|                                    |                                 | MatMulTransformation                    |                                             |
-|                                    |                                 | MaxPoolTransformation                   |                                             |
-|                                    |                                 | MultiplyTransformation                  |                                             |
-|                                    |                                 | MVNTransformation                       |                                             |
-|                                    |                                 | NormalizeL2Transformation               |                                             |
-|                                    |                                 | PReluTransformation                     |                                             |
-|                                    |                                 | ReduceMaxTransformation                 |                                             |
-|                                    |                                 | ReduceMeanTransformation                |                                             |
-|                                    |                                 | ReduceMinTransformation                 |                                             |
-|                                    |                                 | ReduceSumTransformation                 |                                             |
-|                                    |                                 | ReluTransformation                      |                                             |
-|                                    |                                 | ReshapeTransformation                   |                                             |
-|                                    |                                 | SqueezeTransformation                   |                                             |
-|                                    |                                 | ShuffleChannelsTransformation           |                                             |
-|                                    |                                 | SplitTransformation                     |                                             |
-|                                    |                                 | StridedSliceTransformation              |                                             |
-|                                    |                                 | TransposeTransformation                 |                                             |
-|                                    |                                 | UnsqueezeTransformation                 |                                             |
-|                                    |                                 | VariadicSplitTransformation             |                                             |
-
-</details>
 
 Inside each step LPT transformations handle input model operation by operation, applying transformation matching pattern for each transformation from the step to an operation, and execute transformation if pattern is matched. Decomposition transformation decomposes `FakeQuantize` to quantize and dequantization operations. Dequantization operations from previous transformation result is used for the current one and so on, until the end of the model is achieved.
 

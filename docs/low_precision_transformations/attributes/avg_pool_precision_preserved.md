@@ -2,7 +2,7 @@
 
 ngraph::AvgPoolPrecisionPreservedAttribute class represents the `AvgPoolPrecisionPreserved` attribute.
 
-Utility attribute which is used only during `AvgPool` operation precision preserved property definition. 
+Utility attribute, which is used only during `AvgPool` operation, precision preserved property definition. 
 
 | Property name | Values                                       |
 |---------------|----------------------------------------------|

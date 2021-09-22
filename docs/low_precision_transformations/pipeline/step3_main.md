@@ -1,6 +1,6 @@
-# OpenVINO™ LPT: step #3. Main transformations {#openvino_docs_IE_DG_lpt_step3_main}
+# OpenVINO™ LPT: Step #3. Main Transformations {#openvino_docs_IE_DG_lpt_step3_main}
 
-Main transformations are the most part of low precision transformations. Transformations operate with dequantization operations. Transformations:
+Main transformations are the majority of low precision transformations. Transformations operate with dequantization operations. Main transformations include:
 * [AddTransformation](@ref openvino_docs_IE_DG_lpt_AddTransformation)
 * [AvgPoolTransformation](@ref openvino_docs_IE_DG_lpt_AvgPoolTransformation)
 * [ClampTransformation](@ref openvino_docs_IE_DG_lpt_AvgPoolTransformation)
@@ -32,7 +32,7 @@ Main transformations are the most part of low precision transformations. Transfo
 * [UnsqueezeTransformation](@ref openvino_docs_IE_DG_lpt_UnsqueezeTransformation)
 * [VariadicSplitTransformation](@ref openvino_docs_IE_DG_lpt_VariadicSplitTransformation)
 
-Let's explore some main transformations on example model. Original model:
+Let's explore some main transformations on the example model. Original model:
 
 ![Original model](img/step3_original.png)
 
@@ -40,10 +40,10 @@ Result model after main transformations:
 
 ![Original model](img/step3_transformed.png)
 
-Changes in example model after main transformation:
+Changes in the example model after main transformation:
 * All `FakeQuantize` operations (`fakeQuantize1`, `fakeQuantize2` and `fakeQuantize3`) were decomposed:
    - original `FakeQuantize` operations were replaced with new operations with other output intervals and output port precision,
    - dequantization operations.
-* Dequantization operations were 'moved' via precision preserved (`concat1` and `concat2`) and quantized operations (`convolution2`) 
+* Dequantization operations were moved via precision preserved (`concat1` and `concat2`) and quantized (`convolution2`) operations. 
 
-> Note, left branch (branch #1) doesn't required per-tensor quantization. As result, `fakeQuantize1` output interval is [0, 255]. But quantized `convolution2` required per-tensor quantization on the right branch (branch #2). As result, all connected `FakeQuantize` interval operations (`fakeQuantize1` and `fakeQuantize2`) are aligned to have per-tensor quantization after concatenation (`concat2`) operation. 
+> **Note:** the left branch (branch #1) does not require per-tensor quantization. As a result, the `fakeQuantize1`output interval is [0, 255]. But quantized `convolution2` requires per-tensor quantization on the right branch (branch #2). Then all connected `FakeQuantize` interval operations (`fakeQuantize1` and `fakeQuantize2`) are aligned to have per-tensor quantization after the concatenation (`concat2`) operation.

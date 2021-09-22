@@ -1,4 +1,4 @@
-# OpenVINO™ Low Precision Transformations: attributes {#openvino_docs_IE_DG_lpt_attributes}
+# OpenVINO™ Low Precision Transformations: Attributes {#openvino_docs_IE_DG_lpt_attributes}
 
 ## Introduction
 
@@ -12,19 +12,19 @@
 | [QuantizationAlignment](@ref openvino_docs_IE_DG_lpt_QuantizationAlignment)         | Quantization alignment | Yes      | Yes     |
 
 > `Target` attribute group defines attribute usage during model transformation for the best performance:
->  - `Precision` - the attribute is used to define the most optimal output port precision.
->  - `Quantization interval` - the attribute is used to define quantization interval.
->  - `Quantization alignment` - the attribute is used to define quantization alignment: per-channel or per-tensor quantization.
+>  - `Precision` - the attribute defines the most optimal output port precision.
+>  - `Quantization interval` - the attribute defines quantization interval.
+>  - `Quantization alignment` - the attribute defines quantization alignment: per-channel or per-tensor quantization.
 >
-> `Required` attribute group defines if attribute usage is required to get optimal model during transformation or not:
->  - `Yes` - the attribute is used in low precision optimization which is used by all OpenVINO plugins.
->  - `No` - the attribute is used in specific OpenVINO plugin.
+> `Required` attribute group defines if attribute usage is required to get an optimal model during transformation:
+>  - `Yes` - the attribute is used by all OpenVINO plugins for low-precision optimization.
+>  - `No` - the attribute is used in a specific OpenVINO plugin.
 >
-> `Mutable` attribute group defines if transformation can update existing attribute or not:
->  - `Yes` - the attribute can be updated by the next transformations in pipeline. But attribute update order is still important.
->  - `No` - existing attribute can not be updated by the next transformation. Previous handled transformation has optimized model in accordance with current value.
+> `Mutable` attribute group defines if transformation can update an existing attribute:
+>  - `Yes` - the attribute can be updated by the next transformations in the pipeline. But attribute update order is still important.
+>  - `No` - existing attribute can not be updated by the next transformation. Previous handled transformation has optimized a model according to the current value.
 
-`FakeQuantize` decomposition is mandatory part of low precision transformations. Attributes which are used during decomposition are mandatory. Optional attributes are required for some operations only.
+`FakeQuantize` decomposition is a mandatory part of low precision transformations. Attributes used during decomposition are mandatory. Optional attributes are required only for certain operations.
 
 Attributes usage by transformations:
 
@@ -37,4 +37,4 @@ Attributes usage by transformations:
 | IntervalsAlignment        | AlignQuantizationIntervals                        | FakeQuantizeDecompositionTransformation                                                                                           |
 | QuantizationAlignment     | AlignQuantizationParameters                       | FakeQuantizeDecompositionTransformation                                                                                           |
 
-> Note, please, the same type attribute instances can be created in different transformations. This approach is result of transformation single-responsibility principle. For example `Precision` attribute instances are created in `MarkupCanBeQuantized` and `MarkupPrecisions` transformations but the creation reason is different.
+> **Note:** the same type of attribute instances can be created in different transformations. This approach is the result of the transformation single-responsibility principle. For example, `Precision` attribute instances are created in `MarkupCanBeQuantized` and `MarkupPrecisions` transformations, but the reasons for their creation are different.

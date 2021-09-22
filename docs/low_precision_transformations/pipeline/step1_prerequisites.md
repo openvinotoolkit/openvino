@@ -1,6 +1,6 @@
-# OpenVINO™ LPT: step #1. Prerequisites transformations {#openvino_docs_IE_DG_lpt_step1_prerequisites}
+# OpenVINO™ LPT: Step #1. Prerequisites Transformations {#openvino_docs_IE_DG_lpt_step1_prerequisites}
 
-Prerequisites transformations are optional. The goal is prepare a model before to run other low precision transformations. Transformations don't operate with dequantization operations, don't update precisions. Transformations:
+Prerequisites transformations are optional. The transformations prepare a model before running other low precision transformations. The transformations do not operate with dequantization operations or update precisions. Prerequisites transformations include:
 * [PullReshapeThroughDequantization](@ref openvino_docs_IE_DG_lpt_PullReshapeThroughDequantization)
 * [PullTransposeThroughDequantization](@ref openvino_docs_IE_DG_lpt_PullTransposeThroughDequantization)
 * [LinOpSequenceFusion](@ref openvino_docs_IE_DG_lpt_LinOpSequenceFusion)
