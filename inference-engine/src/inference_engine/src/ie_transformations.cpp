@@ -27,7 +27,8 @@ void InferenceEngine::lowLatency2(InferenceEngine::CNNNetwork& network, bool use
 }
 
 INFERENCE_ENGINE_API_CPP(void)
-InferenceEngine::makeStateful(InferenceEngine::CNNNetwork& network, std::vector<std::pair<std::string, std::string>>& in_out_names) {
+InferenceEngine::makeStateful(InferenceEngine::CNNNetwork& network,
+                              std::vector<std::pair<std::string, std::string>>& in_out_names) {
     auto function = network.getFunction();
     ngraph::pass::Manager manager;
     manager.register_pass<ov::pass::MakeStateful>(
