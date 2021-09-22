@@ -36,7 +36,6 @@ public:
     enum class ColorConversion : int { NV12_TO_RGB = 0, NV12_TO_BGR = 1 };
 
 protected:
-
     ConvertColorNV12Base() = default;
 
     /// \brief Constructs a conversion operation from input image in NV12 format
@@ -59,12 +58,9 @@ protected:
     /// channel
     ///
     /// \param format       Conversion format.
-    ConvertColorNV12Base(const Output<Node>& arg_y,
-                         const Output<Node>& arg_uv,
-                         ColorConversion format);
+    ConvertColorNV12Base(const Output<Node>& arg_y, const Output<Node>& arg_uv, ColorConversion format);
 
 public:
-
     OPENVINO_RTTI_DECLARATION;
 
     void validate_and_infer_types() override;

@@ -11,9 +11,11 @@ namespace op {
 namespace v8 {
 /// \brief Color conversion operation from NV12 to RGB format.
 ///    Input:
-///        - Input NV12 image can be represented in a two ways:
-///            a) Single plane (as it is in the file): NV12 height dimension is 1.5x bigger than image height. 'C' dimension shall be 1
-///            b) Two separate planes (used this way in many physical video sources): Y and UV. In this case
+///        - Input NV12 image can be represented in two ways:
+///            a) Single plane (as it is in the file): NV12 height dimension is 1.5x bigger than image height. 'C'
+///               dimension shall be 1.
+///            b) Two separate planes (used this way in many physical video sources): Y and UV. In
+///               this case
 ///               b1) Y plane has height same as image height. 'C' dimension equals to 1
 ///               b2) UV plane has dimensions: 'H' = image_h / 2; 'W' = image_w / 2; 'C' = 2.
 ///        - Supported element types: u8, f32.
