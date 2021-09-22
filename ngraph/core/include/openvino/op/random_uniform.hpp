@@ -12,7 +12,7 @@ namespace v8 {
 /// \brief Tensor RandomUniform operation.
 class OPENVINO_API RandomUniform : public Op {
 public:
-    OPENVINO_OP("RandomUniform", "opset8", op::Op);
+    OPENVINO_OP("RandomUniform", "opset8");
 
     RandomUniform() = default;
 
