@@ -32,8 +32,6 @@ else()
     endif()
 endif()
 
-message("AUTPUUUUUUUUUT  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-
 set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
 add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
