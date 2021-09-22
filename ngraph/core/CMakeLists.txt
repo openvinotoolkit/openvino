@@ -40,7 +40,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph library")
 endif()
 
-target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference ngraph::shape_inference openvino::util)
+target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference ov::shape_inference openvino::util)
 
 ie_mark_target_as_cc(ngraph)
 
