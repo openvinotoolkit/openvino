@@ -399,6 +399,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                   _lo.get_optimization_attributes().bs_fs_yx_bsv16_fsv16_network)) && node.get_primitive()->groups == 1)
                 return true;
 
+            if (node.get_output_layout().format == format::bs_fs_yx_bsv32_fsv32 || _lo.is_format_optimized(node, format::bs_fs_yx_bsv32_fsv32))
+                return true;
+
+            if (node.get_output_layout().format == format::bs_fs_yx_bsv32_fsv16 || _lo.is_format_optimized(node, format::bs_fs_yx_bsv32_fsv16))
+                return true;
+
             auto in_dt = node.get_dependency(0).get_output_layout().data_type;
 
             // TODO: check if that's enough for correct work
@@ -476,7 +482,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto pooling_supports_fusings = [](pooling_node& node) -> bool {
-            auto pooling_mode = node.as<pooling>().get_primitive()->mode;
+            auto pooling_mode = node.get_primitive()->mode;
 
             if (pooling_mode != cldnn::pooling_mode::max_with_argmax)
                 return true;

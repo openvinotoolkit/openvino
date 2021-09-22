@@ -128,32 +128,6 @@ StatusCode InferenceEngineException::getStatus() const {
 IE_SUPPRESS_DEPRECATED_END
 
 //
-// ie_parameter.hpp
-//
-
-Parameter::~Parameter() {
-    clear();
-}
-
-#ifdef __ANDROID__
-Parameter::Any::~Any() {}
-
-template struct Parameter::RealData<int>;
-template struct Parameter::RealData<bool>;
-template struct Parameter::RealData<float>;
-template struct Parameter::RealData<double>;
-template struct Parameter::RealData<uint32_t>;
-template struct Parameter::RealData<std::string>;
-template struct Parameter::RealData<unsigned long>;
-template struct Parameter::RealData<std::vector<int>>;
-template struct Parameter::RealData<std::vector<std::string>>;
-template struct Parameter::RealData<std::vector<unsigned long>>;
-template struct Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
-template struct Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
-template struct Parameter::RealData<Blob::Ptr>;
-#endif
-
-//
 // ie_blob.h
 //
 
@@ -178,3 +152,37 @@ template class INFERENCE_ENGINE_API_CLASS(TBlob<bool>);
 template class INFERENCE_ENGINE_API_CLASS(TBlob<char>);
 
 }  // namespace InferenceEngine
+
+namespace ov {
+
+namespace runtime {
+
+//
+// openvino/runtime/parameter.hpp
+//
+
+Parameter::~Parameter() {
+    clear();
+}
+
+#ifdef __ANDROID__
+Parameter::Any::~Any() {}
+
+template struct Parameter::RealData<InferenceEngine::Blob::Ptr>;
+template struct Parameter::RealData<int>;
+template struct Parameter::RealData<bool>;
+template struct Parameter::RealData<float>;
+template struct Parameter::RealData<double>;
+template struct Parameter::RealData<uint32_t>;
+template struct Parameter::RealData<std::string>;
+template struct Parameter::RealData<unsigned long>;
+template struct Parameter::RealData<std::vector<int>>;
+template struct Parameter::RealData<std::vector<std::string>>;
+template struct Parameter::RealData<std::vector<unsigned long>>;
+template struct Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
+template struct Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
+#endif
+
+}  // namespace runtime
+
+}  // namespace ov
