@@ -15,6 +15,10 @@ namespace low_precision {
 /**
  * @ingroup ie_transformation_common_api
  * @brief PadTransformation propagates dequantization operations through Pad operation.
+ *
+ * For more details about the transformation, refer to
+ * [PadTransformation](@ref openvino_docs_IE_DG_lpt_PadTransformation) page
+ * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API PadTransformation : public LayerTransformation {
 public:

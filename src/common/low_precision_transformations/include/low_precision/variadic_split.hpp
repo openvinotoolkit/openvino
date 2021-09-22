@@ -16,6 +16,10 @@ namespace low_precision {
 /**
  * @ingroup ie_transformation_common_api
  * @brief VariadicSplitTransformation propagates dequantization operations through VariadicSplit operation.
+ *
+ * For more details about the transformation, refer to
+ * [VariadicSplitTransformation](@ref openvino_docs_IE_DG_lpt_VariadicSplitTransformation) page
+ * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API VariadicSplitTransformation : public SplitTransformation {
 public:

@@ -14,6 +14,10 @@ namespace low_precision {
 /**
  * @ingroup ie_transformation_common_api
  * @brief SubtractTransformation propagates dequantization operations through Subtract operation.
+ *
+ * For more details about the transformation, refer to
+ * [SubtractTransformation](@ref openvino_docs_IE_DG_lpt_SubtractTransformation) page
+ * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API SubtractTransformation : public LayerTransformation {
 public:

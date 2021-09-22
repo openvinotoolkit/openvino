@@ -13,6 +13,10 @@ namespace low_precision {
 /**
  * @ingroup ie_transformation_common_api
  * @brief InterpolateTransformation propagates dequantization operations through Interpolate operation.
+ *
+ * For more details about the transformation, refer to
+ * [InterpolateTransformation](@ref openvino_docs_IE_DG_lpt_InterpolateTransformation) page
+ * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API InterpolateTransformation : public LayerTransformation {
 public:

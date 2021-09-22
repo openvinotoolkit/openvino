@@ -14,6 +14,10 @@ namespace low_precision {
 /**
  * @ingroup ie_transformation_common_api
  * @brief UnsqueezeTransformation propagates dequantization operations through Unsqueeze operation.
+ *
+ * For more details about the transformation, refer to
+ * [UnsqueezeTransformation](@ref openvino_docs_IE_DG_lpt_UnsqueezeTransformation) page
+ * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API UnsqueezeTransformation : public LayerTransformation {
 public:

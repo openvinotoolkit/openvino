@@ -30,6 +30,10 @@ class PropagateToInput;
  * @ingroup ie_transformation_common_api
  * @brief PropagateToInput transformation propagates AttributeType shared value attribute instances
  * from parent output ports to consumers input ports.
+ *
+ * For more details about the transformation, refer to
+ * [PropagateToInput](@ref openvino_docs_IE_DG_lpt_PropagateToInput) page
+ * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType>
 class ngraph::pass::low_precision::PropagateToInput : public ngraph::pass::MatcherPass {

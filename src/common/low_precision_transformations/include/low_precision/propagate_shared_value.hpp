@@ -31,6 +31,10 @@ class LP_TRANSFORMATIONS_API PropagateSharedValue;
  * @ingroup ie_transformation_common_api
  * @brief PropagateSharedValue transformation propagates shared value AttributeType attribute instances
  * through precision preserved operations.
+ *
+ * For more details about the transformation, refer to
+ * [PropagateSharedValue](@ref openvino_docs_IE_DG_lpt_PropagateSharedValue) page
+ * in the Inference Engine Developer Guide.
  */
 template <class AttributeType>
 class ngraph::pass::low_precision::PropagateSharedValue : public ngraph::pass::FunctionPass {

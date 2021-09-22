@@ -16,6 +16,10 @@ namespace low_precision {
 /**
  * @ingroup ie_transformation_common_api
  * @brief FakeQuantizeTransformation fuses dequantization operations into FakeQuantize operation.
+ *
+ * For more details about the transformation, refer to
+ * [FakeQuantizeTransformation](@ref openvino_docs_IE_DG_lpt_FakeQuantizeTransformation) page
+ * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API FakeQuantizeTransformation : public LayerTransformation {
 public:

@@ -15,6 +15,10 @@ namespace low_precision {
 /**
  * @ingroup ie_transformation_common_api
  * @brief ReluTransformation propagates dequantization operations through Relu operation.
+ *
+ * For more details about the transformation, refer to
+ * [ReluTransformation](@ref openvino_docs_IE_DG_lpt_ReluTransformation) page
+ * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ReluTransformation : public LayerTransformation {
 public:

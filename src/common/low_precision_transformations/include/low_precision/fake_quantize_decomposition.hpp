@@ -17,6 +17,10 @@ namespace low_precision {
  * @ingroup ie_transformation_common_api
  * @brief FakeQuantizeDecompositionTransformation decomposes FakeQuantize operations to quantize
  * (FakeQuantize with changes output intervals and low precision output type) and dequantize operations.
+ *
+ * For more details about the transformation, refer to
+ * [FakeQuantizeDecompositionTransformation](@ref openvino_docs_IE_DG_lpt_FakeQuantizeDecompositionTransformation) page
+ * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API FakeQuantizeDecompositionTransformation : public LayerTransformation {
 public:

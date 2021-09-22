@@ -53,6 +53,9 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief IntervalsAlignmentAttribute defines subgraph with the same quantization intervals alignment.
  * FakeQuantize operations are included. The attribute is used by quantization operations.
+ *
+ * For more details about the attribute, refer to
+ * [IntervalsAlignmentAttribute](@ref openvino_docs_IE_DG_lpt_IntervalsAlignment) page in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedAttribute<IntervalsAlignmentSharedValue> {
 public:

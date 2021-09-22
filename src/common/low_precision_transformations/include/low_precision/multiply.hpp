@@ -14,6 +14,10 @@ namespace low_precision {
 /**
  * @ingroup ie_transformation_common_api
  * @brief MultiplyTransformation propagates dequantization operations through Multiply operation.
+ *
+ * For more details about the transformation, refer to
+ * [MultiplyTransformation](@ref openvino_docs_IE_DG_lpt_MultiplyTransformation) page
+ * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API MultiplyTransformation : public EltwiseBaseTransformation {
 public:

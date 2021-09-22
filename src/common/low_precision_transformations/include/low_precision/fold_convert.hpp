@@ -15,6 +15,10 @@ namespace low_precision {
 /**
  * @ingroup ie_transformation_common_api
  * @brief FoldConvertTransformation evaluates Convert operation on Subtract constant subgraph.
+ *
+ * For more details about the transformation, refer to
+ * [FoldConvertTransformation](@ref openvino_docs_IE_DG_lpt_FoldConvertTransformation) page
+ * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API FoldConvertTransformation : public LayerTransformation {
 public:

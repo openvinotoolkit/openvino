@@ -29,6 +29,10 @@ class UpdateSharedPrecisionPreserved;
  * @ingroup ie_transformation_common_api
  * @brief UpdateSharedPrecisionPreserved transformation updates shared AttributeType attribute instance value to true
  * for precision preserved operations if ExpectedAttributeType exist.
+ *
+ * For more details about the transformation, refer to
+ * [UpdateSharedPrecisionPreserved](@ref openvino_docs_IE_DG_lpt_UpdateSharedPrecisionPreserved) page
+ * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType, typename ExpectedAttributeType = AttributeType>
 class ngraph::pass::low_precision::UpdateSharedPrecisionPreserved : public ngraph::pass::MatcherPass {

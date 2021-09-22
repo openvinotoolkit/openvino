@@ -18,6 +18,9 @@ namespace ngraph {
  * @ingroup ie_transformation_common_api
  * @brief AvgPoolPrecisionPreservedAttribute is utility attribute which is used only during `AvgPool` operation precision
  * preserved property definition.
+ *
+ * For more details about the attribute, refer to
+ * [AvgPoolPrecisionPreservedAttribute](@ref openvino_docs_IE_DG_lpt_AvgPoolPrecisionPreserved) page in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
 public:

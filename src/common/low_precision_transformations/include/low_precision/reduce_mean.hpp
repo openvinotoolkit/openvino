@@ -17,6 +17,10 @@ namespace low_precision {
 /**
  * @ingroup ie_transformation_common_api
  * @brief ReduceMeanTransformation propagates dequantization operations through ReduceMean operation.
+ *
+ * For more details about the transformation, refer to
+ * [ReduceMeanTransformation](@ref openvino_docs_IE_DG_lpt_ReduceMeanTransformation) page
+ * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ReduceMeanTransformation : public ReduceBaseTransformation {
 public:
