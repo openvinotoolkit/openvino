@@ -7,7 +7,11 @@ project (pyngraph)
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage QUIET)
     find_package(OpenVINO REQUIRED)
+    set(NGRAPH_LIBRARIES OpenVINO)
+    message("diiiiiir pyngraph in ${NGRAPH_LIBRARIES}")
 endif()
+
+message("diiiiiir pyngraph out ${NGRAPH_LIBRARIES}")
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
@@ -25,6 +29,8 @@ if(OpenVINO_SOURCE_DIR)
     set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
     set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 endif()
+
+message("AUTPUUUUUUUUUT PYYYYYYYYYYY  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 
 # compile options
 

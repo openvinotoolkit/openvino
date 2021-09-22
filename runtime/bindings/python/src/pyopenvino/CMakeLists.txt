@@ -3,15 +3,17 @@
 
 project (pyopenvino)
 
-if(DEFINED IE_MAIN_SOURCE_DIR)
+if(DEFINED OpenVINO_SOURCE_DIR)
     set(InferenceEngine_LIBRARIES inference_engine)
-    set(NGRAPH_LIBRARIES ngraph)
+    set(NGRAPH_LIBRARIES OpenVINO)
 else()
     find_package(InferenceEngineDeveloperPackage REQUIRED)
-    find_package(ngraph QUIET)
+    find_package(OpenVINO QUIET)
     set(InferenceEngine_LIBRARIES IE::inference_engine)
-    set(NGRAPH_LIBRARIES ngraph)
+    set(NGRAPH_LIBRARIES OpenVINO)
 endif()
+
+message("diiiiiir ${NGRAPH_LIBRARIES}")
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
@@ -34,7 +36,7 @@ file(GLOB_RECURSE SOURCES *.cpp)
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${NGRAPH_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} openvino::core)
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
