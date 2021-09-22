@@ -38,9 +38,6 @@ ie_add_plugin(NAME ${TARGET_NAME}
 # Enable support of CC for the plugin
 ie_mark_target_as_cc(${TARGET_NAME})
 
-# saving rpath to GNA shared library be used by CI
-log_rpath_from_dir(GNA ${libGNA_LIBRARIES_BASE_PATH})
-
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_legacy inference_engine_transformations
         Threads::Threads libGNA)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
