@@ -179,7 +179,7 @@ TEST(TransformationTests, replace_transpose_with_reshape) {
         auto transpose = make_shared<op::v1::Transpose>((multiout ? A1->output(0) : A1), perm);
         auto transpose1 = make_shared<op::v0::Abs>(transpose);
         auto baseline_f = make_shared<Function>(transpose1, ParameterVector{param});
-        auto optimized_f = clone_function(*baseline_f);
+        auto optimized_f = ngraph::clone_function(*baseline_f);
 
         pass::Manager pass_manager;
         pass_manager.register_pass<pass::Validate>();

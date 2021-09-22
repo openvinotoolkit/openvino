@@ -22,8 +22,6 @@ public:
     std::shared_ptr<ngraph::Function> fnPtr;
 protected:
     void SetUp() override;
-
-    void TearDown() override;
 };
 
 }  // namespace ExecutionGraphTests
