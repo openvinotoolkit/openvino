@@ -149,8 +149,6 @@ def main():
         requirements = [
             omz_path / "tools" / "downloader" / "requirements.in",
             args.mo_tool.parent / "requirements.txt",
-            Path(abs_path("../scripts/")) / "requirements.txt",
-            # args.mo_tool.parent / "requirements_dev.txt",
             omz_path / "tools" / "downloader" / "requirements-caffe2.in",
             omz_path / "tools" / "downloader" / "requirements-pytorch.in"
         ]
