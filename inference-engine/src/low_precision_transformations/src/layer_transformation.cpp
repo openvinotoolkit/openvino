@@ -202,7 +202,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     const float zeroThreshold = 1.e-6f;
     const float quantizationIntervalAsymmetryThreshold = 0.002f;
 
-    const float asymmetricIntervalSideRatio256 = -128.f / 127.f;
+    float asymmetricIntervalSideRatio = -static_cast<float>(quantizationLevels) / (quantizationLevels - 2.f);
     bool hasNegative = false;
     bool signedPrecision = true;
     bool unsignedPrecision = true;
@@ -217,7 +217,8 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
             hasNegative = true;
 
             if (outputHighValues[i] != 0.f) {
-                const float expectedRatio = quantizationLevels == 256 ? asymmetricIntervalSideRatio256 : -1.f;
+                const float expectedRatio = (quantizationLevels == 256 || quantizationLevels == 65536 || quantizationLevels == 4294967296) ?
+                                            asymmetricIntervalSideRatio : -1.f;
                 const float actualRatio = outputLowValues[i] / outputHighValues[i];
                 const float actual = std::fabs((actualRatio - expectedRatio) / std::min(actualRatio, expectedRatio));
                 if (actual > quantizationIntervalAsymmetryThreshold) {
@@ -262,17 +263,44 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
 //
 //    THROW_TRANSFORMATION_EXCEPTION << "unexpected interval";
 
+    element::Type resultPrecision = element::undefined;
     if (!hasZeroPoint) {
         if (signedPrecision && (!unsignedPrecision)) {
-            return LayerTransformation::PrecisionDetails(element::i8, hasNegative, hasZeroPoint);
+            switch (quantizationLevels) {
+                case 256:
+                case 255:
+                    resultPrecision = element::i8;
+                    break;
+                case 65536:
+                case 65535:
+                    resultPrecision = element::i16;
+                    break;
+                case static_cast<size_t>(4294967296):
+                case 4294967295:
+                    resultPrecision = element::i32;
+                    break;
+            }
         }
 
         if ((!signedPrecision) && unsignedPrecision) {
-            return LayerTransformation::PrecisionDetails(element::u8, hasNegative, hasZeroPoint);
+            switch (quantizationLevels) {
+                case 256:
+                case 255:
+                    resultPrecision = element::u8;
+                    break;
+                case 65536:
+                case 65535:
+                    resultPrecision = element::u16;
+                    break;
+                case static_cast<size_t>(4294967296):
+                case 4294967295:
+                    resultPrecision = element::u32;
+                    break;
+            }
         }
     }
 
-    return LayerTransformation::PrecisionDetails(element::undefined, hasNegative, hasZeroPoint);
+    return LayerTransformation::PrecisionDetails(resultPrecision, hasNegative, hasZeroPoint);
 }
 
 LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(const QuantizationDetails& quantizationDetails) {
@@ -296,6 +324,22 @@ DataPrecision LayerTransformation::getDataPrecision(
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     printDequantizationInfo(layer);
 #endif
+    std::vector<element::Type> resultPrecisions = precisions;
+    std::vector<element::Type> FQPrecisions;
+    switch (quantizationDetails.levels) {
+        case 255:
+        case 256:
+            FQPrecisions = {element::u8, element::i8};
+            break;
+        case 65535:
+        case 65536:
+            FQPrecisions = {element::u16, element::i16};
+            break;
+        case 4294967295:
+        case static_cast<size_t>(4294967296):
+            FQPrecisions = {element::u32, element::i32};
+    }
+    resultPrecisions = NetworkHelper::precisionIntersection(precisions, FQPrecisions);
     PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
 
     if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
