@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ir_frontend/model.hpp"
-
-#include <pugixml.hpp>
-
 #include <xml_parse_utils.h>
+
 #include <ie_ngraph_utils.hpp>
 #include <ir_deserializer.hpp>
-#include <rt_info_deserializer.hpp>
-#include <utils.hpp>
-
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/framework_node.hpp>
+#include <pugixml.hpp>
+#include <rt_info_deserializer.hpp>
 #include <transformations/rt_info/attributes.hpp>
+#include <utils.hpp>
+
+#include "ir_frontend/model.hpp"
 
 using namespace ov;
 
@@ -43,7 +42,7 @@ XmlDeserializer::IoMap XmlDeserializer::updated_io_map(const pugi::xml_node& nod
 }
 
 std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> XmlDeserializer::parseInputDescription(
-        const pugi::xml_node& node) {
+    const pugi::xml_node& node) {
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> inputs;
     const auto up_io_map = updated_io_map(node);
 
@@ -90,9 +89,9 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> Xml
                     const auto output_index = up_io_map.outputs.at(from_layer);
 
                     inputs.push_back(
-                            std::make_shared<ngraph::op::util::SubGraphOp::MergedInputDescription>(ti_input_index,
-                                                                                                   input_index,
-                                                                                                   output_index));
+                        std::make_shared<ngraph::op::util::SubGraphOp::MergedInputDescription>(ti_input_index,
+                                                                                               input_index,
+                                                                                               output_index));
 
                     is_back_edge_exist = true;
                     break;
@@ -105,8 +104,8 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> Xml
                 const auto input_index = up_io_map.inputs.at(body_parameter_index);
 
                 inputs.push_back(
-                        std::make_shared<ngraph::op::util::SubGraphOp::InvariantInputDescription>(ti_input_index,
-                                                                                                  input_index));
+                    std::make_shared<ngraph::op::util::SubGraphOp::InvariantInputDescription>(ti_input_index,
+                                                                                              input_index));
             }
         }
     }
@@ -114,7 +113,7 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> Xml
 }
 
 std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> XmlDeserializer::parseOutputDescription(
-        const pugi::xml_node& node) {
+    const pugi::xml_node& node) {
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> outputs;
     const auto up_io_map = updated_io_map(node);
 
@@ -216,14 +215,14 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
     // for TensorIterator look for 'port_map' as 'data' does not exist
     if (m_node.child("port_map")) {
         if (auto a = ngraph::as_type<
-                     ngraph::AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(
+                ngraph::AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(
                 &adapter)) {
             a->set(parseInputDescription(m_node));
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                            std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+                       std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
             a->set(parseOutputDescription(m_node));
         } else if (auto a =
-                ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
+                       ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
             a->set(parsePurposeAttribute(m_node));
         }
     }
@@ -251,7 +250,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             return;
         static_cast<ngraph::Strides&>(*a) = ngraph::Strides(shape);
 #ifdef __APPLE__
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
         std::vector<size_t> result;
         if (!getParameters<size_t>(m_node.child("data"), name, result))
             return;
@@ -288,11 +287,11 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             return;
         if (!m_variables.count(variable_id)) {
             m_variables[variable_id] = std::make_shared<ngraph::Variable>(
-                    ngraph::VariableInfo{ngraph::PartialShape::dynamic(), ngraph::element::dynamic, variable_id});
+                ngraph::VariableInfo{ngraph::PartialShape::dynamic(), ngraph::element::dynamic, variable_id});
         }
         a->set(m_variables[variable_id]);
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-            &adapter)) {
+                   &adapter)) {
         std::string value;
         pugi::xml_node dn = m_node.child("data");
         auto type = XMLParseUtils::GetStrAttr(m_node, "type");
@@ -327,7 +326,10 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
 
             char* data = m_weights->get_ptr<char>() + offset;
             auto buffer =
-            std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(data, size, m_weights);
+                std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+                    data,
+                    size,
+                    m_weights);
             a->set(buffer);
         }
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
@@ -522,15 +524,15 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
         port.portId = XMLParseUtils::GetIntAttr(parentNode, "id");
 
         FOREACH_CHILD (node, parentNode, "dim") {
-        int64_t dim = 0;
-        const pugi::char_t* dimVal = node.child_value();
-        std::stringstream ss(dimVal);
-        if (!(ss >> dim) || dim < -1) {
-            IE_THROW() << "dimension (" << dimVal << ") in node " << node.name()
-                       << " must be greater or equal to -1: at offset " << node.offset_debug();
+            int64_t dim = 0;
+            const pugi::char_t* dimVal = node.child_value();
+            std::stringstream ss(dimVal);
+            if (!(ss >> dim) || dim < -1) {
+                IE_THROW() << "dimension (" << dimVal << ") in node " << node.name()
+                           << " must be greater or equal to -1: at offset " << node.offset_debug();
+            }
+            port.dims.push_back(dim);
         }
-        port.dims.push_back(dim);
-    }
 
         ngraph::element::Type type(ngraph::element::Type_t::undefined);
         // Input port hasn't precision
@@ -598,14 +600,14 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
 
     // Try to create operation from loaded opsets
     static const std::unordered_set<std::string> experimental_ops_added_to_opset = {
-            "ExperimentalDetectronDetectionOutput",
-            "ExperimentalDetectronGenerateProposalsSingleImage",
-            "ExperimentalDetectronPriorGridGenerator",
-            "ExperimentalDetectronROIFeatureExtractor",
-            "ExperimentalDetectronTopKROIs",
-            "GRUCell",
-            "RNNCell",
-            "Proposal"};
+        "ExperimentalDetectronDetectionOutput",
+        "ExperimentalDetectronGenerateProposalsSingleImage",
+        "ExperimentalDetectronPriorGridGenerator",
+        "ExperimentalDetectronROIFeatureExtractor",
+        "ExperimentalDetectronTopKROIs",
+        "GRUCell",
+        "RNNCell",
+        "Proposal"};
 
     if (experimental_ops_added_to_opset.count(params.type) &&
         (params.version == "experimental" || params.version == "extension")) {
@@ -685,9 +687,10 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
     }
 
     ov::pass::Attributes attrs_factory;
-    auto set_runtime_info = [&attrs_factory](RTMap & rt_info, const pugi::xml_node & rt_attrs) {
-        if (!rt_attrs) return;
-        for (const auto & item : rt_attrs.attributes()) {
+    auto set_runtime_info = [&attrs_factory](RTMap& rt_info, const pugi::xml_node& rt_attrs) {
+        if (!rt_attrs)
+            return;
+        for (const auto& item : rt_attrs.attributes()) {
             // TODO: use or no attribute version??? 0 - by default
             if (auto attr = attrs_factory.create(item.name(), 0)) {
                 RTInfoDeserializer attribute_visitor(item.value());

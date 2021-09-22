@@ -4,17 +4,16 @@
 
 #pragma once
 
+#include <ir_frontend/utility.hpp>
 #include <istream>
 #include <memory>
-
-#include <utils.hpp>
-#include <ir_frontend/utility.hpp>
 #include <ngraph/ngraph.hpp>
+#include <utils.hpp>
 
 namespace ov {
 class RTInfoDeserializer : public ngraph::AttributeVisitor {
 public:
-    explicit RTInfoDeserializer(const std::string & value) : m_value(value) {}
+    explicit RTInfoDeserializer(const std::string& value) : m_value(value) {}
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
         value.set(m_value);
@@ -73,7 +72,8 @@ public:
         str_to_container(m_value, value);
         adapter.set(value);
     }
+
 private:
     std::string m_value;
 };
-}
+}  // namespace ov

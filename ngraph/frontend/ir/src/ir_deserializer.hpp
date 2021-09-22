@@ -4,15 +4,14 @@
 
 #pragma once
 
+#include <xml_parse_utils.h>
+
+#include <ie_ngraph_utils.hpp>
 #include <istream>
 #include <memory>
-
-#include <pugixml.hpp>
-#include <xml_parse_utils.h>
-#include <ie_ngraph_utils.hpp>
-#include <utils.hpp>
-
 #include <ngraph/ngraph.hpp>
+#include <pugixml.hpp>
+#include <utils.hpp>
 
 namespace ov {
 struct GenericLayerParams {
@@ -58,10 +57,10 @@ public:
                              const ov::Weights& weights,
                              const std::unordered_map<std::string, ngraph::OpSet>& opsets,
                              std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables)
-            : m_node(node),
-              m_weights(weights),
-              m_opsets(opsets),
-              m_variables(variables) {}
+        : m_node(node),
+          m_weights(weights),
+          m_opsets(opsets),
+          m_variables(variables) {}
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
         std::string val;
@@ -147,12 +146,12 @@ private:
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> parseInputDescription(
-            const pugi::xml_node& node);
+        const pugi::xml_node& node);
     /// \brief Traverses port_map in order to create vector of OutputDescription shared_ptrs.
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> parseOutputDescription(
-            const pugi::xml_node& node);
+        const pugi::xml_node& node);
 
     // TODO consider to call only once per layer/TI-Loop node
     IoMap updated_io_map(const pugi::xml_node& node);
@@ -188,4 +187,4 @@ private:
 
     bool m_use_framework_node{false};
 };
-} // namespace ov
+}  // namespace ov

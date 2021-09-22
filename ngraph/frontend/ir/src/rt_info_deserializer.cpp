@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <pugixml.hpp>
-
-#include <rt_info_deserializer.hpp>
 #include <ir_frontend/utility.hpp>
-
+#include <pugixml.hpp>
+#include <rt_info_deserializer.hpp>
 #include <transformations/rt_info/attributes.hpp>
 
 using namespace ov;

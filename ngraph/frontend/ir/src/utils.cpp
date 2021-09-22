@@ -5,11 +5,11 @@
 #include "utils.hpp"
 
 namespace ov {
-void operator>>(const std::stringstream &in, ngraph::element::Type &type) {
+void operator>>(const std::stringstream& in, ngraph::element::Type& type) {
     type = InferenceEngine::details::convertPrecision(ngraph::trim(in.str()));
 }
 
-bool getStrAttribute(const pugi::xml_node &node, const std::string &name, std::string &value) {
+bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
     if (!node)
         return false;
 
@@ -19,4 +19,4 @@ bool getStrAttribute(const pugi::xml_node &node, const std::string &name, std::s
     value = std::string(attr.value());
     return true;
 }
-}
+}  // namespace ov

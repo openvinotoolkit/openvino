@@ -4,12 +4,12 @@
 
 #include "ir_frontend/model.hpp"
 
-#include <pugixml.hpp>
 #include <xml_parse_utils.h>
 
+#include <ir_deserializer.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/framework_node.hpp>
-#include <ir_deserializer.hpp>
+#include <pugixml.hpp>
 
 using namespace ngraph;
 using namespace InferenceEngine;
