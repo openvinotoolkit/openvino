@@ -10,7 +10,7 @@ from _pyngraph import VariantInt, VariantString
 
 import ngraph as ng
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, PartialShape, Shape, Type, Layout
+from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
@@ -473,10 +473,10 @@ def test_node_version():
 
 
 def test_layout():
-    layout = Layout("NCWH")
-    layout2 = Layout("NCWH")
-    scalar = Layout.scalar()
-    scalar2 = Layout.scalar()
+    layout = ng.Layout("NCWH")
+    layout2 = ng.Layout("NCWH")
+    scalar = ng.Layout.scalar()
+    scalar2 = ng.Layout.scalar()
 
     assert layout == layout2
     assert layout != scalar
@@ -501,7 +501,7 @@ def test_layout():
     assert layout.get_index_by_name("W") == 2
     assert layout.get_index_by_name("H") == 3
 
-    layout = Layout("NC?")
+    layout = ng.Layout("NC?")
     assert layout.to_string() == "[N,C,?]"
     assert layout.has_name("N")
     assert layout.has_name("C")
@@ -511,7 +511,7 @@ def test_layout():
     assert layout.get_index_by_name("N") == 0
     assert layout.get_index_by_name("C") == 1
 
-    layout = Layout("N...C")
+    layout = ng.Layout("N...C")
     assert layout.to_string() == "[N,...,C]"
     assert layout.has_name("N")
     assert not(layout.has_name("W"))
@@ -519,7 +519,7 @@ def test_layout():
     assert not(layout.has_name("D"))
     assert layout.has_name("C")
 
-    layout = Layout()
+    layout = ng.Layout()
     assert layout.to_string() == "[...]"
     assert not(layout.has_name("W"))
     assert not(layout.has_name("W"))
