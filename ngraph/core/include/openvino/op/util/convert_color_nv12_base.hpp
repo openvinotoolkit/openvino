@@ -69,13 +69,14 @@ public:
 
     void validate_and_infer_types() override;
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
     bool has_evaluate() const override;
 
 protected:
     ColorConversion m_format = ColorConversion::NV12_TO_RGB;
-    bool m_single_tensor = true;
 };
 }  // namespace util
 }  // namespace op

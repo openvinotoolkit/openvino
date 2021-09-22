@@ -20,10 +20,10 @@ const std::vector<ngraph::element::Type> inTypes = {
 const auto testCase_values = ::testing::Combine(
     ::testing::ValuesIn(inShapes_nhwc),
     ::testing::ValuesIn(inTypes),
-    ::testing::Values(true, false),
-    ::testing::Values(true, false),
+    ::testing::Bool(),
+    ::testing::Bool(),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColotNV12, ConvertColorNV12LayerTest, testCase_values, ConvertColorNV12LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12, ConvertColorNV12LayerTest, testCase_values, ConvertColorNV12LayerTest::getTestCaseName);

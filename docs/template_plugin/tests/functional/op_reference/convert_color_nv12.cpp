@@ -190,7 +190,7 @@ INSTANTIATE_TEST_SUITE_P(
                                           0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff},
                     Shape{3, 2, 2, 3},
                     "batch2x2")),
-                    ::testing::Values(true, false),
-                    ::testing::Values(true, false)
+                    ::testing::Bool(),
+                    ::testing::Bool()
 ),
     ReferenceConvertColorNV12LayerTest::getTestCaseName);

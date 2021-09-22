@@ -20,21 +20,22 @@ OPENVINO_RTTI_DEFINITION(ov::op::util::ConvertColorNV12Base, "ConvertColorNV12Ba
 
 ov::op::util::ConvertColorNV12Base::ConvertColorNV12Base(const Output<Node>& arg, ColorConversion format)
     : Op({arg}),
-      m_format(format),
-      m_single_tensor(true) {}
+      m_format(format) {}
 
 ov::op::util::ConvertColorNV12Base::ConvertColorNV12Base(const Output<Node>& arg_y,
                                                          const Output<Node>& arg_uv,
                                                          ColorConversion format)
     : Op({arg_y, arg_uv}),
-      m_format(format),
-      m_single_tensor(false) {
+      m_format(format) {
     constructor_validate_and_infer_types();
 }
 
 void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v8_Convert_NV12_Base_validate_and_infer_types);
 
+    NODE_VALIDATION_CHECK(this, get_input_size() == 1 || get_input_size() == 2,
+                          "NV12 conversion shall have one or 2 inputs, but it is ", get_input_size());
+    auto single_plane = get_input_size() == 1;
     auto y_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           y_type == element::u8 || y_type == element::f32,
@@ -56,7 +57,7 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
         out_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 3};
     }
     out_shape[C_DIM] = 3;  // 3 is number of channels (R, G, B)
-    if (m_single_tensor) {
+    if (single_plane) {
         if (shape_y.rank().is_static() && shape_y[H_DIM].is_static()) {
             NODE_VALIDATION_CHECK(this,
                                   shape_y[H_DIM].get_length() % 3 == 0,
@@ -191,11 +192,18 @@ bool evaluate_nv12_convert(const ov::HostTensorVector& input_values,
 
 }  // namespace color_convert_nv12_op
 
+bool ov::op::util::ConvertColorNV12Base::visit_attributes(AttributeVisitor& visitor) {
+    return true;
+}
+
 bool ov::op::util::ConvertColorNV12Base::evaluate(const HostTensorVector& output_values,
                                                   const HostTensorVector& input_values) const {
     NGRAPH_OP_SCOPE(v0_ConvertColorNV12_evaluate);
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(output_values, 1));
-    return color_convert_nv12_op::evaluate_nv12_convert(input_values, output_values[0], m_single_tensor, m_format);
+    NODE_VALIDATION_CHECK(this, get_input_size() == 1 || get_input_size() == 2,
+                          "NV12 conversion shall have one or 2 inputs, but it is ", get_input_size());
+    auto single_plane = get_input_size() == 1;
+    return color_convert_nv12_op::evaluate_nv12_convert(input_values, output_values[0], single_plane, m_format);
 }
 
 bool ov::op::util::ConvertColorNV12Base::has_evaluate() const {
