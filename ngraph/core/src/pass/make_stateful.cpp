@@ -68,7 +68,7 @@ bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f
     return true;
 }
 
-ov::pass::MakeStateful::InOutPairs ov::pass::MakeStateful::findInputsOutputsByName(
+ov::pass::MakeStateful::InOutPairs ov::pass::MakeStateful::find_param_results_by_names(
     const shared_ptr<ngraph::Function>& func,
     const vector<std::pair<std::string, std::string>>& param_res_names) {
     InOutPairs pairs_to_replace;

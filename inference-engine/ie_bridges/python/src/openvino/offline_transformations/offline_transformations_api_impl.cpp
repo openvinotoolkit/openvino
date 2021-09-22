@@ -38,7 +38,7 @@ void ApplyMakeStatefulTransformation(InferenceEnginePython::IENetwork network,
                                      std::vector<std::pair<std::string, std::string>>& in_out_names) {
     ngraph::pass::Manager manager;
     manager.register_pass<ov::pass::MakeStateful>(
-        ov::pass::MakeStateful::findInputsOutputsByName(network.actual->getFunction(), in_out_names));
+        ov::pass::MakeStateful::find_param_results_by_names(network.actual->getFunction(), in_out_names));
     manager.run_passes(network.actual->getFunction());
 }
 

@@ -32,6 +32,6 @@ InferenceEngine::makeStateful(InferenceEngine::CNNNetwork& network,
     auto function = network.getFunction();
     ngraph::pass::Manager manager;
     manager.register_pass<ov::pass::MakeStateful>(
-        ov::pass::MakeStateful::findInputsOutputsByName(function, in_out_names));
+        ov::pass::MakeStateful::find_param_results_by_names(function, in_out_names));
     manager.run_passes(function);
 }
