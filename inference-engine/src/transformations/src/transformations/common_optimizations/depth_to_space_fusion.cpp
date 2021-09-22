@@ -22,116 +22,116 @@ namespace {
 
 enum class SHAPEORTRANS { NEITHER = -1, RESHAPE, TRANSPOSE };
 
-class axis_data {
+class AxisData {
 public:
-    axis_data(int32_t idx = -1, size_t axis_len = 0, int32_t origin = -1)
-        : m_order_idx(idx),
-          m_axis_length(axis_len),
-          m_origin_order(origin) {}
-    axis_data(const axis_data&) = default;
+    AxisData(int32_t idx = -1, size_t axisLen = 0, int32_t origin = -1)
+        : mOrderidx(idx),
+          mAxisLength(axisLen),
+          mOriginOrder(origin) {}
+    AxisData(const AxisData&) = default;
 
-    const int32_t m_order_idx;
-    const size_t m_axis_length;
-    const int32_t m_origin_order;
+    const int32_t mOrderidx;
+    const size_t mAxisLength;
+    const int32_t mOriginOrder;
 };
 
 class axis {
 public:
-    axis(axis_data& data) : m_vec(std::vector<axis_data>{data}) {}
-    axis(std::vector<axis_data>& vec) : m_vec(vec) {}
+    axis(AxisData& data) : mVec(std::vector<AxisData>{data}) {}
+    axis(std::vector<AxisData>& vec) : mVec(vec) {}
 
-    const size_t get_axis_size() const {
-        return m_vec.size();
+    const size_t GetAxisSize() const {
+        return mVec.size();
     }
-    const int32_t get_axis_order(int32_t idx = 0) const {
-        return m_vec[idx].m_order_idx;
-    }
-
-    const int32_t get_axis_original_order(int32_t idx = 0) const {
-        return m_vec[idx].m_origin_order;
+    const int32_t GetAxisOrder(int32_t idx = 0) const {
+        return mVec[idx].mOrderidx;
     }
 
-    const size_t get_axis_length(int32_t idx = 0) const {
-        return m_vec[idx].m_axis_length;
+    const int32_t GetAxisOriginalOrder(int32_t idx = 0) const {
+        return mVec[idx].mOriginOrder;
     }
 
-    const axis_data& get_axis_data(int32_t idx = 0) const {
-        return m_vec[idx];
+    const size_t getAxisLength(int32_t idx = 0) const {
+        return mVec[idx].mAxisLength;
+    }
+
+    const AxisData& GetAxisData(int32_t idx = 0) const {
+        return mVec[idx];
     }
 
 private:
-    std::vector<axis_data> m_vec;
+    std::vector<AxisData> mVec;
 };
 
-class axis_state {
+class AxisState {
 public:
-    axis_state(const ngraph::Shape& shape, size_t blk_size) : m_block_size(blk_size), m_orig_shape(shape) {
+    AxisState(const ngraph::Shape& shape, size_t blkSize) : mBlockSize(blkSize), mOrigShape(shape) {
         int32_t order_index = 0;
         for (auto indice_len : shape) {
-            auto default_axis = axis_data{order_index, indice_len, -1};
-            m_axis_vec.push_back(std::make_shared<axis>(default_axis));
+            auto default_axis = AxisData{order_index, indice_len, -1};
+            mAxisVec.push_back(std::make_shared<axis>(default_axis));
             order_index++;
         }
     }
 
-    bool transpose(const ov::AxisVector& axises);
-    bool reshape(const ngraph::Shape& before, const ngraph::Shape& after);
-    bool check_fusion(uint8_t& is_depth_first) const;
+    bool Transpose(const ov::AxisVector& axises);
+    bool Reshape(const ngraph::Shape& before, const ngraph::Shape& after);
+    bool CheckFusion(uint8_t& is_depth_first) const;
 
 private:
-    std::vector<std::shared_ptr<axis>> m_axis_vec;
-    const size_t m_block_size;
-    const ngraph::Shape m_orig_shape;
+    std::vector<std::shared_ptr<axis>> mAxisVec;
+    const size_t mBlockSize;
+    const ngraph::Shape mOrigShape;
 
-    bool axis_split(const std::vector<size_t>& before, const std::vector<size_t>& after);
-    bool axis_combine(const std::vector<size_t>& before, const std::vector<size_t>& after);
+    bool AxisSplit(const std::vector<size_t>& before, const std::vector<size_t>& after);
+    bool AxisCombine(const std::vector<size_t>& before, const std::vector<size_t>& after);
 };
 
-bool axis_state::transpose(const ov::AxisVector& axises) {
-    const std::vector<std::shared_ptr<axis>> axis_vec_bak{m_axis_vec};
+bool AxisState::Transpose(const ov::AxisVector& axises) {
+    const std::vector<std::shared_ptr<axis>> axis_vec_bak{mAxisVec};
     size_t idx = 0;
-    if (axises.size() != m_axis_vec.size())
+    if (axises.size() != mAxisVec.size())
         return false;
 
     for (size_t axis : axises) {
         if (idx != axis)
-            m_axis_vec[idx] = axis_vec_bak[axis];
+            mAxisVec[idx] = axis_vec_bak[axis];
 
         idx++;
     }
     return true;
 }
 
-bool axis_state::reshape(const ngraph::Shape& before, const ngraph::Shape& after) {
+bool AxisState::Reshape(const ngraph::Shape& before, const ngraph::Shape& after) {
     if (ngraph::shape_size(before) != ngraph::shape_size(after) || before.size() == after.size())
         return false;
 
     // Only support split all the block dims in one reshape.
     if (after.size() == (before.size() + before.size() - 2))
-        return axis_split(before, after);
+        return AxisSplit(before, after);
 
     // Support combine one/multi block dims one reshape.
     else if (before.size() > after.size())
-        return axis_combine(before, after);
+        return AxisCombine(before, after);
 
     return false;
 }
 
-bool axis_state::check_fusion(uint8_t& is_depth_first) const {
+bool AxisState::CheckFusion(uint8_t& is_depth_first) const {
     // Assume the dimension would be [N, C, D1, D2, ..., DK]
-    auto dim_N = m_axis_vec[0];
-    auto dim_C = m_axis_vec[1];
-    auto rank = m_orig_shape.size();
+    auto dim_N = mAxisVec[0];
+    auto dim_C = mAxisVec[1];
+    auto rank = mOrigShape.size();
     int32_t blk_idx_start = -1;
     int32_t blk_K = 0;
     // Axis of `N` should not divided.
-    if (dim_N->get_axis_size() != 1 || dim_N->get_axis_original_order(0) != -1 || dim_N->get_axis_order(0) != 0)
+    if (dim_N->GetAxisSize() != 1 || dim_N->GetAxisOriginalOrder(0) != -1 || dim_N->GetAxisOrder(0) != 0)
         return false;
     // Current `C` axis should be divided from original `C` axis;
-    if (dim_C->get_axis_size() != 1 || dim_C->get_axis_original_order(0) != 1)
+    if (dim_C->GetAxisSize() != 1 || dim_C->GetAxisOriginalOrder(0) != 1)
         return false;
 
-    auto depth_idx = dim_C->get_axis_order();
+    auto depth_idx = dim_C->GetAxisOrder();
     if (depth_idx == 0) {
         // Current `C` axis is the first dim of the dimensions which are divided from original `C`. So depth first
         // maybe.
@@ -145,24 +145,24 @@ bool axis_state::check_fusion(uint8_t& is_depth_first) const {
         return false;
     }
     // Check the [D1 * block_size, D2 * block_size, D3 * block_size, ..., DK * block_size]
-    for (size_t i = 2; i < m_axis_vec.size(); i++, blk_K++) {
-        auto ptr_node = m_axis_vec[i];
+    for (size_t i = 2; i < mAxisVec.size(); i++, blk_K++) {
+        auto ptr_node = mAxisVec[i];
         // Combination of 2 axises;
-        if (ptr_node->get_axis_size() != 2)
+        if (ptr_node->GetAxisSize() != 2)
             return false;
         // The first axis is the original `DK` axis
-        if (ptr_node->get_axis_original_order(0) != -1 || ptr_node->get_axis_order(0) != (int32_t)i ||
-            ptr_node->get_axis_length(0) != m_orig_shape[i])
+        if (ptr_node->GetAxisOriginalOrder(0) != -1 || ptr_node->GetAxisOrder(0) != (int32_t)i ||
+            ptr_node->getAxisLength(0) != mOrigShape[i])
             return false;
         // The second axis data is the divided block axis.
-        if (ptr_node->get_axis_original_order(1) != 1 || ptr_node->get_axis_order(1) != (blk_idx_start + blk_K) ||
-            ptr_node->get_axis_length(1) != m_block_size)
+        if (ptr_node->GetAxisOriginalOrder(1) != 1 || ptr_node->GetAxisOrder(1) != (blk_idx_start + blk_K) ||
+            ptr_node->getAxisLength(1) != mBlockSize)
             return false;
     }
     return true;
 }
 
-bool axis_state::axis_split(const std::vector<size_t>& before, const std::vector<size_t>& after) {
+bool AxisState::AxisSplit(const std::vector<size_t>& before, const std::vector<size_t>& after) {
     size_t index_before(0), offset(0);
     size_t block_dims_cnt = before.size() - 2;
 
@@ -176,7 +176,7 @@ bool axis_state::axis_split(const std::vector<size_t>& before, const std::vector
             std::vector<std::shared_ptr<axis>> split_vec;
 
             // The axis to be split can't be one dimension which has been split before.
-            if (m_axis_vec[index_before]->get_axis_size() != 1)
+            if (mAxisVec[index_before]->GetAxisSize() != 1)
                 return false;
 
             // Split out the (block_dims_cnt+1) axises
@@ -185,17 +185,17 @@ bool axis_state::axis_split(const std::vector<size_t>& before, const std::vector
                     return false;
 
                 res = res / after[index_before + split_out_idx];
-                auto split_axis = axis_data{(int32_t)split_out_idx,
+                auto split_axis = AxisData{(int32_t)split_out_idx,
                                             after[index_before + split_out_idx],
-                                            m_axis_vec[index_before]->get_axis_order()};
+                                            mAxisVec[index_before]->GetAxisOrder()};
                 split_vec.push_back(std::make_shared<axis>(split_axis));
             }
 
             if (res != 1)
                 return false;
 
-            m_axis_vec.insert(m_axis_vec.begin() + index_before, split_vec.begin(), split_vec.end());
-            m_axis_vec.erase(m_axis_vec.begin() + index_before + block_dims_cnt + 1);
+            mAxisVec.insert(mAxisVec.begin() + index_before, split_vec.begin(), split_vec.end());
+            mAxisVec.erase(mAxisVec.begin() + index_before + block_dims_cnt + 1);
             offset = block_dims_cnt;
         } else {
             return false;
@@ -205,17 +205,17 @@ bool axis_state::axis_split(const std::vector<size_t>& before, const std::vector
     return true;
 }
 
-bool axis_state::axis_combine(const std::vector<size_t>& before, const std::vector<size_t>& after) {
+bool AxisState::AxisCombine(const std::vector<size_t>& before, const std::vector<size_t>& after) {
     size_t idx_after(0), offset(0);
     std::vector<std::shared_ptr<axis>> vec_copy{};
 
     for (; idx_after < after.size(); idx_after++) {
         if (before[idx_after + offset] == after[idx_after]) {
-            vec_copy.push_back(m_axis_vec[idx_after + offset]);
+            vec_copy.push_back(mAxisVec[idx_after + offset]);
             continue;
         }
 
-        std::vector<axis_data> combined_axis{};
+        std::vector<AxisData> combined_axis{};
         size_t combine_idx = offset + idx_after;
         size_t res = 1;
         auto cnt = 0;
@@ -224,7 +224,7 @@ bool axis_state::axis_combine(const std::vector<size_t>& before, const std::vect
             if (cnt >= 2)
                 return false;
             res = res * before[combine_idx];
-            combined_axis.push_back(m_axis_vec[combine_idx]->get_axis_data(0));
+            combined_axis.push_back(mAxisVec[combine_idx]->GetAxisData(0));
         }
         // only res == after[idx_after];
         if (res != after[idx_after]) {
@@ -234,7 +234,7 @@ bool axis_state::axis_combine(const std::vector<size_t>& before, const std::vect
         offset = combine_idx - 1 - idx_after;
     }
     // Update the axis_vec with new.
-    m_axis_vec = vec_copy;
+    mAxisVec = vec_copy;
 
     return true;
 }
@@ -259,31 +259,31 @@ inline bool depth_to_space_fusion_check_shape(const ngraph::Shape& start,
     return true;
 }
 
-class tranfrom_param {
+class TranfromParam {
 public:
-    tranfrom_param(SHAPEORTRANS type, const ngraph::Shape& before_reshape, const ngraph::Shape& after_reshape)
-        : op_type(type),
-          before_reshape(before_reshape),
-          after_reshape(after_reshape) {}
+    TranfromParam(SHAPEORTRANS type, const ngraph::Shape& beforeReshape, const ngraph::Shape& afterReshape)
+        : mOpType(type),
+          mBeforeReshape(beforeReshape),
+          mAfterReshape(afterReshape) {}
 
-    tranfrom_param(SHAPEORTRANS type, const ov::AxisVector& trans_param) : op_type(type), trans_param(trans_param) {}
+    TranfromParam(SHAPEORTRANS type, const ov::AxisVector& transParam) : mOpType(type), mTransParam(transParam) {}
 
-    const SHAPEORTRANS op_type;
-    const ngraph::Shape before_reshape;
-    const ngraph::Shape after_reshape;
-    const ov::AxisVector trans_param;
+    const SHAPEORTRANS mOpType;
+    const ngraph::Shape mBeforeReshape;
+    const ngraph::Shape mAfterReshape;
+    const ov::AxisVector mTransParam;
 };
 
-inline void push_param(SHAPEORTRANS type, std::shared_ptr<ov::Node> node, std::vector<tranfrom_param>& param_vec) {
+inline void push_param(SHAPEORTRANS type, std::shared_ptr<ov::Node> node, std::vector<TranfromParam>& param_vec) {
     if (type == SHAPEORTRANS::RESHAPE) {
         const ngraph::Shape before_reshape = node->get_input_shape(0);
         const ngraph::Shape after_reshape = node->get_output_shape(0);
-        param_vec.push_back(tranfrom_param{type, before_reshape, after_reshape});
+        param_vec.push_back(TranfromParam{type, before_reshape, after_reshape});
     } else {
         auto const_input =
             std::dynamic_pointer_cast<ngraph::opset8::Constant>(node->input_values()[1].get_node_shared_ptr());
         const ov::AxisVector axis_vec = const_input->get_axis_vector_val();
-        param_vec.push_back(tranfrom_param{type, axis_vec});
+        param_vec.push_back(TranfromParam{type, axis_vec});
     }
 }
 
@@ -334,7 +334,7 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
         auto expected_op_type = op_type;
         ngraph::NodeVector interleaved_node_vec;
         std::size_t possible_block_size(0);
-        std::vector<tranfrom_param> interleaved_param;
+        std::vector<TranfromParam> interleaved_param;
 
         auto get_reshape_or_transpose = [&pattern_to_output](
                                             const std::shared_ptr<Node>& reshape_pattern,
@@ -394,22 +394,22 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
             !possible_block_size)
             return false;
 
-        axis_state axis_tracker{input_shape, possible_block_size};
+        AxisState axis_tracker{input_shape, possible_block_size};
 
         for (size_t i = 0; i < interleaved_param.size(); i++) {
             auto reverse_idx = interleaved_param.size() - 1 - i;
             auto element = interleaved_param[reverse_idx];
-            if (element.op_type == SHAPEORTRANS::RESHAPE) {
-                if (!axis_tracker.reshape(element.before_reshape, element.after_reshape))
+            if (element.mOpType == SHAPEORTRANS::RESHAPE) {
+                if (!axis_tracker.Reshape(element.mBeforeReshape, element.mAfterReshape))
                     return false;
             } else {
-                if (!axis_tracker.transpose(element.trans_param))
+                if (!axis_tracker.Transpose(element.mTransParam))
                     return false;
             }
         }
 
         uint8_t depth_first = 0;
-        if (!axis_tracker.check_fusion(depth_first))
+        if (!axis_tracker.CheckFusion(depth_first))
             return false;
 
         auto mode = depth_first ? ngraph::opset8::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
