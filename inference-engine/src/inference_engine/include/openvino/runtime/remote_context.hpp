@@ -13,12 +13,11 @@
 #include <memory>
 #include <string>
 
-#include "common.hpp"
-#include "details/ie_so_loader.h"
-#include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/parameter.hpp"
 
 namespace InferenceEngine {
 class RemoteBlob;
@@ -125,7 +124,7 @@ public:
      */
     std::shared_ptr<ie::RemoteBlob> create_blob(element::Type element_type,
                                                 const Shape& shape,
-                                                const ie::ParamMap& params = {});
+                                                const ParamMap& params = {});
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
@@ -136,7 +135,7 @@ public:
      * Abstract method.
      * @return A map of name/parameter elements.
      */
-    ie::ParamMap get_params() const;
+    ParamMap get_params() const;
 };
 
 }  // namespace runtime
