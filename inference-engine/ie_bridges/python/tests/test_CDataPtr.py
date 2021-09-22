@@ -61,9 +61,9 @@ def test_initialized(device):
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_is_dynamic():
-    from conftest import create_ngraph_function
+    from conftest import create_relu
     import ngraph as ng
-    function = create_ngraph_function([-1, 3, 20, 20])
+    function = create_relu([-1, 3, 20, 20])
     net = ng.function_to_cnn(function)
     ie = IECore()
     ie.register_plugin("templatePlugin", "TEMPLATE")
