@@ -72,5 +72,3 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::merge(const
 std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::init(const std::shared_ptr<ngraph::Node> & node) {
     throw ngraph_error(std::string(get_type_info().name) + " has no default initialization.");
 }
-
-constexpr DiscreteTypeInfo AttributeAdapter<std::set<std::string>>::type_info;
