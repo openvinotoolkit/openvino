@@ -18,40 +18,47 @@ using namespace opset8;
 using namespace op::util;
 
 namespace {
-string generate_variable_name(const shared_ptr<Parameter>& param, const shared_ptr<Result>& res) {
-    // todo variable name?
-    return param->get_friendly_name() + res->get_friendly_name();
+string generate_variable_name(const shared_ptr<Parameter>& param, const shared_ptr<Result>& res, uint64_t idx) {
+    return param->get_friendly_name() + res->get_friendly_name() + std::to_string(idx);
 }
 }  // namespace
 
 bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f) {
     VariableVector variables;
     SinkVector sinks;
+    uint64_t idx = 0;
     for (const auto& pair : m_pairs_to_replace) {
         const auto& param = pair.first;
         const auto& res = pair.second;
+
+        NGRAPH_CHECK(param->get_partial_shape().is_static(), "Shape of Parameter ", param->get_friendly_name(),
+                     " must be static. MakeStateful transformation doesn't support dynamic shapes.");
+
         const auto& target_inputs = param->get_output_target_inputs(0);
 
-        std::string var_name = generate_variable_name(param, res);
+        // Create Variable
+        std::string var_name = generate_variable_name(param, res, idx++);
         auto variable = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, var_name});
         variables.push_back(variable);
 
-        // create ReadValue
-        /*        auto const_zero = make_shared<Constant>(param->get_element_type(), ngraph::Shape{1}, 0);
-                auto shape_of = make_shared<ShapeOf>(param);
-
-                auto broadcast = make_shared<Broadcast>(const_zero, shape_of);*/
-        auto read_val = make_shared<ReadValue>(param, variable);
+        // Create ReadValue
+        auto const_zero = make_shared<Constant>(param->get_element_type(), param->get_shape(), 0);
+        auto read_val = make_shared<ReadValue>(const_zero, variable);
         for (const auto& target_in : target_inputs) {
             target_in.replace_source_output(read_val->output(0));
         }
         copy_runtime_info(param, read_val);
 
-        // create Assign
-        auto assign = make_shared<Assign>(res->input_value(0), variable);
-        sinks.push_back(assign);
+        // Create Assign
+        const auto& input_to_res = res->input_value(0);
+        input_to_res.remove_target_input(res->input(0));
+        auto assign = make_shared<Assign>(input_to_res, variable);
         copy_runtime_info(res, assign);
 
+        // Update Function
+        sinks.push_back(assign);
+        f->remove_result(res);
+        f->remove_parameter(param);
         assign->add_control_dependency(read_val);
     }
     f->add_variables(variables);
