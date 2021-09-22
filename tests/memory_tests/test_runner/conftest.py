@@ -37,12 +37,12 @@ sys.path.insert(0, str(UTILS_DIR))
 from path_utils import check_positive_int
 from proc_utils import cmd_exec
 from platform_utils import get_os_name, get_os_version, get_cpu_info
-from utils import metadata_from_manifest, DATABASES, DB_COLLECTIONS
+from utils import metadata_from_manifest, DATABASES, DB_COLLECTIONS, upload_data
 
 MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(MEMORY_TESTS_DIR)
 
-from test_runner.utils import upload_data, query_memory_timeline, REFS_FACTOR
+from test_runner.utils import query_memory_timeline, REFS_FACTOR
 
 
 OMZ_NUM_ATTEMPTS = 6
