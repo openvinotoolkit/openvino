@@ -26,8 +26,8 @@ struct EmbeddingSegmentsSumParams {
                                const ngraph::PartialShape& oShape,
                                const ngraph::element::Type& oType,
                                const std::vector<IT>& oValues,
-                               const std::vector<int32_t>& segment_ids,
                                const std::vector<int32_t>& indices,
+                               const std::vector<int32_t>& segment_ids,
                                const int32_t& num_segments,
                                const int32_t& default_index = -1,
                                const std::vector<float>& per_sample_weights = std::vector<float>())
@@ -87,8 +87,8 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape,
                                                     const element::Type& input_type,
-                                                    const std::vector<int32_t>& segment_ids,
                                                     const std::vector<int32_t>& indices,
+                                                    const std::vector<int32_t>& segment_ids,
                                                     const int32_t& num_segments,
                                                     const int32_t& default_index,
                                                     const std::vector<float>& per_sample_weights) {
