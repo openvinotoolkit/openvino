@@ -60,6 +60,7 @@ for super_class in [_build, _install, _develop]:
             ("jobs=", None, "Specifies the number of jobs to use with make."),
             ("cmake-args=", None, "Additional options to be passed to CMake.")
         ]
+
         def initialize_options(self):
             """Set default values for all the options that this command supports."""
             super().initialize_options()
@@ -142,14 +143,9 @@ class BuildCMakeExt(build_ext):
         build_dir = pathlib.Path(self.build_temp)
 
         extension_path = pathlib.Path(self.get_ext_fullpath(extension.name))
-        print("PAAAAAAAAAAAAAATH1", extension_path)
-        # if extension.name == "pyopenvino":
-        #     extension_path = pathlib.Path(os.path.join(extension_path.parent.absolute(), "openvino"))
-        #     print("PAAAAAAAAAAAAAATH", extension_path)
 
         os.makedirs(build_dir, exist_ok=True)
         os.makedirs(extension_path.parent.absolute(), exist_ok=True)
-        print("PAAAAAAAAAAAAAATH ", extension_path.parent.absolute())
 
         # If OpenVINO_DIR is set, try to build Python only,
         # otherwise build from scratch using OpenVINO root
@@ -162,9 +158,8 @@ class BuildCMakeExt(build_ext):
         self.announce("Configuring cmake project", level=3)
         ext_args = self.cmake_args.split() if self.cmake_args else []
         self.spawn(["cmake", "-S" + root_dir, "-B" + self.build_temp,
-                    f"-DInferenceEngineDeveloperPackage_DIR={os.path.join(OPENVINO_ROOT_DIR, 'build')}",
                     f"-DCMAKE_BUILD_TYPE={self.config}",
-                    f"-DPYTHON_EXECUTABLE={sys.executable}",
+                    f"-DInferenceEngine_DIR={os.path.join(OPENVINO_ROOT_DIR, 'build')}",
                     "-DENABLE_PYTHON=ON",
                     "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
 
@@ -175,8 +170,7 @@ class BuildCMakeExt(build_ext):
 
         self.announce("Moving built python module to " + str(extension_path), level=3)
         pyds = list(glob.iglob(f"{bin_dir}/**/{extension.name}*{sysconfig.get_config_var('EXT_SUFFIX')}",
-                                                                                                    recursive=True))
-        print("COOOOPYYYY", bin_dir, pyds, sysconfig.get_config_var('EXT_SUFFIX'))
+                               recursive=True))
         for name in pyds:
             self.announce("copy " + os.path.join(name), level=3)
             shutil.copy(name, extension_path)
@@ -227,7 +221,7 @@ setup(
     url="https://github.com/openvinotoolkit/openvino",
     license="License :: OSI Approved :: Apache Software License",
     ext_modules=[CMakeExtension(name="_pyngraph"), CMakeExtension(name="pyopenvino")],
-    package_dir={"" : "src/compatibility", "openvino": "src/openvino"},
+    package_dir={"": "src/compatibility", "openvino": "src/openvino"},
     packages=packages,
     install_requires=requirements,
     data_files=data_files,

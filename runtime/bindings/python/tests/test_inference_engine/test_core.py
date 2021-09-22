@@ -19,6 +19,7 @@ test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 
+
 def test_blobs():
     input_shape = [1, 3, 4, 4]
     input_data_float32 = (np.random.rand(*input_shape) - 0.5).astype(np.float32)
@@ -37,19 +38,20 @@ def test_blobs():
 
     assert np.all(np.equal(input_blob_i16.buffer, input_data_int16))
 
+
 @pytest.mark.skip(reason="Fix")
 def test_ie_core_class():
     input_shape = [1, 3, 4, 4]
     param = ng.parameter(input_shape, np.float32, name="parameter")
     relu = ng.relu(param, name="relu")
-    func = Function([relu], [param], 'test')
+    func = Function([relu], [param], "test")
     func.get_ordered_ops()[2].friendly_name = "friendly"
 
     cnn_network = ov.IENetwork(func)
 
     ie_core = ov.Core()
-    ie_core.set_config({}, device_name='CPU')
-    executable_network = ie_core.load_network(cnn_network, 'CPU', {})
+    ie_core.set_config({}, device_name="CPU")
+    executable_network = ie_core.load_network(cnn_network, "CPU", {})
 
     td = TensorDesc("FP32", input_shape, "NCHW")
 
@@ -62,10 +64,10 @@ def test_ie_core_class():
 
     input_blob = Blob(td, input_data)
 
-    request.set_input({'parameter': input_blob})
+    request.set_input({"parameter": input_blob})
     request.infer()
 
-    result = request.get_blob('relu').buffer
+    result = request.get_blob("relu").buffer
 
     assert np.allclose(result, expected_output)
 
@@ -115,7 +117,7 @@ def test_read_network_as_path():
     net = ie_core.read_network(model=Path(test_net_xml), weights=Path(test_net_bin))
     assert isinstance(net, ov.IENetwork)
 
-    net = ie_core.read_network(model=test_net_xml,weights=Path(test_net_bin))
+    net = ie_core.read_network(model=test_net_xml, weights=Path(test_net_bin))
     assert isinstance(net, ov.IENetwork)
 
     net = ie_core.read_network(model=Path(test_net_xml))
@@ -136,9 +138,9 @@ def test_read_network_from_onnx_as_path():
 
 def test_read_net_from_buffer():
     ie_core = ov.Core()
-    with open(test_net_bin, 'rb') as f:
+    with open(test_net_bin, "rb") as f:
         bin = f.read()
-    with open(model_path()[0], 'rb') as f:
+    with open(model_path()[0], "rb") as f:
         xml = f.read()
     net = ie_core.read_network(model=xml, weights=bin)
     assert isinstance(net, ov.IENetwork)
@@ -146,9 +148,9 @@ def test_read_net_from_buffer():
 
 def test_net_from_buffer_valid():
     ie_core = ov.Core()
-    with open(test_net_bin, 'rb') as f:
+    with open(test_net_bin, "rb") as f:
         bin = f.read()
-    with open(model_path()[0], 'rb') as f:
+    with open(model_path()[0], "rb") as f:
         xml = f.read()
     net = ie_core.read_network(model=xml, weights=bin)
     ref_net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
@@ -176,8 +178,9 @@ def test_get_version(device):
 def test_available_devices(device):
     ie = ov.Core()
     devices = ie.available_devices
-    assert device in devices, "Current device '{}' is not listed in available devices '{}'".format(device,
-                                                                                                   ', '.join(devices))
+    assert device in devices, f"Current device '{device}' is not listed in " \
+                              f"available devices '{', '.join(devices)}'"
+
 
 def test_get_config():
     ie = ov.Core()
@@ -192,9 +195,8 @@ def test_get_metric_list_of_str():
     param = ie.get_metric("CPU", "OPTIMIZATION_CAPABILITIES")
     assert isinstance(param, list), "Parameter value for 'OPTIMIZATION_CAPABILITIES' " \
                                     f"metric must be a list but {type(param)} is returned"
-    assert all(isinstance(v, str) for v in param), "Not all of the parameter values for 'OPTIMIZATION_CAPABILITIES' " \
-                                                   "metric are strings!"
-
+    assert all(isinstance(v, str) for v in param), \
+        "Not all of the parameter values for 'OPTIMIZATION_CAPABILITIES' metric are strings!"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
@@ -204,8 +206,8 @@ def test_get_metric_tuple_of_two_ints():
     param = ie.get_metric("CPU", "RANGE_FOR_STREAMS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_STREAMS' " \
                                      f"metric must be tuple but {type(param)} is returned"
-    assert all(isinstance(v, int) for v in param), "Not all of the parameter values for 'RANGE_FOR_STREAMS' " \
-                                                   "metric are integers!"
+    assert all(isinstance(v, int) for v in param), \
+        "Not all of the parameter values for 'RANGE_FOR_STREAMS' metric are integers!"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
@@ -246,7 +248,8 @@ def test_register_plugin():
     ie.register_plugin("MKLDNNPlugin", "BLA")
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.load_network(net, "BLA")
-    assert isinstance(exec_net, ov.ExecutableNetwork), "Cannot load the network to the registered plugin with name 'BLA'"
+    assert isinstance(exec_net, ov.ExecutableNetwork), \
+        "Cannot load the network to the registered plugin with name 'BLA'"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
@@ -262,17 +265,18 @@ def test_register_plugins():
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.load_network(net, "CUSTOM")
     assert isinstance(exec_net,
-                      ov.ExecutableNetwork), "Cannot load the network to the registered plugin with name 'CUSTOM' " \
-                                          "registred in the XML file"
+                      ov.ExecutableNetwork), "Cannot load the network to " \
+                                             "the registered plugin with name 'CUSTOM' " \
+                                             "registred in the XML file"
 
 
 def test_create_IENetwork_from_nGraph():
     element_type = Type.f32
     param = Parameter(element_type, Shape([1, 3, 22, 22]))
     relu = ng.relu(param)
-    func = Function([relu], [param], 'test')
+    func = Function([relu], [param], "test")
     cnnNetwork = ov.IENetwork(func)
-    assert cnnNetwork != None
+    assert cnnNetwork is not None
     func2 = cnnNetwork.get_function()
-    assert func2 != None
+    assert func2 is not None
     assert len(func2.get_ops()) == 3

@@ -13,7 +13,7 @@ from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import get_version
 from openvino.pyopenvino import StatusCode
 from openvino.pyopenvino import InferQueue
-from openvino.pyopenvino import InferRequest # TODO: move to ie_api?
+from openvino.pyopenvino import InferRequest  # TODO: move to ie_api?
 from openvino.pyopenvino import Blob
 from openvino.pyopenvino import PreProcessInfo
 from openvino.pyopenvino import MeanVariant
@@ -28,6 +28,7 @@ from openvino.ie_api import get_result
 from openvino.ie_api import blob_from_file
 
 # Patching for Blob class
+# flake8: noqa: F811
 Blob = BlobWrapper
 # Patching ExecutableNetwork
 ExecutableNetwork.infer = infer
