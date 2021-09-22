@@ -12,7 +12,7 @@
 
 namespace ov {
 
-class OPENVINO_API BaseOpExtension : public Extension {
+class OPENVINO_EXTENSION_API BaseOpExtension : public Extension {
     virtual ov::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) = 0;
 };
 
