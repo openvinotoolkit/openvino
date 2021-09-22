@@ -17,7 +17,7 @@ class OPENVINO_API BaseOpExtension : public Extension {
 };
 
 template <class T>
-class OPENVINO_API OpExtension : public BaseOpExtension {
+class OPENVINO_EXTENSION_API OpExtension : public BaseOpExtension {
     ngraph::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) override {
         std::shared_ptr<ngraph::Node> node = std::make_shared<T>();
 

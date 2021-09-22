@@ -13,9 +13,11 @@
 
 // Use extern "C" in order to avoid issues with mangling
 #if defined(_WIN32) && defined(IMPLEMENT_OPENVINO_EXTENSION_API)
-#    define OPENVINO_EXTENSION_API extern "C" __declspec(dllexport)
+#    define OPENVINO_EXTENSION_C_API extern "C" __declspec(dllexport)
+#    define OPENVINO_EXTENSION_API   __declspec(dllexport)
 #else
-#    define OPENVINO_EXTENSION_API extern "C" OPENVINO_API
+#    define OPENVINO_EXTENSION_C_API extern "C" OPENVINO_API
+#    define OPENVINO_EXTENSION_API   OPENVINO_API
 #endif
 
 namespace ov {
@@ -31,7 +33,7 @@ OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::string& path)
 OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::wstring& path);
 #endif
 
-OPENVINO_EXTENSION_API
+OPENVINO_EXTENSION_C_API
 void create_extensions(std::vector<Extension::Ptr>&);
 
 OPENVINO_API Extension* _get_extension(Extension*);
@@ -65,7 +67,7 @@ typename std::shared_ptr<T> as_type_ptr(const Extension::Ptr& ext) {
 }  // namespace ov
 
 #define OPENVINO_CREATE_EXTENSIONS(extensions)                             \
-    OPENVINO_EXTENSION_API                                                 \
+    OPENVINO_EXTENSION_C_API                                               \
     void ::ov::create_extensions(std::vector<::ov::Extension::Ptr>& ext) { \
         ext = extensions;                                                  \
     }
