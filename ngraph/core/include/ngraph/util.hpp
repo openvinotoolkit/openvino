@@ -190,6 +190,7 @@ NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void ngraph_free(void*);
 
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 size_t round_up(size_t size, size_t alignment);
 
 NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")

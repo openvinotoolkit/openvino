@@ -26,11 +26,11 @@ Supported Python* versions:
 ## Set Up the Environment
 
 To configure the environment for the Inference Engine Python\* API, run:
- * On Ubuntu\* 18.04 or 20.04: `source <INSTALL_DIR>/bin/setupvars.sh .`
- * On CentOS\* 7.4: `source <INSTALL_DIR>/bin/setupvars.sh .`
- * On macOS\* 10.x: `source <INSTALL_DIR>/bin/setupvars.sh .`
- * On Raspbian\* 9,: `source <INSTALL_DIR>/bin/setupvars.sh .`
- * On Windows\* 10: `call <INSTALL_DIR>\bin\setupvars.bat`
+ * On Ubuntu\* 18.04 or 20.04: `source <INSTALL_DIR>/setupvars.sh .`
+ * On CentOS\* 7.4: `source <INSTALL_DIR>/setupvars.sh .`
+ * On macOS\* 10.x: `source <INSTALL_DIR>/setupvars.sh .`
+ * On Raspbian\* 9,: `source <INSTALL_DIR>/setupvars.sh .`
+ * On Windows\* 10: `call <INSTALL_DIR>\setupvars.bat`
 
 The script automatically detects latest installed Python\* version and configures required environment if the version is supported.
 If you want to use certain version of Python\*, set the environment variable `PYTHONPATH=<INSTALL_DIR>/python/<desired_python_version>`

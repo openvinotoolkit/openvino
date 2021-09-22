@@ -18,17 +18,18 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/check.hpp"
-#include "ngraph/deprecated.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/variant.hpp"
@@ -42,19 +43,15 @@ namespace runtime {
 class HostTensor;
 }  // namespace runtime
 
-namespace op {
-
-namespace v0 {
-class Result;
-}  // namespace v0
-}  // namespace op
-
 }  // namespace ngraph
 
 namespace ov {
 namespace op {
+namespace v0 {
+class Result;
+}  // namespace v0
 struct AutoBroadcastSpec;
-}
+}  // namespace op
 namespace pass {
 namespace pattern {
 class Matcher;
@@ -76,7 +73,7 @@ class Node;
 /// environment) for evaluating ngraph::function.
 using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 
-using ResultVector = std::vector<std::shared_ptr<ngraph::op::v0::Result>>;
+using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
 
 OPENVINO_API
 std::string node_validation_failure_loc_string(const Node* node);
@@ -322,7 +319,7 @@ public:
     const element::Type& get_element_type() const;
 
     /// Returns the shape for output i
-    const ngraph::Shape& get_output_shape(size_t i) const;
+    const Shape& get_output_shape(size_t i) const;
 
     /// Returns the partial shape for output i
     const PartialShape& get_output_partial_shape(size_t i) const;
@@ -341,7 +338,7 @@ public:
     // TODO: deprecate in favor of node->get_output_shape(0) with a suitable check in the
     // calling code, or updates to the calling code if it is making an invalid assumption of
     // only one output.
-    const ngraph::Shape& get_shape() const;
+    const Shape& get_shape() const;
 
     /// Returns the tensor for output or input i
     descriptor::Tensor& get_output_tensor(size_t i) const;
@@ -362,7 +359,7 @@ public:
 
     /// Returns the shape of input i
     // TODO: deprecate in favor of node->get_input_shape(i)
-    const ngraph::Shape& get_input_shape(size_t i) const;
+    const Shape& get_input_shape(size_t i) const;
 
     /// Returns the partial shape of input i
     // TODO: deprecate in favor of node->get_input_partial_shape(i)
@@ -523,8 +520,6 @@ using NodeTypeInfo = Node::type_info_t;
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node&);
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
 
-#define _OPENVINO_RTTI_EXPAND(X) X
-
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
 /// Should be used in the scope of class that requires type identification besides one provided by
 /// C++ RTTI.
@@ -587,8 +582,6 @@ OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
         return type_info_static;                                                          \
     }                                                                                     \
     _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)
-
-#define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
 
 /// Complementary to OPENVINO_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
 /// OPENVINO_RTTI_DECLARATION.
@@ -658,10 +651,10 @@ struct RawNodeOutput {
 
 using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
-class OPENVINO_API NodeValidationFailure : public ngraph::CheckFailure {
+class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
     NodeValidationFailure(const ngraph::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
-        : CheckFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
+        : AssertFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
 };
 }  // namespace ov
 #define NODE_VALIDATION_CHECK(node, ...) NGRAPH_CHECK_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
@@ -689,10 +682,8 @@ public:
     AttributeAdapter(std::shared_ptr<ov::Node>& value);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Node>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     std::shared_ptr<ov::Node>& m_ref;
@@ -705,10 +696,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<NodeVector>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<NodeVector>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::NodeVector& m_ref;

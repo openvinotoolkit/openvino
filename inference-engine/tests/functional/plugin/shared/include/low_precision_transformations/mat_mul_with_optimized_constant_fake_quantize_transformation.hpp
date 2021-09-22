@@ -29,7 +29,7 @@ class MatMulWithOptimizedConstantFakeQuantizeTransformation :
     public testing::WithParamInterface<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams>& obj);
 
 protected:
     void SetUp() override;

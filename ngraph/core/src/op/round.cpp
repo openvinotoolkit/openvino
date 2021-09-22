@@ -61,7 +61,7 @@ bool evaluate_round(const HostTensorPtr& arg0,
 }
 }  // namespace roundop
 
-NGRAPH_RTTI_DEFINITION(op::v5::Round, "Round", 5);
+OPENVINO_RTTI_DEFINITION(op::v5::Round, "Round", 5);
 
 op::v5::Round::Round(const Output<Node>& arg, RoundMode mode) : Op({arg}), m_mode(mode) {
     constructor_validate_and_infer_types();
@@ -113,7 +113,7 @@ bool op::v5::Round::has_evaluate() const {
     return false;
 }
 
-std::ostream& ngraph::operator<<(std::ostream& s, const op::v5::Round::RoundMode& type) {
+std::ostream& ov::operator<<(std::ostream& s, const op::v5::Round::RoundMode& type) {
     return s << as_string(type);
 }
 

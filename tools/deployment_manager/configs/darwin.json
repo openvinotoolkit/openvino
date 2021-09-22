@@ -1,0 +1,106 @@
+{
+  "version": "0.2",
+  "components": {
+    "setupvars": {
+      "mandatory" : "yes",
+      "files": [
+        "setupvars.sh"
+      ]
+    },
+    "openvino_license": {
+      "mandatory" : "yes",
+      "files": [
+        "licensing"
+      ]
+    },
+    "ie_core": {
+      "group": ["ie"],
+      "files": [
+        "runtime/lib/intel64/libinference_engine.dylib",
+        "runtime/lib/intel64/libinference_engine_transformations.dylib",
+        "runtime/lib/intel64/libinference_engine_preproc.so",
+        "runtime/lib/intel64/libinference_engine_c_api.dylib",
+        "runtime/lib/intel64/libHeteroPlugin.so",
+        "runtime/lib/intel64/libMultiDevicePlugin.so",
+        "runtime/lib/intel64/libngraph.dylib",
+        "runtime/lib/intel64/libfrontend_manager.dylib",
+        "runtime/lib/intel64/libir_ngraph_frontend.dylib",
+        "runtime/lib/intel64/libonnx_ngraph_frontend.dylib",
+        "runtime/lib/intel64/libpaddlepaddle_ngraph_frontend.dylib",
+        "runtime/lib/intel64/plugins.xml",
+        "runtime/3rdparty/tbb"
+      ]
+    },
+    "cpu": {
+      "ui_name": "Inference Engine Runtime for Intel(R) CPU",
+      "group": ["ie"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "runtime/lib/intel64/libinference_engine_lp_transformations.dylib",
+        "runtime/lib/intel64/libMKLDNNPlugin.so"
+      ]
+    },
+    "vpu": {
+      "ui_name": "Inference Engine Runtime for Intel(R) Movidius(tm) VPU",
+      "group": ["ie"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "runtime/lib/intel64/libmyriadPlugin.so",
+        "runtime/lib/intel64/libinference_engine_legacy.dylib",
+        "runtime/lib/intel64/usb-ma2x8x.mvcmd",
+        "runtime/lib/intel64/pcie-ma2x8x.mvcmd"
+      ]
+    },
+    "opencv": {
+      "ui_name": "OpenCV",
+      "group": ["opencv"],
+      "dependencies" : [],
+      "files": [
+        "opencv/version.txt",
+        "opencv/setupvars.sh",
+        "opencv/lib",
+        "opencv/bin"
+      ]
+    },
+    "python_common": {
+      "group": ["python"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "python/python3",
+        "python/requirements.txt"
+      ]
+    },
+    "python3.6": {
+      "ui_name": "OpenVINO Python API for Python3.6",
+      "group": ["python"],
+      "dependencies" : ["ie_core", "python_common"],
+      "files": [
+        "python/python3.6"
+      ]
+    },
+    "python3.7": {
+      "ui_name": "OpenVINO Python API for Python3.7",
+      "group": ["python"],
+      "dependencies" : ["ie_core", "python_common"],
+      "files": [
+        "python/python3.7"
+      ]
+    },
+    "python3.8": {
+      "ui_name": "OpenVINO Python API for Python3.8",
+      "group": ["python"],
+      "dependencies" : ["ie_core", "python_common"],
+      "files": [
+        "python/python3.8"
+      ]
+    },
+    "python3.9": {
+      "ui_name": "OpenVINO Python API for Python3.9",
+      "group": ["python"],
+      "dependencies" : ["ie_core", "python_common"],
+      "files": [
+        "python/python3.9"
+      ]
+    }
+  }
+}

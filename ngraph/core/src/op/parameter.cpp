@@ -12,9 +12,9 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Parameter, "Parameter", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Parameter, "Parameter", 0);
 
-op::Parameter::Parameter(const element::Type& element_type, const PartialShape& pshape)
+op::Parameter::Parameter(const element::Type& element_type, const ov::PartialShape& pshape)
     : m_partial_shape(pshape),
       m_element_type(element_type),
       m_is_relevant_to_shapes(false) {
@@ -46,6 +46,20 @@ bool op::Parameter::is_relevant_to_shapes() const {
 
 void op::Parameter::set_is_relevant_to_shapes(bool is_relevant) {
     m_is_relevant_to_shapes = is_relevant;
+}
+
+ov::Layout op::Parameter::get_layout() const {
+    auto it = get_output_tensor(0).get_rt_info().find("LAYOUT");
+    if (it == get_output_tensor(0).get_rt_info().end()) {
+        return ov::Layout();
+    }
+    auto layout = std::dynamic_pointer_cast<VariantWrapper<ov::Layout>>(it->second);
+    OPENVINO_ASSERT(layout, "'LAYOUT' runtime info for node is invalid, use set_layout API");
+    return layout->get();
+}
+
+void op::Parameter::set_layout(const ov::Layout& layout) {
+    get_output_tensor(0).get_rt_info()["LAYOUT"] = std::make_shared<VariantWrapper<ov::Layout>>(layout);
 }
 
 constexpr DiscreteTypeInfo ov::AttributeAdapter<ParameterVector>::type_info;

@@ -83,7 +83,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
             Shape newOperationConstantBroadcastedShape = constant->get_shape();
             // add dimensions to broadcast values
             if (newOperationConstantBroadcastedShape.size() == 2ul) {
-                newOperationConstantBroadcastedShape.push_back(dimensionsToBroadcast);
+                newOperationConstantBroadcastedShape[0] = dimensionsToBroadcast;
             } else {
                 newOperationConstantBroadcastedShape[2] = dimensionsToBroadcast;
             }

@@ -186,9 +186,9 @@ void op::v4::CTCLoss::validate_and_infer_types() {
     // set output shape
     set_output_size(1);
     if (is_batch_size_set) {
-        set_output_type(0, logits_type, Shape{batch_size});
+        set_output_type(0, logits_type, ov::Shape{batch_size});
     } else {
-        set_output_type(0, logits_type, PartialShape{Dimension::dynamic()});
+        set_output_type(0, logits_type, ov::PartialShape{Dimension::dynamic()});
     }
 }
 

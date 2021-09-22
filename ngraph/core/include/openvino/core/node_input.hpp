@@ -39,7 +39,7 @@ public:
     /// \return The element type of the input referred to by this input handle.
     const element::Type& get_element_type() const;
     /// \return The shape of the input referred to by this input handle.
-    const ngraph::Shape& get_shape() const;
+    const Shape& get_shape() const;
     /// \return The partial shape of the input referred to by this input handle.
     const PartialShape& get_partial_shape() const;
     /// \return A handle to the output that is connected to this input.
@@ -90,7 +90,7 @@ public:
     /// \return The element type of the input referred to by this input handle.
     const element::Type& get_element_type() const;
     /// \return The shape of the input referred to by this input handle.
-    const ngraph::Shape& get_shape() const;
+    const Shape& get_shape() const;
     /// \return The partial shape of the input referred to by this input handle.
     const PartialShape& get_partial_shape() const;
     /// \return A handle to the output that is connected to this input.

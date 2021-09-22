@@ -104,7 +104,7 @@ void pre_calc_for_bilinear_interpolate(
                     T hy = static_cast<T>(1) - ly, hx = static_cast<T>(1) - lx;
                     T w1 = hy * hx, w2 = hy * lx, w3 = ly * hx, w4 = ly * lx;
 
-                    // save weights and indeces
+                    // save weights and indices
                     PreCalc<T> pc;
                     pc.pos1 = y_low * width + x_low;
                     pc.pos2 = y_low * width + x_high;
@@ -175,7 +175,7 @@ void ROIAlignForward_cpu_kernel(
         // We do average (integral) pooling inside a bin
         const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w);  // e.g. = 4
 
-        // we want to precalculate indeces and weights shared by all chanels,
+        // we want to precalculate indices and weights shared by all chanels,
         // this is the key point of optimiation
         std::vector<PreCalc<T>> pre_calc(
                 roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
@@ -304,8 +304,13 @@ void reorder_rois(const float *rois, const int* ids, int* mapping, const int roi
     }
 }
 
-bool MKLDNNExperimentalDetectronROIFeatureExtractorNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNExperimentalDetectronROIFeatureExtractorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                                              std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
         if (!roiFeatureExtractor) {
             errorMessage = "Only opset6 ExperimentalDetectronROIFeatureExtractor operation is supported";
@@ -340,8 +345,8 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::initSupportedPrimitiveD
         return;
 
     std::vector<PortConfigurator> inDataConf;
-    inDataConf.reserve(getOriginalInputsNumber());
-    for (int i = 0; i < getOriginalInputsNumber(); ++i)
+    inDataConf.reserve(inputShapes.size());
+    for (int i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
@@ -352,8 +357,8 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::initSupportedPrimitiveD
 
 void MKLDNNExperimentalDetectronROIFeatureExtractorNode::execute(mkldnn::stream strm) {
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
-    const int num_rois = getParentEdgeAt(INPUT_ROIS)->getShape().getStaticDims()[0];
-    const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getShape().getStaticDims()[1];
+    const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
+    const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
     const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
     auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
@@ -379,8 +384,8 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::execute(mkldnn::stream 
         const int level_rois_num = rois_per_level[i + 1] - level_rois_offset;
         if (level_rois_num > 0) {
             auto *featuremap = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemoryPtr()->GetPtr());
-            const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getShape().getStaticDims()[2];
-            const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getShape().getStaticDims()[3];
+            const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2];
+            const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3];
             ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,
                                               featuremap,
                                               1.0f / pyramid_scales_[i],

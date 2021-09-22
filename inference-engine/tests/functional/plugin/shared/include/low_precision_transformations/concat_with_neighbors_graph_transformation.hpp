@@ -21,7 +21,7 @@ class ConcatWithNeighborsGraphTransformation :
     public testing::WithParamInterface<ConcatNeighboringGraphTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConcatNeighboringGraphTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConcatNeighboringGraphTransformationParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:
