@@ -18,6 +18,7 @@
 #include "ngraph/op/util/op_types.hpp"
 
 #include "cldnn/primitives/data.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 namespace CLDNNPlugin {
 
@@ -169,6 +170,10 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
     if (bufIter != p.blobMemCache.end()) {
         constPrimID = bufIter->second;
     } else {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << initialconstPrimID << ": constant]" << std::endl;
+        }
         cldnn::memory::ptr mem = p.GetEngine().allocate_memory(constLayout, false);
         auto& stream = p.GetEngine().get_program_stream();
         cldnn::mem_lock<char> lock{mem, stream};
@@ -199,7 +204,7 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
         } else {
             std::memcpy(&buf[0], &data[0], bufSize);
         }
-        p.AddPrimitive(cldnn::data(initialconstPrimID, mem));
+        p.AddPrimitive(cldnn::data(initialconstPrimID, mem, op->get_friendly_name()));
         p.blobMemCache[std::make_pair(data, constDims)] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }

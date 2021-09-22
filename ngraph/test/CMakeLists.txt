@@ -49,6 +49,7 @@ set(SRC
     matcher_pass.cpp
     misc.cpp
     node_input_output.cpp
+    rtti.cpp
     op.cpp
     opset.cpp
     op_eval/binary_convolution.cpp
@@ -86,6 +87,8 @@ set(SRC
     span.cpp
     specialize_function.cpp
     tensor.cpp
+    threading.cpp
+    type_info.cpp
     type_prop/abs.cpp
     type_prop/acos.cpp
     type_prop/adaptive_avg_pool.cpp
@@ -414,7 +417,6 @@ set(MULTI_TEST_SRC
     backend/api.in.cpp
     backend/asin.in.cpp
     backend/asinh.in.cpp
-    backend/atan.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
