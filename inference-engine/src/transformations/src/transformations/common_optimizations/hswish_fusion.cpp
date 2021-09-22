@@ -151,7 +151,7 @@ ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
     const auto input = ngraph::pattern::any_input();
     const auto add_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
     const auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({input, add_constant});
-    const auto clamp = ngraph::pattern::wrap_type<ngraph::op::v0::Clamp>({add});
+    const auto clamp = ngraph::pattern::wrap_type<ngraph::opset8::Clamp>({add});
     const auto mul = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({clamp, input});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
