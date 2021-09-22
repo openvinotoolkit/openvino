@@ -143,6 +143,14 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         (l2.format == format::b_fs_zyx_fsv32 && l1.format != format::b_fs_zyx_fsv32) ||
         (l1.format == format::b_fs_zyx_fsv16 && l2.format != format::b_fs_zyx_fsv16) ||
         (l2.format == format::b_fs_zyx_fsv16 && l1.format != format::b_fs_zyx_fsv16) ||
+        (l1.format == format::bs_fs_yx_bsv4_fsv4 && l2.format != format::bs_fs_yx_bsv4_fsv4) ||
+        (l2.format == format::bs_fs_yx_bsv4_fsv4 && l1.format != format::bs_fs_yx_bsv4_fsv4) ||
+        (l1.format == format::bs_fs_yx_bsv4_fsv2 && l2.format != format::bs_fs_yx_bsv4_fsv2) ||
+        (l2.format == format::bs_fs_yx_bsv4_fsv2 && l1.format != format::bs_fs_yx_bsv4_fsv2) ||
+        (l1.format == format::bs_fs_yx_bsv32_fsv16 && l2.format != format::bs_fs_yx_bsv32_fsv16) ||
+        (l2.format == format::bs_fs_yx_bsv32_fsv16 && l1.format != format::bs_fs_yx_bsv32_fsv16) ||
+        (l1.format == format::bs_fs_yx_bsv32_fsv32 && l2.format != format::bs_fs_yx_bsv32_fsv32) ||
+        (l2.format == format::bs_fs_yx_bsv32_fsv32 && l1.format != format::bs_fs_yx_bsv32_fsv32) ||
         (l1.format == format::bs_fs_yx_bsv16_fsv16 && l2.format != format::bs_fs_yx_bsv16_fsv16) ||
         (l2.format == format::bs_fs_yx_bsv16_fsv16 && l1.format != format::bs_fs_yx_bsv16_fsv16) ||
         (l1.format == format::bs_fs_zyx_bsv16_fsv16 && l2.format != format::bs_fs_zyx_bsv16_fsv16) ||
