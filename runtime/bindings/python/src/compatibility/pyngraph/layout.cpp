@@ -1,7 +1,7 @@
 #include "openvino/core/layout.hpp"
 
-#include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
+#include <pybind11/pybind11.h>
 
 #include "pyngraph/layout.hpp"
 
