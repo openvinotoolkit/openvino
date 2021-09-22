@@ -31,7 +31,9 @@ bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f
         const auto& param = pair.first;
         const auto& res = pair.second;
 
-        NGRAPH_CHECK(param->get_partial_shape().is_static(), "Shape of Parameter ", param->get_friendly_name(),
+        NGRAPH_CHECK(param->get_partial_shape().is_static(),
+                     "Shape of Parameter ",
+                     param->get_friendly_name(),
                      " must be static. MakeStateful transformation doesn't support dynamic shapes.");
 
         const auto& target_inputs = param->get_output_target_inputs(0);
