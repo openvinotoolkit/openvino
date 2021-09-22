@@ -355,7 +355,7 @@ void MKLDNNConcatNode::createPrimitive() {
             IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
                                << getName() << ".";
         }
-// DnnlBlockedMemoryDesc
+
         auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         auto& dims = getInputShapeAtPort(i).getStaticDims();
         for (size_t j = 0; j < dims.size(); j++) {
