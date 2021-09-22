@@ -415,10 +415,10 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
         auto mode = depth_first ? ngraph::opset8::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
                                 : ngraph::opset8::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
 
-        auto depth_to_space = std::make_shared<ngraph::opset8::DepthToSpace>(interleaved_begin->input_value(0),
+        auto depth_to_space = register_new_node<ngraph::opset8::DepthToSpace>(interleaved_begin->input_value(0),
                                                                              mode,
                                                                              possible_block_size);
-        depth_to_space->set_friendly_name(interleaved_begin->get_friendly_name());
+        depth_to_space->set_friendly_name(interleaved_end->get_friendly_name());
         std::reverse(interleaved_node_vec.begin(), interleaved_node_vec.end());
         ngraph::copy_runtime_info(interleaved_node_vec, depth_to_space);
         ngraph::replace_node(interleaved_end, depth_to_space);
