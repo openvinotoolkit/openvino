@@ -18,6 +18,7 @@
 #include "ngraph_ops/type_relaxed.hpp"
 #include "pugixml.hpp"
 #include "transformations/serialize.hpp"
+#include "transformations/rt_info/attributes.hpp"
 
 using namespace ngraph;
 
@@ -175,6 +176,62 @@ private:
     pugi::xml_node& m_xml_node;
 };
 
+class RTInfoSerializer : public ngraph::AttributeVisitor {
+    std::string m_value;
+
+public:
+    RTInfoSerializer() = default;
+
+    const std::string get_value() const { return m_value; }
+
+    void on_adapter(const std::string &name, ngraph::ValueAccessor<void> &adapter) override {
+        if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::set<std::string>>>(&adapter)) {
+            m_value = join(a->get());
+        } else {
+            throw ngraph_error("Unsupported attribute type for serialization: " + name);
+        }
+    }
+
+    void on_adapter(const std::string &name, ngraph::ValueAccessor<bool> &adapter) override {
+        m_value = std::to_string(adapter.get());
+    }
+
+    void on_adapter(const std::string &name, ngraph::ValueAccessor<std::string> &adapter) override {
+        m_value = adapter.get();
+    }
+
+    void on_adapter(const std::string &name, ngraph::ValueAccessor<int64_t> &adapter) override {
+        m_value = std::to_string(adapter.get());
+    }
+
+    void on_adapter(const std::string &name, ngraph::ValueAccessor<double> &adapter) override {
+        m_value = std::to_string(adapter.get());
+    }
+
+    void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<int>> &adapter) override {
+        m_value = join(adapter.get());
+    }
+
+    void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<int64_t>> &adapter) override {
+        m_value = join(adapter.get());
+    }
+
+    void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<uint64_t>> &adapter) override {
+        m_value = join(adapter.get());
+    }
+
+    void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<float>> &adapter) override {
+        m_value = join(adapter.get());
+    }
+
+    void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<std::string>> &adapter) override {
+        m_value = join(adapter.get());
+    }
+
+    void on_adapter(const std::string &name, ngraph::ValueAccessor<std::shared_ptr<Function>> &adapter) override {
+        throw ngraph_error("Function type is unsupported for rt info serialization");
+    }
+};
 } // namespace rt_info
 
 class XmlSerializer : public ngraph::AttributeVisitor {
@@ -724,6 +781,30 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
 
+        auto get_attributes_for_serialization = [](const RTMap & attributes) {
+            std::vector<std::pair<std::string, std::string>> attributes_to_serialize;
+            for (const auto &item : attributes) {
+                rt_info::RTInfoSerializer serializer;
+                if (item.second->visit_attributes(serializer)) {
+                    attributes_to_serialize.emplace_back(item.first, serializer.get_value());
+                }
+            }
+            return attributes_to_serialize;
+        };
+
+        auto append_runtime_info = [&get_attributes_for_serialization](pugi::xml_node & node, const RTMap& attributes) {
+            const auto & attrs = get_attributes_for_serialization(attributes);
+            if (attrs.empty()) {
+                return;
+            }
+            pugi::xml_node rt_node = node.append_child("rt_info");
+            for (const auto & item : attrs) {
+                rt_node.append_attribute(item.first.c_str()).set_value(item.second.c_str());
+            }
+        };
+
+        append_runtime_info(layer, node->get_rt_info());
+
         int port_id = 0;
         // <layers/input>
         if (node->get_input_size() > 0) {
@@ -748,6 +829,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                                 .set_value(std::to_string(d.get_length()).c_str());
                     }
                 }
+                append_runtime_info(port, i.get_rt_info());
             }
 
             if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
@@ -798,6 +880,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                                 .set_value(std::to_string(d.get_length()).c_str());
                     }
                 }
+                append_runtime_info(port, o.get_rt_info());
             }
             if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
                 layer.insert_move_after(output, layer.first_child());
@@ -868,9 +951,6 @@ std::string provide_bin_path(const std::string &xmlPath, const std::string &binP
 }  // namespace
 
 namespace ngraph {
-
-// ! [function_pass:serialize_cpp]
-// serialize.cpp
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
 
@@ -1014,5 +1094,4 @@ bool ngraph::pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Func
     // Return false because we didn't change nGraph Function
     return false;
 }
-// ! [function_pass:serialize_cpp]
 }  // namespace ngraph
