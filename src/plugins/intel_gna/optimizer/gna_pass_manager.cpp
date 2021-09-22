@@ -661,6 +661,12 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             auto layout = getTransposedLayout(data);
             if (data->getLayout() == layout) return;
 
+            auto current_layer = getCreatorLayer(data).lock();
+            if (LayerInfo(current_layer).isConcat()) {
+                auto concat_layer = dynamic_cast<InferenceEngine::ConcatLayer*> (current_layer.get());
+                concat_layer->_axis = GetPermuteOrder(Layout::NHWC, Layout::NCHW)[concat_layer->_axis];
+            }
+
             auto dims = data->getDims();
             auto order = dims.size() == 4 ? GetPermuteOrder(Layout::NCHW, Layout::NHWC) :
                 std::vector<int32_t>{0, 2, 1};
@@ -971,11 +977,13 @@ void InsertCopyLayerPass::run() {
 void FlattenTrivialConcatPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "FlattenTrivialConcatPass");
     // change all trivial concatenations (concatenation where output buffer is a buffer made by appending input buffers)
-    // by reshaping its inputs to 1 x total_input_size and its output to 1 x total_cocat_size and chaning the axis to 1
-    // for example if 4D concat have unaligned inputs then ConcatAlignFilters need to be used if sizes before
-    // axis are all ones then concat can be changed to 2D for example, lets say all unputs have same shape equal to:
+    // by reshaping its inputs to 1 x total_input_size and its output to 1 x total_concat_size and changing the axis to 1
+    // for example if 4D concat have unaligned inputs then ConcatAlignFilters need to be used; if sizes before concat
+    // axis are all ones then concat can be changed to 2D for example, let's say all inputs have the same shape equal to:
     // 1, 1, 5, 3 then for axis 0, 1, 2 the change will be made and inputs will be reshaped to 1, 15,
-    // but for shape 2, 1, 5, 3 only axis 0 is valid and inputs will reshape to 1, 30
+    // but for shape 2, 1, 5, 3 only axis 0 is valid and in such case inputs will be reshaped to 1, 30
+    // TODO: detection of trivial cases could be moved to one common place when all transformations are migrated to ngraph
+    // see as well
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
 
     auto getLayerByIndex = [](int idx, ConcatLayer* concatLayer) {
@@ -993,21 +1001,26 @@ void FlattenTrivialConcatPass::run() {
         if (!concatLayer) continue;
         if (concatLayer->insData.size() < 1) continue;
 
+        // Skip obvious supported cases
         auto dims_size = concatLayer->insData[0].lock()->getDims().size();
         if (dims_size < 2 || concatLayer->_axis == dims_size - 1) continue;
 
+        // Skip cases which cannot be flattened (these might be unsupported at all)
         auto axis = concatLayer->_axis;
         bool skip_layer = false;
         for (unsigned int i = 0; i < axis; i++) {
             if (concatLayer->insData[0].lock()->getDims()[i] != 1) skip_layer = true;
         }
         if (skip_layer) continue;
+
+        // Calculate total input sizes
         std::vector<size_t> total_sizes;
         for (auto& input : concatLayer->insData) {
             auto input_dims = input.lock()->getDims();
             total_sizes.push_back(std::accumulate(input_dims.begin(), input_dims.end(), size_t(1), std::multiplies<size_t>()));
         }
 
+        // Reshape concat inputs
         for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
             auto concatInput = getLayerByIndex(input_idx, concatLayer);
 
@@ -1020,6 +1033,7 @@ void FlattenTrivialConcatPass::run() {
             gnalog() << "\tInserted " << reshapeName << " between " << getCreatorLayer(concatInput).lock()->name << " and " << l->name << std::endl;
         }
 
+        // Reshape concat outputs back to the original size
         for (auto output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
             auto output = concatLayer->outData[output_idx];
             auto output_tensor_copy = TensorDesc(output->getTensorDesc());
