@@ -21,12 +21,11 @@ OPENVINO_RTTI_DEFINITION(ov::op::util::ConvertColorNV12Base, "ConvertColorNV12Ba
 ov::op::util::ConvertColorNV12Base::ConvertColorNV12Base(const Output<Node>& arg, ColorConversion format)
     : Op({arg}),
       m_format(format),
-      m_single_tensor(true) {
-}
+      m_single_tensor(true) {}
 
 ov::op::util::ConvertColorNV12Base::ConvertColorNV12Base(const Output<Node>& arg_y,
-                                               const Output<Node>& arg_uv,
-                                               ColorConversion format)
+                                                         const Output<Node>& arg_uv,
+                                                         ColorConversion format)
     : Op({arg_y, arg_uv}),
       m_format(format),
       m_single_tensor(false) {
@@ -59,8 +58,10 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
     out_shape[C_DIM] = 3;  // 3 is number of channels (R, G, B)
     if (m_single_tensor) {
         if (shape_y.rank().is_static() && shape_y[H_DIM].is_static()) {
-            NODE_VALIDATION_CHECK(this, shape_y[H_DIM].get_length() % 3 == 0,
-                                  "NV12 image height shall be divisible by 3, but it is ", shape_y[H_DIM].get_length());
+            NODE_VALIDATION_CHECK(this,
+                                  shape_y[H_DIM].get_length() % 3 == 0,
+                                  "NV12 image height shall be divisible by 3, but it is ",
+                                  shape_y[H_DIM].get_length());
             // E.g. if input shape height is 720 for NV12, then real image height is 720 * 2 / 3 = 480
             out_shape[H_DIM] = shape_y[H_DIM].get_length() * 2 / 3;
         }
@@ -80,7 +81,7 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
             // Verify that height for Y input is 2 times bigger than input height for UV
             NODE_VALIDATION_CHECK(this,
                                   shape_y[H_DIM].is_dynamic() || shape_uv[H_DIM].is_dynamic() ||
-                                  shape_y[H_DIM].get_length() == shape_uv[H_DIM].get_length() * 2,
+                                      shape_y[H_DIM].get_length() == shape_uv[H_DIM].get_length() * 2,
                                   "Y input height shall be 2 times bigger that UV input height: Y height = ",
                                   shape_y[H_DIM].get_length(),
                                   " UV height = ",
@@ -88,20 +89,19 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
             // Verify that width for Y input is 2 times bigger than input width for UV
             NODE_VALIDATION_CHECK(this,
                                   shape_y[W_DIM].is_dynamic() || shape_uv[W_DIM].is_dynamic() ||
-                                  shape_y[W_DIM].get_length() == shape_uv[W_DIM].get_length() * 2,
+                                      shape_y[W_DIM].get_length() == shape_uv[W_DIM].get_length() * 2,
                                   "Y input width shall be 2 times bigger that UV input width: Y width = ",
                                   shape_y[W_DIM].get_length(),
                                   " UV width = ",
                                   shape_uv[W_DIM].get_length());
             NODE_VALIDATION_CHECK(this,
-                                  shape_uv[C_DIM].is_dynamic() ||
-                                  shape_uv[C_DIM].get_length() == 2,
+                                  shape_uv[C_DIM].is_dynamic() || shape_uv[C_DIM].get_length() == 2,
                                   "UV channels dimension shall be either dynamic or equal to 2. Current value is ",
                                   shape_uv[C_DIM].get_length());
 
             NODE_VALIDATION_CHECK(this,
                                   shape_y[N_DIM].is_dynamic() || shape_uv[N_DIM].is_dynamic() ||
-                                  shape_y[N_DIM].get_length() == shape_uv[N_DIM].get_length(),
+                                      shape_y[N_DIM].get_length() == shape_uv[N_DIM].get_length(),
                                   "Y input batch shall be same as UV input batch: Y batch = ",
                                   shape_y[N_DIM].get_length(),
                                   " UV batch = ",
@@ -120,10 +120,14 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
             }
         }
     }
-    NODE_VALIDATION_CHECK(this, out_shape[H_DIM].is_dynamic() || out_shape[H_DIM].get_length() % 2 == 0,
-                          "Image height must be even, but it is ", out_shape[H_DIM].get_length());
-    NODE_VALIDATION_CHECK(this, out_shape[W_DIM].is_dynamic() || out_shape[W_DIM].get_length() % 2 == 0,
-                          "Image width must be even, but it is ", out_shape[W_DIM].get_length());
+    NODE_VALIDATION_CHECK(this,
+                          out_shape[H_DIM].is_dynamic() || out_shape[H_DIM].get_length() % 2 == 0,
+                          "Image height must be even, but it is ",
+                          out_shape[H_DIM].get_length());
+    NODE_VALIDATION_CHECK(this,
+                          out_shape[W_DIM].is_dynamic() || out_shape[W_DIM].get_length() % 2 == 0,
+                          "Image width must be even, but it is ",
+                          out_shape[W_DIM].get_length());
     set_output_type(0, get_input_element_type(0), out_shape);
 }
 
@@ -188,7 +192,7 @@ bool evaluate_nv12_convert(const ov::HostTensorVector& input_values,
 }  // namespace color_convert_nv12_op
 
 bool ov::op::util::ConvertColorNV12Base::evaluate(const HostTensorVector& output_values,
-                                            const HostTensorVector& input_values) const {
+                                                  const HostTensorVector& input_values) const {
     NGRAPH_OP_SCOPE(v0_ConvertColorNV12_evaluate);
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(output_values, 1));
     return color_convert_nv12_op::evaluate_nv12_convert(input_values, output_values[0], m_single_tensor, m_format);

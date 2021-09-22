@@ -13,8 +13,7 @@ ov::op::v8::NV12toBGR::NV12toBGR(const Output<Node>& arg)
     constructor_validate_and_infer_types();
 }
 
-ov::op::v8::NV12toBGR::NV12toBGR(const Output<Node>& arg_y,
-                                               const Output<Node>& arg_uv)
+ov::op::v8::NV12toBGR::NV12toBGR(const Output<Node>& arg_y, const Output<Node>& arg_uv)
     : util::ConvertColorNV12Base(arg_y, arg_uv, util::ConvertColorNV12Base::ColorConversion::NV12_TO_BGR) {
     constructor_validate_and_infer_types();
 }
