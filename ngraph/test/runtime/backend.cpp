@@ -1,20 +1,11 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
 #error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
@@ -40,15 +31,16 @@ std::string runtime::Backend::s_backend_shared_library_search_directory;
 // This finds the full path of the containing shared library
 static string find_my_pathname()
 {
-#ifdef NGRAPH_DYNAMIC_COMPONENTS_ENABLE
 #ifdef _WIN32
-    HMODULE hModule = GetModuleHandleW(L"ngraph.dll");
+    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"ngraph" SHARED_LIB_SUFFIX);
     WCHAR wpath[MAX_PATH];
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
     wstring ws(wpath);
     string path(ws.begin(), ws.end());
     replace(path.begin(), path.end(), '\\', '/');
+    NGRAPH_SUPPRESS_DEPRECATED_START
     path = file_util::get_directory(path);
+    NGRAPH_SUPPRESS_DEPRECATED_END
     path += "/";
     return path;
 #elif defined(__linux) || defined(__APPLE__)
@@ -58,14 +50,9 @@ static string find_my_pathname()
 #else
 #error "Unsupported OS"
 #endif
-#else
-    return {};
-#endif
 }
 
-runtime::Backend::~Backend()
-{
-}
+runtime::Backend::~Backend() {}
 
 std::shared_ptr<runtime::Backend> runtime::Backend::create(const string& t,
                                                            bool must_support_dynamic)

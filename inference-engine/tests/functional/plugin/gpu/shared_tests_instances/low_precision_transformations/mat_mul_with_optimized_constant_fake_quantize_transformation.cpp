@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
+    ngraph::element::f16
 };
 
 const std::vector<LayerTestsDefinitions::MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues> params = {
@@ -21,12 +22,12 @@ const std::vector<LayerTestsDefinitions::MatMulWithOptimizedConstantFakeQuantize
     },
 };
 
-const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> inputShapes = {
-    std::pair<ngraph::Shape, ngraph::Shape>({ 1, 16 }, { 10, 16 }),
-    std::pair<ngraph::Shape, ngraph::Shape>({ 1, 16 }, { 16, 10 })
+const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> inputShapes = {
+    {{ 1, 16 }, { 10, 16 }},
+    {{ 1, 16 }, { 16, 10 }}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

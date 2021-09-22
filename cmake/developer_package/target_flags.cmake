@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Target system specific flags
@@ -39,10 +39,10 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
   set(X86_64 ON)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i686.*|i386.*|x86.*|amd64.*|AMD64.*")
   set(X86 ON)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*)")
+  set(AARCH64 ON)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
   set(ARM ON)
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*)")
-  set(AARCH64 ON)
 endif()
 
 # in case of cross-compilation (or -m32) CMAKE_SYSTEM_PROCESSOR is equal to
@@ -54,4 +54,10 @@ endif()
 
 if(UNIX AND NOT APPLE)
     set(LINUX ON)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+    set(OV_COMPILER_IS_CLANG ON)
+else()
+    set(OV_COMPILER_IS_CLANG OFF)
 endif()

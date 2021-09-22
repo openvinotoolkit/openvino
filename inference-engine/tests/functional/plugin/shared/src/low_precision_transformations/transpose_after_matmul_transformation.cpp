@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,9 +21,9 @@
 
 namespace LayerTestsDefinitions {
 
-std::string TransposeAfterMatMulTransformation::getTestCaseName(testing::TestParamInfo<TransposeAfterMatMulTransformationParams> obj) {
+std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::TestParamInfo<TransposeAfterMatMulTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
@@ -39,32 +39,13 @@ std::string TransposeAfterMatMulTransformation::getTestCaseName(testing::TestPar
 
 void TransposeAfterMatMulTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
     bool transposeChannelDim;
     std::tie(precision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
 
     function = ngraph::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
-
-    validate();
-}
-
-void TransposeAfterMatMulTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::Shape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    bool perTensor;
-    bool transposeChannelDim;
-    std::tie(precision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto layer = output->get_input_node_shared_ptr(0);
-    const std::string typeName = layer->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(TransposeAfterMatMulTransformation, CompareWithRefImpl) {

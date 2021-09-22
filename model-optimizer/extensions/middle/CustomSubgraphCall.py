@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import copy
 import logging as log
@@ -20,7 +7,7 @@ import logging as log
 import numpy as np
 
 from mo.front.common.layout import nhwc_to_nchw_permute
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import shape_array, shape_insert
 from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Graph
 from mo.graph.graph import Node, add_opoutput
@@ -126,17 +113,16 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         :param shape: shape to extend.
         :return: 4D tensor.
         """
-        new_shape = int64_array(shape)
+        new_shape = shape_array(shape)
         old_shape_len = len(shape)
 
-        for x in range(
-                4 - old_shape_len):  # TODO think about proper way to add additional dimensions considering layout
-            if len(
-                    new_shape) <= 1:  # if the shape is 0D or 1D then we should add additional dimensions to batch dimension
-                new_shape = np.insert(new_shape, 0, 1)
-            #            new_shape = np.array([1, shape[0], 1, 1])
+        # TODO think about proper way to add additional dimensions considering layout
+        for x in range(4 - old_shape_len):
+            # if the shape is 0D or 1D then we should add additional dimensions to batch dimension
+            if len(new_shape) <= 1:
+                new_shape = shape_insert(new_shape, 0, 1)
             else:
-                new_shape = np.insert(new_shape, 1, 1)
+                new_shape = shape_insert(new_shape, 1, 1)
         return new_shape
 
     @staticmethod

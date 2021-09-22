@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FullyConnectedTransformation::getTestCaseName(testing::TestParamInfo<FullyConnectedTransformationParams> obj) {
+std::string FullyConnectedTransformation::getTestCaseName(const testing::TestParamInfo<FullyConnectedTransformationParams>& obj) {
     ngraph::element::Type precision;
     MatMulShapes shapes;
     std::string targetDevice;
@@ -50,23 +50,6 @@ void FullyConnectedTransformation::SetUp() {
         shapes.inputB,
         shapes.transposeA,
         shapes.transposeB);
-
-    validate();
-}
-
-void FullyConnectedTransformation::validate() {
-    ngraph::element::Type precision;
-    MatMulShapes shapes;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::tie(precision, shapes, targetDevice, params) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto scaleShift = output->get_input_node_shared_ptr(0);
-    const std::string typeName = scaleShift->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(FullyConnectedTransformation, CompareWithRefImpl) {

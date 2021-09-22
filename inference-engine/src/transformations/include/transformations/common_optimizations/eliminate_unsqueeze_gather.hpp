@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API EliminateUnsqueezeGather;
+class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -28,4 +29,16 @@ class ngraph::pass::EliminateUnsqueezeGather : public ngraph::pass::MatcherPass 
 public:
     NGRAPH_RTTI_DECLARATION;
     EliminateUnsqueezeGather();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Remove Gather -> Unsqueeze pair, if Gather takes a scalar and
+ * Unsqueeze makes it a 1D tensor
+ */
+
+class ngraph::pass::EliminateGatherUnsqueeze : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    EliminateGatherUnsqueeze();
 };

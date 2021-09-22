@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -164,7 +164,7 @@ int64_t op::NonMaxSuppressionIE3::max_boxes_output_from_input() const {
     }
 
     const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
+        ov::as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;

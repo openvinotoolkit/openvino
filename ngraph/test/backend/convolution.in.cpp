@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -41,16 +29,20 @@ static void ConvolutionTest(const std::vector<float>& inputs,
                             const Shape outputs_shape,
                             const Strides& strides,
                             const CoordinateDiff& padding,
-                            const Strides& dilations)
-{
+                            const Strides& dilations) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
 
     auto inputs_param = make_shared<op::Parameter>(element::f32, inputs_shape);
     auto filters_param = make_shared<op::Parameter>(element::f32, filter_shape);
-    auto conv = make_shared<op::v1::Convolution>(
-        inputs_param, filters_param, strides, pads_begin, pads_end, dilations, auto_pad);
+    auto conv = make_shared<op::v1::Convolution>(inputs_param,
+                                                 filters_param,
+                                                 strides,
+                                                 pads_begin,
+                                                 pads_end,
+                                                 dilations,
+                                                 auto_pad);
     auto f = make_shared<Function>(conv, ParameterVector{inputs_param, filters_param});
 
     auto test_case = test::TestCase<TestEngine>(f);
@@ -1059,17 +1051,24 @@ NGRAPH_TEST(${BACKEND_NAME}, convolution_3D_2batch_1channel)
 }
 // ----------------------  other tests ------------------------------------------
 // clang-format on
-NGRAPH_TEST(${BACKEND_NAME}, convolution_outlining)
-{
+NGRAPH_TEST(${BACKEND_NAME}, convolution_outlining) {
     Shape shape_a{1, 2, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_b{2, 2, 1, 1};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{1, 2, 2, 2};
-    auto conv1 = make_shared<op::v1::Convolution>(
-        A, B, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-    auto conv2 = make_shared<op::v1::Convolution>(
-        conv1, B, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto conv1 = make_shared<op::v1::Convolution>(A,
+                                                  B,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
+    auto conv2 = make_shared<op::v1::Convolution>(conv1,
+                                                  B,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
     auto f = make_shared<Function>(conv2, ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -1088,15 +1087,18 @@ NGRAPH_TEST(${BACKEND_NAME}, convolution_outlining)
     EXPECT_TRUE(test::all_close_f(vector<float>{expected_result}, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, convolution_simple)
-{
+NGRAPH_TEST(${BACKEND_NAME}, convolution_simple) {
     Shape shape_a{1, 2, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_b{2, 2, 1, 1};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{1, 2, 2, 2};
-    auto conv1 = make_shared<op::v1::Convolution>(
-        A, B, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto conv1 = make_shared<op::v1::Convolution>(A,
+                                                  B,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
 
     auto f = make_shared<Function>(conv1, ParameterVector{A, B});
 
@@ -1116,15 +1118,18 @@ NGRAPH_TEST(${BACKEND_NAME}, convolution_simple)
     EXPECT_TRUE(test::all_close_f(vector<float>{expected_result}, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, convolution_simple_padding)
-{
+NGRAPH_TEST(${BACKEND_NAME}, convolution_simple_padding) {
     Shape shape_a{1, 1, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_b{1, 1, 1, 1};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{1, 1, 5, 5};
-    auto conv1 = make_shared<op::v1::Convolution>(
-        A, B, Strides{1, 1}, CoordinateDiff{1, 1}, CoordinateDiff{2, 2}, Strides{1, 1});
+    auto conv1 = make_shared<op::v1::Convolution>(A,
+                                                  B,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{1, 1},
+                                                  CoordinateDiff{2, 2},
+                                                  Strides{1, 1});
 
     auto f = make_shared<Function>(conv1, ParameterVector{A, B});
 
@@ -1150,22 +1155,25 @@ NGRAPH_TEST(${BACKEND_NAME}, convolution_simple_padding)
 
 // The purpose of this test is to check if we can allow
 // data_batch_shape as a node rather than argument
-NGRAPH_TEST(${BACKEND_NAME}, dyn_convolution_backprop_data)
-{
+NGRAPH_TEST(${BACKEND_NAME}, dyn_convolution_backprop_data) {
     Shape shape_filter{6, 3, 3, 3};
     auto filters = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     Shape shape_delta{2, 6, 3, 3};
     auto deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     Shape shape_data_batch_shape{2, 3, 5, 5};
-    auto data_batch_shape =
-        make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
+    auto data_batch_shape = make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
     auto strides = Strides{1, 1};
     auto dilations = Strides{1, 1};
     auto padding_begin = CoordinateDiff{0, 0};
     auto padding_end = CoordinateDiff{0, 0};
 
-    auto conv1 = make_shared<op::v1::ConvolutionBackpropData>(
-        deltas, filters, data_batch_shape, strides, padding_begin, padding_end, dilations);
+    auto conv1 = make_shared<op::v1::ConvolutionBackpropData>(deltas,
+                                                              filters,
+                                                              data_batch_shape,
+                                                              strides,
+                                                              padding_begin,
+                                                              padding_end,
+                                                              dilations);
 
     auto f = make_shared<Function>(conv1, ParameterVector{deltas, filters, data_batch_shape});
 
@@ -1193,7 +1201,7 @@ NGRAPH_TEST(${BACKEND_NAME}, dyn_convolution_backprop_data)
     copy_data(a, delta);
     auto b = backend->create_tensor(element::f32, shape_filter);
     copy_data(b, filter);
-    auto c = backend->create_tensor(element::i64, Shape{shapes.size()}); // dynamic data batch shape
+    auto c = backend->create_tensor(element::i64, Shape{shapes.size()});  // dynamic data batch shape
     copy_data(c, shapes);
     handle->call_with_validate({result}, {a, b, c});
     EXPECT_FALSE(test::all_close_f(vector<float>{expected_result}, read_vector<float>(result)));

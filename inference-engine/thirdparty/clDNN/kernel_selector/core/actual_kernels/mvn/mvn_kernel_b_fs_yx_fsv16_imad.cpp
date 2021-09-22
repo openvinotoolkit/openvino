@@ -1,16 +1,6 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "mvn_kernel_b_fs_yx_fsv16_imad.hpp"
 #include "common/common_tools.h"
@@ -192,11 +182,12 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
     KernelData kd = KernelData::Default<mvn_params>(params, kernels_num);
 
     auto finalKernelName = GetKernelName(orgParams);
+    size_t entry_part_id = 0;
     {
         // Mean first stage
         auto cldnn_jit = GetJitConstants(orgParams, dispatchData.stage_1);
         cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MEAN_1", 1));
-        auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
+        auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, options, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[0];
         FillCLKernelData(kernel,
@@ -210,9 +201,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
                                          dispatchData.item_groups * intermidiate_bytes);
     }
@@ -220,7 +211,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         // Mean second stage
         auto cldnn_jit = GetJitConstants(orgParams, dispatchData.stage_2);
         cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MEAN_2", 1));
-        auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
+        auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, options, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[1];
         FillCLKernelData(kernel,
@@ -234,9 +225,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
                                          intermidiate_bytes);
     }
@@ -244,7 +235,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         // Variance first stage
         auto cldnn_jit = GetJitConstants(orgParams, dispatchData.stage_1);
         cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_VAR_1", 1));
-        auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
+        auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, options, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[2];
         FillCLKernelData(kernel,
@@ -258,16 +249,16 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
     }
     if (params.mvnNormalizeVariance) {
         // Variance second stage
         auto cldnn_jit = GetJitConstants(orgParams, dispatchData.stage_2);
         cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_VAR_2", 1));
-        auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
+        auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, options, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[3];
         FillCLKernelData(kernel,
@@ -281,9 +272,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          0,
                          0);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
                                          intermidiate_bytes);
     }
@@ -292,7 +283,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MAIN", 1));
         cldnn_jit.AddConstant(MakeJitConstant("PRECALC_MEAN", 1));
         cldnn_jit.AddConstant(MakeJitConstant("PRECALC_VARIANCE", params.mvnNormalizeVariance));
-        auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
+        auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, options, entry_part_id);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[kernels_num - 1];
         FillCLKernelData(kernel,
@@ -306,9 +297,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          1,
                          GetFusedPrimitiveInputsCount(params));
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         if (params.mvnNormalizeVariance) {
-            kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         }
     }
     kd.internalBufferDataType = Datatype::F32;

@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +8,7 @@
 using namespace LayerTestsDefinitions::ComparisonParams;
 
 namespace LayerTestsDefinitions {
-std::string ComparisonLayerTest::getTestCaseName(testing::TestParamInfo<ComparisonTestParams> obj) {
+std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj) {
     InputShapesTuple inputShapes;
     InferenceEngine::Precision ngInputsPrecision;
     ngraph::helpers::ComparisonTypes comparisonOpType;

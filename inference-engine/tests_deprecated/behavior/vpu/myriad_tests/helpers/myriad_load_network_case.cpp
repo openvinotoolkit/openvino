@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,8 @@ void MyriadLoadNetworkTestCase::SetUp() {
         std::cerr << "create core error";
     }
 
-    cnnNetwork = ie->ReadNetwork(FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str,
-                                 FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob);
+    cnnNetwork = ie->ReadNetwork(convReluNormPoolFcModelFP16.model_xml_str,
+                                 convReluNormPoolFcModelFP16.weights_blob);
 }
 
 void MyriadLoadNetworkTestCase::LoadNetwork() {
@@ -25,6 +25,6 @@ void MyriadLoadNetworkTestCase::LoadNetwork() {
 }
 
 bool MyriadLoadNetworkTestCase::IsDeviceAvailable(std::string device_name) {
-    auto act_devices = getDevicesList(NC_ANY_PROTOCOL, NC_ANY_PLATFORM, X_LINK_UNBOOTED);
+    auto act_devices = getDevicesList(NC_ANY_PROTOCOL, X_LINK_UNBOOTED);
     return std::find(act_devices.begin(), act_devices.end(), device_name) != act_devices.end();
 }

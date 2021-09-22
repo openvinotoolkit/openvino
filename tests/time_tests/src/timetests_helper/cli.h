@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ static const char help_message[] = "Print a usage message";
 
 /// @brief message for model argument
 static const char model_message[] =
-    "Required. Path to an .xml/.onnx/.prototxt file with a trained model or to "
+    "Required. Path to an .xml/.onnx file with a trained model or to "
     "a .blob files with a trained compiled model.";
 
 /// @brief message for target device argument

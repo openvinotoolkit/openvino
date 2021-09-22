@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/fused_op.hpp"
 
 namespace ngraph {
 namespace op {

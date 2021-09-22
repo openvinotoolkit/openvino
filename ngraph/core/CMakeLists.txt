@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
 
 add_definitions(-DIN_NGRAPH_LIBRARY)
 
@@ -51,18 +39,14 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph library")
 endif()
 
-target_link_libraries(ngraph PRIVATE openvino::conditional_compilation openvino::itt ngraph::builder ngraph::reference)
+target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util)
 
-if(NGRAPH_ADDRESS_SANITIZER)
-    message(STATUS "Enable Address Sanitizer")
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
-endif()
+ie_mark_target_as_cc(ngraph)
 
-if(NGRAPH_LIB_VERSIONING_ENABLE)
-    set_target_properties(ngraph PROPERTIES
-        VERSION ${NGRAPH_VERSION}
-        SOVERSION ${NGRAPH_API_VERSION})
-endif()
+ov_ncc_naming_style(FOR_TARGET ngraph
+                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
@@ -80,46 +64,61 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set_target_properties(ngraph PROPERTIES LINK_FLAGS "/IGNORE:4217,4286")
 endif()
 
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
-                                         $<INSTALL_INTERFACE:${NGRAPH_INSTALL_INCLUDE}>
                                   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
                                           ${CMAKE_CURRENT_BINARY_DIR}/include)
 
-#Add an alias so that library can be used inside the build tree, e.g. when testing
+# Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::ngraph ALIAS ngraph)
+add_library(openvino::core ALIAS ngraph)
 
-if (NOT WIN32)
-    target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
-endif()
+target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
+
+#-----------------------------------------------------------------------------------------------
+# Export for build tree
+#-----------------------------------------------------------------------------------------------
+
+set_target_properties(ngraph PROPERTIES EXPORT_NAME core)
+export(TARGETS ngraph NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 #-----------------------------------------------------------------------------------------------
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
 
-# nGraph
-install(TARGETS ngraph EXPORT ngraphTargets
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+install(TARGETS ngraph EXPORT OpenVINOTargets
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph
+        INCLUDES DESTINATION runtime/include)
+
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-    DESTINATION ${NGRAPH_INSTALL_INCLUDE}/
-    COMPONENT ngraph
-    FILES_MATCHING
-        PATTERN "*.hpp"
-        PATTERN "*.h"
-)
+        DESTINATION "runtime/include"
+        COMPONENT ngraph_dev
+        FILES_MATCHING
+            PATTERN "*.hpp"
+            PATTERN "*.h"
+            PATTERN "*version.in.hpp" EXCLUDE)
+
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/ngraph/version.hpp
-    DESTINATION ${NGRAPH_INSTALL_INCLUDE}/ngraph
-    COMPONENT ngraph)
+        DESTINATION "runtime/include/ngraph"
+        COMPONENT ngraph_dev)
 
-set(CPACK_GENERATOR "DEB")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "nGraph library")
-set(CPACK_PACKAGE_NAME "nGraph")
-set(CPACK_PACKAGE_VENDOR "Intel")
+configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
+    ${ngraph_BINARY_DIR}/ngraphConfig.cmake
+    INSTALL_DESTINATION cmake)
 
-set(CPACK_PACKAGE_VERSION_MAJOR ${NGRAPH_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${NGRAPH_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${NGRAPH_VERSION_PATCH})
-include(CPack)
+write_basic_package_version_file(${ngraph_BINARY_DIR}/ngraphConfigVersion.cmake
+    VERSION ${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}
+    COMPATIBILITY SameMajorVersion)
+
+install(FILES ${ngraph_BINARY_DIR}/ngraphConfig.cmake
+              ${ngraph_BINARY_DIR}/ngraphConfigVersion.cmake
+        DESTINATION "runtime/cmake"
+        COMPONENT ngraph_dev)

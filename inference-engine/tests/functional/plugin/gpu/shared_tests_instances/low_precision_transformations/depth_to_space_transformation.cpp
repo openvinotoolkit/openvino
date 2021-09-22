@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ngraph::opset1;
 namespace {
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<DepthToSpace::DepthToSpaceMode> modes = {
@@ -22,7 +22,7 @@ const std::vector<DepthToSpace::DepthToSpaceMode> modes = {
         DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
 };
 
-const std::vector<ngraph::Shape> inputShapesBS2 = {
+const std::vector<ngraph::PartialShape> inputShapesBS2 = {
         {1, 4, 3, 3}, {2, 16, 5, 4}
 };
 
@@ -34,9 +34,9 @@ const auto DepthToSpaceBS2 = ::testing::Combine(
     ::testing::Values(2)
 );
 
-INSTANTIATE_TEST_CASE_P(LPT_BS2, DepthToSpaceTransformation, DepthToSpaceBS2, DepthToSpaceTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(LPT_BS2, DepthToSpaceTransformation, DepthToSpaceBS2, DepthToSpaceTransformation::getTestCaseName);
 
-const std::vector<ngraph::Shape> inputShapesBS3 = {
+const std::vector<ngraph::PartialShape> inputShapesBS3 = {
         {1, 9, 3, 3}, {2, 27, 5, 4}
  };
 
@@ -48,5 +48,5 @@ const auto DepthToSpaceBS3 = ::testing::Combine(
     ::testing::Values(3)
 );
 
-INSTANTIATE_TEST_CASE_P(LPT_BS3, DepthToSpaceTransformation, DepthToSpaceBS3, DepthToSpaceTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(LPT_BS3, DepthToSpaceTransformation, DepthToSpaceBS3, DepthToSpaceTransformation::getTestCaseName);
 }  // namespace

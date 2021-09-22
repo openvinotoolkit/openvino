@@ -1,28 +1,14 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 from collections import deque
-
 from typing import Set
 
 from extensions.middle.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose, \
     mark_as_correct_data_layout, mark_output_as_in_correct_layout, mark_input_as_in_correct_layout
 from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
 from extensions.middle.pass_separator import PostMiddleStart
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.graph.port import Port
@@ -36,10 +22,14 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
     1. Prevents from adding Transpose operations before and after "reinterp_shape" like operations which change rank of
     the input and output tensors of this layout agnostic op.
     2. Disable attributes permutation for all intermediate ops between these "reinterp_shape" nodes.
-    3. Marks nodes along the weight path of convolutions as in correct layout to not permute them from NHWC to NCHW
+    3. Marks nodes along the weight path of convolutions as in correct layout to not permute them from NHWC to NCHW.
+    The latest is needed for TF NCHW graphs as well. In Conv/Deconv infer functions "set_permutation()"
+    ads "permutation" attr to weights data node even for NCHW, it is needed to permute Conv weights from the
+    original TF layout into IE even for NCHW graphs. Therefore for TF models
+    to prevent unwarranted permutations need to mark weights path as having correct layout even for NCHW graphs.
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC']
+    graph_condition = [lambda graph: graph.graph['fw'] == 'tf']
     op_conditions = [lambda n: n.soft_get('op') == 'MatMul' and
                                any([len(port.data.get_shape()) in (4, 5) for port in n.in_ports().values()]),
                      ]
@@ -63,7 +53,8 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
                     result.append(dest_port.node)
         return result
 
-    def bfs(self, start_nodes: list, visited: set, condition: callable = None, forward: bool = True):
+    @staticmethod
+    def bfs(start_nodes: list, visited: set, condition: callable = None, forward: bool = True):
         """
         The function performs BFS starting from selected nodes in forward or backward direction adding nodes by an
         optional condition
@@ -75,7 +66,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         :return: the list of Nodes visited
         """
         assert visited is not None, 'The "visited" set must be defined'
-        assert start_nodes is not None and len(start_nodes) != 0, 'The list of start nodes must be specified'
+        assert start_nodes is not None, 'The list of start nodes must be specified'
 
         result = list()
         d = deque(start_nodes)
@@ -84,9 +75,9 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
             result.append(cur_node)
             visited.add(cur_node)
             if forward:
-                next_nodes = self.get_output_nodes(cur_node)
+                next_nodes = MarkSubGraphsWithCorrectLayout.get_output_nodes(cur_node)
             else:
-                next_nodes = self.get_input_nodes(cur_node)
+                next_nodes = MarkSubGraphsWithCorrectLayout.get_input_nodes(cur_node)
             for next_node in next_nodes:
                 if next_node not in visited and (condition is None or condition(next_node)):
                     d.append(next_node)
@@ -178,7 +169,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
 
     @staticmethod
     def walk_up_from_in_ports_to_out_ports(in_ports: Set[Port], out_ports: Set[Port], port_condition=None):
-        """"
+        r""""
         Returns all intermediate ports and nodes of such a sub-graph:
 
             out_ports

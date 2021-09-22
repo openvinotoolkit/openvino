@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -35,7 +23,7 @@ If not than required reorder is added to the network.
 /*
 Add a reorder in between node and usr
 */
-void add_required_reorders::add_reorder(program_impl& p, program_node* node, program_node* usr) {
+void add_required_reorders::add_reorder(program& p, program_node* node, program_node* usr) {
     layout reorder_layout = node->get_output_layout();
     reorder_layout.format = usr->get_output_layout().format;
     reorder_layout.data_type = usr->get_output_layout().data_type;
@@ -43,7 +31,7 @@ void add_required_reorders::add_reorder(program_impl& p, program_node* node, pro
     auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
     auto& new_reorder_node = p.get_or_create(new_reorder);
 
-    // ToDo: add a method to program_impl class which adds an intermediate node given a node and its user
+    // ToDo: add a method to program class which adds an intermediate node given a node and its user
     auto it = std::find(usr->get_dependencies().begin(), usr->get_dependencies().end(), node);
     if (it == usr->get_dependencies().end()) {
         throw std::runtime_error("Inconcistency in topology description: user of a node is not present among its dependecies.");
@@ -55,15 +43,15 @@ void add_required_reorders::add_reorder(program_impl& p, program_node* node, pro
     p.add_intermediate(new_reorder_node, *usr, idx);
 }
 
-void add_required_reorders::run(program_impl& p) {
+void add_required_reorders::run(program& p) {
     auto usr_itr = p.get_processing_order().begin();
     while (usr_itr != p.get_processing_order().end()) {
         auto& usr = *usr_itr++;
         if (usr->get_dependencies().size() == 0)
             continue;  // only nodes with dependencies
-        if (usr->is_type<internal_primitive>() || usr->is_type<data>())
+        if (usr->is_type<data>())
             continue;
-        if (usr->type()->does_an_implementation_exist(p.get_engine(), *usr))
+        if (usr->type()->does_an_implementation_exist(*usr))
             continue;
 
         bool correct_layout_selected = false;
@@ -83,7 +71,7 @@ void add_required_reorders::run(program_impl& p) {
                                           node->get_output_layout().format,
                                           original_layout.size);
                     usr->set_output_layout(current_layout, false);
-                    if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                    if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
                         break;
                     } else if (original_layout.data_type == data_types::i64) {
@@ -92,14 +80,14 @@ void add_required_reorders::run(program_impl& p) {
                         current_layout = original_layout;
                         current_layout.data_type = data_types::i32;
                         usr->set_output_layout(current_layout, false);
-                        if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                        if (usr->type()->does_possible_implementation_exist(*usr)) {
                             correct_layout_selected = true;
                         } else {
                             current_layout = original_layout;
                             current_layout.data_type = data_types::i32;
                             current_layout.format = node->get_output_layout().format;
                             usr->set_output_layout(current_layout, false);
-                            if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                            if (usr->type()->does_possible_implementation_exist(*usr)) {
                                 correct_layout_selected = true;
                             }
                         }
@@ -160,7 +148,7 @@ void add_required_reorders::run(program_impl& p) {
                                       new_layout_format,
                                       original_layout.size);
                 usr->set_output_layout(current_layout, false);
-                if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                if (usr->type()->does_possible_implementation_exist(*usr)) {
                     correct_layout_selected = true;
                     break;
                 }
@@ -176,7 +164,7 @@ void add_required_reorders::run(program_impl& p) {
 
                     usr->set_output_layout(original_layout_i32, false);
 
-                    if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                    if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
                     }
 
@@ -186,7 +174,7 @@ void add_required_reorders::run(program_impl& p) {
                                                   new_layout_format,
                                                   original_layout_i32.size);
                             usr->set_output_layout(current_layout_i32, false);
-                            if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                            if (usr->type()->does_possible_implementation_exist(*usr)) {
                                 correct_layout_selected = true;
                                 break;
                             }

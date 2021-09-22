@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,9 +29,7 @@ public:
 
     std::vector<std::string> getDevicesList(
             const ncDeviceProtocol_t deviceProtocol = NC_ANY_PROTOCOL,
-            const ncDevicePlatform_t devicePlatform = NC_ANY_PLATFORM,
-            const XLinkDeviceState_t state = X_LINK_ANY_STATE
-            );
+            const XLinkDeviceState_t state = X_LINK_ANY_STATE);
 
     inline bool isMyriadXDevice(const std::string &device_name);
     inline bool isMyriad2Device(const std::string &device_name);
@@ -40,7 +38,6 @@ public:
     inline bool isMyriadUnbootedDevice(const std::string &device_name);
 
     int getAmountOfDevices(const ncDeviceProtocol_t deviceProtocol = NC_ANY_PROTOCOL,
-                           const ncDevicePlatform_t devicePlatform = NC_ANY_PLATFORM,
                            const XLinkDeviceState_t state = X_LINK_ANY_STATE);
 
     inline long getAmountOfBootedDevices(const ncDeviceProtocol_t deviceProtocol);
@@ -72,9 +69,9 @@ bool MyriadDevicesInfo::isMyriadUnbootedDevice(const std::string &device_name) {
 }
 
 long MyriadDevicesInfo::getAmountOfUnbootedDevices(const ncDeviceProtocol_t deviceProtocol) {
-    return getAmountOfDevices(deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED);
+    return getAmountOfDevices(deviceProtocol, X_LINK_UNBOOTED);
 }
 
 long MyriadDevicesInfo::getAmountOfBootedDevices(const ncDeviceProtocol_t deviceProtocol) {
-    return getAmountOfDevices(deviceProtocol, NC_ANY_PLATFORM, X_LINK_BOOTED);
+    return getAmountOfDevices(deviceProtocol, X_LINK_BOOTED);
 }

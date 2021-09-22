@@ -1,9 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "legacy/ngraph_ops/prior_box_clustered_ie.hpp"
 #include "shared_test_classes/single_layer/prior_box_clustered.hpp"
 
 namespace LayerTestsDefinitions {
@@ -22,13 +20,14 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
         targetDevice) = obj.param;
 
     std::vector<float> widths, heights, variances;
-    float step_width, step_height, offset;
+    float step_width, step_height, step, offset;
     bool clip;
     std::tie(widths,
         heights,
         clip,
         step_width,
         step_height,
+        step,
         offset,
         variances) = specParams;
 
@@ -51,14 +50,14 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
         result << CommonTestUtils::vec2str(variances) << separator;
     result << "stepWidth="  << step_width  << separator;
     result << "stepHeight=" << step_height << separator;
+    result << "step="       << step << separator;
     result << "offset="     << offset      << separator;
-    result << "clip=" << std::boolalpha << clip << separator;
-    result << "trgDev=" << targetDevice;
+    result << "clip="       << std::boolalpha << clip << separator;
+    result << "trgDev="     << targetDevice;
     return result.str();
 }
 
 void PriorBoxClusteredLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     priorBoxClusteredSpecificParams specParams;
     std::tie(specParams, netPrecision,
         inPrc, outPrc, inLayout, outLayout,
@@ -69,6 +68,7 @@ void PriorBoxClusteredLayerTest::SetUp() {
         clip,
         step_width,
         step_height,
+        step,
         offset,
         variances) = specParams;
 
@@ -81,6 +81,7 @@ void PriorBoxClusteredLayerTest::SetUp() {
     attributes.clip = clip;
     attributes.step_widths = step_width;
     attributes.step_heights = step_height;
+    attributes.step = step;
     attributes.offset = offset;
     attributes.variances = variances;
 

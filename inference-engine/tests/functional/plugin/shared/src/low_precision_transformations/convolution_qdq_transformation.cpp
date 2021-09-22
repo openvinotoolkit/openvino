@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,9 +20,9 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionQDqTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionQDqTransformationParams> obj) {
+std::string ConvolutionQDqTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionQDqTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionQDqTransformationParam param;
@@ -37,7 +37,7 @@ void ConvolutionQDqTransformation::SetUp() {
     // threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionQDqTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
@@ -59,7 +59,7 @@ void ConvolutionQDqTransformation::Run() {
     LayerTestsCommon::Run();
 
     const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecision(params.layerName);
+    const auto actualType = getRuntimePrecisionByType(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
 

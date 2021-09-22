@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,13 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
     }
     assert(0 != ie_core.use_count());
 
+    // register template plugin if it is needed
+    try {
+        std::string pluginName = "templatePlugin";
+        pluginName += IE_BUILD_POSTFIX;
+        ie_core->RegisterPlugin(pluginName, "TEMPLATE");
+    } catch (...) {}
+
     if (!deviceToCheck.empty()) {
         std::vector<std::string> metrics = ie_core->GetMetric(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS));
 
@@ -61,11 +68,13 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
                 std::exit(EXIT_FAILURE);
             }
 
+#ifndef NDEBUG
             std::cout << "Available devices for " << deviceToCheck << ":" << std::endl;
 
             for (const auto &device : availableDevices) {
                 std::cout << "    " << device << std::endl;
             }
+#endif
         }
     }
     return ie_core;

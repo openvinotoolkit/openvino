@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,31 +16,6 @@
 using namespace CPUTestUtils;
 
 namespace SubgraphTestsDefinitions {
-
-enum class nodeType {
-    convolution,
-    convolutionBackpropData,
-    groupConvolution,
-    groupConvolutionBackpropData
-};
-
-std::string nodeType2PluginType(nodeType nt) {
-    if (nt == nodeType::convolution) return "Convolution";
-    if (nt == nodeType::convolutionBackpropData) return "Deconvolution";
-    if (nt == nodeType::groupConvolution) return "Convolution";
-    if (nt == nodeType::groupConvolutionBackpropData) return "Deconvolution";
-    assert(!"unknown node type");
-    return "undef";
-}
-
-std::string nodeType2str(nodeType nt) {
-    if (nt == nodeType::convolution) return "Convolution";
-    if (nt == nodeType::convolutionBackpropData) return "ConvolutionBackpropData";
-    if (nt == nodeType::groupConvolution) return "GroupConvolution";
-    if (nt == nodeType::groupConvolutionBackpropData) return "GroupConvolutionBackpropData";
-    assert(!"unknown node type");
-    return "undef";
-}
 
 using commonConvParams =  std::tuple<
     InferenceEngine::SizeVector,    // Kernel size

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -176,10 +176,11 @@ void CheckStageTestInds(const StageRange& stageRange, std::initializer_list<int>
     }
 }
 
+PluginConfiguration createConfiguration();
+
 class GraphTransformerTest : public TestsCommon {
 public:
-    Platform platform = Platform::MYRIAD_X;
-    CompilationConfig config;
+    PluginConfiguration config;
 
     StageBuilder::Ptr stageBuilder;
     FrontEnd::Ptr frontEnd;
@@ -198,7 +199,7 @@ public:
     TestModel CreateTestModel(const DataDesc& dataDesc);
 
 private:
-    MockICore  _mockCore;
+    std::shared_ptr<MockICore> _mockCore = std::make_shared<MockICore>();
     Logger::Ptr _log;
     std::list<ModelPtr> _models;
 };

@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string RangeLayerTest::getTestCaseName(testing::TestParamInfo<RangeParams> obj) {
+std::string RangeLayerTest::getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -60,7 +59,7 @@ void RangeLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "Range");
 }
 
-std::string RangeNumpyLayerTest::getTestCaseName(testing::TestParamInfo<RangeParams> obj) {
+std::string RangeNumpyLayerTest::getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {
     InferenceEngine::Precision netPrc;
     InferenceEngine::Precision paramPrc;
     InferenceEngine::Precision outPrc;

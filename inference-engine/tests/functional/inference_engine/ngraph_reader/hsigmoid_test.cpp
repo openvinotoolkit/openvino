@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -130,7 +130,6 @@ TEST_F(NGraphReaderTests, ReadHSigmoidNetwork) {
 		<layer name="Multiply_744" type="Const" precision="FP32" id="4">
 			<output>
 				<port id="0" precision="FP32">
-					<dim>1</dim>
 				</port>
 			</output>
 			<blobs>
@@ -147,7 +146,6 @@ TEST_F(NGraphReaderTests, ReadHSigmoidNetwork) {
 					<dim>22</dim>
 				</port>
 				<port id="1">
-					<dim>1</dim>
 				</port>
 			</input>
 			<output>

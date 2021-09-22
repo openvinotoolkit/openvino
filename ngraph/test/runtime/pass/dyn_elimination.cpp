@@ -1,22 +1,11 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
+#include "dyn_elimination.hpp"
 
 #include <numeric>
 
-#include "dyn_elimination.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/range.hpp"
@@ -31,9 +20,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-pass::DynElimination::DynElimination()
-    : GraphRewrite()
-{
+pass::DynElimination::DynElimination() : GraphRewrite() {
     construct_range();
 }
 
@@ -41,28 +28,22 @@ template <typename T>
 std::shared_ptr<op::Constant> make_range_replacement(const element::Type& et,
                                                      const Shape& shape,
                                                      const std::shared_ptr<op::Constant>& start_arg,
-                                                     const std::shared_ptr<op::Constant>& step_arg)
-{
+                                                     const std::shared_ptr<op::Constant>& step_arg) {
     std::vector<T> elements(shape_size(shape));
     std::vector<T> start_vec = start_arg->get_vector<T>();
     std::vector<T> step_vec = step_arg->get_vector<T>();
 
     NGRAPH_CHECK(start_vec.size() == 1 && step_vec.size() == 1);
 
-    runtime::reference::range<T>(
-        start_vec.data(), step_vec.data(), shape_size(shape), elements.data());
+    runtime::reference::range<T>(start_vec.data(), step_vec.data(), shape_size(shape), elements.data());
 
     return make_shared<op::Constant>(et, shape, elements);
 }
 
-void pass::DynElimination::construct_range()
-{
-    auto start_arg_label =
-        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
-    auto stop_arg_label =
-        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
-    auto step_arg_label =
-        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
+void pass::DynElimination::construct_range() {
+    auto start_arg_label = make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
+    auto stop_arg_label = make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
+    auto step_arg_label = make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
 
     auto range_pat = make_shared<op::Range>(start_arg_label, stop_arg_label, step_arg_label);
 
@@ -82,12 +63,11 @@ void pass::DynElimination::construct_range()
         std::shared_ptr<op::Constant> replacement;
 
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic error "-Wswitch"
-#pragma GCC diagnostic error "-Wswitch-enum"
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic error "-Wswitch"
+#    pragma GCC diagnostic error "-Wswitch-enum"
 #endif
-        switch (et)
-        {
+        switch (et) {
         case element::Type_t::bf16:
             replacement = make_range_replacement<bfloat16>(et, shape, start_arg, step_arg);
             break;
@@ -124,6 +104,8 @@ void pass::DynElimination::construct_range()
         case element::Type_t::u64:
             replacement = make_range_replacement<uint64_t>(et, shape, start_arg, step_arg);
             break;
+        case element::Type_t::i4:
+        case element::Type_t::u4:
         case element::Type_t::u1:
         case element::Type_t::undefined:
         case element::Type_t::dynamic:
@@ -132,7 +114,7 @@ void pass::DynElimination::construct_range()
             break;
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#pragma GCC diagnostic pop
+#    pragma GCC diagnostic pop
 #endif
 
         replace_node(range_node, replacement);

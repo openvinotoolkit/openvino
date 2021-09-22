@@ -1,18 +1,8 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
+#include "ngraph/provenance.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -21,23 +11,20 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/provenance.hpp"
-#include "pass/fused_op_decomposition.hpp"
 #include "util/provenance_enabler.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 using ::testing::Return;
 
 using ProvSet = std::unordered_set<std::string>;
 
-TEST(provenance, provenance)
-{
+TEST(provenance, provenance) {
     test::ProvenanceEnabler provenance_enabler;
 
     //
@@ -308,8 +295,7 @@ TEST(provenance, provenance)
     }
 }
 
-TEST(provenance, add_group_above)
-{
+TEST(provenance, add_group_above) {
     auto p1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
     p1->add_provenance_tag("P1");
     auto p2 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
@@ -323,8 +309,7 @@ TEST(provenance, add_group_above)
     EXPECT_EQ(m1->get_provenance_tags(), (ProvSet{"m1"}));
 }
 
-TEST(provenance, add_tags_above)
-{
+TEST(provenance, add_tags_above) {
     auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
     auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
@@ -373,96 +358,31 @@ TEST(provenance, add_tags_above)
     EXPECT_TRUE(d_tags.find("tag_all_above_d") != d_tags.end());
 }
 
-TEST(provenance, builder)
-{
+TEST(provenance, builder) {
     auto p1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
     p1->add_provenance_tag("P1");
     auto norm = builder::opset1::lp_norm(p1, op::Constant::create(element::i64, {}, {0}), 1, 0);
     norm->add_provenance_tag("norm");
-    for (auto node : topological_sort(NodeVector{norm}))
-    {
-        if (node == p1)
-        {
+    for (auto node : topological_sort(NodeVector{norm})) {
+        if (node == p1) {
             EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"P1"}));
-        }
-        else
-        {
+        } else {
             EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"norm"}));
         }
     }
 }
 
-TEST(provenance, fused_copy_origin_tags)
-{
-    test::ProvenanceEnabler provenance_enabler;
-
-    auto p1 = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 4});
-    p1->add_provenance_tag("P1");
-    auto g = make_shared<op::Gelu>(p1);
-    g->add_provenance_tag("G");
-    auto r = make_shared<op::Result>(g);
-    auto f = make_shared<Function>(ResultVector{r}, ParameterVector{p1});
-
-    pass::Manager manager;
-    manager.register_pass<pass::FusedOpDecomposition>();
-    manager.run_passes(f);
-
-    traverse_nodes(f, [&](const std::shared_ptr<Node>& node) {
-        auto tags = node->get_provenance_tags();
-        if (node == p1)
-        {
-            EXPECT_EQ(tags.size(), 1);
-            EXPECT_TRUE(tags.find("P1") != tags.end());
-        }
-        else if (node == r)
-        {
-        }
-        else
-        {
-            EXPECT_TRUE(tags.find("G") != tags.end());
-            EXPECT_TRUE(tags.find("<Decomposed from Gelu>") != tags.end());
-        }
-    });
-}
-
-TEST(provenance, fused_decomposition_tag)
-{
-    test::ProvenanceEnabler provenance_enabler;
-
-    auto p1 = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 4});
-    auto fused_op = make_shared<op::MVN>(p1);
-    auto result = make_shared<op::Result>(fused_op);
-    auto f = make_shared<Function>(ResultVector{result}, ParameterVector{p1});
-
-    pass::Manager manager;
-    manager.register_pass<pass::FusedOpDecomposition>();
-    manager.run_passes(f);
-
-    const auto tag = "<Decomposed from MVN>";
-    auto tag_check = [&tag](std::shared_ptr<ngraph::Node> node) {
-        auto tags = node->get_provenance_tags();
-        EXPECT_TRUE(tags.find(tag) != tags.end());
-    };
-    const auto decomposed_op = f->get_result()->get_input_node_shared_ptr(0);
-    traverse_nodes(as_node_vector(decomposed_op->outputs()), tag_check, {p1});
-}
-
-TEST(provenance, empty_group)
-{
+TEST(provenance, empty_group) {
     auto p1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
     p1->add_provenance_tag("P1");
     auto abs = make_shared<op::Abs>(p1);
     // Make sure group is empty
     abs->add_provenance_group_members_above({abs});
     abs->add_provenance_tag("abs");
-    for (auto node : topological_sort(NodeVector{abs}))
-    {
-        if (node == p1)
-        {
+    for (auto node : topological_sort(NodeVector{abs})) {
+        if (node == p1) {
             EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"P1"}));
-        }
-        else
-        {
+        } else {
             EXPECT_EQ(node->get_provenance_tags(), (ProvSet{"abs"}));
         }
     }

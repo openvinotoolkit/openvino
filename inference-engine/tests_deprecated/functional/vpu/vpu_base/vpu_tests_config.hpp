@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ bool deviceForceReset();
 // IE macro forcing gave us no ability to pass device name as variable.
 // So we create this two replacements to PLUGING_CASE_WITH_SUFFIX.
 #define VPU_PLUGING_CASE_WITH_SUFFIX(_suffix, _test, _params) \
-    INSTANTIATE_TEST_CASE_P(VPU_run##_suffix, _test, ::testing::Combine(::testing::Values(::vpu::tests::deviceName()), _params) )
+    INSTANTIATE_TEST_SUITE_P(VPU_run##_suffix, _test, ::testing::Combine(::testing::Values(::vpu::tests::deviceName()), _params) )
 
 #define DISABLED_VPU_PLUGING_CASE_WITH_SUFFIX(_suffix, _test, _params) \
-    INSTANTIATE_TEST_CASE_P(DISABLED_VPU_run##_suffix, _test, ::testing::Combine(::testing::Values(::vpu::tests::deviceName()), _params) )
+    INSTANTIATE_TEST_SUITE_P(DISABLED_VPU_run##_suffix, _test, ::testing::Combine(::testing::Values(::vpu::tests::deviceName()), _params) )

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import os
@@ -20,9 +7,11 @@ import os
 import numpy as np
 
 from extensions.back.TopKNormalizer import TopKNormalizer
+from extensions.middle.FakeSplitOutputs import AddFakeOutputsToSplit
 from extensions.ops.Cast import Cast
 from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation
+from extensions.ops.dft import FFTBase
 from extensions.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
 from extensions.ops.embedding_bag import EmbeddingBagBase
 from extensions.ops.loop import Loop
@@ -72,7 +61,7 @@ def collect_ops(path: str):
     import_by_path(os.path.join(path, 'mo', 'ops'), ['mo', 'ops'])
     import_by_path(os.path.join(path, 'extensions', 'ops'), ['extensions', 'ops'])
     update_registration(classes=[Op, Activation, Elementwise, UnaryElementwise, LogicalElementwise,
-                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase],
+                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase, FFTBase],
                         enabled_transforms=[], disabled_transforms=[])
 
 
@@ -169,7 +158,14 @@ def propagate_const_values(op: Node):
 
     op['shape'] = out_data_node.shape
     # Reshape data node value for correct shape
-    op['value'] = np.reshape(value, op.shape)
+    if op['element_type'] in ['u4', 'i4']:
+        # Packed data types are custom from numpy perspective.
+        # Shape from the IR is incompatible with numpy value we store.
+        op['value'] = value
+        op['force_type'] = op['element_type'].upper()
+        op['force_shape'] = op.shape.copy()
+    else:
+        op['value'] = np.reshape(value, op.shape)
 
 
 def groupconv_to_conv(op: Node):
@@ -189,16 +185,25 @@ def groupconv_to_conv(op: Node):
     if weights_node.type == 'Const':
         weights_node.value = np.reshape(weights_node.value, new_shape)
     elif weights_node.type == 'Reshape':
-        # we remove reshape node added in ConvolutionWithGroupsResolver pass
+        # We remove reshape node added in ConvolutionWithGroupsResolver pass
         assert weights_node.in_port(0).get_source().data.get_shape() == new_shape, \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
         op.in_port(1).disconnect()
-        weights_node.in_port(0).get_source().get_connection().set_destination(op.in_port(1))
+        # We use add_destination method here to support case with multiple destinations of source port
+        weights_node.in_port(0).get_source().get_connection().add_destination(op.in_port(1))
+        weights_node.in_port(0).disconnect()
     else:
         assert op.in_port(1).get_source().data.get_shape() == new_shape, \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
-    # we need to set this attrs for correct shape infer as convolution
+    # We need to set this attrs for correct shape infer as convolution
     op['group'] = group
+    # The only way GroupConvolution with 'group' = 1 appears in IR is by converting from TF DepthwiseConv2dNative.
+    # In this case we need to specify 'op' parameter for the
+    # extensions.back.ConvolutionNormalizer.ConvolutionWithGroupsResolver to work properly.
+    # Otherwise  there will be 'Convolution' instead 'GroupConvolution' in restored IR, since 'GroupConvolution' is
+    # extended as node with 'type' = 'Convolution' by IR reader
+    if group == 1:
+        op['op'] = 'DepthwiseConv2dNative'
     op.type = 'Convolution'
 
 
@@ -215,9 +220,6 @@ def backprop_to_deconv(op: Node):
     if op.has_valid('output_padding'):
         # In this case we need to create Deconvolution as Convolution
         op['type_to_create'] = 'Convolution'
-    op['old_input_shapes'] = list()
-    for n in op.in_nodes():
-        op.old_input_shapes.append(int64_array(op.in_node(n).shape))
 
 
 def ti_add_edge_attrs(op: Node):
@@ -278,7 +280,39 @@ postprocessing_op_nodes = {
     'Assign': assign_add_output_result,
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
+    # Call normalize Split outputs for generated IR by ir-reader
+    'Split': AddFakeOutputsToSplit.split_normalize_outputs,
+    'VariadicSplit': AddFakeOutputsToSplit.split_normalize_outputs,
 }
+
+
+def restore_tensor_names(op: Node):
+    for out_port in op.ports:
+        # op.ports is our internal attribute, dictionary, where keys are numbers of output ports
+        # and values are tuples with shape and tensor name:
+        # {out_port_idx_1: (out_port_idx_1_shape, out_port_idx_1_tensor_name),
+        #  out_port_idx_2: (out_port_idx_2_shape, out_port_idx_2_tensor_name)}
+        out_tensor_names = op.ports[out_port][1]
+
+        # handle Constant operations with old style output port numbering
+        if op.soft_get('type') == 'Const':
+            assert len(op.ports) == 1, 'Something wrong with Constant node: {}, wrong number ' \
+                                       'of output ports: {}!'.format(op.soft_get('name'), len(op.ports))
+            out_port = 0
+
+        out_port = out_port - len(op.in_nodes())
+
+        if out_tensor_names is not None:
+            # handle tensor names with commas and add them to dictionary as separate items
+            if out_tensor_names.find(',') >= 0:
+                str_to_replace = '<comma_in_tensor_name>'
+                out_tensor_names = (out_tensor_names.replace('\\,', str_to_replace)).split(',')
+                op.out_node(out_port)['fw_tensor_debug_info'] = []
+                for out_tensor_name in out_tensor_names:
+                    out_tensor_name = out_tensor_name.replace(str_to_replace, ',')
+                    op.out_node(out_port)['fw_tensor_debug_info'].append((out_tensor_name, out_tensor_name))
+            else:
+                op.out_node(out_port)['fw_tensor_debug_info'] = [(out_tensor_names, out_tensor_names)]
 
 
 def copy_graph_with_ops(graph: Graph) -> Graph:
@@ -309,6 +343,11 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     # Create a new copy of graph with correct attributes (shape & type infer, backend attrs etc.)
     for op in graph.get_op_nodes():
 
+        # Save input shapes restored from IR
+        op['old_input_shapes'] = list()
+        for n in op.in_nodes():
+            op.old_input_shapes.append(int64_array(op.in_node(n).shape))
+
         # Apply extenders to nodes in source graph
         if op.type in Extender.registered_ops:
             Extender.get_extender_class_by_name(op.type).extend(op)
@@ -321,9 +360,26 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
         if op_type in custom_ops:
             node = custom_ops[op_type](new_graph, op.attrs()).create_node()
         else:
-            assert op_type in Op.registered_ops, 'Operation {} not found in MO operations, ' \
-                                                 'please check it!'.format(op_type)
-            node = Op.get_op_class_by_name(op_type)(new_graph, op.attrs()).create_node()
+            if op_type not in Op.registered_ops:
+                log.warning('Operation {} is not found in MO operations, please check it! '
+                            'Simple shape infer function is used'.format(op_type))
+                node = Op(new_graph, op.attrs()).create_node()
+                node['infer'] = Extender.use_shapes_from_ir
+                if 'ir_data_attrs' in op:
+                    node['IE'] = [('layer',
+                                   [('id', lambda node: node.node), 'name', 'type', 'version'],
+                                   [('data',
+                                     list(op.ir_data_attrs.keys()),
+                                     []),
+                                    '@ports',
+                                    '@consts'])]
+
+            else:
+                node = Op.get_op_class_by_name(op_type)(new_graph, op.attrs()).create_node()
+
+        # This attribute is no longer needed and we can delete it
+        if 'ir_data_attrs' in node:
+            del node['ir_data_attrs']
 
         if op.has_and_set('need_copy_input_blobs'):
             copy_input_blobs(op, node)
@@ -342,6 +398,9 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
 
     # Nodes postprocessing stage in new graph
     for op in new_graph.get_op_nodes():
+        restore_tensor_names(op)
+
+        # operations postprocessing with some special types
         if op.soft_get('type') in postprocessing_op_nodes:
             postprocessing_op_nodes[op.type](op)
 

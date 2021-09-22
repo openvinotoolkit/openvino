@@ -1,29 +1,25 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import hashlib
-from xml.etree.ElementTree import Element, SubElement, tostring
 
+import defusedxml.ElementTree as ET
+from defusedxml import defuse_stdlib
 from defusedxml.minidom import parseString
 
+from mo.front.common.partial_infer.utils import unmask_shape, is_fully_defined
 from mo.graph.graph import *
 from mo.middle.passes.convert_data_type import np_data_type_to_precision
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
+
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ET_defused = defuse_stdlib()[ET]
+Element = ET_defused.Element
+SubElement = ET_defused.SubElement
+tostring = ET_defused.tostring
 
 
 def serialize_constants(graph: Graph, bin_file_name: str, data_type=np.float32):
@@ -64,6 +60,9 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
                 any('bin' in d for u, v, d in graph.out_edges(node.node, data=True)):
             # avoid array copying while taking hash
             blob = node.value if node.value.ndim > 0 else node.value.reshape((1))
+            assert is_fully_defined(blob), 'The constant value cannot contain dynamic values'
+            if isinstance(blob, np.ma.masked_array):
+                blob = np.ma.getdata(blob)
             blob_hash = hashlib.sha512(np.ascontiguousarray(blob).view(np.uint8)).hexdigest()
 
             if blob_hash in bin_hashes and np.array_equal(blob, bin_hashes[blob_hash]['blob']):
@@ -117,11 +116,10 @@ def serialize_mean_image(bin_file_name: str, mean_data=[]):
 
 
 def xml_shape(shape: np.ndarray, element: Element):
-    for d in shape:
+    for d in unmask_shape(shape):
+        if d < -1:
+            raise Error('The value "{}" for shape is not valid value.'.format(d))
         dim = SubElement(element, 'dim')
-        if d < 0:
-            raise Error('The value "{}" for shape is less 0. May be the input shape of the topology is '
-                        'wrong.'.format(d))
         if int(d) != d:
             raise Error('The value "{}" for shape is not integer.'.format(d))
         if not isinstance(d, np.int64):
@@ -240,7 +238,7 @@ def serialize_element(
         if value is not None:
             element.set(key, str(value))
     serialize_node_attributes(graph, node, subelements, element, edges, unsupported)
-    if len(element.attrib) == 0 and len(element.getchildren()) == 0:
+    if len(element.attrib) == 0 and len(list(element)) == 0:
         parent_element.remove(element)
 
 
@@ -260,7 +258,7 @@ def serialize_node_attributes(
         unsupported):
     # the Result op may be marked so it should not appear in the IR. For example, refer to transformation
     # model-optimizer/extensions/back/TopKNormalizer.py
-    if isinstance(node, Node) and node.soft_get('result' == 'Result') and node.has_and_set('remove_from_xml'):
+    if isinstance(node, Node) and node.soft_get('type') == 'Result' and node.has_and_set('keep_output_port'):
         return
     try:
         for s in schema:
@@ -451,3 +449,27 @@ def port_renumber(graph: Graph):
         for v, d in node.get_sorted_outputs():
             d['out'] = base
             base += 1
+
+
+def append_ir_info(file: str, meta_info: dict = dict(), mean_data: [list, None] = None, input_names: list = None):
+    path_to_xml = file + ".xml"
+    path_to_bin = file + ".bin"
+
+    et = ET.parse(path_to_xml)
+    net = et.getroot()
+
+    if mean_data:
+        mean_offset, mean_size = serialize_mean_image(path_to_bin, mean_data=mean_data)
+        create_pre_process_block_for_image(net, input_names, mean_offset, mean_size)
+
+    add_meta_data(net, meta_info)
+
+    for elem in et.iter():
+        if elem.text:
+            elem.text = elem.text.strip()
+        if elem.tail:
+            elem.tail = elem.tail.strip()
+
+    pretty_xml_as_string = parseString(tostring(net)).toprettyxml()
+    with open(path_to_xml, 'wb') as file:
+        file.write(bytes(pretty_xml_as_string, "UTF-8"))

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,8 @@ using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32
+    ngraph::element::f32,
+    ngraph::element::f16
 };
 
 std::vector<PReluTestValues> testValues = {
@@ -24,10 +25,10 @@ std::vector<PReluTestValues> testValues = {
 };
 
 // PRelu in low precision is not supported in GPU
-INSTANTIATE_TEST_CASE_P(DISABLED_LPT, PReluTransformation,
+INSTANTIATE_TEST_SUITE_P(DISABLED_LPT, PReluTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues)),
     PReluTransformation::getTestCaseName);

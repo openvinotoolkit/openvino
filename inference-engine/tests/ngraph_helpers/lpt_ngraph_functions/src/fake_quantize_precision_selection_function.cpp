@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,9 +18,9 @@ using namespace ngraph::pass;
 
 std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ActualValues& values) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input->set_friendly_name("input");
     std::shared_ptr<ngraph::Node> parent = input;
 
@@ -48,8 +48,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
                     std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 })),
                 element::f32);
 
-        const size_t inputChannelsCount = inputShape[1];
-        const size_t outputChannelsCount = 2 * inputShape[1];
+        const size_t inputChannelsCount = inputShape[1].get_length();
+        const size_t outputChannelsCount = 2 * inputShape[1].get_length();
 
         const auto weights = ngraph::opset1::Constant::create(
             precision,
@@ -149,7 +149,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
 
     std::shared_ptr<ngraph::opset1::Multiply> branch1Multiply = std::make_shared<ngraph::opset1::Multiply>(
         convolution,
-        std::make_shared<ngraph::opset1::Constant>(precision, Shape({1, 1, 1}), std::vector<float>({ 0.0001f })));
+        std::make_shared<ngraph::opset1::Constant>(precision, Shape({}), std::vector<float>({ 0.0001f })));
 
 
     // just another branch

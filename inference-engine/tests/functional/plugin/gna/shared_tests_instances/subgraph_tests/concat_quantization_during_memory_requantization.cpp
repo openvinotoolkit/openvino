@@ -1,5 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <vector>
 #include "subgraph_tests/concat_quantization_during_memory_requantization.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -29,7 +31,7 @@ namespace {
         32
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_concat_quant_memory_requant, ConcatQuantDuringMemoryRequantTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_concat_quant_memory_requant, ConcatQuantDuringMemoryRequantTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
     const size_t blockSize) {
     const float low = 0.f;
@@ -37,7 +37,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
     const size_t blockSize,
     const ngraph::element::Type precisionBeforeDequantization,
@@ -55,7 +55,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getReference(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
     const size_t blockSize,
     const ngraph::element::Type precisionBeforeDequantization,

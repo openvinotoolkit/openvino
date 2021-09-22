@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/permute.hpp"
+#include "cldnn/primitives/permute.hpp"
 
 namespace CLDNNPlugin {
 
@@ -21,7 +21,7 @@ void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Transpo
     if (op->get_input_size() == 2) {
         auto order_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
         if (!order_constant) {
-            THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         ie_order = order_constant->cast_vector<uint16_t>();
     }
@@ -37,7 +37,8 @@ void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Transpo
 
     auto permutePrim = cldnn::permute(layerName,
                                       inputPrimitives[0],
-                                      cldnn_permute_order);
+                                      cldnn_permute_order,
+                                      op->get_friendly_name());
 
     p.AddPrimitive(permutePrim);
     p.AddPrimitiveToProfiler(op);

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 
 #include "ngraph_ops/nms_ie_internal.hpp"
 #include "transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp"
+#include "transformations/utils/utils.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMSToNMSIEInternal, "ConvertNMSToNMSIEInternal", 0);
 
@@ -21,9 +22,9 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
     MATCHER_SCOPE(ConvertNMSToNMSIEInternal);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         auto nms_5 = std::dynamic_pointer_cast<ngraph::opset5::NonMaxSuppression>(m.get_match_root());
-        if (!nms_5) {
+        if (!nms_5 || transformation_callback(nms_5)) {
             return false;
         }
 
@@ -103,14 +104,14 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
         Output<Node> output_0 = nms_legacy->output(0);
         if (nms_5->output(0).get_element_type() != output_0.get_element_type()) {
             output_0 = std::make_shared<opset1::Convert>(output_0, nms_5->output(0).get_element_type());
-            output_0.get_node_shared_ptr()->set_friendly_name(nms_5->get_friendly_name() + "/convert.0");
+            output_0.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms_5->output(0)));
             new_ops.emplace_back(output_0.get_node_shared_ptr());
         }
 
         Output<Node> output_2 = nms_legacy->output(2);
         if (nms_5->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<opset1::Convert>(output_2, nms_5->output(2).get_element_type());
-            output_2.get_node_shared_ptr()->set_friendly_name(nms_5->get_friendly_name() + "/convert.2");
+            output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms_5->output(2)));
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API VariadicSplitTransformation : public SplitTransformation {
+class LP_TRANSFORMATIONS_API VariadicSplitTransformation : public SplitTransformation {
 public:
-    VariadicSplitTransformation(const Params& params);
-    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
-protected:
-    std::vector<size_t> getConstSplitLengths(
-        const OutputVector& inputs,
-        const ngraph::Shape& constShape,
-        const size_t outputSize) const override;
+    NGRAPH_RTTI_DECLARATION;
+    VariadicSplitTransformation(const Params& params = Params());
 };
 } // namespace low_precision
 } // namespace pass

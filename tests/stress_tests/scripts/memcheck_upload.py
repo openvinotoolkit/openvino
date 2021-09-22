@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# Copyright (C) 2020 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
 
 """
 Upload metrics gathered by MemCheckTests into Mongo DB
@@ -10,18 +10,18 @@ Usage: ./scrips/memcheck_upload.py https://ci.intel.com/job/memchek/1234/ \
     --artifact_root ./gtest-parallel-logs --dryrun
 """
 
+import argparse
+import hashlib
 import json
 import logging
-from types import SimpleNamespace
 import os
 import re
 import sys
-import argparse
-from inspect import getsourcefile
-from glob import glob
 import xml.etree.ElementTree as ET
-import hashlib
-from pathlib import Path
+from glob import glob
+from inspect import getsourcefile
+from types import SimpleNamespace
+
 import yaml
 from pymongo import MongoClient
 
@@ -67,7 +67,8 @@ def metadata_from_manifest(manifest):
         'commit_sha': repo_trigger['revision'],
         'commit_date': repo_trigger['commit_time'],
         'repo_url': repo_trigger['url'],
-        'target_branch': repo_trigger['branch'],
+        'branch': repo_trigger['branch'],
+        'target_branch': repo_trigger['target_branch'] if repo_trigger["target_branch"] else repo_trigger["branch"],
         'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
         f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
     }
@@ -80,8 +81,8 @@ def info_from_test_config(test_conf):
     test_conf_root = test_conf_obj.getroot()
     records = {}
     for model_rec in test_conf_root.find("models"):
-        model = model_rec.attrib["path"]
-        records[Path(model)] = {
+        model_name = model_rec.attrib["name"]
+        records[model_name] = {
             "framework": model_rec.attrib.get("framework"),
             "source": model_rec.attrib.get("source"),
         }
@@ -123,10 +124,8 @@ def parse_memcheck_log(log_path):
             entry = SimpleNamespace(
                 metrics=dict(zip(heading, values)),
                 test_name=test_name,
-                model_name=os.path.splitext(
-                    os.path.basename(model['path']))[0],
-                precision=next(pr for pr in PRECISSIONS if pr.upper()
-                               in model['path'].upper()),
+                model_name=os.path.splitext(os.path.basename(model['path']))[0],
+                precision=next(pr for pr in PRECISSIONS if pr.upper() in model['precision'].upper()),
                 model=model['path'],
                 device=model['device'].upper(),
                 status='passed' if passed_match else 'failed' if failed_match else 'started'
@@ -237,7 +236,7 @@ def create_memcheck_report(records, db_url, db_collection, output_path):
     """ Create memcheck timeline HTML report for records.
     """
     records.sort(
-        key=lambda item: f"{item['status']}{item['device']}{item['model']}{item['test_name']}")
+        key=lambda item: f"{item['status']}{item['device']}{item['model_name']}{item['test_name']}")
     timelines = query_timeline(records, db_url, db_collection)
     import jinja2  # pylint: disable=import-outside-toplevel
     env = jinja2.Environment(

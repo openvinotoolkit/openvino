@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 #include "ngraph/op/pad.hpp"
 
-#include "api/border.hpp"
+#include "cldnn/primitives/border.hpp"
 
 namespace CLDNNPlugin {
 
@@ -18,7 +18,7 @@ static cldnn::border_type GetBorderType(ngraph::op::PadMode mode) {
         case ngraph::op::PadMode::EDGE: return cldnn::border_type::edge;
         case ngraph::op::PadMode::REFLECT: return cldnn::border_type::mirror_101;
         case ngraph::op::PadMode::SYMMETRIC: return cldnn::border_type::mirror;
-        default: THROW_IE_EXCEPTION << "Invalid border mode " << mode << " in layer ";
+        default: IE_THROW() << "Invalid border mode " << mode << " in layer ";
     }
     return cldnn::border_type::constant;
 }
@@ -27,8 +27,10 @@ static std::vector<int32_t> GetPermuteOrder(const ngraph::CoordinateDiff& ie_ord
     std::vector<int32_t> cldnn_order(ie_order.begin(), ie_order.end());
 
     // 1. Align to min. 4 sizes
-    if (cldnn_order.size() < 4)
-        cldnn_order.push_back(0);
+    if (cldnn_order.size() < 4) {
+        const auto zeros_to_add = 4 - ie_order.size();
+        cldnn_order.insert(cldnn_order.end(), zeros_to_add, 0);
+    }
 
     // 2. Swap spatial positions
     for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
@@ -50,10 +52,10 @@ void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
     if (op->get_input_size() == 4) {
         auto const_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(3));
         if (!const_node) {
-            THROW_IE_EXCEPTION << "Unsupported const node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported const node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         if (!ngraph::op::util::get_single_value(const_node, pad_value)) {
-            THROW_IE_EXCEPTION << "Unsupported pad value in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported pad value in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
     }
 
@@ -64,7 +66,8 @@ void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
                                   pads_begin,
                                   pads_end,
                                   border_mode,
-                                  pad_value);
+                                  pad_value,
+                                  op->get_friendly_name());
 
     p.AddPrimitive(tilePrim);
     p.AddPrimitiveToProfiler(op);

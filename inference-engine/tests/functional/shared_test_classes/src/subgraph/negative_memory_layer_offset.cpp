@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,9 +30,9 @@ namespace SubgraphTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         const int seed = 0;
-        std::mt19937 gen(static_cast<float>(seed));
+        std::mt19937 gen(seed);
         std::uniform_real_distribution<float> dist(-0.2f, 0.2f);
-        for (int i = 0; i < hiddenSize; ++i)
+        for (size_t i = 0; i < hiddenSize; ++i)
             memory_init.emplace_back(static_cast<float>(dist(gen)));
 
         auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
@@ -77,7 +77,7 @@ namespace SubgraphTestsDefinitions {
         for (auto& state : states) {
             auto name = state.GetName();
             if (name == "memory") {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            memory_init.data(), memory_init.size());
                 state.SetState(blob);
             } else {
@@ -85,6 +85,7 @@ namespace SubgraphTestsDefinitions {
             }
         }
         IE_SUPPRESS_DEPRECATED_END
+        GenerateInputs();
         Infer();
         switchToNgraphFriendlyModel();
         Validate();

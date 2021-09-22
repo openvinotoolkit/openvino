@@ -1,15 +1,14 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <inference_engine.hpp>
 #include <map>
 #include <memory>
-#include <string>
-#include <algorithm>
-#include <vector>
-
-#include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
+#include <string>
+#include <vector>
 
 #define CUSTOM_RELU_TYPE "CustomReLU"
 
@@ -38,25 +37,25 @@ public:
         for (size_t i = 0; i < shape.size(); i++) {
             order.push_back(i);
         }
-        cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
-                                               shape, {shape, order});
+        cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, shape, {shape, order});
         layerConfig.outConfs.push_back(cfg);
         layerConfig.inConfs.push_back(cfg);
         conf.push_back(layerConfig);
         return InferenceEngine::OK;
     }
 
-    InferenceEngine::StatusCode
-    init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+    InferenceEngine::StatusCode init(InferenceEngine::LayerConfig& /*config*/,
+                                     InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         return InferenceEngine::StatusCode::OK;
     }
 
-    InferenceEngine::StatusCode
-    execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
-            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+    InferenceEngine::StatusCode execute(std::vector<InferenceEngine::Blob::Ptr>& inputs,
+                                        std::vector<InferenceEngine::Blob::Ptr>& outputs,
+                                        InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         static bool wasCalled = false;
         if (!wasCalled) {
-            std::cout << "Running " + std::string(CUSTOM_RELU_TYPE) + " kernel for the first time (next messages won't be printed)"
+            std::cout << "Running " + std::string(CUSTOM_RELU_TYPE) +
+                             " kernel for the first time (next messages won't be printed)"
                       << std::endl;
             wasCalled = true;
         }
@@ -70,8 +69,8 @@ public:
             auto minputHolder = minput->rmap();
             auto moutputHolder = moutput->wmap();
 
-            auto inputData = minputHolder.as<const float *>();
-            auto outputData = moutputHolder.as<float  *>();
+            auto inputData = minputHolder.as<const float*>();
+            auto outputData = moutputHolder.as<float*>();
             for (size_t j = 0; j < minput->size(); j++) {
                 outputData[j] = inputData[j] < 0 ? 0 : inputData[j];
             }
@@ -83,13 +82,15 @@ private:
     const std::shared_ptr<ngraph::Node> _node;
 };
 
-class CustomReluOp: public ngraph::op::Op {
+class CustomReluOp : public ngraph::op::Op {
 public:
     static constexpr ngraph::NodeTypeInfo type_info{CUSTOM_RELU_TYPE, 0};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
+    const ngraph::NodeTypeInfo& get_type_info() const override {
+        return type_info;
+    }
 
     CustomReluOp() = default;
-    explicit CustomReluOp(const ngraph::Output<ngraph::Node>& arg): Op({arg}) {
+    explicit CustomReluOp(const ngraph::Output<ngraph::Node>& arg) : Op({arg}) {
         constructor_validate_and_infer_types();
     }
 
@@ -112,7 +113,7 @@ public:
         return std::make_shared<CustomReluOp>(new_args.at(0));
     }
 
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
+    bool visit_attributes(ngraph::AttributeVisitor&) override {
         return true;
     }
 };
@@ -131,15 +132,14 @@ public:
 
     void Unload() noexcept override {}
 
-    void Release() noexcept override {}
-
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
         if (impls.find(node->description()) == impls.end())
             return {};
         return {"CPU"};
     }
 
-    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
+    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node,
+                                                       const std::string& implType) override {
         if (impls.find(node->description()) == impls.end() || implType != "CPU")
             return nullptr;
         return impls[node->description()](node);

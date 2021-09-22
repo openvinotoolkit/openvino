@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
 using ShapeAxesTuple = std::pair<std::vector<size_t>, std::vector<int>>;
 
 typedef std::tuple<
-        ShapeAxesTuple,                 // InputShape, Squeeze indexes
+        ShapeAxesTuple,                 // InputShape (required), Squeeze indexes (if empty treated as non-existent)
         ngraph::helpers::SqueezeOpType, // OpType
         InferenceEngine::Precision,     // Net precision
         InferenceEngine::Precision,     // Input precision
@@ -29,7 +29,7 @@ typedef std::tuple<
 class SqueezeUnsqueezeLayerTest : public testing::WithParamInterface<squeezeParams>,
                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<squeezeParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<squeezeParams>& obj);
 protected:
     void SetUp() override;
 };

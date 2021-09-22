@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     SplitTransformationParam
@@ -27,12 +27,10 @@ class SplitTransformation :
     public testing::WithParamInterface<SplitTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SplitTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<SplitTransformationParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
+
 }  // namespace LayerTestsDefinitions

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,11 @@
 #include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
-#include "api/convolution.hpp"
-#include "api/deconvolution.hpp"
-#include "api/binary_convolution.hpp"
-#include "api/permute.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/convolution.hpp"
+#include "cldnn/primitives/deconvolution.hpp"
+#include "cldnn/primitives/binary_convolution.hpp"
+#include "cldnn/primitives/permute.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 
@@ -34,7 +34,7 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
                                                       uint32_t groups) {
     cldnn::tensor stride, padding, dilation;
     if (pads_begin.size() != strides.size() || dilations.size() != strides.size())
-        THROW_IE_EXCEPTION << "Strides, Dilations and Pads are supposed to have the same elements count";
+        IE_THROW() << "Strides, Dilations and Pads are supposed to have the same elements count";
 
     switch (strides.size()) {
         case 3: {
@@ -55,7 +55,7 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
             dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[0], 1, 1));
             break;
         }
-        default: THROW_IE_EXCEPTION << "Unsupported convolve parameters size. Only 1d, 2d, and 3d cases are supported";
+        default: IE_THROW() << "Unsupported convolve parameters size. Only 1d, 2d, and 3d cases are supported";
     }
 
     return {stride, padding, dilation, groups};
@@ -84,7 +84,8 @@ void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::
                                        params.dilation,
                                        CldnnTensorFromIEDims(outDims),
                                        DataTypeFromPrecision(outPrecision),
-                                       weights_have_group_dim);
+                                       weights_have_group_dim,
+                                       op->get_friendly_name());
 
     p.AddPrimitive(convPrim);
     p.AddPrimitiveToProfiler(op);
@@ -112,7 +113,8 @@ void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::Convo
                                        params.dilation,
                                        CldnnTensorFromIEDims(outDims),
                                        DataTypeFromPrecision(outPrecision),
-                                       weights_have_group_dim);
+                                       weights_have_group_dim,
+                                       op->get_friendly_name());
 
     p.AddPrimitive(convPrim);
     p.AddPrimitiveToProfiler(op);
@@ -127,7 +129,7 @@ void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::o
     auto dilations = op->get_dilations();
     for (auto d : dilations) {
         if (d != 1) {
-            THROW_IE_EXCEPTION << "Unsupported dilation in ConvolutionBackpropData " << op->get_friendly_name();
+            IE_THROW() << "Unsupported dilation in ConvolutionBackpropData " << op->get_friendly_name();
         }
     }
 
@@ -146,7 +148,8 @@ void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::o
         std::swap(permute_order[1], permute_order[0]);
         auto permutePrim = cldnn::permute(permuteName,
                                           weightsName,
-                                          ConvertPermuteOrder(permute_order, weights_rank));
+                                          ConvertPermuteOrder(permute_order, weights_rank),
+                                          op->get_friendly_name());
 
         p.AddPrimitive(permutePrim);
         p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
@@ -159,14 +162,15 @@ void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::o
 
     auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), 1);
     auto deconvPrim = cldnn::deconvolution(layerName,
-        inputs[0],
-        weights,
-        {},
-        params.groups,
-        params.stride,
-        params.padding,
-        CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
-        weights_have_group_dim);
+                                           inputs[0],
+                                           weights,
+                                           {},
+                                           params.groups,
+                                           params.stride,
+                                           params.padding,
+                                           CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+                                           weights_have_group_dim,
+                                           op->get_friendly_name());
 
     p.AddPrimitive(deconvPrim);
     p.AddPrimitiveToProfiler(op);
@@ -180,7 +184,7 @@ void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngra
     auto dilations = op->get_dilations();
     for (auto d : dilations) {
         if (d != 1) {
-            THROW_IE_EXCEPTION << "Unsupported dilation in GroupConvolutionBackpropData " << op->get_friendly_name();
+            IE_THROW() << "Unsupported dilation in GroupConvolutionBackpropData " << op->get_friendly_name();
         }
     }
 
@@ -202,7 +206,8 @@ void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngra
         std::swap(permute_order[2], permute_order[1]);
         auto permutePrim = cldnn::permute(permuteName,
                                           weightsName,
-                                          ConvertPermuteOrder(permute_order, weights_rank));
+                                          ConvertPermuteOrder(permute_order, weights_rank),
+                                          op->get_friendly_name());
 
         p.AddPrimitive(permutePrim);
         p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
@@ -214,14 +219,15 @@ void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngra
     const bool weights_have_group_dim = true;
 
     auto deconvPrim = cldnn::deconvolution(layerName,
-        inputs[0],
-        weights,
-        {},
-        params.groups,
-        params.stride,
-        params.padding,
-        CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
-        weights_have_group_dim);
+                                           inputs[0],
+                                           weights,
+                                           {},
+                                           params.groups,
+                                           params.stride,
+                                           params.padding,
+                                           CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+                                           weights_have_group_dim,
+                                           op->get_friendly_name());
 
     p.AddPrimitive(deconvPrim);
     p.AddPrimitiveToProfiler(op);
@@ -247,7 +253,8 @@ void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op:
                                            params.stride,
                                            params.padding,
                                            params.dilation,
-                                           CldnnTensorFromIEDims(outDims));
+                                           CldnnTensorFromIEDims(outDims),
+                                           op->get_friendly_name());
 
         p.AddPrimitive(convPrim);
         p.AddPrimitiveToProfiler(op);
@@ -280,7 +287,8 @@ void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op:
                                                           params.padding,
                                                           params.dilation,
                                                           CldnnTensorFromIEDims(outDims),
-                                                          kernel);
+                                                          kernel,
+                                                          op->get_friendly_name());
         p.AddPrimitive(defConvPrimInterp);
         p.AddInnerPrimitiveToProfiler(defConvLayerNameInterp, defConvLayerNameConv, op);
         auto defConvPrim = cldnn::deformable_conv(defConvLayerNameConv,
@@ -288,7 +296,8 @@ void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op:
                                                   weights,
                                                   {},
                                                   params.groups,
-                                                  CldnnTensorFromIEDims(outDims));
+                                                  CldnnTensorFromIEDims(outDims),
+                                                  op->get_friendly_name());
         p.AddPrimitive(defConvPrim);
         p.AddPrimitiveToProfiler(defConvLayerNameConv, op);
     }
@@ -313,7 +322,8 @@ void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1:
                                               CldnnTensorFromIEDims(outDims),
                                               params.groups,
                                               op->get_pad_value(),
-                                              calc_precision);
+                                              calc_precision,
+                                              op->get_friendly_name());
 
     p.AddPrimitive(convPrim);
     p.AddPrimitiveToProfiler(op);

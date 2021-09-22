@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import logging as log
@@ -40,12 +27,11 @@ def determined_sort(outputs: list):
     stack = list(outputs)
     visited = set()
     while len(stack) != 0:
-        node = stack[0]
+        node = stack.pop(0)
         node_id = node.id
-        stack.pop(0)
         visited.add(node_id)
         has_child = False
-        in_names = [n.id if isinstance(node.in_nodes(), list) else node.in_node(n).id for n in node.in_nodes()]
+        in_names = [n for n, d in node.get_inputs()]
         for in_node_name in in_names:
             if in_node_name not in visited:
                 stack.insert(0, node)
@@ -186,7 +172,8 @@ def convert_inputs_of_specific_ops(graph: Graph):
 
 
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
-                    mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None):
+                    mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None,
+                    use_temporary_path=False):
     if input_names is None:
         input_names = []
     if meta_info is None:
@@ -207,7 +194,8 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
     # do not run the type inference in sub-graphs. It will be called automatically as part of the type inference of
     # the TensorIterator nodes
     type_infer(graph)
-    RemoveUselessConvert().find_and_replace_pattern(graph)
+
+    for_graph_and_each_sub_graph_recursively(graph, RemoveUselessConvert().find_and_replace_pattern)
 
     ResultRename().find_and_replace_pattern(graph)
 
@@ -220,7 +208,9 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
 
     tensor_names.propagate_op_name_to_tensor(graph)
 
-    bin_file = os.path.join(output_dir, '{}.bin'.format(output_model_name))
+    ir_path_suffix = "_tmp" if use_temporary_path else ""
+
+    bin_file = os.path.join(output_dir, '{}{}.bin'.format(output_model_name, ir_path_suffix))
     serialize_constants(graph, bin_file)
 
     mean_offset = None
@@ -229,12 +219,12 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
         mean_offset, mean_size = serialize_mean_image(bin_file, mean_data=mean_data)
 
     generate_ie_ir(graph=graph,
-                   file_name=os.path.join(output_dir, '{}.xml'.format(output_model_name)),
+                   file_name=os.path.join(output_dir, '{}{}.xml'.format(output_model_name, ir_path_suffix)),
                    input_names=input_names,
                    mean_offset=mean_offset,
                    mean_size=mean_size,
                    meta_info=meta_info)
-    tensor_names.output_tensor_names_map(graph, os.path.join(output_dir, '{}.mapping'.format(output_model_name)))
+    tensor_names.output_tensor_names_map(graph, os.path.join(output_dir, '{}{}.mapping'.format(output_model_name, ir_path_suffix)))
 
 
 def get_ir_version(argv: argparse.Namespace):

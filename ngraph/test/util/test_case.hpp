@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -29,13 +17,16 @@ namespace ngraph
 {
     namespace test
     {
+        std::shared_ptr<Function> function_from_ir(const std::string& xml_path,
+                                                   const std::string& bin_path = {});
+
         template <typename Engine, TestCaseType tct = TestCaseType::STATIC>
         class TestCase
         {
         public:
             TestCase(const std::shared_ptr<Function>& function)
-                : m_function{function}
-                , m_engine{create_engine<Engine>(function, tct)}
+                : m_engine{create_engine<Engine>(function, tct)}
+                , m_function{function}
             {
             }
 
@@ -89,15 +80,19 @@ namespace ngraph
                                      const std::string& basepath,
                                      const std::string& filename)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 const auto filepath = ngraph::file_util::path_join(basepath, filename);
                 add_input_from_file<T>(shape, filepath);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>
             void add_input_from_file(const std::string& basepath, const std::string& filename)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 const auto filepath = ngraph::file_util::path_join(basepath, filename);
                 add_input_from_file<T>(filepath);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>
@@ -153,8 +148,10 @@ namespace ngraph
                                                const std::string& basepath,
                                                const std::string& filename)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 const auto filepath = ngraph::file_util::path_join(basepath, filename);
                 add_expected_output_from_file<T>(expected_shape, filepath);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>

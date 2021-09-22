@@ -51,7 +51,7 @@ Intel® Core™ i3-8121U Processor
 Intel® GNA hardware requires a driver to be installed on the system.
 
 * Linux\* OS:
-[Download Intel® GNA driver for Ubuntu Linux 18.04.3 LTS (with HWE Kernel version 5.0+)](https://download.01.org/opencv/drivers/gna/)
+[Download Intel® GNA driver for Ubuntu Linux 18.04.3 LTS (with HWE Kernel version 5.4+)](https://storage.openvinotoolkit.org/drivers/gna/)
 
 * Windows\* OS:
 Intel® GNA driver for Windows is available through Windows Update\*
@@ -66,25 +66,28 @@ For the list of supported layers, see the **GNA** column of the **Supported Laye
 
 Limitations include:
 
-- Only 1D convolutions are natively supported in the models converted from:
-	- [Kaldi](../../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md) framework
-	- [TensorFlow](../../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md) framework. For TensorFlow models, use the `--disable_nhwc_to_nchw` option when running the Model Optimizer.
+- Only 1D convolutions are natively supported.
 - The number of output channels for convolutions must be a multiple of 4.
 - Permute layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than 8.
+- Splits and concatenations are supported for continuous portions of memory (e.g., split of 1,2,3,4 to 1,1,3,4 and 1,1,3,4 or concats of 1,2,3,4 and 1,2,3,5 to 2,2,3,4).
 
 #### Experimental Support for 2D Convolutions
 
-The Intel® GNA hardware natively supports only 1D convolution.
+The Intel® GNA hardware natively supports only 1D convolutions.
 
 However, 2D convolutions can be mapped to 1D when a convolution kernel moves in a single direction. GNA Plugin performs such a transformation for Kaldi `nnet1` convolution. From this perspective, the Intel® GNA hardware convolution operation accepts an `NHWC` input and produces an `NHWC` output. Because OpenVINO™ only supports the `NCHW` layout, you may need to insert `Permute` layers before or after convolutions.
 
-For example, the Kaldi model optimizer inserts such a permute after convolution for the [rm_cnn4a network](https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi/rm_cnn4a_smbr/). This `Permute` layer is automatically removed by the GNA Plugin, because the Intel® GNA hardware convolution layer already produces the required `NHWC` result.
+For example, the Kaldi model optimizer inserts such a permute after convolution for the [rm_cnn4a network](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/rm_cnn4a_smbr/). This `Permute` layer is automatically removed by the GNA Plugin, because the Intel® GNA hardware convolution layer already produces the required `NHWC` result.
 
 ## Operation Precision
 
 Intel® GNA essentially operates in the low-precision mode, which represents a mix of 8-bit (`I8`), 16-bit (`I16`), and 32-bit (`I32`) integer computations. Outputs calculated using a reduced integer precision are different from the scores calculated using the floating point format, for example, `FP32` outputs calculated on CPU using the Inference Engine [CPU Plugin](CPU.md).
 
-Unlike other plugins supporting low-precision execution, the GNA plugin calculates quantization factors at the model loading time, so you can run a model without calibration.
+Unlike other plugins supporting low-precision execution, the GNA plugin can calculate quantization factors at the model loading time, so you can run a model without calibration using the [Post-Training Optimizaton Tool](@ref pot_README).
+However, this mode may not provide satisfactory accuracy because the internal quantization algorithm is based on heuristics which may or may not be efficient, depending on the model and dynamic range of input data.
+
+Starting with 2021.4 release of OpenVINO™, GNA plugin users are encouraged to use the [POT API Usage sample for GNA](@ref pot_sample_speech_README) to get a model with quantization hints based on statistics for the provided dataset.
+
 
 ## <a name="execution-modes">Execution Modes</a>
 
@@ -94,6 +97,7 @@ Unlike other plugins supporting low-precision execution, the GNA plugin calculat
 | `GNA_HW` | Uses Intel® GNA if available, otherwise raises an error. |
 | `GNA_SW` | *Deprecated*. Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA, but not in the bit-exact mode. |
 | `GNA_SW_EXACT` | Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA in the bit-exact mode. |
+| `GNA_HW_WITH_SW_FBACK` | Uses Intel® GNA if available, otherwise raises an error. If the HW queue is not empty, automatically falls back to CPU in the bit-exact mode. |
 | `GNA_SW_FP32` | Executes the GNA-compiled graph on CPU but substitutes parameters and calculations from low precision to floating point (`FP32`). |
 
 ## Supported Configuration Parameters
@@ -113,7 +117,7 @@ When specifying key values as raw strings, that is, when using Python API, omit 
 | `KEY_GNA_SCALE_FACTOR`            | `FP32` number                                             | 1.0         | Sets the scale factor to use for input quantization.                               |
 | `KEY_GNA_DEVICE_MODE`             | `GNA_AUTO`/`GNA_HW`/`GNA_SW_EXACT`/`GNA_SW_FP32` | `GNA_AUTO`  |  One of the modes described in <a href="#execution-modes">Execution Modes</a> |
 | `KEY_GNA_FIRMWARE_MODEL_IMAGE`    | `std::string`                                             | `""`        | Sets the name for the embedded model binary dump file.                                 |
-| `KEY_GNA_PRECISION`               | `I16`/`I8`                                                | `I16`       | Sets the preferred integer weight resolution for quantization. |
+| `KEY_GNA_PRECISION`               | `I16`/`I8`                                                | `I16`       | Sets the preferred integer weight resolution for quantization (ignored for models produced using POT). |
 | `KEY_PERF_COUNT`                  | `YES`/`NO`                                                | `NO`        | Turns on performance counters reporting.                                   |
 | `KEY_GNA_LIB_N_THREADS`           | 1-127 integer number                                      | 1           | Sets the number of GNA accelerator library worker threads used for inference computation in software modes.
 
@@ -185,6 +189,19 @@ executableNet.SetConfig(newConfig);
 
 ```
 2. Resubmit and switch back to GNA_HW expecting that the competing application has finished.
+
+> **NOTE:** This method is deprecated since a new automatic QoS mode has been introduced in 2021.4.1 release of OpenVINO™ (see below).
+
+## GNA3 Automatic QoS Feature on Windows*
+
+Starting with 2021.4.1 release of OpenVINO and 03.00.00.1363 version of Windows* GNA driver, a new execution mode (GNA_HW_WITH_SW_FBACK) is introduced
+to assure that workloads satisfy real-time execution. In this mode, the GNA driver automatically falls back on CPU for a particular infer request
+if the HW queue is not empty, so there is no need for explicitly switching between GNA and CPU.
+
+**NOTE:** Due to the "first come - first served" nature of GNA driver and the QoS feature, this mode may lead to increased CPU consumption
+if there are several clients using GNA simultaneously.
+Even a lightweight competing infer request which has not been cleared at the time when the user's GNA client process makes its request,
+can cause the user's request to be executed on CPU, thereby unnecessarily increasing CPU utilization and power.
 
 ## See Also
 

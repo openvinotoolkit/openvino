@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cinttypes>
@@ -44,13 +32,11 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_t2v)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reshape_t2v) {
     Shape shape_a{2, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{12};
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
+    auto r = make_shared<op::v1::Reshape>(A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -67,13 +53,11 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_t2v)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_t2s)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reshape_t2s) {
     Shape shape_a{1, 1, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{};
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
+    auto r = make_shared<op::v1::Reshape>(A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -85,17 +69,14 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_t2s)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{6}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{6}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_s2t)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reshape_s2t) {
     Shape shape_a{};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{1, 1, 1, 1, 1, 1};
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
+    auto r = make_shared<op::v1::Reshape>(A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -107,17 +88,14 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_s2t)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{42}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{42}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_s2t1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reshape_s2t1) {
     Shape shape_a{};
     auto A = make_shared<op::Parameter>(element::boolean, shape_a);
     Shape shape_r{1};
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
+    auto r = make_shared<op::v1::Reshape>(A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -132,13 +110,11 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_s2t1)
     EXPECT_EQ((vector<char>{42}), read_vector<char>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_v2m_col)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reshape_v2m_col) {
     Shape shape_a{3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{3, 1};
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
+    auto r = make_shared<op::v1::Reshape>(A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -150,17 +126,14 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_v2m_col)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1, 2, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{1, 2, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_v2m_row)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reshape_v2m_row) {
     Shape shape_a{3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{1, 3};
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
+    auto r = make_shared<op::v1::Reshape>(A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -172,17 +145,14 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_v2m_row)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1, 2, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{1, 2, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_v2t_middle)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reshape_v2t_middle) {
     Shape shape_a{3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{1, 3, 1};
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
+    auto r = make_shared<op::v1::Reshape>(A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -194,17 +164,14 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_v2t_middle)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1, 2, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{1, 2, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_m2m_same)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reshape_m2m_same) {
     Shape shape_a{3, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{3, 3};
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
+    auto r = make_shared<op::v1::Reshape>(A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -221,13 +188,11 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_m2m_same)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_special_zero)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reshape_special_zero) {
     Shape shape_a{2, 2, 5, 5};
     Shape shape_r{2, 5, 5, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {4}, Shape{0, 5, 0, 2}), true);
+    auto r = make_shared<op::v1::Reshape>(A, op::Constant::create(element::u64, {4}, Shape{0, 5, 0, 2}), true);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     vector<float> a_data(shape_size(shape_a));
@@ -286,8 +251,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_special_zero)
 //         198.,  270.,  206.,  278.,  214.,  286.,  199.,  271.,  207.,
 //         279.,  215.,  287.,  200.,  272.,  208.,  280.,  216.,  288.])
 //
-NGRAPH_TEST(${BACKEND_NAME}, reshape_6d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reshape_6d) {
     Shape shape_a{2, 2, 3, 3, 2, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{3, 2, 2, 4, 3, 2};
@@ -295,8 +259,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_6d)
     vector<float> a_data(shape_size(shape_a));
     iota(a_data.begin(), a_data.end(), 1.f);
 
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
+    auto r = make_shared<op::v1::Reshape>(A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -313,8 +276,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_6d)
     EXPECT_EQ(r->get_output_shape(0), shape_r);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_1D_to_scalar)
-{
+NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_1D_to_scalar) {
     const Shape input_shape{1};
     const auto input = make_shared<op::Parameter>(element::f32, input_shape);
     const auto reshape_builder = builder::opset1::reshape(input, Shape{});
@@ -328,8 +290,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_1D_to_scalar)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_3D_to_scalar)
-{
+NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_3D_to_scalar) {
     const Shape input_shape{1, 1, 1};
     const auto input = make_shared<op::Parameter>(element::f32, input_shape);
     const auto reshape_builder = builder::opset1::reshape(input, Shape{});
@@ -343,10 +304,36 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_3D_to_scalar)
     test_case.run();
 }
 
-#if NGRAPH_INTERPRETER_ENABLE
+NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_1d_to_same_shape) {
+    const Shape input_shape{1};
+    auto param = make_shared<op::Parameter>(element::f32, input_shape);
+    auto r =
+        make_shared<op::v1::Reshape>(param, op::Constant::create(element::i64, {}, std::vector<int64_t>{1}), false);
+    auto function = make_shared<Function>(r, ParameterVector{param});
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_shufflenet_5d)
-{
+    auto test_case = test::TestCase<TestEngine>(function);
+    vector<float> input_values(shape_size(input_shape), 1.f);
+    test_case.add_input<float>(input_shape, input_values);
+    test_case.add_expected_output<float>(Shape{}, vector<float>{1.f});
+
+    test_case.run();
+}
+NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_to_same_shape) {
+    const Shape input_shape{};
+    auto param = make_shared<op::Parameter>(element::f32, input_shape);
+    auto r =
+        make_shared<op::v1::Reshape>(param, op::Constant::create(element::i64, {}, std::vector<int64_t>{1}), false);
+    auto function = make_shared<Function>(r, ParameterVector{param});
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    vector<float> input_values(shape_size(input_shape), 1.f);
+    test_case.add_input<float>(input_shape, input_values);
+    test_case.add_expected_output<float>(Shape{}, vector<float>{1.f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, reshape_shufflenet_5d) {
     Shape shape_a{1, 112, 56, 56};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_b{1, 4, 28, 56, 56};
@@ -358,12 +345,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_shufflenet_5d)
     vector<float> a_data(shape_size(shape_a));
     iota(a_data.begin(), a_data.end(), 1.f);
 
-    auto r0 = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_b.size()}, shape_b), false);
-    auto r1 = make_shared<op::v1::Reshape>(
-        r0, op::Constant::create(element::u64, {shape_c.size()}, shape_c), false);
-    auto r2 = make_shared<op::v1::Reshape>(
-        r1, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
+    auto r0 = make_shared<op::v1::Reshape>(A, op::Constant::create(element::u64, {shape_b.size()}, shape_b), false);
+    auto r1 = make_shared<op::v1::Reshape>(r0, op::Constant::create(element::u64, {shape_c.size()}, shape_c), false);
+    auto r2 = make_shared<op::v1::Reshape>(r1, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
     auto f = make_shared<Function>(r2, ParameterVector{A});
 
     auto ref_func = clone_function(*f);
@@ -377,5 +361,3 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_shufflenet_5d)
 
     EXPECT_TRUE(test::all_close_f(ref_results.at(0), bk_results.at(0), MIN_FLOAT_TOLERANCE_BITS));
 }
-
-#endif // NGRAPH_INTERPRETER_ENABLE

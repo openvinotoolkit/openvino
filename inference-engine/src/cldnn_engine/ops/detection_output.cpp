@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 #include "ngraph/op/detection_output.hpp"
 
-#include "api/detection_output.hpp"
+#include "cldnn/primitives/detection_output.hpp"
 
 namespace CLDNNPlugin {
 
@@ -21,7 +21,7 @@ static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str)
     if (it != CodeNameToType.end()) {
         return it->second;
     } else {
-        THROW_IE_EXCEPTION << "Unknown Prior-Box code type: " << str;
+        IE_THROW() << "Unknown Prior-Box code type: " << str;
     }
     return cldnn::prior_box_code_type::corner;
 }
@@ -75,7 +75,8 @@ void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v0::D
                                                  input_height,
                                                  decrease_label_id,
                                                  clip_before_nms,
-                                                 clip_after_nms);
+                                                 clip_after_nms,
+                                                 op->get_friendly_name());
 
     p.AddPrimitive(detectionPrim);
     p.AddPrimitiveToProfiler(op);

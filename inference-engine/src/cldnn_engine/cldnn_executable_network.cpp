@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <list>
-#include <set>
-#include <unordered_set>
 
 #include "ie_metric_helpers.hpp"
-#include <api/cldnn.hpp>
-#include <api/data.hpp>
+#include <chrono>
+#include <cmath>
+#include <algorithm>
+
+#include "ie_metric_helpers.hpp"
 #include <chrono>
 #include <cmath>
 #include <algorithm>
@@ -16,7 +16,6 @@
 #include "cldnn_itt.h"
 
 #include <description_buffer.hpp>
-#include <cldnn/cldnn_config.hpp>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
 #include "cldnn_async_infer_request.h"
@@ -26,20 +25,21 @@
 
 #include "cldnn_executable_network.h"
 #include "threading/ie_cpu_streams_executor.hpp"
-
+#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
-CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteContext::Ptr context, Config config) :
+CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<RemoteContext> context, Config config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]()->InferenceEngine::ITaskExecutor::Ptr {
-        if (config.throughput_streams > 1) {
+        if (config.exclusiveAsyncRequests) {
+            //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
+            return ExecutorManager::getInstance()->getExecutor("GPU");
+        }  else if (config.throughput_streams > 1) {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"CLDNNPlugin executor", config.throughput_streams});
-        } else if (config.exclusiveAsyncRequests) {
-            return ExecutorManager::getInstance()->getExecutor("GPU");
         } else {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"CLDNNPlugin executor", 1});
@@ -50,7 +50,7 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteC
     auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
 
     if (nullptr == casted_context) {
-        THROW_IE_EXCEPTION << "Invalid remote context";
+        IE_THROW() << "Invalid remote context";
     }
 
     m_context = casted_context;
@@ -62,20 +62,20 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteC
     }
 }
 
-InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
-                                                                   OutputsDataMap networkOutputs) {
+IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
+                                                                    OutputsDataMap networkOutputs) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequestImpl");
     if (m_graphs.empty()) {
-        THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
+        IE_THROW(NetworkNotLoaded);
     }
 
     for (auto& graph : m_graphs) {
         if (graph == nullptr) {
-            THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
+            IE_THROW(NetworkNotLoaded);
         }
 
         if (!graph->IsLoaded()) {
-            THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str << ": no networks created";
+            IE_THROW(NetworkNotLoaded) << ": no networks created";
         }
     }
 
@@ -91,14 +91,14 @@ InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap
     return ptr;
 }
 
-IInferRequest::Ptr CLDNNExecNetwork::CreateInferRequest() {
+IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequest() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequest");
     return CreateAsyncInferRequestFromSync<CLDNNAsyncInferRequest>();
 }
 
-InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> CLDNNExecNetwork::GetExecGraphInfo() {
     if (m_graphs.empty())
-        THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
+        IE_THROW(NetworkNotLoaded);
 
     return m_graphs.front()->GetExecGraphInfo();
 }
@@ -108,12 +108,11 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetConfig(const std::string &name) 
     if (it != m_config.key_config_map.end()) {
         return it->second;
     } else {
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
 }
 
 InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::GetMetric");
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_ASSERT(!m_graphs.empty());
         IE_SET_METRIC_RETURN(NETWORK_NAME, m_graphs[0]->getName());
@@ -133,11 +132,11 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
         unsigned int nr = m_config.throughput_streams * 2u;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, nr);
     } else {
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
 }
 
-RemoteContext::Ptr CLDNNExecNetwork::GetContext() const {
+std::shared_ptr<RemoteContext> CLDNNExecNetwork::GetContext() const {
     return m_context;
 }
 

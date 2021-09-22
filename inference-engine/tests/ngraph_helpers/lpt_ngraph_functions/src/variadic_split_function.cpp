@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,12 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
     std::shared_ptr<ngraph::Function> VariadicSplitFunction::getOriginal(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
         const int64_t splitedAxis,
         const std::vector<size_t>& splitLengths) {
-        const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-            precisionBeforeDequantization,
-            ngraph::Shape(inputShape));
+        const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
         const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
         const auto constantAxis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
@@ -39,7 +37,7 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> VariadicSplitFunction::getOriginal(
     const ngraph::element::Type originalFunctionPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
     const int64_t splitedAxis,
     const std::vector<size_t>& splitLengths) {
@@ -69,16 +67,14 @@ std::shared_ptr<ngraph::Function> VariadicSplitFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> VariadicSplitFunction::getReference(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type inputPrecision,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const std::vector<ngraph::builder::subgraph::DequantizationOperations>& dequantizationAfter,
     const int64_t splitedAxis,
     const std::vector<size_t>& splitLengths) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        inputPrecision,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
 
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
 

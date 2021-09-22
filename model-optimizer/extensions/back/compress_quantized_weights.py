@@ -1,33 +1,21 @@
-"""
- Copyright (c) 2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict
 
 import numpy as np
 
 from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Sub, Div, Mul, Negative
+from extensions.ops.elementwise import Sub, Div, Mul, Negative, Equal
+from extensions.ops.select import Select
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph, Node
-from mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type
+from mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type, packed_I4
 from mo.ops.const import Const
 
 
 class CompressQuantizeWeights(BackReplacementPattern):
-    """
+    r"""
     Compress weights transformation goal is to pre-quantize data to minimize runtime calculations with constant data.
     To achieve this goal we perform FakeQuantize decomposition to separate quantization from dequantization in it.
 
@@ -83,15 +71,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
             scale = (output_high - output_low) / (input_high - input_low)
                 WARNING: division by zero imposes restriction -- input_high can not be equal to input_low
             zero_point = input_low - output_low / scale
-
-    TODO: steps 5 and 6 are NOT IMPLEMENTED YET
-    TODO: DOES LPT NEED IT???
-    Step 5: Having zero_point == 0 is really beneficial for performance, so we try to fuse Subtract up to the Constant.
-        It is not always possible because of the quantized_dtype possible range of values.
-
-    Step 6: (Optional) From the nature of Subtract and Multiply operations they may be optimized out in cases:
-            zero_point == 0
-            scale == 1
+            NOTE: if scale == 0 than zero_point is equal to zero too (achieved through Select operation)
 
     BENEFITS:
         Such constant data packing reduces IR size (.bin file size)
@@ -103,6 +83,12 @@ class CompressQuantizeWeights(BackReplacementPattern):
     graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_weights_compression]
 
     force_clean_up = True
+
+    QUANTIZATION_MAP = {
+        # max_levels: (np_dtype, quantization_mode)
+        256: (np.int8, "signed"),
+        16: (packed_I4, "signed"),
+    }
 
     def pattern(self):
         return dict(
@@ -118,7 +104,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         )
 
     @staticmethod
-    def quantize_data(fake_quantize: Node, dst_type: type):
+    def quantize_data(fake_quantize: Node, dst_type: type, quantized_type: type, mode: str):
         graph = fake_quantize.graph
         name = fake_quantize.soft_get('name', fake_quantize.id)
         levels = fake_quantize.levels
@@ -131,8 +117,12 @@ class CompressQuantizeWeights(BackReplacementPattern):
         fake_quantize.in_port(2).get_connection().set_destination(quantize.in_port(2))
 
         # calculate output limits for quantized weights
-        i_min = np.array([-(levels // 2)], dtype=dst_type)
+        assert mode in ["signed", "unsigned"]
+        i_min_value = -(levels // 2) if mode == "signed" else 0
+
+        i_min = np.array([i_min_value], dtype=dst_type)
         i_max = np.array(levels + i_min - 1, dtype=dst_type)
+
         assert i_max - i_min == levels - 1
         out_low = Const(graph, dict(name=name + '/Copy/out_low', value=i_min)).create_node()
         out_high = Const(graph, dict(name=name + '/Copy/out_high', value=i_max)).create_node()
@@ -144,19 +134,20 @@ class CompressQuantizeWeights(BackReplacementPattern):
 
         original_const = quantize.in_port(0).get_source().node
         quantized_data_name = original_const.soft_get('name', original_const.id) + '/quantized'
-        cast = Cast(graph, dict(name=quantized_data_name, dst_type=np.int8, stop_value_propagation=False)).create_node()
+        cast = Cast(graph, dict(name=quantized_data_name, dst_type=quantized_type,
+                                stop_value_propagation=False)).create_node()
 
         quantize.out_port(0).connect(cast.in_port(0))
 
         cast.out_port(0).connect(fake_quantize.in_port(0))
 
     @staticmethod
-    def dequantize_data(fake_quantize: Node, dst_type: type) -> Node:
+    def dequantize_data(fake_quantize: Node, dst_type: type, quantized_type: type) -> Node:
         graph = fake_quantize.graph
         quantized_data = fake_quantize.in_port(0).get_source().node
         name = fake_quantize.soft_get('name', fake_quantize.id)
 
-        assert quantized_data.soft_get('type') == 'Convert' and quantized_data.dst_type == np.int8, \
+        assert quantized_data.soft_get('type') == 'Convert' and quantized_data.dst_type == quantized_type, \
             'Weights aren`t compressed as expected for node {}'.format(fake_quantize.soft_get('name', fake_quantize.id))
 
         dequantizing_cast = Cast(graph, dict(
@@ -188,14 +179,24 @@ class CompressQuantizeWeights(BackReplacementPattern):
         descaled_output_low.in_port(0).connect(out_low)
         descaled_output_low.in_port(1).connect(scale.out_port(0))
 
-        shift = Sub(graph, {'name': name + '/zero_point'}).create_node()
+        shift = Sub(graph, {'name': name + '/shift'}).create_node()
         shift.in_port(0).connect(in_low)
         shift.in_port(1).connect(descaled_output_low.out_port(0))
+
+        zero = Const(graph, {'name': name + '/zero', 'value': np.array(0, dtype=dst_type)}).create_node()
+        scale_eq_zero = Equal(graph, {'name': name + '/scale_eq_zero'}).create_node()
+        scale_eq_zero.in_port(0).connect(scale.out_port(0))
+        scale_eq_zero.in_port(1).connect(zero.out_port(0))
+
+        zero_point = Select(graph, {'name': name + '/zero_point'}).create_node()
+        zero_point.in_port(0).connect(scale_eq_zero.out_port(0))
+        zero_point.in_port(1).connect(zero.out_port(0))
+        zero_point.in_port(2).connect(shift.out_port(0))
 
         # DeQuantize(x) == Mul(Sub(x, zero_point), scale)
         sub_zp = Sub(graph, {'name': name + '/minus_zp'}).create_node()
         sub_zp.in_port(0).connect(dequantizing_cast.out_port(0))
-        sub_zp.in_port(1).connect(shift.out_port(0))
+        sub_zp.in_port(1).connect(zero_point.out_port(0))
 
         mul_scale = Mul(graph, {'name': name + '/mulpiply_by_scale'}).create_node()
         mul_scale.in_port(0).connect(sub_zp.out_port(0))
@@ -212,5 +213,72 @@ class CompressQuantizeWeights(BackReplacementPattern):
         if np.issubdtype(dst_type, np.floating):
             dst_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
 
-        self.quantize_data(fake_quantize, dst_type)
-        self.dequantize_data(fake_quantize, dst_type)
+        quantized_type, mode = None, None
+        for quantization_levels in sorted(self.QUANTIZATION_MAP):
+            if quantization_levels >= fake_quantize.levels:
+                quantized_type, mode = self.QUANTIZATION_MAP[quantization_levels]
+                break
+
+        self.quantize_data(fake_quantize, dst_type, quantized_type, mode)
+        self.dequantize_data(fake_quantize, dst_type, quantized_type)
+
+
+class ZeroPointOptimizer(BackReplacementPattern):
+    r"""
+    Step 1: Having zero_point == 0 is really beneficial for performance, so we try to fuse Subtract up to the Constant.
+        It is not always possible because of the quantized_dtype possible range of values.
+
+    Step 2: From the nature of Subtract operation it may be optimized out if zero_point == 0
+    """
+    enabled = True
+    force_clean_up = True
+
+    def run_after(self):
+        return [CompressQuantizeWeights]
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('const', dict(type='Const')),
+                ('const_d', dict()),
+                ('convert', dict(type='Convert')),
+                ('convert_d', dict()),
+                ('const_zp', dict(type='Const')),
+                ('const_zp_d', dict()),
+                ('sub', dict(type='Subtract')),
+            ],
+            edges=[
+                ('const', 'const_d'),
+                ('const_d', 'convert'),
+                ('convert', 'convert_d'),
+                ('convert_d', 'sub', {'in': 0}),
+                ('const_zp', 'const_zp_d'),
+                ('const_zp_d', 'sub', {'in': 1}),
+            ]
+        )
+
+    def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
+        zero_point = match['const_zp'].out_port(0).data.get_value()
+        assert zero_point is not None
+        convert = match['convert']
+        sub = match['sub']
+        if np.allclose(zero_point, 0):
+            sub.out_port(0).get_connection().set_source(convert.out_port(0))
+            return
+
+        weights = match['const'].out_port(0).data.get_value()
+        if weights is None or weights.dtype != np.int8:
+            return
+        dst_type = convert.dst_type
+
+        int8_zero_point = np.round(zero_point).astype(np.int8)
+        adj_zero_point = (zero_point - int8_zero_point).astype(dst_type)
+
+        original = weights.astype(dst_type) - zero_point
+        transformed = (weights - int8_zero_point).astype(np.int8) - adj_zero_point
+
+        if not np.allclose(original, transformed) or not np.allclose(adj_zero_point, 0, atol=1.e-04):
+            return
+
+        match['const_d']['value'] = (weights - int8_zero_point).astype(np.int8)
+        sub.out_port(0).get_connection().set_source(convert.out_port(0))

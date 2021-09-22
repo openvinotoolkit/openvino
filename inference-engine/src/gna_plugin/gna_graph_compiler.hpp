@@ -24,9 +24,9 @@
 #include "layers/gna_split_layer.hpp"
 #include "backend/dnn_components.hpp"
 #include "backend/am_intel_dnn.hpp"
+#include "backend/gna_limitations.hpp"
 #include "gna_device.hpp"
 #include "gna_data_types.hpp"
-#include "gna_plugin_policy.hpp"
 
 namespace GNAPluginNS {
 class GNAGraphCompiler {
@@ -35,7 +35,6 @@ private:
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
     std::shared_ptr<GNAPluginNS::InputDesc> inputDesc;
     std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
-    Policy policy;
 
     // layers with extra storage for connections and additional
     // non trivial processing
@@ -50,7 +49,8 @@ private:
     static void printPoolingLayer(const InferenceEngine::PoolingLayer& layer);
     static void assertConvolutionLayoutProper(const InferenceEngine::DataPtr&);
     std::vector<uint8_t> static transposeMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols);
-    std::vector<std::size_t> static getFromIRDimsOrderNCHW(InferenceEngine::Layout layout);
+
+    static const GNALimitations::Cnn2D::Validator cnn2dValidator;
 
 public:
     GNAPluginNS::backend::DnnComponents dnnComponents;
@@ -62,7 +62,6 @@ public:
     void setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnnPtr);
     void setInputDescPtr(std::shared_ptr<GNAPluginNS::InputDesc> inputDescPtr);
     void setGNAFlagsPtr(std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlagsPtr);
-    void setPolicy(GNAPluginNS::Policy policy);
 
     void fillMemoryConnections(std::unordered_map<std::string,
             std::vector<InferenceEngine::CNNLayerPtr>> &memoryPairs);
@@ -109,7 +108,7 @@ public:
     void CreateLayerPrimitive(InferenceEngine::CNNLayerPtr);
 
     void AffinePrimitive(InferenceEngine::CNNLayerPtr, bool isDiag = false);
-    void AffineFilterPrimitive(InferenceEngine::CNNLayerPtr);
+    void ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr);
     void ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr);
     void DiagonalPrimitive(InferenceEngine::CNNLayerPtr);
     void ConstPrimitive(InferenceEngine::CNNLayerPtr);
@@ -125,10 +124,11 @@ public:
     void PWLPrimitive(InferenceEngine::CNNLayerPtr);
     void FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr);
     void CopyPrimitive(InferenceEngine::CNNLayerPtr);
+    void GemmPrimitive(InferenceEngine::CNNLayerPtr);
 
     void finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerPtr,
-        uint32_t in_batch, uint32_t in_channels, uint32_t in_height, uint32_t in_width,
-        uint32_t out_batch, uint32_t out_channels, uint32_t out_height, uint32_t out_width);
+        uint32_t in_batch, uint32_t in_channels, uint32_t in_width,
+        uint32_t out_batch, uint32_t out_channels, uint32_t out_width);
 #if GNA_LIB_VER == 2
     void finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerPtr,
         uint32_t in_batch, uint32_t in_channels, uint32_t in_height, uint32_t in_width,

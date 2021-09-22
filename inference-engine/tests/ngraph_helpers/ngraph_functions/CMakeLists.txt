@@ -1,14 +1,8 @@
-# Copyright (C) 2019-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME ngraphFunctions)
-
-list(APPEND EXPORT_DEPENDENCIES
-        ${NGRAPH_LIBRARIES}
-        ngraph_backend
-        interpreter_backend
-        )
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -22,9 +16,8 @@ addIeTarget(
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
-            PUBLIC        
-                ${NGRAPH_LIBRARIES}
-                ngraph_backend
+            PUBLIC
+                ngraph
                 interpreter_backend
         ADD_CPPLINT
         DEVELOPER_PACKAGE

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,7 +95,10 @@ public:
     void createInputs(std::vector<DataDesc> inputDescs = {});
     void createOutputs(std::vector<DataDesc> outputDescs = {});
 
-    Stage addStage(const std::vector<InputInfo>& curInputInfos, const std::vector<OutputInfo>& curOutputInfos);
+    Stage addStage(
+            const std::vector<InputInfo>& curInputInfos,
+            const std::vector<OutputInfo>& curOutputInfos,
+            StageType stageType = StageType::None);
 
     void setStageDataOrderInfo(
             int stageInd,
@@ -127,10 +130,11 @@ void checkStageTestInds(const StageRange& stageRange, std::initializer_list<int>
 
 bool checkExecutionOrder(const Model& model, const std::vector<int>& execOrder);
 
+PluginConfiguration createConfiguration();
+
 class GraphTransformerTest : public ::testing::Test {
 public:
-    Platform platform = Platform::MYRIAD_X;
-    CompilationConfig config;
+    PluginConfiguration config;
 
     StageBuilder::Ptr stageBuilder;
     FrontEnd::Ptr frontEnd;
@@ -149,7 +153,7 @@ public:
     TestModel CreateTestModel();
 
 private:
-    MockICore  _mockCore;
+    std::shared_ptr<MockICore> _mockCore = std::make_shared<MockICore>();
     Logger::Ptr _log;
     std::list<ModelPtr> _models;
 };

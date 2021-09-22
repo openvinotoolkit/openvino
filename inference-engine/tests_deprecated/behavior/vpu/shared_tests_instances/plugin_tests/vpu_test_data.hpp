@@ -1,38 +1,39 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior_test_plugin.h"
+#include "vpu/myriad_config.hpp"
 
 // correct params
 #define BEH_MYRIAD BehTestParams("MYRIAD", \
-                                 FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str, \
-                                 FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob, \
+                                 convReluNormPoolFcModelFP16.model_xml_str, \
+                                 convReluNormPoolFcModelFP16.weights_blob, \
                                  Precision::FP32)
 #define BEH_HETERO BehTestParams("HETERO", \
-                                 FuncTestUtils::TestModel::convReluNormPoolFcModelFP32.model_xml_str, \
-                                 FuncTestUtils::TestModel::convReluNormPoolFcModelFP32.weights_blob, \
+                                 convReluNormPoolFcModelFP32.model_xml_str, \
+                                 convReluNormPoolFcModelFP32.weights_blob, \
                                  Precision::FP32)
 // for multi-device we are testing the fp16 (as it is supported by all device combos we are considering for testing
 // e.g. GPU and VPU, for CPU the network is automatically (internally) converted to fp32.
 #define BEH_MULTI(device) BehTestParams("MULTI", \
-                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str, \
-                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob, \
+                                        convReluNormPoolFcModelFP16.model_xml_str, \
+                                        convReluNormPoolFcModelFP16.weights_blob, \
                                         Precision::FP32, \
                                         {{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, #device}})
 #define BEH_MULTI_CONFIG  BehTestParams("MULTI", \
-                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str, \
-                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob, \
+                                        convReluNormPoolFcModelFP16.model_xml_str, \
+                                        convReluNormPoolFcModelFP16.weights_blob, \
                                         Precision::FP32)
 
 // all parameters are unsupported - reversed
 #define BEH_US_ALL_MYRIAD  BehTestParams("MYRIAD", \
-                                         FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.model_xml_str, \
-                                         FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.weights_blob, \
+                                         convReluNormPoolFcModelQ78.model_xml_str, \
+                                         convReluNormPoolFcModelQ78.weights_blob, \
                                          Precision::Q78)
 #define BEH_US_ALL_MULTI(device) BehTestParams("MULTI", \
-                                               FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.model_xml_str, \
-                                               FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.weights_blob, \
+                                               convReluNormPoolFcModelQ78.model_xml_str, \
+                                               convReluNormPoolFcModelQ78.weights_blob, \
                                                Precision::Q78, \
                                                {{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, #device}})
 const BehTestParams supportedValues[] = {
@@ -79,10 +80,6 @@ const BehTestParams allUnSupportedValues[] = {
 const std::vector<BehTestParams> deviceSpecificConfigurations = {
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB}}),
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE}}),
-
-    // Deprecated
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}}),
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}}),
 
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(USB)}}),
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(PCIE)}}),
@@ -191,17 +188,6 @@ const BehTestParams withIncorrectConfValues[] = {
 
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-1"}}),
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "MICRON"}}),
-
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}}),
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
-
-    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
-                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}}),
-    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
-                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
-    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
-                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
 };
 
 const BehTestParams withIncorrectConfKeys[] = {

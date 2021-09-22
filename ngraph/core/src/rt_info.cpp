@@ -1,87 +1,86 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/rt_info.hpp"
+
 #include "ngraph/node.hpp"
 #include "ngraph/variant.hpp"
 
-ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes)
-{
-    ngraph::Node::RTMap mergedInfo;
-    for (auto& node : nodes)
-    {
-        for (auto& item : node->get_rt_info())
-        {
-            mergedInfo[item.first] = item.second;
-        }
-    }
+namespace {
 
-    ngraph::Node::RTMap newInfo;
-    for (auto& item : mergedInfo)
-    {
-        size_t attributes_count = 0;
-        for (auto& node : nodes)
-        {
-            const auto& rt_info = node->get_rt_info();
-            if (rt_info.count(item.first))
-            {
-                attributes_count++;
+ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes) {
+    std::unordered_map<std::string, std::vector<std::shared_ptr<ngraph::Variant>>> attrs;
+    for (const auto& node : nodes) {
+        for (const auto& item : node->get_rt_info()) {
+            if (item.second->is_copyable() && item.first != "opset") {
+                attrs[item.first].push_back(item.second);
             }
         }
+    }
 
-        if (attributes_count == 1)
-        {
-            newInfo[item.first] = item.second;
-        }
-        else if (auto merge_attr = item.second->merge(nodes))
-        {
-            newInfo[item.first] = merge_attr;
+    ngraph::Node::RTMap merged_attrs;
+    for (auto& item : attrs) {
+        auto attr = *item.second.begin();
+        if (item.second.size() == 1) {
+            merged_attrs[item.first] = attr;
+        } else if (auto merge_attr = attr->merge(nodes)) {
+            merged_attrs[item.first] = merge_attr;
         }
     }
 
-    return newInfo;
+    return merged_attrs;
 }
 
-void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to)
-{
-    auto& rtInfoFrom = from->get_rt_info();
-    auto& rtInfoTo = to->get_rt_info();
-    rtInfoTo = rtInfoFrom;
+std::shared_ptr<ngraph::Variant> get_opset(const ngraph::Node::RTMap& rt_info) {
+    auto it = rt_info.find("opset");
+    if (it != rt_info.end()) {
+        return it->second;
+    }
+    return nullptr;
 }
 
-void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, ngraph::NodeVector to)
-{
-    for (auto& op : to)
-    {
+void assign_runtime_info(const ngraph::Node::RTMap& from, ngraph::Node::RTMap& to) {
+    auto opset = get_opset(to);
+    to = from;
+    if (opset) {
+        to["opset"] = opset;
+    }
+}
+
+}  // namespace
+
+void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to) {
+    auto& attrs = to->get_rt_info();
+    auto opset = get_opset(attrs);
+    attrs.clear();
+
+    for (const auto& item : from->get_rt_info()) {
+        if (item.second->is_copyable() && item.first != "opset") {
+            attrs[item.first] = item.second;
+        }
+    }
+
+    if (opset) {
+        attrs["opset"] = opset;
+    }
+}
+
+void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, ngraph::NodeVector to) {
+    for (auto& op : to) {
         copy_runtime_info(from, op);
     }
 }
 
-void ngraph::copy_runtime_info(const ngraph::NodeVector& from, std::shared_ptr<ngraph::Node> to)
-{
+void ngraph::copy_runtime_info(const ngraph::NodeVector& from, std::shared_ptr<ngraph::Node> to) {
     auto& rtInfoTo = to->get_rt_info();
-    rtInfoTo = mergeRuntimeInfo(from);
+    assign_runtime_info(mergeRuntimeInfo(from), rtInfoTo);
 }
 
-void ngraph::copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVector to)
-{
+void ngraph::copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVector to) {
     auto mergedInfo = mergeRuntimeInfo(from);
-    for (auto& node : to)
-    {
+    for (auto& node : to) {
         auto& rtInfoTo = node->get_rt_info();
-        rtInfoTo = mergedInfo;
+        assign_runtime_info(mergedInfo, rtInfoTo);
     }
 }

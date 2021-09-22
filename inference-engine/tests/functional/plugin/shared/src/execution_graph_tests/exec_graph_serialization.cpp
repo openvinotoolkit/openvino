@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -139,7 +139,7 @@ const char expected_serialized_model[] = R"V0G0N(
 <net name="addmul_abc" version="10">
 	<layers>
 		<layer id="0" name="C" type="Input">
-			<data execOrder="3" execTimeMcs="not_executed" originalLayersNames="C" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<data shape="1" element_type="f32" execOrder="3" execTimeMcs="not_executed" originalLayersNames="C" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
 			<output>
 				<port id="0" precision="FP32">
 					<dim>1</dim>
@@ -147,7 +147,7 @@ const char expected_serialized_model[] = R"V0G0N(
 			</output>
 		</layer>
 		<layer id="1" name="B" type="Input">
-			<data execOrder="1" execTimeMcs="not_executed" originalLayersNames="B" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32"/>
+			<data shape="1" element_type="f32" execOrder="1" execTimeMcs="not_executed" originalLayersNames="B" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32"/>
 			<output>
 				<port id="0" precision="FP32">
 					<dim>1</dim>
@@ -155,7 +155,7 @@ const char expected_serialized_model[] = R"V0G0N(
 			</output>
 		</layer>
 		<layer id="2" name="A" type="Input">
-			<data execOrder="0" execTimeMcs="not_executed" originalLayersNames="A" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32"/>
+			<data shape="1" element_type="f32" execOrder="0" execTimeMcs="not_executed" originalLayersNames="A" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32"/>
 			<output>
 				<port id="0" precision="FP32">
 					<dim>1</dim>
@@ -255,7 +255,7 @@ void ExecGraphSerializationTest::SetUp() {
     const std::string BIN_EXT = ".bin";
 
     std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    std::remove(test_name.begin(), test_name.end(), '/');
+    test_name.erase(std::remove(test_name.begin(), test_name.end(), '/'), test_name.end());
     test_name += getTimestamp();
 
     m_out_xml_path = test_name + XML_EXT;
@@ -311,7 +311,7 @@ std::pair<bool, std::string> ExecGraphSerializationTest::compare_nodes(const pug
         const std::string a2_name{a2->name()};
         const std::string a1_value{a1->value()};
         const std::string a2_value{a2->value()};
-        if ((a1_name != a2_name)) {
+        if (a1_name != a2_name || (a1_name == "type" && a1_value != a2_value)) {
             return {false, "Attributes differ in <" + node1_name + "> : " +
                            a1_name + "=" + a1_value + " != " + a2_name +
                            "=" + a2_value};

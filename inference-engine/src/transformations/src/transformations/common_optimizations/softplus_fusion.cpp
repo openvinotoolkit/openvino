@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,26 +19,20 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
     // fuses ln(exp(x) + 1.0) operations into SoftPlus(x)
     auto input = ngraph::pattern::any_input();
     auto exp = std::make_shared<ngraph::opset4::Exp>(input);
-    auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
+    auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>(
+            pattern::type_matches_any({element::f32, element::f16}));
     auto add = std::make_shared<ngraph::opset4::Add>(exp, add_constant);
     auto log = std::make_shared<ngraph::opset4::Log>(add);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
+        const auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
         auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        if (!constant) return false;
 
-        if (constant == nullptr) {
-            return false;
-        }
-
-        if (constant->get_element_type() == ngraph::element::f32 || constant->get_element_type() == ngraph::element::f16) {
-            auto data = constant->cast_vector<float>();
-            if (data.size() != 1 || data[0] != 1.0) {
-                return false;
-            }
-        } else {
+        auto data = constant->cast_vector<float>();
+        if (data.size() != 1 || data[0] != 1.0) {
             return false;
         }
 

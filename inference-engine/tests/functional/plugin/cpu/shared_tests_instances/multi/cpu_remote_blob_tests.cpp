@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,5 +11,5 @@ const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remot
         {{CPU}, false}, // CPU via MULTI
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlobMultiCPU, MultiDevice_SupportTest,
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiCPU, MultiDevice_SupportTest,
         ::testing::ValuesIn(device_names_and_support_for_remote_blobs), MultiDevice_SupportTest::getTestCaseName);

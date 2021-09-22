@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string MatmulSqueezeAddTest::getTestCaseName(testing::TestParamInfo<matmulSqueezeAddParams> obj) {
+std::string MatmulSqueezeAddTest::getTestCaseName(const testing::TestParamInfo<matmulSqueezeAddParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::vector<size_t> inputShape;
     std::size_t outputSize;

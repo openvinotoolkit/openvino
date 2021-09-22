@@ -21,17 +21,19 @@
 //#define TURBO_MODE
 
 #ifdef _WIN32
-    #include <windows.h>
+#    include <windows.h>
 #else
-    #include <unistd.h>
-    #include <sys/types.h>
-    #include <sys/mman.h>
-    #include <sys/stat.h>
-    #include <fcntl.h>
-    #include <dlfcn.h>
+#    include <dlfcn.h>
+#    include <fcntl.h>
+#    include <sys/mman.h>
+#    include <sys/stat.h>
+#    include <sys/types.h>
+#    include <unistd.h>
 #endif
 #include <string>
+
 #include "IttNotifyStdSrc.h"
+#include "TraceEventFormat.h"
 #include "ittnotify.h"
 
 inline size_t GetMemPageSize() {
@@ -46,7 +48,7 @@ inline size_t GetMemPageSize() {
 
 class CMemMap {
     CMemMap(const CMemMap&) = delete;
-    CMemMap& operator = (const CMemMap&) = delete;
+    CMemMap& operator=(const CMemMap&) = delete;
 
 public:
     CMemMap(const std::string& path, size_t size, size_t offset = 0);
@@ -79,17 +81,23 @@ protected:
 
 class CRecorder {
     CRecorder(const CRecorder&) = delete;
-    CRecorder& operator = (const CRecorder&) = delete;
+    CRecorder& operator=(const CRecorder&) = delete;
 
 public:
     CRecorder();
     bool Init(const std::string& path, uint64_t time, void* pCut);
     size_t CheckCapacity(size_t size);
     void* Allocate(size_t size);
-    uint64_t GetCount() { return m_counter; }
-    uint64_t GetCreationTime() { return m_time; }
+    uint64_t GetCount() {
+        return m_counter;
+    }
+    uint64_t GetCreationTime() {
+        return m_time;
+    }
     void Close(bool bSave);
-    inline bool SameCut(void* pCut) { return pCut == m_pCut; }
+    inline bool SameCut(void* pCut) {
+        return pCut == m_pCut;
+    }
     ~CRecorder();
 
 protected:
@@ -109,8 +117,7 @@ protected:
     void* m_pCut = nullptr;
 };
 
-
-enum class ERecordType: uint8_t {
+enum class ERecordType : uint8_t {
     BeginTask,
     EndTask,
     BeginOverlappedTask,
@@ -131,25 +138,28 @@ struct SRecord {
     const __itt_domain& domain;
     const __itt_id& taskid;
     const __itt_id& parentid;
-    const __itt_string_handle *pName;
+    const __itt_string_handle* pName;
     double* pDelta;
-    const char *pData;
+    const char* pData;
     size_t length;
     void* function;
 };
 double* WriteRecord(ERecordType type, const SRecord& record);
-void WriteMeta(const CTraceEventFormat::SRegularFields& main, __itt_string_handle* pKey, const char* name, double* pDelta = nullptr);
+void WriteMeta(const CTraceEventFormat::SRegularFields& main,
+               __itt_string_handle* pKey,
+               const char* name,
+               double* pDelta = nullptr);
 
 namespace sea {
-    struct IHandler;
-    bool WriteThreadName(const CTraceEventFormat::SRegularFields& rf, const char* name);
-    bool WriteGroupName(int64_t pid, const char* name);
-    bool ReportString(__itt_string_handle* pStr);
-    bool ReportModule(void* fn);
-    bool InitJit();
-    bool WriteJit(const void* buff, size_t size);
-    bool InitMemStat();
-    bool WriteMemStat(const void* buff, size_t size);
+struct IHandler;
+bool WriteThreadName(const CTraceEventFormat::SRegularFields& rf, const char* name);
+bool WriteGroupName(int64_t pid, const char* name);
+bool ReportString(__itt_string_handle* pStr);
+bool ReportModule(void* fn);
+bool InitJit();
+bool WriteJit(const void* buff, size_t size);
+bool InitMemStat();
+bool WriteMemStat(const void* buff, size_t size);
 }  // namespace sea
 
 sea::IHandler& GetSEARecorder();

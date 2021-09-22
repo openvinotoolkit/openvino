@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -127,8 +127,8 @@ protected:
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["ADD_1"] = "FP32";
-        expectedPrecisions["CONV_1"] = "FP32";
+        expectedPrecisions["ADD_1"] = "ndef";
+        expectedPrecisions["CONV_1"] = "BF16";
         expectedPrecisions["CONV_2"] = "BF16";
         expectedPrecisions["RELU_1"] = "ndef";
         expectedPrecisions["ELT_1"] = "ndef";
@@ -136,10 +136,12 @@ protected:
 };
 
 TEST_P(ScaleshiftConvEltwiseReluConv, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ScaleshiftConvEltwiseReluConv,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_NoReshape, ScaleshiftConvEltwiseReluConv,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -148,7 +150,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ScaleshiftConvEltwiseRelu
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ScaleshiftConvEltwiseReluConv::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, ScaleshiftConvEltwiseReluConv,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, ScaleshiftConvEltwiseReluConv,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

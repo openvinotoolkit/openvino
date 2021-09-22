@@ -1,16 +1,20 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import pytest
 from sys import platform
-import numpy as np
 from pathlib import Path
+from threading import Thread
+from time import sleep, time
+from queue import Queue
 
 from openvino.inference_engine import IENetwork, IECore, ExecutableNetwork
-from conftest import model_path, plugins_path, model_onnx_path, model_prototxt_path
+from conftest import model_path, plugins_path, model_onnx_path
 
 
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
-test_net_prototxt = model_prototxt_path()
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 
 
@@ -42,6 +46,12 @@ def test_load_network(device):
     assert isinstance(exec_net, ExecutableNetwork)
 
 
+def test_load_network_from_file(device):
+    ie = IECore()
+    exec_net = ie.load_network(test_net_xml, device)
+    assert isinstance(exec_net, ExecutableNetwork)
+
+
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_load_network_wrong_device():
     ie = IECore()
@@ -51,6 +61,7 @@ def test_load_network_wrong_device():
     assert 'Device with "BLA" name is not registered in the InferenceEngine' in str(e.value)
 
 
+@pytest.mark.ngraph_dependent_test
 def test_query_network(device):
     import ngraph as ng
     ie = IECore()
@@ -64,18 +75,22 @@ def test_query_network(device):
     assert next(iter(set(query_res.values()))) == device, "Wrong device for some layers"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugin():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to MKLDNNPlugin specific test")
     ie.register_plugin("MKLDNNPlugin", "BLA")
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.load_network(net, "BLA")
     assert isinstance(exec_net, ExecutableNetwork), "Cannot load the network to the registered plugin with name 'BLA'"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugins():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to MKLDNNPlugin specific test")
     if platform == "linux" or platform == "linux2":
         ie.register_plugins(plugins_xml)
     elif platform == "darwin":
@@ -117,11 +132,12 @@ def test_get_metric_list_of_str():
                                                    "metric are strings!"
 
 
-
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_two_ints():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to unsupported device metric")
     param = ie.get_metric("CPU", "RANGE_FOR_STREAMS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_STREAMS' " \
                                      f"metric must be tuple but {type(param)} is returned"
@@ -133,6 +149,8 @@ def test_get_metric_tuple_of_two_ints():
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_three_ints():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to unsupported device metric")
     param = ie.get_metric("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_ASYNC_INFER_REQUESTS' " \
                                      f"metric must be tuple but {type(param)} is returned"
@@ -176,20 +194,12 @@ def test_read_network_from_onnx():
     net = ie.read_network(model=test_net_onnx)
     assert isinstance(net, IENetwork)
 
+
 def test_read_network_from_onnx_as_path():
     ie = IECore()
     net = ie.read_network(model=Path(test_net_onnx))
     assert isinstance(net, IENetwork)
 
-def test_read_network_from_prototxt():
-    ie = IECore()
-    net = ie.read_network(model=test_net_prototxt)
-    assert isinstance(net, IENetwork)
-
-def test_read_network_from_prototxt_as_path():
-    ie = IECore()
-    net = ie.read_network(model=Path(test_net_prototxt))
-    assert isinstance(net, IENetwork)
 
 def test_incorrect_xml():
     ie = IECore()
@@ -231,3 +241,37 @@ def test_net_from_buffer_valid():
     o_net2 = ref_net.outputs
     assert ii_net.keys() == ii_net2.keys()
     assert o_net.keys() == o_net2.keys()
+
+
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE","CPU") != "GPU", reason=f"Device dependent test")
+def test_load_network_release_gil(device):
+    running = True
+    message_queue = Queue()
+    def detect_long_gil_holds():
+        sleep_time = 0.01
+        latency_alert_threshold = 0.1
+        # Send a message to indicate the thread is running and ready to detect GIL locks
+        message_queue.put("ready to detect")
+        while running:
+            start_sleep = time()
+            sleep(sleep_time)
+            elapsed = time() - start_sleep
+            if elapsed > latency_alert_threshold:
+                # Send a message to the testing thread that a long GIL lock occurred
+                message_queue.put(latency_alert_threshold)
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    # Wait for the GIL lock detector to be up and running
+    gil_hold_detection_thread = Thread(daemon=True, target=detect_long_gil_holds)
+    gil_hold_detection_thread.start()
+    # Wait to make sure the thread is started and checking for GIL holds
+    sleep(0.1)
+    assert message_queue.get(timeout=5) == "ready to detect"
+    # Run the function that should unlock the GIL
+    exec_net = ie.load_network(net, device)
+    # Ensure resources are closed
+    running = False
+    gil_hold_detection_thread.join(timeout=5)
+    # Assert there were never any long gil locks
+    assert message_queue.qsize() == 0, \
+        f"More than 0 GIL locks occured! Latency: {message_queue.get()})"

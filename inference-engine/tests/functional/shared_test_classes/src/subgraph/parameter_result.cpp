@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ParameterResultSubgraphTest::getTestCaseName(testing::TestParamInfo<parameterResultParams> obj) {
+std::string ParameterResultSubgraphTest::getTestCaseName(const testing::TestParamInfo<parameterResultParams>& obj) {
     std::string targetDevice;
     std::tie(targetDevice) = obj.param;
     std::ostringstream result;

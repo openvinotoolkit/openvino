@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,19 +41,6 @@ TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithAvailableD
     ASSERT_NO_THROW(request = executable.CreateInferRequest());
 }
 
-TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithUnavailableDevice) {
-    const auto &config = GetParam();
-    DISABLE_IF(hasAppropriateStick(config));
-
-    InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
-    InferenceEngine::ExecutableNetwork executable;
-    ASSERT_NO_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config));
-
-    InferenceEngine::InferRequest request;
-    ASSERT_THROW(request = executable.CreateInferRequest(),
-        InferenceEngine::details::InferenceEngineException);
-}
-
 //------------------------------------------------------------------------------
 //  myriadIncorrectModelsConfigsTests_nightly
 //------------------------------------------------------------------------------
@@ -64,24 +51,12 @@ TEST_P(myriadIncorrectModelsConfigsTests_nightly, LoadNetworkWithIncorrectConfig
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
     InferenceEngine::ExecutableNetwork executable;
     ASSERT_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 //------------------------------------------------------------------------------
 //  Tests initiation
 //------------------------------------------------------------------------------
-
-static const std::vector<config_t> myriadCorrectPlatformConfigValues = {
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), ""}}
-};
-
-static const std::vector<config_t> myriadIncorrectPlatformConfigValues = {
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), " 0"}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "MyriadX"}}
-};
 
 static const std::vector<config_t> myriadCorrectPackageTypeConfigValues = {
     // Please do not use other types of DDR in tests with a real device, because it may hang.
@@ -100,14 +75,8 @@ static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {
     {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-MICRON_1GB"}},
 };
 
-INSTANTIATE_TEST_CASE_P(MyriadConfigs, myriadCorrectModelsConfigsTests_nightly,
-                        ::testing::ValuesIn(myriadCorrectPlatformConfigValues));
-
-INSTANTIATE_TEST_CASE_P(MyriadConfigs, myriadIncorrectModelsConfigsTests_nightly,
-                        ::testing::ValuesIn(myriadIncorrectPlatformConfigValues));
-
-INSTANTIATE_TEST_CASE_P(MyriadPackageConfigs, myriadCorrectModelsConfigsTests_nightly,
+INSTANTIATE_TEST_SUITE_P(MyriadPackageConfigs, myriadCorrectModelsConfigsTests_nightly,
     ::testing::ValuesIn(myriadCorrectPackageTypeConfigValues));
 
-INSTANTIATE_TEST_CASE_P(MyriadPackageConfigs, myriadIncorrectModelsConfigsTests_nightly,
+INSTANTIATE_TEST_SUITE_P(MyriadPackageConfigs, myriadIncorrectModelsConfigsTests_nightly,
     ::testing::ValuesIn(myriadIncorrectPackageTypeConfigValues));

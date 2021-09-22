@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 namespace FuncTestUtils {
 namespace PrecisionUtils {
 
-// Copied from inference-engine/src/inference_engine/ie_ngraph_utils.hpp
+// Copied from inference-engine/src/inference_engine/src/ie_ngraph_utils.hpp
 inline ::ngraph::element::Type convertIE2nGraphPrc(const InferenceEngine::Precision& precision) {
     InferenceEngine::Precision::ePrecision pType = precision;
     switch (pType) {
@@ -27,6 +27,10 @@ inline ::ngraph::element::Type convertIE2nGraphPrc(const InferenceEngine::Precis
             return ::ngraph::element::Type(::ngraph::element::Type_t::f16);
         case InferenceEngine::Precision::BF16:
             return ::ngraph::element::Type(::ngraph::element::Type_t::bf16);
+        case InferenceEngine::Precision::U4:
+            return ::ngraph::element::Type(::ngraph::element::Type_t::u4);
+        case InferenceEngine::Precision::I4:
+            return ::ngraph::element::Type(::ngraph::element::Type_t::i4);
         case InferenceEngine::Precision::U8:
             return ::ngraph::element::Type(::ngraph::element::Type_t::u8);
         case InferenceEngine::Precision::I8:
@@ -51,7 +55,7 @@ inline ::ngraph::element::Type convertIE2nGraphPrc(const InferenceEngine::Precis
         case InferenceEngine::Precision::MIXED:
         case InferenceEngine::Precision::CUSTOM:
         default:
-            THROW_IE_EXCEPTION << "Incorrect precision!";
+            IE_THROW() << "Incorrect precision!";
     }
 }
 

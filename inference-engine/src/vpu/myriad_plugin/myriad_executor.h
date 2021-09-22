@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,13 @@
 #include <utility>
 
 #include <mvnc.h>
-#include "myriad_mvnc_wraper.h"
+#include "myriad_mvnc_wrapper.h"
+#include "vpu/configuration/plugin_configuration.hpp"
+#include "vpu/configuration/options/protocol.hpp"
+#include "vpu/configuration/options/device_id.hpp"
+#include "vpu/utils/error.hpp"
 
 #include <ie_parameter.hpp>
-
-#include <myriad_config.h>
 
 namespace vpu {
 namespace MyriadPlugin {
@@ -36,7 +38,6 @@ struct DeviceDesc {
     int _graphNum = 0;
     int _maxGraphNum = 0;
     std::string _name;
-    ncDevicePlatform_t _platform = NC_ANY_PLATFORM;
     ncDeviceProtocol_t _protocol = NC_ANY_PROTOCOL;
 
     int _deviceIdx = -1;
@@ -52,20 +53,14 @@ struct DeviceDesc {
         return _graphNum < _maxGraphNum;
     }
 
-    bool isSuitableForConfig(const MyriadConfig& config) const {
+    bool isSuitableForConfig(const PluginConfiguration& config) const {
         bool isSuitableByName = true;
-        if (!config.deviceName().empty()) {
-            isSuitableByName = config.deviceName() == _name;
+        if (!config.get<DeviceIDOption>().empty()) {
+            isSuitableByName = config.get<DeviceIDOption>() == _name;
         }
 
         return isSuitableByName &&
-                ((config.platform() == NC_ANY_PLATFORM) || (_platform == config.platform())) &&
-                ((config.protocol() == NC_ANY_PROTOCOL) || (_protocol == config.protocol()));
-    }
-
-    Platform revision() const {
-        VPU_THROW_UNLESS(_platform != NC_ANY_PLATFORM, "Cannot get a revision from not booted device");
-        return _platform == NC_MYRIAD_2 ? Platform::MYRIAD_2 : Platform::MYRIAD_X;
+                ((config.get<ProtocolOption>() == NC_ANY_PROTOCOL) || (_protocol == config.get<ProtocolOption>()));
     }
 };
 
@@ -86,7 +81,7 @@ public:
      * @brief Get myriad device
      * @return Already booted and empty device or new booted device
      */
-    DevicePtr openDevice(std::vector<DevicePtr> &devicePool, const MyriadConfig& config);
+    DevicePtr openDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config);
 
     static void closeDevices(std::vector<DevicePtr> &devicePool, std::shared_ptr<IMvnc> mvnc);
 
@@ -134,8 +129,7 @@ private:
      * @param configPlatform Boot the selected platform
      * @param configProtocol Boot device with selected protocol
      */
-    ncStatus_t bootNextDevice(std::vector<DevicePtr> &devicePool,
-                              const MyriadConfig& config);
+    ncStatus_t bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config);
 };
 
 typedef std::shared_ptr<MyriadExecutor> MyriadExecutorPtr;

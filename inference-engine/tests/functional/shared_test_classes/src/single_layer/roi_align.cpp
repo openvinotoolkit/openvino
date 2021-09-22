@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +12,7 @@ using namespace FuncTestUtils::PrecisionUtils;
 
 namespace LayerTestsDefinitions {
 
-std::string ROIAlignLayerTest::getTestCaseName(testing::TestParamInfo<roialignParams> obj) {
+std::string ROIAlignLayerTest::getTestCaseName(const testing::TestParamInfo<roialignParams>& obj) {
     std::vector<size_t> inputShape;
     std::vector<size_t> coordsShape;
 
@@ -47,8 +46,8 @@ static int randInt(int low, int high) {
     return dis(gen);
 }
 
-static void fillCoordTensor(std::vector<float> coords, int height, int width,
-                            float spatialScale, int pooledRatio, int pooledH, int pooledW) {
+void ROIAlignLayerTest::fillCoordTensor(std::vector<float>& coords, int height, int width,
+                                        float spatialScale, int pooledRatio, int pooledH, int pooledW) {
     int minRoiWidth = pooledW;
     int maxRoiWidth = width / pooledRatio;
     int minRoiHeight = pooledH;
@@ -66,26 +65,12 @@ static void fillCoordTensor(std::vector<float> coords, int height, int width,
         coords[i * 4 + 3] = (startY + sizeY - 1) / spatialScale;
     }
 }
-static void fillIdxTensor(std::vector<int> idx, int batchSize) {
+void ROIAlignLayerTest::fillIdxTensor(std::vector<int>& idx, int batchSize) {
     int batchId = 0;
     for (int i = 0; i < idx.size(); i++) {
         idx[i] = batchId;
         batchId = (batchId + 1) % batchSize;
     }
-}
-
-void ROIAlignLayerTest::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
-    auto inputShape = cnnNetwork.getInputShapes().begin()->second;
-    for (const auto &input : cnnNetwork.getInputsInfo()) {
-        const auto &info = input.second;
-        Blob::Ptr blob;
-        blob = GenerateInput(*info);
-        inferRequest.SetBlob(info->name(), blob);
-        inputs.push_back(blob);
-    }
-    inferRequest.Infer();
 }
 
 void ROIAlignLayerTest::SetUp() {
@@ -109,7 +94,7 @@ void ROIAlignLayerTest::SetUp() {
     fillIdxTensor(roiIdxVector, inputShape[0]);
     ngraph::Shape idxShape = { coordsShape[0] };
 
-    auto coords = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, coordsShape, proposalVector.data());
+    auto coords = std::make_shared<ngraph::opset1::Constant>(ngPrc, coordsShape, proposalVector.data());
     auto roisIdx = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
 
     std::shared_ptr<ngraph::Node> roiAlign =

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -21,7 +8,6 @@ import numpy as np
 from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Div
 from extensions.ops.interpolate import Interpolate
-from mo.front.common.layout import get_height_dim, get_width_dim
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -45,13 +31,9 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
 
     shape = Shape(graph, {'name': resize_name + '/shapeof'}).create_node()
 
-    layout = graph.graph['layout']
-    height_dim = get_height_dim(layout, 4)
-    width_dim = get_width_dim(layout, 4)
-
     ss = create_op_with_const_inputs(graph, StridedSlice,
-                                     {1: int64_array([height_dim]),
-                                      2: int64_array([width_dim + 1]),
+                                     {1: int64_array([1]),
+                                      2: int64_array([3]),
                                       3: int64_array([1])
                                       },
                                      {'name': resize_name + '/StridedSlice',
@@ -87,7 +69,7 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
 
     interpolate4 = create_op_with_const_inputs(graph, Interpolate,
                                                {
-                                                   3: int64_array([height_dim, width_dim])
+                                                   3: int64_array([1, 2])
                                                },
                                                {
                                                    'name': resize_name + '/interpolate_4',

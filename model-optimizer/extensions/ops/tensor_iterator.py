@@ -1,21 +1,10 @@
-"""
- Copyright (C) 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 from copy import copy, deepcopy
 
 from extensions.ops.parameter import Parameter
+from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Node, dict_includes, Graph
 from mo.ops.const import Const
 from mo.ops.op import Op
@@ -63,7 +52,7 @@ class TensorIterator(Op):
             assert data_node.has_valid('shape'), \
                 'Data node should have `shape` attribute set, but it`s not for node {}'.format(data_node.id)
             shape = data_node['shape'].copy()
-            parameter_data_node = Parameter(body, {'shape': shape}).create_node_with_data()
+            parameter_data_node = Parameter(body, {'shape': shape_array(shape)}).create_node_with_data()
 
             body.create_edge(src_node=parameter_data_node, dst_node=operation_node,
                              out_port=0, in_port=in_port, edge_attrs=attrs)

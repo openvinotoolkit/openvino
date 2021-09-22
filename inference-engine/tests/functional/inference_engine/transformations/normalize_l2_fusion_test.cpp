@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,16 +27,16 @@ TEST(TransformationTests, NormalizeL2FusionWithMax) {
         auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
         auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
-        auto sqrt_max_eps = std::make_shared<ngraph::opset4::Maximum>(sqrt, eps_const);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_max_eps);
+        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
+        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(max);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithMax>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -49,8 +49,9 @@ TEST(TransformationTests, NormalizeL2FusionWithMax) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectExp) {
@@ -62,16 +63,16 @@ TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectExp) {
         auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
         auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
-        auto sqrt_max_eps = std::make_shared<ngraph::opset4::Maximum>(sqrt, eps_const);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_max_eps);
+        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
+        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(max);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithMax>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
     }
 
@@ -81,16 +82,17 @@ TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectExp) {
         auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
         auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
-        auto sqrt_max_eps = std::make_shared<ngraph::opset4::Maximum>(sqrt, eps_const);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_max_eps);
+        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
+        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(max);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
@@ -101,16 +103,16 @@ TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
         auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
         auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{2}, {1, 2});
-        auto sqrt_max_eps = std::make_shared<ngraph::opset4::Maximum>(sqrt, eps_const);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_max_eps);
+        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
+        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(max);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithMax>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
     }
 
@@ -120,16 +122,17 @@ TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
         auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
         auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{2}, {1, 2});
-        auto sqrt_max_eps = std::make_shared<ngraph::opset4::Maximum>(sqrt, eps_const);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_max_eps);
+        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
+        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(max);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, NormalizeL2FusionWithAdd) {
@@ -141,16 +144,16 @@ TEST(TransformationTests, NormalizeL2FusionWithAdd) {
         auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
         auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {eps_value});
-        auto sqrt_add_eps = std::make_shared<ngraph::opset4::Add>(sqrt, eps_const);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_add_eps);
+        auto add = std::make_shared<ngraph::opset4::Add>(reduce_sum, eps_const);
+        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(add);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithAdd>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -163,8 +166,9 @@ TEST(TransformationTests, NormalizeL2FusionWithAdd) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectExp) {
@@ -176,16 +180,16 @@ TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectExp) {
         auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
         auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
-        auto sqrt_add_eps = std::make_shared<ngraph::opset4::Add>(sqrt, eps_const);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_add_eps);
+        auto add = std::make_shared<ngraph::opset4::Add>(reduce_sum, eps_const);
+        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(add);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithAdd>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -196,16 +200,17 @@ TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectExp) {
         auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
         auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
-        auto sqrt_add_eps = std::make_shared<ngraph::opset4::Add>(sqrt, eps_const);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_add_eps);
+        auto add = std::make_shared<ngraph::opset4::Add>(reduce_sum, eps_const);
+        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(add);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectEpsValueShape) {
@@ -216,16 +221,16 @@ TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectEpsValueShape) {
         auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
         auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{2}, {1, 2});
-        auto sqrt_add_eps = std::make_shared<ngraph::opset4::Add>(sqrt, eps_const);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_add_eps);
+        auto add = std::make_shared<ngraph::opset4::Add>(reduce_sum, eps_const);
+        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(add);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithMax>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
     }
 
@@ -235,14 +240,15 @@ TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectEpsValueShape) {
         auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
         auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{2}, {1, 2});
-        auto sqrt_add_eps = std::make_shared<ngraph::opset4::Add>(sqrt, eps_const);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_add_eps);
+        auto add = std::make_shared<ngraph::opset4::Add>(reduce_sum, eps_const);
+        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(add);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }

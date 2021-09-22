@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 // All op headers
 
@@ -21,6 +9,8 @@
 #include "ngraph/op/abs.hpp"
 #include "ngraph/op/acos.hpp"
 #include "ngraph/op/acosh.hpp"
+#include "ngraph/op/adaptive_avg_pool.hpp"
+#include "ngraph/op/adaptive_max_pool.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/and.hpp"
 #include "ngraph/op/asin.hpp"
@@ -51,7 +41,9 @@
 #include "ngraph/op/deformable_psroi_pooling.hpp"
 #include "ngraph/op/depth_to_space.hpp"
 #include "ngraph/op/detection_output.hpp"
+#include "ngraph/op/dft.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/einsum.hpp"
 #include "ngraph/op/elu.hpp"
 #include "ngraph/op/embedding_segments_sum.hpp"
 #include "ngraph/op/embeddingbag_offsets_sum.hpp"
@@ -82,6 +74,8 @@
 #include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/hsigmoid.hpp"
 #include "ngraph/op/hswish.hpp"
+#include "ngraph/op/idft.hpp"
+#include "ngraph/op/if.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/less_eq.hpp"
@@ -92,6 +86,7 @@
 #include "ngraph/op/lstm_cell.hpp"
 #include "ngraph/op/lstm_sequence.hpp"
 #include "ngraph/op/matmul.hpp"
+#include "ngraph/op/matrix_nms.hpp"
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/max_pool.hpp"
 #include "ngraph/op/maximum.hpp"
@@ -99,6 +94,7 @@
 #include "ngraph/op/minimum.hpp"
 #include "ngraph/op/mish.hpp"
 #include "ngraph/op/mod.hpp"
+#include "ngraph/op/multiclass_nms.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/mvn.hpp"
 #include "ngraph/op/negative.hpp"
@@ -117,6 +113,7 @@
 #include "ngraph/op/prior_box_clustered.hpp"
 #include "ngraph/op/proposal.hpp"
 #include "ngraph/op/psroi_pooling.hpp"
+#include "ngraph/op/random_uniform.hpp"
 #include "ngraph/op/range.hpp"
 #include "ngraph/op/read_value.hpp"
 #include "ngraph/op/reduce_l1.hpp"
@@ -137,6 +134,7 @@
 #include "ngraph/op/rnn_sequence.hpp"
 #include "ngraph/op/roi_align.hpp"
 #include "ngraph/op/roi_pooling.hpp"
+#include "ngraph/op/roll.hpp"
 #include "ngraph/op/round.hpp"
 #include "ngraph/op/scatter_elements_update.hpp"
 #include "ngraph/op/scatter_nd_update.hpp"
@@ -149,6 +147,7 @@
 #include "ngraph/op/sign.hpp"
 #include "ngraph/op/sin.hpp"
 #include "ngraph/op/sinh.hpp"
+#include "ngraph/op/slice.hpp"
 #include "ngraph/op/softmax.hpp"
 #include "ngraph/op/softplus.hpp"
 #include "ngraph/op/space_to_batch.hpp"

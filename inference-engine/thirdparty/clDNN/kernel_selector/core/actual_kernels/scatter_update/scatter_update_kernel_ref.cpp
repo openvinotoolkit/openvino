@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "scatter_update_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -128,7 +116,7 @@ CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_param
         // Each work item is for each tensor in input2.
         // Not using input2's shape info directly, because the input2's shape might be reordered from the reordering pass.
         // Instead, we reconsider update2's dimension with input1's shape which is shrinked as 1d.
-        // e.g., axis = b, input0(10, 9, 10, 9, 10) && input1(4, 2) => input2(8, 9, 10, 9, 10 
+        // e.g., axis = b, input0(10, 9, 10, 9, 10) && input1(4, 2) => input2(8, 9, 10, 9, 10
         const size_t indices_size = params.inputs[1].LogicalSize();
         switch (output.GetLayout()) {
             case DataLayout::bfyx:
@@ -220,8 +208,10 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
         } else { // i < axis_value - 1
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH" + "";
             std::string output_size_name;
-            if (i == 0) output_size_name = "OUTPUT_FEATURE_NUM";
-            else output_size_name = "OUTPUT_SIZE_" + GetAxisName(dims, i + 1);
+            if (i == 0)
+                output_size_name = "OUTPUT_FEATURE_NUM";
+            else
+                output_size_name = "OUTPUT_SIZE_" + GetAxisName(dims, i + 1);
             std::string src_pitch = "(UPDATES_" + GetAxisName(dims, i + 1) + "_PITCH * " + output_size_name + ")";
             jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
         }
@@ -231,7 +221,8 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
 
     if (!params.fused_ops.empty()) {
         FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.output.GetDims().size()), "val", params.inputs[0].GetDType() };
-        FusedOpsConfiguration conf2 = { "_SECOND_KERNEL", GetVectorSecondOutputIndexOrder(params, GetScatterUpdateChannelIndex(params)), "val", params.inputs[0].GetDType() };
+        FusedOpsConfiguration conf2 = { "_SECOND_KERNEL", GetVectorSecondOutputIndexOrder(params, GetScatterUpdateChannelIndex(params)),
+                                        "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf1, conf2}));
     }
 
@@ -267,7 +258,8 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
     int start_with_iteration = 0;
 
     // if dim of output along axis is equal to logical size of indices, we miss copying kernel
-    if (orgParams.inputs[0].Extract(orgParams.inputs[0].GetLayout(), Tensor::DataChannelName(orgParams.axis), orgParams.inputs[0].GetDims()).v == indices_size) {
+    if (orgParams.inputs[0].Extract(orgParams.inputs[0].GetLayout(), Tensor::DataChannelName(orgParams.axis),
+                                    orgParams.inputs[0].GetDims()).v == indices_size) {
         start_with_iteration = 1;
     }
 
@@ -277,12 +269,12 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
 
     for (int i = start_with_iteration; i < 2; i++) {
         auto dispatchData = SetDefault(newParams, options, (i == 1));
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
 
-        if (i == 1){
+        if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
         }
-        std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+        auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         clKernelData& kernel = kd.kernels[i - start_with_iteration];
 

@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "myriad_layers_concat_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsConcat_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsConcat_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_concatCores),
         ::testing::ValuesIn(s_axis),

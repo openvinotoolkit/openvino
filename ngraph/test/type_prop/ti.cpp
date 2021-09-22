@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/builder/reshape.hpp"
@@ -23,13 +11,12 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, tensor_iterator_lstm)
-{
+TEST(type_prop, tensor_iterator_lstm) {
     // That which we iterate over
-    const size_t N = 32; // Batch size
-    const size_t L = 10; // Sequence length
-    const size_t I = 8;  // Input size
-    const size_t H = 32; // Hidden size
+    const size_t N = 32;  // Batch size
+    const size_t L = 10;  // Sequence length
+    const size_t I = 8;   // Input size
+    const size_t H = 32;  // Hidden size
     auto SENT = make_shared<op::Parameter>(element::f32, Shape{N, L, I});
 
     auto H_init = make_shared<op::Parameter>(element::f32, Shape{N, 1, H});
@@ -52,8 +39,7 @@ TEST(type_prop, tensor_iterator_lstm)
                                                    H);
     auto H_o = builder::opset1::reshape(LSTM_cell->output(0), Shape{N, 1, H});
     auto C_o = builder::opset1::reshape(LSTM_cell->output(1), Shape{N, 1, H});
-    auto body = make_shared<ngraph::Function>(OutputVector{H_o, C_o},
-                                              ParameterVector{X, H_t, C_t, W_body, R_body});
+    auto body = make_shared<ngraph::Function>(OutputVector{H_o, C_o}, ParameterVector{X, H_t, C_t, W_body, R_body});
 
     auto tensor_iterator = make_shared<op::TensorIterator>();
     tensor_iterator->set_body(body);
@@ -74,8 +60,7 @@ TEST(type_prop, tensor_iterator_lstm)
     auto f = make_shared<Function>(results, ParameterVector{SENT, H_init, C_init, W, R});
 }
 
-TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2)
-{
+TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2) {
     // That which we iterate over
     auto X = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
@@ -117,8 +102,7 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2)
     EXPECT_EQ(result1->get_output_shape(0), out1_shape);
 }
 
-TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic)
-{
+TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic) {
     // That which we iterate over
     auto X = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
@@ -145,23 +129,16 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic)
     tensor_iterator->set_invariant_input(M_body, M);
 
     // check input descriptors
-    for (auto& desc : tensor_iterator->get_input_descriptions())
-    {
+    for (auto& desc : tensor_iterator->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
-        if (std::strcmp(type_info.name, "InvariantInputDescription") == 0)
-        {
-            auto input_desc =
-                as_type_ptr<ngraph::op::TensorIterator::InvariantInputDescription>(desc);
+        if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
+            auto input_desc = ov::as_type_ptr<ngraph::op::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
-        }
-        else if (std::strcmp(type_info.name, "SliceInputDescription") == 0)
-        {
-            auto input_desc = as_type_ptr<ngraph::op::TensorIterator::SliceInputDescription>(desc);
+        } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
+            auto input_desc = ov::as_type_ptr<ngraph::op::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
-        }
-        else if (std::strcmp(type_info.name, "MergedInputDescription") == 0)
-        {
-            auto input_desc = as_type_ptr<ngraph::op::TensorIterator::MergedInputDescription>(desc);
+        } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
+            auto input_desc = ov::as_type_ptr<ngraph::op::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -173,18 +150,13 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic)
     auto out1 = tensor_iterator->get_concatenated_slices(Zo, 0, 2, 2, 38, 1);
 
     // check output descriptors
-    for (auto& desc : tensor_iterator->get_output_descriptions())
-    {
+    for (auto& desc : tensor_iterator->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
-        if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0)
-        {
-            auto output_desc =
-                as_type_ptr<ngraph::op::TensorIterator::ConcatOutputDescription>(desc);
+        if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
+            auto output_desc = ov::as_type_ptr<ngraph::op::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
-        }
-        else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0)
-        {
-            auto output_desc = as_type_ptr<ngraph::op::TensorIterator::BodyOutputDescription>(desc);
+        } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
+            auto output_desc = ov::as_type_ptr<ngraph::op::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }

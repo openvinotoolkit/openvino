@@ -1,6 +1,6 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
@@ -36,6 +36,6 @@ protected:
     void SetUp() override;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ComparisonTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj);
 };
 } // namespace LayerTestsDefinitions

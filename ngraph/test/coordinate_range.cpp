@@ -1,26 +1,13 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
+#include <ngraph/coordinate_range.hpp>
 #include <numeric>
 #include <utility>
 
 #include "gtest/gtest.h"
-
-#include <ngraph/coordinate_range.hpp>
 
 using namespace ngraph;
 using namespace ngraph::coordinates;
@@ -33,8 +20,7 @@ using ExpectedOutput = std::vector<std::pair<Index, Coordinate>>;
 ///
 ///
 
-TEST(coordinate_range, slice_range_shape0d)
-{
+TEST(coordinate_range, slice_range_shape0d) {
     const Shape s;
     const Coordinate start_corner(s.size());
 
@@ -42,13 +28,12 @@ TEST(coordinate_range, slice_range_shape0d)
     auto it = slice_range.begin();
     EXPECT_EQ(it, begin(slice_range));
     EXPECT_FALSE(it == slice_range.end());
-    auto v = *it; // if it is not end it has to be dereferencable;
+    auto v = *it;  // if it is not end it has to be dereferencable;
     (void)v;
     EXPECT_TRUE(++it == slice_range.end());
 }
 
-TEST(coordinate_range, slice_range_shape1d)
-{
+TEST(coordinate_range, slice_range_shape1d) {
     const Shape s{3};
     const Coordinate start_corner(s.size());
 
@@ -56,22 +41,18 @@ TEST(coordinate_range, slice_range_shape1d)
     ASSERT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto slice_range : slice(s, start_corner, s))
-    {
+    for (auto slice_range : slice(s, start_corner, s)) {
         auto index = slice_range.begin_index;
-        for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i)
-        {
+        for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
         }
     }
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected)) << " is missing)";
 }
 
-TEST(coordinate_range, slice_range_shape2d)
-{
+TEST(coordinate_range, slice_range_shape2d) {
     const Shape s{2, 3};
     const Coordinate start_corner(s.size());
 
@@ -83,22 +64,18 @@ TEST(coordinate_range, slice_range_shape2d)
     ASSERT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto slice_range : slice(s, start_corner, s))
-    {
+    for (auto slice_range : slice(s, start_corner, s)) {
         auto index = slice_range.begin_index;
-        for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i)
-        {
+        for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
         }
     }
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected)) << " is missing)";
 }
 
-TEST(coordinate_range, slice_range_shape3d)
-{
+TEST(coordinate_range, slice_range_shape3d) {
     const Shape s{2, 3, 4};
     const Coordinate start_corner(s.size());
 
@@ -114,11 +91,9 @@ TEST(coordinate_range, slice_range_shape3d)
     ASSERT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto slice_range : slice(s, start_corner, s))
-    {
+    for (auto slice_range : slice(s, start_corner, s)) {
         auto index = slice_range.begin_index;
-        for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i)
-        {
+        for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
         }
@@ -126,8 +101,7 @@ TEST(coordinate_range, slice_range_shape3d)
     EXPECT_TRUE(expected_val == end(expected));
 }
 
-TEST(coordinate_range, slice_range_zero_sized_axis)
-{
+TEST(coordinate_range, slice_range_zero_sized_axis) {
     const Shape s{2, 0, 4};
     const Coordinate start_corner(s.size());
 
@@ -139,8 +113,7 @@ TEST(coordinate_range, slice_range_zero_sized_axis)
 ///
 /// slice specyfic test
 ///
-TEST(coordinate_range, slice_range_input_validataion)
-{
+TEST(coordinate_range, slice_range_input_validataion) {
     const Shape s{10, 10, 10};
     EXPECT_THROW(slice(s, {1}, {1}), std::domain_error);
     EXPECT_THROW(slice(s, s, {1}), std::domain_error);
@@ -148,36 +121,33 @@ TEST(coordinate_range, slice_range_input_validataion)
     EXPECT_THROW(slice(s, s, s, {}), std::domain_error);
 }
 
-namespace
-{
-    Shape sliced_shape(const std::vector<size_t>& start_corner,
-                       const std::vector<size_t>& end_corner)
-    {
-        Shape s;
-        std::transform(end_corner.begin(),
-                       end_corner.end(),
-                       start_corner.begin(),
-                       std::back_inserter(s),
-                       [](size_t e, size_t b) { return e - b; });
+namespace {
+Shape sliced_shape(const std::vector<size_t>& start_corner, const std::vector<size_t>& end_corner) {
+    Shape s;
+    std::transform(end_corner.begin(),
+                   end_corner.end(),
+                   start_corner.begin(),
+                   std::back_inserter(s),
+                   [](size_t e, size_t b) {
+                       return e - b;
+                   });
 
-        return s;
-    }
-    Shape sliced_shape(const std::vector<size_t>& start_corner,
-                       const std::vector<size_t>& end_corner,
-                       const std::vector<size_t>& strides)
-    {
-        Shape s = sliced_shape(start_corner, end_corner);
+    return s;
+}
+Shape sliced_shape(const std::vector<size_t>& start_corner,
+                   const std::vector<size_t>& end_corner,
+                   const std::vector<size_t>& strides) {
+    Shape s = sliced_shape(start_corner, end_corner);
 
-        std::transform(s.begin(), s.end(), strides.begin(), s.begin(), [](size_t e, size_t s) {
-            return (e + s - 1) / s;
-        });
+    std::transform(s.begin(), s.end(), strides.begin(), s.begin(), [](size_t e, size_t s) {
+        return (e + s - 1) / s;
+    });
 
-        return s;
-    }
-} // namespace
+    return s;
+}
+}  // namespace
 
-TEST(coordinate_range, slice_range_corner)
-{
+TEST(coordinate_range, slice_range_corner) {
     const Shape s{10, 10};
     const Coordinate source_start_corner{3, 3};
     const Coordinate source_end_corner{6, 6};
@@ -194,22 +164,18 @@ TEST(coordinate_range, slice_range_corner)
         << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto slice_range : slice(s, source_start_corner, source_end_corner))
-    {
+    for (auto slice_range : slice(s, source_start_corner, source_end_corner)) {
         auto index = slice_range.begin_index;
-        for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i)
-        {
+        for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
         }
     }
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected)) << " is missing)";
 }
 
-TEST(coordinate_range, slice_range_strides)
-{
+TEST(coordinate_range, slice_range_strides) {
     const Shape s{10, 10};
     const Coordinate source_start_corner{0, 0};
     const Coordinate source_end_corner{s};
@@ -224,23 +190,19 @@ TEST(coordinate_range, slice_range_strides)
         {80, {8, 0}}, {83, {8, 3}}, {86, {8, 6}}, {89, {8, 9}}};
     // clang-format on
 
-    ASSERT_EQ(expected.size(),
-              shape_size(sliced_shape(source_start_corner, source_end_corner, source_strides)))
+    ASSERT_EQ(expected.size(), shape_size(sliced_shape(source_start_corner, source_end_corner, source_strides)))
         << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto slice_range : slice(s, source_start_corner, source_end_corner, source_strides))
-    {
+    for (auto slice_range : slice(s, source_start_corner, source_end_corner, source_strides)) {
         auto index = slice_range.begin_index;
-        for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i)
-        {
+        for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
         }
     }
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected)) << " is missing)";
 }
 
 ///
@@ -249,21 +211,19 @@ TEST(coordinate_range, slice_range_strides)
 ///
 ///
 
-TEST(coordinate_range, reverse_range_shape0d)
-{
+TEST(coordinate_range, reverse_range_shape0d) {
     const Shape s;
     const AxisSet reverset_axis{};
 
     auto reverse_range = reverse(s, reverset_axis);
     auto it = reverse_range.begin();
     EXPECT_EQ(it, begin(reverse_range));
-    auto v = *it; // if it is not end it has to be dereferencable;
+    auto v = *it;  // if it is not end it has to be dereferencable;
     (void)v;
     EXPECT_TRUE(++it == reverse_range.end());
 }
 
-TEST(coordinate_range, reverse_range_shape1d)
-{
+TEST(coordinate_range, reverse_range_shape1d) {
     const Shape s{3};
     const AxisSet reverset_axis{};
 
@@ -271,24 +231,20 @@ TEST(coordinate_range, reverse_range_shape1d)
     EXPECT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis))
-    {
+    for (auto reverse_range : reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::forward);
-        for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i)
-        {
+        for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected)) << " is missing)";
 }
 
-TEST(coordinate_range, reverse_range_shape2d)
-{
+TEST(coordinate_range, reverse_range_shape2d) {
     const Shape s{2, 3};
     const AxisSet reverset_axis{};
 
@@ -300,24 +256,20 @@ TEST(coordinate_range, reverse_range_shape2d)
     EXPECT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis))
-    {
+    for (auto reverse_range : reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::forward);
-        for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i)
-        {
+        for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected)) << " is missing)";
 }
 
-TEST(coordinate_range, reverse_range_shape3d)
-{
+TEST(coordinate_range, reverse_range_shape3d) {
     const Shape s{2, 3, 4};
     const AxisSet reverset_axis{};
 
@@ -333,24 +285,20 @@ TEST(coordinate_range, reverse_range_shape3d)
     EXPECT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis))
-    {
+    for (auto reverse_range : reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::forward);
-        for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i)
-        {
+        for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected)) << " is missing)";
 }
 
-TEST(coordinate_range, reverse_range_zero_sized_axis)
-{
+TEST(coordinate_range, reverse_range_zero_sized_axis) {
     const Shape s{2, 0, 4};
 
     auto reverse_range = reverse(s, {});
@@ -361,14 +309,12 @@ TEST(coordinate_range, reverse_range_zero_sized_axis)
 ///
 /// reverse specyfic test
 ///
-TEST(coordinate_range, reverse_range_input_validataion)
-{
+TEST(coordinate_range, reverse_range_input_validataion) {
     const Shape s{10, 10, 10};
     EXPECT_THROW(reverse(s, {10}), std::domain_error);
 }
 
-TEST(coordinate_range, reverse_range_2d)
-{
+TEST(coordinate_range, reverse_range_2d) {
     const Shape s{3, 10};
     const AxisSet reverset_axis{1};
 
@@ -379,24 +325,20 @@ TEST(coordinate_range, reverse_range_2d)
         {29, {2, 9}}, {28, {2, 8}}, {27, {2, 7}}, {26, {2, 6}}, {25, {2, 5}}, {24, {2, 4}}, {23, {2, 3}}, {22, {2, 2}}, {21, {2, 1}}, {20, {2, 0}}};
     // clang-format on
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis))
-    {
+    for (auto reverse_range : reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::reverse);
-        for (size_t i = 0; i < reverse_range.element_number; index -= reverse_range.step, ++i)
-        {
+        for (size_t i = 0; i < reverse_range.element_number; index -= reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected)) << " is missing)";
 }
 
-TEST(coordinate_range, reverse_1_range_3d)
-{
+TEST(coordinate_range, reverse_1_range_3d) {
     const Shape s{3, 3, 3};
     const AxisSet reverset_axis{1};
 
@@ -416,24 +358,20 @@ TEST(coordinate_range, reverse_1_range_3d)
     // clang-format on
 
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis))
-    {
+    for (auto reverse_range : reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::forward);
-        for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i)
-        {
+        for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected)) << " is missing)";
 }
 
-TEST(coordinate_range, reverse_2_range_3d)
-{
+TEST(coordinate_range, reverse_2_range_3d) {
     const Shape s{3, 3, 3};
     const AxisSet reverset_axis{1, 2};
 
@@ -453,18 +391,15 @@ TEST(coordinate_range, reverse_2_range_3d)
     // clang-format on
 
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis))
-    {
+    for (auto reverse_range : reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::reverse);
-        for (size_t i = 0; i < reverse_range.element_number; index -= reverse_range.step, ++i)
-        {
+        for (size_t i = 0; i < reverse_range.element_number; index -= reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected)) << " is missing)";
 }

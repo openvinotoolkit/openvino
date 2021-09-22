@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,7 +91,7 @@ TEST_P(DSR_NonMaxSuppression, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicNonMaxSupression, DSR_NonMaxSuppression,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicNonMaxSupression, DSR_NonMaxSuppression,
     ::testing::Combine(
         ::testing::Values(
             ngraph::element::f16,

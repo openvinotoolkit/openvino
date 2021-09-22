@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,12 @@
 #include <mutex>
 
 #include <cpp/ie_cnn_network.h>
-#include "details/ie_exception.hpp"
+#include <ngraph/ngraph.hpp>
 
 #include "cldnn_config.h"
 
-#include <api/engine.hpp>
-#include <api/topology.hpp>
+#include <cldnn/runtime/engine.hpp>
+#include <cldnn/graph/topology.hpp>
 
 // Forward declarations for cldnn part
 namespace cldnn {
@@ -27,19 +27,13 @@ enum class reduce_mode : uint16_t;
 enum class eltwise_mode : int32_t;
 }  // namespace cldnn
 
-// Forward declarations for ngraph part
-namespace ngraph {
-class Node;
-class DiscreteTypeInfo;
-}  // namespace ngraph
-
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
 void __register ## _ ## op_name ## _ ## op_version() {                                            \
     Program::RegisterFactory<ngraph::op::op_version::op_name>(                                    \
     [](Program& p, const std::shared_ptr<ngraph::Node>& op) {                                     \
         auto op_casted = std::dynamic_pointer_cast<ngraph::op::op_version::op_name>(op);          \
         if (!op_casted)                                                                           \
-            THROW_IE_EXCEPTION << "Invalid ngraph Node type passed into " << __PRETTY_FUNCTION__; \
+            IE_THROW() << "Invalid ngraph Node type passed into " << __PRETTY_FUNCTION__; \
         Create##op_name##Op(p, op_casted);                                                        \
        });                                                                                        \
 }
@@ -70,7 +64,9 @@ public:
 
 class Program {
 public:
-    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config);
+    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config, bool createTopologyOnly = false);
+    Program(std::shared_ptr<cldnn::engine> engine, const Config& config) : m_config(config), m_engine(engine),
+            m_curBatch(-1), queryMode(false), m_max_batch(1) {}
     Program() : m_config({}), m_engine(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
 
     static const cldnn::primitive_id m_preProcessTag;
@@ -80,8 +76,6 @@ public:
     static const cldnn::primitive_id m_postCustomLayerTag;
 
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
-    std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;
-    std::map<cldnn::primitive_id, std::string> IRToNgraphLayersMap;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
 
@@ -89,7 +83,8 @@ public:
 
     std::map<std::string, InferenceEngine::SizeVector> outputDims;
     std::map<std::string, cldnn::layout> inputLayouts;
-    std::map<const char *, cldnn::primitive_id> blobMemCache;
+    using BlobCacheKey = std::pair<const char*, std::vector<size_t>>;
+    std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
 
     int m_max_batch;
     int m_curBatch;
@@ -98,7 +93,8 @@ public:
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return inputLayouts; }
     InferenceEngine::InputsDataMap GetNetworkInputs() const { return m_networkInputs; }
     InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_networkOutputs; }
-    const cldnn::engine& GetEngine() const { return *m_engine; }
+    cldnn::engine& GetEngine() const { return *m_engine; }
+    std::shared_ptr<cldnn::engine> GetEnginePtr() const { return m_engine; }
     const Config& GetConfig() const { return m_config; }
     int GetMaxBatchSizeForSingleProgram();
 
@@ -136,16 +132,18 @@ public:
     template<typename PType>
     void AddPrimitive(PType prim) {
         if (m_topology == nullptr) {
-            THROW_IE_EXCEPTION << "m_topology object was not created in clDNNPlugin::Program";
+            IE_THROW() << "m_topology object was not created in clDNNPlugin::Program";
         }
 
         m_topology->add(prim);
     }
 
+    std::shared_ptr<cldnn::topology> GetTopology() const { return m_topology; }
+
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
-    std::shared_ptr<const cldnn::engine> m_engine;
+    std::shared_ptr<cldnn::engine> m_engine;
     Config m_config;
 
     std::shared_ptr<cldnn::topology> m_topology;
@@ -159,9 +157,12 @@ private:
 
     void PrepareBuild(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs);
     void CleanupBuild();
-    std::shared_ptr<cldnn::program> BuildProgram(std::vector<std::shared_ptr<ngraph::Node>> ops,
+
+    // TODO(eunsoo): remove createTopolpgyOnly argument and add another method to create topology from ngraph function
+    std::shared_ptr<cldnn::program> BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
                                                  InferenceEngine::InputsDataMap networkInputs,
-                                                 InferenceEngine::OutputsDataMap networkOutputs);
+                                                 InferenceEngine::OutputsDataMap networkOutputs,
+                                                 bool createTopologyOnly = false);
 
     void CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op);
     bool CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops, InferenceEngine::InputsDataMap networkInputs) const;

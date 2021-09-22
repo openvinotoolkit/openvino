@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@ using namespace ExecutionGraphTests;
 
 namespace {
 
-INSTANTIATE_TEST_CASE_P(smoke_removeParameter, ExecGraphRemoveParameterNode,
+INSTANTIATE_TEST_SUITE_P(smoke_removeParameter, ExecGraphRemoveParameterNode,
                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
                         ExecGraphRemoveParameterNode::getTestCaseName);
 

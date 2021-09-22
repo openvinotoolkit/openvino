@@ -1,21 +1,9 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
 
-from mo.front.common.partial_infer.utils import mark_input_bins
+from mo.front.common.partial_infer.utils import mark_input_bins, shape_array, shape_insert
 from mo.graph.graph import Node, Graph, add_opoutput
 from mo.ops.op import Op
 
@@ -26,11 +14,11 @@ class RNN(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': 'RNNSequence',  # should be never emitted to IR; for debugging purposes
-            'op': __class__.op,
+            'op': self.op,
             'blobs_wrb': False,
             'has_num_directions': False,
             'direction': 'forward',
-            'infer': __class__.infer,
+            'infer': self.infer,
             'multiplier': 1,
             'gate_order': np.array([0]),  # Only one gate in this cell
             'normalized': False,
@@ -113,10 +101,10 @@ def rnn_infer(node: Node, out_ports=None):
                     node.in_node(port).value = np.repeat(node.in_node(port).value, input_shape[i], axis=i)
                     node.in_node(port).shape[i] = input_shape[i]
 
-    out_shape = np.array([input_shape[node.sequence_dim], input_shape[node.batch_dim], node.hidden_size], dtype=np.int64)
+    out_shape = [input_shape[node.sequence_dim], input_shape[node.batch_dim], node.hidden_size]
 
     if node.batch_dim == 0:
-        out_shape = np.array([input_shape[node.batch_dim], input_shape[node.sequence_dim], node.hidden_size], dtype=np.int64)
+        out_shape = [input_shape[node.batch_dim], input_shape[node.sequence_dim], node.hidden_size]
 
     num_directions = 2 if node.direction in ['bidirectional'] else 1
     if node.has_num_directions:
@@ -125,7 +113,7 @@ def rnn_infer(node: Node, out_ports=None):
             out_shape[-1] *= num_directions
         else:
             # ONNX-like, insert extra dimension to output shape for num_directions
-            out_shape = np.insert(out_shape, 1, np.int64(num_directions))
+            out_shape = shape_insert(out_shape, 1, np.int64(num_directions))
 
     # 0 output is required creating it if doesn't exist
     if 0 not in node.out_nodes():
@@ -141,9 +129,9 @@ def rnn_infer(node: Node, out_ports=None):
     node.out_port(0).data.set_shape(out_shape)
 
     # 3. Extra outputs for hidden/cell states shape calculations (optional)
-    state_size = np.array([input_shape[node.batch_dim], node.hidden_size], dtype=np.int64)
+    state_size = [input_shape[node.batch_dim], node.hidden_size]
     if node.has_num_directions:
-        state_size = np.insert(state_size, 0, num_directions)
+        state_size = shape_insert(state_size, 0, num_directions)
 
     if node.multilayers:
         # For multilayer case state sizes from every layer will be concatenated by last axis
@@ -164,4 +152,4 @@ def rnn_infer(node: Node, out_ports=None):
             add_opoutput(node.graph, data_node.id, 0, False)
         else:
             data_node = node.out_node(i)
-        data_node.shape = state_size.copy()
+        data_node.shape = shape_array(state_size)

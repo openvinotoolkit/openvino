@@ -1,12 +1,4 @@
-fake_quantize_pdpd
-convert_float32_bf16
-convert_bf16_float32
-
-INTERPRETER.onnx_model_quant_conv_linear
 INTERPRETER.onnx_top_k_opset_10
-
-reduce_sum_large_1d_to_scalar
-reduce_sum_keep_large_1d_to_scalar
 
 # Temporarily disabled:
 INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
@@ -33,21 +25,6 @@ INTERPRETER.onnx_model_matmul_integer_4d_no_zero_point
 # Disabled tests for disabled reference implementations
 INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
 INTERPRETER.sum_2d_to_scalar_int8
-INTERPRETER.sum_trivial_in_double
-INTERPRETER.reduce_sum_2d_to_scalar_int8
-INTERPRETER.reduce_sum_trivial_in_double
-INTERPRETER.reduce_sum_keep_2d_to_scalar_int8
-INTERPRETER.reduce_sum_keep_trivial_in_double
-INTERPRETER.reduce_product_to_scalar_int8
-INTERPRETER.reduce_product_keep_to_scalar_int8
-INTERPRETER.reduce_min_to_scalar_int8
-INTERPRETER.reduce_min_keep_to_scalar_int8
-INTERPRETER.reduce_mean_to_scalar_int8
-INTERPRETER.reduce_mean_keep_to_scalar_int8
-INTERPRETER.reduce_max_to_scalar_int8
-INTERPRETER.reduce_max_3d_to_scalar_double
-INTERPRETER.reduce_max_keep_to_scalar_int8
-INTERPRETER.reduce_max_keep_3d_to_scalar_double
 INTERPRETER.product_to_scalar_int8
 INTERPRETER.max_pool_uint8
 INTERPRETER.max_pool_int8
@@ -57,20 +34,16 @@ INTERPRETER.min_to_scalar_int8
 INTERPRETER.max_trivial_int8
 INTERPRETER.max_to_scalar_int8
 INTERPRETER.max_3d_to_scalar_double
-INTERPRETER.gelu_f64
-INTERPRETER.gelu_backprop_factor_f64
-INTERPRETER.backwards_gelu_f64
 INTERPRETER.gather_4d_indices_axis_0_uint8
 INTERPRETER.gather_axis_0_int8
 INTERPRETER.gather_axis_0_int16
 INTERPRETER.gather_axis_0_uint8
 INTERPRETER.gather_axis_0_uint16
-INTERPRETER.fused_clamp_double
-INTERPRETER.fused_clamp_int8
-INTERPRETER.fused_clamp_int16
-INTERPRETER.fused_clamp_uint8
-INTERPRETER.fused_clamp_uint16
-INTERPRETER.fused_clamp_bfloat16
+INTERPRETER.gather_v7_4d_indices_axis_0_uint8
+INTERPRETER.gather_v7_axis_0_int8
+INTERPRETER.gather_v7_axis_0_int16
+INTERPRETER.gather_v7_axis_0_uint8
+INTERPRETER.gather_v7_axis_0_uint16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
 
@@ -106,25 +79,19 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
-INTERPRETER.onnx_model_quant_conv_linear_2d
-INTERPRETER.onnx_model_quant_conv_linear_3d
 INTERPRETER.onnx_model_conv_integer
 INTERPRETER.onnx_model_conv_integer_zero_point_zero
 INTERPRETER.onnx_model_conv_integer_no_zero_point
 INTERPRETER.onnx_model_conv_integer_pads
 
-# Activation function hardsigmoid is not supported.
-gru_cell_activation_function
-lstm_cell_activaction_functions
-onnx_model_gru_fwd_activations
-onnx_model_lstm_fwd_hardsigmoid_activation
-
-# Peepholes, input_forget are not supported
+# Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
+# Peepholes input unsupported
 onnx_model_lstm_fwd_with_clip_peepholes
 onnx_model_lstm_bdir_short_input_seq_peepholes
-lstm_cell_bias_peepholes
-lstm_cell_bias_peepholes_clip_input_forget
-
+# Activation function hardsigmoid unsupported
+onnx_model_gru_fwd_activations_relu_hardsigmoid
+onnx_model_lstm_fwd_hardsigmoid_activation
+gru_cell_hardsigmoid_activation_function
 
 # Check 'n_data_channels % groups == 0' failed
 dyn_group_convolution_backprop_data
@@ -152,6 +119,7 @@ onnx_controlflow_loop_infinite
 onnx_controlflow_loop_2d_trip_count_dynamic
 onnx_controlflow_loop_no_variadic_inputs_and_outputs
 onnx_controlflow_loop_power
+squeeze_dynamic
 
 # The test fails in CI on Ubuntu i386
 # There's an overflow of some kind: 2147483647 is not close to -2147483648 at index 2
@@ -160,18 +128,15 @@ quantize_clamp_int32
 # u16 type is not supported in Minimum evaluate method
 minimum_u16
 
-# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronDetectionOutpu
-INTERPRETER.onnx_model_experimental_detectron_detection_output
-INTERPRETER.onnx_model_experimental_detectron_detection_output_most_attrs_default
-
-# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronTopKROIs
-INTERPRETER.onnx_model_experimental_detectron_topk_rios
-
-# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronGenerateProposalsSingleImage
-INTERPRETER.onnx_model_experimental_detectron_generate_proposals_single_image
-
-# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronPriorGridGenerator
-INTERPRETER.onnx_model_experimental_detectron_prior_grid_generator
-
 # Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronROIFeatureExtractor
 INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
+
+# No evaluator for DeformableConv2D
+onnx_model_deformable_conv_2d
+
+# No support for unsigned types
+INTERPRETER.zero_sized_negative
+
+# No support yet for RandomUniform
+INTERPRETER.onnx_model_random_uniform
+INTERPRETER.onnx_model_random_uniform_like

@@ -1,25 +1,11 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from collections import deque
 from copy import deepcopy
 
-import numpy as np
-
 from extensions.ops.tensor_iterator import TensorIterator
+from mo.front.common.partial_infer.utils import shape_insert
 from mo.graph.graph import Node, Graph, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -119,7 +105,7 @@ class TensorIteratorMerge(MiddleReplacementPattern):
     @staticmethod
     def replace_pattern(graph, match: dict):
         # Here we will found all parts of TI: condition, inputs/outputs, back edges, body and create TensorIterator Op
-        # and make all checks needed for TensorIteator work
+        # and make all checks needed for TensorIterator work
         cond_data = match['condition'].out_node(0) if not match['condition'].out_port(0).disconnected() else None
         time_data = match['condition'].out_node(1) if len(match['condition'].out_nodes()) >= 1 else None
         name = match['condition'].name
@@ -283,7 +269,7 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                 shape = ext_inp['internal_data_id'].shape.copy()
                 assert not ext_inp['internal_data_id'].has_valid('value')
                 new_input_data = Op._create_data_node(body, ext_inp['internal_data_id'].name + '/UnsqueezedInput',
-                                                      dict(shape=np.insert(shape, ext_inp['axis'], 1)))
+                                                      dict(shape=shape_insert(shape, ext_inp['axis'], 1)))
 
                 reshape_op = Squeeze(body, dict(name=ext_inp['internal_data_id'].name + '/InputSqueeze'))
                 reshape_dim_data = Const(body, {'name': ext_inp['internal_data_id'].name + '/ReshapeDim',
@@ -317,7 +303,6 @@ class TensorIteratorMerge(MiddleReplacementPattern):
 
             if ext_out['axis'] is not None:
                 # Insert unsqueezing resize at output port that has partitioning
-                assert not ext_out['internal_data_id'].has_valid('value')
                 reshape_op = Unsqueeze(body, dict(name=ext_out['internal_data_id'].name + '/OutputUnsqueeze'))
                 reshape_dim_data = Const(body, {'name': ext_out['internal_data_id'].name + '/ReshapeDim',
                                                 'value': ext_out['axis']}).create_node_with_data()
@@ -342,6 +327,7 @@ class TensorIteratorMerge(MiddleReplacementPattern):
             ext_out['external_port_id'] = internal_id_count
             internal_id_count += 1
 
+        # create TensorIterator layer with pre-computed components
         ti_op = TensorIterator(graph, {
             'name': name + '/TensorIterator',
             'body': body,

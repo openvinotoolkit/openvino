@@ -10,9 +10,9 @@
 
 **Inputs**:
 
-*   **1**: `emb_table` tensor containing the embedding lookup table of the module of shape `[num_emb, emb_dim1, emb_dim2, ...]` and of type *T*. Required.
+*   **1**: `emb_table` tensor containing the embedding lookup table of the module of shape `[num_emb, emb_dim1, emb_dim2, ...]` and of type *T*. **Required.**
 
-*   **2**: `indices` tensor of shape `[batch, indices_per_bag]` and of type *T_IND*. Required.
+*   **2**: `indices` tensor of shape `[batch, indices_per_bag]` and of type *T_IND*. **Required.**
 
 *   **3**: `per_sample_weights` tensor of the same shape as `indices` and of type *T*. Each value in this tensor are multiplied with each value pooled from embedding table for each index. Optional, default is tensor of ones.
 

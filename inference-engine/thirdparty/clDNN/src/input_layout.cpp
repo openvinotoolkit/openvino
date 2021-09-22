@@ -1,28 +1,28 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "input_layout_inst.h"
 #include "primitive_type_base.h"
-#include "memory_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <memory>
 #include <algorithm>
+
+namespace {
+bool has_optimized_users(input_layout_node const& node) {
+    for (auto& user : node.get_users()) {
+        if (user->can_be_optimized()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+}  // namespace
 
 namespace cldnn {
 primitive_type_id input_layout::type_id() {
@@ -30,25 +30,26 @@ primitive_type_id input_layout::type_id() {
     return &instance;
 }
 
-input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program_impl& prog)
+input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program& prog)
     : parent(dprim, prog) {
     can_share_buffer(false);
 }
 
-input_layout_inst::typed_primitive_inst(network_impl& network, input_layout_node const& node) : parent(network, node) {
+input_layout_inst::typed_primitive_inst(network& network, input_layout_node const& node)
+    : parent(network, node, !network.is_internal() || has_optimized_users(node)) {
     _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
-void input_layout_inst::set_data(memory_impl& mem) {
+void input_layout_inst::set_data(memory::ptr mem) {
     auto ol = node.get_output_layout();
 
-    check_memory_to_set(mem, ol);
+    check_memory_to_set(*mem, ol);
 
-    if (mem.is_allocated_by(get_network().get_engine())) {
-        _output = (memory_impl::ptr) &mem;
+    if (mem->is_allocated_by(get_network().get_engine())) {
+        _output = mem;
     } else {
-        mem_lock<char> src((memory_impl::ptr) &mem);
-        mem_lock<char> dst(_output);
+        mem_lock<char> src(mem, get_network().get_stream());
+        mem_lock<char> dst(_output, get_network().get_stream());
         std::copy(src.begin(), src.end(), dst.begin());
     }
 

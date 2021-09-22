@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,9 @@
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ie_memcpy.h"
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
-#include <common/include/vpu/utils/error.hpp>
+#include <vpu/utils/error.hpp>
 
 #include "blob_factory.hpp"
 #include "debug.h"
@@ -181,7 +181,6 @@ void vpuLayersTests::createInferRequest(const NetworkParams& params) {
 #endif
     config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
     config[InferenceEngine::MYRIAD_PERF_REPORT_MODE] = InferenceEngine::MYRIAD_PER_STAGE;
-    config[InferenceEngine::MYRIAD_FORCE_DEPRECATED_CNN_CONVERSION] = CONFIG_VALUE(NO); // Make VPU plugin be able to use NGraph network.
 
     ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork, config));
     ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());

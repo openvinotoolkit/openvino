@@ -1,6 +1,7 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 #include <algorithm>
@@ -9,11 +10,31 @@
 #include <iterator>
 #include <vector>
 #include <set>
+#include <chrono>
+#include <ostream>
+#include <memory>
 
 #include <cpp/ie_cnn_network.h>
-#include <legacy/details/ie_cnn_network_iterator.hpp>
+#include <ngraph/function.hpp>
+
+namespace InferenceEngine {
+class CNNLayer;
+}
 
 namespace CommonTestUtils {
+
+enum class OpType {
+    SCALAR,
+    VECTOR
+};
+
+std::ostream& operator<<(std::ostream & os, OpType type);
+
+IE_SUPPRESS_DEPRECATED_START
+std::shared_ptr<InferenceEngine::CNNLayer>
+getLayerByName(const InferenceEngine::CNNNetwork & network, const std::string & layerName);
+IE_SUPPRESS_DEPRECATED_END
+
 template<typename vecElementType>
 inline std::string vec2str(const std::vector<vecElementType> &vec) {
     if (!vec.empty()) {
@@ -45,22 +66,6 @@ inline std::string set2str(const std::set<vecElementType> &set) {
         return result.str();
     }
     return std::string("()");
-}
-
-inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNetwork & network,
-                                                   const std::string & layerName) {
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::details::CNNNetworkIterator i(network), end;
-    while (i != end) {
-        auto layer = *i;
-        if (layer->name == layerName)
-            return layer;
-        ++i;
-    }
-
-    std::stringstream stream;
-    stream << "Layer " << layerName << " not found in network";
-    throw InferenceEngine::NotFound(stream.str());
 }
 
 template <typename master, typename slave>
@@ -118,4 +123,19 @@ inline T getTotal(const std::vector<T>& shape) {
     return shape.empty() ? 0 : std::accumulate(shape.cbegin(), shape.cend(), static_cast<T>(1), std::multiplies<T>());
 }
 
+inline std::string GetTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto epoch = now.time_since_epoch();
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
+    return std::to_string(ns.count());
+}
+
+inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, std::string>& config) {
+    os << "(";
+    for (const auto& configItem : config) {
+        os << configItem.first << "=" << configItem.second << "_";
+    }
+    os << ")";
+    return os;
+}
 }  // namespace CommonTestUtils

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -433,7 +433,7 @@ public:
     // Convert from packed format to array of dimensions from minor to major.
     DimVector toPermutation() const;
 
-    // Get memory indeces for each dimension.
+    // Get memory indices for each dimension.
     DimValues toIndices() const;
 
     //

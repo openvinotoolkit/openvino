@@ -1,32 +1,22 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from extensions.ops.elementwise import Equal
 from extensions.ops.gather import Gather
 from extensions.ops.range import Range
+from extensions.ops.select import Select
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from mo.graph.graph import Graph, rename_nodes, Node
+from mo.ops.shape import Shape
 from mo.ops.unsqueeze import Unsqueeze
 
 
 class ExpandRangeConstant(FrontReplacementSubgraph):
-    """
+    r"""
     Searches for Constant operations filled with range values starting from 0 and replaces it with Range operation
     Faced in ONNX BERT -- replacing it makes model reshape-able by sequence length
 
@@ -64,16 +54,31 @@ class ExpandRangeConstant(FrontReplacementSubgraph):
 
         positive_idx = non_one_dims.item(0)
         negative_idx = positive_idx - len(shape)
+
+        node_name = node.soft_get('name', node.id)
         gather = create_op_with_const_inputs(graph, Gather, {1: int64_array(negative_idx), 2: int64_array(0)},
-                                             {'name': node.soft_get('name', node.id) + '/BroadcastingDim'})
+                                             {'name': node_name + '/BroadcastingDim'})
+        gather_for_const = create_op_with_const_inputs(graph, Gather, {1: int64_array(negative_idx), 2: int64_array(0)},
+                                                       {'name': const_name + '/BroadcastingDim'})
+        shapeof_node = Shape(graph, {'name': const_name + '/ShapeOf'}).create_node()
+        shapeof_node.out_port(0).connect(gather_for_const.in_port(0))
+
+        equal_node = create_op_with_const_inputs(graph, Equal, {1: int64_array(1)}, {'name': node_name + '/ConstOne'})
+        gather.out_port(0).connect(equal_node.in_port(0))
+
+        select_node = Select(graph, {'name': node_name + '/Select',
+                                      'auto_broadcast': 'numpy'}).create_node([equal_node, gather_for_const, gather])
+
+        const.out_port(0).connect(shapeof_node.in_port(0))
 
         range_node = create_op_with_const_inputs(graph, Range,
                                                  {0: np.array(0, dtype=value.dtype),
                                                   2: np.array(1, dtype=value.dtype)},
                                                  {'name': const_name + '/Range', 'dtype': value.dtype})
+        select_node.out_port(0).connect(range_node.in_port(1))
 
         node.in_port(1).get_connection().add_destination(gather.in_port(0))
-        gather.out_port(0).connect(range_node.in_port(1))
+
         node.in_port(0).get_connection().set_source(range_node.out_port(0))
 
         if one_dims.size:

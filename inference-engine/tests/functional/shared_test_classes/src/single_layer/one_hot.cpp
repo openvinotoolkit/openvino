@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string OneHotLayerTest::getTestCaseName(testing::TestParamInfo<oneHotLayerTestParamsSet> obj) {
+std::string OneHotLayerTest::getTestCaseName(const testing::TestParamInfo<oneHotLayerTestParamsSet>& obj) {
     int64_t axis;
     ngraph::element::Type depth_type, set_type;
     int64_t depth_val;

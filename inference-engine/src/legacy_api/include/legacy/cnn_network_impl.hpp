@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,13 +25,11 @@ namespace details {
 
 IE_SUPPRESS_DEPRECATED_START
 
-class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork,
-    public std::enable_shared_from_this<ICNNNetwork> {
+class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl) final : public ICNNNetwork {
 public:
     CNNNetworkImpl();
-    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl);
     explicit CNNNetworkImpl(const CNNNetwork & ngraphImpl);
-    ~CNNNetworkImpl() override;
+    ~CNNNetworkImpl();
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
         return nullptr;
@@ -116,16 +114,18 @@ public:
 
     void removeOutput(const std::string& dataName);
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     virtual void validate(int = 2);
 
     StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                        ResponseDesc* resp) noexcept override;
 
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
+        noexcept override;
+
+    StatusCode serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
+        noexcept override;
+
+    StatusCode serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
         noexcept override;
 
 protected:

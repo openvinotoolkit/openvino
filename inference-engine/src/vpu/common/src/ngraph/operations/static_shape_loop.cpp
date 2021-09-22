@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,28 +7,23 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-NGRAPH_RTTI_DEFINITION(ngraph::vpu::op::StaticShapeLoop, "StaticShapeLoop", 0);
+constexpr NodeTypeInfo StaticShapeLoop::type_info;
 
-StaticShapeLoop::StaticShapeLoop(const Loop& loop) : Loop(loop) {}
+StaticShapeLoop::StaticShapeLoop(const Loop& loop) : Loop(loop), m_evaluatedIterationsCount{ngraph::PartialShape::dynamic()} {}
 
 void StaticShapeLoop::validate_and_infer_types() {
-    const auto isLoopStatic = [this]() {
-        const auto& outs = outputs();
-        return !outs.empty() && std::all_of(outs.cbegin(), outs.cend(), [](const Output<Node>& output) { return output.get_partial_shape().is_static(); });
-    };
+    auto& iterationsCount = m_evaluatedIterationsCount;
+    if (iterationsCount.is_dynamic()) {
+        Loop::validate_and_infer_types();
 
-    if (isLoopStatic()) {
-        return;
+        NODE_VALIDATION_CHECK(this, ngraph::evaluate_as_partial_shape(input_value(0), iterationsCount),
+                              "Encountered a loop for which upper-bound estimation for iterations count ", input_value(0), " failed");
     }
 
-    Loop::validate_and_infer_types();
-
-    const auto maxIterationsCountEstimation = ngraph::maximum_value(input_value(0).get_node_shared_ptr());
-    NODE_VALIDATION_CHECK(this, maxIterationsCountEstimation.first,
-        "Encountered a loop for which upper-bound estimation for iterations count ", input_value(0), " failed");
-    const auto& maxIterationsCount = maxIterationsCountEstimation.second;
-    NODE_VALIDATION_CHECK(this, maxIterationsCount > 0, "Encountered a loop with non-positive upper-bound estimation for iterations count ",
-        maxIterationsCountEstimation.second);
+    const auto& maxIterationsCount = iterationsCount[0].get_max_length();
+    NODE_VALIDATION_CHECK(this, maxIterationsCount > 0,
+                          "Encountered a loop with non-positive upper-bound estimation for iterations count ",
+                          maxIterationsCount);
 
     const auto& body = get_function();
     for (const auto& outputDescription : get_output_descriptions()) {

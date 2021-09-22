@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,8 @@ class AddFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape1,
+        const ngraph::PartialShape& inputShape2,
         const bool broadcast,
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
         const ngraph::element::Type& precision1,
@@ -70,14 +71,15 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool broadcast,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData1,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape1,
+        const ngraph::PartialShape& inputShape2,
         const bool broadcast,
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
         const ngraph::element::Type& precision1,

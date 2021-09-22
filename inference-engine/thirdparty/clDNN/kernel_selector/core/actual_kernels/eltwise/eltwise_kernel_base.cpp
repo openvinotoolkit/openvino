@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "eltwise_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -118,10 +108,38 @@ bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) cons
     return true;
 }
 
+bool EltwiseKernelBase::IsUnsupportedModeForVecCode(const eltwise_params& params) const {
+    // These modes are supposed to produce BOOL output type
+    // but this kernel uses vector data types, and these operation will produce 0xFFFF / 0x0000 instead of 0 / 1 values
+    // The value might be then converted to fp16/fp32 and used for some arithmetic, which will lead to invalid results, thus reject these modes
+    // to fallback on ref kernel with scalar types.
+    // TODO: Consider updating optimized kernels to produce 0/1 output for vector code if such operation is a bottleneck in some model
+    const std::vector<EltwiseMode> unsupported_modes = {
+        EltwiseMode::EQ,
+        EltwiseMode::NE,
+        EltwiseMode::LT,
+        EltwiseMode::LE,
+        EltwiseMode::GT,
+        EltwiseMode::GE,
+        EltwiseMode::LOGIC_AND,
+        EltwiseMode::LOGIC_OR,
+        EltwiseMode::LOGIC_XOR,
+        EltwiseMode::FLOOR_MOD,
+    };
+
+    for (size_t op_num = 0; op_num <  params.operations.size(); op_num++) {
+        const auto& ew =  params.operations[op_num];
+        if (std::find(unsupported_modes.begin(), unsupported_modes.end(), ew.mode) != unsupported_modes.end())
+            return true;
+    }
+
+    return false;
+}
+
 JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& params, bool useVload8, size_t blockSize) const {
     JitConstants jit = {};
     for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {
-        const std::string op_num_str = std::to_string(op_num);
+        const std::string op_num_str = toCodeString(op_num);
         const auto& ew = params.operations[op_num];
 
         std::string op, cast_type;
@@ -150,7 +168,7 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 if (input.mode == EltwiseInputMode::INPUT_BUFFER && input.index < coefficients.size()) {
                     const float c = coefficients[input.index];
                     if (c != 1.0f)
-                        coeff_strings[input_idx] = cast_type + "(" + std::to_string(c) + ")*";
+                        coeff_strings[input_idx] = cast_type + "(" + toCodeString(c) + ")*";
                 }
             }
 
@@ -267,12 +285,12 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
     JitConstants jit = {};
     std::string vload_decls;
     for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {
-        const std::string op_num_str = std::to_string(op_num);
+        const std::string op_num_str = toCodeString(op_num);
         const auto &ew = params.operations[op_num];
         for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
             const auto &input = ew.inputs[input_idx];
-            const std::string name = "INPUT_" + op_num_str + "_" + std::to_string(input_idx);
-            std::string idx_order = "INPUT" + std::to_string(input.index) + "_IDX_ORDER";
+            const std::string name = "INPUT_" + op_num_str + "_" + toCodeString(input_idx);
+            std::string idx_order = "INPUT" + toCodeString(input.index) + "_IDX_ORDER";
 
             switch (input.mode) {
                 case EltwiseInputMode::SCALAR:
@@ -280,11 +298,11 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                     break;
                 case EltwiseInputMode::INPUT_BUFFER:
                     if (useVload8)
-                        jit.AddConstant(MakeJitConstant(name, "in" + std::to_string(input.index)));
+                        jit.AddConstant(MakeJitConstant(name, "in" + toCodeString(input.index)));
                     else
                         jit.AddConstant(MakeJitConstant(name,
-                                                        "input" + std::to_string(input.index) +
-                                                        "[GET_INDEX(INPUT, " + std::to_string(input.index) +
+                                                        "input" + toCodeString(input.index) +
+                                                        "[GET_INDEX(INPUT, " + toCodeString(input.index) +
                                                         "," + idx_order + ")]"));
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
@@ -293,10 +311,10 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                 case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
                     jit.AddConstant(MakeJitConstant(
                             name,
-                            "input" + std::to_string(input.index) + "[(size_t)tmp" + std::to_string(input.tmpIndex) + "]"));
+                            "input" + toCodeString(input.index) + "[(size_t)tmp" + toCodeString(input.tmpIndex) + "]"));
                     break;
                 case EltwiseInputMode::INTERMEDIATE_RESULTS_INDEX:
-                    jit.AddConstant(MakeJitConstant(name, "tmp" + std::to_string(input.tmpIndex)));
+                    jit.AddConstant(MakeJitConstant(name, "tmp" + toCodeString(input.tmpIndex)));
                     break;
                 default:
                     break;
@@ -306,11 +324,11 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
 
     if (useVload8) {
         for (size_t i = 0; i < params.inputs.size(); i++) {
-            vload_decls += "\\\n\tconst " + toCLType(params.inputs[i].GetDType()) + "8 in" + std::to_string(i);
+            vload_decls += "\\\n\tconst " + toCLType(params.inputs[i].GetDType()) + "8 in" + toCodeString(i);
             if (params.inputs[i].PhysicalSize() == 1)  // Scalar case
-                vload_decls += " = (" + toCLType(params.inputs[i].GetDType()) + "8)(input" + std::to_string(i) + "[0]";
+                vload_decls += " = (" + toCLType(params.inputs[i].GetDType()) + "8)(input" + toCodeString(i) + "[0]";
             else  // Buffer case
-                vload_decls += " = vload8(global_id, input" + std::to_string(i);
+                vload_decls += " = vload8(global_id, input" + toCodeString(i);
             vload_decls += ");";
         }
         jit.AddConstant(MakeJitConstant("VLOAD_DECLS", vload_decls));
@@ -332,7 +350,7 @@ JitConstants EltwiseKernelBase::MakeInputDeclsJitConstants(const eltwise_params&
                 break;
             }
         }
-        inputs_decls += const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + std::to_string(i) + ", ";
+        inputs_decls += const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + toCodeString(i) + ", ";
     }
     jit.AddConstant(MakeJitConstant("INPUTS_DECLS", inputs_decls));
     return jit;
@@ -361,8 +379,8 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
         }
 
         if (!params.stride.empty()) {
-            bfyx_idx_order[2] = "(" + bfyx_idx_order[2] + "*" + std::to_string(stride.y) + ")";
-            bfyx_idx_order[3] = "(" + bfyx_idx_order[3] + "*" + std::to_string(stride.x) + ")";
+            bfyx_idx_order[2] = "(" + bfyx_idx_order[2] + "*" + toCodeString(stride.y) + ")";
+            bfyx_idx_order[3] = "(" + bfyx_idx_order[3] + "*" + toCodeString(stride.x) + ")";
         }
 
         return bfyx_idx_order;
@@ -411,12 +429,12 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
         }
 
         if (!params.stride.empty()) {
-            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_X", params.stride[i].x));
-            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_Y", params.stride[i].y));
-            jit.AddConstant(MakeJitConstant("INPUT" + std::to_string(i) + "_STRIDE_Z", params.stride[i].z));
+            jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i) + "_STRIDE_X", params.stride[i].x));
+            jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i) + "_STRIDE_Y", params.stride[i].y));
+            jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i) + "_STRIDE_Z", params.stride[i].z));
         }
 
-        std::string idx_order = "INPUT" + std::to_string(i) + "_IDX_ORDER";
+        std::string idx_order = "INPUT" + toCodeString(i) + "_IDX_ORDER";
         if (useVload8) {
             jit.AddConstant(MakeJitConstant(idx_order, "d1"));
         } else {
@@ -443,9 +461,9 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                     // it means that z coord is equal to 1, so z offset will be always equal to 0
                     jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,d2,d1"));
                 } else if (out_c == 6) {
-                    if (in_c < 5)
+                    if (in_c < 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d2,d1"));
-                    else if (in_c == 5) {
+                    } else if (in_c == 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d3,d2,d1"));
                     } else {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d4,d3,d2,d1"));
@@ -480,17 +498,17 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
     std::string do_eltwise;
     auto& operations = params.operations;
     for (size_t op_num = 0; op_num < operations.size(); op_num++) {
-        do_eltwise += "\\\n\tOPERATION" + std::to_string(op_num) + ";";
+        do_eltwise += "\\\n\tOPERATION" + toCodeString(op_num) + ";";
     }
 
     auto& updateInputs = params.updateInputIds;
     for (size_t update_input_idx = 0; update_input_idx < updateInputs.size(); update_input_idx++)
-        do_eltwise += "\\\n\tinput" + std::to_string(updateInputs[update_input_idx].inputId) + "[GET_INDEX(INPUT, " +
-                      std::to_string(updateInputs[update_input_idx].inputId) + ", " +
-                      "INPUT"+std::to_string(updateInputs[update_input_idx].inputId) + "_IDX_ORDER)] = tmp" +
-                      std::to_string(updateInputs[update_input_idx].tmpId) + ";";
+        do_eltwise += "\\\n\tinput" + toCodeString(updateInputs[update_input_idx].inputId) + "[GET_INDEX(INPUT, " +
+                      toCodeString(updateInputs[update_input_idx].inputId) + ", " +
+                      "INPUT"+toCodeString(updateInputs[update_input_idx].inputId) + "_IDX_ORDER)] = tmp" +
+                      toCodeString(updateInputs[update_input_idx].tmpId) + ";";
 
-    do_eltwise += "\\\n\tres = tmp" + std::to_string(operations.size() - 1) + ";";
+    do_eltwise += "\\\n\tres = tmp" + toCodeString(operations.size() - 1) + ";";
 
     jit.AddConstant(MakeJitConstant("DO_ELTWISE", do_eltwise));
 
@@ -595,19 +613,19 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
     KernelData kd = KernelData::Default<eltwise_params>(params);
     eltwise_params& newParams = *static_cast<eltwise_params*>(kd.params.get());
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     DispatchData dispatchData = SetDefault(newParams);
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = dispatchData.gws;
-    kernel.workGroups.local = dispatchData.lws;
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
 
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local = dispatchData.lws;
+    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,
                                    GetFusedPrimitiveInputsCount(params));

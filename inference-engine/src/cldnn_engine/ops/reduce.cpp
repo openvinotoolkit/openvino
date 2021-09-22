@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,9 @@
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/reduce.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/reduce.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 
@@ -30,7 +31,7 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
 
     auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
     if (!axes_constant) {
-        THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
     }
     std::vector<int32_t> rawAxes = axes_constant->cast_vector<int32_t>();
 
@@ -39,7 +40,7 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
         if (rawAxes[a] < 0)
             rawAxes[a] = rawAxes[a] + rank;
         if (rawAxes[a] < 0 || rawAxes[a] > rank - 1)
-            THROW_IE_EXCEPTION << op->get_friendly_name() << " Incorrect Reduce axis value: " << rawAxes[a];
+            IE_THROW() << op->get_friendly_name() << " Incorrect Reduce axis value: " << rawAxes[a];
         if (rank == 6) {
             switch (rawAxes[a]) {
                 case 0: axes.push_back(cldnn::reduce::along_b); break;
@@ -74,9 +75,32 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
                                     inputPrimitives[0],
                                     mode,
                                     axes,
-                                    static_cast<int32_t>(keep_dims));
+                                    static_cast<int32_t>(keep_dims),
+                                    op->get_friendly_name());
 
     p.AddPrimitive(reducePrim);
+
+    auto resultLayerName = layerName;
+    auto out_dims = op->get_output_shape(0).size();
+    if (out_dims == 3 && !keep_dims && rank >= 4) {
+        resultLayerName = layerName + "_reshape";
+        auto out_shape = op->get_output_shape(0);
+        cldnn::tensor outTensor;
+        switch (rank) {
+            case 6:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]), 1, 1);
+            case 5:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]), 1);
+            case 4:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]));
+        }
+        auto reshape_prim = cldnn::reshape(resultLayerName, layerName, outTensor, op->get_friendly_name());
+        p.AddPrimitive(reshape_prim);
+        p.AddPrimitiveToProfiler(op, resultLayerName);
+    }
 
     auto reorderLayerName = layerName + "_reorder";
     cldnn::format out_format = cldnn::format::any;
@@ -89,7 +113,13 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
         else if (rank - rawAxes.size() <= 4)
             out_format = cldnn::format::bfyx;
 
-        auto reorder_prim = cldnn::reorder(reorderLayerName, layerName, out_format, out_dt);
+        auto reorder_prim = cldnn::reorder(reorderLayerName,
+                                           resultLayerName,
+                                           out_format,
+                                           out_dt,
+                                           std::vector<float>(),
+                                           cldnn::reorder_mean_mode::subtract,
+                                           op->get_friendly_name());
         p.AddPrimitive(reorder_prim);
         p.AddPrimitiveToProfiler(op, reorderLayerName);
     } else {

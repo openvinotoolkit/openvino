@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include <map>
 #include <ie_common.h>
 #include "pugixml.hpp"
-#include "api/tensor.hpp"
+#include "cldnn/runtime/tensor.hpp"
 
 namespace CLDNNPlugin {
 

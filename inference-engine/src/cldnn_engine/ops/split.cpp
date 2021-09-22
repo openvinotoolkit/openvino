@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include "ngraph/op/split.hpp"
 #include "ngraph/op/variadic_split.hpp"
 
-#include "api/crop.hpp"
+#include "cldnn/primitives/crop.hpp"
 
 namespace CLDNNPlugin {
 
@@ -26,12 +26,12 @@ void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
         const auto outLayerDims = op->get_output_shape(i);
         NGRAPH_SUPPRESS_DEPRECATED_START
         if (outLayerDims.size() != startOffset.size()) {
-            THROW_IE_EXCEPTION << "Invalid dimesions in split layer: " << op->get_friendly_name()
+            IE_THROW() << "Invalid dimesions in split layer: " << op->get_friendly_name()
                                << " output: " <<  op->get_output_tensor_name(i);
         }
         for (size_t i = 0; i < inputDims.size(); i++) {
             if ((outLayerDims[i] + startOffset[i]) > inputDims[i]) {
-                THROW_IE_EXCEPTION << "Invalid dimesions in split layer: " << op->get_friendly_name()
+                IE_THROW() << "Invalid dimesions in split layer: " << op->get_friendly_name()
                                    << " output: " <<  op->get_output_tensor_name(i);
             }
         }
@@ -40,8 +40,7 @@ void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
         auto outTensor = CldnnTensorFromIEDims(outLayerDims, 1);
         auto offsetTensor = CldnnTensorFromIEDims(startOffset, 0);
 
-        auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor);
-        p.primitivesToIRLayersMap[outLayerName] = { op->get_friendly_name() };
+        auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor, op->get_friendly_name());
         p.primitiveIDs[outLayerName] = outLayerName;
 
         p.AddPrimitive(cropPrim);

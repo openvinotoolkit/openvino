@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,11 +25,11 @@ using NormalizeL2LayerTestParams = std::tuple<
 class NormalizeL2LayerTest : public testing::WithParamInterface<NormalizeL2LayerTestParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<NormalizeL2LayerTestParams>& obj);
 
 protected:
     void SetUp() override;
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 };
 
 }  // namespace LayerTestsDefinitions
-

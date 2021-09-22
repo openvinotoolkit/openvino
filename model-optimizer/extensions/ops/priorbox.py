@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
@@ -68,8 +55,10 @@ class PriorBoxOp(Op):
 
     def backend_attrs(self):
         return [
-            ('flip', lambda node: bool_to_str(node, 'flip')),
-            ('clip', lambda node: bool_to_str(node, 'clip')),
+            ('flip', lambda node: int(node.flip)),  # We need to convert this boolean attribute value to int to keep
+            # forward compatibility with IE 2021.2
+            ('clip', lambda node: int(node.clip)),  # We need to convert this boolean attribute value to int to keep
+            # forward compatibility with IE 2021.2
             'step',
             'offset',
             ('scale_all_sizes', lambda node: bool_to_str(node, 'scale_all_sizes')),
@@ -119,7 +108,7 @@ class PriorBoxOp(Op):
 
         if node.has_and_set('V10_infer'):
             assert node.in_node(0).value is not None
-            node.out_node(0).shape = np.array([2, np.prod(node.in_node(0).value) * num_ratios * 4], dtype=np.int64)
+            node.out_port(0).data.set_shape([2, np.prod(node.in_node(0).value) * num_ratios * 4])
         else:
             res_prod = data_shape[get_height_dim(layout, 4)] * data_shape[get_width_dim(layout, 4)] * num_ratios * 4
-            node.out_node(0).shape = np.array([1, 2, res_prod], dtype=np.int64)
+            node.out_port(0).data.set_shape([1, 2, res_prod])

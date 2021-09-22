@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,15 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
     for (size_t i = startAxis; i < numOfDims; i++)
         axes.insert(i);
     mvnNode->set_reduction_axes(axes);
+
+    return mvnNode;
+}
+
+std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
+                                      const ngraph::AxisSet &axes,
+                                      bool normalizeVariance,
+                                      double eps) {
+    auto mvnNode = std::make_shared<ngraph::op::MVN>(in, axes, normalizeVariance, eps);
 
     return mvnNode;
 }

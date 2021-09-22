@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,15 +35,12 @@ class ConvolutionTransformation :
     public testing::WithParamInterface<ConvolutionTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvolutionTransformationParams>& obj);
 
 protected:
     void SetUp() override;
 
     void Run() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

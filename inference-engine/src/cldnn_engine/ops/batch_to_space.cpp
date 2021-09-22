@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include "ngraph/op/batch_to_space.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/batch_to_space.hpp"
+#include "cldnn/primitives/batch_to_space.hpp"
 
 namespace CLDNNPlugin {
 
@@ -26,7 +26,7 @@ void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Batc
     for (size_t i = 1; i < 4; ++i) {
         auto inConst = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(i));
         if (!inConst)
-            THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
         std::vector<int32_t> sizes = inConst->cast_vector<int32_t>();
         int32_t default_size = i == 1 ? 1 : 0;
@@ -42,7 +42,8 @@ void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Batc
                                                   inputs[0], // block_shape
                                                   inputs[1], // crops_begin
                                                   inputs[2], // crops_end
-                                                  out_size);
+                                                  out_size,
+                                                  op->get_friendly_name());
 
     p.AddPrimitive(batchToSpacePrim);
     p.AddPrimitiveToProfiler(op);

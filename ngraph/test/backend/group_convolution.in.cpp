@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -42,16 +30,20 @@ static void GroupConvolutionTest(const std::vector<float>& inputs,
                                  const Shape outputs_shape,
                                  const Strides& strides,
                                  const CoordinateDiff& padding,
-                                 const Strides& dilations)
-{
+                                 const Strides& dilations) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
 
     auto inputs_param = make_shared<op::Parameter>(element::f32, inputs_shape);
     auto filters_param = make_shared<op::Parameter>(element::f32, filter_shape);
-    auto conv = make_shared<op::v1::GroupConvolution>(
-        inputs_param, filters_param, strides, pads_begin, pads_end, dilations, auto_pad);
+    auto conv = make_shared<op::v1::GroupConvolution>(inputs_param,
+                                                      filters_param,
+                                                      strides,
+                                                      pads_begin,
+                                                      pads_end,
+                                                      dilations,
+                                                      auto_pad);
     auto f = make_shared<Function>(conv, ParameterVector{inputs_param, filters_param});
 
     auto test_case = test::TestCase<TestEngine>(f);

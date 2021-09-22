@@ -1,5 +1,4 @@
-
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,6 +52,6 @@ namespace {
             ::testing::ValuesIn(outType),
             ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-    INSTANTIATE_TEST_CASE_P(smoke_NmsLayerTest, NmsLayerTest, nmsParams, NmsLayerTest::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(smoke_NmsLayerTest, NmsLayerTest, nmsParams, NmsLayerTest::getTestCaseName);
 }  // namespace
 

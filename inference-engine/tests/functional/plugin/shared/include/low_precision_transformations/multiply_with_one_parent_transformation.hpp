@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     MultiplyWithOneParentTransformationValues
 > MultiplyWithOneParentTransformationParams;
@@ -28,7 +28,7 @@ class MultiplyWithOneParentTransformation :
     public testing::WithParamInterface<MultiplyWithOneParentTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MultiplyWithOneParentTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MultiplyWithOneParentTransformationParams>& obj);
 
 protected:
     void SetUp() override;

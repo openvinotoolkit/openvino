@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,12 @@ namespace InferenceEngine {
 namespace gapi {
 namespace kernels {
 
+struct avx512_tag {};
+struct avx2_tag {};
+struct sse42_tag {};
+struct neon_tag {};
+struct scalar_tag {};
+
 template<typename DST, typename SRC> static inline DST saturate_cast(SRC x);
 template<> inline short saturate_cast(int x) { return (std::min)(SHRT_MAX, (std::max)(SHRT_MIN, x)); }
 template<> inline short saturate_cast(float x) { return saturate_cast<short>(static_cast<int>(std::rint(x))); }
@@ -57,6 +63,8 @@ template<> inline uint8_t saturate_cast(uint16_t x) {
                            std::max(static_cast<uint16_t>(lim::min()), x));
 }
 template<> inline uint8_t saturate_cast(float x)    { return saturate_cast<uint8_t>(static_cast<int>(std::rint(x))); }
+
+template<> inline float saturate_cast(double x)     { return x; }
 //------------------------------------------------------------------------------
 
 constexpr static const int ONE = 1 << 15;
@@ -114,6 +122,31 @@ static inline Q8_8 mulaw(Q0_16 a, Q8_8 w) { return static_cast<Q8_8>((a * w) >> 
 static inline float mulas(float a, float s) { return a * s; }
 static inline float mulaw(float a, float w) { return a * w; }
 
+static const int ITUR_BT_601_CY = 1220542;
+static const int ITUR_BT_601_CUB = 2116026;
+static const int ITUR_BT_601_CUG = -409993;
+static const int ITUR_BT_601_CVG = -852492;
+static const int ITUR_BT_601_CVR = 1673527;
+static const int ITUR_BT_601_SHIFT = 20;
+
+static inline void uvToRGBuv(const uchar u, const uchar v, int& ruv, int& guv, int& buv) {
+    int uu, vv;
+    uu = static_cast<int>(u) - 128;
+    vv = static_cast<int>(v) - 128;
+
+    ruv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVR * vv;
+    guv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVG * vv + ITUR_BT_601_CUG * uu;
+    buv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CUB * uu;
+}
+
+static inline void yRGBuvToRGB(const uchar vy, const int ruv, const int guv, const int buv,
+    uchar& r, uchar& g, uchar& b) {
+    int yy = static_cast<int>(vy);
+    int y = std::max(0, yy - 16) * ITUR_BT_601_CY;
+    r = saturate_cast<uchar>((y + ruv) >> ITUR_BT_601_SHIFT);
+    g = saturate_cast<uchar>((y + guv) >> ITUR_BT_601_SHIFT);
+    b = saturate_cast<uchar>((y + buv) >> ITUR_BT_601_SHIFT);
+}
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

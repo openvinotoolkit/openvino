@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <vector>
 
@@ -25,8 +13,7 @@ using namespace ngraph;
 using Attrs = op::v6::ExperimentalDetectronPriorGridGenerator::Attributes;
 using GridGenerator = op::v6::ExperimentalDetectronPriorGridGenerator;
 
-TEST(type_prop, detectron_grid_generator_static_shape_flatten)
-{
+TEST(type_prop, detectron_grid_generator_static_shape_flatten) {
     Attrs attrs;
     attrs.flatten = true;
     attrs.h = 0;
@@ -44,8 +31,7 @@ TEST(type_prop, detectron_grid_generator_static_shape_flatten)
     EXPECT_EQ(grid_gen->get_output_shape(0), (Shape{201600, 4}));
 }
 
-TEST(type_prop, detectron_grid_generator_static_shape_without_flatten)
-{
+TEST(type_prop, detectron_grid_generator_static_shape_without_flatten) {
     Attrs attrs;
     attrs.flatten = false;
     attrs.h = 0;
@@ -63,8 +49,7 @@ TEST(type_prop, detectron_grid_generator_static_shape_without_flatten)
     EXPECT_EQ(grid_gen->get_output_shape(0), (Shape{200, 336, 3, 4}));
 }
 
-TEST(type_prop, detectron_grid_generator_dynamic_shapes)
-{
+TEST(type_prop, detectron_grid_generator_dynamic_shapes) {
     Attrs attrs;
     attrs.flatten = false;
     attrs.h = 0;
@@ -72,8 +57,7 @@ TEST(type_prop, detectron_grid_generator_dynamic_shapes)
     attrs.stride_x = 4.0f;
     attrs.stride_y = 4.0f;
 
-    struct ShapesAndAttrs
-    {
+    struct ShapesAndAttrs {
         PartialShape priors_shape;
         PartialShape feature_map_shape;
         PartialShape ref_out_shape;
@@ -97,8 +81,7 @@ TEST(type_prop, detectron_grid_generator_dynamic_shapes)
         {{dyn_dim, 4}, {1, 256, dyn_dim, 336}, {dyn_dim, 336, dyn_dim, 4}, false},
         {{dyn_dim, 4}, {1, 256, dyn_dim, dyn_dim}, {dyn_dim, dyn_dim, dyn_dim, 4}, false}};
 
-    for (const auto& s : shapes)
-    {
+    for (const auto& s : shapes) {
         auto grid_attrs = attrs;
         grid_attrs.flatten = s.flatten;
 
@@ -113,8 +96,7 @@ TEST(type_prop, detectron_grid_generator_dynamic_shapes)
     }
 }
 
-struct GridGeneratorIntervalsTestParams
-{
+struct GridGeneratorIntervalsTestParams {
     PartialShape priors_shape;
     PartialShape feature_map_shape;
     PartialShape im_data_shape;
@@ -122,12 +104,9 @@ struct GridGeneratorIntervalsTestParams
     bool flatten;
 };
 
-struct GridGeneratorIntervalsTest : ::testing::TestWithParam<GridGeneratorIntervalsTestParams>
-{
-};
+struct GridGeneratorIntervalsTest : ::testing::TestWithParam<GridGeneratorIntervalsTestParams> {};
 
-TEST_P(GridGeneratorIntervalsTest, detectron_grid_generator_dynamic_shapes_intervals_2)
-{
+TEST_P(GridGeneratorIntervalsTest, detectron_grid_generator_dynamic_shapes_intervals_2) {
     auto params = GetParam();
 
     Attrs attrs;
@@ -150,131 +129,127 @@ TEST_P(GridGeneratorIntervalsTest, detectron_grid_generator_dynamic_shapes_inter
     ASSERT_TRUE(grid_gen->get_output_partial_shape(0).same_scheme(params.ref_out_shape));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     type_prop,
     GridGeneratorIntervalsTest,
-    ::testing::Values(
-        GridGeneratorIntervalsTestParams{{3, 4},
-                                         {1, 256, 200, Dimension(0, 100)},
-                                         {Dimension(0, 5), 3, 800, 1344},
-                                         {Dimension(0, 60000), 4},
-                                         true},
-        GridGeneratorIntervalsTestParams{{3, 4},
-                                         {Dimension(0, 7), 256, Dimension(0, 150), 336},
-                                         {Dimension(0, 5), 3, 800, 1344},
-                                         {Dimension(0, 151200), 4},
-                                         true},
-        GridGeneratorIntervalsTestParams{{3, 4},
-                                         {1, 256, Dimension(0, 150), Dimension(0, 100)},
-                                         {Dimension(0, 11), 3, 800, 1344},
-                                         {Dimension(0, 45000), 4},
-                                         true},
-        GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                         {1, 256, 200, Dimension(0, 150)},
-                                         {Dimension(0, 5), 3, 800, 1344},
-                                         {Dimension(0, 90000), 4},
-                                         true},
-        GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                         {Dimension(0, 77), 256, Dimension(0, 150), 336},
-                                         {Dimension(0, 54), 3, 800, 1344},
-                                         {Dimension(0, 151200), 4},
-                                         true},
-        GridGeneratorIntervalsTestParams{
-            {Dimension(0, 3), 4},
-            {Dimension(0, 3), 256, Dimension(0, 150), Dimension(0, 100)},
-            {Dimension(0, 54), 3, 800, 1344},
-            {Dimension(0, 45000), 4},
-            true},
-        GridGeneratorIntervalsTestParams{{3, 4},
-                                         {1, 256, 200, Dimension(0, 100)},
-                                         {Dimension(0, 6), 3, 800, 1344},
-                                         {200, Dimension(0, 100), 3, 4},
-                                         false},
-        GridGeneratorIntervalsTestParams{{3, 4},
-                                         {Dimension(0, 9), 256, Dimension(0, 150), 336},
-                                         {Dimension(0, 4), 3, 800, 1344},
-                                         {Dimension(0, 150), 336, 3, 4},
-                                         false},
-        GridGeneratorIntervalsTestParams{
-            {3, 4},
-            {Dimension(1, 3), 256, Dimension(0, 150), Dimension(0, 100)},
-            {Dimension(0, 4), 3, 800, 1344},
-            {Dimension(0, 150), Dimension(0, 100), 3, 4},
-            false},
-        GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                         {Dimension(5, 11), 256, 200, Dimension(0, 100)},
-                                         {Dimension(0, 17), 3, 800, 1344},
-                                         {200, Dimension(0, 100), Dimension(0, 3), 4},
-                                         false},
-        GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                         {Dimension(7, 9), 256, Dimension(0, 150), 336},
-                                         {Dimension(4, 18), 3, 800, 1344},
-                                         {Dimension(0, 150), 336, Dimension(0, 3), 4},
-                                         false},
-        GridGeneratorIntervalsTestParams{
-            {Dimension(0, 3), 4},
-            {Dimension(0, 8), 256, Dimension(0, 150), Dimension(0, 100)},
-            {Dimension(4, 18), 3, 800, 1344},
-            {Dimension(0, 150), Dimension(0, 100), Dimension(0, 3), 4},
-            false},
-        GridGeneratorIntervalsTestParams{{3, 4},
-                                         {1, 256, 200, Dimension(0, 100)},
-                                         Shape{1, 3, 800, 1344},
-                                         {Dimension(0, 60000), 4},
-                                         true},
-        GridGeneratorIntervalsTestParams{{3, 4},
-                                         {1, 256, Dimension(0, 150), 336},
-                                         Shape{1, 3, 800, 1344},
-                                         {Dimension(0, 151200), 4},
-                                         true},
-        GridGeneratorIntervalsTestParams{{3, 4},
-                                         {1, 256, Dimension(0, 150), Dimension(0, 100)},
-                                         Shape{1, 3, 800, 1344},
-                                         {Dimension(0, 45000), 4},
-                                         true},
-        GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                         {1, 256, 200, Dimension(0, 150)},
-                                         Shape{1, 3, 800, 1344},
-                                         {Dimension(0, 90000), 4},
-                                         true},
-        GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                         {1, 256, Dimension(0, 150), 336},
-                                         Shape{1, 3, 800, 1344},
-                                         {Dimension(0, 151200), 4},
-                                         true},
-        GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                         {1, 256, Dimension(0, 150), Dimension(0, 100)},
-                                         Shape{1, 3, 800, 1344},
-                                         {Dimension(0, 45000), 4},
-                                         true},
-        GridGeneratorIntervalsTestParams{{3, 4},
-                                         {1, 256, 200, Dimension(0, 100)},
-                                         Shape{1, 3, 800, 1344},
-                                         {200, Dimension(0, 100), 3, 4},
-                                         false},
-        GridGeneratorIntervalsTestParams{{3, 4},
-                                         {1, 256, Dimension(0, 150), 336},
-                                         Shape{1, 3, 800, 1344},
-                                         {Dimension(0, 150), 336, 3, 4},
-                                         false},
-        GridGeneratorIntervalsTestParams{{3, 4},
-                                         {1, 256, Dimension(0, 150), Dimension(0, 100)},
-                                         Shape{1, 3, 800, 1344},
-                                         {Dimension(0, 150), Dimension(0, 100), 3, 4},
-                                         false},
-        GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                         {1, 256, 200, Dimension(0, 100)},
-                                         Shape{1, 3, 800, 1344},
-                                         {200, Dimension(0, 100), Dimension(0, 3), 4},
-                                         false},
-        GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                         {1, 256, Dimension(0, 150), 336},
-                                         Shape{1, 3, 800, 1344},
-                                         {Dimension(0, 150), 336, Dimension(0, 3), 4},
-                                         false},
-        GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                         {1, 256, Dimension(0, 150), Dimension(0, 100)},
-                                         Shape{1, 3, 800, 1344},
-                                         {Dimension(0, 150), Dimension(0, 100), Dimension(0, 3), 4},
-                                         false}),
+    ::testing::Values(GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {1, 256, 200, Dimension(0, 100)},
+                                                       {Dimension(0, 5), 3, 800, 1344},
+                                                       {Dimension(0, 60000), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {Dimension(0, 7), 256, Dimension(0, 150), 336},
+                                                       {Dimension(0, 5), 3, 800, 1344},
+                                                       {Dimension(0, 151200), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {1, 256, Dimension(0, 150), Dimension(0, 100)},
+                                                       {Dimension(0, 11), 3, 800, 1344},
+                                                       {Dimension(0, 45000), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {1, 256, 200, Dimension(0, 150)},
+                                                       {Dimension(0, 5), 3, 800, 1344},
+                                                       {Dimension(0, 90000), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {Dimension(0, 77), 256, Dimension(0, 150), 336},
+                                                       {Dimension(0, 54), 3, 800, 1344},
+                                                       {Dimension(0, 151200), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {Dimension(0, 3), 256, Dimension(0, 150), Dimension(0, 100)},
+                                                       {Dimension(0, 54), 3, 800, 1344},
+                                                       {Dimension(0, 45000), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {1, 256, 200, Dimension(0, 100)},
+                                                       {Dimension(0, 6), 3, 800, 1344},
+                                                       {200, Dimension(0, 100), 3, 4},
+                                                       false},
+                      GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {Dimension(0, 9), 256, Dimension(0, 150), 336},
+                                                       {Dimension(0, 4), 3, 800, 1344},
+                                                       {Dimension(0, 150), 336, 3, 4},
+                                                       false},
+                      GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {Dimension(1, 3), 256, Dimension(0, 150), Dimension(0, 100)},
+                                                       {Dimension(0, 4), 3, 800, 1344},
+                                                       {Dimension(0, 150), Dimension(0, 100), 3, 4},
+                                                       false},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {Dimension(5, 11), 256, 200, Dimension(0, 100)},
+                                                       {Dimension(0, 17), 3, 800, 1344},
+                                                       {200, Dimension(0, 100), Dimension(0, 3), 4},
+                                                       false},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {Dimension(7, 9), 256, Dimension(0, 150), 336},
+                                                       {Dimension(4, 18), 3, 800, 1344},
+                                                       {Dimension(0, 150), 336, Dimension(0, 3), 4},
+                                                       false},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {Dimension(0, 8), 256, Dimension(0, 150), Dimension(0, 100)},
+                                                       {Dimension(4, 18), 3, 800, 1344},
+                                                       {Dimension(0, 150), Dimension(0, 100), Dimension(0, 3), 4},
+                                                       false},
+                      GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {1, 256, 200, Dimension(0, 100)},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {Dimension(0, 60000), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {1, 256, Dimension(0, 150), 336},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {Dimension(0, 151200), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {1, 256, Dimension(0, 150), Dimension(0, 100)},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {Dimension(0, 45000), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {1, 256, 200, Dimension(0, 150)},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {Dimension(0, 90000), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {1, 256, Dimension(0, 150), 336},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {Dimension(0, 151200), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {1, 256, Dimension(0, 150), Dimension(0, 100)},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {Dimension(0, 45000), 4},
+                                                       true},
+                      GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {1, 256, 200, Dimension(0, 100)},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {200, Dimension(0, 100), 3, 4},
+                                                       false},
+                      GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {1, 256, Dimension(0, 150), 336},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {Dimension(0, 150), 336, 3, 4},
+                                                       false},
+                      GridGeneratorIntervalsTestParams{{3, 4},
+                                                       {1, 256, Dimension(0, 150), Dimension(0, 100)},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {Dimension(0, 150), Dimension(0, 100), 3, 4},
+                                                       false},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {1, 256, 200, Dimension(0, 100)},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {200, Dimension(0, 100), Dimension(0, 3), 4},
+                                                       false},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {1, 256, Dimension(0, 150), 336},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {Dimension(0, 150), 336, Dimension(0, 3), 4},
+                                                       false},
+                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
+                                                       {1, 256, Dimension(0, 150), Dimension(0, 100)},
+                                                       Shape{1, 3, 800, 1344},
+                                                       {Dimension(0, 150), Dimension(0, 100), Dimension(0, 3), 4},
+                                                       false}),
     PrintToDummyParamName());

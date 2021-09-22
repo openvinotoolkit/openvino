@@ -1,20 +1,9 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
 
+from mo.front.common.partial_infer.utils import dynamic_dimension, dynamic_dimension_value, is_fully_defined
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
@@ -65,12 +54,27 @@ class Reshape(Op):
         num_of_input_elements = np.prod(input_shape)
         num_of_output_elements = 1
         for index, x in enumerate(new_shape):
-            if x == 0 and node.has_and_set('special_zero'):
-                num_of_output_elements *= input_shape[index]
+            if x is dynamic_dimension:
+                num_of_output_elements = dynamic_dimension_value
+            elif x == 0 and node.has_and_set('special_zero'):
+                if input_shape[index] is not dynamic_dimension:
+                    num_of_output_elements *= input_shape[index]
             elif x != -1:
                 num_of_output_elements *= x
 
-        undefined_dim = num_of_input_elements // num_of_output_elements
+        # input_shape = [dynamic, 5, 6], new_shape = [0, -1] => output_shape [dynamic, 30]
+        # marker that no dynamic input dimensions or all of them are copied with "0" magic value
+        all_dynamic_dimension_are_copied = True
+        if not is_fully_defined(input_shape):
+            for index, x in enumerate(input_shape):
+                if x is dynamic_dimension:
+                    if index >= len(new_shape) or new_shape[index] != 0:
+                        all_dynamic_dimension_are_copied = False
+
+        undefined_dim = dynamic_dimension
+        if num_of_output_elements is not dynamic_dimension and all_dynamic_dimension_are_copied and \
+                is_fully_defined(new_shape):
+            undefined_dim = num_of_input_elements // num_of_output_elements
         output_shape = []
         for index, x in enumerate(new_shape):
             if x == 0 and node.has_and_set('special_zero'):
@@ -80,13 +84,29 @@ class Reshape(Op):
             else:
                 output_shape.append(x)
 
-        assert np.prod(input_shape) == np.prod(output_shape), \
-            "Number of elements in input {} and output {} of reshape node {} mismatch" \
-            "".format(input_shape, output_shape, name)
+        # even if the new_shape contains some dynamic values we can calculate the actual value by deducing it from the
+        # input shape if it is static: input_shape = [5, 3, 8], new_shape = [4, d] => output_shape = [4, 30]
+        if is_fully_defined(input_shape) and not is_fully_defined(new_shape):
+            dynamic_indices = np.argwhere([item is dynamic_dimension for item in new_shape])
+            num_of_output_elements = 1
+            if dynamic_indices.size == 1:
+                for index, x in enumerate(new_shape):
+                    if x == 0 and node.has_and_set('special_zero'):
+                        num_of_output_elements *= input_shape[index]
+                    elif x is not dynamic_dimension and x != -1:
+                        num_of_output_elements *= x
+            assert num_of_input_elements % num_of_output_elements == 0, \
+                'Incorrect number of output elements deduced for node {}: '.format(name)
+            output_shape[dynamic_indices[0][0]] = num_of_input_elements // num_of_output_elements
+
+        assert not is_fully_defined(input_shape) or not is_fully_defined(output_shape) or \
+               np.prod(input_shape) == np.prod(output_shape), \
+               "Number of elements in input {} and output {} of reshape node {} mismatch" \
+               "".format(input_shape, output_shape, name)
 
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'output:0', 'shape')
 
-        if node.in_port(0).data.get_value() is not None:
+        if node.in_port(0).data.get_value() is not None and is_fully_defined(output_shape):
             node.out_port(0).data.set_value(node.in_port(0).data.get_value().reshape(output_shape))
         else:
             node.out_port(0).data.set_shape(output_shape)

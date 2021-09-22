@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNGenericNode : public MKLDNNNode {
 public:
-    MKLDNNGenericNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNGenericNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNGenericNode() = default;
 
     void getSupportedDescriptors() override;
@@ -29,17 +29,19 @@ public:
         return false;
     }
 
-    void initDescriptor(const InferenceEngine::LayerConfig& config) override;
+    void initDescriptor(const NodeConfig& config) override;
 
     void execLayer();
     void cleanup() override;
 
-
 protected:
+    NodeConfig convertLayerToNodeConfig(const InferenceEngine::LayerConfig &layerConfig);
+    InferenceEngine::LayerConfig convertNodeToLayerConfig(const NodeConfig &nodeConfig);
+
     InferenceEngine::ILayerImplFactory::Ptr extFactory;
     std::vector<InferenceEngine::ILayerExecImpl::Ptr> impls;
-    std::map<std::string, std::string> params;
-    std::map<std::string, InferenceEngine::Blob::Ptr> blobs;
+
+    const std::shared_ptr<ngraph::Node> ngraphOp;
 };
 
 }  // namespace MKLDNNPlugin

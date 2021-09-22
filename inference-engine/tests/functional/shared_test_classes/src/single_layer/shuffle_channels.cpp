@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ShuffleChannelsLayerTest::getTestCaseName(testing::TestParamInfo<shuffleChannelsLayerTestParamsSet> obj) {
+std::string ShuffleChannelsLayerTest::getTestCaseName(const testing::TestParamInfo<shuffleChannelsLayerTestParamsSet>& obj) {
     shuffleChannelsSpecificParams shuffleChannelsParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ConcatQuantization::getTestCaseName(testing::TestParamInfo<concatQuantizationParams> obj) {
+std::string ConcatQuantization::getTestCaseName(const testing::TestParamInfo<concatQuantizationParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;

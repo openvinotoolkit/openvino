@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +8,7 @@
 using namespace LayerTestsDefinitions::LogicalParams;
 
 namespace LayerTestsDefinitions {
-std::string LogicalLayerTest::getTestCaseName(testing::TestParamInfo<LogicalTestParams> obj) {
+std::string LogicalLayerTest::getTestCaseName(const testing::TestParamInfo<LogicalTestParams>& obj) {
     InputShapesTuple inputShapes;
     ngraph::helpers::LogicalTypes comparisonOpType;
     ngraph::helpers::InputLayerType secondInputType;

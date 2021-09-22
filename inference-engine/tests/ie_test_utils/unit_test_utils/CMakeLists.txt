@@ -1,15 +1,14 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
 
 set(TARGET_NAME unitTestUtils)
 
 add_subdirectory(mocks/mock_engine)
-
-list(APPEND EXPORT_DEPENDENCIES
-        commonTestUtils_s
-        inference_engine_s
-        gmock)
 
 addIeTarget(
         NAME ${TARGET_NAME}
@@ -18,10 +17,12 @@ addIeTarget(
         ADD_CPPLINT
         DEVELOPER_PACKAGE
             inference_engine_tests
-        EXPORT_DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
+        LINK_LIBRARIES
+            PUBLIC
+                commonTestUtils_s
+                inference_engine_s
+                gmock
+        INCLUDES
+            PRIVATE
+                $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
 )
-
-target_link_libraries(${TARGET_NAME}
-        PUBLIC
-        ${EXPORT_DEPENDENCIES})

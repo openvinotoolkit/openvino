@@ -1,29 +1,16 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/space_to_batch.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/data.hpp>
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/space_to_batch.hpp>
+#include <cldnn/primitives/data.hpp>
 
 #include <cstddef>
-#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -36,8 +23,8 @@ TEST(space_to_batch_fp16_gpu, i1222_bs1222_pb0000_pe0000) {
     // Output :      8x1x1x1
     // Input values in fp16
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, {1,2,2,2} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, {1,2,2,2} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f),
@@ -47,7 +34,7 @@ TEST(space_to_batch_fp16_gpu, i1222_bs1222_pb0000_pe0000) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,2}, 1),
                                                            tensor(format::bfyx, {0,0,0,0}, 0),
                                                            tensor(format::bfyx, {0,0,0,0}, 0),
@@ -59,7 +46,7 @@ TEST(space_to_batch_fp16_gpu, i1222_bs1222_pb0000_pe0000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("space_to_batch").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f
@@ -80,8 +67,8 @@ TEST(space_to_batch_fp16_gpu, i1242_bs1221_pb0020_pe0000) {
     // Output :      4x1x3x2
     // Input values in fp16
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, {1,2,2,4} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, {1,2,2,4} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
@@ -91,7 +78,7 @@ TEST(space_to_batch_fp16_gpu, i1242_bs1221_pb0020_pe0000) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,1}, 1),
                                                            tensor(format::bfyx, {0,0,2,0}, 0),
                                                            tensor(format::bfyx, {0,0,0,0}, 0),
@@ -103,7 +90,7 @@ TEST(space_to_batch_fp16_gpu, i1242_bs1221_pb0020_pe0000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("space_to_batch").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 0.f, 0.f, 1.f, 4.f, 5.f,
@@ -127,8 +114,8 @@ TEST(space_to_batch_fp16_gpu, i2132_bs1222_pb0010_pe0100) {
     // Output :      16x1x2x1
     // Input values in fp16
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, {2,1,2,3} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, {2,1,2,3} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
@@ -137,7 +124,7 @@ TEST(space_to_batch_fp16_gpu, i2132_bs1222_pb0010_pe0100) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,2}, 1),
                                                            tensor(format::bfyx, {0,0,1,0}, 0),
                                                            tensor(format::bfyx, {0,1,0,0}, 0),
@@ -149,7 +136,7 @@ TEST(space_to_batch_fp16_gpu, i2132_bs1222_pb0010_pe0100) {
     auto outputs = network.execute();
 
     auto output = outputs.at("space_to_batch").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 2.f, 0.f, 8.f, 0.f, 3.f, 0.f, 9.f,
@@ -173,8 +160,8 @@ TEST(space_to_batch_fp16_gpu, i12132_bs12122_pb00010_pe00000) {
     // Output :      8x1x1x2x1
     // Input values in fp16
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f16, format::bfzyx, {1,2,2,3,1} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f16, format::bfzyx, {1,2,2,3,1} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
@@ -183,7 +170,7 @@ TEST(space_to_batch_fp16_gpu, i12132_bs12122_pb00010_pe00000) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfzyx, {1,2,1,2,2}, 1),
                                                            tensor(format::bfzyx, {0,0,0,1,0}, 0),
                                                            tensor(format::bfzyx, {0,0,0,0,0}, 0),
@@ -195,7 +182,7 @@ TEST(space_to_batch_fp16_gpu, i12132_bs12122_pb00010_pe00000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("space_to_batch").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 2.f, 0.f, 3.f, 0.f, 4.f, 1.f, 5.f,
@@ -217,9 +204,9 @@ TEST(space_to_batch_fp16_gpu, i134121_bs142121_pb010100_pe000000) {
     // Output :      16x1x2x2x1x1
     // Input values in fp16
 
-    engine engine;
+    auto& engine = get_test_engine();
     tensor input_shape = tensor{ batch(1), feature(3), spatial(1, 2, 1, 4) };
-    auto input = memory::allocate(engine, { data_types::f16, format::bfwzyx, input_shape });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfwzyx, input_shape });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
@@ -231,7 +218,7 @@ TEST(space_to_batch_fp16_gpu, i134121_bs142121_pb010100_pe000000) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfwzyx, {1,4,2,1,2,1}, 1),
                                                            tensor(format::bfwzyx, {0,1,0,1,0,0}, 0),
                                                            tensor(format::bfwzyx, {0,0,0,0,0,0}, 0),
@@ -243,7 +230,7 @@ TEST(space_to_batch_fp16_gpu, i134121_bs142121_pb010100_pe000000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("space_to_batch").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
@@ -271,8 +258,8 @@ TEST(space_to_batch_fp16_gpu, i11611_bs1222_pb0010_pe0001_b_fs_yx_fsv16) {
     // Output :      8x8x1x1
     // Input values in fp16
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, {1,16,1,1} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, {1,16,1,1} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
@@ -282,7 +269,7 @@ TEST(space_to_batch_fp16_gpu, i11611_bs1222_pb0010_pe0001_b_fs_yx_fsv16) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(reorder("input_fsv", "Input", format::b_fs_yx_fsv16, data_types::f16));
     topology.add(space_to_batch("space_to_batch", "input_fsv", tensor(format::bfyx, {1,2,2,2}, 1),
                                                                tensor(format::bfyx, {0,0,1,0}, 0),
@@ -296,7 +283,7 @@ TEST(space_to_batch_fp16_gpu, i11611_bs1222_pb0010_pe0001_b_fs_yx_fsv16) {
     auto outputs = network.execute();
 
     auto output = outputs.at("stb_to_bfyx").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
@@ -324,8 +311,8 @@ TEST(space_to_batch_fp16_gpu, i1812_bs1221_pb0010_pe0200_b_fs_yx_fsv16) {
     // Output :      4x5x1x2
     // Input values in fp16
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, {1,8,2,1} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, {1,8,2,1} });
 
     set_values(input, {
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
@@ -335,7 +322,7 @@ TEST(space_to_batch_fp16_gpu, i1812_bs1221_pb0010_pe0200_b_fs_yx_fsv16) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(reorder("input_fsv", "Input", format::b_fs_yx_fsv16, data_types::f16));
     topology.add(space_to_batch("space_to_batch", "input_fsv", tensor(format::bfyx, {1,2,2,1}, 1),
                                                                tensor(format::bfyx, {0,0,1,0}, 0),
@@ -349,7 +336,7 @@ TEST(space_to_batch_fp16_gpu, i1812_bs1221_pb0010_pe0200_b_fs_yx_fsv16) {
     auto outputs = network.execute();
 
     auto output = outputs.at("stb_to_bfyx").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
@@ -373,8 +360,8 @@ TEST(space_to_batch_fp32_gpu, i1222_bs1222_pb0000_pe0000) {
     // Output :      8x1x1x1
     // Input values in fp32
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, {1,2,2,2} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1,2,2,2} });
 
     set_values(input, {
         0.0f, 1.0f, 2.0f, 3.0f,
@@ -382,7 +369,7 @@ TEST(space_to_batch_fp32_gpu, i1222_bs1222_pb0000_pe0000) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,2}, 1),
                                                            tensor(format::bfyx, {0,0,0,0}, 0),
                                                            tensor(format::bfyx, {0,0,0,0}, 0),
@@ -394,7 +381,7 @@ TEST(space_to_batch_fp32_gpu, i1222_bs1222_pb0000_pe0000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("space_to_batch").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f
@@ -415,8 +402,8 @@ TEST(space_to_batch_fp32_gpu, i1242_bs1221_pb0020_pe0000) {
     // Output :      4x1x3x2
     // Input values in fp32
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, {1,2,2,4} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1,2,2,4} });
 
     set_values(input, {
         0.0f, 1.0f, 2.0f, 3.0f,
@@ -426,7 +413,7 @@ TEST(space_to_batch_fp32_gpu, i1242_bs1221_pb0020_pe0000) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,1}, 1),
                                                            tensor(format::bfyx, {0,0,2,0}, 0),
                                                            tensor(format::bfyx, {0,0,0,0}, 0),
@@ -438,7 +425,7 @@ TEST(space_to_batch_fp32_gpu, i1242_bs1221_pb0020_pe0000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("space_to_batch").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 0.f, 0.f, 1.f, 4.f, 5.f,
@@ -462,8 +449,8 @@ TEST(space_to_batch_fp32_gpu, i2132_bs1222_pb0010_pe0100) {
     // Output :      16x1x2x1
     // Input values in fp32
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, {2,1,2,3} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {2,1,2,3} });
 
     set_values(input, {
         0.0f, 1.0f, 2.0f, 3.0f,
@@ -472,7 +459,7 @@ TEST(space_to_batch_fp32_gpu, i2132_bs1222_pb0010_pe0100) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,2}, 1),
                                                            tensor(format::bfyx, {0,0,1,0}, 0),
                                                            tensor(format::bfyx, {0,1,0,0}, 0),
@@ -484,7 +471,7 @@ TEST(space_to_batch_fp32_gpu, i2132_bs1222_pb0010_pe0100) {
     auto outputs = network.execute();
 
     auto output = outputs.at("space_to_batch").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 2.f, 0.f, 8.f, 0.f, 3.f, 0.f, 9.f,
@@ -508,8 +495,8 @@ TEST(space_to_batch_fp32_gpu, i12132_bs12122_pb00010_pe00000) {
     // Output :      8x1x1x2x1
     // Input values in fp32
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx, {1,2,2,3,1} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, {1,2,2,3,1} });
 
     set_values(input, {
         0.0f, 1.0f, 2.0f, 3.0f,
@@ -518,7 +505,7 @@ TEST(space_to_batch_fp32_gpu, i12132_bs12122_pb00010_pe00000) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfzyx, {1,2,1,2,2}, 1),
                                                            tensor(format::bfzyx, {0,0,0,1,0}, 0),
                                                            tensor(format::bfzyx, {0,0,0,0,0}, 0),
@@ -530,7 +517,7 @@ TEST(space_to_batch_fp32_gpu, i12132_bs12122_pb00010_pe00000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("space_to_batch").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 2.f, 0.f, 3.f, 0.f, 4.f, 1.f, 5.f,
@@ -552,9 +539,9 @@ TEST(space_to_batch_fp32_gpu, i134121_bs142121_pb010100_pe000000) {
     // Output :      16x1x2x2x1x1
     // Input values in fp32
 
-    engine engine;
+    auto& engine = get_test_engine();
     tensor input_shape = tensor{ batch(1), feature(3), spatial(1, 2, 1, 4) };
-    auto input = memory::allocate(engine, { data_types::f32, format::bfwzyx, input_shape });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, input_shape });
 
     set_values(input, {
        0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
@@ -564,7 +551,7 @@ TEST(space_to_batch_fp32_gpu, i134121_bs142121_pb010100_pe000000) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfwzyx, {1,4,2,1,2,1}, 1),
                                                            tensor(format::bfwzyx, {0,1,0,1,0,0}, 0),
                                                            tensor(format::bfwzyx, {0,0,0,0,0,0}, 0),
@@ -576,7 +563,7 @@ TEST(space_to_batch_fp32_gpu, i134121_bs142121_pb010100_pe000000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("space_to_batch").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
@@ -604,8 +591,8 @@ TEST(space_to_batch_fp32_gpu, i11622_bs1421_pb0000_pe0000_b_fs_yx_fsv16) {
     // Output :      8x4x1x2
     // Input values in fp32
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, {1,16,2,2} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1,16,2,2} });
 
     set_values(input, {
         0.0f,  1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,
@@ -619,7 +606,7 @@ TEST(space_to_batch_fp32_gpu, i11622_bs1421_pb0000_pe0000_b_fs_yx_fsv16) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(reorder("input_fsv", "Input", format::b_fs_yx_fsv16, data_types::f32));
     topology.add(space_to_batch("space_to_batch", "input_fsv", tensor(format::bfyx, {1,4,2,1}, 1),
                                                                tensor(format::bfyx, {0,0,0,0}, 0),
@@ -633,7 +620,7 @@ TEST(space_to_batch_fp32_gpu, i11622_bs1421_pb0000_pe0000_b_fs_yx_fsv16) {
     auto outputs = network.execute();
 
     auto output = outputs.at("stb_to_bfyx").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.f, 16.f, 17.f, 32.f, 33.f, 48.f, 49.f,
@@ -661,8 +648,8 @@ TEST(space_to_batch_fp32_gpu, i1623_bs1312_pb0001_pe0000_b_fs_yx_fsv16) {
     // Output :      6x2x2x2
     // Input values in fp32
 
-    engine engine;
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, {1,6,3,2} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1,6,3,2} });
 
     set_values(input, {
         0.0f,  1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,
@@ -673,7 +660,7 @@ TEST(space_to_batch_fp32_gpu, i1623_bs1312_pb0001_pe0000_b_fs_yx_fsv16) {
     });
 
     topology topology;
-    topology.add(input_layout("Input", input.get_layout()));
+    topology.add(input_layout("Input", input->get_layout()));
     topology.add(reorder("input_fsv", "Input", format::b_fs_yx_fsv16, data_types::f32));
     topology.add(space_to_batch("space_to_batch", "input_fsv", tensor(format::bfyx, {1,3,1,2}, 1),
                                                                tensor(format::bfyx, {0,0,0,1}, 0),
@@ -687,7 +674,7 @@ TEST(space_to_batch_fp32_gpu, i1623_bs1312_pb0001_pe0000_b_fs_yx_fsv16) {
     auto outputs = network.execute();
 
     auto output = outputs.at("stb_to_bfyx").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.f, 0.f, 4.f, 0.f, 19.f, 0.f, 22.f,

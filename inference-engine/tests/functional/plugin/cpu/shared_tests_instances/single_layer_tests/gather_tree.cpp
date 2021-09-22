@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER
 };
 
-INSTANTIATE_TEST_CASE_P(Basic_smoke, GatherTreeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherTree, GatherTreeLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(inputShapes),
                             ::testing::ValuesIn(secondaryInputTypes),

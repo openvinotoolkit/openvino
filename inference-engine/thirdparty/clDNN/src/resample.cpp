@@ -1,23 +1,11 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "resample_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include <string>
 #include <src/include/json_object.h>
 
@@ -133,7 +121,7 @@ std::string resample_inst::to_string(resample_node const& node) {
     return primitive_description.str();
 }
 
-resample_inst::typed_primitive_inst(network_impl& network, resample_node const& node) : parent(network, node) {
+resample_inst::typed_primitive_inst(network& network, resample_node const& node) : parent(network, node) {
     if (node.get_primitive()->operation_type == resample_type::bilinear &&
         node.get_output_layout().format.dimension() > 4) {
         CLDNN_ERROR_MESSAGE(node.id(), "5D not supported for interp resample type.");

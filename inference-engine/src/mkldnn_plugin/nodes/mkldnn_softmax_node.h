@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,18 +14,19 @@ namespace MKLDNNPlugin {
 
 class MKLDNNSoftMaxNode : public MKLDNNNode {
 public:
-    MKLDNNSoftMaxNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNSoftMaxNode() override = default;
+    MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void initOptimalPrimitiveDescriptor() override;
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
+    void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                          const std::vector<MemoryDescPtr>& outputDesc) override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
-    int axis = 0;
+    size_t axis = 0;
 };
 
 }  // namespace MKLDNNPlugin

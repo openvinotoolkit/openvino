@@ -1,5 +1,6 @@
 #!/bin/bash
-# Copyright (C) 2018-2020 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 APP_NAME="MyriadFunctionalTests"
@@ -54,7 +55,7 @@ fi
 
 if [[ "${APPS_TO_RUN}" -ge 4 ]] ; then
     # For more then 4 multidevice testing
-    for (( VAR = 4; VAR <= ${APPS_TO_RUN}; ++VAR )); do
+    for (( VAR = 4; VAR <= APPS_TO_RUN; ++VAR )); do
         ./${APP_NAME} --gtest_filter=*VPURegTest*YOLO*myriad* &
         pids+=" $!"
     done

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,13 +66,11 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNe
         }
     }
 
-    for (const auto& layerName : supported) {
+    for (const auto& layerName : unsupported) {
         if (supported.empty()) {
             break;
         }
-        if (InferenceEngine::details::contains(unsupported, layerName)) {
-            supported.erase(layerName);
-        }
+        supported.erase(layerName);
     }
 
     unsupported.clear();

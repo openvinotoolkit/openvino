@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,6 +85,7 @@ struct ModelHeader {
         nRotateColumns = old.nRotateColumns;
         nInputs = old.nInputs;
         nOutputs = old.nOutputs;
+        version.minor = old.version.minor;
     }
     ModelHeader(GNAPluginNS::Header2dot4::ModelHeader const &old) {
         gnaMemSize = old.gnaMemSize;
@@ -97,6 +98,16 @@ struct ModelHeader {
         nRotateOutputRows = old.nRotateOutputRows;
         nRotateOutputColumns = old.nRotateOutputColumns;
         doRotateOutput = old.doRotateOutput;
+        version.minor = old.version.minor;
+    }
+    ModelHeader(GNAPluginNS::Header2dot3::ModelHeader const &old) {
+        gnaMemSize = old.gnaMemSize;
+        layersCount = old.layersCount;
+        nGroup = old.nGroup;
+        nRotateRows = old.nRotateRows;
+        nRotateColumns = old.nRotateColumns;
+        nInputs = old.nInputs;
+        nOutputs = old.nOutputs;
         version.minor = old.version.minor;
     }
 };

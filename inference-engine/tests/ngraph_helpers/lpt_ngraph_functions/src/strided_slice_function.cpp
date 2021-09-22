@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const std::vector<int64_t>& begin,
     const std::vector<int64_t>& end,
@@ -54,7 +54,7 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
     const std::vector<int64_t>& begin,
     const std::vector<int64_t>& end,
@@ -89,7 +89,7 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> StridedSliceFunction::getReference(
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const std::vector<int64_t>& begin,
     const std::vector<int64_t>& end,
     const std::vector<int64_t>& strides,

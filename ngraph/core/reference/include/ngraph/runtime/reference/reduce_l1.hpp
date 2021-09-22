@@ -1,59 +1,37 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
 #include <cmath>
+#include <numeric>
 
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace reference
-        {
-            template <typename T>
-            void reduce_l1(const T* arg,
-                           T* out,
-                           const Shape& in_shape,
-                           const AxisSet& reduction_axes,
-                           bool keep_dims)
-            {
-                auto out_shape = reduce(in_shape, reduction_axes, keep_dims);
-                CoordinateTransform output_transform(out_shape);
+namespace ngraph {
+namespace runtime {
+namespace reference {
+template <typename T>
+void reduce_l1(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
+    constexpr bool dont_keep_dims_in_output = false;
+    const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
+    std::fill(out, out + shape_size(out_shape), 0);
 
-                for (const Coordinate& output_coord : output_transform)
-                {
-                    out[output_transform.index(output_coord)] = 0;
-                }
+    const auto in_strides = row_major_strides(in_shape);
+    const auto out_strides = row_major_strides(out_shape);
 
-                CoordinateTransform input_transform(in_shape);
+    CoordinateTransformBasic input_transform(in_shape);
+    for (const Coordinate& input_coord : input_transform) {
+        const Coordinate output_coord = reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
 
-                for (const Coordinate& input_coord : input_transform)
-                {
-                    Coordinate output_coord = reduce(input_coord, reduction_axes, keep_dims);
+        const size_t in_idx = std::inner_product(input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
+        const size_t out_idx = std::inner_product(output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
 
-                    size_t output_index = output_transform.index(output_coord);
-
-                    out[output_index] =
-                        out[output_index] + std::abs(arg[input_transform.index(input_coord)]);
-                }
-            }
-        }
+        out[out_idx] = out[out_idx] + std::abs(arg[in_idx]);
     }
 }
+}  // namespace reference
+}  // namespace runtime
+}  // namespace ngraph

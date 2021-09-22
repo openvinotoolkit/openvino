@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         void run(Task task) override {
             auto workerInferRequest = _this->_workerInferRequest;
             workerInferRequest->_task = std::move(task);
-            workerInferRequest->_inferRequest.StartAsync();
+            workerInferRequest->_inferRequest->StartAsync();
         };
         MultiDeviceAsyncInferRequest* _this = nullptr;
     };
@@ -46,9 +46,10 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                        const auto res = std::find_if(
                                _multiDeviceExecutableNetwork->_devicePrioritiesInitial.cbegin(),
                                _multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend(),
-                               [&name](const MultiDevicePlugin::DeviceInformation& d){ return d.deviceName == name; });
+                               [&name](const MultiDevicePlugin::DeviceInformation& d){
+                                    return d.deviceName == name; });
                        if (_multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend() == res) {
-                           THROW_IE_EXCEPTION << "None of the devices (for which current MULTI-device configuration was "
+                           IE_THROW() << "None of the devices (for which current MULTI-device configuration was "
                                                  "initialized) supports a remote blob created on the device named " << name;
 
                        } else {
@@ -69,15 +70,11 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         }},
         // final task in the pipeline:
         { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
-              auto status = _workerInferRequest->_status;
-              if (InferenceEngine::StatusCode::OK != status) {
-                  if (nullptr != InferenceEngine::CurrentException())
-                      std::rethrow_exception(InferenceEngine::CurrentException());
-                  else
-                      THROW_IE_EXCEPTION << InferenceEngine::details::as_status << status;
+              if (nullptr != _workerInferRequest->_exceptionPtr) {
+                  std::rethrow_exception(_workerInferRequest->_exceptionPtr);
               }
               if (_needPerfCounters)
-                  _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();
+                  _perfMap = _workerInferRequest->_inferRequest->GetPerformanceCounts();
         }}
     };
 }

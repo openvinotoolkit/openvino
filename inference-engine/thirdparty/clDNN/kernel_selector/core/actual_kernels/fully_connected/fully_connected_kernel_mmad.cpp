@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "fully_connected_kernel_mmad.h"
 #include "kernel_selector_utils.h"
@@ -79,7 +69,7 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
     }
 
     tuning_data.sub_group_size = 8;
-    if (input.X().v == 1 && input.Z().v == 1 && input.Batch().v == 1 && 
+    if (input.X().v == 1 && input.Z().v == 1 && input.Batch().v == 1 &&
         ((input.Y().v == 1 && output.GetLayout() != DataLayout::bfyx) || (input.Feature().v == 1 && output.GetLayout() == DataLayout::bfyx)) ) {
         // Known cases for TGL where simd16 works better than simd8
         bool simd16_exception_1 = input.Feature().v == 25088 && output.Feature().v == 512;

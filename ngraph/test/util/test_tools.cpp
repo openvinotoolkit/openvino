@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 
@@ -227,16 +215,16 @@ string get_results_str(const std::vector<char>& ref_data,
             Node* dep = node->get_input_node_ptr(i);
             if (seen.count(dep) == 0)
             {
-                return ::testing::AssertionFailure() << "Argument " << *dep
-                                                     << " does not occur before op" << *node;
+                return ::testing::AssertionFailure()
+                       << "Argument " << *dep << " does not occur before op" << *node;
             }
         }
         for (auto& dep_ptr : node->get_control_dependencies())
         {
             if (seen.count(dep_ptr.get()) == 0)
             {
-                return ::testing::AssertionFailure() << "Control dependency " << *dep_ptr
-                                                     << " does not occur before op" << *node;
+                return ::testing::AssertionFailure()
+                       << "Control dependency " << *dep_ptr << " does not occur before op" << *node;
             }
         }
         seen.insert(node);
@@ -245,8 +233,8 @@ string get_results_str(const std::vector<char>& ref_data,
     {
         if (seen.count(node_ptr.get()) == 0)
         {
-            return ::testing::AssertionFailure() << "Required op " << *node_ptr
-                                                 << "does not occur in ordered ops";
+            return ::testing::AssertionFailure()
+                   << "Required op " << *node_ptr << "does not occur in ordered ops";
         }
     }
     return ::testing::AssertionSuccess();

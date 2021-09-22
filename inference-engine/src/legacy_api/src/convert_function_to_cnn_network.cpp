@@ -54,7 +54,46 @@
 #include "legacy/graph_tools.hpp"
 #include "legacy/net_pass.h"
 #include "ie_legacy_itt.hpp"
-#include "ie_cnn_layer_builder_ngraph.h"
+
+namespace Builder {
+
+template <class T>
+std::string asString(const T& value) {
+    return std::to_string(value);
+}
+
+template <typename T>
+std::string asString(const std::vector<T>& value) {
+    std::string result;
+    for (const auto& item : value) {
+        if (!result.empty()) result += ",";
+        result += asString(item);
+    }
+    return result;
+}
+
+template <>
+std::string asString<double>(const double& value) {
+    std::ostringstream sStrm;
+    sStrm.precision(std::numeric_limits<double>::digits10);
+    sStrm << std::fixed << value;
+    std::string result = sStrm.str();
+
+    auto pos = result.find_last_not_of("0");
+    if (pos != std::string::npos) result.erase(pos + 1);
+
+    pos = result.find_last_not_of(".");
+    if (pos != std::string::npos) result.erase(pos + 1);
+
+    return result;
+}
+
+template <>
+std::string asString<float>(const float& value) {
+    return asString(static_cast<double>(value));
+}
+
+}  // namespace Builder
 
 namespace InferenceEngine {
 namespace details {
@@ -63,7 +102,7 @@ namespace details {
 #define REQUIRED_IE_CONVERSION_CREATOR(type_name, ie_type_name)\
     addSpecificCreator({type_name}, [](const std::shared_ptr<::ngraph::Node>& node, \
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {\
-        THROW_IE_EXCEPTION << type_name  << " operation has a form that is not supported. " << node->get_friendly_name()\
+        IE_THROW() << type_name  << " operation has a form that is not supported. " << node->get_friendly_name()\
         << " should be converted to " << ie_type_name << " operation.";\
         return nullptr;\
     });\
@@ -74,7 +113,7 @@ namespace details {
 CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     auto sub_graph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(layer);
     if (!sub_graph) {
-        THROW_IE_EXCEPTION << "Cannot cast layer to SubGraphOp.";
+        IE_THROW() << "Cannot cast layer to SubGraphOp.";
     }
 
     // inputs/outputs of TensorIterator (ngraph representation)
@@ -97,7 +136,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         bool res = CNNNetForestDFS(
             CNNNetGetAllInputLayers(net), [](const CNNLayerPtr& layer) {}, false);
         if (!res) {
-            THROW_IE_EXCEPTION << "Loop detected. SubGraphOp body should not contain loops.";
+            IE_THROW() << "Loop detected. SubGraphOp body should not contain loops.";
         }
 
         // Get inputs/outputs of cnn network
@@ -205,6 +244,9 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     LayerParams params = {layer->get_friendly_name(), "TensorIterator",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::TensorIterator>(params);
+    if (res == nullptr) {
+        IE_THROW() << "Can't create TensorIterator";
+    }
     res->body = body;
 
     // Port map: outputs
@@ -228,7 +270,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
             res->output_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
                 static_cast<int>(output_desc->m_output_index), static_cast<int>(body_output_idx), -1, 1, 0, -1, 1});
         } else {
-            THROW_IE_EXCEPTION << "Incorrect type of the output description.";
+            IE_THROW() << "Incorrect type of the output description.";
         }
     }
 
@@ -254,7 +296,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
             res->input_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
                     static_cast<int>(inv_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
         } else {
-            THROW_IE_EXCEPTION << "Incorrect type of the input description.";
+            IE_THROW() << "Incorrect type of the input description.";
         }
     }
 
@@ -391,8 +433,11 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
             const auto data_beg = static_cast<char*>(a->get()->get_ptr());
             params[name] = std::string(data_beg, a->get()->size());
         }
+    } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(& adapter)) {
+        const auto & attrs = a->get();
+        params[name] = joinVec(attrs);
     } else {
-        THROW_IE_EXCEPTION << "Error converting ngraph to CNN network. "
+        IE_THROW() << "Error converting ngraph to CNN network. "
                               "Attribute adapter can not be found for " << name << " parameter";
     }
 }
@@ -451,7 +496,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                 res->params["operation"] = "logical_xor";
             } else if (node->description() == "Eltwise") {
                 auto castedLayer = std::dynamic_pointer_cast<::ngraph::op::Eltwise>(node);
-                if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+                if (castedLayer == nullptr) IE_THROW() << "Cannot get " << attrs.type << " layer " << attrs.name;
                 std::string type;
                 switch (castedLayer->eltwise_type) {
                 case ELTWISE_TYPE::Sum:
@@ -464,7 +509,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                     type = "prod";
                     break;
                 default:
-                    THROW_IE_EXCEPTION << "Not supported eltwise type!";
+                    IE_THROW() << "Not supported eltwise type!";
                 }
 
                 res->params["operation"] = type;
@@ -801,13 +846,13 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto scale_all_sizes = std::stoi(res->params["scale_all_sizes"]);
         if (!scale_all_sizes) {
             auto data_pshape = node->get_input_partial_shape(0);
-            if (data_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 0-port input of PriorBox is not supported";
+            if (data_pshape.is_dynamic()) IE_THROW() << "Dynamic 0-port input of PriorBox is not supported";
             auto data_shape = data_pshape.to_shape();
-            if (data_shape.size() != 4) THROW_IE_EXCEPTION << "PriorBox has " << data_shape.size() << " items in 0-port input, 4 expected";
+            if (data_shape.size() != 4) IE_THROW() << "PriorBox has " << data_shape.size() << " items in 0-port input, 4 expected";
             auto img_pshape = node->get_input_partial_shape(1);
-            if (img_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 1-port input of PriorBox is not supported";
+            if (img_pshape.is_dynamic()) IE_THROW() << "Dynamic 1-port input of PriorBox is not supported";
             auto img_shape = img_pshape.to_shape();
-            if (img_shape.size() != 4) THROW_IE_EXCEPTION << "PriorBox has " << data_shape.size() << " items in 1-port input, 4 expected";
+            if (img_shape.size() != 4) IE_THROW() << "PriorBox has " << data_shape.size() << " items in 1-port input, 4 expected";
 
             // mxnet-like PriorBox
             auto img_H = img_shape[2];
@@ -921,7 +966,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto axis_node = node->input_value(1).get_node_shared_ptr();
         const auto axis_node_const = std::dynamic_pointer_cast<ngraph::op::Constant>(axis_node);
         if (!axis_node_const) {
-            THROW_IE_EXCEPTION << "Split " << node->get_friendly_name() << " has no axes as Constant";
+            IE_THROW() << "Split " << node->get_friendly_name() << " has no axes as Constant";
         }
         auto axis = axis_node_const->cast_vector<int64_t>()[0];
         if (axis < 0) {
@@ -1048,7 +1093,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             output_type_str = "I64";
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported output type";
+            IE_THROW() << "Unsupported output type";
         }
         res->params["output_type"] = output_type_str;
 
@@ -1076,7 +1121,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                 res->params["center_point_box"] = "true";
                 break;
             default:
-                THROW_IE_EXCEPTION << "Unsupported box encoding for NonMaxSuppression op";
+                IE_THROW() << "Unsupported box encoding for NonMaxSuppression op";
                 break;
         }
 
@@ -1090,7 +1135,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             output_type_str = "I64";
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported output type";
+            IE_THROW() << "Unsupported output type";
         }
         res->params["output_type"] = output_type_str;
 
@@ -1198,7 +1243,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params)
             -> CNNLayerPtr {
         const std::string& type_name = node->get_type_name();
-        THROW_IE_EXCEPTION << type_name << " operation has a form that is not supported. " << node->get_friendly_name()
+        IE_THROW() << type_name << " operation has a form that is not supported. " << node->get_friendly_name()
                            << " should be converted to " << type_name + "IE operation.";
         return nullptr;
     });
@@ -1208,7 +1253,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), node->description(), details::convertPrecision(node->get_output_element_type(0))};
         auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(node);
         if (reduce_node == nullptr)
-            THROW_IE_EXCEPTION << "Node '" << node->get_name() << "' is not an instance of ArithmeticReductionKeepDims.";
+            IE_THROW() << "Node '" << node->get_name() << "' is not an instance of ArithmeticReductionKeepDims.";
         auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
         res->params = params;
         res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
@@ -1219,7 +1264,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), "ReduceAnd", details::convertPrecision(node->get_output_element_type(0))};
         auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(node);
         if (reduce_node == nullptr)
-            THROW_IE_EXCEPTION << "Node '" << node->get_name() << "' is not an instance of LogicalReductionKeepDims.";
+            IE_THROW() << "Node '" << node->get_name() << "' is not an instance of LogicalReductionKeepDims.";
         auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
         res->params = params;
         res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
@@ -1230,7 +1275,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), "ReduceOr", details::convertPrecision(node->get_output_element_type(0))};
         auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(node);
         if (reduce_node == nullptr)
-            THROW_IE_EXCEPTION << "Node '" << node->get_name() << "' is not an instance of LogicalReductionKeepDims.";
+            IE_THROW() << "Node '" << node->get_name() << "' is not an instance of LogicalReductionKeepDims.";
         auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
         res->params = params;
         res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
@@ -1241,7 +1286,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), "Const", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         auto castedLayer = ngraph::as_type_ptr<ngraph::op::Constant>(node);
-        if (!res) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+        if (!res) IE_THROW() << "Cannot get " << attrs.type << " layer " << attrs.name;
 
         res->blobs["custom"] = InferenceEngine::details::shareWeights(castedLayer);
 
@@ -1297,7 +1342,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             precision_str = "BOOL";
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported type";
+            IE_THROW() << "Unsupported type";
         }
 
         res->params["precision"] = precision_str;
@@ -1376,7 +1421,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<InferenceEngine::GatherLayer>(attrs);
 
         auto castedLayer = std::dynamic_pointer_cast<ngraph::op::GatherIE>(node);
-        if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+        if (castedLayer == nullptr) IE_THROW() << "Cannot get " << attrs.type << " layer " << attrs.name;
 
         res->params["axis"] = Builder::asString(castedLayer->get_axis());
 
@@ -1413,7 +1458,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
         auto castedLayer = std::dynamic_pointer_cast<ngraph::op::HardSigmoid_IE>(node);
         if (!castedLayer)
-            THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+            IE_THROW() << "Cannot get " << attrs.type << " layer " << attrs.name;
 
         res->params["alpha"] = Builder::asString(castedLayer->get_alpha());
         res->params["beta"] = Builder::asString(castedLayer->get_beta());
@@ -1424,15 +1469,15 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Interp", details::convertPrecision(node->get_output_element_type(0))};
         auto castedLayer = std::dynamic_pointer_cast<ngraph::op::Interp>(node);
-        if (!castedLayer) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+        if (!castedLayer) IE_THROW() << "Cannot get " << attrs.type << " layer " << attrs.name;
 
         auto interp_attrs = castedLayer->get_attrs();
 
         if (interp_attrs.antialias) {
-            THROW_IE_EXCEPTION << "Interp do not support antialias";
+            IE_THROW() << "Interp do not support antialias";
         }
         if (interp_attrs.mode != "linear") {
-            THROW_IE_EXCEPTION << "Interp do not support mode '" << interp_attrs.mode << "'";
+            IE_THROW() << "Interp do not support mode '" << interp_attrs.mode << "'";
         }
 
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
@@ -1542,7 +1587,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
         res->params["no_trans"] = node->get_input_size() == 2 ? "1" : "0";
-        // temporary workaround due to incorrect usage of group_size in the nGraph operation for the DeformablePSROIPooling
+        // v1::DeformablePRSOIPooling treats group_size attribute as pooled sizes
         res->params["pooled_height"] = params.at("group_size");
         res->params["pooled_width"] = params.at("group_size");
         return res;
@@ -1593,12 +1638,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), "Split", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::SplitLayer>(attrs);
         auto castedLayer = std::dynamic_pointer_cast<ngraph::op::VariadicSplit>(node);
-        if (!castedLayer) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+        if (!castedLayer) IE_THROW() << "Cannot get " << attrs.type << " layer " << attrs.name;
 
         auto axis_node = castedLayer->input_value(1).get_node_shared_ptr();
         const auto axis_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(axis_node);
         if (!axis_node_const) {
-            THROW_IE_EXCEPTION << "Split " << castedLayer->get_friendly_name() << " has no axes as Constant";
+            IE_THROW() << "Split " << castedLayer->get_friendly_name() << " has no axes as Constant";
         }
 
         auto axis = axis_node_const->cast_vector<int64_t>()[0];
@@ -1643,7 +1688,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto& rtInfo = node->get_rt_info();
 
         if (rtInfo.count(ExecGraphInfoSerialization::LAYER_TYPE) == 0) {
-            THROW_IE_EXCEPTION << "No " << ExecGraphInfoSerialization::LAYER_TYPE
+            IE_THROW() << "No " << ExecGraphInfoSerialization::LAYER_TYPE
                 << " attribute is set in " << node->get_friendly_name() << " node";
         }
 
@@ -1723,7 +1768,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<InferenceEngine::PowerLayer>(attrs);
 
         auto castedLayer = ngraph::as_type_ptr<ngraph::op::PowerIE>(node);
-        if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+        if (castedLayer == nullptr) IE_THROW() << "Cannot get " << attrs.type << " layer " << attrs.name;
         res->params = params;
         // This is needed as scale parameter requires high precision
         res->params["scale"] = Builder::asString(castedLayer->scale);
@@ -1743,7 +1788,7 @@ CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
 }
 
 void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
-                                  const ICNNNetwork &network,
+                                  const CNNNetwork &network,
                                   CNNNetworkImpl* cnnNetworkImpl,
                                   bool keep_constant_inputs) {
     OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "details::convertFunctionToICNNNetwork");
@@ -1763,7 +1808,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         }
 
         if (!result)
-            THROW_IE_EXCEPTION << "Cannot cast ngraph node " << node->get_friendly_name() << " to CNNLayer!";
+            IE_THROW() << "Cannot cast ngraph node " << node->get_friendly_name() << " to CNNLayer!";
         NGraphCNNLayer * layer = reinterpret_cast<NGraphCNNLayer*>(result.get());
         layer->setNode(node);
         return result;
@@ -1861,13 +1906,15 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (is_dynamic) err_log << node << std::endl;
     }
     if (!err_log.str().empty()) {
-        THROW_IE_EXCEPTION << "\nUnsupported dynamic ops: \n" << err_log.str();
+        IE_THROW() << "\nUnsupported dynamic ops: \n" << err_log.str();
     }
 
-    const CNNNetworkNGraphImpl* nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl*>(&network);
+    IE_SUPPRESS_DEPRECATED_START
+    const auto & icnnnetwork = static_cast<const ICNNNetwork &>(network);
+    IE_SUPPRESS_DEPRECATED_END
+    const CNNNetworkNGraphImpl* nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl*>(&icnnnetwork);
 
-    InputsDataMap thisInputDataMap;
-    network.getInputsInfo(thisInputDataMap);
+    InputsDataMap thisInputDataMap = network.getInputsInfo();
 
     // Construct network
     cnnNetworkImpl->setName(graph->get_friendly_name());
@@ -1913,7 +1960,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         }
 
         if (!can_change_name(duplicate) && !can_change_name(node)) {
-            THROW_IE_EXCEPTION << "Detected two output operations with the same name: " << duplicate << " and " << node;
+            IE_THROW() << "Detected two output operations with the same name: " << duplicate << " and " << node;
         }
 
         auto & renamed = can_change_name(duplicate) ? duplicate : node;
@@ -2008,7 +2055,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             SizeVector dims = layer->get_output_shape(i);
             for (const auto &dim : dims) {
                 if (!dim)
-                    THROW_IE_EXCEPTION << cnnLayer->type << " layer " << cnnLayer->name
+                    IE_THROW() << cnnLayer->type << " layer " << cnnLayer->name
                         << " has incorrect dimensions in the output data " << i;
             }
             if (!ptr && nGraphImpl && nGraphImpl->_data.find(outName) != nGraphImpl->_data.end()) {
@@ -2071,17 +2118,17 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             CNNLayerPtr prevCnnLayer;
             StatusCode ret = cnnNetworkImpl->getLayerByName(input->get_friendly_name().c_str(), prevCnnLayer, nullptr);
             if (ret != OK)
-                THROW_IE_EXCEPTION << "Cannot find layer with name: " << input->get_friendly_name();
+                IE_THROW() << "Cannot find layer with name: " << input->get_friendly_name();
 
             CNNLayerPtr cnnLayer;
             ret = cnnNetworkImpl->getLayerByName(layer->get_friendly_name().c_str(), cnnLayer, nullptr);
             if (ret != OK)
-                THROW_IE_EXCEPTION << "Cannot find layer with name: " << layer->get_friendly_name();
+                IE_THROW() << "Cannot find layer with name: " << layer->get_friendly_name();
 
             auto inIndex = layer->input(i).get_index();
             if (cnnLayer->insData.size() <= (inIndex - count_of_skipped) ||
                 prevCnnLayer->outData.size() <= output_port.get_index() || count_of_skipped > inIndex)
-                THROW_IE_EXCEPTION << "Cannot create ICNNNetwork. Network structure is incorrect! "
+                IE_THROW() << "Cannot create CNNNetwork. Network structure is incorrect! "
                                    << "Input port " << inIndex << " (max " << cnnLayer->insData.size() << ") of "
                                    << cnnLayer->type << " layer " << cnnLayer->name
                                    << " cannot be connected with output port " << output_port.get_index()
@@ -2099,7 +2146,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         for (unsigned i = 0; i < inSize; i++) {
             if (!layer->insData[i].lock()) {
-                THROW_IE_EXCEPTION << "Layer " << layer->name.c_str() << " input port " << i
+                IE_THROW() << "Layer " << layer->name.c_str() << " input port " << i
                                    << " is not connected to any data";
             }
         }
@@ -2110,7 +2157,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         }
     }
 
-    if (!cnnNetworkImpl) THROW_IE_EXCEPTION << "Cannot convert nGraph function to CNNNetworkImpl!";
+    if (!cnnNetworkImpl) IE_THROW() << "Cannot convert nGraph function to CNNNetworkImpl!";
 
     // update input preprocessing info
     InputsDataMap resultInputDataMap;
@@ -2125,7 +2172,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 }
 
 std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
-                                                             const ICNNNetwork &network,
+                                                             const CNNNetwork &network,
                                                              bool keep_constant_inputs) {
     auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>();
     convertFunctionToICNNNetwork(graph, network, cnnNetworkImpl.get(), keep_constant_inputs);

@@ -1,23 +1,15 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/reorder.hpp"
+
+#include "cldnn/primitives/reorder.hpp"
 #include "primitive_inst.h"
+#include "kernel_selector/core/actual_kernels/reorder/reorder_kernel_base.h"
+#include "kernel_selector/common/tensor_type.h"
+
 #include <string>
 #include <memory>
 
@@ -28,7 +20,7 @@ struct typed_program_node<reorder> : public typed_program_node_base<reorder> {
     using parent = typed_program_node_base<reorder>;
 
 public:
-    typed_program_node(const std::shared_ptr<reorder> prim, program_impl& prog) : parent(prim, prog) {
+    typed_program_node(const std::shared_ptr<reorder> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
     }
 
@@ -43,11 +35,19 @@ public:
     void requires_reinterpret(bool val) { req_reinterpr = (optimized && val); }
 
     void set_input_offset(tensor const& io) { input_offset = io; }
+    void set_input_layout(layout const& lo) { input_layout = lo; }
     tensor get_input_offset() const { return input_offset; }
+
+    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
+        kernel_selector::DataLayout ks_input_layout = convert_data_tensor(input_layout).GetLayout();
+        kernel_selector::DataLayout ks_output_layout = convert_data_tensor(get_output_layout()).GetLayout();
+        return std::make_shared<kernel_selector::reorder_fuse_params>(ks_input_layout, ks_output_layout);
+    }
 
 private:
     bool req_reinterpr = false;
     tensor input_offset = tensor{0};  // used by reorder to winograd domain
+    layout input_layout = layout(data_types::f32, format::bfyx, { 0, 0, 0, 0 });
 };
 
 using reorder_node = typed_program_node<reorder>;
@@ -61,9 +61,9 @@ public:
     static std::string to_string(reorder_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, reorder_node const& node);
-    memory_impl& mean_nv12_memory() const { return dep_memory(2); }
-    memory_impl& mean_memory() const { return dep_memory(1); }
+    typed_primitive_inst(network& network, reorder_node const& node);
+    memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
+    memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 
     bool has_mean() const { return !argument.mean.empty(); }
 

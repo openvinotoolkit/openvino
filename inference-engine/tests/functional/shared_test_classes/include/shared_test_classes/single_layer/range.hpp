@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ class RangeLayerTest : public testing::WithParamInterface<RangeParams>,
                        virtual public LayerTestsUtils::LayerTestsCommon {
     float start, stop, step;
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RangeParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<RangeParams>& obj);
     void Infer() override;
 
 protected:
@@ -39,7 +39,7 @@ protected:
 class RangeNumpyLayerTest : public testing::WithParamInterface<RangeParams>,
                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RangeParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<RangeParams>& obj);
     void Infer() override;
 protected:
     void SetUp() override;

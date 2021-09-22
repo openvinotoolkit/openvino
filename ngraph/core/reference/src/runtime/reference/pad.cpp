@@ -1,213 +1,213 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/runtime/reference/pad.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace reference
-        {
-            void pad(const char* data,
-                     const char* pad_value,
-                     char* out,
-                     const size_t elem_size,
-                     const Shape& data_shape,
-                     const Shape& out_shape,
-                     const CoordinateDiff& padding_below,
-                     const CoordinateDiff& padding_above,
-                     const op::PadMode pad_mode)
-            {
-                Coordinate input_start(data_shape.size(), 0); // start at (0,0,...,0)
-                Coordinate input_end = out_shape; // end at (d'0,d'1,...,d'n), the outer corner of
-                                                  // the post-padding shape
+#include <cassert>
 
-                Strides input_strides(data_shape.size(), 1);
+#include "ngraph/axis_vector.hpp"
+#include "ngraph/check.hpp"
+#include "ngraph/coordinate_index.hpp"
+#include "ngraph/coordinate_transform.hpp"
 
-                AxisVector input_axis_order(data_shape.size());
-                for (size_t i = 0; i < data_shape.size(); i++)
-                {
-                    input_axis_order[i] = i;
-                }
+namespace ngraph {
+namespace runtime {
+namespace impl {
+namespace {
+template <typename T>
+T clamp(T v, T lo, T hi) {
+    if (v < lo) {
+        return lo;
+    }
+    if (v > hi) {
+        return hi;
+    }
+    return v;
+}
+struct PadBase {
+    PadBase(const char* const data,
+            const char* const pad_value,
+            char* const out,
+            const size_t elem_size,
+            const Shape& data_shape,
+            const Shape& out_shape,
+            const CoordinateDiff& padding_begin,
+            const CoordinateDiff& padding_end,
+            const op::PadMode pad_mode)
+        : data(data),
+          pad_value(pad_value),
+          out(out),
+          elem_size(elem_size),
+          data_shape(data_shape),
+          out_shape(out_shape),
+          padding_begin(padding_begin),
+          padding_end(padding_end),
+          pad_mode(pad_mode),
+          coord(data_shape) {}
 
-                CoordinateTransform input_transform(data_shape,
-                                                    input_start,
-                                                    input_end,
-                                                    input_strides,
-                                                    input_axis_order,
-                                                    padding_below,
-                                                    padding_above);
-                CoordinateTransform output_transform(out_shape);
+    virtual ~PadBase() = default;
 
-                CoordinateTransform::Iterator output_it = output_transform.begin();
+    void run() const {
+        check_inputs();
 
-                NGRAPH_CHECK(shape_size(input_transform.get_target_shape()) ==
-                             shape_size(output_transform.get_target_shape()));
+        CoordinateTransformBasic out_coordinate(out_shape);
+        char* out_data = out;
+        for (const auto& out_coord : out_coordinate) {
+            const auto in_coord = transform_to_input_data_coord(out_coord);
 
-                // depending on the data tensor element type, allocate enough bytes to fit a
-                // single value of this type
-                std::vector<char> v(elem_size, 0);
-
-                for (const Coordinate& in_coord : input_transform)
-                {
-                    if (output_it == output_transform.end())
-                        break;
-                    const Coordinate& out_coord = *output_it;
-
-                    std::fill(v.begin(), v.end(), 0);
-
-                    switch (pad_mode)
-                    {
-                    case op::PadMode::CONSTANT:
-                        // If the coordinate is out of bounds, substitute *pad_value.
-                        if (input_transform.has_source_coordinate(in_coord))
-                        {
-                            const auto* offset = data + input_transform.index(in_coord) * elem_size;
-                            std::copy(offset, offset + elem_size, v.begin());
-                        }
-                        else
-                        {
-                            std::copy(pad_value, pad_value + elem_size, v.begin());
-                        }
-                        break;
-                    case op::PadMode::EDGE:
-                    {
-                        Coordinate c = in_coord; // have to copy because in_coord is const
-
-                        // Truncate each out-of-bound dimension.
-                        for (size_t i = 0; i < c.size(); i++)
-                        {
-                            if (static_cast<ptrdiff_t>(c[i]) < padding_below[i])
-                            {
-                                c[i] = padding_below[i];
-                            }
-
-                            if (static_cast<ptrdiff_t>(c[i]) >=
-                                (padding_below[i] + static_cast<ptrdiff_t>(data_shape[i])))
-                            {
-                                c[i] = static_cast<size_t>(
-                                    padding_below[i] + static_cast<ptrdiff_t>(data_shape[i]) - 1);
-                            }
-                        }
-                        const auto* offset = data + input_transform.index(c) * elem_size;
-                        std::copy(offset, offset + elem_size, v.begin());
-                        break;
-                    }
-                    case op::PadMode::REFLECT:
-                    {
-                        // clang-format off
-                        // The algorithm here is a bit complicated because if the padding is
-                        // bigger than the tensor, we may reflect multiple times.
-                        //
-                        // Example:
-                        //
-                        // Input shape:     [2]
-                        // Padding:         6 below, 6 above
-                        // Output shape:    [14]
-                        //
-                        // Input:                       a b
-                        // Expected output: a b a b a b a b a b a b a b
-                        //
-                        // Computation for coordinate 13 of output:
-                        //
-                        //         . . . . . . a b . . . . .[.] -> (oob above by 6 spaces, so reflection is at top-6)
-                        //         .[.]. . . . a b . . . . . .  -> (oob below by 5 spaces, so reflection is at bottom+5)
-                        //         . . . . . . a b . . .[.]. .  -> (oob above by 4 spaces, so reflection is at top-4)
-                        //         . . .[.]. . a b . . . . . .  -> (oob below by 3 spaces, so reflection is at bottom+3)
-                        //         . . . . . . a b .[.]. . . .  -> (oob above by 2 spaces, so reflection is at top-2)
-                        //         . . . . .[.]a b . . . . . .  -> (oob below by 1 space,  so reflection is at bottom+1)
-                        //         . . . . . . a[b]. . . . . .  -> (no longer oob, so copy from here)
-                        //
-                        // Note that this algorithm works because REFLECT padding only makes sense
-                        // if each dim is >= 2.
-                        // clang-format on
-                        Coordinate c = in_coord; // have to copy because in_coord is const
-
-                        for (size_t i = 0; i < c.size(); i++)
-                        {
-                            ptrdiff_t new_dim = c[i];
-                            bool done_reflecting = false;
-
-                            while (!done_reflecting)
-                            {
-                                if (new_dim < padding_below[i])
-                                {
-                                    ptrdiff_t distance_oob = padding_below[i] - new_dim;
-                                    new_dim = padding_below[i] + distance_oob;
-                                }
-                                else if (new_dim >=
-                                         padding_below[i] + static_cast<ptrdiff_t>(data_shape[i]))
-                                {
-                                    ptrdiff_t distance_oob =
-                                        new_dim - padding_below[i] -
-                                        (static_cast<ptrdiff_t>(data_shape[i]) - 1);
-                                    new_dim = padding_below[i] +
-                                              static_cast<ptrdiff_t>(data_shape[i]) - distance_oob -
-                                              1;
-                                }
-                                else
-                                {
-                                    done_reflecting = true;
-                                }
-                            }
-
-                            c[i] = static_cast<size_t>(new_dim);
-                        }
-                        const auto* offset = data + input_transform.index(c) * elem_size;
-                        std::copy(offset, offset + elem_size, v.begin());
-                        break;
-                    }
-                    case op::PadMode::SYMMETRIC:
-                    {
-                        Coordinate c = in_coord; // have to copy because in_coord is const
-                        for (size_t i = 0; i < c.size(); i++)
-                        {
-                            ptrdiff_t pos = padding_below[i] - (c[i] + 1);
-                            if (pos >= 0)
-                            {
-                                c[i] = static_cast<size_t>(pos + padding_below[i]);
-                            }
-                            else
-                            {
-                                pos = -(pos + 1);
-                                ptrdiff_t src_dim = static_cast<ptrdiff_t>(data_shape[i]);
-                                if (pos < src_dim)
-                                {
-                                    c[i] = static_cast<size_t>(pos + padding_below[i]);
-                                }
-                                else
-                                {
-                                    c[i] = static_cast<size_t>(2 * (padding_below[i] + src_dim) -
-                                                               c[i] - 1);
-                                }
-                            }
-                        }
-                        const auto* offset = data + input_transform.index(c) * elem_size;
-                        std::copy(offset, offset + elem_size, v.begin());
-                        break;
-                    }
-                    }
-
-                    std::copy(
-                        v.begin(), v.end(), out + output_transform.index(out_coord) * elem_size);
-
-                    ++output_it;
-                }
+            if (in_coord) {
+                const auto in_index = coordinate_index(*in_coord, data_shape);
+                const auto in_data = data + in_index * elem_size;
+                std::copy(in_data, in_data + elem_size, out_data);
+            } else {
+                std::copy(pad_value, pad_value + elem_size, out_data);
             }
+            out_data += elem_size;
         }
     }
+    virtual const Coordinate* transform_to_input_data_coord(const Coordinate& out_coord) const = 0;
+
+    virtual void check_inputs() const {}
+
+    ///
+    /// DATA
+    ///
+    const char* const data;
+    const char* const pad_value;
+    char* const out;
+    const size_t elem_size;
+    const Shape& data_shape;
+    const Shape& out_shape;
+    const CoordinateDiff& padding_begin;
+    const CoordinateDiff& padding_end;
+    const op::PadMode pad_mode;
+
+    mutable Coordinate coord;
+};
+
+struct ConstPad : PadBase {
+    using PadBase::PadBase;
+
+    const Coordinate* transform_to_input_data_coord(const Coordinate& out_coord) const override {
+        assert(out_coord.size() == coord.size());
+
+        for (size_t i = 0; i != coord.size(); ++i) {
+            const auto sc = static_cast<std::ptrdiff_t>(out_coord[i]);
+
+            const auto cc = sc - padding_begin[i];
+            if (0 <= cc && cc < static_cast<std::ptrdiff_t>(data_shape[i])) {
+                coord[i] = cc;
+            } else {
+                return nullptr;
+            }
+        }
+        return std::addressof(coord);
+    }
+};
+
+struct EdgePad : PadBase {
+    using PadBase::PadBase;
+
+    const Coordinate* transform_to_input_data_coord(const Coordinate& out_coord) const override {
+        assert(out_coord.size() == coord.size());
+
+        for (size_t i = 0; i != coord.size(); ++i) {
+            const auto sc = static_cast<std::ptrdiff_t>(out_coord[i]);
+
+            const auto cc = sc - padding_begin[i];
+            coord[i] = clamp<std::ptrdiff_t>(cc, 0, data_shape[i] - 1);
+        }
+        return std::addressof(coord);
+    }
+};
+
+struct SymmetricAndReflectPad : PadBase {
+    SymmetricAndReflectPad(const char* const data,
+                           const char* const pad_value,
+                           char* const out,
+                           const size_t elem_size,
+                           const Shape& data_shape,
+                           const Shape& out_shape,
+                           const CoordinateDiff& padding_begin,
+                           const CoordinateDiff& padding_end,
+                           const op::PadMode pad_mode)
+        : PadBase(data, pad_value, out, elem_size, data_shape, out_shape, padding_begin, padding_end, pad_mode),
+          axis_correction(pad_mode == op::PadMode::SYMMETRIC ? 1 : 0) {}
+
+    const Coordinate* transform_to_input_data_coord(const Coordinate& out_coord) const override {
+        assert(out_coord.size() == coord.size());
+
+        for (size_t i = 0; i != coord.size(); ++i) {
+            const auto shape_dim = static_cast<std::ptrdiff_t>(data_shape[i]);
+            const auto sc = static_cast<std::ptrdiff_t>(out_coord[i]);
+
+            const auto cc = sc - padding_begin[i];
+            const auto rollfront_cc = cc >= 0 ? cc : -cc - axis_correction;
+            const auto rollback_cc = shape_dim - (rollfront_cc + 2 - shape_dim) + axis_correction;
+            coord[i] = rollfront_cc < shape_dim ? rollfront_cc : rollback_cc;
+            assert(0 <= coord[i] && coord[i] < data_shape[i]);
+        }
+        return std::addressof(coord);
+    }
+
+    void check_inputs() const override {
+        for (size_t i = 0; i != padding_begin.size(); ++i) {
+            const auto axis_size = static_cast<std::ptrdiff_t>(data_shape[i]);
+            NGRAPH_CHECK(padding_begin[i] - axis_correction < axis_size,
+                         "padding below should be less than data shape");
+            NGRAPH_CHECK(padding_end[i] - axis_correction < axis_size, "padding  should be less than data shape");
+        }
+    }
+
+    int axis_correction{};
+};
+}  // namespace
+
+void pad(const char* data,
+         const char* pad_value,
+         char* out,
+         const size_t elem_size,
+         const Shape& data_shape,
+         const Shape& out_shape,
+         const CoordinateDiff& padding_below,
+         const CoordinateDiff& padding_above,
+         const op::PadMode pad_mode) {
+    switch (pad_mode) {
+    case op::PadMode::CONSTANT: {
+        impl::ConstPad
+            pad{data, pad_value, out, elem_size, data_shape, out_shape, padding_below, padding_above, pad_mode};
+        pad.run();
+    } break;
+    case op::PadMode::EDGE: {
+        impl::EdgePad
+            pad{data, pad_value, out, elem_size, data_shape, out_shape, padding_below, padding_above, pad_mode};
+        pad.run();
+    } break;
+    case op::PadMode::REFLECT:
+    case op::PadMode::SYMMETRIC: {
+        impl::SymmetricAndReflectPad
+            pad{data, pad_value, out, elem_size, data_shape, out_shape, padding_below, padding_above, pad_mode};
+        pad.run();
+    } break;
+    default:
+        break;
+    }
 }
+}  // namespace impl
+
+namespace reference {
+void pad(const char* data,
+         const char* pad_value,
+         char* out,
+         const size_t elem_size,
+         const Shape& data_shape,
+         const Shape& out_shape,
+         const CoordinateDiff& padding_below,
+         const CoordinateDiff& padding_above,
+         const op::PadMode pad_mode) {
+    impl::pad(data, pad_value, out, elem_size, data_shape, out_shape, padding_below, padding_above, pad_mode);
+}
+}  // namespace reference
+}  // namespace runtime
+}  // namespace ngraph

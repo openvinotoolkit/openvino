@@ -22,7 +22,7 @@ Supported Python* versions:
 
 To configure the environment for the Inference Engine C* API, run:
 
-- On Ubuntu 16.04: `source <INSTALL_DIR>/bin/setupvars.sh .`
+- On Ubuntu 16.04: `source <INSTALL_DIR>/setupvars.sh .`
 - On Windows 10: XXXX
 
 The script automatically detects latest installed C* version and configures required environment if the version is supported.
@@ -121,14 +121,18 @@ enum precision_e{
 ​    FP16 = 11,  /**< 16bit floating point value */
 
     BF16 = 12,  /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
-    
+
     FP64 = 13,  /**< 64bit floating point value */
 
 ​    Q78 = 20,   /**< 16bit specific signed fixed point precision */
 
 ​    I16 = 30,   /**< 16bit signed integer value */
 
+​    U4 = 39,    /**< 4bit unsigned integer value */
+
 ​    U8 = 40,    /**< 8bit unsigned integer value */
+
+​    I4 = 49,    /**< 4bit signed integer value */
 
 ​    I8 = 50,    /**< 8bit signed integer value */
 

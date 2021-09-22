@@ -1,24 +1,20 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ie_core.hpp>
-#include <details/ie_exception.hpp>
 #include <ie_plugin_config.hpp>
 #include <ie_extension.h>
 #include <cpp/ie_cnn_network.h>
 #include <cpp/ie_executable_network.hpp>
 #include <cpp/ie_infer_request.hpp>
-#include <multi-device/multi_device_config.hpp>
 
 #include <file_utils.h>
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <functional_test_utils/blob_utils.hpp>
-#include <functional_test_utils/test_model/test_model.hpp>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
 #include <common_test_utils/test_constants.hpp>
-#include <common_test_utils/common_layers_params.hpp>
 
 #include <gtest/gtest.h>
 #include <thread>
@@ -56,7 +52,7 @@ public:
     void safePluginUnregister(InferenceEngine::Core & ie) {
         try {
             ie.UnregisterPlugin(deviceName);
-        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+        } catch (const InferenceEngine::Exception & ex) {
             // if several threads unload plugin at once, the first thread does this
             // while all others will throw an exception that plugin is not registered
             ASSERT_STR_CONTAINS(ex.what(), "name is not registered in the");
@@ -65,10 +61,10 @@ public:
 
     void safeAddExtension(InferenceEngine::Core & ie) {
         try {
-            auto extension = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(
+            auto extension = std::make_shared<InferenceEngine::Extension>(
                 FileUtils::makePluginLibraryName<char>({}, "template_extension"));
             ie.AddExtension(extension);
-        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+        } catch (const InferenceEngine::Exception & ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: experimental");
         }
     }
@@ -178,7 +174,7 @@ TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
 }
 
 //
-//  Parametrized tests with numfer of parallel threads, iterations
+//  Parameterized tests with number of parallel threads, iterations
 //
 
 using Threads = unsigned int;

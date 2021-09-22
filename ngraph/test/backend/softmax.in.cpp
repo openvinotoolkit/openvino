@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
@@ -40,8 +28,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d) {
     Shape shape{2, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
@@ -77,8 +64,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d)
     EXPECT_TRUE(test::all_close(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_double)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_double) {
     Shape shape{2, 2, 3};
     auto A = make_shared<op::Parameter>(element::f64, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
@@ -114,8 +100,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_double)
     EXPECT_TRUE(test::all_close(expected, read_vector<double>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_1) {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 1), ParameterVector{A});
@@ -140,8 +125,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_1)
     EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_0) {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
@@ -167,8 +151,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_0)
     EXPECT_TRUE(test::all_close(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_trivial)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_trivial) {
     Shape shape{1, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
@@ -185,8 +168,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_trivial)
     EXPECT_TRUE(test::all_close(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_underflow)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_underflow) {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
@@ -205,13 +187,11 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_underflow)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    vector<float> expected{
-        expf(low) / d0, expf(1) / d1, expf(2) / d2, expf(3) / d0, expf(4) / d1, expf(5) / d2};
+    vector<float> expected{expf(low) / d0, expf(1) / d1, expf(2) / d2, expf(3) / d0, expf(4) / d1, expf(5) / d2};
     EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_overflow)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_overflow) {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});

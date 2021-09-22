@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import datetime
@@ -486,7 +486,7 @@ class Watchdog:
             self._queue_message(message, message_severity='warning', pr=pr)
         elif build_delta > _BUILD_DURATION_THRESHOLD:
             # CI job take too long, possibly froze - communicate failure
-            message = ('ONNX CI job build #{}, for PR #{} started,'
+            message = ('ONNX CI job build #{}, for PR #{} started, '
                        'but did not finish in designated time of {} '
                        'minutes!'.format(build_number, pr_number,
                                          str(_BUILD_DURATION_THRESHOLD.seconds / 60)))

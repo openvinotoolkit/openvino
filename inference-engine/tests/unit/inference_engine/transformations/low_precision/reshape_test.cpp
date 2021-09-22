@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,7 +152,6 @@ TEST(LPT_ReshapeTransformation, canBeTransformed_4D_to_2D_perSpacial_TRUE) {
         ngraph::Shape({ 1, 9216 })));
 }
 
-// TODO: story 38439
 TEST(LPT_ReshapeTransformation, canBeTransformed_5D_to_5D_perBatch) {
     ASSERT_FALSE(ngraph::pass::low_precision::ReshapeTransformation::canBeTransformed(
         ngraph::Shape({ 1, 16, 1, 1, 1 }),

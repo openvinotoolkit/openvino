@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ScaleShiftAfterConvTest::getTestCaseName(testing::TestParamInfo<ScaleShiftConvScaleShiftParams> obj) {
+std::string ScaleShiftAfterConvTest::getTestCaseName(const testing::TestParamInfo<ScaleShiftConvScaleShiftParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -92,7 +92,7 @@ void ScaleShiftAfterConvTest::SetUp() {
     function = std::make_shared<ngraph::Function>(mul, params, "ScaleShiftAfterConvTest");
 }
 
-std::string ScaleShiftBeforeConvTest::getTestCaseName(testing::TestParamInfo<ScaleShiftConvScaleShiftParams> obj) {
+std::string ScaleShiftBeforeConvTest::getTestCaseName(const testing::TestParamInfo<ScaleShiftConvScaleShiftParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

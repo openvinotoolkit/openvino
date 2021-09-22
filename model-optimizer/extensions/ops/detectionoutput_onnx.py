@@ -1,22 +1,8 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.op import Op
 
 
@@ -26,10 +12,10 @@ class ExperimentalDetectronDetectionOutput(Op):
 
     def __init__(self, graph, attrs):
         mandatory_props = dict(
-            type=__class__.op,
-            op=__class__.op,
+            type=self.op,
+            op=self.op,
             version='opset6',
-            infer=__class__.infer,
+            infer=self.infer,
             type_infer=self.type_infer,
             in_ports_count=4,
             out_ports_count=3,
@@ -52,13 +38,13 @@ class ExperimentalDetectronDetectionOutput(Op):
     def infer(node):
         rois_num = node.max_detections_per_image
         # boxes
-        node.out_node(0).shape = np.array([rois_num, 4], dtype=np.int64)
+        node.out_port(0).data.set_shape([rois_num, 4])
         # classes, scores, batch indices
         # We use range(1, 1 + max(node.out_ports().keys())) instead of range(1, 3), because there are incorrectly
         # generated models where ExperimentalDetectronDetectionOutput has 4 outputs.
         for port_ind in range(1, 1 + max(node.out_ports().keys())):
             if not node.out_port(port_ind).disconnected():
-                node.out_port(port_ind).data.set_shape(int64_array([rois_num]))
+                node.out_port(port_ind).data.set_shape([rois_num])
 
     @staticmethod
     def type_infer(node):

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConvolutionQDqTransform
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     ConvolutionQDqTransformationParam
@@ -57,7 +57,7 @@ class ConvolutionQDqTransformation :
     public testing::WithParamInterface<ConvolutionQDqTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvolutionQDqTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvolutionQDqTransformationParams>& obj);
 
 protected:
     void SetUp() override;

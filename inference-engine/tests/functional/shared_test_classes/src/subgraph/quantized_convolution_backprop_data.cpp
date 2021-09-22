@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 namespace SubgraphTestsDefinitions {
 using ngraph::helpers::QuantizationGranularity;
 
-std::string QuantConvBackpropDataLayerTest::getTestCaseName(testing::TestParamInfo<quantConvBackpropDataLayerTestParamsSet> obj) {
+std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<quantConvBackpropDataLayerTestParamsSet>& obj) {
     quantConvBackpropDataSpecificParams groupConvBackpropDataParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;

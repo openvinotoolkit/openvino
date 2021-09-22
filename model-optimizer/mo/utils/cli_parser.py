@@ -1,26 +1,14 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import argparse
 import ast
 import logging as log
 import os
 import re
-import sys
 from collections import OrderedDict
 from itertools import zip_longest
+from distutils.util import strtobool
 
 import numpy as np
 
@@ -30,7 +18,6 @@ from mo.utils import import_extensions
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
-
 
 class DeprecatedStoreTrue(argparse.Action):
     def __init__(self, nargs=0, **kw):
@@ -88,6 +75,17 @@ class CanonicalizePathCheckExistenceAction(CanonicalizePathAction):
                             ' but "{}" does not exist.'.format(self.dest, name))
 
 
+class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenceAction):
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values is not None:
+            if isinstance(values, str):
+                if values != "":
+                    super().__call__(parser, namespace, values, option_string)
+                else:
+                    setattr(namespace, self.dest, values)
+
+
 class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
     def __call__(self, parser, namespace, values, option_string=None):
         super().__call__(parser, namespace, values, option_string)
@@ -106,6 +104,20 @@ def readable_file(path: str):
     """
     if not os.path.isfile(path):
         raise Error('The "{}" is not existing file'.format(path))
+    elif not os.access(path, os.R_OK):
+        raise Error('The "{}" is not readable'.format(path))
+    else:
+        return path
+
+
+def readable_file_or_dir(path: str):
+    """
+    Check that specified path is a readable file or directory.
+    :param path: path to check
+    :return: path if the file/directory is readable
+    """
+    if not os.path.isfile(path) and not os.path.isdir(path):
+        raise Error('The "{}" is not existing file or directory'.format(path))
     elif not os.access(path, os.R_OK):
         raise Error('The "{}" is not readable'.format(path))
     else:
@@ -187,7 +199,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    ' (binary or text .pb file after freezing).\n' +
                                    ' Caffe*: a model proto file with model weights',
                               action=CanonicalizePathCheckExistenceAction,
-                              type=readable_file)
+                              type=readable_file_or_dir)
     common_group.add_argument('--model_name', '-n',
                               help='Model_name parameter passed to the final create_ir transform. ' +
                                    'This parameter is used to name ' +
@@ -205,8 +217,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'the order of dimensions depends on the framework input layout of the model. '
                                    'For example, [N,C,H,W] is used for Caffe* models and [N,H,W,C] for TensorFlow* '
                                    'models. Model Optimizer performs necessary transformations to convert the shape to '
-                                   'the layout required by Inference Engine (N,C,H,W). The shape should not contain '
-                                   'undefined dimensions (? or -1) and should fit the dimensions defined in the input '
+                                   'the layout required by Inference Engine (N,C,H,W). The shape could contain '
+                                   'undefined dimensions (-1) and should fit the dimensions defined in the input '
                                    'operation of the graph. If there are multiple inputs in the model, --input_shape '
                                    'should contain definition of shape for each input separated by a comma, for '
                                    'example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes. '
@@ -233,13 +245,13 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default='ERROR')
     common_group.add_argument('--input',
                               help='Quoted list of comma-separated input nodes names with shapes, data types, '
-                                   'and values for freezing. The shape and value are specified as space-separated lists. '
-                                   'The data type of input node is specified in braces and can have one of the values: '
-                                   'f64 (float64), f32 (float32), f16 (float16), i64 (int64), i32 (int32), u8 (uint8), boolean. '
-                                   'For example, use the following format to set input port 0 '
-                                   'of the node `node_name1` with the shape [3 4] as an input node and '
-                                   'freeze output port 1 of the node `node_name2` with the value [20 15] of the int32 type '
-                                   'and shape [2]: "0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
+                                   'and values for freezing. The shape and value are specified as space-separated '
+                                   'lists. The data type of input node is specified in braces and can have one of the '
+                                   'values: f64 (float64), f32 (float32), f16 (float16), i64 (int64), i32 (int32), u8 '
+                                   '(uint8), boolean. For example, use the following format to set input port 0 of the '
+                                   'node `node_name1` with the shape [3 4] as an input node and freeze output port 1 '
+                                   'of the node `node_name2` with the value [20 15] of the int32 type and shape [2]: '
+                                   '"0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
     common_group.add_argument('--output',
                               help='The name of the output operation of the model. ' +
                                    'For TensorFlow*, do not add :0 to this name.')
@@ -266,6 +278,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'and biases are quantized to FP16.',
                               choices=["FP16", "FP32", "half", "float"],
                               default='float')
+    common_group.add_argument('--transform',
+                              help='Apply additional transformations. ' +
+                                   'Usage: "--transform transformation_name1[args],transformation_name2..." ' +
+                                   'where [args] is key=value pairs separated by semicolon. ' +
+                                   'Examples: "--transform LowLatency2" or ' +
+                                   '          "--transform LowLatency2[use_const_initializer=False]" ' +
+                                   'Available transformations: "LowLatency2"',
+                              default="")
     common_group.add_argument('--disable_fusing',
                               help='Turn off fusing of linear operations to Convolution',
                               action=DeprecatedStoreTrue)
@@ -314,9 +334,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Use --input option to specify a value for freezing.',
                               default=None)
     common_group.add_argument('--generate_deprecated_IR_V7',
-                              help='Force to generate deprecated IR V7 with layers from old IR specification.',
-                              action=IgnoredAction,
-                              default=False)
+                              help=argparse.SUPPRESS, action=IgnoredAction, default=False)
     common_group.add_argument('--static_shape',
                               help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
                                    'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
@@ -337,6 +355,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--transformations_config',
                           help='Use the configuration file with transformations description.',
                           action=CanonicalizePathCheckExistenceAction)
+    common_group.add_argument('--legacy_ir_generation',
+                              help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
     return parser
 
 
@@ -403,7 +423,7 @@ def get_mxnet_cli_options():
 
 def get_kaldi_cli_options():
     d = {
-        'counts': '- A file name with full path to the counts file',
+        'counts': '- A file name with full path to the counts file or empty string if you want to use counts from model',
         'remove_output_softmax': '- Removes the SoftMax layer that is the output layer',
         'remove_memory': '- Removes the Memory layer and use additional inputs and outputs instead'
     }
@@ -416,6 +436,15 @@ def get_onnx_cli_options():
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
+
+
+def get_params_with_paths_list():
+    return ['input_model', 'output_dir', 'caffe_parser_path', 'extensions', 'k', 'output_dir',
+            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol', 'mean_file',
+            'mean_file_offsets', 'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
+            'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
+            'tensorflow_object_detection_api_pipeline_config', 'tensorflow_use_custom_operations_config',
+            'transformations_config']
 
 
 def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
@@ -440,12 +469,12 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     caffe_group.add_argument('--caffe_parser_path',
                              help='Path to Python Caffe* parser generated from caffe.proto',
                              type=str,
-                             default=os.path.join(os.path.dirname(sys.argv[0]), 'mo', 'front', 'caffe', 'proto'),
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('-k',
                              help='Path to CustomLayersMapping.xml to register custom layers',
                              type=str,
-                             default=os.path.join(os.path.dirname(sys.argv[0]), 'extensions', 'front', 'caffe',
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions', 'front', 'caffe',
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',
@@ -499,7 +528,7 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_file)
     tf_group.add_argument('--saved_model_dir', default=None,
-                          help='TensorFlow*: directory with a model in SavedModel format'
+                          help='TensorFlow*: directory with a model in SavedModel format '
                                'of TensorFlow 1.x or 2.x version.',
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_dirs)
@@ -588,7 +617,7 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
     kaldi_group.add_argument("--counts",
                              help="Path to the counts file",
                              default=None,
-                             action=CanonicalizePathCheckExistenceAction)
+                             action=CanonicalizePathCheckExistenceIfNeededAction)
 
     kaldi_group.add_argument("--remove_output_softmax",
                              help="Removes the SoftMax layer that is the output layer",
@@ -614,12 +643,10 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    onnx_group = parser.add_argument_group('ONNX*-specific parameters')
-
     return parser
 
 
-def get_all_cli_parser():
+def get_all_cli_parser(frontEndManager=None):
     """
     Specifies cli arguments for Model Optimizer
 
@@ -629,10 +656,13 @@ def get_all_cli_parser():
     """
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
+    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] +
+                          (frontEndManager.get_available_front_ends() if frontEndManager else [])))
+
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
                         type=str,
-                        choices=['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
+                        choices=frameworks)
 
     get_common_cli_parser(parser=parser)
 
@@ -919,7 +949,7 @@ def parse_tuple_pairs(argv_values: str):
 
     matches = [m for m in re.finditer(r'[(\[]([0-9., -]+)[)\]]', argv_values, re.IGNORECASE)]
 
-    error_msg = 'Mean/scale values should consist of name and values specified in round or square brackets' \
+    error_msg = 'Mean/scale values should consist of name and values specified in round or square brackets ' \
                 'separated by comma, e.g. data(1,2,3),info[2,3,4],egg[255] or data(1,2,3). Or just plain set of ' \
                 'values without names: (1,2,3),(2,3,4) or [1,2,3],[2,3,4].' + refer_to_faq_msg(101)
     if not matches:
@@ -1136,6 +1166,100 @@ def get_absolute_path(path_to_file: str) -> str:
     return file_path
 
 
+def isfloat(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
+def isbool(value):
+    try:
+        strtobool(value)
+        return True
+    except ValueError:
+        return False
+
+
+def convert_string_to_real_type(value: str):
+    values = value.split(',')
+    for i in range(len(values)):
+        value = values[i]
+        if value.isdigit():
+            values[i] = int(value)
+        elif isfloat(value):
+            values[i] = float(value)
+        elif isbool(value):
+            values[i] = strtobool(value)
+
+    return values[0] if len(values) == 1 else values
+
+
+def parse_transform(transform: str) -> list:
+    transforms = []
+
+    if len(transform) == 0:
+        return transforms
+
+    all_transforms = re.findall(r"([a-zA-Z0-9]+)(\[([^\]]+)\])*(,|$)", transform)
+
+    # Check that all characters were matched otherwise transform key value is invalid
+    key_len = len(transform)
+    for transform in all_transforms:
+        # In regexp we have 4 groups where 1st group - transformation_name,
+        #                                  2nd group - [args],
+        #                                  3rd group - args, <-- nested group
+        #                                  4th group - EOL
+        # And to check that regexp matched all string we decrease total length by the length of matched groups (1,2,4)
+        # In case if no arguments were given to transformation then 2nd and 3rd groups will be empty.
+        if len(transform) != 4:
+            raise Error("Unexpected transform key structure: {}".format(transform))
+        key_len -= len(transform[0]) + len(transform[1]) + len(transform[3])
+
+    if key_len != 0:
+        raise Error("Unexpected transform key structure: {}".format(transform))
+
+    for transform in all_transforms:
+        name = transform[0]
+        args = transform[2]
+
+        args_dict = {}
+
+        if len(args) != 0:
+            for arg in args.split(';'):
+                m = re.match(r"^([_a-zA-Z]+)=(.+)$", arg)
+                if not m:
+                    raise Error("Unrecognized attributes for transform key: {}".format(transform))
+
+                args_dict[m.group(1)] = convert_string_to_real_type(m.group(2))
+
+        transforms.append((name, args_dict))
+
+    return transforms
+
+
+def check_available_transforms(transforms: list):
+    """
+    This function check that transformations specified by user are available.
+    :param transforms: list of user specified transformations
+    :return: raises an Error if transformation is not available
+    """
+    from mo.back.offline_transformations import get_available_transformations
+    available_transforms = get_available_transformations()
+
+    missing_transformations = []
+    for name, _ in transforms:
+        if name not in available_transforms.keys():
+            missing_transformations.append(name)
+
+    if len(missing_transformations) != 0:
+        raise Error('Following transformations ({}) are not available. '
+                    'List with available transformations ({})'.format(','.join(missing_transformations),
+                                                                      ','.join(available_transforms.keys())))
+    return True
+
+
 def check_positive(value):
     try:
         int_value = int(value)
@@ -1147,12 +1271,15 @@ def check_positive(value):
     return int_value
 
 
-def depersonalize(value: str):
+def depersonalize(value: str, key: str):
+    dir_keys = [
+        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+    ]
     if not isinstance(value, str):
         return value
     res = []
     for path in value.split(','):
-        if os.path.isdir(path):
+        if os.path.isdir(path) and key in dir_keys:
             res.append('DIR')
         elif os.path.isfile(path):
             res.append(os.path.join('DIR', os.path.split(path)[1]))
@@ -1165,7 +1292,7 @@ def get_meta_info(argv: argparse.Namespace):
     meta_data = {'unset': []}
     for key, value in argv.__dict__.items():
         if value is not None:
-            value = depersonalize(value)
+            value = depersonalize(value, key)
             meta_data[key] = value
         else:
             meta_data['unset'].append(key)

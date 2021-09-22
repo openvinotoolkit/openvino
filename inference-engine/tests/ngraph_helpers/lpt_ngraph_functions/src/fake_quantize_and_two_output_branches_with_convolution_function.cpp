@@ -1,7 +1,6 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 
 #include <ngraph/opsets/opset1.hpp>
 #include "lpt_ngraph_functions/common/builders.hpp"
@@ -17,12 +16,12 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const std::shared_ptr<Node>& parent,
     const FakeQuantizeOnWeights& fqOnWeights,
     bool typeRelaxed) {
-    const size_t inputChannelsCount = inputShape[1];
-    const size_t outputChannelsCount = 2 * inputShape[1];
+    const size_t inputChannelsCount = inputShape[1].get_length();
+    const size_t outputChannelsCount = 2 * inputShape[1].get_length();
     const auto weights = ngraph::opset1::Constant::create(
         precision,
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
@@ -57,7 +56,7 @@ std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
 
 std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData,
     const FakeQuantizeOnWeights fqOnWeights1,
     FakeQuantizeOnWeights fqOnWeights2) {
@@ -131,11 +130,11 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
     if (params.updatePrecisions) {
         replace_node(
             convolution1->get_input_node_shared_ptr(1),
-            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution1->get_input_node_shared_ptr(1), params.precisionsOnWeights[0]));
+            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution1->get_input_node_shared_ptr(1), element::i8));
 
         replace_node(
             convolution2->get_input_node_shared_ptr(1),
-            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution2->get_input_node_shared_ptr(1), params.precisionsOnWeights[0]));
+            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution2->get_input_node_shared_ptr(1), element::i8));
     }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };

@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace SubgraphTestsDefinitions {
 class SplitConvConcat : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::basicParams>& obj);
 
 protected:
     void SetUp() override;

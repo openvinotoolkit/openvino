@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cmath>
@@ -34,7 +22,7 @@
 #endif
 // clang-format on
 
-#include "core/null_node.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "gtest/gtest.h"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
@@ -62,24 +50,20 @@ using Outputs = std::vector<std::vector<float>>;
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/prior_box.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/prior_box.onnx"));
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     std::vector<float> A(3 * 2 * 2);
     std::vector<float> B(3 * 6 * 6);
     std::vector<float> output = {
-        -2.3200002, -2.3200002,  3.6533334,  3.6533334,   -3.7053659,  -3.7053659, 5.0386992,
-        5.0386992,  -0.98666668, -2.3200002, 4.9866667,   3.6533334,   -2.3720326, -3.7053659,
-        6.3720322,  5.0386992,   -2.3200002, -0.98666668, 3.6533334,   4.9866667,  -3.7053659,
-        -2.3720326, 5.0386992,   6.3720322,  -0.98666668, -0.98666668, 4.9866667,  4.9866667,
-        -2.3720326, -2.3720326,  6.3720322,  6.3720322,   0.1,         0.1,        0.2,
-        0.2,        0.1,         0.1,        0.2,         0.2,         0.1,        0.1,
-        0.2,        0.2,         0.1,        0.1,         0.2,         0.2,        0.1,
-        0.1,        0.2,         0.2,        0.1,         0.1,         0.2,        0.2,
-        0.1,        0.1,         0.2,        0.2,         0.1,         0.1,        0.2,
-        0.2,
+        -2.3200002,  -2.3200002,  3.6533334, 3.6533334, -3.7053659, -3.7053659, 5.0386992, 5.0386992,
+        -0.98666668, -2.3200002,  4.9866667, 3.6533334, -2.3720326, -3.7053659, 6.3720322, 5.0386992,
+        -2.3200002,  -0.98666668, 3.6533334, 4.9866667, -3.7053659, -2.3720326, 5.0386992, 6.3720322,
+        -0.98666668, -0.98666668, 4.9866667, 4.9866667, -2.3720326, -2.3720326, 6.3720322, 6.3720322,
+        0.1,         0.1,         0.2,       0.2,       0.1,        0.1,        0.2,       0.2,
+        0.1,         0.1,         0.2,       0.2,       0.1,        0.1,        0.2,       0.2,
+        0.1,         0.1,         0.2,       0.2,       0.1,        0.1,        0.2,       0.2,
+        0.1,         0.1,         0.2,       0.2,       0.1,        0.1,        0.2,       0.2,
     };
     test_case.add_input<float>(A);
     test_case.add_input<float>(B);
@@ -87,10 +71,81 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/detection_output.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/priorbox_clustered.onnx"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    std::vector<float> A{15.0};
+    std::vector<float> B{10.0};
+    std::vector<float> output = {
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        0.1, 0.1, 0.2, 0.2, 0.1, 0.1, 0.2, 0.2, 0.1, 0.1, 0.2, 0.2, 0.1, 0.1, 0.2, 0.2,
+    };
+    test_case.add_input<float>(A);
+    test_case.add_input<float>(B);
+    test_case.add_expected_output<float>(Shape{1, 2, 16}, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_most_attrs_default) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/priorbox_clustered_most_attrs_default.onnx"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    std::vector<float> A(1 * 1 * 2 * 1);
+    std::iota(std::begin(A), std::end(A), 0.0f);
+    std::vector<float> B(1 * 1 * 3 * 3);
+    std::iota(std::begin(B), std::end(B), 0.0f);
+    std::vector<float> output = {-0.1666666716337203979,
+                                 -0.1666666716337203979,
+                                 0.1666666716337203979,
+                                 0.1666666716337203979,
+                                 -0.1666666716337203979,
+                                 0.3333333432674407959,
+                                 0.1666666716337203979,
+                                 0.6666666865348815918,
+                                 0.1,
+                                 0.1,
+                                 0.2,
+                                 0.2,
+                                 0.1,
+                                 0.1,
+                                 0.2,
+                                 0.2};
+    test_case.add_input<float>(A);
+    test_case.add_input<float>(B);
+    test_case.add_expected_output<float>(Shape{1, 2, 8}, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_first_input_bad_shape) {
+    try {
+        auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/priorbox_clustered_first_input_bad_shape.onnx"));
+        FAIL() << "Expected exception was not thrown";
+    } catch (const ngraph::ngraph_error& e) {
+        EXPECT_HAS_SUBSTRING(e.what(), std::string("Only 4D inputs are supported. First input rank: 5 (should be 4)"));
+    } catch (...) {
+        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_second_input_bad_shape) {
+    try {
+        auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/priorbox_clustered_second_input_bad_shape.onnx"));
+        FAIL() << "Expected exception was not thrown";
+    } catch (const ngraph::ngraph_error& e) {
+        EXPECT_HAS_SUBSTRING(e.what(), std::string("Only 4D inputs are supported. Second input rank: 5 (should be 4)"));
+    } catch (...) {
+        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/detection_output.onnx"));
     auto test_case = test::TestCase<TestEngine>(function);
 
     auto gen_vector = [](size_t size, float min, float max) -> std::vector<float> {
@@ -98,7 +153,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output)
         float next = min - step;
 
         std::vector<float> out(size);
-        std::generate(out.begin(), out.end(), [&next, &step] { return next += step; });
+        std::generate(out.begin(), out.end(), [&next, &step] {
+            return next += step;
+        });
         return out;
     };
 
@@ -118,10 +175,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output)
     test_case.run(tolerance_bits);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm.onnx"));
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     Shape shape{2, 8, 2, 2};
     int size = shape_size(shape);
@@ -143,10 +198,28 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/normalize.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm_5d.onnx"));
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    Shape shape{2, 8, 1, 2, 1};
+    int size = shape_size(shape);
+    std::vector<float> data(size);
+    std::iota(data.begin(), data.end(), 0);
+    std::vector<float> output = {
+        -0.34163546562, 0.55278813838,  2.89442372322,  4.68327093124,  -1.02490639686, 1.65836453437,  5.78884744644,
+        9.36654186248,  -1.70817732810, 2.76394081115,  8.68327140808,  14.04981231689, -2.39144825935, 3.86951708793,
+        11.57769489288, 18.73308372497, -0.34163546562, 0.55278813838,  2.89442372322,  4.68327093124,  -1.02490639686,
+        1.65836453437,  5.78884744644,  9.36654186248,  -1.70817732810, 2.76394081115,  8.68327140808,  14.04981231689,
+        -2.39144825935, 3.86951708793,  11.57769489288, 18.73308372497};
+
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(shape, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/normalize.onnx"));
     auto test_case = test::TestCase<TestEngine>(function);
     std::vector<float> data(12);
     std::iota(data.begin(), data.end(), 1);
@@ -169,10 +242,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_with_beta)
-{
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/swish_with_beta.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_with_beta) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/swish_with_beta.onnx"));
 
     const Shape expected_output_shape{3};
     auto test_case = test::TestCase<TestEngine>(function);
@@ -183,10 +254,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_with_beta)
     test_case.run_with_tolerance_as_fp(2.0e-5f);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta)
-{
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/swish_without_beta.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/swish_without_beta.onnx"));
 
     const Shape expected_output_shape{3};
     auto test_case = test::TestCase<TestEngine>(function);
@@ -197,33 +267,28 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta)
     test_case.run_with_tolerance_as_fp(2.0e-5f);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output)
-{
-    auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO,
-        "onnx/org.openvinotoolkit/experimental_detectron/detection_output.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/detection_output.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     // rois
-    test_case.add_input<float>({1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 4.0f, 1.0f, 8.0f, 5.0f, 1.0f, 1.0f,
-                                1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_input<float>({1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                1.0f, 1.0f, 1.0f,  4.0f,  1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
     // deltas
     test_case.add_input<float>(
-        {5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        {5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
     // scores
     test_case.add_input<float>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -260,34 +325,30 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_most_attrs_default)
-{
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO,
-                             "onnx/org.openvinotoolkit/experimental_detectron/"
-                             "detection_output_most_attrs_default.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_most_attrs_default) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO,
+                                                            "onnx/org.openvinotoolkit/experimental_detectron/"
+                                                            "detection_output_most_attrs_default.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     // rois
-    test_case.add_input<float>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_input<float>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
     // deltas
     test_case.add_input<float>(
-        {5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        {5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
     // scores
     test_case.add_input<float>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -297,9 +358,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_
 
     test_case.add_expected_output<float>(Shape{5, 4},
                                          {
-                                             0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                                             0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                                             0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                             0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                             0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                                          });
     test_case.add_expected_output<int>(Shape{5}, {0, 0, 0, 0, 0});
     test_case.add_expected_output<float>(Shape{5}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
@@ -307,69 +367,58 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposals_single_image)
-{
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO,
-                             "onnx/org.openvinotoolkit/experimental_detectron/"
-                             "generate_proposals_single_image.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposals_single_image) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO,
+                                                            "onnx/org.openvinotoolkit/experimental_detectron/"
+                                                            "generate_proposals_single_image.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     // im_info
     test_case.add_input<float>({1.0f, 1.0f, 1.0f});
     // anchors
-    test_case.add_input<float>({
-        5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-    });
+    test_case.add_input<float>(
+        {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
     // deltas
     test_case.add_input<float>(
-        {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f});
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
     // scores
-    test_case.add_input<float>(
-        {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    test_case.add_input<float>({
+        5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f,
+    });
 
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
-
-    test_case.add_expected_output<float>(
-        Shape{6, 4}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                      0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
-    test_case.add_expected_output<float>(Shape{6}, {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_expected_output<float>(Shape{6, 4},
+                                         {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                          0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+    test_case.add_expected_output<float>(Shape{6}, {8.0f, 5.0f, 4.0f, 1.0f, 1.0f, 1.0f});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm)
-{
-    auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/group_norm.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/group_norm.onnx"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     Shape shape{2, 8, 2, 2};
@@ -392,11 +441,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_prior_grid_generator)
-{
-    auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO,
-        "onnx/org.openvinotoolkit/experimental_detectron/prior_grid_generator.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_prior_grid_generator) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO,
+                             "onnx/org.openvinotoolkit/experimental_detectron/prior_grid_generator.onnx"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
@@ -413,17 +461,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_prior_grid_genera
     test_case.add_input<float>(feature_map);
     test_case.add_input<float>(im_data);
 
-    test_case.add_expected_output<float>(Shape{9, 4}, {2,  3, 4,  5, 6,  7, 8,  9, 10, 11, 12, 13,
-                                                       6,  3, 8,  5, 10, 7, 12, 9, 14, 11, 16, 13,
-                                                       10, 3, 12, 5, 14, 7, 16, 9, 18, 11, 20, 13});
+    test_case.add_expected_output<float>(Shape{9, 4},
+                                         {2,  3, 4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 6,  3, 8,  5,  10, 7,
+                                          12, 9, 14, 11, 16, 13, 10, 3, 12, 5,  14, 7,  16, 9, 18, 11, 20, 13});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_extractor)
-{
-    auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO,
-        "onnx/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_extractor) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO,
+                             "onnx/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.onnx"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
@@ -436,51 +483,51 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_extra
     test_case.add_input<float>(rois);
     test_case.add_input<float>(pyramid_layer_0);
 
-    test_case.add_expected_output<float>(Shape{2, 2, 3, 3}, {1.416666746139526367,
-                                                             1.750000119209289551,
-                                                             2.083333492279052734,
-                                                             2.416666746139526367,
-                                                             2.75,
-                                                             3.083333492279052734,
-                                                             3.166666507720947266,
-                                                             3.5,
-                                                             3.833333492279052734,
-                                                             7.416666507720947266,
-                                                             7.75,
-                                                             8.083333015441894531,
-                                                             8.416666984558105469,
-                                                             8.75,
-                                                             9.083333969116210938,
-                                                             9.166666030883789062,
-                                                             9.5,
-                                                             9.833333969116210938,
-                                                             4.166666984558105469,
-                                                             4.5,
-                                                             4.833333492279052734,
-                                                             4.166666984558105469,
-                                                             4.5,
-                                                             4.833333492279052734,
-                                                             2.083333492279052734,
-                                                             2.25,
-                                                             2.416666746139526367,
-                                                             10.16666603088378906,
-                                                             10.5,
-                                                             10.83333206176757812,
-                                                             10.16666603088378906,
-                                                             10.5,
-                                                             10.83333206176757812,
-                                                             5.083333015441894531,
-                                                             5.25,
-                                                             5.416666507720947266});
+    test_case.add_expected_output<float>(Shape{2, 2, 3, 3},
+                                         {1.416666746139526367,
+                                          1.750000119209289551,
+                                          2.083333492279052734,
+                                          2.416666746139526367,
+                                          2.75,
+                                          3.083333492279052734,
+                                          3.166666507720947266,
+                                          3.5,
+                                          3.833333492279052734,
+                                          7.416666507720947266,
+                                          7.75,
+                                          8.083333015441894531,
+                                          8.416666984558105469,
+                                          8.75,
+                                          9.083333969116210938,
+                                          9.166666030883789062,
+                                          9.5,
+                                          9.833333969116210938,
+                                          4.166666984558105469,
+                                          4.5,
+                                          4.833333492279052734,
+                                          4.166666984558105469,
+                                          4.5,
+                                          4.833333492279052734,
+                                          2.083333492279052734,
+                                          2.25,
+                                          2.416666746139526367,
+                                          10.16666603088378906,
+                                          10.5,
+                                          10.83333206176757812,
+                                          10.16666603088378906,
+                                          10.5,
+                                          10.83333206176757812,
+                                          5.083333015441894531,
+                                          5.25,
+                                          5.416666507720947266});
 
     test_case.add_expected_output<float>(Shape{2, 4}, {0, 1, 2, 3, 4, 5, 6, 7});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios)
-{
-    auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/topk_rios.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/topk_rios.onnx"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
@@ -488,5 +535,25 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios)
     test_case.add_input<float>({0.5f, 0.3f});
 
     test_case.add_expected_output<float>(Shape{1, 4}, {1, 1, 3, 4});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/deformable_conv_2d.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // data
+    test_case.add_input<float>(
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f});
+
+    // deformations
+    test_case.add_input<float>({0.5f, -0.5f, 0.0f, 1.0f});
+
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 3, 3},
+        {4.5999999f, 5.2000003f, 6.4000001f, 8.4000006f, 9.8000002f, 9.6999998f, 11.5f, 13.4000006f, 14.3999996f});
+
     test_case.run();
 }

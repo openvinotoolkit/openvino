@@ -1,50 +1,54 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 include(CheckCXXCompilerFlag)
 
-if (ENABLE_SANITIZER OR ENABLE_THREAD_SANITIZER)
-    # This is workaround for https://gitlab.kitware.com/cmake/cmake/-/issues/16609.
-    # It ensures pthread is searched without ASAN linking.
-    # Line bellow must be before adding -fsanitize=address or -fsanitize=thread to
-    # build options for the trick to work.
-    find_package(Threads REQUIRED)
-endif()
-
 if (ENABLE_SANITIZER)
-    set(SANITIZER_COMPILER_FLAGS "-g -fsanitize=address -fno-omit-frame-pointer")
-    CHECK_CXX_COMPILER_FLAG("-fsanitize-recover=address" SANITIZE_RECOVER_SUPPORTED)
-    if (SANITIZE_RECOVER_SUPPORTED)
+    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=address")
+    check_cxx_compiler_flag("-fsanitize-recover=address" SANITIZE_RECOVER_ADDRESS_SUPPORTED)
+    if (SANITIZE_RECOVER_ADDRESS_SUPPORTED)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=address")
     endif()
 
-    set(SANITIZER_LINKER_FLAGS "-fsanitize=address")
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=gold")
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" AND NOT WIN32)
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
-            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=lld")
-        endif()
+    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=address")
+endif()
+
+if (ENABLE_UB_SANITIZER)
+    # TODO: Remove -fno-sanitize=null as thirdparty/ocl/clhpp_headers UBSAN compatibility resolved:
+    # https://github.com/KhronosGroup/OpenCL-CLHPP/issues/17
+    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=undefined -fno-sanitize=null")
+    # TODO: Remove -Wno-maybe-uninitialized after CVS-61143 fix
+    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -Wno-maybe-uninitialized")
+    check_cxx_compiler_flag("-fsanitize-recover=undefined" SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
+    if (SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
+        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=undefined")
     endif()
 
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SANITIZER_COMPILER_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZER_COMPILER_FLAGS}")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${SANITIZER_LINKER_FLAGS}")
-    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${SANITIZER_LINKER_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${SANITIZER_LINKER_FLAGS}")
+    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=undefined")
 endif()
 
 if (ENABLE_THREAD_SANITIZER)
-    set(SANITIZER_COMPILER_FLAGS "-g -fsanitize=thread -fno-omit-frame-pointer")
-    set(SANITIZER_LINKER_FLAGS "-fsanitize=thread")
-    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" AND NOT WIN32)
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
-            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=lld")
-        else()
-            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -static-libsan")
-        endif()
+    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=thread")
+    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=thread")
+endif()
+
+# common sanitizer options
+if (DEFINED SANITIZER_COMPILER_FLAGS)
+    # ensure symbols are present
+    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -g -fno-omit-frame-pointer")
+    if(NOT OV_COMPILER_IS_CLANG)
+        # GPU plugin tests compilation is slow with -fvar-tracking-assignments on GCC.
+        # Clang has no var-tracking-assignments.
+        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-var-tracking-assignments")
     endif()
+    # prevent unloading libraries at runtime, so sanitizer can resolve their symbols
+    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")
+
+    if(OV_COMPILER_IS_CLANG AND NOT WIN32 AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
+        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=lld")
+    endif()
+
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SANITIZER_COMPILER_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZER_COMPILER_FLAGS}")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${SANITIZER_LINKER_FLAGS}")

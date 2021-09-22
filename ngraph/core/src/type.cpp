@@ -1,29 +1,65 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/type.hpp"
+
 #include "ngraph/util.hpp"
 
-namespace std
-{
-    size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTypeInfo& k) const
-    {
-        size_t name_hash = hash<string>()(string(k.name));
-        size_t version_hash = hash<decltype(k.version)>()(k.version);
-        // don't use parent for hash calculation, it is not a part of type (yet)
-        return ngraph::hash_combine(vector<size_t>{name_hash, version_hash});
-    }
+namespace std {
+size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTypeInfo& k) const {
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    size_t name_hash = hash<string>()(string(k.name));
+    size_t version_hash = hash<decltype(k.version)>()(k.version);
+    // don't use parent for hash calculation, it is not a part of type (yet)
+    return ngraph::hash_combine(vector<size_t>{name_hash, version_hash});
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
+}  // namespace std
+
+namespace ov {
+std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
+    std::string version_id = info.version_id ? info.version_id : "(empty)";
+    s << "DiscreteTypeInfo{name: " << info.name << ", version_id: " << version_id << ", old_version: " << info.version
+      << ", parent: ";
+    if (!info.parent)
+        s << info.parent;
+    else
+        s << *info.parent;
+
+    s << "}";
+    return s;
+}
+
+// parent is commented to fix type relaxed operations
+bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
+    if (version_id == nullptr || b.version_id == nullptr)
+        return version < b.version ||
+               (version == b.version && strcmp(name, b.name) < 0);  // ||
+                                                                    // (version == b.version && strcmp(name, b.name) ==
+                                                                    // 0 && parent && b.parent && *parent < *b.parent);
+    else
+        return strcmp(version_id, b.version_id) < 0 ||
+               (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) < 0);  // ||
+    // (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0 && parent && b.parent &&
+    //  *parent < *b.parent);
+}
+bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
+    if (version_id == nullptr || b.version_id == nullptr)
+        return version == b.version && strcmp(name, b.name) == 0;  // && parent == b.parent;
+    else
+        return strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0;  // && parent == b.parent;
+}
+bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
+    return *this == b || *this < b;
+}
+bool DiscreteTypeInfo::operator>(const DiscreteTypeInfo& b) const {
+    return !(*this <= b);
+}
+bool DiscreteTypeInfo::operator>=(const DiscreteTypeInfo& b) const {
+    return !(*this < b);
+}
+bool DiscreteTypeInfo::operator!=(const DiscreteTypeInfo& b) const {
+    return !(*this == b);
+}
+}  // namespace ov

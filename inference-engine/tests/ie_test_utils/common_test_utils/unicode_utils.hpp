@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "w_dirent.h"
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
+
 namespace CommonTestUtils {
 
 inline void fixSlashes(std::string &str) {
@@ -25,13 +26,13 @@ inline void fixSlashes(std::wstring &str) {
 }
 
 inline std::wstring stringToWString(std::string input) {
-    return ::FileUtils::multiByteCharToWString(input.c_str());
+    return ::ov::util::string_to_wstring(input.c_str());
 }
 
 inline bool copyFile(std::wstring source_path, std::wstring dest_path) {
 #ifndef _WIN32
-    std::ifstream source(FileUtils::wStringtoMBCSstringChar(source_path), std::ios::binary);
-    std::ofstream dest(FileUtils::wStringtoMBCSstringChar(dest_path), std::ios::binary);
+    std::ifstream source(ov::util::wstring_to_string(source_path), std::ios::binary);
+    std::ofstream dest(ov::util::wstring_to_string(dest_path), std::ios::binary);
 #else
     fixSlashes(source_path);
     fixSlashes(dest_path);
@@ -55,11 +56,12 @@ inline bool copyFile(std::string source_path, std::wstring dest_path) {
 
 inline std::wstring addUnicodePostfixToPath(std::string source_path, std::wstring postfix) {
     fixSlashes(source_path);
-    std::wstring result = stringToWString(source_path);
-    std::wstring file_name = result.substr(0, result.size() - 4);
-    std::wstring extension = result.substr(result.size() - 4, result.size());
-    result = file_name + postfix + extension;
-    return result;
+    auto result = stringToWString(source_path);
+    auto extPos = result.rfind('.');
+    auto extension = result.substr(extPos, result.size());
+    auto file_name = result.substr(0, extPos);
+
+    return file_name + postfix + extension;
 }
 
 inline void removeFile(std::wstring path) {
@@ -68,7 +70,7 @@ inline void removeFile(std::wstring path) {
 #ifdef _WIN32
         result = _wremove(path.c_str());
 #else
-        result = remove(FileUtils::wStringtoMBCSstringChar(path).c_str());
+        result = remove(ov::util::wstring_to_string(path).c_str());
 #endif
     }
     (void)result;
@@ -105,8 +107,8 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
     }
 #else
     struct dirent *ent;
-    auto path_mb = FileUtils::wStringtoMBCSstringChar(path);
-    auto ext_mb = FileUtils::wStringtoMBCSstringChar(ext);
+    auto path_mb = ov::util::wstring_to_string(path);
+    auto ext_mb = ov::util::wstring_to_string(ext);
     DIR *dir = opendir(path_mb.c_str());
     if (dir != nullptr) {
         while ((ent = readdir(dir)) != NULL) {
@@ -134,7 +136,7 @@ inline int removeDir(std::wstring path) {
 #ifdef _WIN32
         result = _wrmdir(path.c_str());
 #else
-        result = rmdir(FileUtils::wStringtoMBCSstringChar(path).c_str());
+        result = rmdir(ov::util::wstring_to_string(path).c_str());
 #endif
     }
     return result;
@@ -148,7 +150,7 @@ inline bool directoryExists(const std::wstring &path) {
     }
 #else
     struct stat sb;
-    if (stat(FileUtils::wStringtoMBCSstringChar(path).c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
+    if (stat(ov::util::wstring_to_string(path).c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
         return true;
     }
 #endif

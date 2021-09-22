@@ -1,21 +1,7 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-
-import numpy as np
-
+from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -26,7 +12,7 @@ class Enter(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'in_ports_count': 1,
             'infer': Enter.enter_infer,
         }
@@ -34,9 +20,9 @@ class Enter(Op):
 
     @staticmethod
     def enter_infer(node: Node):
-        output_shape = node.in_node(0).shape
-        output_value = node.in_node(0).value
+        output_shape = node.in_port(0).data.get_shape()
+        output_value = node.in_port(0).data.get_value()
 
         for _, out_node in node.graph.out_edges(node.id):
-            node.graph.node[out_node]['shape'] = np.array(output_shape)
-            node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)
+            node.graph.node[out_node]['shape'] = shape_array(output_shape)
+            node.graph.node[out_node]['value'] = None if output_value is None else output_value.copy()

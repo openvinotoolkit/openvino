@@ -1,18 +1,5 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import os
 import re
@@ -64,6 +51,15 @@ def replace_links(content, items, folder, labels, docs_folder):
     return content
 
 
+def add_htmlonly(content):
+    content = content.replace('<details>', '\n\\htmlonly\n<details>')
+    content = content.replace('</summary>', '</summary>\n\\endhtmlonly')
+    content = content.replace('</details>', '\n\\htmlonly\n</details>\n\\endhtmlonly')
+    content = content.replace('<iframe', '\n\\htmlonly\n<iframe')
+    content = content.replace('</iframe>', '</iframe>\n\\endhtmlonly')
+    return content
+
+
 def process_github_md_links(content, items):
     """
     This is a workaround to support github markdown links in doxygen 1.8.12.
@@ -94,6 +90,7 @@ def process(docs_folder):
         content = replace_links(content, inline_links, md_folder, labels, docs_folder)
         content = replace_links(content, reference_links, md_folder, labels, docs_folder)
         content = process_github_md_links(content, github_md_links)
+        content = add_htmlonly(content)
         if inline_links or reference_links or github_md_links:
             with open(md_file, 'w', encoding='utf-8') as f:
                 f.write(content)

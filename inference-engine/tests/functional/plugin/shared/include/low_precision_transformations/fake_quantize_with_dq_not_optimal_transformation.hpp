@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,8 +49,8 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeWithNotOpti
 
 // ngraph::builder::subgraph::FakeQuantizeOnData
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     FakeQuantizeWithNotOptimalTransformationTestValues> FakeQuantizeTransformationParams;
@@ -59,7 +59,7 @@ class FakeQuantizeWithNotOptimalTransformation :
     public testing::WithParamInterface<FakeQuantizeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;

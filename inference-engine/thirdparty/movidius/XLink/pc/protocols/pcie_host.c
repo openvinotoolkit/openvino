@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,15 +80,6 @@ enum mx_fw_status {
     MX_FW_STATUS_UNKNOWN_STATE,
 };
 /**         MXLK data end       */
-
-#if !(defined(_WIN32) || defined(_WIN64))
-static inline void timeout_to_timeval(unsigned int timeout_ms,
-                                      struct timeval *timeval)
-{
-    timeval->tv_sec = timeout_ms / 1000;
-    timeval->tv_usec = (timeout_ms - (timeval->tv_sec * 1000)) * 1000;
-}
-#endif
 
 static inline void sleepForSeconds(const unsigned int seconds) {
 #if (!defined(_WIN32) && !defined(_WIN64))

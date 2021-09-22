@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,8 @@ std::string ImportNetworkTestBase::getTestCaseName(testing::TestParamInfo<export
     std::string targetDevice;
     std::map<std::string, std::string> exportConfiguration;
     std::map<std::string, std::string> importConfiguration;
-    std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration) = obj.param;
+    std::string appHeader;
+    std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, appHeader) = obj.param;
 
     std::ostringstream result;
     result << "netPRC=" << netPrecision.name() << "_";
@@ -24,23 +25,35 @@ std::string ImportNetworkTestBase::getTestCaseName(testing::TestParamInfo<export
     for (auto const& configItem : importConfiguration) {
         result << "_importConfigItem=" << configItem.first << "_" << configItem.second;
     }
+    result << "_appHeader=" << appHeader;
     return result.str();
 }
 
 void ImportNetworkTestBase::exportImportNetwork() {
     std::stringstream strm;
+    strm.write(applicationHeader.c_str(), applicationHeader.size());
     executableNetwork.Export(strm);
+
+    strm.seekg(0, strm.beg);
+    std::string appHeader(applicationHeader.size(), ' ');
+    strm.read(&appHeader[0], applicationHeader.size());
+    ASSERT_EQ(appHeader, applicationHeader);
     executableNetwork = core->ImportNetwork(strm, targetDevice, configuration);
 }
 
 void ImportNetworkTestBase::Run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    TestRun(false);
+}
 
+void ImportNetworkTestBase::TestRun(bool isModelChanged) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // load export configuration and save outputs
     configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
     LoadNetwork();
+    GenerateInputs();
     Infer();
+    auto actualOutputs = GetOutputs();
 
-    const auto& actualOutputs = GetOutputs();
     auto referenceOutputs = CalculateRefs();
     Compare(referenceOutputs, actualOutputs);
 
@@ -48,10 +61,19 @@ void ImportNetworkTestBase::Run() {
         configuration[configItem.first] = configItem.second;
     }
 
+    // for import with different scale factor need to use import configuration to get refference outputs.
+    if (isModelChanged) {
+        LoadNetwork();
+        GenerateInputs();
+        Infer();
+        actualOutputs = GetOutputs();
+    }
+
     const auto compiledExecNetwork = executableNetwork;
     exportImportNetwork();
     const auto importedExecNetwork = executableNetwork;
 
+    GenerateInputs();
     Infer();
 
     ASSERT_EQ(importedExecNetwork.GetInputsInfo().size(), compiledExecNetwork.GetInputsInfo().size());
@@ -59,13 +81,17 @@ void ImportNetworkTestBase::Run() {
 
     for (const auto& next_input : importedExecNetwork.GetInputsInfo()) {
         ASSERT_NO_THROW(compiledExecNetwork.GetInputsInfo()[next_input.first]);
+        Compare(next_input.second->getTensorDesc(), compiledExecNetwork.GetInputsInfo()[next_input.first]->getTensorDesc());
     }
     for (const auto& next_output : importedExecNetwork.GetOutputsInfo()) {
         ASSERT_NO_THROW(compiledExecNetwork.GetOutputsInfo()[next_output.first]);
     }
     auto importedOutputs = GetOutputs();
+
     ASSERT_EQ(actualOutputs.size(), importedOutputs.size());
+
     for (size_t i = 0; i < actualOutputs.size(); i++) {
+        Compare(actualOutputs[i]->getTensorDesc(), importedOutputs[i]->getTensorDesc());
         Compare(actualOutputs[i], importedOutputs[i]);
     }
 }

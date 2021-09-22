@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,8 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/node.hpp"
 
-#include "api/custom_gpu_primitive.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/custom_gpu_primitive.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 
@@ -43,7 +43,7 @@ public:
     CustomLayerAttributeVisitor() : m_values({}) { }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        THROW_IE_EXCEPTION << "Attribute " << name << " can't be processed\n";
+        IE_THROW() << "Attribute " << name << " can't be processed\n";
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& adapter) override {
@@ -145,7 +145,10 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
                         reorderPrimName,
                         inputPrimitives[param.portIndex],
                         param.format,
-                        DataTypeFromPrecision(op->get_input_element_type(param.portIndex)));
+                        DataTypeFromPrecision(op->get_input_element_type(param.portIndex)),
+                        std::vector<float>(),
+                        cldnn::reorder_mean_mode::subtract,
+                        op->get_friendly_name());
 
                     p.AddPrimitive(preprocessPrim);
                     p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
@@ -165,7 +168,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
             break;
         }
         default:
-            THROW_IE_EXCEPTION << "Invalid custom layer param type: " << param.type << " in operation: " << op->get_friendly_name();
+            IE_THROW() << "Invalid custom layer param type: " << param.type << " in operation: " << op->get_friendly_name();
         }
     }
     const std::string layerTitle("\n// Layer " + op->get_friendly_name() + " using Custom Layer " + customLayer->Name() + "\n");
@@ -194,7 +197,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
     // if input index is greater than -1, take dimension from input
     if (iidx >= 0) {
         if (iidx >= op->get_input_size())
-            THROW_IE_EXCEPTION << "Invalid input tensor for index: " << iidx;
+            IE_THROW() << "Invalid input tensor for index: " << iidx;
         auto inputDims = op->get_input_shape(iidx);
 
         xDim = inputDims[inputDims.size() - 1];
@@ -229,7 +232,8 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
                                                   customLayer->CompilerOptions(),
                                                   outputLayout,
                                                   gws,
-                                                  lws);
+                                                  lws,
+                                                  op->get_friendly_name());
 
     auto prevLayerName = genericLayerName;
     if (outputLayout.format != cldnn::format::any) {
@@ -239,7 +243,10 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
             cldnn::reorder(reorderPrimName,
                            genericLayerName,
                            DefaultFormatForDims(op->get_output_shape(0).size()),
-                           customPrim.output_layout.data_type));
+                           customPrim.output_layout.data_type,
+                           std::vector<float>(),
+                           cldnn::reorder_mean_mode::subtract,
+                           op->get_friendly_name()));
         prevLayerName = reorderPrimName;
         p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
     }

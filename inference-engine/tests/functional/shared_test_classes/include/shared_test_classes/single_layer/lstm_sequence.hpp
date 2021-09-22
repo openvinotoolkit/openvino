@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ class LSTMSequenceTest : public testing::WithParamInterface<LSTMSequenceParams>,
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LSTMSequenceParams> &obj);
 protected:
-    void Infer() override;
+    void GenerateInputs() override;
     void SetUp() override;
 
 private:

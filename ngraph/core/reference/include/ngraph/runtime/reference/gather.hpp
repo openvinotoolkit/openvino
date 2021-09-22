@@ -1,135 +1,61 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
 #include <numeric>
 
-#include "ngraph/coordinate_range.hpp"
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/runtime/reference/gather_nd.hpp"
+#include "ngraph/shape.hpp"
 #include "utils/span.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace reference
-        {
-            namespace
-            {
-                template <typename Container>
-                Shape to_shape(const Container& c)
-                {
-                    return Shape(begin(c), end(c));
-                }
+namespace ngraph {
+namespace runtime {
+namespace reference {
+template <typename T, typename U>
+void gather(const T* const data,
+            const U* const indices,
+            T* out,
+            const Shape& data_shape,
+            const Shape& indices_shape,
+            const Shape& out_shape,
+            size_t axis,
+            size_t batch_dims = 0) {
+    // flattened shapes
+    int64_t batch_size = shape_size(span(data_shape).subspan(0, batch_dims));
+    int64_t outer_size = shape_size(span(data_shape).subspan(batch_dims, axis - batch_dims));
+    int64_t indices_size = shape_size(span(indices_shape).subspan(batch_dims));
+    int64_t inner_size = shape_size(span(data_shape).subspan(axis + 1));
 
-                template <typename Container>
-                std::vector<size_t>
-                    join(const Container& c1, const Container& c2, const Container& c3)
-                {
-                    using container_value_type =
-                        typename std::remove_cv<typename Container::value_type>::type;
-                    static_assert(std::is_same<container_value_type, size_t>::value,
-                                  "Expect same type in container");
-                    std::vector<size_t> ret;
-                    ret.reserve(c1.size() + c2.size() + c3.size());
-                    std::copy(begin(c1), end(c1), std::back_inserter(ret));
-                    std::copy(begin(c2), end(c2), std::back_inserter(ret));
-                    std::copy(begin(c3), end(c3), std::back_inserter(ret));
-                    return ret;
-                }
+    int64_t batch_data_mul = shape_size(span(data_shape).subspan(batch_dims));
+    int64_t batch_out_mul = shape_size(span(out_shape).subspan(batch_dims));
+    int64_t batch_indices_mul = shape_size(span(indices_shape).subspan(batch_dims));
 
-                const auto only_one = [] { return coordinates::index(Shape{1}); };
-            } // namespace
-            template <typename T, typename U>
-            void gather(const T* const params,
-                        const U* const indices,
-                        T* const out,
-                        const Shape& params_shape,
-                        const Shape& indices_shape,
-                        const Shape& out_shape,
-                        size_t axis)
-            {
-                using std::next;
-                assert(std::memset(out, 0, shape_size(out_shape) * sizeof(T)));
+    int64_t axis_size = data_shape[axis];
+    int64_t data_offset, out_offset, idx;
 
-                const auto params_axes_part = span(params_shape).subspan(0, axis);
+    for (int64_t batch = 0; batch < batch_size; batch++)
+        for (int64_t outer_idx = 0; outer_idx < outer_size; outer_idx++) {
+            data_offset = batch_data_mul * batch + inner_size * axis_size * outer_idx;
+            out_offset = batch_out_mul * batch + indices_size * inner_size * outer_idx;
+            for (int64_t i = 0; i < indices_size; i++) {
+                idx = indices[i + batch_indices_mul * batch];
+                // clang-format off
+                            // todo: check if bound check is needed
+                            // if (idx >= axis_size || (idx < 0 && -idx >= axis_size))
+                            //    throw std::domain_error{"indices values of Gather exceed size along axis"};
+                // clang-format on
+                if (idx < 0)
+                    idx += axis_size;
 
-                NGRAPH_CHECK(params_shape.size() >= axis, "Not enough axes in param_shape.");
-
-                const auto remainder_part_shape = span(params_shape).subspan(axis + 1);
-
-                const auto found_out_shape =
-                    join(params_axes_part, span(indices_shape), remainder_part_shape);
-
-                NGRAPH_CHECK(found_out_shape == out_shape,
-                             "Output shape mismatch with calculations");
-
-                const auto batch_shape = span(params_shape).subspan(axis);
-
-                const auto batch_size = shape_size(batch_shape);
-
-                const auto copy_size = shape_size(remainder_part_shape);
-
-                const size_t copy_round_in_batch =
-                    indices_shape.size() > 1
-                        ? shape_size(span(indices_shape.data(), indices_shape.size() - 1))
-                        : 1;
-                const size_t round_batch_offset = indices_shape.empty() ? 1 : indices_shape.back();
-
-                auto dst = out;
-
-                auto gather_range = params_axes_part.empty()
-                                        ? only_one()
-                                        : coordinates::index(to_shape(params_axes_part));
-                for (auto i : gather_range)
-                {
-                    auto batch_index = i.begin_index;
-                    for (size_t batch = 0; batch != i.element_number;
-                         batch_index += i.step, ++batch)
-                    {
-                        const auto batch_offset = batch_index * batch_size;
-                        assert(batch_offset < shape_size(params_shape));
-                        for (size_t round = 0; round != copy_round_in_batch; ++round)
-                        {
-                            const U* input_indices = indices + round * round_batch_offset;
-                            const auto indices_no =
-                                indices_shape.empty() ? 1 : indices_shape.back();
-
-                            assert(!batch_shape.empty());
-                            for (size_t ii = 0; ii != indices_no; ++ii)
-                            {
-                                const auto positive_input_index =
-                                    input_indices[ii] < 0 ? batch_shape.front() + input_indices[ii]
-                                                          : input_indices[ii];
-
-                                const auto src_offset =
-                                    batch_offset + copy_size * positive_input_index;
-
-                                const auto src_begin = next(params, src_offset);
-                                const auto src_end = next(src_begin, copy_size);
-
-                                std::copy(src_begin, src_end, dst);
-                                dst += copy_size;
-                            }
-                        }
-                    }
-                }
+                const auto src_begin = std::next(data, data_offset + inner_size * idx);
+                const auto src_end = std::next(src_begin, inner_size);
+                const auto out_ptr = std::next(out, out_offset + inner_size * i);
+                std::copy(src_begin, src_end, out_ptr);
             }
-        } // namespace reference
-    }     // namespace runtime
-} // namespace ngraph
+        }
+}
+
+}  // namespace reference
+}  // namespace runtime
+}  // namespace ngraph

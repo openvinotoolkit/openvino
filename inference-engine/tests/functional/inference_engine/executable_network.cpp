@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,64 +10,54 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-TEST(ExecutableNetworkTests, throwsOnInitWithNull) {
-    std::shared_ptr<IExecutableNetwork> nlptr = nullptr;
-    ASSERT_THROW(ExecutableNetwork exec(nlptr), InferenceEngine::details::InferenceEngineException);
-}
-
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetOutputsInfo) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetOutputsInfo(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exec.GetOutputsInfo(), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetInputsInfo) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetInputsInfo(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exec.GetInputsInfo(), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedExport) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.Export(std::string()), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exec.Export(std::string()), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedExportStream) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.Export(std::cout), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST(ExecutableNetworkTests, nothrowsOnUninitializedCast) {
-    ExecutableNetwork exec;
-    ASSERT_NO_THROW((void)static_cast<IExecutableNetwork::Ptr &>(exec));
+    ASSERT_THROW(exec.Export(std::cout), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetExecGraphInfo) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetExecGraphInfo(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exec.GetExecGraphInfo(), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedQueryState) {
     IE_SUPPRESS_DEPRECATED_START
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.QueryState(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exec.QueryState(), InferenceEngine::NotAllocated);
     IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedSetConfig) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.SetConfig({{}}), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exec.SetConfig({{}}), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetConfig) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetConfig({}), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exec.GetConfig({}), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetMetric) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetMetric({}), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exec.GetMetric({}), InferenceEngine::NotAllocated);
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetContext) {
     ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetContext(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exec.GetContext(), InferenceEngine::NotAllocated);
 }

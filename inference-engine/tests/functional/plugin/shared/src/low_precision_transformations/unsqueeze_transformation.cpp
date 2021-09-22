@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ InferenceEngine::Blob::Ptr UnsqueezeTransformation::GenerateInput(const Inferenc
         1ul);
 }
 
-std::string UnsqueezeTransformation::getTestCaseName(testing::TestParamInfo<UnsqueezeTransformationParams> obj) {
+std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInfo<UnsqueezeTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::string targetDevice;
@@ -76,24 +76,6 @@ void UnsqueezeTransformation::SetUp() {
         unsqueezeParam.unsqueezeAxes);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
-}
-
-void UnsqueezeTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    UnsqueezeTransformationParam unsqueezeParam;
-
-    std::tie(netPrecision, targetDevice, params, unsqueezeParam) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto layer = output->get_input_node_shared_ptr(0);
-    const std::string typeName = layer->get_type_name();
-
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(UnsqueezeTransformation, CompareWithRefImpl) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,6 +61,10 @@ void StaticShapeNonMaxSuppression::validate_and_infer_types() {
 
     // Replace valid outputs with the shape of selected_indices and selected_scores outputs
     set_output_type(2, m_output_type, Shape{2});
+}
+
+void StaticShapeNonMaxSuppression::set_output_type(const ngraph::element::Type& output_type) {
+    m_output_type = output_type;
 }
 
 }  // namespace op

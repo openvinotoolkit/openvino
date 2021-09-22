@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string LrnLayerTest::getTestCaseName(testing::TestParamInfo<lrnLayerTestParamsSet> obj) {
+std::string LrnLayerTest::getTestCaseName(const testing::TestParamInfo<lrnLayerTestParamsSet>& obj) {
     double alpha, beta, bias;
     size_t size;
     std::vector<int64_t> axes;

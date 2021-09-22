@@ -1,30 +1,18 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from mo.front.tf.common import tf_data_type_decode
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
 
 def tf_tensor_shape(pb):
-    return np.array([dim.size for dim in pb.dim], dtype=np.int64)
+    return shape_array([dim.size if dim.size >= 0 else dynamic_dimension_value for dim in pb.dim])
 
 
 def tf_int_list(pb):
@@ -68,6 +56,8 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
         raise Error("Data type is unsupported: {}. " +
                     refer_to_faq_msg(50), tf_dtype)
 
+    decode_err_msg = 'Failed to parse a tensor with Unicode characters. Note that Inference Engine does not support ' \
+                     'string literals, so the string constant should be eliminated from the graph.'
     if pb_tensor.tensor_content:
         value = np.array(np.frombuffer(pb_tensor.tensor_content, type_helper[0]))
     else:
@@ -78,16 +68,27 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
             try:
                 value = np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
             except UnicodeDecodeError:
-                log.error(
-                    'Failed to parse a tensor with Unicode characters. Note that Inference Engine does not support '
-                    'string literals, so the string constant should be eliminated from the graph.',
-                    extra={'is_warning': True})
+                log.error(decode_err_msg, extra={'is_warning': True})
                 value = np.array(type_helper[1](pb_tensor))
 
-    if len(shape) == 0 or shape.prod() == 0:
-        if len(value) == 1:
+    # Ignore an empty value, if len(shape) > 1
+    # For example, value = [] and shape = [1, 1, 0]
+    # This is needed to reshape this value later and to return reshaped value = [[[]]]
+    # Otherwise there can be failures during partial inference, because we are storing an empty value with incorrect
+    # shape
+    if len(shape) == 0 or (len(shape) == 1 and shape.prod() == 0):
+        try:
+            value_length = len(value)
+        except TypeError:
+            # case, when value is a scalar
+            value_length = 0
+        if value_length == 1:
             # return scalar if shape is [] otherwise broadcast according to shape
-            return np.array(value[0], dtype=type_helper[0])
+            try:
+                return np.array(value[0], dtype=type_helper[0])
+            except UnicodeDecodeError:
+                log.error(decode_err_msg, extra={'is_warning': True})
+                return np.array(value[0])
         else:
             # no shape, return value as is
             return value

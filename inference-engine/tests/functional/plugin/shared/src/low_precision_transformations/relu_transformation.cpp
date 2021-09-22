@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ReluTransformation::getTestCaseName(testing::TestParamInfo<ReluTransformationParams> obj) {
+std::string ReluTransformation::getTestCaseName(const testing::TestParamInfo<ReluTransformationParams>& obj) {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
@@ -33,7 +33,7 @@ std::string ReluTransformation::getTestCaseName(testing::TestParamInfo<ReluTrans
 
 InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
@@ -48,35 +48,13 @@ InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngi
 
 void ReluTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
     function = ngraph::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
-}
-
-void ReluTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::Shape inputShape;
-    std::string targetDevice;
-    ReluTestValues testValues;
-    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
-
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-
-    const auto output = transformed->get_output_op(0);
-    const auto layer = output->get_input_node_shared_ptr(0);
-    const std::string typeName = layer->get_type_name();
-    if ((!testValues.fakeQuantize.empty()) && (!testValues.isSubtract)) {
-        ASSERT_EQ("ScaleShiftIE", typeName);
-    } else {
-        ASSERT_EQ("Relu", typeName);
-    }
 }
 
 TEST_P(ReluTransformation, CompareWithRefImpl) {

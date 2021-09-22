@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,16 +11,26 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-class ImportReshapePermuteConvGNA : public ImportReshapePermuteConv {
+class ImportExportGNAModelUnchanged : public ImportReshapePermuteConv {
 private:
     void exportImportNetwork() override {
-        executableNetwork.Export(fileName);
-        std::fstream inputStream(fileName, std::ios_base::in | std::ios_base::binary);
-        if (inputStream.fail()) {
-            FAIL() << "Cannot open file to import model: " << fileName;
+        {
+            std::ofstream out(fileName);
+            out.write(applicationHeader.c_str(), applicationHeader.size());
+            executableNetwork.Export(out);
         }
-        executableNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
+        {
+            std::string appHeader(applicationHeader.size(), ' ');
+            std::fstream inputStream(fileName, std::ios_base::in | std::ios_base::binary);
+            if (inputStream.fail()) {
+                FAIL() << "Cannot open file to import model: " << fileName;
+            }
+            inputStream.read(&appHeader[0], applicationHeader.size());
+            ASSERT_EQ(appHeader, applicationHeader);
+            executableNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
+        }
     }
+
 protected:
     void TearDown() override {
         if (remove(fileName.c_str()) != 0) {
@@ -32,8 +42,14 @@ private:
     std::string fileName = "exported_model.blob";
 };
 
-TEST_P(ImportReshapePermuteConvGNA, CompareWithRefImpl) {
-    Run();
+class ImportExportGNAModelChanged : public ImportExportGNAModelUnchanged {};
+
+TEST_P(ImportExportGNAModelUnchanged, ReshapePermuteConv) {
+    TestRun(false);
+};
+
+TEST_P(ImportExportGNAModelChanged, ReshapePermuteConv) {
+    TestRun(true);
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -48,23 +64,48 @@ const std::vector<std::map<std::string, std::string>> exportConfigs = {
     }
 };
 
-const std::vector<std::map<std::string, std::string>> importConfigs = {
+const std::vector<std::map<std::string, std::string>> importConfigsChanged = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_SCALE_FACTOR_0", "32767"}
-    },
+    }
+};
+
+const std::vector<std::map<std::string, std::string>> importConfigsUnchanged = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_SCALE_FACTOR_0", "327.67"}
     },
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+        {"GNA_SCALE_FACTOR_0", "1"}
+    },
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
+    }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkCase, ImportReshapePermuteConvGNA,
+const std::vector<std::string> appHeaders = {
+        "",
+        "APPLICATION_HEADER"
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportExportGNAModelUnchanged,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(exportConfigs),
-                            ::testing::ValuesIn(importConfigs)),
-                        ImportReshapePermuteConvGNA::getTestCaseName);
+                            ::testing::ValuesIn(importConfigsUnchanged),
+                            ::testing::ValuesIn(appHeaders)),
+                        ImportExportGNAModelUnchanged::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportExportGNAModelChanged,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                            ::testing::ValuesIn(exportConfigs),
+                            ::testing::ValuesIn(importConfigsChanged),
+                            ::testing::ValuesIn(appHeaders)),
+                        ImportExportGNAModelChanged::getTestCaseName);
 
 } // namespace

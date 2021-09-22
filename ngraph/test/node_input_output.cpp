@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 #include <sstream>
@@ -20,7 +8,6 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -28,8 +15,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace ngraph;
 using namespace std;
 
-TEST(node_input_output, input_create)
-{
+TEST(node_input_output, input_create) {
     auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto add = make_shared<op::v1::Add>(x, y);
@@ -54,8 +40,7 @@ TEST(node_input_output, input_create)
     EXPECT_THROW(add->input(2), std::out_of_range);
 }
 
-TEST(node_input_output, input_create_const)
-{
+TEST(node_input_output, input_create_const) {
     auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto add = make_shared<const op::v1::Add>(x, y);
@@ -80,8 +65,7 @@ TEST(node_input_output, input_create_const)
     EXPECT_THROW(add->input(2), std::out_of_range);
 }
 
-TEST(node_input_output, output_create)
-{
+TEST(node_input_output, output_create) {
     auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto add = make_shared<op::v1::Add>(x, y);
@@ -97,8 +81,7 @@ TEST(node_input_output, output_create)
     EXPECT_THROW(add->output(1), std::out_of_range);
 }
 
-TEST(node_input_output, output_create_const)
-{
+TEST(node_input_output, output_create_const) {
     auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto add = make_shared<const op::v1::Add>(x, y);
@@ -112,4 +95,28 @@ TEST(node_input_output, output_create_const)
     EXPECT_TRUE(add_out_0.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
 
     EXPECT_THROW(add->output(1), std::out_of_range);
+}
+
+TEST(node_input_output, input_set_argument) {
+    auto x = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto y = make_shared<op::Parameter>(element::f32, Shape{2});
+    auto z = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    auto add = make_shared<op::v1::Add>(x, y);
+
+    EXPECT_EQ(add->get_input_size(), 2);
+    EXPECT_EQ(add->input(0).get_shape(), Shape{1});
+    EXPECT_EQ(add->input(1).get_shape(), Shape{2});
+
+    add->set_argument(1, z);
+
+    EXPECT_EQ(add->get_input_size(), 2);
+    EXPECT_EQ(add->input(0).get_shape(), Shape{1});
+    EXPECT_EQ(add->input(1).get_shape(), Shape{3});
+
+    add->set_arguments(NodeVector{z, x});
+
+    EXPECT_EQ(add->get_input_size(), 2);
+    EXPECT_EQ(add->input(0).get_shape(), Shape{3});
+    EXPECT_EQ(add->input(1).get_shape(), Shape{1});
 }

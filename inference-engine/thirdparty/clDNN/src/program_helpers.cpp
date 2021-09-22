@@ -1,23 +1,11 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "program_helpers.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "data_inst.h"
 #include <algorithm>
 #include <utility>
@@ -25,24 +13,25 @@
 
 namespace cldnn {
 // helper function for merging the weights/biases buffers on cpu side for depthwise separable convolution optimization
-void program_helpers::merge_buffers(engine_impl& engine,
+void program_helpers::merge_buffers(engine& engine,
                                     program_node& node,
                                     const layout& target_layout,
                                     size_t begin_offset,
                                     size_t end_offset) {
-    memory_impl::ptr data_to_allocate = engine.allocate_memory(target_layout, 0, false);
+    memory::ptr data_to_allocate = engine.allocate_memory(target_layout, false);
+    auto& stream = node.get_program().get_stream();
 
     for (size_t i = begin_offset; i < end_offset; i++) {
         auto& weights = node.get_dependency(i).as<data>();
-        mem_lock<char> src{weights.get_attached_memory()};
-        mem_lock<char> dst{data_to_allocate};
+        mem_lock<char> src{weights.get_attached_memory_ptr(), stream};
+        mem_lock<char> dst{data_to_allocate, stream};
         std::copy(src.begin(), src.end(), dst.begin() + (i - begin_offset) * src.size());
     }
 
     for (size_t i = 0; i < end_offset - begin_offset - 1; i++) node.remove_dependency(begin_offset + 1);
 
     auto& data_node = node.get_dependency(begin_offset).as<data>();
-    data_node.attach_memory(*data_to_allocate, false);
+    data_node.attach_memory(data_to_allocate, false);
 }
 
 void program_helpers::reshape_deconvolution_weights(const std::vector<float> &deconv_weights,

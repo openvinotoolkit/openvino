@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-NGRAPH_RTTI_DEFINITION(ExpGatherElements, "ExpGatherElements", 0);
+constexpr NodeTypeInfo ExpGatherElements::type_info;
 
 ExpGatherElements::ExpGatherElements(const Output<Node>& data,
                                      const Output<Node>& indices,

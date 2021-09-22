@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 
 from openvino.inference_engine import IECore, DataPtr
@@ -40,3 +43,27 @@ def test_layout():
 
 def test_initialized():
     assert layer_out_data().initialized, "Incorrect value for initialized property for layer 'fc_out'"
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_is_dynamic():
+    from conftest import create_ngraph_function
+    import ngraph as ng
+    function = create_ngraph_function([-1, 3, 20, 20])
+    net = ng.function_to_cnn(function)
+    assert net.input_info["data"].input_data.is_dynamic
+    assert net.outputs["out"].is_dynamic
+    p_shape = ng.partial_shape_from_data(net.input_info["data"].input_data)
+    assert isinstance(p_shape, ng.impl.PartialShape)
+    p_shape = ng.partial_shape_from_data(net.outputs["out"])
+    assert isinstance(p_shape, ng.impl.PartialShape)
+    with pytest.raises(RuntimeError) as e:
+        net.input_info["data"].input_data.shape
+    assert  "Cannot return dims for Data with dynamic shapes!" in str(e.value)
+    ie = IECore()
+    ie.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie.load_network(net, "TEMPLATE")
+    assert exec_net.input_info["data"].input_data.is_dynamic
+    p_shape = ng.partial_shape_from_data(exec_net.input_info["data"].input_data)
+    assert isinstance(p_shape, ng.impl.PartialShape)

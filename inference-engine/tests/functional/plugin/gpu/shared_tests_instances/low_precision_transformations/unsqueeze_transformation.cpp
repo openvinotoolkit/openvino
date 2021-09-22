@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,13 +13,14 @@ using namespace ngraph::pass::low_precision;
 namespace {
     const std::vector<ngraph::element::Type> netPrecisions = {
         ngraph::element::f32,
+        ngraph::element::f16
     };
 
 
     const std::vector<LayerTransformation::Params> trasformationParamValues = {
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(false),
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(true),
+        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(false),
+        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(true),
     };
 
     const std::vector<LayerTestsDefinitions::UnsqueezeTransformationParam> params = {
@@ -50,7 +51,7 @@ namespace {
         }
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_LPT, UnsqueezeTransformation,
+    INSTANTIATE_TEST_SUITE_P(smoke_LPT, UnsqueezeTransformation,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GPU),

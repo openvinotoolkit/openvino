@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,18 +13,18 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> FuseConvertFunction::get(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type inputPrecision,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const bool constInput) {
     std::shared_ptr<Node> parent;
     std::shared_ptr<op::Parameter> input;
     if (constInput) {
-        parent = std::make_shared<opset1::Constant>(inputPrecision, inputShape, std::vector<float>{ 128.f });
+        parent = std::make_shared<opset1::Constant>(inputPrecision, inputShape.to_shape(), std::vector<float>{ 128.f });
     } else {
         input = std::make_shared<ngraph::opset1::Parameter>(
             inputPrecision,
-            ngraph::Shape(inputShape));
+            inputShape);
         parent = input;
     }
 
@@ -40,26 +40,27 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::get(
 }
 
 std::shared_ptr<ngraph::Function> FuseConvertFunction::getWithFQ(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type inputPrecision,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const bool constInput) {
     std::shared_ptr<Node> parent;
     std::shared_ptr<op::Parameter> input1;
     if (constInput) {
-        parent = std::make_shared<opset1::Constant>(inputPrecision, inputShape, std::vector<float>{ 128.f });
+        parent = std::make_shared<opset1::Constant>(inputPrecision, inputShape.to_shape(), std::vector<float>{ 128.f });
     } else {
         input1 = std::make_shared<ngraph::opset1::Parameter>(
                 inputPrecision,
-                ngraph::Shape(inputShape));
+                inputShape);
         parent = input1;
     }
-
-    const std::shared_ptr<Node> dequantizationOp = makeDequantization(parent, dequantization);
+    auto deqStructure = dequantization;
+    deqStructure.multiply.outPrecision = inputPrecision;
+    const std::shared_ptr<Node> dequantizationOp = makeDequantization(parent, deqStructure);
 
     std::shared_ptr<op::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(
             inputPrecision,
-            ngraph::Shape(inputShape));
+            inputShape);
 
     const auto fakeQuantizeOnActivations = ngraph::builder::makeFakeQuantize(
         input2, inputPrecision, 256ul, { 1ul },
@@ -68,7 +69,7 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::getWithFQ(
     // just some non-transparent layer
     const auto power = std::make_shared<opset1::Power>(
         fakeQuantizeOnActivations,
-        std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{2.f}));
+        std::make_shared<opset1::Constant>(inputPrecision, Shape{}, std::vector<float>{2.f}));
 
     const auto add = std::make_shared<opset1::Add>(
         dequantizationOp,

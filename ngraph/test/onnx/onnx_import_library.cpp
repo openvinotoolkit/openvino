@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <onnx/onnx_pb.h>
 
@@ -23,12 +11,11 @@ using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(onnx, check_ir_version_support)
-{
+NGRAPH_TEST(onnx, check_ir_version_support) {
     // It appears you've changed the ONNX library version used by nGraph. Please update the value
     // tested below to make sure it equals the current IR_VERSION enum value defined in ONNX headers
     //
-    // You should also check the onnx_reader/onnx_model_validator.cpp file and make sure that
+    // You should also check the onnx_common/src/onnx_model_validator.cpp file and make sure that
     // the details::onnx::is_correct_onnx_field() handles any new fields added in the new release
     // of the ONNX library. Make sure to update the "Field" enum and the function mentioned above.
     //

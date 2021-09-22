@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ReduceOpsLayerTest::getTestCaseName(testing::TestParamInfo<reduceMeanParams> obj) {
+std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<reduceMeanParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout;
@@ -32,9 +32,6 @@ std::string ReduceOpsLayerTest::getTestCaseName(testing::TestParamInfo<reduceMea
 }
 
 void ReduceOpsLayerTest::SetUp() {
-    // TODO: Issue 33151
-    // Failed to create function on SetUp stage with some parameters
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Precision netPrecision;
     bool keepDims;
     ngraph::helpers::ReductionType reductionType;
@@ -68,6 +65,25 @@ void ReduceOpsLayerTest::SetUp() {
     const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduce)};
     function = std::make_shared<ngraph::Function>(results, params, "Reduce");
+}
+InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    ngraph::helpers::ReductionType reductionType = std::get<3>(GetParam());
+    InferenceEngine::Precision netPrecision = std::get<4>(GetParam());
+    if (reductionType == ngraph::helpers::ReductionType::LogicalOr ||
+        reductionType == ngraph::helpers::ReductionType::LogicalAnd) {
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
+    } else if (!netPrecision.is_float()) {
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 5, 0);
+    }
+    auto td = info.getTensorDesc();
+    auto blob = make_blob_with_precision(td);
+    blob->allocate();
+    if (reductionType == ngraph::helpers::ReductionType::Max) {
+        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, -5, 1000);
+    } else {
+        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, 0, 1000);
+    }
+    return blob;
 }
 
 InferenceEngine::Blob::Ptr ReduceOpsLayerWithSpecificInputTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string LogSoftmaxLayerTest::getTestCaseName(testing::TestParamInfo<logSoftmaxLayerTestParams> obj) {
+std::string LogSoftmaxLayerTest::getTestCaseName(const testing::TestParamInfo<logSoftmaxLayerTestParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;

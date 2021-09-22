@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ typedef std::tuple<
 class PermConvPermConcat : public testing::WithParamInterface<PermConvPermConcatParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PermConvPermConcatParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<PermConvPermConcatParams>& obj);
 
 protected:
     void SetUp() override;

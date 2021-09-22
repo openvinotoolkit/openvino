@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,9 @@
 #include "ngraph/op/strided_slice.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/strided_slice.hpp"
-#include "api/reshape.hpp"
-#include "api/crop.hpp"
+#include "cldnn/primitives/strided_slice.hpp"
+#include "cldnn/primitives/reshape.hpp"
+#include "cldnn/primitives/crop.hpp"
 
 namespace CLDNNPlugin {
 
@@ -28,25 +28,6 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
         auto partial_input_shape = op->get_input_partial_shape(0);
 
         if (!begin_node || !end_node || !stride_node || partial_input_shape.is_dynamic()) {
-            break;
-        }
-
-        bool valid_mask = true;
-        for (auto& m : op->get_begin_mask()) {
-            if (m != 0) {
-                valid_mask = false;
-                break;
-            }
-        }
-
-        for (auto& m : op->get_end_mask()) {
-            if (m != 0) {
-                valid_mask = false;
-                break;
-            }
-        }
-
-        if (!valid_mask) {
             break;
         }
 
@@ -125,9 +106,13 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
                     offset.emplace_back(0);
                 } else if (shrink_axis_mask.count(axis)) {
                     // skip this dimension if shrink_axis_mask is set (input_shape_idx++)
-                    dim.emplace_back(1);
-                    offset.emplace_back(begin_mask.count(axis) ? 0 : begin[axis]);
                     reshape_pattern.emplace_back(1);
+                    dim.emplace_back(1);
+                    int64_t lb = begin[axis];
+                    if (lb < 0)
+                        lb = std::max(static_cast<int64_t>(input_shape[input_shape_idx]) + lb,
+                                        static_cast<int64_t>(0));
+                    offset.emplace_back(begin_mask.count(axis) ? 0 : lb);
                     input_shape_idx++;
                 } else {
                     // calculate dimension using begin, end, begin_mask, end_mask, stride
@@ -204,7 +189,7 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
         if (!new_axis_mask.empty()) {
             auto targetShape = CldnnTensorFromIEDims(reshape_pattern);
             auto reshapeInName = op->get_friendly_name() + "/Reshape_before";
-            auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape);
+            auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
             p.AddInnerPrimitiveToProfiler(reshapeInName, layerName, op);
             inPrimitive = reshapeInName;
@@ -215,7 +200,7 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
         std::vector<cldnn::tensor::value_type> offset_tensor{ 0, 0, 0, 0 };
         for (size_t i = 0; i < axes.size(); i++) {
             if (axes[i] < 0 || axes[i] > 3) {
-                THROW_IE_EXCEPTION << "Invalid crop axis: " << std::to_string(axes[i]) << " in op " + op->get_friendly_name();
+                IE_THROW() << "Invalid crop axis: " << std::to_string(axes[i]) << " in op " + op->get_friendly_name();
             }
             offset_tensor[axes[i]] = offset[i];
         }
@@ -230,7 +215,7 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
         cldnn::tensor offSize = CldnnTensorFromIEDims(offset, 0);
 
 
-        auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize);
+        auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize, op->get_friendly_name());
         p.AddPrimitive(cropPrim);
         p.AddPrimitiveToProfiler(layerName, op);
 
@@ -238,7 +223,7 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
         if (!shrink_axis_mask.empty()) {
             auto targetShape = CldnnTensorFromIEDims(output_shape);
             auto reshapeOutName = op->get_friendly_name() + "/Crop";
-            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape);
+            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
             p.AddInnerPrimitiveToProfiler(reshapeOutName, layerName, op);
         }
@@ -273,7 +258,8 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
                                                  end_mask,
                                                  new_axis_mask,
                                                  shrink_axis_mask,
-                                                 out_size);
+                                                 out_size,
+                                                 op->get_friendly_name());
 
     p.AddPrimitive(stridedSlicePrim);
     p.AddPrimitiveToProfiler(op);

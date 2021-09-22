@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,13 @@ GNA2_API enum Gna2Status Gna2MemoryAlloc(
         return current->Gna2MemoryAlloc(sizeRequested, sizeGranted, memoryAddress);
     }
     *memoryAddress = reinterpret_cast<void*>(1);
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2DeviceCreateForExport(
+    Gna2DeviceVersion targetDeviceVersion,
+    uint32_t * deviceIndex) {
+    *deviceIndex = 1;
     return Gna2StatusSuccess;
 }
 
@@ -135,15 +142,6 @@ GNA2_API enum Gna2Status Gna2RequestConfigEnableActiveList(
     uint32_t const * indices) {
     if (current != nullptr) {
         return current->Gna2RequestConfigEnableActiveList(requestConfigId, operationIndex, numberOfIndices, indices);
-    }
-    return Gna2StatusSuccess;
-}
-
-GNA2_API enum Gna2Status Gna2RequestConfigEnableHardwareConsistency(
-    uint32_t requestConfigId,
-    enum Gna2DeviceVersion deviceVersion) {
-    if (current != nullptr) {
-        return current->Gna2RequestConfigEnableHardwareConsistency(requestConfigId, deviceVersion);
     }
     return Gna2StatusSuccess;
 }

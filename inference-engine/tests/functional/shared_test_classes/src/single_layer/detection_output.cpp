@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string DetectionOutputLayerTest::getTestCaseName(testing::TestParamInfo<DetectionOutputParams> obj) {
+std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
     DetectionOutputAttributes commonAttrs;
     ParamsWhichSizeDepends specificAttrs;
     ngraph::op::DetectionOutputAttrs attrs;
@@ -64,10 +64,7 @@ std::string DetectionOutputLayerTest::getTestCaseName(testing::TestParamInfo<Det
     return result.str();
 }
 
-void DetectionOutputLayerTest::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
-
+void DetectionOutputLayerTest::GenerateInputs() {
     size_t it = 0;
     for (const auto &input : cnnNetwork.getInputsInfo()) {
         const auto &info = input.second;
@@ -88,39 +85,44 @@ void DetectionOutputLayerTest::Infer() {
         blob = make_blob_with_precision(info->getTensorDesc());
         blob->allocate();
         CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, 0, resolution);
-        inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
         it++;
     }
-    inferRequest.Infer();
 }
 
-void DetectionOutputLayerTest::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
-    ASSERT_EQ(expected.size(), actual->byteSize());
+void DetectionOutputLayerTest::Compare(
+        const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+        const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
+    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
+        const auto &expected = expectedOutputs[outputIndex].second;
+        const auto &actual = actualOutputs[outputIndex];
 
-    size_t expSize = 0;
-    size_t actSize = 0;
+        ASSERT_EQ(expected.size(), actual->byteSize());
 
-    const auto &expectedBuffer = expected.data();
-    auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-    IE_ASSERT(memory);
-    const auto lockedMemory = memory->wmap();
-    const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
+        size_t expSize = 0;
+        size_t actSize = 0;
 
-    const float *expBuf = reinterpret_cast<const float *>(expectedBuffer);
-    const float *actBuf = reinterpret_cast<const float *>(actualBuffer);
-    for (size_t i = 0; i < actual->size(); i+=7) {
-        if (expBuf[i] == -1)
-            break;
-        expSize += 7;
+        const auto &expectedBuffer = expected.data();
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
+        IE_ASSERT(memory);
+        const auto lockedMemory = memory->wmap();
+        const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
+
+        const float *expBuf = reinterpret_cast<const float *>(expectedBuffer);
+        const float *actBuf = reinterpret_cast<const float *>(actualBuffer);
+        for (size_t i = 0; i < actual->size(); i+=7) {
+            if (expBuf[i] == -1)
+                break;
+            expSize += 7;
+        }
+        for (size_t i = 0; i < actual->size(); i+=7) {
+            if (actBuf[i] == -1)
+                break;
+            actSize += 7;
+        }
+        ASSERT_EQ(expSize, actSize);
+        LayerTestsCommon::Compare<float>(expBuf, actBuf, expSize, 1e-2f);
     }
-    for (size_t i = 0; i < actual->size(); i+=7) {
-        if (actBuf[i] == -1)
-            break;
-        actSize += 7;
-    }
-    ASSERT_EQ(expSize, actSize);
-    LayerTestsCommon::Compare<float>(expBuf, actBuf, expSize, 1e-2f);
 }
 
 void DetectionOutputLayerTest::SetUp() {
@@ -151,4 +153,3 @@ void DetectionOutputLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
 }
 }  // namespace LayerTestsDefinitions
-

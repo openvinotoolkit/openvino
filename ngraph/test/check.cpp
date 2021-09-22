@@ -1,66 +1,83 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
-
-#include <gtest/gtest.h>
 
 #include "ngraph/check.hpp"
 
-using namespace ngraph;
+#include <gtest/gtest.h>
+
+#include "openvino/core/except.hpp"
+
 using namespace std;
 
-TEST(check, check_true_string_info)
-{
+TEST(check, check_true_string_info) {
+    OPENVINO_ASSERT(true, "this should not throw");
+}
+
+TEST(check, check_true_non_string_info) {
+    OPENVINO_ASSERT(true, "this should not throw", 123);
+}
+
+TEST(check, check_true_no_info) {
+    OPENVINO_ASSERT(true);
+}
+
+TEST(check, check_false_string_info) {
+    EXPECT_THROW({ OPENVINO_ASSERT(false, "this should throw"); }, ov::AssertFailure);
+}
+
+TEST(check, check_false_non_string_info) {
+    EXPECT_THROW({ OPENVINO_ASSERT(false, "this should throw", 123); }, ov::AssertFailure);
+}
+
+TEST(check, check_false_no_info) {
+    EXPECT_THROW({ OPENVINO_ASSERT(false); }, ov::AssertFailure);
+}
+
+TEST(check, check_with_explanation) {
+    bool check_failure_thrown = false;
+
+    try {
+        OPENVINO_ASSERT(false, "xyzzyxyzzy", 123);
+    } catch (const ov::AssertFailure& e) {
+        check_failure_thrown = true;
+        EXPECT_PRED_FORMAT2(testing::IsSubstring, "Check 'false' failed at", e.what());
+        EXPECT_PRED_FORMAT2(testing::IsSubstring, "xyzzyxyzzy123", e.what());
+    }
+
+    EXPECT_TRUE(check_failure_thrown);
+}
+
+TEST(check, ngraph_check_true_string_info) {
     NGRAPH_CHECK(true, "this should not throw");
 }
 
-TEST(check, check_true_non_string_info)
-{
+TEST(check, ngraph_check_true_non_string_info) {
     NGRAPH_CHECK(true, "this should not throw", 123);
 }
 
-TEST(check, check_true_no_info)
-{
+TEST(check, ngraph_check_true_no_info) {
     NGRAPH_CHECK(true);
 }
 
-TEST(check, check_false_string_info)
-{
-    EXPECT_THROW({ NGRAPH_CHECK(false, "this should throw"); }, CheckFailure);
+TEST(check, ngraph_check_false_string_info) {
+    EXPECT_THROW({ NGRAPH_CHECK(false, "this should throw"); }, ngraph::CheckFailure);
 }
 
-TEST(check, check_false_non_string_info)
-{
-    EXPECT_THROW({ NGRAPH_CHECK(false, "this should throw", 123); }, CheckFailure);
+TEST(check, ngraph_check_false_non_string_info) {
+    EXPECT_THROW({ NGRAPH_CHECK(false, "this should throw", 123); }, ngraph::CheckFailure);
 }
 
-TEST(check, check_false_no_info)
-{
-    EXPECT_THROW({ NGRAPH_CHECK(false); }, CheckFailure);
+TEST(check, ngraph_check_false_no_info) {
+    EXPECT_THROW({ NGRAPH_CHECK(false); }, ngraph::CheckFailure);
 }
 
-TEST(check, check_with_explanation)
-{
+TEST(check, ngraph_check_with_explanation) {
     bool check_failure_thrown = false;
 
-    try
-    {
+    try {
         NGRAPH_CHECK(false, "xyzzyxyzzy", 123);
-    }
-    catch (const CheckFailure& e)
-    {
+    } catch (const ngraph::CheckFailure& e) {
         check_failure_thrown = true;
         EXPECT_PRED_FORMAT2(testing::IsSubstring, "Check 'false' failed at", e.what());
         EXPECT_PRED_FORMAT2(testing::IsSubstring, "xyzzyxyzzy123", e.what());

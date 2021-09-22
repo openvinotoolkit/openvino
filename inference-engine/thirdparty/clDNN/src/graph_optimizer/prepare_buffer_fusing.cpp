@@ -1,23 +1,10 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/eltwise.hpp"
-#include "api/pooling.hpp"
+#include "pooling_inst.h"
 #include "fused_conv_eltwise_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
@@ -28,6 +15,8 @@
 #include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
+#include "loop_inst.h"
+#include "non_max_suppression_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -221,7 +210,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 
     // apply concatenation in place optimization
     for (auto input : node.get_dependencies()) {
-        auto input_lenght = input->get_output_layout().size.raw[concat_axis];
+        auto input_length = input->get_output_layout().size.raw[concat_axis];
 
         if (input->is_type<concatenation>() && input->can_be_optimized())
             need_reoptimization.push_back(&input->as<concatenation>());
@@ -230,7 +219,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
         //
         //   |--- lower padd ---|                    |---------- upper padd -----------|
         //   |-- output padd ---| ----- input1 ------|----- input2 -----|-- out padd --|
-        upper_padd.raw[concat_axis] -= input_lenght;
+        upper_padd.raw[concat_axis] -= input_length;
 
         // set new padding for input
         input->set_output_padding(padding(lower_padd.sizes(), upper_padd.sizes()));
@@ -239,7 +228,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
         //
         //   |-------------- lower padd -------------|---------- upper padd -----------|
         //   |-- output padd ---| ----- input1 ------|----- input2 -----|-- out padd --|
-        lower_padd.raw[concat_axis] += input_lenght;
+        lower_padd.raw[concat_axis] += input_length;
     }
 
     node.can_be_optimized(true);
@@ -251,7 +240,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 }  // namespace
 
 // ToDo remove friendship relation from  program_node
-void prepare_buffer_fusing::run(program_impl& p) {
+void prepare_buffer_fusing::run(program& p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     /*
     We need to take care of proper ordering by types.
@@ -289,9 +278,14 @@ void prepare_buffer_fusing::run(program_impl& p) {
             for (auto user : node.get_users()) {
                 if (user->is_type<concatenation>() && !user->is_output())
                     return;
+                if (user->is_type<loop>() || user->is_type<non_max_suppression>())
+                    return;
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
+                if (p.is_loop_body() && node.get_dependency(0).is_type<lstm_elt>()) {
+                    return;
+                }
                 // optimization is available for cropping across depth(features) only
                 // if output padding has defined padding across features already it wouldn't
                 // work because it expect to have zeros in the padded area.

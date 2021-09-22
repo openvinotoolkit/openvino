@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ typedef std::tuple<
 class InputConvTest : public testing::WithParamInterface<inputConvParams>,
                      public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<inputConvParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<inputConvParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:

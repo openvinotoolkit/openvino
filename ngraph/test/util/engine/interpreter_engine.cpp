@@ -1,23 +1,13 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
-#include "interpreter_engine.hpp"
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+
+#include "interpreter_engine.hpp"
+#include "shared_utils.hpp"
 
 using namespace ngraph;
 
@@ -45,32 +35,7 @@ namespace
         const auto expected = expected_results->get_vector<float>();
         const auto result = read_vector<float>(results);
 
-        Shape out_shape = expected_results->get_shape();
-
-        size_t num_of_elems = shape_size(out_shape);
-        std::stringstream msg;
-
-        msg << std::setprecision(std::numeric_limits<long double>::digits10 + 1);
-
-        bool rc = true;
-
-        for (std::size_t j = 0; j < num_of_elems; ++j)
-        {
-            float diff = std::abs(result[j] - expected[j]);
-            if (diff > tolerance)
-            {
-                msg << expected[j] << " is not close to " << result[j] << " at index " << j << "\n";
-                rc = false;
-            }
-        }
-
-        if (!rc)
-        {
-            comparison_result = testing::AssertionFailure();
-        }
-
-        comparison_result << msg.str();
-        return comparison_result;
+        return ngraph::test::compare_with_tolerance(expected, result, tolerance);
     }
 
     template <typename T>
@@ -102,7 +67,7 @@ namespace
         NGRAPH_CHECK(expected.size() == result.size(),
                      "Number of expected and computed results don't match");
 
-        for (int i = 0; i < expected.size(); ++i)
+        for (size_t i = 0; i < expected.size(); ++i)
         {
             expected_double[i] = static_cast<double>(expected[i]);
             result_double[i] = static_cast<double>(result[i]);
@@ -117,7 +82,7 @@ test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> fun
 {
     m_backend = ngraph::runtime::Backend::create(NG_BACKEND_NAME, false); // static INT backend
     m_executable = m_backend->compile(m_function);
-    for (auto i = 0; i < m_function->get_output_size(); ++i)
+    for (size_t i = 0; i < m_function->get_output_size(); ++i)
     {
         m_result_tensors.push_back(m_backend->create_tensor(m_function->get_output_element_type(i),
                                                             m_function->get_output_shape(i)));
@@ -130,7 +95,7 @@ test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> fun
 {
     m_backend = ngraph::runtime::Backend::create(NG_BACKEND_NAME, true); // dynamic INT backend
     m_executable = m_backend->compile(m_function);
-    for (auto i = 0; i < m_function->get_output_size(); ++i)
+    for (size_t i = 0; i < m_function->get_output_size(); ++i)
     {
         m_result_tensors.push_back(m_backend->create_dynamic_tensor(
             m_function->get_output_element_type(i), m_function->get_output_partial_shape(i)));
@@ -168,8 +133,9 @@ testing::AssertionResult
         if (expected_shape != result_shape)
         {
             comparison_result = testing::AssertionFailure();
-            comparison_result << "Computed data shape does not match the expected shape for output "
-                              << i << std::endl;
+            comparison_result << "Computed data shape(" << result_shape
+                              << ") does not match the expected shape(" << expected_shape
+                              << ") for output " << i << std::endl;
             break;
         }
 
@@ -210,8 +176,9 @@ testing::AssertionResult test::INTERPRETER_Engine::compare_results(const size_t 
         if (expected_shape != result_shape)
         {
             comparison_result = testing::AssertionFailure();
-            comparison_result << "Computed data shape does not match the expected shape for output "
-                              << i << std::endl;
+            comparison_result << "Computed data shape(" << result_shape
+                              << ") does not match the expected shape(" << expected_shape
+                              << ") for output " << i << std::endl;
             break;
         }
 

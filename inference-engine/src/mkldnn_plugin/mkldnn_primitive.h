@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <ie_common.h>
 #include <vector>
 #include <memory>
-#include <details/ie_exception.hpp>
 
 namespace MKLDNNPlugin {
 

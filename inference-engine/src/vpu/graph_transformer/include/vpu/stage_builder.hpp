@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,8 @@
 #include <vpu/model/model.hpp>
 
 namespace vpu {
+
+IE_SUPPRESS_DEPRECATED_START
 
 class StageBuilder final {
 public:
@@ -343,19 +345,22 @@ public:
             const Data& input,
             const Data& output);
 
-   Stage addGatherElementsStage(const Model &model,
-                                const std::string &name,
-                                const ie::CNNLayerPtr &layer,
-                                const Data &input, const Data &indices,
-                                const Data &output, int32_t axis);
+    Stage addGatherElementsStage(const Model &model,
+                                 const std::string &name,
+                                 const ie::CNNLayerPtr &layer,
+                                 const DataVector &inputs,
+                                 const Data &output, int32_t axis,
+                                 bool rowIndicesMode);
 
-   Stage addCTCGreedyDecoderSeqLenStage(const Model& model,
-                                        const std::string& name,
-                                        const ie::CNNLayerPtr& layer,
-                                        const DataVector& inputs,
-                                        const DataVector& outputs,
-                                        bool mergeRepeated,
-                                        int32_t blankIndex);
+    Stage addCTCGreedyDecoderSeqLenStage(const Model& model,
+                                         const std::string& name,
+                                         const ie::CNNLayerPtr& layer,
+                                         const DataVector& inputs,
+                                         const DataVector& outputs,
+                                         bool mergeRepeated,
+                                         int32_t blankIndex);
 };
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace vpu

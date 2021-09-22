@@ -1,31 +1,16 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
 #include "ngraph/axis_set.hpp"
 #include "ngraph/node.hpp"
 
-namespace ngraph
-{
-    namespace builder
-    {
-        namespace opset1
-        {
-            // clang-format off
+namespace ngraph {
+namespace builder {
+namespace opset1 {
+// clang-format off
             /// \brief Sum-based Mean of a Tensor.
             ///
             /// Calculates
@@ -47,16 +32,12 @@ namespace ngraph
             /// | Type                                      | Description                                                                                                      |
             /// | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
             /// | \f$E[\textit{delete}(A,d_1,\dots,d_n)]\f$ | The tensor \f$T\f$, where \f$T\f$ is the input tensor with the `reduction_axes` \f$A\f$ eliminated by reduction. |
-            // clang-format on
-            std::shared_ptr<Node> mean(const Output<Node>& node,
-                                       const AxisSet& reduction_axes,
-                                       bool keep_dims = false);
+// clang-format on
+std::shared_ptr<Node> mean(const Output<Node>& node, const AxisSet& reduction_axes, bool keep_dims = false);
 
-            std::shared_ptr<Node> mean(const Output<Node>& node,
-                                       const Output<Node>& reduction_axes,
-                                       bool keep_dims = false);
+std::shared_ptr<Node> mean(const Output<Node>& node, const Output<Node>& reduction_axes, bool keep_dims = false);
 
-            // clang-format off
+// clang-format off
             /// \brief Sum-based Variance of a Tensor.
             ///
             /// If bessel_correct is true, calculates
@@ -82,16 +63,16 @@ namespace ngraph
             /// | Type                                      | Description                                                                                                      |
             /// | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
             /// | \f$E[\textit{delete}(A,d_1,\dots,d_n)]\f$ | The tensor \f$T\f$, where \f$T\f$ is the input tensor with the `reduction_axes` \f$A\f$ eliminated by reduction. |
-            // clang-format on
-            std::shared_ptr<Node> variance(const Output<Node>& value,
-                                           const AxisSet& reduction_axes,
-                                           const bool bessel_correction = false);
+// clang-format on
+std::shared_ptr<Node> variance(const Output<Node>& value,
+                               const AxisSet& reduction_axes,
+                               const bool bessel_correction = false);
 
-            std::shared_ptr<Node> variance(const Output<Node>& value,
-                                           const Output<Node>& reduction_axes,
-                                           bool keep_dims = false,
-                                           bool bessel_correction = false);
-        }
+std::shared_ptr<Node> variance(const Output<Node>& value,
+                               const Output<Node>& reduction_axes,
+                               bool keep_dims = false,
+                               bool bessel_correction = false);
+}  // namespace opset1
 
-    } // namespace builder
-} // namespace ngraph
+}  // namespace builder
+}  // namespace ngraph

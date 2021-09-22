@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 class TransposeTransformationTestValues {
 public:
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::vector<int> transposeConstValues;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::element::Type precisionBeforeFq;
@@ -30,13 +30,10 @@ class TransposeTransformation :
     public testing::WithParamInterface<TransposeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeTransformationParams>& obj);
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

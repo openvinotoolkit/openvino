@@ -1,10 +1,58 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "graph_transformer_tests.hpp"
 
 #include <vpu/utils/io.hpp>
+#include <vpu/private_plugin_config.hpp>
+
+#include <vpu/configuration/options/log_level.hpp>
+#include <vpu/configuration/options/copy_optimization.hpp>
+#include <vpu/configuration/options/protocol.hpp>
+#include <vpu/configuration/options/power_config.hpp>
+#include <vpu/configuration/options/hw_acceleration.hpp>
+#include <vpu/configuration/options/hw_extra_split.hpp>
+#include <vpu/configuration/options/hw_pool_conv_merge.hpp>
+#include <vpu/configuration/options/hw_black_list.hpp>
+#include <vpu/configuration/options/hw_inject_stages.hpp>
+#include <vpu/configuration/options/hw_dilation.hpp>
+#include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
+#include <vpu/configuration/options/watchdog_interval.hpp>
+#include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
+#include <vpu/configuration/options/perf_report_mode.hpp>
+#include <vpu/configuration/options/perf_count.hpp>
+#include <vpu/configuration/options/pack_data_in_cmx.hpp>
+#include <vpu/configuration/options/number_of_shaves.hpp>
+#include <vpu/configuration/options/number_of_cmx_slices.hpp>
+#include <vpu/configuration/options/throughput_streams.hpp>
+#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/tensor_strides.hpp>
+#include <vpu/configuration/options/ignore_unknown_layers.hpp>
+#include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
+#include <vpu/configuration/options/enable_tensor_iterator_unrolling.hpp>
+#include <vpu/configuration/options/exclusive_async_requests.hpp>
+#include <vpu/configuration/options/enable_weights_analysis.hpp>
+#include <vpu/configuration/options/enable_repl_with_screlu.hpp>
+#include <vpu/configuration/options/enable_permute_merging.hpp>
+#include <vpu/configuration/options/enable_memory_types_annotation.hpp>
+#include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
+#include <vpu/configuration/options/dump_all_passes_directory.hpp>
+#include <vpu/configuration/options/dump_all_passes.hpp>
+#include <vpu/configuration/options/disable_convert_stages.hpp>
+#include <vpu/configuration/options/disable_reorder.hpp>
+#include <vpu/configuration/options/device_id.hpp>
+#include <vpu/configuration/options/device_connect_timeout.hpp>
+#include <vpu/configuration/options/detect_network_batch.hpp>
+#include <vpu/configuration/options/custom_layers.hpp>
+#include <vpu/configuration/options/config_file.hpp>
+#include <vpu/configuration/options/memory_type.hpp>
+#include <vpu/configuration/options/enable_force_reset.hpp>
+#include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
+#include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
+#include <vpu/configuration/options/enable_custom_reshape_param.hpp>
+#include <vpu/configuration/options/none_layers.hpp>
+#include <vpu/configuration/options/enable_async_dma.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -163,7 +211,10 @@ void TestModel::createOutputs(std::vector<DataDesc> descriptors) {
     }
 }
 
-Stage TestModel::addStage(const std::vector<InputInfo>& curInputInfos, const std::vector<OutputInfo>& curOutputInfos) {
+Stage TestModel::addStage(
+        const std::vector<InputInfo>& curInputInfos,
+        const std::vector<OutputInfo>& curOutputInfos,
+        StageType stageType) {
     DataVector curInputs;
     for (const auto& info : curInputInfos) {
         if (info.type == InputType::Original) {
@@ -188,7 +239,7 @@ Stage TestModel::addStage(const std::vector<InputInfo>& curInputInfos, const std
 
     auto stage = _model->addNewStage<TestStage>(
             formatString("Stage %m%m%d", std::setw(2), std::setfill('0'), _stages.size()),
-            StageType::None,
+            stageType,
             nullptr,
             curInputs,
             curOutputs);
@@ -281,9 +332,11 @@ void GraphTransformerTest::SetUp() {
             consoleOutput());
 
     stageBuilder = std::make_shared<StageBuilder>();
-    frontEnd = std::make_shared<FrontEnd>(stageBuilder, &_mockCore);
+    frontEnd = std::make_shared<FrontEnd>(stageBuilder, _mockCore);
     backEnd = std::make_shared<BackEnd>();
     passManager = std::make_shared<PassManager>(stageBuilder, backEnd);
+
+    config = createConfiguration();
 }
 
 void GraphTransformerTest::TearDown() {
@@ -298,16 +351,17 @@ void GraphTransformerTest::TearDown() {
 
 void GraphTransformerTest::InitCompileEnv() {
     if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_FILE_NAME")) {
-        config.dumpInternalGraphFileName = envVar;
+        config.set(InferenceEngine::MYRIAD_DUMP_INTERNAL_GRAPH_FILE_NAME, envVar);
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_DIRECTORY")) {
-        config.dumpInternalGraphDirectory = envVar;
+        config.set(InferenceEngine::MYRIAD_DUMP_ALL_PASSES_DIRECTORY, envVar);
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_ALL_PASSES")) {
-        config.dumpAllPasses = std::stoi(envVar) != 0;
+        config.set(InferenceEngine::MYRIAD_DUMP_ALL_PASSES, std::stoi(envVar) != 0
+            ? InferenceEngine::PluginConfigParams::YES : InferenceEngine::PluginConfigParams::NO);
     }
 
-    CompileEnv::init(platform, config, _log);
+    CompileEnv::init(config, _log);
     compileEnvInitialized = true;
 }
 
@@ -337,6 +391,69 @@ Model GraphTransformerTest::CreateModel() {
 
 TestModel GraphTransformerTest::CreateTestModel() {
     return TestModel(CreateModel());
+}
+
+PluginConfiguration createConfiguration() {
+    PluginConfiguration configuration;
+    configuration.registerOption<LogLevelOption>();
+    configuration.registerOption<CopyOptimizationOption>();
+    configuration.registerOption<ProtocolOption>();
+    configuration.registerOption<PowerConfigOption>();
+    configuration.registerOption<HwAccelerationOption>();
+    configuration.registerOption<HwExtraSplitOption>();
+    configuration.registerOption<HwPoolConvMergeOption>();
+    configuration.registerOption<HwBlackListOption>();
+    configuration.registerOption<HwInjectStagesOption>();
+    configuration.registerOption<HwDilationOption>();
+    configuration.registerOption<TilingCMXLimitKBOption>();
+    configuration.registerOption<WatchdogIntervalOption>();
+    configuration.registerOption<EnableReceivingTensorTimeOption>();
+    configuration.registerOption<PerfReportModeOption>();
+    configuration.registerOption<PerfCountOption>();
+    configuration.registerOption<PackDataInCMXOption>();
+    configuration.registerOption<NumberOfSHAVEsOption>();
+    configuration.registerOption<NumberOfCMXSlicesOption>();
+    configuration.registerOption<ThroughputStreamsOption>();
+    configuration.registerOption<IRWithScalesDirectoryOption>();
+    configuration.registerOption<TensorStridesOption>();
+    configuration.registerOption<IgnoreUnknownLayersOption>();
+    configuration.registerOption<ForcePureTensorIteratorOption>();
+    configuration.registerOption<EnableTensorIteratorUnrollingOption>();
+    configuration.registerOption<ExclusiveAsyncRequestsOption>();
+    configuration.registerOption<EnableWeightsAnalysisOption>();
+    configuration.registerOption<EnableReplWithSCReluOption>();
+    configuration.registerOption<EnablePermuteMergingOption>();
+    configuration.registerOption<EnableMemoryTypesAnnotationOption>();
+    configuration.registerOption<DumpInternalGraphFileNameOption>();
+    configuration.registerOption<DumpAllPassesDirectoryOption>();
+    configuration.registerOption<DumpAllPassesOption>();
+    configuration.registerOption<DeviceIDOption>();
+    configuration.registerOption<DeviceConnectTimeoutOption>();
+    configuration.registerOption<DetectNetworkBatchOption>();
+    configuration.registerOption<CustomLayersOption>();
+    configuration.registerOption<ConfigFileOption>();
+    configuration.registerOption<MemoryTypeOption>();
+    configuration.registerOption<EnableForceResetOption>();
+    configuration.registerOption<CheckPreprocessingInsideModelOption>();
+    configuration.registerOption<EnableEarlyEltwiseReluFusionOption>();
+    configuration.registerOption<EnableCustomReshapeParamOption>();
+    configuration.registerOption<NoneLayersOption>();
+    configuration.registerOption<EnableAsyncDMAOption>();
+
+IE_SUPPRESS_DEPRECATED_START
+    configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
+    configuration.registerDeprecatedOption<DisableReorderOption>(InferenceEngine::MYRIAD_DISABLE_REORDER);
+    configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
+    configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
+    configuration.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
+    configuration.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
+    configuration.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
+    configuration.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
+    configuration.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
+    configuration.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
+IE_SUPPRESS_DEPRECATED_END
+
+    return configuration;
 }
 
 } // namespace vpu

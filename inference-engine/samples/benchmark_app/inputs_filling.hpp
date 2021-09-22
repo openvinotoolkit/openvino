@@ -4,13 +4,12 @@
 
 #pragma once
 
+#include <inference_engine.hpp>
 #include <string>
 #include <vector>
 
-#include <inference_engine.hpp>
-
-#include "utils.hpp"
 #include "infer_request_wrap.hpp"
+#include "utils.hpp"
 
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,

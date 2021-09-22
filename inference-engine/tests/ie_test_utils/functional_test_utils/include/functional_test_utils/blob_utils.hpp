@@ -1,6 +1,7 @@
-﻿// Copyright (C) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 
@@ -227,10 +228,10 @@ compareBlobData(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Bl
     }
 
     for (size_t i = 0; i < ref_size / sizeof(dataType); i++) {
-        auto resVal = PRC == InferenceEngine::Precision::FP16 ? InferenceEngine::PrecisionUtils::f16tof32(res_ptr[i])
-                                                              : res_ptr[i];
-        auto refVal = PRC == InferenceEngine::Precision::FP16 ? InferenceEngine::PrecisionUtils::f16tof32(ref_ptr[i])
-                                                              : ref_ptr[i];
+        auto resVal = PRC == InferenceEngine::Precision::FP16 ? InferenceEngine::PrecisionUtils::f16tof32(static_cast<InferenceEngine::ie_fp16>(res_ptr[i]))
+                                                              : static_cast<float>(res_ptr[i]);
+        auto refVal = PRC == InferenceEngine::Precision::FP16 ? InferenceEngine::PrecisionUtils::f16tof32(static_cast<InferenceEngine::ie_fp16>(ref_ptr[i]))
+                                                              : static_cast<float>(ref_ptr[i]);
         float absDiff = std::abs(resVal - refVal);
         if (absDiff > max_diff) {
             float relDiff = absDiff / std::max(res_ptr[i], ref_ptr[i]);
@@ -277,7 +278,7 @@ compareBlobs(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Blob:
         COMPARE_WITH_REF(InferenceEngine::Precision::I64);
 #undef COMPARE_WITH_REF
         default:
-            THROW_IE_EXCEPTION << "Precision " << res->getTensorDesc().getPrecision().name()
+            IE_THROW() << "Precision " << res->getTensorDesc().getPrecision().name()
                                << " is not covered by FuncTestUtils::compareBlobs() method";
     }
 }
@@ -285,10 +286,10 @@ compareBlobs(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Blob:
 inline void GetComparisonThreshold(InferenceEngine::Precision prc, float &absoluteThreshold, float &relativeThreshold) {
     switch (prc) {
         case InferenceEngine::Precision::FP32:
-            absoluteThreshold = relativeThreshold = 1e-4;
+            absoluteThreshold = relativeThreshold = 1e-4f;
             break;
         case InferenceEngine::Precision::FP16:
-            absoluteThreshold = relativeThreshold = 1e-2;
+            absoluteThreshold = relativeThreshold = 1e-2f;
             break;
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::I8:
@@ -296,7 +297,7 @@ inline void GetComparisonThreshold(InferenceEngine::Precision prc, float &absolu
             absoluteThreshold = relativeThreshold = 1;
             break;
         default:
-            THROW_IE_EXCEPTION << "Unhandled precision " << prc << " passed to the GetComparisonThreshold()";
+            IE_THROW() << "Unhandled precision " << prc << " passed to the GetComparisonThreshold()";
     }
 }
 
@@ -378,7 +379,7 @@ inline InferenceEngine::Blob::Ptr copyBlobWithCast(const InferenceEngine::Blob::
             newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::BOOL, targetPRC>(blob);
             break;
         default:
-            THROW_IE_EXCEPTION << "Conversion from blob with precision " << blob->getTensorDesc().getPrecision().name()
+            IE_THROW() << "Conversion from blob with precision " << blob->getTensorDesc().getPrecision().name()
                                << " not implemented yet!";
     }
     return newBlob;
@@ -404,7 +405,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobFloatNormalDistribution(const
         CASE(InferenceEngine::Precision::BOOL)
 #undef CASE
         default:
-            THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
+            IE_THROW() << "Wrong precision specified: " << td.getPrecision().name();
     }
     return blob;
 }
@@ -431,18 +432,19 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobFloat(const InferenceEngine::
         CASE(InferenceEngine::Precision::BOOL)
 #undef CASE
         default:
-            THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
+            IE_THROW() << "Wrong precision specified: " << td.getPrecision().name();
     }
     return blob;
 }
 
+template<typename T>
 inline InferenceEngine::Blob::Ptr createAndFillBlobWithFloatArray(const InferenceEngine::TensorDesc &td,
-                                                                  const float values[],
+                                                                  const T values[],
                                                                   const int size) {
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
     blob->allocate();
     switch (td.getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_data_float_array<X>(blob, values, size); break;
+#define CASE(X) case X: CommonTestUtils::fill_data_float_array<X, T>(blob, values, size); break;
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::U8)
@@ -455,7 +457,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobWithFloatArray(const Inferenc
         CASE(InferenceEngine::Precision::BOOL)
 #undef CASE
         default:
-            THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
+            IE_THROW() << "Wrong precision specified: " << td.getPrecision().name();
     }
     return blob;
 }
@@ -469,21 +471,25 @@ inline InferenceEngine::Blob::Ptr createAndFillBlob(const InferenceEngine::Tenso
     blob->allocate();
     switch (td.getPrecision()) {
 #define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
+        CASE(InferenceEngine::Precision::FP64)
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::BF16)
+        CASE(InferenceEngine::Precision::U4)
         CASE(InferenceEngine::Precision::U8)
+        CASE(InferenceEngine::Precision::U32)
         CASE(InferenceEngine::Precision::U16)
+        CASE(InferenceEngine::Precision::U64)
+        CASE(InferenceEngine::Precision::I4)
         CASE(InferenceEngine::Precision::I8)
         CASE(InferenceEngine::Precision::I16)
-        CASE(InferenceEngine::Precision::I64)
-        CASE(InferenceEngine::Precision::U64)
-        CASE(InferenceEngine::Precision::BIN)
         CASE(InferenceEngine::Precision::I32)
+        CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::BIN)
         CASE(InferenceEngine::Precision::BOOL)
 #undef CASE
         default:
-            THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
+            IE_THROW() << "Wrong precision specified: " << td.getPrecision().name();
     }
     return blob;
 }
@@ -509,7 +515,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobConsistently(
         CASE(InferenceEngine::Precision::BOOL)
 #undef CASE
     default:
-        THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
+        IE_THROW() << "Wrong precision specified: " << td.getPrecision().name();
     }
     return blob;
 }
@@ -522,7 +528,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobUniqueSequence(
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
     blob->allocate();
     auto shape = td.getDims();
-    auto range = std::accumulate(begin(shape), end(shape), 1, std::multiplies<uint64_t>()) * 2;
+    auto range = std::accumulate(begin(shape), end(shape), uint64_t(1), std::multiplies<uint64_t>()) * 2;
     switch (td.getPrecision()) {
 #define CASE(X) case X: CommonTestUtils::fill_random_unique_sequence<X>(blob, range, start_from, resolution, seed); break;
         CASE(InferenceEngine::Precision::FP32)
@@ -535,7 +541,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobUniqueSequence(
         CASE(InferenceEngine::Precision::I32)
 #undef CASE
     default:
-        THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
+        IE_THROW() << "Wrong precision specified: " << td.getPrecision().name();
     }
     return blob;
 }
@@ -646,45 +652,122 @@ inline short reducePrecisionBitwiseS(const float in) {
 
 }  // namespace Bf16TestUtils
 
-enum class BlobKind {
-    Simple,
+enum class BlobType {
+    Memory,
+    Batched,
     Compound,
-    BatchOfSimple
+//    Remote,
+    I420,
+    NV12,
 };
 
-inline std::ostream& operator<<(std::ostream& os, BlobKind kind) {
-    switch (kind) {
-    case BlobKind::Simple:
-        return os << "Simple";
-    case BlobKind::Compound:
+inline std::ostream& operator<<(std::ostream& os, BlobType type) {
+    switch (type) {
+    case BlobType::Memory:
+        return os << "Memory";
+    case BlobType::Batched:
+        return os << "Batched";
+    case BlobType::Compound:
         return os << "Compound";
-    case BlobKind::BatchOfSimple:
-        return os << "BatchOfSimple";
+//    case BlobType::Remote:
+//        return os << "Remote";
+    case BlobType::I420:
+        return os << "I40";
+    case BlobType::NV12:
+        return os << "NV12";
     default:
-        THROW_IE_EXCEPTION << "Test does not support the blob kind";
-  }
+        IE_THROW() << "Not supported blob type";
+    }
 }
 
-inline InferenceEngine::Blob::Ptr makeBlobOfKind(const InferenceEngine::TensorDesc& td, BlobKind blobKind) {
-    using namespace ::InferenceEngine;
-    switch (blobKind) {
-    case BlobKind::Simple:
+inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::TensorDesc& td, BlobType blobType) {
+    switch (blobType) {
+    case BlobType::Memory:
         return createAndFillBlob(td);
-    case BlobKind::Compound:
-        return make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>{});
-    case BlobKind::BatchOfSimple: {
-        const auto subBlobsNum = td.getDims()[0];
-        auto subBlobDesc = td;
-        subBlobDesc.getDims()[0] = 1;
-        std::vector<Blob::Ptr> subBlobs;
+    case BlobType::Batched:
+    case BlobType::Compound: {
+        auto dims = td.getDims();
+        const size_t subBlobsNum = dims.front();
+        dims[0] = 1;
+        std::vector<InferenceEngine::Blob::Ptr> subBlobs;
+        InferenceEngine::TensorDesc subBlobDesc(td.getPrecision(), dims, td.getLayout());
         for (size_t i = 0; i < subBlobsNum; i++) {
-            subBlobs.push_back(makeBlobOfKind(subBlobDesc, BlobKind::Simple));
+            subBlobs.push_back(createAndFillBlob(subBlobDesc));
         }
-        return make_shared_blob<BatchedBlob>(subBlobs);
+        return blobType == BlobType::Batched ? InferenceEngine::make_shared_blob<InferenceEngine::BatchedBlob>(subBlobs) :
+                InferenceEngine::make_shared_blob<InferenceEngine::CompoundBlob>(subBlobs);
+    }
+// TODO: ocl + remote
+//    case BlobType::Remote:
+//        return  InferenceEngine::as<InferenceEngine::RemoteBlob>(createAndFillBlob(td));
+    case BlobType::I420: {
+        InferenceEngine::SizeVector dims = td.getDims();
+        dims[1] = 1;
+        InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr y_blob = createAndFillBlob(td1);
+        dims[2] /= 2;
+        dims[3] /= 2;
+        td1 = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr u_blob = createAndFillBlob(td1);
+        InferenceEngine::Blob::Ptr v_blob = createAndFillBlob(td1);
+        return InferenceEngine::make_shared_blob<InferenceEngine::I420Blob>(y_blob, u_blob, v_blob);
+    }
+    case BlobType::NV12: {
+        InferenceEngine::SizeVector dims = td.getDims();
+        dims[1] = 1;
+        InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr y_blob = createAndFillBlob(td1);
+        dims[1] = 2;
+        dims[2] /= 2;
+        dims[3] /= 2;
+        td1 = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr uv_blob = createAndFillBlob(td1);
+        return InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(y_blob, uv_blob);
     }
     default:
-        THROW_IE_EXCEPTION << "Test does not support the blob kind";
+        IE_THROW() << "Test does not support the blob kind";
     }
 }
 
+inline bool checkLayout(InferenceEngine::Layout layout, const std::vector<size_t> &inputShapes) {
+    bool check = false;
+    switch (layout) {
+        case InferenceEngine::Layout::SCALAR:
+            check = inputShapes.size() == 0;
+            break;
+        case InferenceEngine::Layout::C:
+            check = 1 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::BLOCKED:
+        case InferenceEngine::Layout::ANY:
+            check = true;
+            break;
+        case InferenceEngine::Layout::GOIDHW:
+            check = 6 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::NCDHW:
+        case InferenceEngine::Layout::NDHWC:
+        case InferenceEngine::Layout::OIDHW:
+        case InferenceEngine::Layout::GOIHW:
+            check = 5 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::OIHW:
+        case InferenceEngine::Layout::NCHW:
+        case InferenceEngine::Layout::NHWC:
+            check = 4 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::CHW:
+        case InferenceEngine::Layout::HWC:
+            check = 3 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::CN:
+        case InferenceEngine::Layout::NC:
+        case InferenceEngine::Layout::HW:
+            check = 2 == inputShapes.size();
+            break;
+        default:
+            break;
+    }
+    return check;
+}
 }  // namespace FuncTestUtils

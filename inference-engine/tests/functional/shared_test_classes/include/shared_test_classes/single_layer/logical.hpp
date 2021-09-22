@@ -1,6 +1,6 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
@@ -40,7 +40,7 @@ protected:
     void SetUp() override;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LogicalTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<LogicalTestParams>& obj);
     static std::vector<LogicalParams::InputShapesTuple> combineShapes(const std::map<std::vector<size_t>, std::vector<std::vector<size_t >>>& inputShapes);
 
 protected:

@@ -1,18 +1,28 @@
-// Copyright (C) 2018-2020 Intel Corporation
-// SPDX-License-Identifier : Apache-2.0
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <c_api/ie_c_api.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+/**
+ * @brief Struct to store classification results
+ */
 struct classify_res {
     size_t class_id;
     float probability;
 };
 
-void classify_res_sort(struct classify_res *res, size_t n) {
+/**
+ * @brief Sort result of image classification by probability
+ * @param struct with classification results to sort
+ * @param size of the struct
+ * @return none
+ */
+void classify_res_sort(struct classify_res* res, size_t n) {
     size_t i, j;
     for (i = 0; i < n; ++i) {
         for (j = i + 1; j < n; ++j) {
@@ -29,7 +39,13 @@ void classify_res_sort(struct classify_res *res, size_t n) {
     }
 }
 
-struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
+/**
+ * @brief Convert output blob to classify struct for processing results
+ * @param blob of output data
+ * @param size of the blob
+ * @return struct classify_res
+ */
+struct classify_res* output_blob_to_classify_res(ie_blob_t* blob, size_t* n) {
     dimensions_t output_dim;
     IEStatusCode status = ie_blob_get_dims(blob, &output_dim);
     if (status != OK)
@@ -37,7 +53,10 @@ struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
 
     *n = output_dim.dims[1];
 
-    struct classify_res *cls = (struct classify_res *)malloc(sizeof(struct classify_res) * (*n));
+    struct classify_res* cls = (struct classify_res*)malloc(sizeof(struct classify_res) * (*n));
+    if (!cls) {
+        return NULL;
+    }
 
     ie_blob_buffer_t blob_cbuffer;
     status = ie_blob_get_cbuffer(blob, &blob_cbuffer);
@@ -45,7 +64,7 @@ struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
         free(cls);
         return NULL;
     }
-    float *blob_data = (float*) (blob_cbuffer.cbuffer);
+    float* blob_data = (float*)(blob_cbuffer.cbuffer);
 
     size_t i;
     for (i = 0; i < *n; ++i) {
@@ -56,7 +75,14 @@ struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
     return cls;
 }
 
-void print_classify_res(struct classify_res *cls, size_t n, const char *img_path) {
+/**
+ * @brief Print results of classification
+ * @param struct of the classification results
+ * @param size of the struct of classification results
+ * @param string image path
+ * @return none
+ */
+void print_classify_res(struct classify_res* cls, size_t n, const char* img_path) {
     printf("\nImage %s\n", img_path);
     printf("\nclassid probability\n");
     printf("------- -----------\n");
@@ -64,10 +90,21 @@ void print_classify_res(struct classify_res *cls, size_t n, const char *img_path
     for (i = 0; i < n; ++i) {
         printf("%zu       %f\n", cls[i].class_id, cls[i].probability);
     }
+    printf("\nThis sample is an API example,"
+           " for any performance measurements please use the dedicated benchmark_"
+           "app tool\n");
 }
 
-size_t read_image_from_file(const char *img_path, unsigned char *img_data, size_t size) {
-    FILE *fp = fopen(img_path, "rb+");
+/**
+ * @brief Read image data
+ * @param string image path
+ * @param pointer to store image data
+ * @param size bytes of image
+ * @return total number of elements successfully read, in case of error it
+ * doesn't equal to size param
+ */
+size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_t size) {
+    FILE* fp = fopen(img_path, "rb+");
     size_t read_size = 0;
 
     if (fp) {
@@ -76,13 +113,20 @@ size_t read_image_from_file(const char *img_path, unsigned char *img_data, size_
             fseek(fp, 0, SEEK_SET);
             read_size = fread(img_data, 1, size, fp);
         }
+        fclose(fp);
     }
-    fclose(fp);
     return read_size;
 }
 
-size_t parse_image_size(const char *size_str, size_t *width, size_t *height) {
-    const char *_size = size_str;
+/**
+ * @brief Check image has supported width and height
+ * @param string image size in WIDTHxHEIGHT format
+ * @param pointer to image width
+ * @param pointer to image height
+ * @return bool status True(success) or False(fail)
+ */
+bool is_supported_image_size(const char* size_str, size_t* width, size_t* height) {
+    const char* _size = size_str;
     size_t _width = 0, _height = 0;
     while (_size && *_size != 'x' && *_size != '\0') {
         if ((*_size <= '9') && (*_size >= '0')) {
@@ -109,103 +153,119 @@ size_t parse_image_size(const char *size_str, size_t *width, size_t *height) {
         if (_width % 2 == 0 && _height % 2 == 0) {
             *width = _width;
             *height = _height;
-            return 0;
+            return true;
         } else {
             printf("Unsupported image size, width and height must be even numbers \n");
-            return -1;
+            return false;
         }
     } else {
         goto err;
     }
 err:
     printf("Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
-            "actual: %s\n", size_str);
-    return -1;
+           "actual: %s\n",
+           size_str);
+    return false;
 }
 
-int main(int argc, char **argv) {
-    // ------------------------------ Parsing and validation of input args ---------------------------------
+int main(int argc, char** argv) {
+    // ------------------------------ Parsing and validation of input args
+    // ---------------------------------
     if (argc != 5) {
-        printf("Usage : ./hello_classification <path_to_model> <path_to_image> <image_size> <device_name>\n");
+        printf("Usage : ./hello_classification <path_to_model> <path_to_image> "
+               "<image_size> <device_name>\n");
         return EXIT_FAILURE;
     }
 
     size_t input_width = 0, input_height = 0, img_size = 0;
-    if (parse_image_size(argv[3], &input_width, &input_height) == -1)
+    if (!is_supported_image_size(argv[3], &input_width, &input_height))
         return EXIT_FAILURE;
 
-    const char *input_model = argv[1];
-    const char *input_image_path = argv[2];
-    const char *device_name = argv[4];
-    unsigned char *img_data = NULL;
-    ie_core_t *core = NULL;
-    ie_network_t *network = NULL;
-    ie_executable_network_t *exe_network = NULL;
-    ie_infer_request_t *infer_request = NULL;
+    const char* input_model = argv[1];
+    const char* input_image_path = argv[2];
+    const char* device_name = argv[4];
+    unsigned char* img_data = NULL;
+    ie_core_t* core = NULL;
+    ie_network_t* network = NULL;
+    ie_executable_network_t* exe_network = NULL;
+    ie_infer_request_t* infer_request = NULL;
     char *input_name = NULL, *output_name = NULL;
     ie_blob_t *y_blob = NULL, *uv_blob = NULL, *nv12_blob = NULL, *output_blob = NULL;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 1. Load inference engine instance -------------------------------------
+    // --------------------------- Step 1. Initialize inference engine core
+    // -------------------------------------
     IEStatusCode status = ie_core_create("", &core);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+    // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin
+    // files) or ONNX (.onnx file) format
     status = ie_core_read_network(core, input_model, NULL, &network);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 3. Configure input & output ---------------------------------------------
-    // --------------------------- Prepare input blobs -----------------------------------------------------
+    // --------------------------- Step 3. Configure input & output
+    // ---------------------------------------------
+    // --------------------------- Prepare input blobs
+    // -----------------------------------------------------
     status = ie_network_get_input_name(network, 0, &input_name);
     if (status != OK)
         goto err;
 
+    /* Mark input as resizable by setting of a resize algorithm.
+     * In this case we will be able to set an input blob of any shape to an infer
+     * request. Resize and layout conversions are executed automatically during
+     * inference */
+    status |= ie_network_set_input_resize_algorithm(network, input_name, RESIZE_BILINEAR);
     status |= ie_network_set_input_layout(network, input_name, NCHW);
     status |= ie_network_set_input_precision(network, input_name, U8);
-    // set input resize algorithm to enable input autoresize
-    status |= ie_network_set_input_resize_algorithm(network, input_name, RESIZE_BILINEAR);
-    // set input color format to NV12 to enable automatic input color format pre-processing
+    // set input color format to NV12 to enable automatic input color format
+    // pre-processing
     status |= ie_network_set_color_format(network, input_name, NV12);
 
     if (status != OK)
         goto err;
 
-    // --------------------------- Prepare output blobs ----------------------------------------------------
+    // --------------------------- Prepare output blobs
+    // ----------------------------------------------------
     status |= ie_network_get_output_name(network, 0, &output_name);
     status |= ie_network_set_output_precision(network, output_name, FP32);
-    if (status !=OK)
+    if (status != OK)
         goto err;
 
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 4. Loading model to the device ------------------------------------------
+    // --------------------------- Step 4. Loading model to the device
+    // ------------------------------------------
     ie_config_t config = {NULL, NULL, NULL};
     status = ie_core_load_network(core, network, device_name, &config, &exe_network);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 5. Create infer request -------------------------------------------------
+    // --------------------------- Step 5. Create infer request
+    // -------------------------------------------------
     status = ie_exec_network_create_infer_request(exe_network, &infer_request);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 6. Prepare input --------------------------------------------------------
-    // read image with size converted to NV12 data size: height(NV12) = 3 / 2 * logical height
+    // --------------------------- Step 6. Prepare input
+    // -------------------------------------------------------- read image with
+    // size converted to NV12 data size: height(NV12) = 3 / 2 * logical height
     img_size = input_width * (input_height * 3 / 2);
-    img_data = (unsigned char *)calloc(img_size, sizeof(unsigned char));
+    img_data = (unsigned char*)calloc(img_size, sizeof(unsigned char));
     if (NULL == img_data)
         goto err;
     if (img_size != read_image_from_file(input_image_path, img_data, img_size))
         goto err;
 
-    // --------------------------- Create a blob to hold the NV12 input data -------------------------------
-    // Create tensor descriptors for Y and UV blobs
+    // --------------------------- Create a blob to hold the NV12 input data
+    // ------------------------------- Create tensor descriptors for Y and UV
+    // blobs
     dimensions_t y_dimens = {4, {1, 1, input_height, input_width}};
     dimensions_t uv_dimens = {4, {1, 2, input_height / 2, input_width / 2}};
     tensor_desc_t y_tensor = {NHWC, y_dimens, U8};
@@ -227,20 +287,22 @@ int main(int argc, char **argv) {
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 7. Do inference --------------------------------------------------------
+    // --------------------------- Step 7. Do inference
+    // --------------------------------------------------------
     /* Running the request synchronously */
     status = ie_infer_request_infer(infer_request);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 8. Process output ------------------------------------------------------
+    // --------------------------- Step 8. Process output
+    // ------------------------------------------------------
     status = ie_infer_request_get_blob(infer_request, output_name, &output_blob);
     if (status != OK)
         goto err;
 
     size_t class_num;
-    struct classify_res *cls = output_blob_to_classify_res(output_blob, &class_num);
+    struct classify_res* cls = output_blob_to_classify_res(output_blob, &class_num);
 
     classify_res_sort(cls, class_num);
 

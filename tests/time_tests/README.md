@@ -15,17 +15,10 @@ the commands below:
 
 1. Build tests:
 ``` bash
+source <OpenVINO_install_dir>/setupvars.sh
 mkdir build && cd build
 cmake .. && make time_tests
 ```
-
-If you don't have OpenVINO™ installed you need to have the `build` folder, which
-is created when you configure and build OpenVINO™ from sources:
-
-``` bash
-cmake .. -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../../build) && make time_tests
-```
-
 
 2. Run test:
 ``` bash
@@ -34,6 +27,9 @@ cmake .. -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../../build) && mak
 
 2. Run several configurations using `pytest`:
 ``` bash
-export PYTHONPATH=./:$PYTHONPATH
 pytest ./test_runner/test_timetest.py --exe ../../bin/intel64/Release/timetest_infer
+
+# For parse_stat testing:
+pytest ./scripts/run_timetest.py
 ```
+

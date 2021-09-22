@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "lpt_ngraph_functions/common/builders.hpp"
@@ -51,23 +50,26 @@ BranchNodes getBranch(const MultiplyBranch& branch) {
 }
 
 std::shared_ptr<ngraph::Function> MultiplyFunction::get(
-    const ngraph::Shape& inputShape,
+    const element::Type precision,
     const MultiplyValues& actualValues) {
+    auto branch1Structure = actualValues.branch1;
+    branch1Structure.precisionBeforeDequantization = precision;
+    branch1Structure.dequantization.multiply.outPrecision = precision;
+    auto branch2Structure = actualValues.branch2;
+    branch2Structure.precisionBeforeDequantization = precision;
+    branch2Structure.dequantization.multiply.outPrecision = precision;
+
     const BranchNodes branchNodes1 = getBranch(actualValues.branch1);
     const BranchNodes branchNodes2 = getBranch(actualValues.branch2);
 
-    auto multiplyOriginal = actualValues.isDequantization ?
-        DequantizationMultiply(
-            ngraph::op::TemporaryReplaceOutputType(branchNodes1.dequantization, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(branchNodes2.dequantization, element::f32).get()) :
-        ngraph::opset1::Multiply(
-            ngraph::op::TemporaryReplaceOutputType(branchNodes1.dequantization, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(branchNodes2.dequantization, element::f32).get());
+    auto multiplyOriginal = opset1::Multiply(
+        ngraph::op::TemporaryReplaceOutputType(branchNodes1.dequantization, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(branchNodes2.dequantization, element::f32).get());
 
     const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
         multiplyOriginal,
         std::vector<element::Type>{element::f32, element::f32},
-        std::vector<element::Type>{});
+        std::vector<element::Type>{precision});
     auto& rtInfo = multiply->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("multiply");
     multiply->set_friendly_name("output");
@@ -87,11 +89,11 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::get(
 
 std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const bool broadcast,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fq1,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fq2) {
-    ngraph::Shape inputShape2 = inputShape;
+    auto inputShape2 = inputShape;
 
     if (broadcast) {
         inputShape2[2] = 1;

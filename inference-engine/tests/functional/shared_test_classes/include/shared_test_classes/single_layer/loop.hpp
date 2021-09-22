@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,6 +40,7 @@ protected:
 
 using StaticShapeLoopParams = typename std::tuple<
         bool,
+        bool,
         std::tuple<
             bool,
             int64_t,
@@ -49,7 +50,8 @@ using StaticShapeLoopParams = typename std::tuple<
         int64_t,
         InferenceEngine::SizeVector,
         InferenceEngine::Precision,
-        std::string
+        std::string,
+        std::map<std::string, std::string>
         >;
 
 /**
@@ -61,9 +63,10 @@ class StaticShapeLoopTest : public testing::WithParamInterface<StaticShapeLoopPa
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StaticShapeLoopParams> &obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
-    std::vector<std::vector<std::uint8_t>> PredefinedRefs();
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> PredefinedRefs();
 
 private:
+    bool unrolling;             // unroll Loop
     bool static_iter_num;       // trip count provided by constant node
     bool static_continue_cond;  // initial_cond provided by constant node
     int64_t max_iter_num;       // -1 means infinity loop (expected dynamic exit condition in body)
@@ -104,7 +107,7 @@ protected:
         return LayerTestsCommon::GenerateInput(info);
     }
 
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override {
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {
         if (outputGens.empty())
             return LayerTestsCommon::CalculateRefs();
 
@@ -112,7 +115,7 @@ protected:
         const auto outs_info = cnnNetwork.getOutputsInfo();
         const auto num_out_blob = results.size();
 
-        std::vector<std::vector<std::uint8_t>> res_collection(num_out_blob);
+        std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> res_collection(num_out_blob);
 
         for (int i = 0; i < num_out_blob; i++) {
             // TODO: name of original NG result doesn't match with outs after conversion.
@@ -138,8 +141,8 @@ protected:
             auto blob_ptr = blob->buffer().as<uint8_t*>();
 
             auto &res = res_collection[i];
-            res.resize(blob_size);
-            std::copy(blob_ptr, blob_ptr + blob_size, res.begin());
+            res.second.resize(blob_size);
+            std::copy(blob_ptr, blob_ptr + blob_size, res.second.begin());
         }
         return res_collection;
     }

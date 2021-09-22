@@ -1,22 +1,9 @@
 @echo off
 
-:: Copyright (c) 2018-2020 Intel Corporation
-::
-:: Licensed under the Apache License, Version 2.0 (the "License");
-:: you may not use this file except in compliance with the License.
-:: You may obtain a copy of the License at
-::
-::      http://www.apache.org/licenses/LICENSE-2.0
-::
-:: Unless required by applicable law or agreed to in writing, software
-:: distributed under the License is distributed on an "AS IS" BASIS,
-:: WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-:: See the License for the specific language governing permissions and
-:: limitations under the License.
-
+:: Copyright (C) 2018-2021 Intel Corporation
+:: SPDX-License-Identifier: Apache-2.0
 
 set ROOT=%~dp0
-call :GetFullPath "%ROOT%\.." ROOT
 set SCRIPT_NAME=%~nx0
 
 set "INTEL_OPENVINO_DIR=%ROOT%"
@@ -36,44 +23,50 @@ if not "%1"=="" (
 )
 
 :: OpenCV
+if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
+call "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat"
+goto :opencv_done
+)
 if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
 call "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat"
-) else (
-set "OpenCV_DIR=%INTEL_OPENVINO_DIR%\opencv\x64\vc14\lib"
-set "PATH=%INTEL_OPENVINO_DIR%\opencv\x64\vc14\bin;%PATH%"
+goto :opencv_done
 )
+:opencv_done
 
 :: Model Optimizer
-if exist %INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer (
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer;%PYTHONPATH%
-set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer;%PATH%"
+if exist %INTEL_OPENVINO_DIR%\tools\model_optimizer (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PATH%"
 )
 
-:: Inference Engine
-set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\share"
-set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\hddl"
-set "OPENMP_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\omp\lib"
-set "GNA_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\gna\lib"
 
-set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Release;%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENMP_DIR%;%GNA_DIR%;%PATH%"
-if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions (
-set ARCH_ROOT_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions
+:: Model Downloader
+if exist %INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PATH%"
 )
-if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions (
-set ARCH_ROOT_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions
-)
+
+:: OpenVINO runtime
+set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
+set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
+set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
+set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\hddl"
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENVINO_LIB_PATHS%"
+set "OV_FRONTEND_PATH=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%OV_FRONTEND_PATH%"
 
 :: TBB
-if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb (
-set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\bin;%PATH%"
-set "TBB_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\cmake"
+if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin;%OPENVINO_LIB_PATHS%"
+set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\cmake"
 )
 
-:: nGraph
-if exist %INTEL_OPENVINO_DIR%\deployment_tools\ngraph (
-set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\lib;%PATH%"
-set "ngraph_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\cmake"
+:: Compile tool
+if exist %INTEL_OPENVINO_DIR%\tools\compile_tool (
+set "PATH=%INTEL_OPENVINO_DIR%\tools\compile_tool;%PATH%"
 )
+
+:: Add libs dirs to the PATH
+set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 
 :: Check if Python is installed
 python --version 2>NUL
@@ -124,12 +117,12 @@ if not "%bitness%"=="64" (
 
 set PYTHONPATH=%INTEL_OPENVINO_DIR%\python\python%pyversion_major%.%pyversion_minor%;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
 
-if exist %INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\accuracy_checker (
-    set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\accuracy_checker;%PYTHONPATH%
+if exist %INTEL_OPENVINO_DIR%\tools\accuracy_checker (
+    set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\accuracy_checker;%PYTHONPATH%
 )
 
-if exist %INTEL_OPENVINO_DIR%\deployment_tools\tools\post_training_optimization_toolkit (
-    set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\tools\post_training_optimization_toolkit;%PYTHONPATH%
+if exist %INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit (
+    set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit;%PYTHONPATH%
 )
 
 echo [setupvars.bat] OpenVINO environment initialized

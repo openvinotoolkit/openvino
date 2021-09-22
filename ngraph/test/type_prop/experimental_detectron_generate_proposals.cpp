@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <vector>
 
@@ -25,8 +13,7 @@ using namespace ngraph;
 using ExperimentalProposals = op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
 using Attrs = op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes;
 
-TEST(type_prop, detectron_proposals)
-{
+TEST(type_prop, detectron_proposals) {
     Attrs attrs;
     attrs.min_size = 0.0f;
     attrs.nms_threshold = 0.699999988079071f;
@@ -40,8 +27,19 @@ TEST(type_prop, detectron_proposals)
     auto deltas = std::make_shared<op::Parameter>(element::f32, Shape{12, 200, 336});
     auto scores = std::make_shared<op::Parameter>(element::f32, Shape{3, 200, 336});
 
-    auto proposals =
-        std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
+    auto proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
+
+    ASSERT_EQ(proposals->get_output_element_type(0), element::f32);
+    ASSERT_EQ(proposals->get_output_element_type(1), element::f32);
+    EXPECT_EQ(proposals->get_output_shape(0), (Shape{post_nms_count, 4}));
+    EXPECT_EQ(proposals->get_output_shape(1), (Shape{post_nms_count}));
+
+    im_info = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+    anchors = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+    deltas = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
+    scores = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
+
+    proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
 
     ASSERT_EQ(proposals->get_output_element_type(0), element::f32);
     ASSERT_EQ(proposals->get_output_element_type(1), element::f32);
@@ -49,10 +47,8 @@ TEST(type_prop, detectron_proposals)
     EXPECT_EQ(proposals->get_output_shape(1), (Shape{post_nms_count}));
 }
 
-TEST(type_prop, detectron_proposals_dynamic)
-{
-    struct ShapesAndAttrs
-    {
+TEST(type_prop, detectron_proposals_dynamic) {
+    struct ShapesAndAttrs {
         PartialShape im_info_shape;
         PartialShape anchors_shape;
         PartialShape deltas_shape;
@@ -92,8 +88,7 @@ TEST(type_prop, detectron_proposals_dynamic)
         {{3}, {dyn_dim, 4}, {12, dyn_dim, dyn_dim}, {3, dyn_dim, dyn_dim}, 560},
     };
 
-    for (const auto& s : shapes)
-    {
+    for (const auto& s : shapes) {
         Attrs attrs;
         attrs.min_size = 0.0f;
         attrs.nms_threshold = 0.699999988079071f;
@@ -105,8 +100,7 @@ TEST(type_prop, detectron_proposals_dynamic)
         auto deltas = std::make_shared<op::Parameter>(element::f32, s.deltas_shape);
         auto scores = std::make_shared<op::Parameter>(element::f32, s.scores_shape);
 
-        auto proposals =
-            std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
+        auto proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
 
         ASSERT_EQ(proposals->get_output_element_type(0), element::f32);
         ASSERT_EQ(proposals->get_output_element_type(1), element::f32);

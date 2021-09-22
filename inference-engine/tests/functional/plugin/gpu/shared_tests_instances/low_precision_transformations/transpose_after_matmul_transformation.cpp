@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@ using namespace ngraph::pass::low_precision;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
+    ngraph::element::f16
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
@@ -23,10 +24,10 @@ const std::vector<bool> perTensorValues = { true, false };
 
 const std::vector<bool> transposeChannelDimValues = { true, false };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, TransposeAfterMatMulTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, TransposeAfterMatMulTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(perTensorValues),

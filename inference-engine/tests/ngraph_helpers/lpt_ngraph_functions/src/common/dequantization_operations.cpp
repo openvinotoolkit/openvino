@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,9 @@ DequantizationOperations::Convert::Convert() :
     outPrecision(ngraph::element::undefined)
 {}
 
-DequantizationOperations::Convert::Convert(const ngraph::element::Type outPrecision, const bool addDeqAttr) :
+DequantizationOperations::Convert::Convert(const ngraph::element::Type outPrecision, const bool toRemove) :
     isEmpty(false),
-    outPrecision(outPrecision),
-    addDequantizationAttribute(addDeqAttr)
+    outPrecision(outPrecision)
 {}
 
 bool DequantizationOperations::Convert::empty() const noexcept {
@@ -34,37 +33,34 @@ DequantizationOperations::Subtract::Subtract() :
     constantShapeIsDefined(false)
 {}
 
-DequantizationOperations::Subtract::Subtract(const float value, const bool addDeqAttr) :
+DequantizationOperations::Subtract::Subtract(const float value, const bool toRemove) :
     isEmpty(false),
     values({ value }),
     outPrecision(ngraph::element::undefined),
-    constantShapeIsDefined(false),
-    addDequantizationAttribute(addDeqAttr) {
+    constantShapeIsDefined(false) {
 }
 
-DequantizationOperations::Subtract::Subtract(const std::vector<float>& values, const bool addDeqAttr) :
+DequantizationOperations::Subtract::Subtract(const std::vector<float>& values) :
     isEmpty(values.empty()),
     values(values),
     outPrecision(ngraph::element::undefined),
-    constantShapeIsDefined(false),
-    addDequantizationAttribute(addDeqAttr) {
+    constantShapeIsDefined(false) {
 }
 
-DequantizationOperations::Subtract::Subtract(const std::vector<float>& values,
-    const ngraph::element::Type outPrecision,
-    const bool addDeqAttr) :
+DequantizationOperations::Subtract::Subtract(
+    const std::vector<float>& values,
+    const ngraph::element::Type outPrecision) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
-    constantShapeIsDefined(false),
-    addDequantizationAttribute(addDeqAttr) {
+    constantShapeIsDefined(false) {
 }
 
 DequantizationOperations::Subtract::Subtract(
     const std::vector<float>& values,
     const ngraph::element::Type outPrecision,
     const ngraph::Shape& constantShape,
-    const bool addDequantizationAttribute,
+    const bool toRemove,
     const size_t constantIndex,
     const ngraph::element::Type constantPrecision,
     const bool addConvert,
@@ -75,7 +71,6 @@ DequantizationOperations::Subtract::Subtract(
     outPrecision(outPrecision),
     constantShape(constantShape),
     constantShapeIsDefined(true),
-    addDequantizationAttribute(addDequantizationAttribute),
     constantIndex(constantIndex),
     constantPrecision(constantPrecision),
     addConvert(addConvert),
@@ -93,7 +88,6 @@ bool DequantizationOperations::Subtract::equal(const DequantizationOperations::S
         (outPrecision == value.outPrecision) &&
         (constantShape == value.constantShape) &&
         (constantShapeIsDefined == value.constantShapeIsDefined) &&
-        (addDequantizationAttribute == value.addDequantizationAttribute) &&
         (constantIndex == value.constantIndex);
 }
 
@@ -133,14 +127,13 @@ DequantizationOperations::Multiply::Multiply(
     const std::vector<float>& values,
     const ngraph::element::Type outPrecision,
     const ngraph::Shape& constantShape,
-    const bool addDequantizationAttribute,
+    const bool toRemove,
     const size_t constantIndex,
     ngraph::element::Type constantPrecision) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
     constantShape(constantShape),
-    addDequantizationAttribute(addDequantizationAttribute),
     constantIndex(constantIndex),
     constantPrecision(constantPrecision),
     constantShapeIsDefined(true) {
@@ -155,7 +148,6 @@ bool DequantizationOperations::Multiply::equal(const DequantizationOperations::M
         (values == value.values) &&
         (outPrecision == value.outPrecision) &&
         (constantShape == value.constantShape) &&
-        (addDequantizationAttribute == value.addDequantizationAttribute) &&
         (constantIndex == value.constantIndex) &&
         (constantPrecision == value.constantPrecision) &&
         (constantShapeIsDefined == value.constantShapeIsDefined);
@@ -184,6 +176,14 @@ DequantizationOperations::DequantizationOperations(
     subtract(subtract),
     multiply(multiply)
 {}
+
+void DequantizationOperations::setPrecision(const ngraph::element::Type& type) noexcept {
+    convert.outPrecision = type;
+    subtract.constantPrecision = type;
+    subtract.outPrecision = type;
+    multiply.constantPrecision = type;
+    multiply.outPrecision = type;
+}
 
 bool DequantizationOperations::empty() const noexcept {
     return convert.empty() && subtract.empty() && multiply.empty();

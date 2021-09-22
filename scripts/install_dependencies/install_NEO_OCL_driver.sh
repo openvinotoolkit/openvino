@@ -1,18 +1,7 @@
 #!/bin/bash
 
-# Copyright (c) 2018 - 2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 #
 # Installs the Intel® Graphics Compute Runtime for OpenCL™ Driver on Linux.
@@ -30,7 +19,7 @@ CENTOS_MINOR=
 RHEL_VERSION=
 UBUNTU_VERSION=
 DISTRO=
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
 INSTALL_DRIVER_VERSION='19.41.14441'
 AVAILABLE_DRIVERS=("19.41.14441" "20.35.17767")
 
@@ -43,6 +32,7 @@ Download and installs the Intel® Graphics Compute Runtime for OpenCL™ Driver 
 
     Available options:
     -y                      Replace the currently installed driver with the newer version.
+    -a, --auto              Auto-mode for detecting best driver for current OS and hardware.
     -d, --install_driver    Manually select driver version to one of available to install drivers.
                             Default value: $INSTALL_DRIVER_VERSION
                             Available to install drivers: ${AVAILABLE_DRIVERS[*]}
@@ -69,6 +59,10 @@ do
     ;;
         -y)
         agreement=true
+        shift
+    ;;
+        -a|--auto)
+        auto_mode=true
         shift
     ;;
         --no_numa)
@@ -479,7 +473,7 @@ _check_distro_version()
             exit $EXIT_FAILURE
         fi
     elif [[ $DISTRO == redhat ]]; then
-        RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.[0-9]{1,2}")
+        RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.[0-9]")
         if [[ $? -ne 0 ]]; then
             echo "Warning: This runtime can be installed only on RHEL 8" >&2
             echo "Installation of Intel Compute Runtime interrupted"
@@ -534,14 +528,19 @@ check_specific_generation()
     if [[ ! -z "$specific_generation" && "$INSTALL_DRIVER_VERSION" != '20.35.17767' ]]; then
         echo "$(basename "$0"): Detected 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)."
         echo "Driver version 20.35.17767 is going to be installed to fully utilize hardware features and performance."
-        while true; do
-            read -p "You are still able to use the older version 19.41.14441. Use the older driver? (y/n) [n] " yn
-            yn=${yn:=n}
-            case $yn in
-                [Yy]*) return 0 ;;
-                [Nn]*) INSTALL_DRIVER_VERSION='20.35.17767' && return 0 ;;
-            esac
-        done        
+        if [ "$auto_mode" == true ]; then
+            INSTALL_DRIVER_VERSION='20.35.17767'
+            return 0
+        else
+            while true; do
+                read -p "You are still able to use the older version 19.41.14441. Use the older driver? (y/n) [n] " yn
+                yn=${yn:=n}
+                case $yn in
+                    [Yy]*) return 0 ;;
+                    [Nn]*) INSTALL_DRIVER_VERSION='20.35.17767' && return 0 ;;
+                esac
+            done
+        fi
     fi
 }
 

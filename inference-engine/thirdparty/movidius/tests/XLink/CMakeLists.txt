@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,8 +14,6 @@ target_include_directories(${TARGET_NAME}
         PRIVATE
         helpers
         cases
-        ${IE_MAIN_SOURCE_DIR}/tests_new/gtest/googletest/include
-        ${IE_MAIN_SOURCE_DIR}/tests_new/gtest/googletest/
         ${XLINK_INCLUDE}
         ${XLINK_PLATFORM_INCLUDE})
 

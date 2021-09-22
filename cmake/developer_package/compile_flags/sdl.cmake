@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,7 +23,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
             if (NOT ENABLE_SANITIZER)
                 set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -s")
             endif()
-        elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        elseif(OV_COMPILER_IS_CLANG)
             set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -fstack-protector-all")
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             if (NOT ENABLE_SANITIZER)

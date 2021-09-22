@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 from extensions.ops.RNN import rnn_infer
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -24,11 +12,11 @@ class LSTM(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': 'RNNSequence',  # should be never emitted to IR; for debugging purposes
-            'op': __class__.op,
+            'op': self.op,
             'blobs_wrb': False,  # input blobs have three separate components W, R and B like in ONNX/LSTM
             'has_num_directions': False,  # if True, output shape has 4 dimensions; 3D otherwise
             'direction': 'forward',
-            'infer': __class__.infer,
+            'infer': self.infer,
             'multiplier': 4,
             'gate_order': None,
             'normalized': False,

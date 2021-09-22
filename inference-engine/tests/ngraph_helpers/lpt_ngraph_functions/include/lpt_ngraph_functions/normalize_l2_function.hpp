@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,22 +21,24 @@ class NormalizeL2Function {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const std::pair<ngraph::Shape, ngraph::Shape>& shapes,
+        const std::pair<ngraph::PartialShape, ngraph::Shape>& shapes,
         const ngraph::element::Type precisionOnActivation,
         const std::vector<uint64_t>& axes,
         const bool fuseMultiply,
         const bool shift);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& shape,
+        const ngraph::PartialShape& shape,
         const ngraph::op::EpsMode& epsMode,
         const std::vector<size_t>& axes,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
     static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& shape,
+        const ngraph::PartialShape& shape,
         const ngraph::op::EpsMode& epsMode,
         const std::vector<size_t>& axes,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,

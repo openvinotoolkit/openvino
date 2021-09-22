@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision d
     using namespace MKLDNNPlugin;
 
     if (srcPtr == nullptr || dstPtr == nullptr)
-        THROW_IE_EXCEPTION << "cpu_convert has null data pointer";
+        IE_THROW() << "cpu_convert has null data pointer";
 
     if (srcPrc == dstPrc) {
         cpu_memcpy(dstPtr, srcPtr, size*dstPrc.size());
@@ -106,7 +106,7 @@ void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision d
     MKLDNN_CVT(BOOL, I64), MKLDNN_CVT(BOOL, FP32), MKLDNN_CVT(BOOL, BF16));
 
     if (!ctx.converted)
-        THROW_IE_EXCEPTION << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
+        IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
 }
 
 #undef MKLDNN_CVT

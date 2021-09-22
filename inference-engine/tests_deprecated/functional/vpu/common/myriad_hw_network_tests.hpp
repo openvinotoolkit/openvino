@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ public:
 
     void RunAsyncTest(int numIters = 20) {
         if (!CheckMyriadX()) {
-            SKIP() << "Non-MyriadX device";
+            GTEST_SKIP() << "Non-MyriadX device";
         }
 
         auto fnPtr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
@@ -100,7 +100,7 @@ public:
                 }
 
                 for (int inferInd = 0; inferInd < NUM_REQUESTS; ++inferInd) {
-                    ASSERT_EQ(StatusCode::OK, inferRequests[inferInd].Wait(IInferRequest::RESULT_READY));
+                    ASSERT_EQ(StatusCode::OK, inferRequests[inferInd].Wait(InferRequest::RESULT_READY));
                 }
 
                 for (int inferInd = 0; inferInd < NUM_REQUESTS; ++inferInd) {
@@ -145,7 +145,7 @@ inline std::string getTestCaseName(const testing::TestParamInfo<HwNetworkParams>
            std::string((std::get<1>(param.param)).name());
 }
 
-INSTANTIATE_TEST_CASE_P(Input_Output_ExecMode, MyriadX_HW_Networks_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(Input_Output_ExecMode, MyriadX_HW_Networks_Tests_nightly,
     testing::Values(
           std::make_tuple(Precision::FP16, Precision::FP16)
     ),

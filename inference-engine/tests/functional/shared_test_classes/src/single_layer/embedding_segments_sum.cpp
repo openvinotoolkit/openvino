@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet> obj) {
+std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(const testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet>& obj) {
     embeddingSegmentsSumParams params;
     InferenceEngine::Precision netPrecision, indPrecision;
     std::string targetDevice;

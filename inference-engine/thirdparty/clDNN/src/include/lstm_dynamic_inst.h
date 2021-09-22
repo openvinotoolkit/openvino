@@ -1,24 +1,12 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/lstm_dynamic.hpp"
+#include "cldnn/primitives/lstm_dynamic.hpp"
 #include "primitive_inst.h"
-#include "error_handler.h"
+
 #include <string>
 #include <memory>
 
@@ -27,8 +15,9 @@ template <>
 struct typed_program_node<lstm_dynamic> : public typed_program_node_base<lstm_dynamic> {
     using parent = typed_program_node_base<lstm_dynamic>;
 
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog) : parent(prim, prog) {}
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
 
+    program_node& input() const { return get_dependency(0); }
     float clip() const { return get_primitive()->clip; }
     bool input_forget() const { return get_primitive()->input_forget; }
     primitive_id bias_id() const { return get_primitive()->bias; }
@@ -51,7 +40,7 @@ public:
     static layout calc_output_layout(lstm_dynamic_node const& node);
     static std::string to_string(lstm_dynamic_node const& node);
 
-    typed_primitive_inst(network_impl& network, lstm_dynamic_node const& node);
+    typed_primitive_inst(network& network, lstm_dynamic_node const& node);
 
     static void check_direction(program_node& node, int32_t direction, std::string name) {
         if (node.get_output_layout().size.spatial[1] != direction)

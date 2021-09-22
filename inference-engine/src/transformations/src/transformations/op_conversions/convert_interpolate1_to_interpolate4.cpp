@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,7 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
             i++;
         }
 
+        auto input_shape_rank = inp_partial_shape.rank().get_length();
         auto scalesConstant = ngraph::op::Constant::create(ngraph::element::f32, {scales.size()}, scales);
         auto axisConstant = ngraph::op::Constant::create(ngraph::element::i64, {attrsV0.axes.size()},
                                                          std::vector<std::size_t>{attrsV0.axes.begin(), attrsV0.axes.end()});
@@ -43,25 +44,44 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         ngraph::opset4::Interpolate::InterpolateAttrs attrsV4;
 
         if (attrsV0.mode == "nearest") {
-            attrsV4.mode = ngraph::opset4::Interpolate::InterpolateMode::nearest;
+            attrsV4.mode = ngraph::opset4::Interpolate::InterpolateMode::NEAREST;
         } else if (attrsV0.mode == "linear") {
-            attrsV4.mode = ngraph::opset4::Interpolate::InterpolateMode::linear;
+            // If we write only
+            //    attrsV4.mode = ngraph::op::v4::Interpolate::InterpolateMode::linear;
+            // instead of a conditional statements below when attrsV0.mode == "linear",
+            // then we have a performance drop, because CPU have no optimized
+            // version of the 'linear' mode.
+            // TODO: delete this conditional statement, when CPU will have
+            // optimized version of the 'linear' mode.
+            if (input_shape_rank < 5) {
+                attrsV4.mode = ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX;
+            } else if (input_shape_rank == 5) {
+                attrsV4.mode = ngraph::op::v4::Interpolate::InterpolateMode::LINEAR;
+            } else {
+                return false;
+            }
         } else if (attrsV0.mode == "cubic") {
-            attrsV4.mode = ngraph::opset4::Interpolate::InterpolateMode::cubic;
+            attrsV4.mode = ngraph::opset4::Interpolate::InterpolateMode::CUBIC;
         } else if (attrsV0.mode == "linear_onnx") {
-            attrsV4.mode = ngraph::opset4::Interpolate::InterpolateMode::linear_onnx;
+            attrsV4.mode = ngraph::opset4::Interpolate::InterpolateMode::LINEAR_ONNX;
         } else {
             return false;
         }
-        attrsV4.shape_calculation_mode = ngraph::opset4::Interpolate::ShapeCalcMode::sizes;
-        attrsV4.nearest_mode = ngraph::opset4::Interpolate::NearestMode::round_prefer_floor;
+        attrsV4.shape_calculation_mode = ngraph::opset4::Interpolate::ShapeCalcMode::SIZES;
+        attrsV4.nearest_mode = ngraph::opset4::Interpolate::NearestMode::SIMPLE;
         attrsV4.pads_begin = attrsV0.pads_begin;
         attrsV4.pads_end = attrsV0.pads_end;
         attrsV4.antialias = attrsV0.antialias;
-        attrsV4.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::half_pixel;
+        attrsV4.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::ASYMMETRIC;
         attrsV4.cube_coeff = -0.75f;
         if (attrsV0.align_corners) {
-            attrsV4.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::align_corners;
+            attrsV4.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS;
+        } else if ((attrsV4.mode == ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX ||
+                    attrsV4.mode == ngraph::op::v4::Interpolate::InterpolateMode::LINEAR) &&
+                    std::all_of(attrsV4.pads_begin.begin(), attrsV4.pads_begin.end(), [](size_t i){return i == 0;}) &&
+                    std::all_of(attrsV4.pads_end.begin(), attrsV4.pads_end.end(), [](size_t i){return i == 0;}) &&
+                    !(input_shape_rank - 2 == 2 && attrsV0.axes == AxisSet{2, 3})) {
+            attrsV4.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::HALF_PIXEL;
         }
 
         auto interpolateV4 = std::make_shared<ngraph::opset4::Interpolate>(interpolationV0->input_value(0), interpolationV0->input_value(1),

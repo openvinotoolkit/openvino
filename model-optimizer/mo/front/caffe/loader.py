@@ -1,29 +1,17 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import importlib
 import logging as log
-import mmap
 import os
 import sys
 
+import mmap
 import numpy as np
 from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
+from mo.front.extractor import add_outputs_identity
 from mo.graph.graph import Graph
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
@@ -105,7 +93,7 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
                            'Run: set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp \n'
         except ImportError:
             # 3. cpp implementation is not available
-            message += 'However you can use the C++ protobuf implementation that is supplied with the OpenVINO toolkit' \
+            message += 'However you can use the C++ protobuf implementation that is supplied with the OpenVINO toolkit ' \
                        'or build protobuf library from sources. \n' \
                        'Navigate to "install_prerequisites" folder and run: ' \
                        'python -m easy_install protobuf-3.5.1-py($your_python_version)-win-amd64.egg \n' \
@@ -142,10 +130,16 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
                 map = mmap.mmap(infile.fileno(), 0, access=mmap.ACCESS_READ)
                 model.MergeFromString(map)
     except Exception as e:
+        third_point = ''
+        if api_implementation._implementation_type == 'python':
+            third_point = '      3. Python protobuf implementation was used. Some models can\'t be converted ' + \
+                          ' in this configuration. Please, use Python version with existing cpp implementation of ' + \
+                          'protobuf library or build it by yourself\n' + refer_to_faq_msg(103)
         log.error('Exception message: {}\n\n'.format(e) +
                   '    Possible reasons:\n' +
                   '      1. {} does not exist\n'.format(model_path) +
-                  '      2. {} does not have a valid structure\n'.format(model_path), extra={'framework_error': True})
+                  '      2. {} does not have a valid structure\n'.format(model_path) + third_point,
+                  extra={'framework_error': True})
         raise FrameworkError('Model Optimizer is not able to parse {}'.format(model_path)) from e
 
     return proto, model
@@ -181,7 +175,7 @@ def caffe_pb_to_nx(graph, proto, model):
     # Blobs in prototxt model can be reused by inplace layer.
     # This requires loading of pb layers in order and tracking the latest
     # layer that writes a particular blob.
-    blob_producers = {}  # maps layer blob name to the layer name and port
+    blob_producers = {}  # maps layer blob name to node id in graph, port and layer name
     proto_layers = get_layers(proto)
     model_layers = None
     if model:
@@ -251,8 +245,9 @@ def caffe_pb_to_nx(graph, proto, model):
         # Input is defined at the top level of proto instead of distinct Input layer
         graph.add_node(input_name, pb=None, model_pb=None, type='GlobalInput', name=input_name, shape=input_dim,
                        kind='op')
-        blob_producers[input_name] = (input_name, 0)
+        blob_producers[input_name] = (input_name, 0, input_name)
 
+    used_blobs = set()
     for i, layer in enumerate(proto_layers):
 
         model_layer = None
@@ -291,33 +286,51 @@ def caffe_pb_to_nx(graph, proto, model):
                 input_dims.append(np.array(list(dims), dtype=np.int64))
                 input_names.append(layer.name)
 
-        layer.name = graph.unique_id(layer.name)
-        graph.add_node(layer.name, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
+        node_id = graph.unique_id(layer.name)
+        graph.add_node(node_id, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
+        if hasattr(graph, 'op_names_statistic') and hasattr(layer, 'type'):
+            graph.op_names_statistic[layer.type] += 1
 
         # connect inputs based on blob_producers dictionary
         for dst_port, bottom in enumerate(layer.bottom):
-            src_layer = blob_producers[bottom][0]
-            src_port = blob_producers[bottom][1]
-            assert (graph.has_node(src_layer))
-            edge_attrs = {
-                'out': src_port,
-                'in': dst_port,
-                'name': bottom,
-                # debug anchor for a framework name, out port and tensor name
-                'fw_tensor_debug_info': [(src_layer, src_port, bottom)],
-                'in_attrs': ['in', 'name'],
-                'out_attrs': ['out', 'name'],
-                'data_attrs': ['fw_tensor_debug_info']
-            }
-            graph.add_edge(src_layer, layer.name, **edge_attrs)
+            add_edge_caffe(graph, bottom, node_id, blob_producers, dst_port)
+            used_blobs.add(bottom)
 
         # update blob producers dictionary by output ports
         for src_port, top in enumerate(layer.top):
             if top in blob_producers:
-                log.debug("Detected reuse of blob {} by layer {}".format(top, layer.name))
-            blob_producers[top] = (layer.name, src_port)
+                log.debug("Detected reuse of blob {} by layer {}".format(top, node_id))
+            blob_producers[top] = (node_id, src_port, layer.name)
+
+    # Tensor names information corresponding to a node is stored on outgoing edges.
+    # As output nodes do not have outgoing edges, fake outputs are required. In the following code
+    # for each output Identity node is added, and tensor name for the output is kept
+    # on (output, fake output) edge. After Result nodes adding transformation fake outputs
+    # are deleted from graph.
+    all_blobs = set(blob_producers.keys())
+    add_outputs_identity(graph, all_blobs - used_blobs, add_edge_caffe,
+                         {'blob_producers': blob_producers, 'dst_port': 0})
 
     if len(input_names) <= 0:
         raise Error('The topology contains no "input" layers. ' +
                     refer_to_faq_msg(79))
-    return {name: shape for (name, shape) in zip(input_names, input_dims)}
+    return {fake_node_name: shape for (fake_node_name, shape) in zip(input_names, input_dims)}
+
+
+def add_edge_caffe(graph: Graph, bottom: str, dst_layer: str, blob_producers: dict, dst_port: int):
+    """
+    Creates an edge and adds it to the graph.
+    """
+    src_layer = blob_producers[bottom][0]
+    src_port = blob_producers[bottom][1]
+    edge_attrs = {
+        'out': src_port,
+        'in': dst_port,
+        'name': bottom,
+        # debug anchor for a framework name and tensor name
+        'fw_tensor_debug_info': [(blob_producers[bottom][2], bottom)],
+        'in_attrs': ['in', 'name'],
+        'out_attrs': ['out', 'name'],
+        'data_attrs': ['fw_tensor_debug_info']
+    }
+    graph.add_edge(src_layer, dst_layer, **edge_attrs)

@@ -1,6 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "shared_test_classes/subgraph/concat_quantization_during_memory_requantization.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -103,11 +104,11 @@ namespace SubgraphTestsDefinitions {
         for (auto& state : states) {
             auto name = state.GetName();
             if (name == "memory_1") {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            memory_1_init.data(), memory_1_init.size());
                 state.SetState(blob);
             } else if (name == "memory_2") {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            memory_2_init.data(), memory_2_init.size());
                 state.SetState(blob);
             } else {
@@ -115,6 +116,7 @@ namespace SubgraphTestsDefinitions {
             }
         }
         IE_SUPPRESS_DEPRECATED_END
+        GenerateInputs();
         Infer();
         switchToNgraphFriendlyModel();
         Validate();

@@ -1,21 +1,9 @@
-/*
-// Copyright (c) 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "program_node.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "primitive_inst.h"
 #include "to_string_utils.h"
 #include "json_object.h"
@@ -27,7 +15,7 @@
 
 using namespace cldnn;
 
-program_node::program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     : desc(prim), myprog(prog), org_id(prim->id) {
     if (prim)
         output_layout.data_padding = prim->output_padding;
@@ -83,8 +71,10 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(this)));
     node_info->add("id", id());
     node_info->add("type", desc->type_string());
-    node_info->add("internal", bool_to_str(this->is_type<internal_primitive>()));
     node_info->add("valid output layout", bool_to_str(valid_output_layout));
+    std::stringstream s;
+    s << get_preferred_impl_type();
+    node_info->add("preferred impl", s.str());
 
     json_composite output_layout_info;
     output_layout_info.add("data type", dt_to_str(output_layout.data_type));
@@ -279,23 +269,14 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     return true;
 }
 
+ void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
+    selected_impl = std::move(impl);
+}
+
 bool program_node::need_lockable_memory() const {
     bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
         return n->get_selected_impl()->is_cpu();
     });
 
     return need_lockable_mem;
-}
-
-primitive_id details::internal_program_node_base::get_next_internal_id() {
-    static std::atomic<uint64_t> counter{0};
-    auto idx = counter++;
-    return primitive_id("_cldnn_internal_") + std::to_string(idx);
-}
-
-details::internal_program_node_base::internal_program_node_base(program_impl& prog)
-    : program_node(nullptr, prog), internal_id(get_next_internal_id()) {}
-
-void details::internal_program_node_base::set_implementation(std::unique_ptr<primitive_impl>&& impl) {
-    selected_impl = std::move(impl);
 }

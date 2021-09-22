@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,6 +30,7 @@ function(add_lfs_repo name prefix url tag)
         return()
     endif()
 
+    include(ExternalProject)
     ExternalProject_Add(${name}
         PREFIX ${prefix}
         GIT_REPOSITORY ${url}

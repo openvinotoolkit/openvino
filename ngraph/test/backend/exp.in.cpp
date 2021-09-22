@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cinttypes>
@@ -43,15 +31,55 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, exp)
-{
+NGRAPH_TEST(${BACKEND_NAME}, exp) {
     Shape shape{8};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Exp>(A), ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({-4, -3, -2, -1, 0, 1, 2, 3});
-    test_case.add_expected_output<float>(
-        shape, {expf(-4), expf(-3), expf(-2), expf(-1), expf(0), expf(1), expf(2), expf(3)});
+    test_case.add_expected_output<float>(shape,
+                                         {expf(-4), expf(-3), expf(-2), expf(-1), expf(0), expf(1), expf(2), expf(3)});
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, exp_negative) {
+    Shape shape{5};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::Exp>(A), ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({-4, -3, -2, -1, -5});
+    test_case.add_expected_output<float>(shape, {expf(-4), expf(-3), expf(-2), expf(-1), expf(-5)});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, exp_scalar) {
+    Shape shape{};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::Exp>(A), ParameterVector{A});
+
+    vector<float> a{13};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape, {expf(13)});
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 2);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, exp_in_place) {
+    Shape shape{2};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    ;
+    auto T = make_shared<op::Exp>(A);
+    auto T2 = make_shared<op::Exp>(T);
+
+    auto f = make_shared<Function>(T2, ParameterVector{A});
+
+    vector<float> a{1, 3};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape, {expf(expf(1)), expf(expf(3))});
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }

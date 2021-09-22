@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,8 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
 
 const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> params = {
@@ -72,7 +72,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "FP32"
     },
 
@@ -126,7 +126,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             {},
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 
@@ -177,7 +177,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "FP32"
     },
 
@@ -228,17 +228,17 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             {},
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 };
 
-const std::vector<ngraph::Shape> shapes = {
+const std::vector<ngraph::PartialShape> shapes = {
     { 1, 3, 4, 4 },
     { 4, 3, 4, 4 }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionQDqTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionQDqTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),

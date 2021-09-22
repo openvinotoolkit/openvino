@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,6 @@ IeParsedNetwork parseNetwork(const ie::CNNNetwork& network) {
     out.networkOutputs = network.getOutputsInfo();
 
     env.log->trace("Got %d inputs and %d outputs", out.networkInputs.size(), out.networkOutputs.size());
-    IE_ASSERT(!out.networkInputs.empty());
     IE_ASSERT(!out.networkOutputs.empty());
 
     env.log->trace("Perform topological sort");

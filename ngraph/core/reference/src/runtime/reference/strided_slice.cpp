@@ -1,31 +1,23 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
+#include "ngraph/runtime/reference/strided_slice.hpp"
+
+#include <stdio.h>
 
 #include <cmath>
-#include <stdio.h>
 
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/runtime/reference/strided_slice.hpp"
 
 using namespace ngraph;
 
-void runtime::reference::strided_slice(
-    const char* arg, char* out, const Shape& arg_shape, const SlicePlan& sp, size_t elem_type)
-{
+void runtime::reference::strided_slice(const char* arg,
+                                       char* out,
+                                       const Shape& arg_shape,
+                                       const SlicePlan& sp,
+                                       size_t elem_type) {
     runtime::AlignedBuffer slice_out_buffer(shape_size(sp.reshape_in_shape) * elem_type);
     slice(reinterpret_cast<const char*>(arg),
           slice_out_buffer.get_ptr<char>(),

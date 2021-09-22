@@ -1,18 +1,9 @@
-// Copyright (c) 2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 KERNEL(reorder_weights_winograd_2x3_s1)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
@@ -30,12 +21,12 @@ KERNEL(reorder_weights_winograd_2x3_s1)(const __global INPUT0_TYPE* input, __glo
 
     const uint output_tile_width = 4;
     const uint output_tile_height = 1;
-    
+
     const uint tile_x_idx = get_global_id(0);
     const uint tile_y_idx = get_global_id(1);
     const uint feature_idx = (uint)get_global_id(2) % INPUT0_IFM_NUM;
     const uint batch_idx = (uint)get_global_id(2) / INPUT0_IFM_NUM;
-    
+
     uint in_idx = batch_idx * INPUT0_OFM_PITCH
                  + feature_idx * INPUT0_IFM_PITCH
                  + in_tile_y_idx * input_tile_height * INPUT0_Y_PITCH

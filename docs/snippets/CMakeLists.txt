@@ -15,22 +15,16 @@ if(NOT CLDNN__IOCL_ICD_INCDIRS OR TRUE)
 endif()
 
 # remove OpenCV related sources
-find_package(OpenCV QUIET)
+if (ENABLE_OPENCV)
+  find_package(OpenCV QUIET)
+else()
+  set(OpenCV_FOUND FALSE)
+endif()
+
 if(NOT OpenCV_FOUND)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide5.cpp"
                              "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
 endif()
-
-# ONNX importer related files
-if(NOT NGRAPH_ONNX_IMPORT_ENABLE)
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial0.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial1.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial2.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial3.cpp")
-endif()
-
-# remove snippets for deprecated / removed API
-list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/Migration_CoreAPI.cpp")
 
 # requires mfxFrameSurface1 and MSS API
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.cpp"
@@ -50,8 +44,8 @@ if(OpenCV_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
 endif()
 
-if(NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(${TARGET_NAME} PRIVATE onnx_importer)
+if(NGRAPH_ONNX_FRONTEND_ENABLE)
+    target_link_libraries(${TARGET_NAME} PRIVATE onnx_ngraph_frontend)
 endif()
 
 if(NOT MSVC)

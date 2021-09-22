@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,19 +13,15 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type& precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const bool haveMultiplyWithNoConstBeforeDequantization) {
-    std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     std::shared_ptr<ngraph::op::Op> parent = input;
     std::shared_ptr<ngraph::op::Parameter> secondInput;
     if (haveMultiplyWithNoConstBeforeDequantization) {
-        secondInput = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+        secondInput = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
         parent = std::make_shared<ngraph::opset1::Multiply>(input, secondInput);
     }
     const auto dequantizationOp = makeDequantization(parent, dequantization);
@@ -41,33 +37,40 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOrigina
 
 std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
-    const FakeQuantizeOnData& fqOnData) {
+    const ngraph::PartialShape& inputShape,
+    const FakeQuantizeOnData& fqOnData,
+    const Constant& constant) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
-    const auto fakeQuantizeOnActivations = makeFakeQuantize(input, precision, fqOnData);
-    const auto reshape = std::make_shared<ngraph::opset1::Reshape>(
-        fakeQuantizeOnActivations,
-        std::make_shared<ngraph::opset1::Constant>(element::i32, Shape{ inputShape.size() }, inputShape),
-        true);
-    reshape->set_friendly_name("output");
+    const auto fakeQuantize = makeFakeQuantize(input, precision, fqOnData);
 
-    ngraph::ResultVector results{
-        std::make_shared<ngraph::opset1::Result>(reshape)
-    };
+    const auto rank = inputShape.rank();
+    assert(rank.is_static());
+    const size_t size = rank.get_length() - 2;
+    const auto maxPool = std::make_shared<opset1::MaxPool>(
+        fakeQuantize,
+        Strides(size, 1),
+        Shape(size, 1),
+        Shape(size, 0),
+        Shape(size, 2));
+
+    const auto multiply = std::make_shared<ngraph::opset1::Multiply>(
+        maxPool,
+        std::make_shared<ngraph::opset1::Constant>(constant.outPrecision, constant.shape, constant.values));
+    multiply->set_friendly_name("output");
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(multiply)};
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MultiplyToGroupConvolutionFunction");
 }
 
 std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getReference(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type& inputPrecision,
     const std::shared_ptr<ngraph::opset1::Constant>& weights,
     const std::shared_ptr<ngraph::opset1::Constant>& biases,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        inputPrecision,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
 
-    const size_t spatialDimsSize = inputShape.size() - 2;
+    const size_t spatialDimsSize = inputShape.rank().get_length() - 2;
     ngraph::Strides strides(spatialDimsSize, 1ul);
     ngraph::CoordinateDiff pads(spatialDimsSize, 0ul);
     ngraph::Strides dilations(spatialDimsSize, 1ul);

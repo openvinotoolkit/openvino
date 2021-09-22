@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,11 +18,11 @@ class FuseSubtractToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
 };
@@ -35,13 +35,10 @@ class FuseSubtractToFakeQuantizeTransformation :
     public testing::WithParamInterface<FuseSubtractToFakeQuantizeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

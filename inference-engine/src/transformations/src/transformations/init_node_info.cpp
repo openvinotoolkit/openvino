@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Functio
                 rtInfo[attr->get_type_info().name] = init_attr;
             }
         }
-        // Convert manually set attributes to appropriate VariantWraper class instances
+        // Convert manually set attributes to appropriate VariantWrapper class instances
         // all manually set attributes must belong to VariantWrapper<std::string> class
         for (auto & attr : update_attributes) {
             if (rtInfo.count(attr.first)) {

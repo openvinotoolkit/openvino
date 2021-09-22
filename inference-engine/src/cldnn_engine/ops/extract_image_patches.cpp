@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 #include "ngraph/op/extractimagepatches.hpp"
 
-#include "api/extract_image_patches.hpp"
+#include "cldnn/primitives/extract_image_patches.hpp"
 
 namespace CLDNNPlugin {
 
@@ -16,7 +16,7 @@ static inline std::string PadToString(ngraph::op::PadType pad) {
         case ngraph::op::PadType::SAME_UPPER: return "same_upper";
         case ngraph::op::PadType::SAME_LOWER: return "same_lower";
         case ngraph::op::PadType::VALID: return "valid";
-        default: THROW_IE_EXCEPTION << "Unsupported pad type in ExtractImagePatches primitive " << pad;
+        default: IE_THROW() << "Unsupported pad type in ExtractImagePatches primitive " << pad;
     }
 
     return "";
@@ -38,7 +38,8 @@ void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                                 strides,
                                                                 rates,
                                                                 auto_pad,
-                                                                CldnnTensorFromIEDims(op->get_output_shape(0)));
+                                                                CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                                op->get_friendly_name());
 
     p.AddPrimitive(extractImagePatchesPrim);
     p.AddPrimitiveToProfiler(op);

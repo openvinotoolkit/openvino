@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,8 @@ Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::stri
                 availablesMetrics.push_back(supportedAPI.first);
             }
             return availablesMetrics;
-        }}
+        }},
+        {METRIC_KEY(IMPORT_EXPORT_SUPPORT), []() {return true;}}
     };
 
     auto it = queryApiSupported.find(name);

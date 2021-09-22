@@ -1,24 +1,10 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from mo.front.tf.extractors.concat import tf_concat_ext
 from mo.front.tf.extractors.fused_bn import tf_fused_bn_extractor
 from mo.front.tf.extractors.native_tf import native_tf_node_extractor
 from mo.front.tf.extractors.pack import tf_pack_ext
-from mo.front.tf.extractors.random_uniform import tf_random_uniform_ext
 from mo.front.tf.extractors.utils import get_tf_node_port
 from mo.graph.graph import Node
 
@@ -33,24 +19,30 @@ def get_tf_edges(node: Node):
     """
     edge_list = []
     for in_port, src_node_id in enumerate(node.pb.input):
-        src_node, src_port = get_tf_node_port(src_node_id)
-        tensor_name = src_node + ":" + str(src_port)
-        cf_flag = False
-        if src_node[0] == '^':
-            src_node = src_node[1:]
-            cf_flag = True
-        edge = (src_node, node.id, {
-            'in': in_port,
-            'out': src_port,
-            # debug anchor for a framework name, out port and tensor name
-            'fw_tensor_debug_info': [(src_node_id, src_port, tensor_name)],
-            'in_attrs': ['in', 'control_flow_edge', 'permutation'],
-            'out_attrs': ['out', 'permutation'],
-            'data_attrs': ['fw_tensor_debug_info'],
-            'control_flow_edge': cf_flag
-        })
-        edge_list.append(edge)
+        edge_list.append(create_tf_edge(src_node_id, node.id, in_port))
     return edge_list
+
+
+def create_tf_edge(src_node_id: str, dst_node_id: str, in_port: int):
+    """
+    Creates an edge for given nodes and input port.
+    """
+    src_node, src_port = get_tf_node_port(src_node_id)
+    tensor_name = src_node + ":" + str(src_port)
+    cf_flag = False
+    if src_node[0] == '^':
+        src_node = src_node[1:]
+        cf_flag = True
+    return (src_node, dst_node_id, {
+        'in': in_port,
+        'out': src_port,
+        # debug anchor for a framework name, out port and tensor name
+        'fw_tensor_debug_info': [(src_node_id, tensor_name)],
+        'in_attrs': ['in', 'control_flow_edge', 'permutation'],
+        'out_attrs': ['out', 'permutation'],
+        'data_attrs': ['fw_tensor_debug_info'],
+        'control_flow_edge': cf_flag
+    })
 
 
 def node_pb_arg(pb_extractor: callable):
@@ -64,7 +56,6 @@ tf_op_extractors = {
     'FusedBatchNormV3': node_pb_arg(tf_fused_bn_extractor),
     'ConcatV2': node_pb_arg(tf_concat_ext),
     'Pack': node_pb_arg(tf_pack_ext),
-    'RandomUniform': node_pb_arg(tf_random_uniform_ext),
 }
 
 

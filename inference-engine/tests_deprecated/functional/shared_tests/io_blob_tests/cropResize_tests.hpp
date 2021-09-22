@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include <ie_plugin_config.hpp>
 
 #include "tests_common.hpp"
-#include "tests_common_func.hpp"
 #include "format_reader_ptr.h"
 #include "single_layer_common.hpp"
 
@@ -25,9 +24,6 @@
 #include <ngraph_functions/builders.hpp>
 #include <functional_test_utils/blob_utils.hpp>
 
-#include "ie_parallel.hpp"
-#include "details/ie_exception.hpp"
-
 using namespace ::testing;
 using namespace InferenceEngine;
 
@@ -36,7 +32,7 @@ Blob::Ptr img2Blob(const std::vector<cv::Mat>& imgs, Layout layout) {
     using data_t = typename PrecisionTrait<PRC>::value_type;
 
     if (imgs.empty()) {
-        THROW_IE_EXCEPTION << "No images to create blob from";
+        IE_THROW() << "No images to create blob from";
     }
 
     // get image value in correct format
@@ -50,7 +46,7 @@ Blob::Ptr img2Blob(const std::vector<cv::Mat>& imgs, Layout layout) {
             case CV_32FC3: return img.at<cv::Vec3f>(h, w)[c];
             case CV_32FC4: return img.at<cv::Vec4f>(h, w)[c];
             default:
-                THROW_IE_EXCEPTION << "Image type is not recognized";
+                IE_THROW() << "Image type is not recognized";
         }
     };
 
@@ -92,7 +88,7 @@ Blob::Ptr img2Blob(const std::vector<cv::Mat>& imgs, Layout layout) {
             }
             break;
             default:
-                THROW_IE_EXCEPTION << "Inconsistent input layout for image processing: " << layout;
+                IE_THROW() << "Inconsistent input layout for image processing: " << layout;
         }
     }
     return resultBlob;
@@ -130,9 +126,6 @@ protected:
         ie = PluginCache::get().ie();
     }
 
-    void TearDown() override {
-    }
-
 public:
     std::shared_ptr<ngraph::Function> createSubgraph(const SizeVector &dims, InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
         ngraph::element::Type type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
@@ -153,7 +146,7 @@ public:
             case ColorFormat::BGRX: return cv::COLOR_BGR2BGRA;
             case ColorFormat::RGBX: return cv::COLOR_BGR2RGBA;
             case ColorFormat::RGB: return cv::COLOR_BGR2RGB;
-            default: THROW_IE_EXCEPTION << "Color format " << fmt << " not found";
+            default: IE_THROW() << "Color format " << fmt << " not found";
         }
         return cv::COLOR_COLORCVT_MAX;
     }
@@ -248,7 +241,7 @@ protected:
 
         if (((_colorFormat == BGRX) || (_colorFormat == RGBX)) && (_inputLayout != NHWC))
         {
-            THROW_IE_EXCEPTION << "The color format with the layout aren't compatible.";
+            IE_THROW() << "The color format with the layout aren't compatible.";
         }
 
         _inputPrecision = _inPrcThresh.first;
@@ -430,7 +423,7 @@ TEST_P(RandomROITest, PreprocRandomROITest)
         if (_isAsync)
         {
             req.StartAsync();
-            req.Wait(IInferRequest::WaitMode::RESULT_READY);
+            req.Wait(InferRequest::WaitMode::RESULT_READY);
         }
         else
         {
@@ -507,7 +500,7 @@ protected:
             }
                 break;
             default:
-                THROW_IE_EXCEPTION << "Can't resize data of inconsistent precision: " << _inputPrecision;
+                IE_THROW() << "Can't resize data of inconsistent precision: " << _inputPrecision;
         }
 
         refBlob = img2Blob<Precision::FP32>(resizedImg, Layout::NCHW);
@@ -535,7 +528,7 @@ TEST_P(CropResizeTest, resizeTest) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -543,7 +536,7 @@ TEST_P(CropResizeTest, resizeTest) {
     Blob::Ptr outputBlob = req.GetBlob(net.getOutputsInfo().begin()->first);
 
     if (refBlob->size() != outputBlob->size()) {
-        THROW_IE_EXCEPTION << "reference and output blobs have different sizes!";
+        IE_THROW() << "reference and output blobs have different sizes!";
     }
 
     compare(*outputBlob, *refBlob, _threshold);
@@ -571,7 +564,7 @@ TEST_P(CropResizeTest, resizeAfterLoadTest) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -579,7 +572,7 @@ TEST_P(CropResizeTest, resizeAfterLoadTest) {
     Blob::Ptr outputBlob = req.GetBlob(net.getOutputsInfo().begin()->first);
 
     if (refBlob->size() != outputBlob->size()) {
-        THROW_IE_EXCEPTION << "reference and output blobs have different sizes!";
+        IE_THROW() << "reference and output blobs have different sizes!";
     }
 
     compare(*outputBlob, *refBlob, _threshold);
@@ -642,7 +635,7 @@ TEST_P(CropResizeTest, cropRoiTest) {
         }
         break;
         default:
-            THROW_IE_EXCEPTION << "Can't resize data of inconsistent precision: " << _inputPrecision;
+            IE_THROW() << "Can't resize data of inconsistent precision: " << _inputPrecision;
     }
     refBlob = img2Blob<Precision::FP32>(resizedImg, Layout::NCHW);
 
@@ -653,7 +646,7 @@ TEST_P(CropResizeTest, cropRoiTest) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -661,7 +654,7 @@ TEST_P(CropResizeTest, cropRoiTest) {
     Blob::Ptr outputBlob = req.GetBlob(net.getOutputsInfo().begin()->first);
 
     if (refBlob->size() != outputBlob->size()) {
-        THROW_IE_EXCEPTION << "reference and output blobs have different sizes!";
+        IE_THROW() << "reference and output blobs have different sizes!";
     }
 
     compare(*outputBlob, *refBlob, _threshold);
@@ -740,7 +733,7 @@ TEST_P(BatchResizeTest, batchTest) {
             }
             break;
             default:
-                THROW_IE_EXCEPTION  << "Can't resize data of inconsistent precision: "
+                IE_THROW()  << "Can't resize data of inconsistent precision: "
                                     << _inputPrecision;
         }
     }
@@ -762,7 +755,7 @@ TEST_P(BatchResizeTest, batchTest) {
         }
         break;
         default:
-            THROW_IE_EXCEPTION  << "Can't resize data of inconsistent precision: "
+            IE_THROW()  << "Can't resize data of inconsistent precision: "
                                 << _inputPrecision;
     }
 
@@ -772,7 +765,7 @@ TEST_P(BatchResizeTest, batchTest) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -780,7 +773,7 @@ TEST_P(BatchResizeTest, batchTest) {
     Blob::Ptr outputBlob = req.GetBlob(net.getOutputsInfo().begin()->first);
 
     if (refBlob->size() != outputBlob->size()) {
-        THROW_IE_EXCEPTION << "reference and output blobs have different sizes!";
+        IE_THROW() << "reference and output blobs have different sizes!";
     }
 
     compare(*outputBlob, *refBlob, _threshold);
@@ -866,7 +859,7 @@ TEST_P(DynamicBatchResizeTest, dynamicBatchTest) {
             }
             break;
             default:
-                THROW_IE_EXCEPTION  << "Can't resize data of inconsistent precision: "
+                IE_THROW()  << "Can't resize data of inconsistent precision: "
                                     << _inputPrecision;
         }
     }
@@ -896,7 +889,7 @@ TEST_P(DynamicBatchResizeTest, dynamicBatchTest) {
         }
         break;
         default:
-            THROW_IE_EXCEPTION  << "Can't resize data of inconsistent precision: "
+            IE_THROW()  << "Can't resize data of inconsistent precision: "
                                 << _inputPrecision;
     }
 
@@ -912,13 +905,13 @@ TEST_P(DynamicBatchResizeTest, dynamicBatchTest) {
     req.SetBatch(batch_size);
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
 
     if (refBlob->size() != outputBlob->size()) {
-        THROW_IE_EXCEPTION << "reference and output blobs have different sizes!";
+        IE_THROW() << "reference and output blobs have different sizes!";
     }
 
     compare(*outputBlob, *refBlob, _threshold);
@@ -991,7 +984,7 @@ TEST_P(ReorderTest, reorderTest) {
         }
         break;
         default:
-            THROW_IE_EXCEPTION << "Can't resize data of inconsistent precision: " << _inputPrecision;
+            IE_THROW() << "Can't resize data of inconsistent precision: " << _inputPrecision;
     }
 
     refBlob = img2Blob<Precision::FP32>(_img, Layout::NCHW);
@@ -1000,7 +993,7 @@ TEST_P(ReorderTest, reorderTest) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -1008,7 +1001,7 @@ TEST_P(ReorderTest, reorderTest) {
     Blob::Ptr outputBlob = req.GetBlob(net.getOutputsInfo().begin()->first);
 
     if (refBlob->size() != outputBlob->size()) {
-        THROW_IE_EXCEPTION << "reference and output blobs have different sizes!";
+        IE_THROW() << "reference and output blobs have different sizes!";
     }
 
     compare(*outputBlob, *refBlob, _threshold);
@@ -1058,7 +1051,7 @@ protected:
         _inputLayout = Layout::NCHW;
 
         if (_inputPrecision != Precision::U8) {
-            THROW_IE_EXCEPTION << "Specified input precision != Precision::U8";
+            IE_THROW() << "Specified input precision != Precision::U8";
         }
 
         _yRoi = _cropRoi;
@@ -1148,7 +1141,7 @@ TEST_P(NV12ColorConvertTest, NV12Test) {
 
     if (_isAsync) {
         req.StartAsync();
-        req.Wait(IInferRequest::WaitMode::RESULT_READY);
+        req.Wait(InferRequest::WaitMode::RESULT_READY);
     } else {
         req.Infer();
     }
@@ -1156,7 +1149,7 @@ TEST_P(NV12ColorConvertTest, NV12Test) {
     Blob::Ptr outputBlob = req.GetBlob(net.getOutputsInfo().begin()->first);
 
     if (refBlob->size() != outputBlob->size()) {
-        THROW_IE_EXCEPTION << "reference and output blobs have different sizes!";
+        IE_THROW() << "reference and output blobs have different sizes!";
     }
 
     compare(*outputBlob, *refBlob, _threshold);
@@ -1190,9 +1183,9 @@ TEST_P(NV12ColorConvertTest, NV12Test) {
     ColorFormat::BGRX, ColorFormat::RGBX
 
 // #define PLUGING_CASE(_plugin, _test, _params) \
-//     INSTANTIATE_TEST_CASE_P(_plugin##_run, _test, Combine(Values(#_plugin "Plugin"), _params) )
+//     INSTANTIATE_TEST_SUITE_P(_plugin##_run, _test, Combine(Values(#_plugin "Plugin"), _params) )
 
 #define PLUGING_CASE_WITH_SUFFIX(_device, _suffix, _test, _params) \
-    INSTANTIATE_TEST_CASE_P(_device##_run##_suffix, _test, Combine(Values(#_device), _params) )
+    INSTANTIATE_TEST_SUITE_P(_device##_run##_suffix, _test, Combine(Values(#_device), _params) )
 
 #endif  // USE_OPENCV

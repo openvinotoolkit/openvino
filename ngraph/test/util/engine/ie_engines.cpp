@@ -1,24 +1,12 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ie_engines.hpp"
 
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "pass/opset1_upgrade.hpp"
+#include "shared_utils.hpp"
 
 using namespace ngraph;
 
@@ -36,14 +24,97 @@ namespace
         const auto expected_data = expected->rmap();
 
         const auto* computed_data_buffer = computed_data.template as<const T*>();
-        const auto* expected_data_buffer = expected_data.template as<const T*>();
-
         std::vector<T> computed_values(computed_data_buffer,
                                        computed_data_buffer + computed->size());
-        std::vector<T> expected_values(expected_data_buffer,
-                                       expected_data_buffer + computed->size());
 
-        return std::make_pair(std::move(computed_values), std::move(expected_values));
+        switch (static_cast<InferenceEngine::Precision::ePrecision>(expected->getTensorDesc().getPrecision()))
+        {
+            case InferenceEngine::Precision::FP32: {
+                const auto* expected_data_buffer = expected_data.template as<const float *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::FP64: {
+                const auto *expected_data_buffer = expected_data.template as<const double *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I8: {
+                const auto *expected_data_buffer = expected_data.template as<const int8_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I16: {
+                const auto *expected_data_buffer = expected_data.template as<const int16_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I32: {
+                const auto *expected_data_buffer = expected_data.template as<const int32_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I64: {
+                const auto *expected_data_buffer = expected_data.template as<const int64_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U8: {
+                const auto *expected_data_buffer = expected_data.template as<const uint8_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U16: {
+                const auto *expected_data_buffer = expected_data.template as<const uint16_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U32: {
+                const auto *expected_data_buffer = expected_data.template as<const uint32_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U64: {
+                const auto *expected_data_buffer = expected_data.template as<const uint64_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::BOOL: {
+                const auto *expected_data_buffer = expected_data.template as<const uint8_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::BF16: {
+                const auto *expected_data_buffer = expected_data.template as<const bfloat16 *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            default: THROW_IE_EXCEPTION << "Not implemented yet";
+        }
     }
 
     /// Compares two blobs containing floating point elements.
@@ -70,18 +141,35 @@ namespace
         return ngraph::test::all_close<T>(test_results.first, test_results.second);
     }
 
+    template <typename T>
+    typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
+        compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
+                      InferenceEngine::MemoryBlob::CPtr expected,
+                      const size_t tolerance_bits)
+    {
+        const auto test_results = extract_test_results<T>(computed, expected);
+
+        NGRAPH_CHECK(test_results.first.size() == test_results.second.size(),
+                     "Number of expected and computed results don't match");
+
+        std::vector<double> expected_double(test_results.first.size());
+        std::vector<double> result_double(test_results.second.size());
+
+        for (size_t i = 0; i < test_results.first.size(); ++i)
+        {
+            expected_double[i] = static_cast<double>(test_results.first[i]);
+            result_double[i] = static_cast<double>(test_results.second[i]);
+        }
+
+        return ngraph::test::all_close_f(expected_double, result_double, tolerance_bits);
+    }
+
     /// Compares two blobs elementwise
     inline testing::AssertionResult compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
                                                   InferenceEngine::MemoryBlob::CPtr expected,
                                                   const size_t tolerance_bits)
     {
         const auto& computed_precision = computed->getTensorDesc().getPrecision();
-        const auto& expected_precision = expected->getTensorDesc().getPrecision();
-
-        if (computed_precision != expected_precision)
-        {
-            return testing::AssertionFailure();
-        }
 
         switch (static_cast<InferenceEngine::Precision::ePrecision>(computed_precision))
         {
@@ -118,10 +206,13 @@ namespace
         case InferenceEngine::Precision::BOOL:
             return compare_blobs<uint8_t>(computed, expected, tolerance_bits);
             break;
+        case InferenceEngine::Precision::BF16:
+            return compare_blobs<bfloat16>(computed, expected, tolerance_bits);
+            break;
         default: THROW_IE_EXCEPTION << "Not implemented yet";
         }
     }
-};
+}; // namespace
 
 namespace
 {
@@ -147,8 +238,10 @@ namespace
         case element::Type_t::u16: return InferenceEngine::Precision::U16; break;
         case element::Type_t::u32: return InferenceEngine::Precision::U32; break;
         case element::Type_t::u64: return InferenceEngine::Precision::U64; break;
-        case element::Type_t::u1: throw std::runtime_error("unsupported type");
-        case element::Type_t::undefined: throw std::runtime_error("unsupported type");
+        case element::Type_t::u1: return InferenceEngine::Precision::BIN; break;
+        case element::Type_t::i4:
+        case element::Type_t::u4:
+        case element::Type_t::undefined:
         case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -156,12 +249,11 @@ namespace
 #endif
         throw std::runtime_error("unsupported type");
     }
-}
+} // namespace
 
 test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char* device)
     : m_function{function}
 {
-    upgrade_and_validate_function(m_function);
     const auto cnn_network = InferenceEngine::CNNNetwork(m_function);
     m_network_inputs = cnn_network.getInputsInfo();
     m_network_outputs = cnn_network.getOutputsInfo();
@@ -182,8 +274,8 @@ void test::IE_Engine::infer()
 {
     if (m_network_inputs.size() != m_allocated_inputs)
     {
-        THROW_IE_EXCEPTION << "The tested graph has " << m_network_inputs.size() << " inputs, but "
-                           << m_allocated_inputs << " were passed.";
+        IE_THROW() << "The tested graph has " << m_network_inputs.size() << " inputs, but "
+                   << m_allocated_inputs << " were passed.";
     }
     else
     {
@@ -244,27 +336,37 @@ testing::AssertionResult
     test::IE_Engine::compare_results_with_tolerance_as_fp(const float tolerance)
 {
     auto comparison_result = testing::AssertionSuccess();
-    return comparison_result;
-}
 
-std::shared_ptr<Function>
-    test::IE_Engine::upgrade_and_validate_function(const std::shared_ptr<Function> function) const
-{
-    pass::Manager passes;
-    passes.register_pass<pass::Opset1Upgrade>();
-    passes.run_passes(function);
-
-    static std::set<NodeTypeInfo> ie_ops = get_ie_ops();
-    for (const auto& node : function->get_ops())
+    for (const auto& output : m_network_outputs)
     {
-        if (ie_ops.find(node->get_type_info()) == ie_ops.end())
+        if (comparison_result == testing::AssertionFailure())
         {
-            THROW_IE_EXCEPTION << "Unsupported operator detected in the graph: "
-                               << node->get_type_info().name;
+            break;
+        }
+
+        InferenceEngine::MemoryBlob::CPtr computed_output_blob =
+            InferenceEngine::as<InferenceEngine::MemoryBlob>(m_inference_req.GetBlob(output.first));
+
+        const auto& expected_output_blob = m_expected_outputs[output.first];
+
+        switch (expected_output_blob->getTensorDesc().getPrecision())
+        {
+        case InferenceEngine::Precision::FP32:
+        {
+            const auto test_results =
+                extract_test_results<float>(computed_output_blob, expected_output_blob);
+            comparison_result =
+                test::compare_with_tolerance(test_results.first, test_results.second, tolerance);
+            break;
+        }
+        default:
+            comparison_result = testing::AssertionFailure()
+                                << "Unsupported data type encountered in "
+                                   "'compare_results_with_tolerance_as_fp' method";
         }
     }
 
-    return function;
+    return comparison_result;
 }
 
 std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
@@ -280,6 +382,10 @@ std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
     ie_ops.insert(opset5.begin(), opset5.end());
     const auto& opset6 = get_opset6().get_type_info_set();
     ie_ops.insert(opset6.begin(), opset6.end());
+    const auto& opset7 = get_opset7().get_type_info_set();
+    ie_ops.insert(opset7.begin(), opset7.end());
+    const auto& opset8 = get_opset8().get_type_info_set();
+    ie_ops.insert(opset8.begin(), opset8.end());
     return ie_ops;
 }
 
@@ -292,20 +398,14 @@ void test::IE_Engine::reset()
 
 namespace InferenceEngine
 {
-// those definitions and template specializations are required for clang (both Linux and Mac)
-// Without this section the linker is not able to find destructors for missing TBlob specializations
-// which are instantiated in the unit tests that use TestCase and this engine
-#ifdef __clang__
+    // Without this section the linker is not able to find destructors for missing TBlob
+    // specializations which are instantiated in the unit tests that use TestCase and this engine
     template <typename T, typename U>
     TBlob<T, U>::~TBlob()
     {
         free();
     }
 
-    template class TBlob<unsigned int>;
-    template class TBlob<bool>;
     template class TBlob<ngraph::bfloat16>;
     template class TBlob<ngraph::float16>;
-    template class TBlob<char>;
-#endif
-}
+} // namespace InferenceEngine

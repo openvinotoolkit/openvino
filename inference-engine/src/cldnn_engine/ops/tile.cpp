@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 #include "ngraph/op/tile.hpp"
 
-#include "api/tile.hpp"
+#include "cldnn/primitives/tile.hpp"
 
 namespace CLDNNPlugin {
 
@@ -18,7 +18,8 @@ void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>& op) {
 
     auto tilePrim = cldnn::tile(layerName,
                                 inputPrimitives[0],
-                                CldnnTensorFromIEDims(op->get_output_shape(0)));
+                                CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                op->get_friendly_name());
 
     p.AddPrimitive(tilePrim);
     p.AddPrimitiveToProfiler(op);

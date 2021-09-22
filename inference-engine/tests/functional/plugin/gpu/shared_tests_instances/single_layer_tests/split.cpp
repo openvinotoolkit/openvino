@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::I64
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_NumSplitsCheck, SplitLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(1),
                                 ::testing::Values(0, 1, 2, 3),
@@ -31,7 +31,7 @@ INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         SplitLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_splitWithUnusedOutputsTest, SplitLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_splitWithUnusedOutputsTest, SplitLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(5),
                                 ::testing::Values(0),

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,41 +11,104 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32
-    // ngraph::element::f16
+    ngraph::element::f32,
+    ngraph::element::f16
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
 const std::vector<ReshapeTransformationParam> params = {
     // 3D -> 4D
     {
-        ngraph::Shape{ 1, 3, 32 },
+        { 1, 3, 32 },
         { 1, 3, 4, 8 },
         { 256ul, ngraph::Shape{ 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-        true
+        "Reshape",
+        "U8"
+    },
+    // 3D -> 1D
+    {
+        { 1, 3, 32 },
+        { -1 },
+        { 256ul, ngraph::Shape{}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        "Reshape",
+        "FP32"
     },
     // 4D -> 3D
     {
-        ngraph::Shape{ 1, 3, 16, 16 },
+        { 1, 3, 16, 16 },
         { 1, 3, 256 },
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-        true
+        "Reshape",
+        "U8"
+    },
+    // 4D -> 3D
+    {
+        { 1, 3, 16, 16 },
+        { 0, 3, -1 },
+        { 256ul, ngraph::Shape{ 1, 3, 1, 1 }, { 0.f }, { 255.f }, { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
+        "Reshape",
+        "U8"
     },
     // 4D -> 2D
     {
-        ngraph::Shape{ 1, 3, 4, 8 },
+        { 1, 3, 4, 8 },
         { 1, -1 },
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-        true
+        "Reshape",
+        "U8"
     },
+    // 4D -> 2D
+    {
+        { 1, 3, 4, 8 },
+        { 1, -1 },
+        {
+            256ul,
+            ngraph::Shape{ 1, 3, 1, 1 },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 255.f/2.f, 255.f/3.f },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 255.f/2.f, 255.f/3.f },
+        },
+        "Reshape",
+        "U8"
+    },
+    // 4D -> 3D
+    {
+        { 1, 3, 4, 8 },
+        { 1, 3, -1 },
+        {
+            256ul,
+            ngraph::Shape{ 1, 3, 1, 1 },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 255.f/2.f, 255.f/3.f },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 255.f/2.f, 255.f/3.f },
+        },
+        "Reshape",
+        "U8"
+    },
+    // per-channel
+    // 4D -> 3D
+    {
+        { 1, 3, 4, 8 },
+        { 1, -1, 8 },
+        {
+            256ul,
+            ngraph::Shape{ 1, 3, 1, 1 },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 255.f/2.f, 255.f/3.f },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 255.f/2.f, 255.f/3.f },
+        },
+        "Reshape",
+        "U8"
+    }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ReshapeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReshapeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),

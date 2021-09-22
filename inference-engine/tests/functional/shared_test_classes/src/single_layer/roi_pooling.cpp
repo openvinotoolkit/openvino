@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string ROIPoolingLayerTest::getTestCaseName(testing::TestParamInfo<roiPoolingParamsTuple> obj) {
+    std::string ROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<roiPoolingParamsTuple>& obj) {
         std::vector<size_t> inputShape;
         std::vector<size_t> coordsShape;
         std::vector<size_t> poolShape;
@@ -36,10 +35,7 @@ namespace LayerTestsDefinitions {
         return result.str();
     }
 
-    void ROIPoolingLayerTest::Infer() {
-        inferRequest = executableNetwork.CreateInferRequest();
-        inputs.clear();
-
+    void ROIPoolingLayerTest::GenerateInputs() {
         auto feat_map_shape = cnnNetwork.getInputShapes().begin()->second;
 
         const auto is_roi_max_mode = (pool_method == ngraph::helpers::ROIPoolingTypes::ROI_MAX);
@@ -55,16 +51,14 @@ namespace LayerTestsDefinitions {
             if (it == 1) {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
-                CommonTestUtils::fill_data_roi(blob->buffer(), blob->size(), feat_map_shape[0] - 1,
-                                               height, width, 1.0f, is_roi_max_mode);
+                CommonTestUtils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, feat_map_shape[0] - 1,
+                                                                                 height, width, 1.0f, is_roi_max_mode);
             } else {
                 blob = GenerateInput(*info);
             }
-            inferRequest.SetBlob(info->name(), blob);
             inputs.push_back(blob);
             it++;
         }
-        inferRequest.Infer();
     }
 
     void ROIPoolingLayerTest::SetUp() {

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,5 +99,5 @@ TEST_P(DSR_MatMul, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicMatMul, DSR_MatMul, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicMatMul, DSR_MatMul, combinations);
 }  // namespace

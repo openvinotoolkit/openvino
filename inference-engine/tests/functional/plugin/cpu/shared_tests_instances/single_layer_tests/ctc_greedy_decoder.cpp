@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ const auto basicCases = ::testing::Combine(
     ::testing::ValuesIn(mergeRepeated),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_CtcGreedyDecoderBasic, CTCGreedyDecoderLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_CtcGreedyDecoderBasic, CTCGreedyDecoderLayerTest,
                         basicCases,
                         CTCGreedyDecoderLayerTest::getTestCaseName);
 }  // namespace

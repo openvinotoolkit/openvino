@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,8 @@
 
 #include "ngraph/op/gather_tree.hpp"
 
-#include "api/gather_tree.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/gather_tree.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 
@@ -30,7 +30,10 @@ void CreateGatherTreeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Gather
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
-                                                 cldnn::data_types::i32);
+                                                 cldnn::data_types::i32,
+                                                 std::vector<float>(),
+                                                 cldnn::reorder_mean_mode::subtract,
+                                                 op->get_friendly_name());
             p.AddPrimitive(preprocessPrim);
             p.AddInnerPrimitiveToProfiler(reorderPrimName, layerName, op);
             reorderedInputs[portIndex] = reorderPrimName;
@@ -43,7 +46,8 @@ void CreateGatherTreeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Gather
                                              reorderedInputs[0],
                                              reorderedInputs[1],
                                              reorderedInputs[2],
-                                             reorderedInputs[3]);
+                                             reorderedInputs[3],
+                                             op->get_friendly_name());
 
     p.AddPrimitive(gatherTreePrim);
     p.AddPrimitiveToProfiler(op);

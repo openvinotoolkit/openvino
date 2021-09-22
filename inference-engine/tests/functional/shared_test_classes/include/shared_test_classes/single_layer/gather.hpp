@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,37 @@ protected:
 class GatherLayerTest : public testing::WithParamInterface<gatherParamsTuple>, public GatherLayerTestBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<gatherParamsTuple> &obj);
+
+protected:
+    void SetUp() override;
+};
+
+
+typedef std::tuple<
+    std::vector<size_t>,               // Input shapes
+    std::vector<size_t>,               // Indices shape
+    std::tuple<int, int>,              // Gather axis and batch
+    InferenceEngine::Precision,        // Network precision
+    InferenceEngine::Precision,        // Input precision
+    InferenceEngine::Precision,        // Output precision
+    InferenceEngine::Layout,           // Input layout
+    InferenceEngine::Layout,           // Output layout
+    std::string                        // Device name
+> gather7ParamsTuple;
+
+class Gather7LayerTest : public testing::WithParamInterface<gather7ParamsTuple>,
+                         virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<gather7ParamsTuple>& obj);
+
+protected:
+    void SetUp() override;
+};
+
+class Gather8LayerTest : public testing::WithParamInterface<gather7ParamsTuple>,
+                         virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<gather7ParamsTuple>& obj);
 
 protected:
     void SetUp() override;

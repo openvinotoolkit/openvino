@@ -1,18 +1,9 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 #include "include/data_types.cl"
 
 #define ALIGN_TO(val, multiple) (((val) + (multiple)-1) / (multiple) * (multiple))
@@ -110,7 +101,7 @@ KERNEL(pooling_gpu_bs_fs_yx_bsv16_fsv16)(const __global INPUT0_TYPE* input,
                 __attribute__((opencl_unroll_hint(16)))
                 for (uint z = 0; z < 16; z++)
                     result[z] = FUNC_CALL(apply_pooling)(result[z], (int)ch16_data[z]);
-               
+
             input_idx += input_x_pitch;
         }
         input_idx += (input_y_pitch - POOL_SIZE_X * input_x_pitch);
@@ -167,7 +158,7 @@ KERNEL(pooling_gpu_bs_fs_yx_bsv16_fsv16)(const __global INPUT0_TYPE* input,
 #endif
     }
     const uint output_pos = GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(OUTPUT, b, f, y, x);
-    
+
 #if OUTPUT_TYPE_SIZE == 1
     vstore4(as_uint4(final_result), 0, ((__global uint*)(output + output_pos)));
 #else

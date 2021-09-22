@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,21 +7,21 @@
 #include <thread>
 #include <chrono>
 #include <gtest/gtest.h>
-#include <regression_tests.hpp>
+#include <ie_blob.h>
 #include <string>
 #include <precision_utils.h>
+#include <tests_common.hpp>
 #include <vpu/vpu_plugin_config.hpp>
 #include "vpu_case_params.hpp"
 #include "vpu_param_containers.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
-using namespace Regression::Matchers;
 
 #define DISABLE_IF(expr) \
     do { \
         if (expr) { \
-            SKIP() << "Disabled since " << #expr << std::endl; \
+            GTEST_SKIP() << "Disabled since " << #expr << std::endl; \
         } \
     }while(false)
 
@@ -33,7 +33,7 @@ using namespace Regression::Matchers;
 #endif
 
 #if defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64)
-#   define DISABLE_ON_ARM      SKIP() << "Disabled on ARM" << std::endl;
+#   define DISABLE_ON_ARM      GTEST_SKIP() << "Disabled on ARM" << std::endl;
 #   define VPU_REG_TEST_ARM_PLATFORM
 #else
 #   define DISABLE_ON_ARM
@@ -42,9 +42,9 @@ using namespace Regression::Matchers;
 #define ENABLE_IF_MA2085 \
     do { \
         if (!CheckMA2085()) { \
-        SKIP() << "Disabled since not on MA2085" << std::endl; \
+            GTEST_SKIP() << "Disabled since not on MA2085" << std::endl; \
         }\
-    }while(false)
+    } while(false)
 
 extern bool CheckMyriadX();
 extern bool CheckMA2085();
@@ -62,7 +62,7 @@ using PluginDevicePair = std::pair<std::string, std::string>;
 // class VpuNoRegressionBase
 //------------------------------------------------------------------------------
 
-class VpuNoRegressionBase : public Regression::RegressionTests {
+class VpuNoRegressionBase : public TestsCommon {
 public:
     //Operations
     static std::string getTestCaseName(PluginDevicePair,
@@ -71,7 +71,7 @@ public:
                                        DoReshape);
 
     // Accessors
-    std::string getDeviceName() const override;
+    std::string getDeviceName() const;
 
 protected:
     // Data section
@@ -83,6 +83,5 @@ protected:
     std::map <std::string, std::string> config_;
 
     //Operations
-    virtual void SetUp() override = 0;
     virtual void InitConfig();
 };

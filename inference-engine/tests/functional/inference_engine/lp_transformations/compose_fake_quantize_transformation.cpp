@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ public:
 
 TEST_P(ComposeFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, false, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, false, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -140,7 +140,7 @@ const std::vector<ComposeFakeQuantizeTransformationParams> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ComposeFakeQuantizeTransformation,
     ::testing::Combine(

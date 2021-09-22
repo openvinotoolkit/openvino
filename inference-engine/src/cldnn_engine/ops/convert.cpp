@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/convert_like.hpp"
 
-#include "api/reorder.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 
@@ -19,8 +19,13 @@ void CreateConvertLikeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Conve
 
     auto outDataType = DataTypeFromPrecision(op->get_input_element_type(1));
 
-    auto reorderPrim = cldnn::reorder(layerName, inputPrimitives[0], cldnn::format::any, outDataType);
-
+    auto reorderPrim = cldnn::reorder(layerName,
+                                      inputPrimitives[0],
+                                      cldnn::format::any,
+                                      outDataType,
+                                      std::vector<float>(),
+                                      cldnn::reorder_mean_mode::subtract,
+                                      op->get_friendly_name());
     p.AddPrimitive(reorderPrim);
     p.AddPrimitiveToProfiler(op);
 }
@@ -32,7 +37,13 @@ void CreateConvertOp(Program& p, const std::shared_ptr<ngraph::op::v0::Convert>&
 
     auto outDataType = DataTypeFromPrecision(op->get_destination_type());
 
-    auto reorderPrim = cldnn::reorder(layerName, inputPrimitives[0], cldnn::format::any, outDataType);
+    auto reorderPrim = cldnn::reorder(layerName,
+                                      inputPrimitives[0],
+                                      cldnn::format::any,
+                                      outDataType,
+                                      std::vector<float>(),
+                                      cldnn::reorder_mean_mode::subtract,
+                                      op->get_friendly_name());
 
     p.AddPrimitive(reorderPrim);
     p.AddPrimitiveToProfiler(op);

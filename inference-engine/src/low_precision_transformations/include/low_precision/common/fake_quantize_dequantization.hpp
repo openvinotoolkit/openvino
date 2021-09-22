@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <tuple>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <low_precision/lpt_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -15,7 +16,7 @@ namespace low_precision {
 
 typedef std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> FakeQuantizeDequantizationValues;
 
-class FakeQuantizeDequantization {
+class LP_TRANSFORMATIONS_API FakeQuantizeDequantization {
 public:
     FakeQuantizeDequantization();
 
@@ -29,7 +30,7 @@ public:
         const std::shared_ptr<ngraph::opset1::Constant>& multiplyConstant);
 
     bool empty() const;
-    bool multiplyHasZero() const;
+    bool multiplyHasZeroOrDenormal() const;
     bool isShared() const;
     bool isLowPrecision() const;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,19 +9,21 @@
 #include "gna2-model-export-api.h"
 #include "gna2-model-suecreek-header.h"
 #include "gna_api_wrapper.hpp"
+#include "gna2-device-api.h"
 
 #include <cstdint>
 #include <fstream>
 
 void * ExportSueLegacyUsingGnaApi2(
     uint32_t modelId,
+    uint32_t deviceIndex,
     Gna2ModelSueCreekHeader* modelHeader) {
 
     uint32_t exportConfig;
     auto status = Gna2ModelExportConfigCreate(gnaUserAllocatorAlignedPage, &exportConfig);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigCreate");
 
-    status = Gna2ModelExportConfigSetSource(exportConfig, 0, modelId);
+    status = Gna2ModelExportConfigSetSource(exportConfig, deviceIndex, modelId);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetSource");
     status = Gna2ModelExportConfigSetTarget(exportConfig, Gna2DeviceVersionEmbedded1_0);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetTarget");

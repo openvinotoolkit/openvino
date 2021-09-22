@@ -18,7 +18,6 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
   * **Description**: *hidden_size* specifies hidden state size.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *activations*
@@ -50,8 +49,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
   * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse* then `num_directions = 1`, if it is *bidirectional*, then `num_directions = 2`. This `num_directions` value specifies input/output shape requirements.
   * **Range of values**: *forward*, *reverse*, *bidirectional*
   * **Type**: `string`
-  * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 **Inputs**
 
@@ -75,7 +73,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
 
 **Types**
 
-* *T1*: any supported floating point type.
+* *T1*: any supported floating-point type.
 * *T2*: any supported integer type.
 
 **Example**

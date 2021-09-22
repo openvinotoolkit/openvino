@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +27,7 @@ using NonZeroLayerTestParamsSet = typename std::tuple<
 class NonZeroLayerTest : public testing::WithParamInterface<NonZeroLayerTestParamsSet>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<NonZeroLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<NonZeroLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

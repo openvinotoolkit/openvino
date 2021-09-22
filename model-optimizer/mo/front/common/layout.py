@@ -1,21 +1,9 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import dynamic_dimension_value
 from mo.utils.error import Error
 
 nchw_to_nhwc_permute = np.array([0, 2, 3, 1], dtype=np.int64)
@@ -103,7 +91,7 @@ def shape_for_layout(layout: str, **kwargs):
     :param layout: layout string.
     :param kwargs: dictionary that contains the dimension sizes using the following keys: 'batch', 'features', 'depth',
     'height', 'width'.
-    :return: np.array of type np.int64 with 4 or 5 elements.
+    :return: shape_array of type np.int64 with 4 or 5 elements.
     """
     assert layout in supported_layouts
     for required_key in ('batch', 'features', 'height', 'width'):
@@ -115,7 +103,7 @@ def shape_for_layout(layout: str, **kwargs):
 
     depth = kwargs.get('depth', None)
     shape_len = 4 + (depth is not None)
-    output_shape = np.ones(shape=[shape_len], dtype=np.int64)
+    output_shape = np.ma.ones(shape=[shape_len], dtype=np.int64, fill_value=dynamic_dimension_value)
     output_shape[get_batch_dim(layout, shape_len)] = kwargs['batch']
     output_shape[get_height_dim(layout, shape_len)] = kwargs['height']
     output_shape[get_width_dim(layout, shape_len)] = kwargs['width']

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     ClampTransformationParam
@@ -29,10 +29,9 @@ class ClampTransformation :
     public testing::WithParamInterface<ClampTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ClampTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ClampTransformationParams>& obj);
 protected:
     void SetUp() override;
-private:
-    void validate();
 };
+
 }  // namespace LayerTestsDefinitions

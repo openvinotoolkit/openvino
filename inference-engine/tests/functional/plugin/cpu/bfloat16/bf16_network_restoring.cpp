@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -195,11 +195,13 @@ protected:
 };
 
 TEST_P(BF16NetworkRestore1, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, BF16NetworkRestore1,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, BF16NetworkRestore1,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 #include "ngraph/op/result.hpp"
 
-#include "api/reorder.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 using namespace InferenceEngine;
 
@@ -29,7 +29,7 @@ void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& o
     }
     auto it = networkOutputs.find(inputID);
     if (it == networkOutputs.end()) {
-        THROW_IE_EXCEPTION << "Can't find output " << inputID << " in OutputsDataMap";
+        IE_THROW() << "Can't find output " << inputID << " in OutputsDataMap";
     }
     std::string originalOutName = it->first;
     DataPtr outputData = it->second;
@@ -48,7 +48,7 @@ void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& o
         outputlayout != NC &&
         outputlayout != C &&
         outputlayout != SCALAR) {
-        THROW_IE_EXCEPTION << "Unsupported layout (" << outputlayout << ") in output: " << originalOutName;
+        IE_THROW() << "Unsupported layout (" << outputlayout << ") in output: " << originalOutName;
     }
 
     auto outLayerName = layer_type_name_ID(op);
@@ -56,9 +56,12 @@ void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& o
     std::string outputID = inputs[0];
 
     p.AddPrimitive(cldnn::reorder(outLayerName,
-                                outputID,
-                                FormatFromLayout(outputData->getLayout()),
-                                DataTypeFromPrecision(precision)));
+                                  outputID,
+                                  FormatFromLayout(outputData->getLayout()),
+                                  DataTypeFromPrecision(precision),
+                                  std::vector<float>(),
+                                  cldnn::reorder_mean_mode::subtract,
+                                  op->get_friendly_name()));
     p.InitProfileInfo(outLayerName, "reorder");
     p.profilingIDs.push_back(outLayerName);
     p.primitiveIDs[outLayerName] = outLayerName;

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 
 #include "ie_core.hpp"
 #include "ie_precision.hpp"
-#include "details/ie_exception.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
 
@@ -37,11 +36,12 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Log,                   "Log"},
         {ngraph::helpers::ActivationTypes::Sign,                  "Sign"},
         {ngraph::helpers::ActivationTypes::Abs,                   "Abs"},
-        {ngraph::helpers::ActivationTypes::Gelu,                  "Gelu"},
         {ngraph::helpers::ActivationTypes::Clamp,                 "Clamp"},
         {ngraph::helpers::ActivationTypes::Negative,              "Negative"},
         {ngraph::helpers::ActivationTypes::Acos,                  "Acos"},
+        {ngraph::helpers::ActivationTypes::Acosh,                 "Acosh"},
         {ngraph::helpers::ActivationTypes::Asin,                  "Asin"},
+        {ngraph::helpers::ActivationTypes::Asinh,                 "Asinh"},
         {ngraph::helpers::ActivationTypes::Atan,                  "Atan"},
         {ngraph::helpers::ActivationTypes::Cos,                   "Cos"},
         {ngraph::helpers::ActivationTypes::Cosh,                  "Cosh"},
@@ -71,7 +71,9 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Swish,                 "Swish"},
         {ngraph::helpers::ActivationTypes::HSigmoid,              "HSigmoid"},
         {ngraph::helpers::ActivationTypes::RoundHalfToEven,       "RoundHalfToEven"},
-        {ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero, "RoundHalfAwayFromZero"}
+        {ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero, "RoundHalfAwayFromZero"},
+        {ngraph::helpers::ActivationTypes::GeluErf,               "GeluErf"},
+        {ngraph::helpers::ActivationTypes::GeluTanh,              "GeluTanh"},
 };
 
 typedef std::tuple<
@@ -96,19 +98,23 @@ protected:
 };
 
 class ActivationParamLayerTest : public ActivationLayerTest {
-public:
-    void Infer() override;
-
 protected:
     void SetUp() override;
 
 private:
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
     void generateActivationBlob(std::vector<float> constantsValue);
     ngraph::ParameterVector createActivationParams(
         ngraph::element::Type ngPrc, std::vector<size_t> inShape = {});
 
 private:
     std::vector<float> constantsValue;
+};
+
+class ActivationDynamicLayerTest : public ActivationLayerTest {
+public:
+    std::unordered_set<size_t> static_dims;
+    void Run() override;
 };
 
 }  // namespace LayerTestsDefinitions

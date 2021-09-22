@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
@@ -63,13 +50,4 @@ def common_backpropdata_extender(op: Node):
 
 
 def backpropdata_infer(op: Node):
-    op['new_input_shapes'] = list()
-    for n in op.in_nodes():
-        op.new_input_shapes.append(op.in_node(n).shape)
-    assert len(op.new_input_shapes) == len(op.old_input_shapes)
-
-    for i in range(len(op.new_input_shapes)):
-        assert np.array_equal(op.new_input_shapes[i], op.old_input_shapes[i]), 'Something wrong happened while ' \
-                                                    '{} shape infer with type {}!'.format(op.name, op.type)
-
-    Extender.const_shape_infer(op)
+    Extender.use_shapes_from_ir(op)

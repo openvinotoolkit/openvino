@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "eltwise_kernel_mixed_byxf_and_fs_b_yx_fsv32.h"
 #include "kernel_selector_utils.h"
@@ -81,9 +70,9 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
     KernelData kd = KernelData::Default<eltwise_params>(params);
     eltwise_params& newParams = *static_cast<eltwise_params*>(kd.params.get());
 
-    std::string jit;
+    std::pair<std::string, std::string> jit;
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
 
     try {
         auto cldnn_jit = GetJitConstants(newParams);
@@ -142,12 +131,12 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
 
     // in fs_b_yx_fsv32 format we will process 2 features per work item, so reads/writes are done in full writes for
     // fp16
-    kernel.workGroups.global = {x, y, (featuresRoundedUp * batches) / 2};
+    kernel.params.workGroups.global = {x, y, (featuresRoundedUp * batches) / 2};
 
-    kernel.workGroups.local = {1, 1, 16};
+    kernel.params.workGroups.local = {1, 1, 16};
 
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 
     return {kd};
 }

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
 from mo.front.common.partial_infer.elemental import copy_shape_infer
@@ -100,7 +87,7 @@ def register_caffe_python_extractor(op: Op, name: str = None):
     if not name and hasattr(op, 'op'):
         name = op.op
     if not name:
-        raise Error("Can not register Op {}. Please, call function 'register_caffe_python_extractor'"
+        raise Error("Can not register Op {}. Please, call function 'register_caffe_python_extractor' "
                     "with parameter 'name' .".format(op),
                     refer_to_faq_msg(87))
     CaffePythonFrontExtractorOp.registered_ops[name] = lambda node: extension_op_extractor(node, op)

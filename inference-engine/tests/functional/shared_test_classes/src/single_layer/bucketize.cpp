@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string BucketizeLayerTest::getTestCaseName(testing::TestParamInfo<bucketizeParamsTuple> obj) {
+    std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<bucketizeParamsTuple>& obj) {
         InferenceEngine::SizeVector dataShape;
         InferenceEngine::SizeVector bucketsShape;
         bool with_right_bound;

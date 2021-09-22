@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import io
 import os
@@ -65,6 +52,7 @@ supported_components = [
     'sumgroupcomponent',
     'tanhcomponent',
     'tdnncomponent',
+    'timeheightconvolutioncomponent',
 ]
 
 
@@ -345,7 +333,7 @@ def create_edge_attrs(prev_layer_id: str, next_layer_id: str, tensor_name: str, 
         'out': out_port,
         'in': in_port,
         'name': next_layer_id,
-        'fw_tensor_debug_info': [(prev_layer_id, out_port, tensor_name)],
+        'fw_tensor_debug_info': [(prev_layer_id, tensor_name + ":" + str(out_port))],
         'in_attrs': ['in', 'permutation'],
         'out_attrs': ['out', 'permutation'],
         'data_attrs': ['fw_tensor_debug_info']

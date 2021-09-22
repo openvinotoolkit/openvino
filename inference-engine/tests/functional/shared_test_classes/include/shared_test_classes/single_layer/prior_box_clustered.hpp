@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@
 
 #include "ie_core.hpp"
 #include "ie_precision.hpp"
-#include "details/ie_exception.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
 
@@ -35,6 +34,7 @@ typedef std::tuple<
         bool,                // clip
         float,               // step_width
         float,               // step_height
+        float,               // step
         float,               // offset
         std::vector<float>> priorBoxClusteredSpecificParams;
 
@@ -64,6 +64,7 @@ protected:
     std::vector<float> variances;
     float step_width;
     float step_height;
+    float step;
     float offset;
     bool clip;
 

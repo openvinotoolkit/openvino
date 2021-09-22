@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace InferenceEngine::details;
 namespace {
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 std::vector<ReluTestValues> testValues = {
@@ -24,10 +24,10 @@ std::vector<ReluTestValues> testValues = {
     { { 256ul, ngraph::Shape({}), {-12.8f / 2.f}, {12.7f}, {-12.8f / 2.f}, {12.7f} }, true }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ReluTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReluTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues)),
     ReluTransformation::getTestCaseName);

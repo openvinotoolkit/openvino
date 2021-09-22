@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET fluid_preproc_tests)
 
-find_package(OpenCV COMPONENTS gapi QUIET)
+find_package(OpenCV COMPONENTS gapi core imgproc QUIET)
 if(NOT OpenCV_FOUND)
     message(WARNING "No suitable OpenCV version detected, ${TARGET} skipped")
     return()
@@ -23,13 +23,19 @@ target_include_directories(${TARGET} PRIVATE
           $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
           $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_link_libraries(${TARGET} PRIVATE opencv_core opencv_imgproc inference_engine fluid_test_computations gtest gtest_main)
+target_link_libraries(${TARGET} PRIVATE opencv_core opencv_imgproc openvino::util
+    inference_engine fluid_test_computations gtest gtest_main)
 
 if(GAPI_TEST_PERF)
-  target_compile_definitions(${TARGET} PRIVATE -DPERF_TEST=1)
+    target_compile_definitions(${TARGET} PRIVATE -DPERF_TEST=1)
 else()
-  target_compile_definitions(${TARGET} PRIVATE -DPERF_TEST=0)
+    target_compile_definitions(${TARGET} PRIVATE -DPERF_TEST=0)
 endif()
 
 add_test(NAME ${TARGET} COMMAND ${TARGET})
 set_property(TEST ${TARGET} PROPERTY LABELS IE PREPROC)
+
+install(TARGETS ${TARGET}
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)

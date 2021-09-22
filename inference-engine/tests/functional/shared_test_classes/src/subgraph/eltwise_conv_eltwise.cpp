@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -168,7 +168,7 @@ void EltwiseBeforeConvTest::SetUp() {
     function = std::make_shared<ngraph::Function>(reshape2, params, "EltwiseBeforeConvTest");
 }
 
-std::string EltwiseWithTwoConvsAsInputsTest::getTestCaseName(testing::TestParamInfo<EltwiseConvEltwiseParams> obj) {
+std::string EltwiseWithTwoConvsAsInputsTest::getTestCaseName(const testing::TestParamInfo<EltwiseConvEltwiseParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

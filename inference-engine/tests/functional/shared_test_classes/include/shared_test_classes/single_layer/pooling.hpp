@@ -1,5 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +51,7 @@ typedef std::tuple<
 class PoolingLayerTest : public testing::WithParamInterface<poolLayerTestParamsSet>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<poolLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<poolLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;
@@ -61,7 +60,7 @@ protected:
 class GlobalPoolingLayerTest : public testing::WithParamInterface<globalPoolLayerTestParamsSet>,
                                virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<globalPoolLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<globalPoolLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

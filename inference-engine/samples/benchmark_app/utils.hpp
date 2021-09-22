@@ -4,26 +4,28 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
 namespace benchmark_app {
-    struct InputInfo {
-        InferenceEngine::Precision precision;
-        InferenceEngine::SizeVector shape;
-        std::string layout;
-        bool isImage() const;
-        bool isImageInfo() const;
-        size_t getDimentionByLayout(char character) const;
-        size_t width() const;
-        size_t height() const;
-        size_t channels() const;
-        size_t batch() const;
-        size_t depth() const;
-    };
-    using InputsInfo = std::map<std::string, InputInfo>;
-}
+struct InputInfo {
+    InferenceEngine::Precision precision;
+    InferenceEngine::SizeVector shape;
+    std::string layout;
+    std::vector<float> scale;
+    std::vector<float> mean;
+    bool isImage() const;
+    bool isImageInfo() const;
+    size_t getDimentionByLayout(char character) const;
+    size_t width() const;
+    size_t height() const;
+    size_t channels() const;
+    size_t batch() const;
+    size_t depth() const;
+};
+using InputsInfo = std::map<std::string, InputInfo>;
+}  // namespace benchmark_app
 
 std::vector<std::string> parseDevices(const std::string& device_string);
 uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device);
@@ -31,12 +33,15 @@ std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector
                                                                const std::string& values_string);
 std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& shapes);
 size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info);
-std::vector<std::string> split(const std::string &s, char delim);
+std::vector<std::string> split(const std::string& s, char delim);
+std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& scale_mean,
+                                                           const benchmark_app::InputsInfo& inputs_info);
 
 template <typename T>
 std::map<std::string, std::string> parseInputParameters(const std::string parameter_string,
                                                         const std::map<std::string, T>& input_info) {
-    // Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all inputs)
+    // Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all
+    // inputs)
     std::map<std::string, std::string> return_value;
     std::string search_string = parameter_string;
     auto start_pos = search_string.find_first_of('[');
@@ -68,10 +73,13 @@ template <typename T>
 benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
                                         const std::string& layout_string,
                                         const size_t batch_size,
+                                        const std::string& scale_string,
+                                        const std::string& mean_string,
                                         const std::map<std::string, T>& input_info,
                                         bool& reshape_required) {
     std::map<std::string, std::string> shape_map = parseInputParameters(shape_string, input_info);
     std::map<std::string, std::string> layout_map = parseInputParameters(layout_string, input_info);
+
     reshape_required = false;
     benchmark_app::InputsInfo info_map;
     for (auto& item : input_info) {
@@ -110,6 +118,25 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
         }
         info_map[name] = info;
     }
+
+    // Update scale and mean
+    std::map<std::string, std::vector<float>> scale_map = parseScaleOrMean(scale_string, info_map);
+    std::map<std::string, std::vector<float>> mean_map = parseScaleOrMean(mean_string, info_map);
+
+    for (auto& item : info_map) {
+        if (item.second.isImage()) {
+            item.second.scale.assign({1, 1, 1});
+            item.second.mean.assign({0, 0, 0});
+
+            if (scale_map.count(item.first)) {
+                item.second.scale = scale_map.at(item.first);
+            }
+            if (mean_map.count(item.first)) {
+                item.second.mean = mean_map.at(item.first);
+            }
+        }
+    }
+
     return info_map;
 }
 
@@ -117,14 +144,20 @@ template <typename T>
 benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
                                         const std::string& layout_string,
                                         const size_t batch_size,
+                                        const std::string& scale_string,
+                                        const std::string& mean_string,
                                         const std::map<std::string, T>& input_info) {
     bool reshape_required = false;
-    return getInputsInfo<T>(shape_string, layout_string, batch_size, input_info, reshape_required);
+    return getInputsInfo<T>(shape_string,
+                            layout_string,
+                            batch_size,
+                            scale_string,
+                            mean_string,
+                            input_info,
+                            reshape_required);
 }
 
 #ifdef USE_OPENCV
-void dump_config(const std::string& filename,
-                 const std::map<std::string, std::map<std::string, std::string>>& config);
-void load_config(const std::string& filename,
-                 std::map<std::string, std::map<std::string, std::string>>& config);
+void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config);
+void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config);
 #endif

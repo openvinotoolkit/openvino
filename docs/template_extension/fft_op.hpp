@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,9 @@ namespace TemplateExtension {
 class FFTOp : public ngraph::op::Op {
 public:
     static constexpr ngraph::NodeTypeInfo type_info{"FFT", 0};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
+    const ngraph::NodeTypeInfo& get_type_info() const override {
+        return type_info;
+    }
 
     FFTOp() = default;
     FFTOp(const ngraph::Output<ngraph::Node>& inp, bool inverse);
@@ -23,6 +25,5 @@ public:
     bool inverse;
 };
 
-}
+}  // namespace TemplateExtension
 //! [fft_op:header]
-

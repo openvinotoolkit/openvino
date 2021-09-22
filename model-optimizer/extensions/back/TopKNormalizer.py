@@ -1,21 +1,7 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from extensions.back.Reshape0DToSqueeze import Reshape0DToSqueeze
-from extensions.back.ScalarConstNormalize import ScalarNormalize
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
@@ -35,9 +21,6 @@ class TopKNormalizer(BackReplacementPattern):
     TODO this pass should be removed when IE supports 0D tensors.
     """
     enabled = True
-
-    def run_after(self):
-        return [ScalarNormalize]
 
     def run_before(self):
         return [Reshape0DToSqueeze]
@@ -65,7 +48,7 @@ class TopKNormalizer(BackReplacementPattern):
         """
         if node.out_port(0).disconnected():
             output = Result(node.graph, {'name': node.name + '/Result_port_0/',
-                                    'remove_from_xml': node.has_and_set('remove_values_output')}).create_node()
+                                         'keep_output_port': node.has_and_set('remove_values_output')}).create_node()
             node.out_port(0).get_connection().set_destination(output.in_port(0))
         if node.out_port(1).disconnected():
             output = Result(node.graph, {'name': node.name + '/Result_port_1/'}).create_node()

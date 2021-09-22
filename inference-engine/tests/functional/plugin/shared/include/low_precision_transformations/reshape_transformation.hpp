@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,11 @@
 namespace LayerTestsDefinitions {
 class ReshapeTransformationParam {
 public:
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::vector<int> reshapeConstValues;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    bool isTransformed;
+    std::string layerType;
+    std::string expectedKernelType;
 };
 
 typedef std::tuple<
@@ -31,13 +32,11 @@ class ReshapeTransformation :
     public testing::WithParamInterface<ReshapeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReshapeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReshapeTransformationParams>& obj);
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
+    void Run() override;
 };
 
 }  // namespace LayerTestsDefinitions

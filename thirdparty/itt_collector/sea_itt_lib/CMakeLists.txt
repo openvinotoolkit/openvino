@@ -18,6 +18,7 @@ set(TARGET_NAME sea_itt_lib)
 
 set(CMAKE_DEBUG_POSTFIX "")
 set(CMAKE_RELEASE_POSTFIX "")
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.h")
 
@@ -35,4 +36,7 @@ elseif(WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Dbghelp)
 endif()
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
+install(TARGETS ${TARGET_NAME}
+        DESTINATION tests/sea_itt_lib COMPONENT itt_collector EXCLUDE_FROM_ALL)

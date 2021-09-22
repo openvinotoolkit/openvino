@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,9 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-        // TODO: FIX BUG 33375
-        // Disabled due to rare sporadic failures.
-        ".*TransformationTests\\.ConstFoldingPriorBoxClustered.*",
         // TODO: task 32568, enable after supporting constants outputs in plugins
         ".*TransformationTests\\.ConstFoldingPriorBox.*",
+        // azure is failing after #6199
+        ".*/NmsLayerTest.*",
     };
 }

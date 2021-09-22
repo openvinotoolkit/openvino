@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,6 +40,9 @@ private:
 } // namespace op
 
 std::ostream &operator<<(std::ostream &s, const ELTWISE_TYPE &type);
+} // namespace ngraph
+
+namespace ov {
 
 template <>
 class AttributeAdapter<ELTWISE_TYPE>
@@ -52,4 +55,5 @@ public:
                                               1};
   const DiscreteTypeInfo &get_type_info() const override { return type_info; }
 };
-} // namespace ngraph
+
+}  // namespace ov

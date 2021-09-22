@@ -1,28 +1,18 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 
 import numpy as np
 
 from extensions.ops.elementwise import Add, Mul
 from mo.front.common.layout import get_features_dim
-from mo.front.extractor import split_node_in_port, get_node_id_with_ports
+from mo.front.common.partial_infer.utils import compatible_dims
+from mo.front.extractor import get_node_id_with_ports
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.utils.cli_parser import get_node_name_with_port_from_input_value
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
@@ -53,7 +43,7 @@ class AddMeanScaleValues(MiddleReplacementPattern):
             return
         assert input_node.has_valid('shape')
         features_dim_idx = get_features_dim(graph.graph['layout'], len(input_node.shape))
-        assert value.size == input_node.shape[features_dim_idx] or value.size == 1
+        assert compatible_dims(value.size, input_node.shape[features_dim_idx]) or value.size == 1
 
         shape = np.ones(len(input_node.shape), dtype=np.int64)
         shape[features_dim_idx] = value.size
@@ -103,6 +93,7 @@ class AddMeanScaleValues(MiddleReplacementPattern):
 
         for node_name, node_mean_scale_values in values.items():
             node_id = None
+            node_name = get_node_name_with_port_from_input_value(node_name)
             try:
                 node_id, direction, port = get_node_id_with_ports(graph, node_name, skip_if_no_port=False)
                 assert direction != 'out', 'Only input port can be specified for mean/scale application'

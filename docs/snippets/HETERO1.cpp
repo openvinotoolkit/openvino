@@ -1,7 +1,6 @@
-#include <inference_engine.hpp>
-#include <ngraph/ngraph.hpp>
+#include <ie_core.hpp>
 #include <ngraph/function.hpp>
-#include "hetero/hetero_plugin_config.hpp"
+#include <ngraph/variant.hpp>
 
 int main() {
 using namespace InferenceEngine;
@@ -13,7 +12,7 @@ auto function = network.getFunction();
 
 // This example demonstrates how to perform default affinity initialization and then
 // correct affinity manually for some layers
-const std::string device = "HETERO:FPGA,CPU";
+const std::string device = "HETERO:GPU,CPU";
 
 // QueryNetworkResult object contains map layer -> device
 InferenceEngine::QueryNetworkResult res = core.QueryNetwork(network, device, { });

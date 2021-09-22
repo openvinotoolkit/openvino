@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,14 +8,18 @@
 #include <vector>
 
 #include "cpp/ie_executable_network.hpp"
+#include "cpp/ie_executable_network_base.hpp"
+#include "cpp/ie_plugin.hpp"
 
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
-#include "unit_test_utils/mocks/mock_ie_ivariable_state.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 
 using testing::_;
+using testing::MatcherCast;
 using testing::Throw;
 using testing::Ref;
 using testing::Return;
@@ -31,183 +35,104 @@ using testing::SetArgReferee;
 //  8. RemoteContext::Ptr GetContext()
 
 
-TEST(ExecutableNetworkConstructorTests, ThrowsIfConstructFromNullptr) {
-    // TODO issue: 26390; ExecutableNetwork's constructor shouldn't be available
-    EXPECT_NO_THROW(InferenceEngine::ExecutableNetwork exeNet{});
-
-    EXPECT_THROW(InferenceEngine::ExecutableNetwork exeNet{nullptr}, InferenceEngine::details::InferenceEngineException);
-}
-
-TEST(ExecutableNetworkConstructorTests, CanConstruct) {
-    std::shared_ptr<MockIExecutableNetwork> mockIExeNet_p = std::make_shared<MockIExecutableNetwork>();
-    InferenceEngine::ExecutableNetwork exeNet{mockIExeNet_p};
-}
-
-TEST(ExecutableNetworkDestructorTests, Destruct) {
-    std::shared_ptr<MockIExecutableNetwork> mockIExeNet_p = std::make_shared<MockIExecutableNetwork>();
-    InferenceEngine::ExecutableNetwork exeNet{mockIExeNet_p};
-    exeNet.~ExecutableNetwork();
-    // Call of destructor should decrease counter of shared_ptr
-    ASSERT_EQ(mockIExeNet_p.use_count(), 1);
-}
-
 class ExecutableNetworkTests : public ::testing::Test {
 protected:
-    std::shared_ptr<MockIExecutableNetwork> mockIExeNet_p;
-    std::unique_ptr<InferenceEngine::ExecutableNetwork> exeNetwork;
+    std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
+    InferenceEngine::SoExecutableNetworkInternal    exeNetwork;
+    MockIInferencePlugin*                           mockIPlugin;
+    InferencePlugin                                 plugin;
 
-    virtual void TearDown() {
-        mockIExeNet_p.reset();
-        exeNetwork.reset();
+    void TearDown() override {
+        mockIExeNet.reset();
+        exeNetwork = {};
+        plugin = {};
     }
 
-    virtual void SetUp() {
-        mockIExeNet_p = std::make_shared<MockIExecutableNetwork>();
-        ASSERT_EQ(exeNetwork, nullptr);
-        exeNetwork = std::unique_ptr<InferenceEngine::ExecutableNetwork>(
-                new InferenceEngine::ExecutableNetwork(mockIExeNet_p));
-        ASSERT_NE(exeNetwork, nullptr);
+    void SetUp() override {
+        mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
+        auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
+        ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
+        plugin = InferenceEngine::InferencePlugin{{}, mockIPluginPtr};
+        exeNetwork = plugin.LoadNetwork(CNNNetwork{}, {});
     }
 };
 
 TEST_F(ExecutableNetworkTests, GetOutputsInfoThrowsIfReturnErr) {
-    EXPECT_CALL(*mockIExeNet_p.get(), GetOutputsInfo(_, _))
+    EXPECT_CALL(*mockIExeNet.get(), GetOutputsInfo())
             .Times(1)
-            .WillOnce(Return(InferenceEngine::GENERAL_ERROR));
+            .WillOnce(Throw(InferenceEngine::GeneralError{""}));
 
-    ASSERT_THROW(exeNetwork->GetOutputsInfo(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exeNetwork->GetOutputsInfo(), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkTests, GetOutputsInfo) {
-    EXPECT_CALL(*mockIExeNet_p.get(), GetOutputsInfo(_, _))
-            .Times(1)
-            .WillOnce(Return(InferenceEngine::OK));
-
     InferenceEngine::ConstOutputsDataMap data;
+    EXPECT_CALL(*mockIExeNet.get(), GetOutputsInfo()).Times(1).WillRepeatedly(Return(InferenceEngine::ConstOutputsDataMap{}));
     ASSERT_NO_THROW(data = exeNetwork->GetOutputsInfo());
     ASSERT_EQ(data, InferenceEngine::ConstOutputsDataMap{});
 }
 
 TEST_F(ExecutableNetworkTests, GetInputsInfoThrowsIfReturnErr) {
-    EXPECT_CALL(*mockIExeNet_p.get(), GetInputsInfo(_, _))
+    EXPECT_CALL(*mockIExeNet.get(), GetInputsInfo())
             .Times(1)
-            .WillOnce(Return(InferenceEngine::GENERAL_ERROR));
+            .WillOnce(Throw(InferenceEngine::GeneralError{""}));
 
-    ASSERT_THROW(exeNetwork->GetInputsInfo(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exeNetwork->GetInputsInfo(), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkTests, GetInputsInfo) {
-    EXPECT_CALL(*mockIExeNet_p.get(), GetInputsInfo(_, _))
-            .Times(1)
-            .WillOnce(Return(InferenceEngine::OK));
+    EXPECT_CALL(*mockIExeNet.get(), GetInputsInfo()).Times(1).WillRepeatedly(Return(InferenceEngine::ConstInputsDataMap{}));
 
     InferenceEngine::ConstInputsDataMap info;
     ASSERT_NO_THROW(info = exeNetwork->GetInputsInfo());
     ASSERT_EQ(info, InferenceEngine::ConstInputsDataMap{});
 }
 
-
-TEST_F(ExecutableNetworkTests, resetThrowsIfResetToNullptr) {
-    InferenceEngine::IExecutableNetwork::Ptr mockIExeNet_p_2{};
-    ASSERT_THROW(exeNetwork->reset(mockIExeNet_p_2), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(ExecutableNetworkTests, reset) {
-    InferenceEngine::IExecutableNetwork::Ptr mockIExeNet_p_2 = std::make_shared<MockIExecutableNetwork>();
-
-    exeNetwork->reset(mockIExeNet_p_2);
-
-    InferenceEngine::IExecutableNetwork::Ptr exeNet_p = *exeNetwork;   // use of IExecutableNetwork::Ptr&
-    EXPECT_NE(exeNet_p, mockIExeNet_p);
-    EXPECT_EQ(exeNet_p, mockIExeNet_p_2);
-}
-
-TEST_F(ExecutableNetworkTests, OperatorAmpersand) {
-    InferenceEngine::IExecutableNetwork::Ptr exeNet_p = *exeNetwork;   // use of IExecutableNetwork::Ptr&
-    ASSERT_EQ(exeNet_p, mockIExeNet_p);
-}
-
 IE_SUPPRESS_DEPRECATED_START
-TEST_F(ExecutableNetworkTests, QueryStateThrowsIfReturnErr) {
-    EXPECT_CALL(*mockIExeNet_p.get(), QueryState(_, _, _))
-            .Times(1)
-            .WillOnce(Return(InferenceEngine::GENERAL_ERROR));
-    EXPECT_THROW(exeNetwork->QueryState(), InferenceEngine::details::InferenceEngineException);
-}
 
-TEST_F(ExecutableNetworkTests, QueryStateIfReturnOutOfBounds) {
-    EXPECT_CALL(*mockIExeNet_p.get(), QueryState(_, _, _))
+TEST_F(ExecutableNetworkTests, QueryStateThrowsIfReturnErr) {
+    EXPECT_CALL(*mockIExeNet.get(), QueryState())
             .Times(1)
-            .WillOnce(Return(InferenceEngine::OUT_OF_BOUNDS));
-    std::vector<InferenceEngine::VariableState> MemState_;
-    EXPECT_NO_THROW(MemState_ = exeNetwork->QueryState());
-    EXPECT_EQ(MemState_.size(), 0);
+            .WillOnce(Throw(InferenceEngine::GeneralError{""}));
+    EXPECT_THROW(exeNetwork->QueryState(), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkTests, QueryState) {
-    std::shared_ptr<MockIVariableState> mockIMemState_p = std::make_shared<MockIVariableState>();
-    EXPECT_CALL(*mockIExeNet_p.get(), QueryState(_, _, _))
-            .Times(2)
-            .WillOnce(DoAll(SetArgReferee<0>(mockIMemState_p), Return(InferenceEngine::OK)))
-            .WillOnce(Return(InferenceEngine::OUT_OF_BOUNDS));
-    std::vector<InferenceEngine::VariableState> MemState_v;
+    auto mockIMemState_p = std::make_shared<MockIVariableStateInternal>();
+    EXPECT_CALL(*mockIExeNet.get(), QueryState())
+            .Times(1)
+            .WillOnce(Return(std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>>(1, mockIMemState_p)));
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> MemState_v;
     EXPECT_NO_THROW(MemState_v = exeNetwork->QueryState());
     EXPECT_EQ(MemState_v.size(), 1);
 }
+
 IE_SUPPRESS_DEPRECATED_END
 
 class ExecutableNetworkWithIInferReqTests : public ExecutableNetworkTests {
 protected:
-    std::shared_ptr<MockIInferRequest> mockIInferReq_p;
+    std::shared_ptr<MockIInferRequestInternal> mockIInferReq_p;
 
-    virtual void TearDown() {
+    void TearDown() override {
         ExecutableNetworkTests::TearDown();
         mockIInferReq_p.reset();
     }
 
-    virtual void SetUp() {
+    void SetUp() override {
         ExecutableNetworkTests::SetUp();
-        mockIInferReq_p = std::make_shared<MockIInferRequest>();
+        mockIInferReq_p = std::make_shared<MockIInferRequestInternal>();
     }
 };
 
 TEST_F(ExecutableNetworkWithIInferReqTests, CanCreateInferRequest) {
-    EXPECT_CALL(*mockIExeNet_p.get(), CreateInferRequest(_, _))
-            .WillOnce(DoAll(SetArgReferee<0>(mockIInferReq_p), Return(InferenceEngine::OK)));
-    InferRequest actualInferReq;
+    EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Return(mockIInferReq_p));
+    IInferRequestInternal::Ptr actualInferReq;
     ASSERT_NO_THROW(actualInferReq = exeNetwork->CreateInferRequest());
-    ASSERT_EQ(mockIInferReq_p, static_cast<IInferRequest::Ptr &>(actualInferReq));
 }
 
 TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestThrowsIfReturnNotOK) {
-    EXPECT_CALL(*mockIExeNet_p.get(), CreateInferRequest(_, _)).WillOnce(Return(InferenceEngine::GENERAL_ERROR));
-    ASSERT_THROW(exeNetwork->CreateInferRequest(), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestThrowsIfSetRequestToNullptr) {
-    EXPECT_CALL(*mockIExeNet_p.get(), CreateInferRequest(_, _))
-            .WillOnce(DoAll(SetArgReferee<0>(nullptr), Return(InferenceEngine::OK)));
-    ASSERT_THROW(exeNetwork->CreateInferRequest(), InferenceEngine::details::InferenceEngineException);
-}
-
-// CreateInferRequestPtr
-TEST_F(ExecutableNetworkWithIInferReqTests, CanCreateInferRequestPtr) {
-    EXPECT_CALL(*mockIExeNet_p.get(), CreateInferRequest(_, _))
-            .WillOnce(DoAll(SetArgReferee<0>(mockIInferReq_p), Return(InferenceEngine::OK)));
-    InferRequest::Ptr actualInferReq;
-    ASSERT_NO_THROW(actualInferReq = exeNetwork->CreateInferRequestPtr());
-    ASSERT_EQ(mockIInferReq_p, static_cast<IInferRequest::Ptr &>(*actualInferReq.get()));
-}
-
-TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestPtrThrowsIfReturnNotOK) {
-    EXPECT_CALL(*mockIExeNet_p.get(), CreateInferRequest(_, _)).WillOnce(Return(InferenceEngine::GENERAL_ERROR));
-    ASSERT_THROW(exeNetwork->CreateInferRequestPtr(), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestPtrThrowsIfSetRequestToNullptr) {
-    EXPECT_CALL(*mockIExeNet_p.get(), CreateInferRequest(_, _))
-            .WillOnce(DoAll(SetArgReferee<0>(nullptr), Return(InferenceEngine::OK)));
-    ASSERT_THROW(exeNetwork->CreateInferRequestPtr(), InferenceEngine::details::InferenceEngineException);
+    EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Throw(InferenceEngine::GeneralError{""}));
+    ASSERT_THROW(exeNetwork->CreateInferRequest(), InferenceEngine::Exception);
 }
 
 IE_SUPPRESS_DEPRECATED_START
@@ -218,20 +143,18 @@ protected:
     std::shared_ptr<IExecutableNetwork> exeNetwork;
     ResponseDesc dsc;
 
-    virtual void TearDown() {
-    }
-
-    virtual void SetUp() {
+    void SetUp() override {
         mock_impl.reset(new MockIExecutableNetworkInternal());
-        exeNetwork = shared_from_irelease(new ExecutableNetworkBase(mock_impl));
+        exeNetwork = std::make_shared<ExecutableNetworkBase>(mock_impl);
     }
 };
 
 // CreateInferRequest
 TEST_F(ExecutableNetworkBaseTests, canForwardCreateInferRequest) {
+    auto inferReqInternal = std::make_shared<MockIInferRequestInternal>();
+    EXPECT_CALL(*mock_impl.get(), CreateInferRequest()).Times(1).WillRepeatedly(Return(inferReqInternal));
     IInferRequest::Ptr req;
-    EXPECT_CALL(*mock_impl.get(), CreateInferRequest()).Times(1).WillRepeatedly(Return(req));
-    ASSERT_EQ(OK, exeNetwork->CreateInferRequest(req, &dsc));
+    ASSERT_NO_THROW(exeNetwork->CreateInferRequest(req, &dsc));
 }
 
 TEST_F(ExecutableNetworkBaseTests, canReportErrorInCreateInferRequest) {
@@ -264,5 +187,3 @@ TEST_F(ExecutableNetworkBaseTests, canCatchUnknownErrorInExport) {
     EXPECT_CALL(*mock_impl.get(), Export(_)).WillOnce(Throw(5));
     ASSERT_EQ(UNEXPECTED, exeNetwork->Export({}, nullptr));
 }
-
-

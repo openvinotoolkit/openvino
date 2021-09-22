@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,8 @@ protected:
     }
 
     ExecutableNetwork loadNetworkOnDevice(const std::string &deviceName) {
-        auto network = ie.ReadNetwork(FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str,
-                                      FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob);
+        auto network = ie.ReadNetwork(convReluNormPoolFcModelFP16.model_xml_str,
+                                      convReluNormPoolFcModelFP16.weights_blob);
 
         return ie.LoadNetwork(network, deviceName);
     }

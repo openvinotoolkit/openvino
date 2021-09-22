@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,34 +25,34 @@ std::string getExtensionPath() {
 }
 
 TEST(ExtensionTests, testGetOpSets) {
-    IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
+    IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
     auto opsets = extension->getOpSets();
     ASSERT_FALSE(opsets.empty());
     opsets.clear();
 }
 
 TEST(ExtensionTests, testGetImplTypes) {
-    IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
+    IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
     auto opset = extension->getOpSets().begin()->second;
     std::shared_ptr<ngraph::Node> op(opset.create(opset.get_types_info().begin()->name));
     ASSERT_FALSE(extension->getImplTypes(op).empty());
 }
 
 TEST(ExtensionTests, testGetImplTypesThrowsIfNgraphNodeIsNullPtr) {
-    IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
+    IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
     ASSERT_THROW(extension->getImplTypes(std::shared_ptr<ngraph::Node> ()),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST(ExtensionTests, testGetImplementation) {
-    IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
+    IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
     auto opset = extension->getOpSets().begin()->second;
     std::shared_ptr<ngraph::Node> op(opset.create("Template"));
     ASSERT_NE(nullptr, extension->getImplementation(op, extension->getImplTypes(op)[0]));
 }
 
 TEST(ExtensionTests, testGetImplementationThrowsIfNgraphNodeIsNullPtr) {
-    IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
+    IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
     ASSERT_THROW(extension->getImplementation(std::shared_ptr<ngraph::Node> (), ""),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }

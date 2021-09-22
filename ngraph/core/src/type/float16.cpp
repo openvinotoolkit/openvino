@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 // Contains logic derived from TensorFlow’s bfloat16 implementation
 // https://github.com/tensorflow/tensorflow/blob/d354efc/tensorflow/core/lib/float16/float16.h
@@ -31,19 +19,18 @@
 //  limitations under the License.
 //==============================================================================
 
+#include "ngraph/type/float16.hpp"
+
 #include <cmath>
 #include <iostream>
 #include <limits>
-
-#include "ngraph/type/float16.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static_assert(sizeof(float16) == 2, "class float16 must be exactly 2 bytes");
 
-float16::float16(float value)
-{
+float16::float16(float value) {
     // Work in 32-bit and shift right 16 in the end
     union {
         float fv;
@@ -72,46 +59,38 @@ float16::float16(float value)
     // exp bits in position
     uint32_t biased_exp_field_32 = iv & emask_32;
     uint32_t frac = (iv & fmask_32) << 3;
-    if (biased_exp_field_32 == emask_32)
-    {
+    if (biased_exp_field_32 == emask_32) {
         // Inf or NaN
-        if (frac != 0)
-        {
+        if (frac != 0) {
             // NaN
             frac &= fmask_16;
-            if (frac == 0)
-            {
+            if (frac == 0) {
                 frac = 0x00010000;
             }
         }
         m_value = ((iv & smask) | emask_16 | frac) >> 16;
         return;
     }
-    if (biased_exp_field_32 == 0)
-    {
+    if (biased_exp_field_32 == 0) {
         m_value = (iv & smask) >> 16;
         return;
     }
     int16_t biased_exp_16 = (biased_exp_field_32 >> 23) - 127 + 15;
     // In the normalized_16 realm
-    if ((frac & rhalf_16) == rodd_16 || (frac & rnorm_16) != 0)
-    {
+    if ((frac & rhalf_16) == rodd_16 || (frac & rnorm_16) != 0) {
         frac += reven_16;
-        if (0 != (frac & emask_16))
-        {
+        if (0 != (frac & emask_16)) {
             frac &= emask_16;
             biased_exp_16++;
         }
     }
     frac &= fmask_16;
-    if (biased_exp_16 > 30)
-    {
+    if (biased_exp_16 > 30) {
         // Infinity
         m_value = ((iv & smask) | emask_16 | 0) >> 16;
         return;
     }
-    if (biased_exp_16 > 0)
-    {
+    if (biased_exp_16 > 0) {
         m_value = ((iv & smask) | biased_exp_16 << 26 | frac) >> 16;
         return;
     }
@@ -121,25 +100,21 @@ float16::float16(float value)
     uint32_t sticky = (frac & ((1 << (1 - biased_exp_16)) - 1)) ? 1 : 0;
     frac >>= 1 + (-biased_exp_16);
     frac |= sticky;
-    if (((frac & rhalf_16) == rodd_16) || ((frac & rnorm_16) != 0))
-    {
+    if (((frac & rhalf_16) == rodd_16) || ((frac & rnorm_16) != 0)) {
         frac += reven_16;
     }
     m_value = ((iv & smask) | frac) >> 16;
 }
 
-std::string float16::to_string() const
-{
+std::string float16::to_string() const {
     return std::to_string(static_cast<float>(*this));
 }
 
-size_t float16::size() const
-{
+size_t float16::size() const {
     return sizeof(m_value);
 }
 
-float16::operator float() const
-{
+float16::operator float() const {
     union {
         uint32_t i_val;
         float f_val;
@@ -147,26 +122,19 @@ float16::operator float() const
     uint32_t exp = 0x1F & (m_value >> frac_size);
     uint32_t fexp = exp + 127 - 15;
     uint32_t frac = m_value & 0x03FF;
-    if (exp == 0)
-    {
-        if (frac == 0)
-        {
+    if (exp == 0) {
+        if (frac == 0) {
             fexp = 0;
-        }
-        else
-        {
+        } else {
             // Normalize
             fexp++;
-            while (0 == (frac & 0x0400))
-            {
+            while (0 == (frac & 0x0400)) {
                 fexp--;
                 frac = frac << 1;
             }
             frac &= 0x03FF;
         }
-    }
-    else if (exp == 0x1F)
-    {
+    } else if (exp == 0x1F) {
         fexp = 0xFF;
     }
     frac = frac << (23 - frac_size);
@@ -174,13 +142,11 @@ float16::operator float() const
     return f_val;
 }
 
-bool std::isnan(float16 x)
-{
+bool std::isnan(float16 x) {
     // Sign doesn't matter, frac not zero (infinity)
     return (x.to_bits() & 0x7FFF) > 0x7c00;
 }
 
-uint16_t float16::to_bits() const
-{
+uint16_t float16::to_bits() const {
     return m_value;
 }

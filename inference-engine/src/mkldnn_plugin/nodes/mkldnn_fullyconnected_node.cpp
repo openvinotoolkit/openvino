@@ -4,127 +4,126 @@
 
 #include "mkldnn_fullyconnected_node.h"
 #include "mkldnn_eltwise_node.h"
-#include "mkldnn_quantize_node.h"
-
-#include <legacy/ie_layers.h>
+#include "mkldnn_fake_quantize_node.h"
+#include "ngraph_transformations/op/fully_connected.hpp"
+#include <ngraph/opsets/opset1.hpp>
 #include <string>
 #include <vector>
 #include <mkldnn_extension_utils.h>
 #include <mkldnn.hpp>
 #include "utils/general_utils.h"
+#include <memory_desc/cpu_memory_desc_utils.h>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNFullyConnectedNode::MKLDNNFullyConnectedNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache), withBiases(false), baseInputsNumber(0) {
-    internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
-        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(0));
-    });
-    internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
-        if (internalBlobs.size() <= 1)
-            return MKLDNNMemoryDesc();
-        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(1));
-    });
+bool MKLDNNFullyConnectedNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
 
-    if (getCnnLayer()->type == "FullyConnected" || getCnnLayer()->type == "InnerProduct") {
-        baseInputsNumber = getCnnLayer().get()->insData.size();
+        const auto fc = std::dynamic_pointer_cast<const FullyConnectedNode>(op);
+        if (!fc) {
+            errorMessage = "Only legacy FullyConnected operation is supported";
+            return false;
+        }
+        if (fc->get_input_size() == 3 && std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fc->get_input_node_shared_ptr(BIAS_ID)) == nullptr) {
+            errorMessage = "Only Constant operation on 'bias' input is supported";
+            return false;
+        }
+        if (!one_of(fc->get_input_shape(DATA_ID).size(), 2, 3, 4)) {
+            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(fc->get_input_shape(DATA_ID).size());
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNFullyConnectedNode::MKLDNNFullyConnectedNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache), withBiases(false) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        errorPrefix = "FullyConnected node with name '" + getName() + "'";
+
+        withBiases = op->get_input_size() == 3;
+    } else {
+        IE_THROW(NotImplemented) << errorMessage;
     }
 }
 
-std::vector<memory::format_tag> MKLDNNFullyConnectedNode::getAvailableFormatsForDims(const MKLDNNDims &dims) const {
-    if (dims.ndims() == 0)
+std::vector<memory::format_tag> MKLDNNFullyConnectedNode::getAvailableFormatsForDims(const Shape &dims) const {
+    if (dims.getRank() == 0)
         return {memory::format_tag::x};
-    else if (dims.ndims() == 1)
+    else if (dims.getRank() == 1)
         return {memory::format_tag::x};
-    else if (dims.ndims() == 2)
+    else if (dims.getRank() == 2)
         return {memory::format_tag::nc};
-    else if (dims.ndims() == 3)
+    else if (dims.getRank() == 3)
         return {memory::format_tag::tnc};
-    else if (dims.ndims() == 4)
+    else if (dims.getRank() == 4)
         return {memory::format_tag::nChw8c, memory::format_tag::nChw16c, memory::format_tag::nhwc, memory::format_tag::nchw};
-    else if (dims.ndims() == 5)
+    else if (dims.getRank() == 5)
         return {memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c, memory::format_tag::ndhwc, memory::format_tag::ncdhw};
     return {memory::format_tag::any};
 }
 
 void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
+    if (getParentEdges().size() != 2 && getParentEdges().size() != 3)
+        IE_THROW() << errorPrefix << " has incorrect number of input edges";
+    if (getChildEdges().empty())
+        IE_THROW()<< errorPrefix << " has incorrect number of output edges";
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getCnnLayer()->outData[0]->getPrecision();
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
+    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
 
     if (inputDataType == memory::data_type::f32) {
         outputDataType = memory::data_type::f32;
     }
 
-    if (baseInputsNumber > 1) {
-        if (!fusedWith.empty()) {
-            auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
-            if (lastFusedLayer) {
-                outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(lastFusedLayer->outData[0]->getPrecision());
-            }
-        }
-        auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->insData[1].lock()->getPrecision());
+    if (!fusedWith.empty()) {
+        outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
+    }
+    auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
 
-        if ((!one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8) &&
-                inputDataType != memory::data_type::bf16) {
-            inputDataType = memory::data_type::f32;
-            outputDataType = memory::data_type::f32;
-        }
+    //  We have to extend gemm_x8s8s32x_inner_product_fwd_t from oneDNN to support BF16 output data type
+    if ((!one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8)
+            && inputDataType != memory::data_type::bf16) {
+        inputDataType = outputDataType = memory::data_type::f32;
     }
 
-    auto * fcLayer = dynamic_cast<FullyConnectedLayer*>(getCnnLayer().get());
-    if (fcLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert fully connected layer.";
-    if (fcLayer->_weights == nullptr && baseInputsNumber == 1) {
-        THROW_IE_EXCEPTION << "Weights are empty for layer: " << fcLayer->name
-                           << " used in MKLDNN node: " << getName() << "\n"
-                           << "Use the second argumemt of InferenceEngine::Core::ReadNetwork"
-                           << " to load them from .bin part of the IR";
+    if (one_of(inputDataType , memory::data_type::u8, memory::data_type::s8)
+        && outputDataType == memory::data_type::bf16) {
+        outputDataType = memory::data_type::f32;
     }
 
-    if (getParentEdges().size() != baseInputsNumber)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
-    if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
-
-    MKLDNNDims inDims = getParentEdgeAt(0)->getDims();
-    MKLDNNDims outDims = getChildEdgeAt(0)->getDims();
-
-    if (!one_of(inDims.ndims(), 2, 3, 4, 5)) {
-        THROW_IE_EXCEPTION << "Unsupported source format for FC layer. Expected 5, 4, 3 or 2, got: "
-                           << inDims.ndims() << " dims.";
+    if (inputDataType == memory::data_type::bf16
+        && one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
+        outputDataType = memory::data_type::bf16;
     }
 
-    if (inDims.ndims() == 3) {
+    const auto& inDims = getInputShapeAtPort(0).getStaticDims();
+    const auto& outDims = getOutputShapeAtPort(0).getStaticDims();
+
+    if (inDims.size() == 3) {
         weightsDims = InferenceEngine::SizeVector({static_cast<size_t>(outDims[2]), static_cast<size_t>(inDims[2])});
     } else {
         weightsDims.push_back(outDims[1]);
-        for (int i = 1; i < inDims.ndims(); i++)
+        for (int i = 1; i < inDims.size(); i++)
             weightsDims.push_back(inDims[i]);
     }
     biasesDims.push_back(weightsDims[0]);
 
-    if (baseInputsNumber == 1) {
-        internalBlobs.push_back(createInternalBlob(weightsDims, true));
-    }
+    for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
+        auto in_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
+        auto out_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(outDims), outputDataType, mkldnn::memory::format_tag::any);
 
-    withBiases = (fcLayer->_biases != nullptr && fcLayer->_biases->size() != 0) || baseInputsNumber == 3;
-
-    if (withBiases && baseInputsNumber == 1) {
-        internalBlobs.push_back(createInternalBlob(biasesDims, false));
-    }
-
-    for (auto format : getAvailableFormatsForDims(inDims)) {
-        MKLDNNMemoryDesc in_candidate(inDims, inputDataType, format);
-        MKLDNNMemoryDesc out_candidate(outDims, outputDataType, memory::format_tag::any);
-
-        createDescriptor({in_candidate}, {out_candidate});
+        createDescriptorInternal(in_candidate, out_candidate);
     }
 }
 
@@ -142,9 +141,10 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     if (withBiases)
-        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_BIAS, getBias()}, {DNNL_ARG_DST, dst}};
+        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getParentEdgeAt(WEIGHTS_ID)->getMemory().GetPrimitive()},
+                    {DNNL_ARG_BIAS, getParentEdgeAt(BIAS_ID)->getMemory().GetPrimitive()}, {DNNL_ARG_DST, dst}};
     else
-        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_DST, dst}};
+        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getParentEdgeAt(WEIGHTS_ID)->getMemory().GetPrimitive()}, {DNNL_ARG_DST, dst}};
 }
 
 void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
@@ -155,7 +155,7 @@ void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
                 auto oldMem = param->second;
                 auto dims = oldMem.get_desc().dims();
                 if (dims.size() == 3) {
-                    MKLDNNDims normalizedDims({static_cast<ptrdiff_t>(dims[0] * dims[1]), static_cast<ptrdiff_t>(dims[2])});
+                    std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
                     mkldnn::memory::desc newMemDesc(oldMem.get_desc().reshape(normalizedDims));
                     mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
                     primArgs.at(argType) = newMem;
@@ -170,83 +170,27 @@ void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
     }
 }
 
+bool MKLDNNFullyConnectedNode::canFuse(const MKLDNNNodePtr& node) const {
+    return canFuseSimpleOperation(node);
+}
+
 void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) {
-    int blob_idx = 0;
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
-        if (quantizeNode) {
-            quantizeNode->appendPostOps(ops);
+        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+        if (fakeQuantizeNode) {
+            fakeQuantizeNode->appendPostOps(ops);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-        if (eltwiseNode && (eltwiseNode->getOpType() == MulAdd || eltwiseNode->getOpType() == Prelu)) {
-            if (initWeights) {
-                auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(eltwiseNode->getCnnLayer().get());
-                int ndims = getParentEdgeAt(0)->getDims().ndims();
-                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(ndims == 3 ? getChildEdgeAt(0)->getDims()[2] : getChildEdgeAt(0)->getDims()[1], 16))});
-
-                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format_tag::x);
-                PostOpsIntBlobMemory[blob_idx]->FillZero();
-
-                // In case ndims == 3 graph optimizer allows fusing only if all weights values are the same
-                if (depthwiseLayer->blobs["weights"]->size() == 1 || ndims == 3) {
-                    float broadcastValue = static_cast<float *>(depthwiseLayer->_weights->buffer())[0];
-                    for (int i = 0; i < PostOpsIntBlobMemory[blob_idx]->GetDesc().getDims()[0]; i++) {
-                        static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
-                    }
-                } else {
-                    PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::format_tag::x,
-                                                            depthwiseLayer->_weights->buffer(),
-                                                            depthwiseLayer->_weights->size() *
-                                                            MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-                }
-
-                if (eltwiseNode->getAlgorithm() == algorithm::depthwise_scale_shift) {
-                    PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32, memory::format_tag::x);
-                    PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
-
-                    // In case ndims == 3 graph optimizer allows fusing only if all biases values are the same
-                    if (depthwiseLayer->blobs["biases"]->size() == 1 || ndims == 3) {
-                        float broadcastValue = static_cast<float *>(depthwiseLayer->_biases->buffer())[0];
-                        for (int i = 0; i < PostOpsIntBlobMemory[blob_idx + 1]->GetDesc().getDims()[0]; i++) {
-                            static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
-                        }
-                    } else {
-                        PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::format_tag::x,
-                                                                    depthwiseLayer->_biases->buffer(),
-                                                                    depthwiseLayer->_biases->size() *
-                                                                    MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-                    }
-
-                    ops.append_depthwise(eltwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
-
-                    blob_idx += 2;
-                } else {
-                    ops.append_depthwise(eltwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         nullptr);
-
-                    blob_idx += 1;
-                }
-            } else {
-                ops.append_depthwise(eltwiseNode->getAlgorithm(),
-                                     nullptr,
-                                     nullptr);
-            }
-
+        if (eltwiseNode) {
+            eltwiseNode->appendPostOps(ops);
             continue;
         }
 
-        if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops);
-        }
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
     attr.set_post_ops(ops);
@@ -299,34 +243,40 @@ std::shared_ptr<mkldnn::primitive_attr> MKLDNNFullyConnectedNode::initPrimitiveA
     return attr;
 }
 
-void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
-                                                const std::vector<InferenceEngine::TensorDesc> &outputDesc) {
-    TensorDesc inDesc = inputDesc[0], outDesc = outputDesc[0];
+// WA: creation DnnlMemoryDesc with format == any is prohibited
+// so we create mkldnn::memory::desc directly
+// we need specific method and can't remove createDescriptor from base class because its used into initDescriptor
+void MKLDNNFullyConnectedNode::createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
+                                                        const mkldnn::memory::desc &outputDesc) {
+    auto in_candidate = inputDesc;
+    auto out_candidate = outputDesc;
 
-    mkldnn::memory::data_type wdt = MKLDNNExtensionUtils::IEPrecisionToDataType(inDesc.getPrecision());
-    mkldnn::memory::data_type bdt = MKLDNNExtensionUtils::IEPrecisionToDataType(inDesc.getPrecision());
-    if (inDesc.getPrecision() == Precision::BF16) {
+    mkldnn::memory::data_type wdt = in_candidate.data_type();
+    mkldnn::memory::data_type bdt = out_candidate.data_type();
+    if (in_candidate.data_type() == mkldnn::memory::data_type::bf16) {
         bdt = mkldnn::memory::data_type::f32;
-    } else if (inDesc.getPrecision() == Precision::U8 || inDesc.getPrecision() == Precision::I8) {
+    } else if (in_candidate.data_type() == mkldnn::memory::data_type::u8 || in_candidate.data_type() == mkldnn::memory::data_type::s8) {
         wdt = memory::data_type::s8;
-        bdt = baseInputsNumber == 3 ? MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->insData[2].lock()->getPrecision()) : memory::data_type::f32;
+        if (withBiases)
+            bdt = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(BIAS_ID));
     }
 
-    if (inDesc.getDims().size() == 3) {
-        auto inDims = inDesc.getDims();
-        auto outDims = outDesc.getDims();
-        InferenceEngine::SizeVector normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
-        InferenceEngine::SizeVector normalizedOutDims = {outDims[0] * outDims[1], outDims[2]};
-        inDesc = InferenceEngine::TensorDesc(inDesc.getPrecision(), normalizedInDims, TensorDesc::getLayoutByDims(normalizedInDims));
-        outDesc = InferenceEngine::TensorDesc(outDesc.getPrecision(), normalizedOutDims, TensorDesc::getLayoutByDims(normalizedOutDims));
+    if (in_candidate.dims().size() == 3) {
+        auto inDims = in_candidate.dims();
+        auto outDims = out_candidate.dims();
+        auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
+        auto normalizedOutDims = {outDims[0] * outDims[1], outDims[2]};
+        in_candidate = mkldnn::memory::desc(normalizedInDims, in_candidate.data_type(),
+                                         MKLDNNExtensionUtils::GetPlainFormatByRank(normalizedInDims.size()));
+        out_candidate = mkldnn::memory::desc(normalizedOutDims, out_candidate.data_type(),
+                                             MKLDNNExtensionUtils::GetPlainFormatByRank(normalizedOutDims.size()));
     }
 
-    MKLDNNMemoryDesc in_candidate(inDesc);
-    MKLDNNMemoryDesc out_candidate(outDesc);
-    MKLDNNMemoryDesc wgh_candidate(MKLDNNDims(weightsDims), wdt, mkldnn::memory::format_tag::any);
+    mkldnn::memory::desc wgh_candidate(MKLDNNExtensionUtils::convertToDnnlDims(weightsDims), wdt, mkldnn::memory::format_tag::any);
 
     if (withBiases) {
-        MKLDNNMemoryDesc bias_candidate(MKLDNNDims(biasesDims), bdt, memory::format_tag::any);
+        mkldnn::memory::desc bias_candidate(MKLDNNExtensionUtils::convertToDnnlDims(inputShapes[BIAS_ID].getStaticDims()), bdt,
+                                            mkldnn::memory::format_tag::any);
         MKLDNNDescriptor desc(std::shared_ptr<inner_product_forward::desc>(
                 new inner_product_forward::desc(prop_kind::forward_scoring, in_candidate, wgh_candidate,
                                                 bias_candidate, out_candidate)));
@@ -339,48 +289,30 @@ void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<InferenceEngin
     }
 }
 
-MKLDNNMemoryDesc MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    InferenceEngine::TensorDesc desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_desc(idx - 1))
-                                               : MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
+void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
+                                                const std::vector<MemoryDescPtr> &outputDesc) {
+    createDescriptorInternal(MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc(),
+                             MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0])->getDnnlDesc());
+}
 
-    if (desc.getLayout() == InferenceEngine::Layout::ANY) {
-        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-                                                            getParentEdgeAt(idx)->getDims().ToSizeVector(),
-                                                            desc.getLayout()));
-    } else if (getParentEdgeAt(idx)->getDims().ndims() == 3) {
-        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-                                                            getParentEdgeAt(idx)->getDims().ToSizeVector(),
-                                                            TensorDesc::getLayoutByDims(getParentEdgeAt(idx)->getDims().ToSizeVector())));
-    } else {
-        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-                                                            getParentEdgeAt(idx)->getDims().ToSizeVector(),
-                                                            desc.getBlockingDesc()));
+std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
+
+    if (getInputShapeAtPort(idx).getRank() == 3) {
+        return std::make_shared<CpuBlockedMemoryDesc>(MKLDNNExtensionUtils::DataTypeToIEPrecision(
+            static_cast<mkldnn::memory::data_type>(desc.data.data_type)), getInputShapeAtPort(idx));
     }
+    return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
 
-MKLDNNMemoryDesc MKLDNNFullyConnectedNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.dst_desc(idx));
-    if (desc.getLayout() == InferenceEngine::Layout::ANY) {
-        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-                                                            getChildEdgeAt(idx)->getDims().ToSizeVector(),
-                                                            desc.getLayout()));
-    } else if (getChildEdgeAt(idx)->getDims().ndims() == 3) {
-        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-                                                            getChildEdgeAt(idx)->getDims().ToSizeVector(),
-                                                            TensorDesc::getLayoutByDims(getChildEdgeAt(idx)->getDims().ToSizeVector())));
-    } else {
-        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-                                                            getChildEdgeAt(idx)->getDims().ToSizeVector(),
-                                                            desc.getBlockingDesc()));
+std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    auto desc = primitive_desc_it.dst_desc(idx);
+
+    if (getOutputShapeAtPort(idx).getRank() == 3) {
+        return std::make_shared<CpuBlockedMemoryDesc>(MKLDNNExtensionUtils::DataTypeToIEPrecision(
+            static_cast<mkldnn::memory::data_type>(desc.data.data_type)), getOutputShapeAtPort(idx));
     }
-}
-
-const mkldnn::memory& MKLDNNFullyConnectedNode::getWeights() const {
-    return baseInputsNumber > 1 ? getParentEdgeAt(1)->getMemory().GetPrimitive() : internalBlobMemory[0]->GetPrimitive();
-}
-
-const mkldnn::memory& MKLDNNFullyConnectedNode::getBias() const {
-    return baseInputsNumber > 2 ? getParentEdgeAt(2)->getMemory().GetPrimitive() : internalBlobMemory[1]->GetPrimitive();
+    return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
 
 InferenceEngine::Precision MKLDNNFullyConnectedNode::getRuntimePrecision() const {
@@ -394,7 +326,7 @@ InferenceEngine::Precision MKLDNNFullyConnectedNode::getRuntimePrecision() const
         }
     }
 
-    return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
+    return getMaxPrecision(inputPrecisions);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNFullyConnectedNode, FullyConnected);

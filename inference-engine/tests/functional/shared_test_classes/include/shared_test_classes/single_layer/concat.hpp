@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,7 @@
 namespace LayerTestsDefinitions {
 
 using concatParamsTuple = typename std::tuple<
-        //TODO: according to specification axis have to be int, negative values are allowed
-        size_t,                            // Concat axis
+        int,                               // Concat axis
         std::vector<std::vector<size_t>>,  // Input shapes
         InferenceEngine::Precision,        // Network precision
         InferenceEngine::Precision,        // Input precision

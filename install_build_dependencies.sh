@@ -1,7 +1,7 @@
 #!/bin/bash
-# Copyright (C) 2018 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
 
 params=$1
 
@@ -32,11 +32,13 @@ if [ -f /etc/lsb-release ]; then
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
+            cmake \
             curl \
             wget \
             libssl-dev \
             ca-certificates \
             git \
+            git-lfs \
             libboost-regex-dev \
             $x86_64_specific_packages \
             libgtk2.0-dev \
@@ -46,7 +48,11 @@ if [ -f /etc/lsb-release ]; then
             libtool \
             autoconf \
             shellcheck \
-            python \
+            patchelf \
+            libenchant1c2a \
+            python3-pip \
+            python3-enchant \
+            python3-setuptools \
             libcairo2-dev \
             libpango1.0-dev \
             libglib2.0-dev \
@@ -77,6 +83,7 @@ elif [ -f /etc/redhat-release ]; then
             libssl-dev \
             ca-certificates \
             git \
+            git-lfs \
             boost-devel \
             libtool \
             gcc \

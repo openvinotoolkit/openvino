@@ -33,8 +33,8 @@ If a model has a hard-coded batch dimension, use `InferenceEngine::CNNNetwork::s
 
 Inference Engine takes three kinds of a model description as an input, which are converted into an `InferenceEngine::CNNNetwork` object:
 1. [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md) through `InferenceEngine::Core::ReadNetwork`
-2. [ONNX model](../IE_DG/OnnxImporterTutorial.md) through `InferenceEngine::Core::ReadNetwork`
-3. [nGraph::Function](../nGraph_DG/nGraph_dg.md) through the constructor of `InferenceEngine::CNNNetwork`
+2. [ONNX model](../IE_DG/ONNX_Support.md) through `InferenceEngine::Core::ReadNetwork`
+3. [nGraph function](../nGraph_DG/nGraph_dg.md) through the constructor of `InferenceEngine::CNNNetwork`
 
 `InferenceEngine::CNNNetwork` keeps an `ngraph::Function` object with the model description internally.
 The object should have fully defined input shapes to be successfully loaded to the Inference Engine plugins.
@@ -66,8 +66,8 @@ Shape collision during shape propagation may be a sign that a new shape does not
 Changing the model input shape may result in intermediate operations shape collision.
 
 Examples of such operations:
-- [`Reshape` operation](../ops/shape/Reshape_1.md) with a hard-coded output shape value
-- [`MatMul` operation](../ops/matrix/MatMul_1.md) with the `Const` second input cannot be resized by spatial dimensions due to operation semantics
+- [Reshape](../ops/shape/Reshape_1.md) operation with a hard-coded output shape value
+- [MatMul](../ops/matrix/MatMul_1.md) operation with the `Const` second input cannot be resized by spatial dimensions due to operation semantics
 
 Model structure and logic should not change significantly after model reshaping.
 - The Global Pooling operation is commonly used to reduce output feature map of classification models output.
@@ -100,7 +100,7 @@ Here is a code example:
 
 @snippet snippets/ShapeInference.cpp part0
 
-Shape Inference feature is used in [Smart classroom sample](@ref omz_demos_smart_classroom_demo_README).
+Shape Inference feature is used in [Smart Classroom Demo](@ref omz_demos_smart_classroom_demo_cpp).
 
 ## Extensibility
 

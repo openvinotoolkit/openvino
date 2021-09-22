@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ protected:
 class EltwiseWithTwoConvsAsInputsTest : public testing::WithParamInterface<EltwiseConvEltwiseParams>,
                                         public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EltwiseConvEltwiseParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<EltwiseConvEltwiseParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:

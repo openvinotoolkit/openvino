@@ -1,80 +1,14 @@
-"""
- Copyright (C) 2017-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-import copy
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from extensions.ops.loop import Loop
 from extensions.ops.parameter import Parameter
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.extractor import extract_node_attrs, FrontExtractorOp
-from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors
-from mo.front.tf.extractors.utils import tf_dtype_extractor
+from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors, create_tf_edge
+from mo.front.tf.extractors.subgraph_utils import update_body_graph, convert_graph_inputs_to_parameters, \
+    get_graph_proto, create_internal_graph
 from mo.graph.graph import add_opoutput, Graph, Node
-from mo.ops.op import PermuteAttrs
-
-
-def update_body_graph(body_graph: Graph, subgraph_proto: dict,
-                      body_parameter_names: list, body_results: list):
-    """
-    Updates the loop body graph with a sub-graph (for body or condition functions)
-    :param body_graph: a loop body graph to be updated
-    :param subgraph_proto: a sub-graph in a protobuf format to be added into the loop body graph
-    :param body_parameter_names: a (unchanged) list of parameters in the loop body graph
-    :param body_results: a list of Result nodes that is extended with a list from a sub-graph
-    """
-    # create a map from a node name in original model to a name in a loop body graph assuming
-    # that names in the original model are unique
-    # initially, the map contains names for parameters that are common for the body and condition graphs
-    map_original_name = {}
-    for idx, pb_node in enumerate(subgraph_proto['input_arg']):
-        map_original_name[pb_node.name] = body_parameter_names[idx]
-
-    # walk through all nodes (non-parameter and non-result nodes) and add into the loop body graph
-    for pb_node in subgraph_proto['node_def']:
-        # create an NX node
-        id = body_graph.unique_id(pb_node.name)
-        map_original_name[pb_node.name] = id
-        body_graph.add_node(id, pb=pb_node, kind='op')
-
-        # add incoming edges based on data_nodes_map
-        for dst_port, inp in enumerate(pb_node.input):
-            orig_src_id = inp.split(":")[0]
-            src_id = map_original_name[orig_src_id]
-            src_port = 0 if len(inp.split(":")) == 1 else int(inp.split(":")[-1])
-            assert (body_graph.has_node(src_id))
-            edge_attrs = {
-                'out': src_port,
-                'in': dst_port,
-                'name': src_id,
-                'fw_tensor_debug_info': [(src_id, src_port)],
-                'in_attrs': ['in', 'name'],
-                'out_attrs': ['out', 'name'],
-                'data_attrs': ['fw_tensor_debug_info']
-            }
-            body_graph.add_edge(src_id, id, **edge_attrs)
-
-    # create Result nodes in the loop body graph
-    for output in subgraph_proto['output_arg']:
-        output_name = subgraph_proto['ret'][output.name]
-        orig_src_id = output_name.split(":")[0]
-        src_id = map_original_name[orig_src_id]
-        src_port = 0 if len(output_name.split(":")) == 1\
-            else int(output_name.split(":")[-1])
-        assert body_graph.has_node(src_id), 'The body graph does not contain output with name "{}"'.format(
-            src_id)
-        body_results.append(Node(body_graph, add_opoutput(body_graph, src_id, src_port, False)))
 
 
 class WhileExtractor(FrontExtractorOp):
@@ -89,49 +23,16 @@ class WhileExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, loop_node):
         Loop.update_node_stat(loop_node, {})
-        loop_name = loop_node.soft_get('name', loop_node.id)
 
         # check that required body and condition functions exist in the graph library
         main_graph = loop_node.graph
-        body_graph_name = loop_node.pb.attr['body'].func.name
-        cond_graph_name = loop_node.pb.attr['cond'].func.name
-        assert 'library' in main_graph.graph, 'The graph does not contain a library that is required ' \
-                                              'by node with name "{}".'.format(loop_name)
-        library_graph = main_graph.graph['library']
+        body_graph_proto = get_graph_proto(main_graph, 'body', loop_node)
+        cond_graph_proto = get_graph_proto(main_graph, 'cond', loop_node)
 
-        assert body_graph_name in library_graph, 'The library does not contain a function with name "{}" ' \
-                                                 'that is required by node ' \
-                                                 'with name "{}".'.format(body_graph_name, loop_name)
-        body_graph_proto = library_graph[body_graph_name]
-
-        assert cond_graph_name in library_graph, 'The library does not contain a function with name "{}" ' \
-                                                 'that is required by node ' \
-                                                 'with name "{}".'.format(cond_graph_name, loop_name)
-        cond_graph_proto = library_graph[cond_graph_name]
-
-        body_graph = Graph()
-        # fill the body graph
-        for attr_key in main_graph.graph.keys():
-            if attr_key != 'library':
-                body_graph.graph[attr_key] = copy.deepcopy(main_graph.graph[attr_key])
-            else:
-                # it is sufficient to have a link to the library
-                body_graph.graph['library'] = main_graph.graph['library']
+        body_graph = create_internal_graph(main_graph)
         loop_node['body'] = body_graph
-
         # create Parameter nodes for the body graph
-        body_parameters = []
-        body_parameter_names = []
-        for idx, pb_node in enumerate(body_graph_proto['input_arg']):
-            param_id = body_graph.unique_id(pb_node.name)
-            body_graph.add_node(param_id, name=param_id, kind='op', op='Parameter', pb=None, shape=None)
-            parameter_node = Node(body_graph, pb_node.name)
-            Parameter.update_node_stat(parameter_node,
-                                       {'data_type': tf_dtype_extractor(pb_node.type),
-                                        'permute_attrs': PermuteAttrs().update_attrs(attrs=[('shape', 'output:0')])}
-                                       )
-            body_parameters.append(parameter_node)
-            body_parameter_names.append(param_id)
+        body_parameters, body_parameter_names = convert_graph_inputs_to_parameters(body_graph, body_graph_proto)
 
         # update the loop body graph with the body function graph
         body_results = []
@@ -184,7 +85,7 @@ class WhileExtractor(FrontExtractorOp):
             Loop.add_back_edge(loop_node, body_parameters[idx], body_results[idx])
 
         # connect body outputs with Loop operation output ports except the execution condition result
-        for idx in range(len(body_results)-1):
+        for idx in range(len(body_results) - 1):
             Loop.connect_body_output(loop_node, idx, body_results[idx])
 
         # run function to parse body nodes attributes similar to the main graph

@@ -17,40 +17,41 @@
 **********************************************************************************************************************************************************************************************************************************************************************************************/
 
 #include "Utils.h"
-#include "IttNotifyStdSrc.h"
+
 #include <string.h>
 
-#ifdef _WIN32
-    #include <Psapi.h>
-    #undef API_VERSION
-    #include <Dbghelp.h>
-#else
-    #include <cxxabi.h>
-    #include <dlfcn.h>
+#include "IttNotifyStdSrc.h"
 
-    #include <execinfo.h>
+#ifdef _WIN32
+#    include <Psapi.h>
+#    undef API_VERSION
+#    include <Dbghelp.h>
+#else
+#    include <cxxabi.h>
+#    include <dlfcn.h>
+#    include <execinfo.h>
 #endif
 
 #ifdef __APPLE__
-    #include <mach-o/dyld.h>
+#    include <mach-o/dyld.h>
 #endif
 
 #if defined(ARM32)
-    #define NO_DL_ITERATE_PHDR
+#    define NO_DL_ITERATE_PHDR
 #endif
 
 #if !defined(NO_DL_ITERATE_PHDR) && defined(__linux__)
-    #ifndef _GNU_SOURCE
-        #define _GNU_SOURCE
-    #endif
-    #include <link.h>
+#    ifndef _GNU_SOURCE
+#        define _GNU_SOURCE
+#    endif
+#    include <link.h>
 #endif
-
 
 size_t GetStack(TStack& stack) {
 #ifdef _WIN32
-    typedef USHORT (WINAPI *FCaptureStackBackTrace)(__in ULONG, __in ULONG, __out PVOID*, __out_opt PULONG);
-    static FCaptureStackBackTrace CaptureStackBackTrace = (FCaptureStackBackTrace)(GetProcAddress(LoadLibraryA("kernel32.dll"), "RtlCaptureStackBackTrace"));
+    typedef USHORT(WINAPI * FCaptureStackBackTrace)(__in ULONG, __in ULONG, __out PVOID*, __out_opt PULONG);
+    static FCaptureStackBackTrace CaptureStackBackTrace =
+        (FCaptureStackBackTrace)(GetProcAddress(LoadLibraryA("kernel32.dll"), "RtlCaptureStackBackTrace"));
     return CaptureStackBackTrace ? CaptureStackBackTrace(0, StackSize, stack, NULL) : 0;
 #else
     return backtrace(stack, StackSize);
@@ -64,7 +65,7 @@ std::string GetStackString() {
     TStack stack = {};
     size_t size = GetStack(stack);
 
-    char **bt_syms = backtrace_symbols(stack, size);
+    char** bt_syms = backtrace_symbols(stack, size);
     if (!bt_syms)
         return std::string();
     std::string res;
@@ -101,29 +102,36 @@ SModuleInfo Fn2Mdl(void* fn) {
 }
 
 LONG WINAPI CreateMiniDump(EXCEPTION_POINTERS* pep) {
-    typedef BOOL(WINAPI *PDUMPFN)(
-        HANDLE hProcess,
-        DWORD ProcessId,
-        HANDLE hFile,
-        MINIDUMP_TYPE DumpType,
-        PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
-        PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
-        PMINIDUMP_CALLBACK_INFORMATION CallbackParam);
+    typedef BOOL(WINAPI * PDUMPFN)(HANDLE hProcess,
+                                   DWORD ProcessId,
+                                   HANDLE hFile,
+                                   MINIDUMP_TYPE DumpType,
+                                   PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
+                                   PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
+                                   PMINIDUMP_CALLBACK_INFORMATION CallbackParam);
 
     PDUMPFN fnMiniDumpWriteDump = (PDUMPFN)GetProcAddress(::LoadLibraryA("DbgHelp.dll"), "MiniDumpWriteDump");
-    if (!fnMiniDumpWriteDump) return EXCEPTION_EXECUTE_HANDLER;
+    if (!fnMiniDumpWriteDump)
+        return EXCEPTION_EXECUTE_HANDLER;
     std::string path = g_savepath.empty() ? "c:/temp" : g_savepath;
     path += "/isea_minidump.dmp";
-    HANDLE hFile = CreateFileA(path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (!hFile || INVALID_HANDLE_VALUE == hFile) return EXCEPTION_EXECUTE_HANDLER;
+    HANDLE hFile =
+        CreateFileA(path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (!hFile || INVALID_HANDLE_VALUE == hFile)
+        return EXCEPTION_EXECUTE_HANDLER;
 
     MINIDUMP_EXCEPTION_INFORMATION mdei = {};
     mdei.ThreadId = GetCurrentThreadId();
     mdei.ExceptionPointers = pep;
     mdei.ClientPointers = TRUE;
 
-
-    fnMiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, MiniDumpNormal, (pep != 0) ? &mdei : 0, 0, 0);
+    fnMiniDumpWriteDump(GetCurrentProcess(),
+                        GetCurrentProcessId(),
+                        hFile,
+                        MiniDumpNormal,
+                        (pep != 0) ? &mdei : 0,
+                        0,
+                        0);
     CloseHandle(hFile);
 
     return EXCEPTION_EXECUTE_HANDLER;
@@ -136,12 +144,12 @@ void SetGlobalCrashHandler() {
 #else
 
 void SetGlobalCrashHandler() {
-    //FIXME: implement
+    // FIXME: implement
 }
 
-#include <sys/stat.h>
+#    include <sys/stat.h>
 
-size_t GetFileSize(const char *path) {
+size_t GetFileSize(const char* path) {
     struct stat st = {};
 
     if (0 == stat(path, &st))
@@ -150,17 +158,17 @@ size_t GetFileSize(const char *path) {
     return -1;
 }
 
-#ifndef __APPLE__
+#    ifndef __APPLE__
 
-#if !defined(NO_DL_ITERATE_PHDR)
-int iterate_callback(struct dl_phdr_info *info, size_t size, void *data) {
+#        if !defined(NO_DL_ITERATE_PHDR)
+int iterate_callback(struct dl_phdr_info* info, size_t size, void* data) {
     Dl_info* pInfo = reinterpret_cast<Dl_info*>(data);
     VerbosePrint("iterate_callback: %lx, %s\n", (long int)info->dlpi_addr, info->dlpi_name);
     if (reinterpret_cast<void*>(info->dlpi_addr) == pInfo->dli_fbase)
         pInfo->dli_fname = strdup(info->dlpi_name);
     return 0;
 }
-#endif
+#        endif
 
 bool proc_self_map(Dl_info& info) {
     char base[100] = {};
@@ -178,20 +186,20 @@ bool proc_self_map(Dl_info& info) {
     }
     return false;
 }
-#endif
+#    endif
 
 sea::SModuleInfo Fn2Mdl(void* fn) {
     Dl_info dl_info = {};
     dladdr(fn, &dl_info);
     VerbosePrint("Fn2Mdl: %p, %s\n", dl_info.dli_fbase, dl_info.dli_fname);
     if (!dl_info.dli_fname || !strstr(dl_info.dli_fname, ".so")) {
-#ifndef __APPLE__
-    #if !defined(NO_DL_ITERATE_PHDR)
+#    ifndef __APPLE__
+#        if !defined(NO_DL_ITERATE_PHDR)
         dl_iterate_phdr(iterate_callback, &dl_info);
-    #endif
+#        endif
         if (!dl_info.dli_fname || !strstr(dl_info.dli_fname, ".so"))
             proc_self_map(dl_info);
-#endif
+#    endif
         return SModuleInfo{dl_info.dli_fbase, 0, dl_info.dli_fname};
     }
 
@@ -199,9 +207,9 @@ sea::SModuleInfo Fn2Mdl(void* fn) {
         // path is absolute
         return SModuleInfo{dl_info.dli_fbase, GetFileSize(dl_info.dli_fname), dl_info.dli_fname};
     } else {
-        if (const char * absolute = realpath(dl_info.dli_fname, nullptr)) {
+        if (const char* absolute = realpath(dl_info.dli_fname, nullptr)) {
             SModuleInfo mdlInfo{dl_info.dli_fbase, GetFileSize(absolute), absolute};
-            free((void*) absolute); // NOLINT
+            free((void*)absolute);
             return mdlInfo;
         } else {
             return SModuleInfo{dl_info.dli_fbase, GetFileSize(dl_info.dli_fname), dl_info.dli_fname};
@@ -211,19 +219,18 @@ sea::SModuleInfo Fn2Mdl(void* fn) {
 
 const char* GetProcessName(bool bFullPath) {
     static char process_name[1024] = {};
-#ifdef __APPLE__
+#    ifdef __APPLE__
     uint32_t size = 1023;
     _NSGetExecutablePath(process_name, &size);
-#else
+#    else
     if (!process_name[0])
-        process_name[readlink("/proc/self/exe", process_name, sizeof(process_name)/sizeof(process_name[0]) - 1 )] = 0;
-#endif //__APPLE__
-    if (bFullPath) return process_name;
+        process_name[readlink("/proc/self/exe", process_name, sizeof(process_name) / sizeof(process_name[0]) - 1)] = 0;
+#    endif  //__APPLE__
+    if (bFullPath)
+        return process_name;
     return strrchr(process_name, '/') + 1;
 }
 
 #endif
 
-} //namespace sea
-
-
+}  // namespace sea

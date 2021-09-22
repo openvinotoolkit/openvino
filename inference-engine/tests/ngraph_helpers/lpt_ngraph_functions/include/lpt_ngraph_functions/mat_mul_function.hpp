@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "lpt_ngraph_functions/common/constant.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -18,14 +19,14 @@ class MatMulFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape inputShape,
+        const ngraph::PartialShape inputShape,
         const float low,
         const float high);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape inputShape1,
-        const ngraph::Shape inputShape2,
+        const ngraph::PartialShape inputShape1,
+        const ngraph::PartialShape inputShape2,
         const bool transpose1,
         const bool transpose2);
 
@@ -37,49 +38,48 @@ public:
         const FakeQuantizeOnData& fqOnData2);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape1,
+        const element::Type netPrecision,
+        const ngraph::PartialShape& inputShape1,
         const ngraph::element::Type precisionBeforeDequantization1,
         const DequantizationOperations& dequantization1,
-        const ngraph::Shape& inputShape2,
+        const ngraph::PartialShape& inputShape2,
         const ngraph::element::Type precisionBeforeDequantization2,
         const DequantizationOperations& dequantization2);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
-        const DequantizationOperations& dequantization,
-        const ngraph::Shape& weightsConstShape,
-        const std::vector<float>& weightsConstValues,
-        const FakeQuantizeOnWeights& fqOnWeights);
+        const DequantizationOperations& deqOnData,
+        const Constant& weights,
+        const FakeQuantizeOnWeights& fqOnWeights,
+        const DequantizationOperations& deqOnWeights);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape1,
+        const ngraph::PartialShape& inputShape1,
         const ngraph::element::Type precisionBeforeDequantization1,
         const DequantizationOperations& dequantization1,
-        const ngraph::Shape& inputShape2,
+        const ngraph::PartialShape& inputShape2,
         const ngraph::element::Type precisionBeforeDequantization2,
         const DequantizationOperations& dequantization2,
         const DequantizationOperations& resultDequantization);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const DequantizationOperations& dequantization,
-        const ngraph::element::Type weightsConstPrecision,
-        const ngraph::Shape& weightsConstShape,
-        const std::vector<float>& weightsConstValues,
+        const Constant& weights,
         const DequantizationOperations& resultDequantization);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fqOnData,
-        const ngraph::Shape& weightsConstShape,
-        const std::vector<float>& weightsConstValues,
-        const FakeQuantizeOnDataWithConstant& fqOnWeights);
+        const Constant& weights,
+        const FakeQuantizeOnDataWithConstant& fqOnWeights,
+        const DequantizationOperations& deqOnWeights);
 };
 
 }  // namespace subgraph

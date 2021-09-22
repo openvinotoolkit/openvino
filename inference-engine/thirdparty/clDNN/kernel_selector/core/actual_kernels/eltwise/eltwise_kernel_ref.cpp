@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// y ou may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "eltwise_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -67,7 +56,20 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
 
         std::vector<std::string> idx_order;
         if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
-            idx_order = {"d4", "d3", "d2", "d1"};
+            if (!params.layoutBased && !params.int8_quantization && !params.broadcast && !CheckInputsOutputNoPitchSameDims(params)) {
+                auto calc_dim = [&params](Tensor::DataChannelName channel) {
+                    size_t idx = DataTensor::Channelndex(params.output.GetLayout(), channel);
+                    // We increment the index, because fusions dims ordering starts from one
+                    return "d" + std::to_string(idx + 1);
+                };
+
+                idx_order = {calc_dim(Tensor::DataChannelName::BATCH),
+                             calc_dim(Tensor::DataChannelName::FEATURE),
+                             calc_dim(Tensor::DataChannelName::Y),
+                             calc_dim(Tensor::DataChannelName::X)};
+            } else {
+                idx_order = {"d4", "d3", "d2", "d1"};
+            }
         } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
             idx_order = {"d5", "d4", "d3", "d2", "d1"};
         } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 6) {

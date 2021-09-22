@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,12 +18,10 @@
 #include <threading/ie_executor_manager.hpp>
 
 #include <vpu/graph_transformer.hpp>
-#include <vpu/parsed_config.hpp>
 
 #include "myriad_executor.h"
 #include "myriad_infer_request.h"
 #include "myriad_async_infer_request.h"
-#include "myriad_config.h"
 
 namespace vpu {
 namespace MyriadPlugin {
@@ -32,28 +30,20 @@ class ExecutableNetwork : public ie::ExecutableNetworkThreadSafeDefault {
 public:
     typedef std::shared_ptr<ExecutableNetwork> Ptr;
 
-    explicit ExecutableNetwork(const ie::CNNNetwork& network,
-                               std::shared_ptr<IMvnc> mvnc,
-                               std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config,
-                               const ie::ICore* core);
+    ExecutableNetwork(const InferenceEngine::CNNNetwork& network, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool,
+                      const PluginConfiguration& configuration, const std::shared_ptr<ie::ICore> core);
 
-    explicit ExecutableNetwork(std::istream& strm,
-                               std::shared_ptr<IMvnc> mvnc,
-                               std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config,
-                               const ie::ICore* core);
+    ExecutableNetwork(std::istream& strm, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool, const PluginConfiguration& configuration,
+                      const std::shared_ptr<ie::ICore> core);
 
-    explicit ExecutableNetwork(const std::string &blobFilename,
-                               std::shared_ptr<IMvnc> mvnc,
-                               std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config,
-                               const ie::ICore* core);
-
+    ExecutableNetwork(const std::string &blobFilename, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool,
+                      const PluginConfiguration& configuration, const std::shared_ptr<ie::ICore> core);
 
     virtual ~ExecutableNetwork() {
         try {
-            _executor->deallocateGraph(_device, _graphDesc);
+            if (_device != nullptr) {
+                _executor->deallocateGraph(_device, _graphDesc);
+            }
         }
         catch (...) {
             std::cerr << "ERROR ~ExecutableNetwork():\n"
@@ -61,37 +51,31 @@ public:
         }
     }
 
-    ie::InferRequestInternal::Ptr CreateInferRequestImpl(ie::InputsDataMap networkInputs,
+    ie::IInferRequestInternal::Ptr CreateInferRequestImpl(ie::InputsDataMap networkInputs,
                                                          ie::OutputsDataMap networkOutputs) override {
-        if (_device == nullptr || !_device->isBooted()) {
-            THROW_IE_EXCEPTION << "Can not create infer request: there is no available devices with platform "
-                               << _device->_platform;
+        if (!_isNetworkConstant && (_device == nullptr || !_device->isBooted())) {
+            IE_THROW() << "Can not create infer request: there is no available devices with platform ";
         }
 
         return std::make_shared<MyriadInferRequest>(_graphDesc, networkInputs, networkOutputs,
                                                     _inputInfo, _outputInfo,
-                                                    _graphMetaData.stagesMeta, _config, _log, _executor);
+                                                    _graphMetaData.stagesMeta, _config, _log, _executor,
+                                                    _constDatas, _isNetworkConstant);
     }
 
-    ie::IInferRequest::Ptr CreateInferRequest() override {
-        ie::IInferRequest::Ptr asyncRequest;
-        if (_device == nullptr || !_device->isBooted()) {
-            THROW_IE_EXCEPTION << "Can not create infer request: there is no available devices with platform "
-                               << _device->_platform;
+    ie::IInferRequestInternal::Ptr CreateInferRequest() override {
+        if (!_isNetworkConstant && (_device == nullptr || !_device->isBooted())) {
+            IE_THROW() << "Can not create infer request: there is no available devices with platform ";
         }
 
         auto syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _networkInputs, _networkOutputs,
                                                                     _inputInfo, _outputInfo,
                                                                     _graphMetaData.stagesMeta, _config, _log,
-                                                                    _executor);
+                                                                    _executor, _constDatas, _isNetworkConstant);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
-        auto asyncThreadSafeImpl = std::make_shared<MyriadAsyncInferRequest>(
+        return std::make_shared<MyriadAsyncInferRequest>(
                 syncRequestImpl, _taskExecutor, _callbackExecutor, taskExecutorGetResult);
-        asyncRequest.reset(new ie::InferRequestBase(asyncThreadSafeImpl),
-                           [](ie::IInferRequest *p) { p->Release(); });
-        asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
-        return asyncRequest;
     }
 
     void Export(std::ostream& model) override {
@@ -104,17 +88,15 @@ public:
         if (modelFile.is_open()) {
             Export(modelFile);
         } else {
-            THROW_IE_EXCEPTION << "The " << modelFileName << " file can not be opened for export";
+            IE_THROW() << "The " << modelFileName << " file can not be opened for export";
         }
     }
 
     ie::Parameter GetMetric(const std::string &name) const override;
 
-    ie::CNNNetwork GetExecGraphInfo() override;
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
 
-    void Import(std::istream& strm,
-                std::vector<DevicePtr> &devicePool,
-                const MyriadConfig& config);
+    void Import(std::istream& strm, std::vector<DevicePtr> &devicePool, const PluginConfiguration& configuration);
 
 private:
     Logger::Ptr _log;
@@ -123,10 +105,12 @@ private:
     GraphDesc _graphDesc;
     DevicePtr _device;
     GraphMetaInfo _graphMetaData;
-    MyriadConfig _config;
-    const ie::ICore* _core = nullptr;
+    PluginConfiguration _config;
+    bool _isNetworkConstant = false;
+    const std::shared_ptr<ie::ICore> _core = nullptr;
     int _actualNumExecutors = 0;
     std::vector<std::string> _supportedMetrics;
+    std::map<std::string, ie::Blob::Ptr> _constDatas;
 
     DataInfo _inputInfo;
     DataInfo _outputInfo;
@@ -135,9 +119,8 @@ private:
     std::queue<std::string> _taskExecutorGetResultIds;
 
     ExecutableNetwork(std::shared_ptr<IMvnc> mvnc,
-        std::vector<DevicePtr> &devicePool,
-        const MyriadConfig& config,
-        const ie::ICore* core);
+        const PluginConfiguration& config,
+        const std::shared_ptr<ie::ICore> core);
 
     ie::ITaskExecutor::Ptr getNextTaskExecutor() {
         std::string id = _taskExecutorGetResultIds.front();
@@ -150,6 +133,8 @@ private:
 
         return taskExecutor;
     }
+
+    void openDevice(std::vector<DevicePtr>& devicePool);
 };
 
 }  // namespace MyriadPlugin

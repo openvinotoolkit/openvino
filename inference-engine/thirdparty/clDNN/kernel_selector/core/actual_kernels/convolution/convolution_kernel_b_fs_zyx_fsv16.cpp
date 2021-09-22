@@ -1,17 +1,5 @@
-﻿//
-// Copyright (c) 2019-2020 Intel Corporation
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include "convolution_kernel_b_fs_zyx_fsv16.h"
@@ -27,13 +15,13 @@ static const size_t feature_block_size = 16;
 FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::string input_name, Datatype dt,
                                                         bool is_vector) {
     std::vector<std::string> idx_order;
-    std::string suffix = (is_vector ? "_VEC" : "_SCALAR") + std::to_string(conf_id);
-    std::string input_var_name = input_name + std::to_string(conf_id) + (is_vector ? "" : "[i]");
+    std::string suffix = (is_vector ? "_VEC" : "_SCALAR") + toCodeString(conf_id);
+    std::string input_var_name = input_name + toCodeString(conf_id) + (is_vector ? "" : "[i]");
     size_t vec_size = is_vector ? 8 : 1;
     if (is_vector)
-        idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC)", "od", "oh", "(ow + " + std::to_string(conf_id * 8) + ")"};
+        idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC)", "od", "oh", "(ow + " + toCodeString(conf_id * 8) + ")"};
     else
-        idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC + local_id)", "od", "oh", "(ow + " + std::to_string(conf_id * 8) + " + i)"};
+        idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC + local_id)", "od", "oh", "(ow + " + toCodeString(conf_id * 8) + " + i)"};
 
     return { suffix,
              idx_order,
@@ -48,20 +36,20 @@ FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::str
 
 FusedOpsConfiguration GenerateFusedOpsConfiguration_bsv16_fsv16(size_t conf_id, std::string input_name, Datatype dt,
                                                                 size_t dims, bool is_vector) {
-    std::string suffix = (is_vector ? "_VEC" : "_SCALAR") + std::to_string(conf_id);
-    std::string input_var_name = input_name + std::to_string(conf_id) + (is_vector ? "" : "[i]");
+    std::string suffix = (is_vector ? "_VEC" : "_SCALAR") + toCodeString(conf_id);
+    std::string input_var_name = input_name + toCodeString(conf_id) + (is_vector ? "" : "[i]");
     size_t vec_size = is_vector ? 8 : 1;
     std::vector<std::string> idx_order;
     if (is_vector) {
         if (dims == 5)
-            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "od", "oh", "ow"};
+            idx_order = {"(mb + " + toCodeString(conf_id * 8) + ")", "(oc*16)", "od", "oh", "ow"};
         else
-            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "oh", "ow"};
+            idx_order = {"(mb + " + toCodeString(conf_id * 8) + ")", "(oc*16)", "oh", "ow"};
     } else {
         if (dims == 5)
-            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16 + local_id)", "od", "oh", "(ow + i)"};
+            idx_order = {"(mb + " + toCodeString(conf_id * 8) + ")", "(oc*16 + local_id)", "od", "oh", "(ow + i)"};
         else
-            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16 + local_id)", "oh", "(ow + i)"};
+            idx_order = {"(mb + " + toCodeString(conf_id * 8) + ")", "(oc*16 + local_id)", "oh", "(ow + i)"};
     }
 
     return { suffix,

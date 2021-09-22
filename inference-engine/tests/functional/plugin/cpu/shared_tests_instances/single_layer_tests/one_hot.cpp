@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@ namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::I32,
 };
-
-using namespace ngraph::element;
 
 const std::vector<ngraph::element::Type> argDepthType_IC = { ngraph::element::i32 };
 const std::vector<int64_t> argDepth_IC = { 1, 5, 1017 };
@@ -34,7 +32,7 @@ const auto oneHotParams_IC = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_OneHotIntConst,
         OneHotLayerTest,
         oneHotParams_IC,
@@ -62,7 +60,7 @@ const auto oneHotParams_Ax = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_OneHotAxrng,
         OneHotLayerTest,
         oneHotParams_Ax,
@@ -91,7 +89,7 @@ const auto oneHotParams_T = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_OneHotArgType,
         OneHotLayerTest,
         oneHotParams_T,

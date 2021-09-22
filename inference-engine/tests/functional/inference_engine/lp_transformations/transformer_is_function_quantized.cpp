@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 #include <gtest/gtest.h>
 #include <low_precision/fake_quantize.hpp>
-#include <low_precision/transformer.hpp>
+#include <low_precision/low_precision.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
@@ -56,7 +56,7 @@ public:
 
 TEST_P(TransformerIsFunctionQuantized, isFunctionQuantized) {
     actualFunction->validate_nodes_and_infer_types();
-    const bool isFunctionQuantized = ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(actualFunction);
+    const bool isFunctionQuantized = ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(actualFunction);
 
     const TestValues testValues = GetParam();
     const bool expected = !testValues.fqOnData.empty() || !testValues.fqOnWeights.empty();
@@ -79,7 +79,7 @@ const std::vector<TestValues> testValues = {
     { {}, {} }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     TransformerIsFunctionQuantized,
     ::testing::ValuesIn(testValues),

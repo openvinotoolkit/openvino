@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ void MvncOpenUSBDevice::SetUp() {
     availableDevices_ = getAmountOfNotBootedDevices(NC_USB);
 
     deviceDesc_.protocol = NC_USB;
-    deviceDesc_.platform = NC_ANY_PLATFORM;
 }
 
 //------------------------------------------------------------------------------

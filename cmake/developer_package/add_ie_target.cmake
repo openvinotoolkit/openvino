@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,8 +20,6 @@ addIeTarget(
         /some/specific/path
    LINK_LIBRARIES
         ie::important_plugin
-   EXPORT_DEPENDENCIES
-        dependency_lib_to_export
    DEPENDENCIES
         dependencies
    OBJECT_FILES
@@ -31,6 +29,7 @@ addIeTarget(
 function(addIeTarget)
     set(options
         ADD_CPPLINT                   # Enables code style checks for the target
+        ADD_CLANG_FORMAT              # Enables code style checks for the target
         )
     set(oneValueRequiredArgs
         TYPE # type of target, SHARED|STATIC|EXECUTABLE. SHARED and STATIC correspond to add_library, EXECUTABLE to add_executable
@@ -50,7 +49,6 @@ function(addIeTarget)
         EXCLUDED_SOURCE_PATHS         # list of paths excluded from the global recursive search of source files
         LINK_LIBRARIES_WHOLE_ARCHIVE  # list of static libraries to link, each object file should be used and not discarded
         LINK_FLAGS                    # list of extra commands to linker
-        EXPORT_DEPENDENCIES           # list of the dependencies to be exported with the target through the developer package
         )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN} )
 
@@ -119,16 +117,19 @@ function(addIeTarget)
         # code style
         add_cpplint_target(${ARG_NAME}_cpplint FOR_TARGETS ${ARG_NAME})
     endif()
+    if (ARG_ADD_CLANG_FORMAT)
+        # code style
+        add_clang_format_target(${ARG_NAME}_clang FOR_TARGETS ${ARG_NAME})
+    endif()
     if (ARG_DEVELOPER_PACKAGE)
         # developer package
         openvino_developer_export_targets(COMPONENT ${ARG_DEVELOPER_PACKAGE}
-                                          TARGETS ${ARG_NAME} ${ARG_EXPORT_DEPENDENCIES})
+                                          TARGETS ${ARG_NAME})
     endif()
     if(WIN32)
         # Provide default compile pdb name equal to target name
         set_target_properties(${ARG_NAME} PROPERTIES COMPILE_PDB_NAME ${ARG_NAME})
     endif()
-
 endfunction()
 
 #[[
@@ -155,4 +156,9 @@ function(addIeTargetTest)
 
     add_test(NAME ${ARG_NAME} COMMAND ${ARG_NAME})
     set_property(TEST ${ARG_NAME} PROPERTY LABELS ${ARG_LABELS})
+
+    install(TARGETS ${ARG_NAME}
+            RUNTIME DESTINATION tests
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 endfunction()

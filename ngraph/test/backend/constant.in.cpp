@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -31,8 +19,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, tensor_constant)
-{
+NGRAPH_TEST(${BACKEND_NAME}, tensor_constant) {
     Shape shape{2, 2, 2};
     auto A = op::Constant::create(element::f32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
     auto f = make_shared<Function>(A, ParameterVector{});
@@ -49,8 +36,7 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_constant)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, tensor_2constant)
-{
+NGRAPH_TEST(${BACKEND_NAME}, tensor_2constant) {
     Shape shape{2, 2, 2};
     auto A = op::Constant::create(element::f32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
     auto f = make_shared<Function>(NodeVector{A, A}, ParameterVector{});
@@ -71,8 +57,7 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_2constant)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_with_op)
-{
+NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_with_op) {
     Shape shape{2, 2, 2};
     auto A = op::Constant::create(element::f32, shape, {-1, 2, 3, -4, 5, -6, -7, 8});
     auto f = make_shared<Function>(make_shared<op::Abs>(A), ParameterVector{});
@@ -89,8 +74,7 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_with_op)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, constant_multi_use)
-{
+NGRAPH_TEST(${BACKEND_NAME}, constant_multi_use) {
     auto A = make_shared<op::Constant>(element::i32, Shape{}, std::vector<std::string>{"388"});
     auto f = make_shared<Function>(A, ParameterVector{});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -105,8 +89,7 @@ NGRAPH_TEST(${BACKEND_NAME}, constant_multi_use)
     EXPECT_EQ(read_vector<int>(r2), std::vector<int>{388});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, scalar_constant_float32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, scalar_constant_float32) {
     auto r = op::Constant::create(element::f32, Shape{}, {4.75});
     auto f = make_shared<Function>(r, ParameterVector{});
 
@@ -117,12 +100,10 @@ NGRAPH_TEST(${BACKEND_NAME}, scalar_constant_float32)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {});
-    EXPECT_TRUE(test::all_close_f(
-        vector<float>{4.75f}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f(vector<float>{4.75f}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, scalar_constant_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, scalar_constant_int64) {
     auto r = op::Constant::create(element::i64, Shape{}, {0x4000000000000001});
     auto f = make_shared<Function>(r, ParameterVector{});
 
@@ -136,8 +117,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scalar_constant_int64)
     EXPECT_EQ(vector<int64_t>{0x4000000000000001}, read_vector<int64_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_float32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_float32) {
     Shape shape{2, 2};
     auto r = op::Constant::create(element::f32, shape, {4.75, 4.5, -5.25, 0.0});
     auto f = make_shared<Function>(r, ParameterVector{});
@@ -154,8 +134,7 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_float32)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_int64) {
     Shape shape{2};
     auto r = op::Constant::create(element::i64, shape, {0x4000000000000001, 0x4000000000000002});
     auto f = make_shared<Function>(r, ParameterVector{});
@@ -164,12 +143,10 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_int64)
     auto result = backend->create_tensor(element::i64, shape);
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {});
-    EXPECT_EQ((vector<int64_t>{0x4000000000000001, 0x4000000000000002}),
-              read_vector<int64_t>(result));
+    EXPECT_EQ((vector<int64_t>{0x4000000000000001, 0x4000000000000002}), read_vector<int64_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, constant_equality_bool)
-{
+NGRAPH_TEST(${BACKEND_NAME}, constant_equality_bool) {
     Shape shape{4};
     // auto A = make_shared<op::Parameter>(element::boolean, shape);
     // auto B = make_shared<op::Parameter>(element::boolean, shape);
@@ -187,4 +164,74 @@ NGRAPH_TEST(${BACKEND_NAME}, constant_equality_bool)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {});
     EXPECT_EQ((vector<char>{true, false, true, false}), read_vector<char>(result));
+}
+
+namespace {
+std::vector<uint8_t> read_raw_data(std::shared_ptr<ngraph::runtime::Tensor> tv) {
+    const size_t mem_size = tv->get_size_in_bytes();
+    std::vector<uint8_t> rc(mem_size);
+    tv->read(rc.data(), mem_size);
+    return rc;
+}
+
+void run_constant_equality_for_low_precision(const Shape& shape,
+                                             const std::vector<uint8_t>& data,
+                                             element::Type element_type) {
+    const void* raw_data = data.data();
+    auto A = op::Constant::create(element_type, shape, raw_data);
+
+    const auto constant_raw_data = static_cast<const uint8_t*>(A->get_data_ptr());
+    EXPECT_EQ(std::memcmp(raw_data, constant_raw_data, data.size()), 0) << "wrong data hold in Constant";
+
+    auto f = make_shared<Function>(A, ParameterVector{});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto result = backend->create_tensor(element_type, shape);
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {});
+    EXPECT_EQ(data, read_raw_data(result));
+}
+}  // namespace
+
+NGRAPH_TEST(${BACKEND_NAME}, constant_equality_u4_2x2x3) {
+    const Shape shape{2, 2, 3};
+    const std::vector<uint8_t> data{0x12, 0x34, 0x56, 0x78, 0x9a, 0xFF};
+    constexpr auto element_type = element::u4;
+
+    run_constant_equality_for_low_precision(shape, data, element_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, constant_equality_u4_1x3) {
+    const Shape shape{1, 3};
+    const std::vector<uint8_t> data{0x12, 0x34};  // last 8 bits constains rubbish
+    constexpr auto element_type = element::u4;
+
+    run_constant_equality_for_low_precision(shape, data, element_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, constant_equality_u4_1x10) {
+    const Shape shape{1, 10};
+    const std::vector<uint8_t> data{0x12, 0x34};  // last 6 bits constains rubbish
+    constexpr auto element_type = element::u1;
+
+    run_constant_equality_for_low_precision(shape, data, element_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, constant_equality_i4_2x2x3) {
+    const Shape shape{2, 2, 3};
+    const std::vector<uint8_t> data{0x12, 0x34, 0x56, 0x78, 0x9a, 0xFF};
+    constexpr auto element_type = element::i4;
+
+    run_constant_equality_for_low_precision(shape, data, element_type);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, constant_equality_i4_1x3) {
+    const Shape shape{1, 3};
+    const std::vector<uint8_t> data{0x12, 0x34};  // last 8 bits constains rubbish
+    constexpr auto element_type = element::i4;
+
+    run_constant_equality_for_low_precision(shape, data, element_type);
 }

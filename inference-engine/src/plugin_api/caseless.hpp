@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,14 +21,17 @@ namespace details {
 
 /**
  * @brief Provides caseless comparison for STL algorithms
- * 
+ *
  * @tparam Key type, usually std::string
  */
 template <class Key>
-class CaselessLess  {
+class CaselessLess {
 public:
     bool operator()(const Key& a, const Key& b) const noexcept {
-        return std::lexicographical_compare(std::begin(a), std::end(a), std::begin(b), std::end(b),
+        return std::lexicographical_compare(std::begin(a),
+                                            std::end(a),
+                                            std::begin(b),
+                                            std::end(b),
                                             [](const char& cha, const char& chb) {
                                                 return std::tolower(cha) < std::tolower(chb);
                                             });

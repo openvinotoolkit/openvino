@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
@@ -36,8 +24,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs)
-{
+NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs) {
     op::DetectionOutputAttrs attrs;
     attrs.num_classes = 3;
     attrs.background_label_id = -1;
@@ -62,8 +49,7 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs)
     size_t num_images = 2;
     Shape loc_shape{num_images, num_prior_boxes * num_loc_classes * prior_box_size};
     Shape conf_shape{num_images, num_prior_boxes * attrs.num_classes};
-    Shape prior_boxes_shape{
-        1, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
+    Shape prior_boxes_shape{1, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
 
     auto loc = make_shared<op::Parameter>(element::f32, loc_shape);
     auto conf = make_shared<op::Parameter>(element::f32, conf_shape);
@@ -158,14 +144,13 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs)
         0.35,
     });
     Shape output_shape{1, 1, num_images * static_cast<size_t>(attrs.keep_top_k[0]), 7};
-    test_case.add_expected_output<float>(
-        output_shape, {0, 0, 0.7,  0.2,  0.4,  0.52, 1,    0, 1, 0.9, 0,   0.6,  0.3, 0.35,
-                       1, 1, 0.81, 0.25, 0.41, 0.5,  0.67, 1, 1, 0.8, 0.1, 0.55, 0.3, 0.45});
+    test_case.add_expected_output<float>(output_shape,
+                                         {0, 0, 0.7,  0.2,  0.4,  0.52, 1,    0, 1, 0.9, 0,   0.6,  0.3, 0.35,
+                                          1, 1, 0.81, 0.25, 0.41, 0.5,  0.67, 1, 1, 0.8, 0.1, 0.55, 0.3, 0.45});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_share_location)
-{
+NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_share_location) {
     op::DetectionOutputAttrs attrs;
     attrs.num_classes = 3;
     attrs.background_label_id = -1;
@@ -190,8 +175,7 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_share_location)
     size_t num_images = 2;
     Shape loc_shape{num_images, num_prior_boxes * num_loc_classes * prior_box_size};
     Shape conf_shape{num_images, num_prior_boxes * attrs.num_classes};
-    Shape prior_boxes_shape{
-        num_images, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
+    Shape prior_boxes_shape{num_images, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
 
     auto loc = make_shared<op::Parameter>(element::f32, loc_shape);
     auto conf = make_shared<op::Parameter>(element::f32, conf_shape);
@@ -260,16 +244,14 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_share_location)
     Shape output_shape{1, 1, num_images * static_cast<size_t>(attrs.keep_top_k[0]), 7};
     test_case.add_expected_output<float>(output_shape,
                                          {
-                                             0,    0,   0.7, 0,   0.4,  0.3, 0.5,  0,    1,    0.9,
-                                             0.1,  0.6, 0.3, 0.4, 1,    1,   0.81, 0.32, 0.15, 0.52,
-                                             0.61, 1,   1,   0.8, 0.53, 0.3, 0.92, 0.57,
+                                             0, 0, 0.7,  0,    0.4,  0.3,  0.5,  0, 1, 0.9, 0.1,  0.6, 0.3,  0.4,
+                                             1, 1, 0.81, 0.32, 0.15, 0.52, 0.61, 1, 1, 0.8, 0.53, 0.3, 0.92, 0.57,
 
                                          });
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_normalized)
-{
+NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_normalized) {
     op::DetectionOutputAttrs attrs;
     attrs.num_classes = 3;
     attrs.background_label_id = -1;
@@ -294,8 +276,7 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_normalized)
     size_t num_images = 2;
     Shape loc_shape{num_images, num_prior_boxes * num_loc_classes * prior_box_size};
     Shape conf_shape{num_images, num_prior_boxes * attrs.num_classes};
-    Shape prior_boxes_shape{
-        num_images, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
+    Shape prior_boxes_shape{num_images, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
 
     auto loc = make_shared<op::Parameter>(element::f32, loc_shape);
     auto conf = make_shared<op::Parameter>(element::f32, conf_shape);
@@ -364,16 +345,14 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_normalized)
     Shape output_shape{1, 1, num_images * static_cast<size_t>(attrs.keep_top_k[0]), 7};
     test_case.add_expected_output<float>(output_shape,
                                          {
-                                             0,    0,   0.7, 0,   0.4,  0.3, 0.5,  0,    1,    0.9,
-                                             0.1,  0.6, 0.3, 0.4, 1,    1,   0.81, 0.32, 0.15, 0.52,
-                                             0.61, 1,   1,   0.8, 0.53, 0.3, 0.92, 0.57,
+                                             0, 0, 0.7,  0,    0.4,  0.3,  0.5,  0, 1, 0.9, 0.1,  0.6, 0.3,  0.4,
+                                             1, 1, 0.81, 0.32, 0.15, 0.52, 0.61, 1, 1, 0.8, 0.53, 0.3, 0.92, 0.57,
 
                                          });
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_keep_all_bboxes)
-{
+NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_keep_all_bboxes) {
     op::DetectionOutputAttrs attrs;
     attrs.num_classes = 2;
     attrs.background_label_id = -1;
@@ -398,8 +377,7 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_keep_all_bboxes)
     size_t num_images = 3;
     Shape loc_shape{num_images, num_prior_boxes * num_loc_classes * prior_box_size};
     Shape conf_shape{num_images, num_prior_boxes * attrs.num_classes};
-    Shape prior_boxes_shape{
-        num_images, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
+    Shape prior_boxes_shape{num_images, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
 
     auto loc = make_shared<op::Parameter>(element::f32, loc_shape);
     auto conf = make_shared<op::Parameter>(element::f32, conf_shape);
@@ -554,8 +532,7 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_keep_all_bboxes)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_center_size)
-{
+NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_center_size) {
     op::DetectionOutputAttrs attrs;
     attrs.num_classes = 3;
     attrs.background_label_id = -1;
@@ -580,8 +557,7 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_center_size)
     size_t num_images = 2;
     Shape loc_shape{num_images, num_prior_boxes * num_loc_classes * prior_box_size};
     Shape conf_shape{num_images, num_prior_boxes * attrs.num_classes};
-    Shape prior_boxes_shape{
-        num_images, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
+    Shape prior_boxes_shape{num_images, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
 
     auto loc = make_shared<op::Parameter>(element::f32, loc_shape);
     auto conf = make_shared<op::Parameter>(element::f32, conf_shape);
@@ -684,19 +660,17 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_center_size)
         0.36,
     });
     Shape output_shape{1, 1, num_images * static_cast<size_t>(attrs.keep_top_k[0]), 7};
-    test_case.add_expected_output<float>(
-        output_shape,
-        {
-            0, 0, 0.7,  0,          0.28163019,  0.14609808, 0.37836978,
-            0, 1, 0.9,  0,          0.49427515,  0.11107014, 0.14572485,
-            1, 1, 0.81, 0.22040875, 0.079573378, 0.36959124, 0.4376266,
-            1, 1, 0.8,  0.32796675, 0.18435785,  0.56003326, 0.40264216,
-        });
+    test_case.add_expected_output<float>(output_shape,
+                                         {
+                                             0, 0, 0.7,  0,          0.28163019,  0.14609808, 0.37836978,
+                                             0, 1, 0.9,  0,          0.49427515,  0.11107014, 0.14572485,
+                                             1, 1, 0.81, 0.22040875, 0.079573378, 0.36959124, 0.4376266,
+                                             1, 1, 0.8,  0.32796675, 0.18435785,  0.56003326, 0.40264216,
+                                         });
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, detection_output_5_inputs)
-{
+NGRAPH_TEST(${BACKEND_NAME}, detection_output_5_inputs) {
     op::DetectionOutputAttrs attrs;
     attrs.num_classes = 2;
     attrs.background_label_id = -1;
@@ -721,17 +695,15 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_5_inputs)
     size_t num_images = 2;
     Shape loc_shape{num_images, num_prior_boxes * num_loc_classes * prior_box_size};
     Shape conf_shape{num_images, num_prior_boxes * attrs.num_classes};
-    Shape prior_boxes_shape{
-        num_images, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
+    Shape prior_boxes_shape{num_images, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
 
     auto loc = make_shared<op::Parameter>(element::f32, loc_shape);
     auto conf = make_shared<op::Parameter>(element::f32, conf_shape);
     auto prior_boxes = make_shared<op::Parameter>(element::f32, prior_boxes_shape);
     auto aux_loc = make_shared<op::Parameter>(element::f32, loc_shape);
     auto aux_conf = make_shared<op::Parameter>(element::f32, conf_shape);
-    auto f = make_shared<Function>(
-        make_shared<op::DetectionOutput>(loc, conf, prior_boxes, aux_conf, aux_loc, attrs),
-        ParameterVector{loc, conf, prior_boxes, aux_conf, aux_loc});
+    auto f = make_shared<Function>(make_shared<op::DetectionOutput>(loc, conf, prior_boxes, aux_conf, aux_loc, attrs),
+                                   ParameterVector{loc, conf, prior_boxes, aux_conf, aux_loc});
 
     auto test_case = test::TestCase<TestEngine>(f);
     // locations
@@ -861,12 +833,11 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_5_inputs)
     });
 
     Shape output_shape{1, 1, num_images * static_cast<size_t>(attrs.keep_top_k[0]), 7};
-    test_case.add_expected_output<float>(
-        output_shape,
-        {
-            0, 0, 0.4,  0.55, 0.61, 1, 0.97, 0, 1, 0.7,  0.4,  0.52, 0.9, 1,
-            1, 0, 0.42, 0.83, 0.5,  1, 0.87, 1, 1, 0.33, 0.63, 0.35, 1,   1,
+    test_case.add_expected_output<float>(output_shape,
+                                         {
+                                             0, 0, 0.4,  0.55, 0.61, 1, 0.97, 0, 1, 0.7,  0.4,  0.52, 0.9, 1,
+                                             1, 0, 0.42, 0.83, 0.5,  1, 0.87, 1, 1, 0.33, 0.63, 0.35, 1,   1,
 
-        });
+                                         });
     test_case.run();
 }

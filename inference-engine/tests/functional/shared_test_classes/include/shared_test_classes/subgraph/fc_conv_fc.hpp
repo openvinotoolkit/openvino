@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ typedef std::tuple<
 class FcAfterConvTest : public testing::WithParamInterface<FcConvFcParams>,
                         public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FcConvFcParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FcConvFcParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:
@@ -43,7 +43,7 @@ protected:
 class FcBeforeConvTest : public testing::WithParamInterface<FcConvFcParams>,
                          public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FcConvFcParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FcConvFcParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:
@@ -53,7 +53,7 @@ protected:
 class FcBetweenConvsTest : public testing::WithParamInterface<FcConvFcParams>,
                            public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FcConvFcParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FcConvFcParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:

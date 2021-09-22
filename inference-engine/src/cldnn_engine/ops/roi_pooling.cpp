@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include "ngraph/op/psroi_pooling.hpp"
 #include "ngraph/op/deformable_psroi_pooling.hpp"
 
-#include "api/roi_pooling.hpp"
+#include "cldnn/primitives/roi_pooling.hpp"
 
 namespace CLDNNPlugin {
 
@@ -57,7 +57,8 @@ void CreateDeformablePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op
                                                group_size,
                                                output_dim,
                                                spatial_bins_x,
-                                               spatial_bins_y);
+                                               spatial_bins_y,
+                                               op->get_friendly_name());
     p.AddPrimitive(psROIPoolingPrim);
     p.AddPrimitiveToProfiler(op);
 }
@@ -85,7 +86,8 @@ void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::PSRO
                                                spatial_scale,
                                                output_dim,
                                                spatial_bins_x,
-                                               spatial_bins_y);
+                                               spatial_bins_y,
+                                               op->get_friendly_name());
     p.AddPrimitive(psROIPoolingPrim);
     p.AddPrimitiveToProfiler(op);
 }
@@ -110,7 +112,11 @@ void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::ROIPoo
                                              position_sensitive,
                                              pooled_width,
                                              pooled_height,
-                                             spatial_scale);
+                                             spatial_scale,
+                                             0,
+                                             1,
+                                             1,
+                                             op->get_friendly_name());
 
     p.AddPrimitive(roiPoolingPrim);
     p.AddPrimitiveToProfiler(op);

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ using namespace ngraph::pass;
 
 class FakeQuantizeWithDynamicIntervalsTransformationTestValues {
 public:
-    low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool inputLowConst;
     bool inpuHighConst;
     bool outputLowConst;
@@ -157,7 +157,7 @@ const std::vector<FakeQuantizeWithDynamicIntervalsTransformationTestValues> fake
 
 const std::vector<ngraph::Shape> shapes = { { 1, 32, 72, 48 } };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     FakeQuantizeWithDynamicIntervalsTransformation,
     ::testing::Combine(

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,7 +78,7 @@ TEST_P(GetDequantizationTestTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, GetDequantizationTestTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GetDequantizationTestTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(isConvert),
         ::testing::ValuesIn(isSubtract),

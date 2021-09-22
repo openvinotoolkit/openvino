@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include "ngraph/op/max_pool.hpp"
 #include "ngraph/op/avg_pool.hpp"
 
-#include "api/pooling.hpp"
+#include "cldnn/primitives/pooling.hpp"
 
 namespace CLDNNPlugin {
 
@@ -25,7 +25,7 @@ static PoolingParameters GetPoolingParameters(const ngraph::Shape& kernel,
                                               const ngraph::Shape& pads_end) {
     cldnn::tensor k, s, pb, pe;
     if (pads_begin.size() != strides.size() || pads_end.size() != strides.size() || kernel.size() != strides.size())
-        THROW_IE_EXCEPTION << "Strides, KernelSizes and Pads are supposed to have the same elements count";
+        IE_THROW() << "Strides, KernelSizes and Pads are supposed to have the same elements count";
 
     std::vector<cldnn::tensor::value_type> pb_casted(pads_begin.begin(), pads_begin.end());
     std::vector<cldnn::tensor::value_type> pe_casted(pads_end.begin(), pads_end.end());
@@ -51,7 +51,7 @@ static PoolingParameters GetPoolingParameters(const ngraph::Shape& kernel,
             pe = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pe_casted[0], 0, 0));
             break;
         }
-        default: THROW_IE_EXCEPTION << "Unsupported pooling parameters size. Only 1d, 2d, and 3d cases are supported";
+        default: IE_THROW() << "Unsupported pooling parameters size. Only 1d, 2d, and 3d cases are supported";
     }
 
     return {k, s, pb, pe};
@@ -70,7 +70,8 @@ void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::AvgPool>&
                                    params.stride,
                                    params.pad_begin,
                                    CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                   DataTypeFromPrecision(op->get_output_element_type(0)));
+                                   DataTypeFromPrecision(op->get_output_element_type(0)),
+                                   op->get_friendly_name());
     poolPrim.pad_end = params.pad_end;
     p.AddPrimitive(poolPrim);
     p.AddPrimitiveToProfiler(op);
@@ -89,7 +90,8 @@ void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::MaxPool>&
                                    params.stride,
                                    params.pad_begin,
                                    CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                   DataTypeFromPrecision(op->get_output_element_type(0)));
+                                   DataTypeFromPrecision(op->get_output_element_type(0)),
+                                   op->get_friendly_name());
     poolPrim.pad_end = params.pad_end;
     p.AddPrimitive(poolPrim);
     p.AddPrimitiveToProfiler(op);

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,12 @@
 
 namespace LayerTestsDefinitions {
 
+// DEPRECATED, remove this old API when KMB (#58495) and ARM (#58496) plugins are migrated to new API
 TEST_P(GroupConvBackpropDataLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(GroupConvBackpropLayerTest, CompareWithRefs) {
     Run();
 }
 

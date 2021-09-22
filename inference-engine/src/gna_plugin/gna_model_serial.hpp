@@ -7,6 +7,7 @@
 #include <istream>
 #include <vector>
 #include <utility>
+#include <ie_input_info.hpp>
 
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_output_desc.hpp"
@@ -22,7 +23,7 @@
  */
 class GNAModelSerial {
  public:
-    using MemoryType = std::vector<std::pair<void*, uint32_t>>;
+    using MemoryType = std::vector<std::tuple<void*, uint32_t, std::string, float>>;
 
 private:
 #if GNA_LIB_VER == 2
@@ -122,10 +123,11 @@ private:
      * mark certain part of gna_blob as state (in future naming is possible)
      * @param descriptor_ptr
      * @param size
+     * @param layerName
      * @return
      */
-    GNAModelSerial & AddState(void* descriptor_ptr, size_t size) {
-        states.emplace_back(descriptor_ptr, size);
+    GNAModelSerial & AddState(void* descriptor_ptr, size_t size, std::string layerName = "noname", float scale_factor = 1.0f) {
+        states.emplace_back(descriptor_ptr, size, layerName, scale_factor);
         return *this;
     }
 
@@ -135,6 +137,8 @@ private:
      * @return
      */
     static GNAPluginNS::HeaderLatest::ModelHeader ReadHeader(std::istream &is);
+
+    GNAPluginNS::HeaderLatest::RuntimeEndPoint ReadEndPoint(std::istream &is);
 
     /**
      * @brief Import model from FS into preallocated buffer,
@@ -155,7 +159,6 @@ private:
 
     /**
      * save gna graph to an outpus stream
-     * @param ptr_nnet
      * @param basePtr
      * @param gnaGraphSize
      * @param os

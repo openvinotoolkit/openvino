@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PSROIPoolingLayerTest::getTestCaseName(testing::TestParamInfo<psroiParams> obj) {
+std::string PSROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<psroiParams>& obj) {
     std::vector<size_t> inputShape;
     std::vector<size_t> coordsShape;
     size_t outputDim;
@@ -42,7 +41,7 @@ static int randInt(int low, int high) {
     return dis(gen);
 }
 
-static void fillROITensor(float* buffer, int numROIs, int batchSize,
+    void PSROIPoolingLayerTest::fillROITensor(float* buffer, int numROIs, int batchSize,
                           int height, int width, int groupSize,
                           float spatialScale, int spatialBinsX, int spatialBinsY, const std::string& mode) {
     int minRoiWidth = groupSize;
@@ -61,8 +60,8 @@ static void fillROITensor(float* buffer, int numROIs, int batchSize,
     }
     int batchId = 0;
     for (int i = 0; i < numROIs; i++) {
-        int sizeX = std::min(width, randInt(minRoiWidth, maxRoiWidth));
-        int sizeY = std::min(height, randInt(minRoiHeight, maxRoiHeight));
+        int sizeX = std::min(width, randInt(std::min(minRoiWidth, maxRoiWidth), std::max(minRoiWidth, maxRoiWidth)));
+        int sizeY = std::min(height, randInt(std::min(minRoiWidth, maxRoiWidth), std::max(minRoiWidth, maxRoiWidth)));
         int startX = randInt(0, std::max(1, width - sizeX - 1));
         int startY = randInt(0, std::max(1, height - sizeY - 1));
 
@@ -77,10 +76,7 @@ static void fillROITensor(float* buffer, int numROIs, int batchSize,
     }
 }
 
-void PSROIPoolingLayerTest::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
-
+void PSROIPoolingLayerTest::GenerateInputs() {
     auto inputShape = cnnNetwork.getInputShapes().begin()->second;
 
     size_t it = 0;
@@ -97,11 +93,9 @@ void PSROIPoolingLayerTest::Infer() {
         } else {
             blob = GenerateInput(*info);
         }
-        inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
         it++;
     }
-    inferRequest.Infer();
 }
 
 void PSROIPoolingLayerTest::SetUp() {

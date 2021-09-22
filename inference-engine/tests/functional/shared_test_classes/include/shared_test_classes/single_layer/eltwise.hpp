@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 // NOTE: WILL BE REWORKED (31905)
@@ -12,7 +11,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "common_test_utils/common_layers_params.hpp"
 #include "ie_core.hpp"
 
 namespace LayerTestsDefinitions {
@@ -37,6 +35,6 @@ protected:
     void SetUp() override;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EltwiseTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj);
 };
 } // namespace LayerTestsDefinitions

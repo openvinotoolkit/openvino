@@ -1,6 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include <tuple>
 #include <string>
 #include <vector>
@@ -59,7 +60,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         threshold = 0.1f;
 
         std::vector<std::vector<size_t>> inputShapes;
@@ -139,7 +140,7 @@ std::vector<std::vector<EltwiseTypes>> eltwiseOps = {
         { EltwiseTypes::DIVIDE, EltwiseTypes::SQUARED_DIFF, EltwiseTypes::ADD },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseChain, EltwiseChainTest,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain, EltwiseChainTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes),
                                 ::testing::ValuesIn(inputPrecisions),
@@ -171,7 +172,7 @@ std::vector<std::vector<InferenceEngine::Precision>> inputPrecisionsFQ {
         { Precision::FP32, Precision::FP32, Precision::FP32, Precision::FP32 }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseChainWithFQ, EltwiseChainTest,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithFQ, EltwiseChainTest,
                     ::testing::Combine(
                             ::testing::ValuesIn(inputShapesFQ),
                             ::testing::ValuesIn(inputPrecisionsFQ),

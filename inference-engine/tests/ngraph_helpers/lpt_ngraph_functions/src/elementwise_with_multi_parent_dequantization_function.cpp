@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ std::shared_ptr<ngraph::Function> ElementwiseWithMultiParentDequantizationFuncti
     const auto input1_1 = std::make_shared<ngraph::opset1::Parameter>(precision1, inputShape);
     const auto input1_2 = std::make_shared<ngraph::opset1::Parameter>(precision1, ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }));
     const std::shared_ptr<ngraph::Node> multiply1 = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
-        DequantizationMultiply(
+        opset1::Multiply(
             ngraph::op::TemporaryReplaceOutputType(input1_1, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(input1_2, element::f32).get()),
         std::vector<element::Type>{element::f32, element::f32},
@@ -37,7 +37,7 @@ std::shared_ptr<ngraph::Function> ElementwiseWithMultiParentDequantizationFuncti
     const auto input2_1 = std::make_shared<ngraph::opset1::Parameter>(precision1, inputShape);
     const auto input2_2 = std::make_shared<ngraph::opset1::Parameter>(precision1, ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }));
     const std::shared_ptr<ngraph::Node> multiply2 = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
-        DequantizationMultiply(
+        opset1::Multiply(
             ngraph::op::TemporaryReplaceOutputType(input2_1, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(input2_2, element::f32).get()),
         std::vector<element::Type>{element::f32, element::f32},

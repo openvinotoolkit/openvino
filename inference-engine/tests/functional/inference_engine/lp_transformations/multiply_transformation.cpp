@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,20 +20,22 @@
 #include "simple_low_precision_transformer.hpp"
 #include "lpt_ngraph_functions/multiply_function.hpp"
 
+namespace {
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
 class MultiplyTransformationTestValues {
 public:
-    low_precision::LayerTransformation::Params transformationParams;
+    TestTransformationParams transformationParams;
     MultiplyValues actual;
     MultiplyValues expected;
 
     MultiplyTransformationTestValues() = default;
 
     MultiplyTransformationTestValues(
-        low_precision::LayerTransformation::Params transformationParams,
+        TestTransformationParams transformationParams,
         MultiplyValues actual,
         MultiplyValues expected):
         transformationParams(std::move(transformationParams)),
@@ -43,61 +45,44 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
-    bool,
     MultiplyTransformationTestValues> MultiplyTransformationParams;
 
 class MultiplyTransformation : public LayerTransformation, public testing::WithParamInterface<MultiplyTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::Shape shape = std::get<1>(GetParam());
-        const MultiplyTransformationTestValues testParams = std::get<3>(GetParam());
+        const ngraph::element::Type precision = std::get<0>(GetParam());
+        const MultiplyTransformationTestValues testParams = std::get<1>(GetParam());
 
-        actualFunction = MultiplyFunction::get(shape, testParams.actual);
-
+        actualFunction = MultiplyFunction::get(precision, testParams.actual);
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(
-            low_precision::LayerTransformation::Params(testParams.transformationParams));
+        transform.add<low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(testParams.transformationParams);
         transform.transform(actualFunction);
 
-        referenceFunction = MultiplyFunction::get(shape, testParams.expected);
+        referenceFunction = MultiplyFunction::get(precision, testParams.expected);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj) {
-        ngraph::element::Type precision;
-        ngraph::Shape shape;
-        bool broadcast;
-        MultiplyTransformationTestValues params;
-        std::tie(precision, shape, broadcast, params) = obj.param;
+        const ngraph::element::Type precision = std::get<0>(obj.param);
+        const MultiplyTransformationTestValues testParams = std::get<1>(obj.param);
 
         std::ostringstream result;
         result <<
-            LayerTransformation::getTestCaseNameByParams(precision, shape, params.transformationParams) <<
-            (broadcast ? "_broadcast_" : "") <<
-            params.actual <<
-            params.expected;
+            LayerTransformation::getTestCaseNameByParams(precision, testParams.expected.branch1.inputShape, testParams.transformationParams) <<
+            testParams.actual <<
+            testParams.expected;
         return result.str();
     }
 };
 
 TEST_P(MultiplyTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    //ngraph::element::f16
-};
-
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 32, 72, 48 }
-};
-
-const std::vector<bool> broadcastValues = {
-    true,
-    false
+    ngraph::element::f16
 };
 
 const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
@@ -140,6 +125,40 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
         LayerTransformation::createParamsU8I8(),
         {
             {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { 2.f }, { 10.f }}
+            },
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { 3.f }, { 7.f }}
+            },
+            false
+        },
+        {
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { 2.f }, { 10.f }}
+            },
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { 3.f }, { 7.f }}
+            },
+            false
+        }
+    },
+
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            {
                 { 1, 3, 8, 16 },
                 {},
                 ngraph::element::u8,
@@ -162,6 +181,40 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             },
             {
                 { 1, 3, 8, 16 },
+                {},
+                ngraph::element::u8,
+                {}
+            },
+            false
+        }
+    },
+
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { 2.f }, { 10.f }}
+            },
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { }, { 7.f }}
+            },
+            false
+        },
+        {
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { 2.f }, { 70.f }}
+            },
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
                 {},
                 ngraph::element::u8,
                 {}
@@ -233,6 +286,72 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
                 {},
                 ngraph::element::u8,
                 {}
+            },
+            false
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { 2.f }, {  }}
+            },
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { }, { 7.f } }
+            },
+            false
+        },
+        {
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { 2.f }, { 7.f }}
+            },
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::u8,
+                {}
+            },
+            false
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            {
+                PartialShape::dynamic(),
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { 2.f }, {  }}
+            },
+            {
+                PartialShape::dynamic(),
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { }, { 7.f } }
+            },
+            false
+        },
+        {
+            {
+                PartialShape::dynamic(),
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { 2.f }, {  }}
+            },
+            {
+                PartialShape::dynamic(),
+                {},
+                ngraph::element::u8,
+                {ngraph::element::f32, { }, { 7.f } }
             },
             false
         }
@@ -512,6 +631,40 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
         LayerTransformation::createParamsU8I8(),
         {
             {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::i8,
+                {ngraph::element::f32, { }, { 10.f }},
+            },
+            {
+                {},
+                {{ 7.f }, ngraph::element::f32}, // Constant as input
+                ngraph::element::f32,
+                {}
+            },
+            false
+        },
+        {
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::i8,
+                {ngraph::element::f32, {}, {}},
+            },
+            {
+                {},
+                {{ 70.f }, ngraph::element::f32},
+                ngraph::element::f32,
+                {}
+            },
+            true
+        }
+    },
+
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            {
                 { 1, 3, 8, 16 },
                 {},
                 ngraph::element::i8,
@@ -724,14 +877,58 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             true
         }
     },
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            {
+                {},
+                {{ 7.f }, ngraph::element::i8}, // Constant as input
+                ngraph::element::i8,
+                {
+                    ngraph::element::f32,
+                    { {127.f}, ngraph::element::f32, {}, false, 1, ngraph::element::i8, true },
+                    { 0.5f }
+                },
+            },
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::i8,
+                {
+                    ngraph::element::f32,
+                    { {127.f}, ngraph::element::f32, {}, false, 1, ngraph::element::i8, true },
+                    { 0.2f }
+                },
+            },
+            false
+        },
+        {
+            {
+                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+                {},
+                ngraph::element::i8,
+                {
+                    ngraph::element::f32,
+                    { {127.f}, ngraph::element::f32, {}, false, 1, ngraph::element::i8, true },
+                    {}
+                },
+            },
+            {
+                {},
+                {{ -12.f }, ngraph::element::f32},
+                ngraph::element::f32,
+                {}
+            },
+            true
+        }
+    },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     MultiplyTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(broadcastValues),
         ::testing::ValuesIn(multiplyTransformationTestValues)),
     MultiplyTransformation::getTestCaseName);
+} // namespace

@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ std::string ConcatLayerTest::getTestCaseName(const testing::TestParamInfo<concat
     result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
-    result << "trgDev=" << targetName << "_";
+    result << "trgDev=" << targetName;
     return result.str();
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,8 +102,14 @@ class PWLMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
         }
 
         switch (slopeChangedTimes) {
-            case 2 : return kActRelu; // also relu has y=0 segment while identity doenst have
-            case 3 : return kActIdentity;
+            case 3 :
+                if (comp.op.pwl.num_segments == 4) {
+                    // ReLU has y=0 segment while identity doesn't have
+                    // 2 segments are added: one at the begining and one at the end, due to saturation errata
+                    return kActRelu;
+                } else {
+                    return kActIdentity;
+                }
             default:
                 // currently cannot determine between sigmoid or tanh etc
                 if (slopeChangedTimes > 3) {

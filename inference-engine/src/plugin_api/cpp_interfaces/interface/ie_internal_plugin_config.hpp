@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,14 @@ namespace PluginConfigInternalParams {
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration keys
  */
-#define CONFIG_KEY_INTERNAL(name)  ::InferenceEngine::PluginConfigInternalParams::_CONFIG_KEY(name)
+#define CONFIG_KEY_INTERNAL(name) ::InferenceEngine::PluginConfigInternalParams::_CONFIG_KEY(name)
+
+/**
+ * @def CONFIG_VALUE_INTERNAL(name)
+ * @ingroup ie_dev_api_plugin_api
+ * @brief Shortcut for defining internal configuration values
+ */
+#define CONFIG_VALUE_INTERNAL(name) ::InferenceEngine::PluginConfigInternalParams::name
 
 /**
  * @brief Defines a low precision mode key
@@ -39,11 +46,16 @@ DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
 DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
 
 /**
- * @brief This key should be used to notify aggregating plugin
- *        that it is used inside other aggregating plugin
+ * @brief This key should be used to force disable export while loading network even if global cache dir is defined
+ *        Used by HETERO plugin to disable automatic caching of subnetworks (set value to YES)
  * @ingroup ie_dev_api_plugin_api
  */
-DECLARE_CONFIG_KEY(AGGREGATED_PLUGIN);
+DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
+
+/**
+ * @brief The name for setting work mode internal in MULTI device plugin option.
+ */
+DECLARE_CONFIG_KEY(MULTI_WORK_MODE_AS_AUTO);
 
 }  // namespace PluginConfigInternalParams
 

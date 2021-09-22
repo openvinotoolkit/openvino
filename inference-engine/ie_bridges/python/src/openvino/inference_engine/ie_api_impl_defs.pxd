@@ -1,16 +1,19 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from libc.stddef cimport size_t
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.map cimport map
-from libcpp.set cimport set
-from libcpp.pair cimport pair
 from libcpp.memory cimport unique_ptr, shared_ptr, weak_ptr
 from libc.stdint cimport int64_t, uint8_t
 
 
 cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
     ctypedef vector[size_t] SizeVector
+
+    cdef cppclass CExecutableNetwork "InferenceEngine::ExecutableNetwork"
 
     cdef cppclass TBlob[T]:
         ctypedef shared_ptr[TBlob[T]] Ptr
@@ -20,6 +23,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const CTensorDesc& getTensorDesc()  except +
         size_t element_size()  except +
         void allocate()
+        void setShape(const SizeVector& dims) except +
 
     cdef TBlob[Type].Ptr make_shared_blob[Type](const CTensorDesc& tensorDesc)
 
@@ -44,6 +48,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const Layout getLayout() except +
         void setLayout(Layout layout) except +
         const bool isInitialized() except +
+        bool isDynamic() except +
 
     ctypedef shared_ptr[Data] DataPtr
     ctypedef weak_ptr[Data] DataWeakPtr
@@ -129,6 +134,12 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
 
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
+    cdef cppclass CVariableState:
+        void reset() except +
+        string getName() except +
+        CBlob.Ptr getState() except +
+        void setState(CBlob.Ptr state) except +
+
     cdef cppclass ProfileInfo:
         string status
         string exec_type
@@ -145,61 +156,60 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef cppclass IEExecNetwork:
         vector[InferRequestWrap] infer_requests
         IENetwork GetExecGraphInfo() except +
-        map[string, DataPtr] getInputs() except +
         map[string, CDataPtr] getOutputs() except +
         map[string, InputInfo.CPtr] getInputsInfo()
         void exportNetwork(const string & model_file) except +
         object getMetric(const string & metric_name) except +
         object getConfig(const string & metric_name) except +
-        int wait(int num_requests, int64_t timeout)
-        int getIdleRequestId()
+        int wait(int num_requests, int64_t timeout) nogil
+        int getIdleRequestId() nogil
+        shared_ptr[CExecutableNetwork] getPluginLink() except +
 
     cdef cppclass IENetwork:
-        IENetwork() except +
-        IENetwork(object) except +
-        IENetwork(const string &, const string &) except +
+        IENetwork() nogil except +
+        IENetwork(object) nogil except +
         string name
         size_t batch_size
         string precision
         map[string, vector[size_t]] inputs
-        const map[string, InputInfo.Ptr] getInputsInfo() except +
-        const map[string, DataPtr] getInputs() except +
-        map[string, DataPtr] getOutputs() except +
+        const map[string, InputInfo.Ptr] getInputsInfo() nogil except +
+        map[string, DataPtr] getOutputs() nogil except +
         void addOutput(string &, size_t) except +
         void setAffinity(map[string, string] & types_affinity_map, map[string, string] & layers_affinity_map) except +
         void setBatch(size_t size) except +
         size_t getBatch() except +
         void setLayerParams(map[string, map[string, string]] params_map) except +
         void serialize(const string& path_to_xml, const string& path_to_bin) except +
-        void reshape(map[string, vector[size_t]] input_shapes) except +
-        void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
+        void reshape(map[string, vector[vector[int64_t]]] input_shapes) except +
         object getFunction() except +
         void convertToOldRepresentation() except +
         string getOVNameForTensor(const string &) except +
-        string getOVNameForOperation(const string &) except +
 
     cdef cppclass InferRequestWrap:
         double exec_time;
         int index;
-        void getBlobPtr(const string & blob_name, CBlob.Ptr & blob_ptr) except +
+        CBlob.Ptr getBlobPtr(const string & blob_name) except +
         void setBlob(const string & blob_name, const CBlob.Ptr & blob_ptr) except +
         void setBlob(const string &blob_name, const CBlob.Ptr &blob_ptr, CPreProcessInfo& info) except +
-        void getPreProcess(const string& blob_name, const CPreProcessInfo** info) except +
+        const CPreProcessInfo& getPreProcess(const string& blob_name) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
-        void infer() except +
-        void infer_async() except +
-        int wait(int64_t timeout) except +
+        void infer() nogil except +
+        void infer_async() nogil except +
+        int wait(int64_t timeout) nogil except +
         void setBatch(int size) except +
         void setCyCallback(void (*)(void*, int), void *) except +
+        vector[CVariableState] queryState() except +
 
     cdef cppclass IECore:
-        IECore() except +
-        IECore(const string & xml_config_file) except +
+        IECore() nogil except +
+        IECore(const string & xml_config_file) nogil except +
         map[string, Version] getVersions(const string & deviceName) except +
-        IENetwork readNetwork(const string& modelPath, const string& binPath) except +
-        IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) except +
+        IENetwork readNetwork(const string& modelPath, const string& binPath) nogil except +
+        IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) nogil except +
         unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
-                                              const map[string, string] & config, int num_requests) except +
+                                              const map[string, string] & config, int num_requests) nogil except +
+        unique_ptr[IEExecNetwork] loadNetworkFromFile(const string & modelPath, const string & deviceName,
+                                              const map[string, string] & config, int num_requests) nogil except +
         unique_ptr[IEExecNetwork] importNetwork(const string & modelFIle, const string & deviceName,
                                                 const map[string, string] & config, int num_requests) except +
         map[string, string] queryNetwork(IENetwork network, const string deviceName,
@@ -209,10 +219,14 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void unregisterPlugin(const string & deviceName) except +
         void registerPlugins(const string & xmlConfigFile) except +
         void addExtension(const string & ext_lib_path, const string & deviceName) except +
-        vector[string] getAvailableDevices() except +
+        vector[string] getAvailableDevices() nogil except +
         object getMetric(const string & deviceName, const string & name) except +
         object getConfig(const string & deviceName, const string & name) except +
 
     cdef T*get_buffer[T](CBlob &)
 
     cdef string get_version()
+
+    cdef IENetwork read_network(string path_to_xml, string path_to_bin)
+
+    cdef object getPartialShape_capsule(DataPtr)

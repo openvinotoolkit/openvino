@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,8 @@
 #include "ngraph/op/embeddingbag_offsets_sum.hpp"
 #include "ngraph/op/embeddingbag_packedsum.hpp"
 
-#include "api/embedding_bag.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/embedding_bag.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -25,12 +25,12 @@ void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngraph::op
     if (inputPrimitives.size() > 3) {
         auto index_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(3));
         if (!index_node) {
-            THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
 
         float val;
         if (ngraph::shape_size(index_node->get_output_shape(0)) != 1 || !ngraph::op::util::get_single_value(index_node, val))
-             THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
         defaultIndex = static_cast<int32_t>(val);
         inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"
@@ -49,7 +49,10 @@ void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngraph::op
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
-                                                 cldnn::data_types::i32);
+                                                 cldnn::data_types::i32,
+                                                 std::vector<float>(),
+                                                 cldnn::reorder_mean_mode::subtract,
+                                                 op->get_friendly_name());
             p.AddPrimitive(preprocessPrim);
             p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
             reorderedInputs[portIndex] = (reorderPrimName);
@@ -62,7 +65,8 @@ void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngraph::op
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::offsets_sum,
                                                  CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                                 defaultIndex);
+                                                 defaultIndex,
+                                                 op->get_friendly_name());
 
     p.AddPrimitive(embeddingBagPrim);
     p.AddPrimitiveToProfiler(op);
@@ -86,7 +90,10 @@ void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngraph::op:
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
-                                                 cldnn::data_types::i32);
+                                                 cldnn::data_types::i32,
+                                                 std::vector<float>(),
+                                                 cldnn::reorder_mean_mode::subtract,
+                                                 op->get_friendly_name());
             p.AddPrimitive(preprocessPrim);
             p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
             reorderedInputs[portIndex] = (reorderPrimName);
@@ -98,7 +105,9 @@ void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngraph::op:
     auto embeddingBagPrim = cldnn::embedding_bag(layerName,
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::packed_sum,
-                                                 CldnnTensorFromIEDims(op->get_output_shape(0)));
+                                                 CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                 -1,
+                                                 op->get_friendly_name());
 
     p.AddPrimitive(embeddingBagPrim);
     p.AddPrimitiveToProfiler(op);
@@ -116,12 +125,12 @@ void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngraph::op::
     if (inputPrimitives.size() > 3) {
         auto index_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(4));
         if (!index_node) {
-            THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
 
         float val;
         if (ngraph::shape_size(index_node->get_output_shape(0)) != 1 || !ngraph::op::util::get_single_value(index_node, val))
-             THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
         defaultIndex = static_cast<int32_t>(val);
         inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"
@@ -140,7 +149,10 @@ void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngraph::op::
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
-                                                 cldnn::data_types::i32);
+                                                 cldnn::data_types::i32,
+                                                 std::vector<float>(),
+                                                 cldnn::reorder_mean_mode::subtract,
+                                                 op->get_friendly_name());
             p.AddPrimitive(preprocessPrim);
             p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
             reorderedInputs[portIndex] = (reorderPrimName);
@@ -153,7 +165,8 @@ void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngraph::op::
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::segments_sum,
                                                  CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                                 defaultIndex);
+                                                 defaultIndex,
+                                                 op->get_friendly_name());
 
     p.AddPrimitive(embeddingBagPrim);
     p.AddPrimitiveToProfiler(op);
