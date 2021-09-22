@@ -236,21 +236,13 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const
            thisExtra.scale_adjust == rhsExtra.scale_adjust) && wrappedThis.similar_to(wrappedRhs, true, true, 0, stride_start, true, true);
 }
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc) :
-                MemoryDesc(MKLDNNExtensionUtils::convertToVectorDims(mdesc.dims()), DnnlBlocked) {
-    desc = mdesc;
-    if (desc.data.format_kind == dnnl::impl::format_kind::any)
-        IE_THROW(Unexpected) << "Memory format any is prohibited!";
-
+static VectorDims extractOrder(const mkldnn::memory::desc& desc) {
+    const auto dims = desc.dims();
     mkldnn::impl::memory_desc_wrapper descWrapped(desc.data);
-    if (!descWrapped.is_blocking_desc())
-        IE_THROW(Unexpected) << "Can't create DnnlBlockedMemoryDesc from not blocking desc";
 
     if (descWrapped.has_runtime_dims_or_strides()) {
         IE_THROW(Unexpected) << "Cannot calculate order from undefined dims or strides";
     }
-
-    const auto dims = desc.dims();
 
     const auto &blk_desc = descWrapped.blocking_desc();
 
@@ -277,14 +269,25 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc) 
                          (blk_desc.strides[ind_l] == blk_desc.strides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
               });
 
-
     // blocked order
     // [new_outer_order] U [inner_idxs]
     SizeVector blk_order(total_ndims, 0);
     std::copy(outer_order.begin(), outer_order.end(), blk_order.begin());
     std::copy(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, blk_order.begin() + dims.size());
-    order.swap(blk_order);
+    return blk_order;
+}
 
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc) :
+                MemoryDesc(MKLDNNExtensionUtils::convertToVectorDims(mdesc.dims()), DnnlBlocked) {
+    desc = mdesc;
+    if (desc.data.format_kind == dnnl::impl::format_kind::any)
+        IE_THROW(Unexpected) << "Memory format any is prohibited!";
+
+    mkldnn::impl::memory_desc_wrapper descWrapped(desc.data);
+    if (!descWrapped.is_blocking_desc())
+        IE_THROW(Unexpected) << "Can't create DnnlBlockedMemoryDesc from not blocking desc";
+
+    order = extractOrder(desc);
     initBlockedParams();
 }
 
@@ -354,6 +357,23 @@ bool DnnlBlockedMemoryDesc::isTailCFormat() const {
     return true;
 }
 
+static mkldnn::memory::desc cloneDescWithNewDims(const mkldnn::memory::desc& desc, const VectorDims& dims, const VectorDims& order) {
+    using namespace dnnl::impl::utils;
+    auto mklDims = MKLDNNExtensionUtils::convertToDnnlDims(dims);
+    mkldnn::memory::desc newMklDesc = desc;
+    array_copy(newMklDesc.data.dims, mklDims.data(), mklDims.size());
+    std::vector<int> perm(order.begin(), order.begin() + mklDims.size());
+    auto& blockingDesc = newMklDesc.data.format_desc.blocking;
+    auto numInnerBlks = blockingDesc.inner_nblks;
+    std::vector<int> innerBlks(std::begin(blockingDesc.inner_blks), std::begin(blockingDesc.inner_blks) + numInnerBlks);
+    std::vector<int> innerIdxs(std::begin(blockingDesc.inner_idxs), std::begin(blockingDesc.inner_idxs) + numInnerBlks);
+    auto retCode = dnnl::impl::fill_blocked(newMklDesc.data, perm, innerBlks, innerIdxs);
+    if (retCode != dnnl::impl::status::success) {
+        IE_THROW() << "Can not clone DnnlBlockedMemoryDesc with dims: " << MemoryDescUtils::dims2str(dims);
+    }
+    return newMklDesc;
+}
+
 MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {
     if (std::any_of(dims.begin(), dims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
         IE_THROW() << "Can't clone desc if new dims are undefined";
@@ -370,20 +390,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
             IE_THROW(NotImplemented) << "Can't clone desc with new dims for not dense tensor";
     }
 
-    using namespace dnnl::impl::utils;
-    auto mklDims = MKLDNNExtensionUtils::convertToDnnlDims(dims);
-    mkldnn::memory::desc newMklDesc = desc;
-    array_copy(newMklDesc.data.dims, mklDims.data(), mklDims.size());
-    std::vector<int> perm(order.begin(), order.begin() + mklDims.size());
-    auto& blockingDesc = newMklDesc.data.format_desc.blocking;
-    auto numInnerBlks = blockingDesc.inner_nblks;
-    std::vector<int> innerBlks(std::begin(blockingDesc.inner_blks), std::begin(blockingDesc.inner_blks) + numInnerBlks);
-    std::vector<int> innerIdxs(std::begin(blockingDesc.inner_idxs), std::begin(blockingDesc.inner_idxs) + numInnerBlks);
-    auto retCode = dnnl::impl::fill_blocked(newMklDesc.data, perm, innerBlks, innerIdxs);
-    if (retCode != dnnl::impl::status::success) {
-        IE_THROW() << "Can not clone DnnlBlockedMemoryDesc with dims: " << MemoryDescUtils::dims2str(dims);
-    }
-    return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(newMklDesc));
+    return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order)));
 }
 
 static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by_ndims {
@@ -819,4 +826,20 @@ void DnnlBlockedMemoryDesc::recomputeDefaultStrides() {
             oneDnnStrides[order[i]] = strides[i];
         }
     }
+}
+
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc, const Shape& shape) :
+        MemoryDesc(shape, DnnlBlocked) {
+    if (mdesc.data.format_kind == dnnl::impl::format_kind::any)
+        IE_THROW(Unexpected) << "Memory format any is prohibited!";
+
+    mkldnn::impl::memory_desc_wrapper descWrapped(mdesc.data);
+    if (!descWrapped.is_blocking_desc())
+        IE_THROW(Unexpected) << "Can't create DnnlBlockedMemoryDesc from not blocking desc";
+
+    order = extractOrder(mdesc);
+
+    desc = cloneDescWithNewDims(mdesc, shape.getDims(), order);
+
+    initBlockedParams();
 }
