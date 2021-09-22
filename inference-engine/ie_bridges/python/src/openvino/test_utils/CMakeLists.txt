@@ -52,3 +52,16 @@ add_custom_command(TARGET ${TARGET_NAME}
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")
+
+# install
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        COMPONENT tests EXCLUDE_FROM_ALL)
+
+install(PROGRAMS __init__.py
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
