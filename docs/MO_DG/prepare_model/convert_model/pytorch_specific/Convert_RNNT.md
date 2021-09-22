@@ -73,7 +73,7 @@ inp = torch.randn([seq_length, batch_size, feature_length])
 feature_length = torch.LongTensor([seq_length])
 x_padded, x_lens = model.encoder(inp, feature_length)
 torch.onnx.export(model.encoder, (inp, feature_length), "rnnt_encoder.onnx", opset_version=12,
-                  input_names=['input', 'feature_length'], output_names=['x_padded', 'x_lens']
+                  input_names=['input', 'feature_length'], output_names=['x_padded', 'x_lens'],
                   dynamic_axes={'input': {0: 'seq_len', 1: 'batch'}})
 
 symbol = torch.LongTensor([[20]])
@@ -81,7 +81,7 @@ hidden = torch.randn([2, batch_size, 320]), torch.randn([2, batch_size, 320])
 g, hidden = model.prediction.forward(symbol, hidden)
 torch.onnx.export(model.prediction, (symbol, hidden), "rnnt_prediction.onnx", opset_version=12,
                   input_names=['symbol', 'hidden_in_1', 'hidden_in_2'],
-                  output_names=['g', 'hidden_out_1', 'hidden_out_2']
+                  output_names=['g', 'hidden_out_1', 'hidden_out_2'],
                   dynamic_axes={'symbol': {0: 'batch'}, 'hidden_out_1': {1: 'batch'}, 'hidden_out_2': {1: 'batch'}})
 
 f = torch.randn([batch_size, 1, 1024])
