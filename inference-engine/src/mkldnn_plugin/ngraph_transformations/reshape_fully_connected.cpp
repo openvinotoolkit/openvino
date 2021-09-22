@@ -25,13 +25,13 @@ MKLDNNPlugin::ReshapeFullyConnected::ReshapeFullyConnected() {
     const auto fcTwoOrThreeInputs = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fcTwoInputs, fcThreeInputs});
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto fc = std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode> (m.get_match_root());
+        auto fc = std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode>(m.get_match_root());
         if (!fc || transformation_callback(fc)) {
             return false;
         }
 
-        auto input_shape = fc->get_input_partial_shape(0);
-        auto input_rank = input_shape.rank().get_length();
+        auto fc_input_shape = fc->get_input_partial_shape(0);
+        auto input_rank = fc_input_shape.rank().get_length();
         auto output_shape = fc->get_output_partial_shape(0);
 
         if (input_rank == 2 || input_rank == 0) {
@@ -74,18 +74,20 @@ MKLDNNPlugin::ReshapeFullyConnected::ReshapeFullyConnected() {
         if (output_shape != output_shape_new) {
             auto I_idxs = std::vector<size_t>(input_rank - 1);
             std::iota(I_idxs.begin(), I_idxs.end(), 0);
-            auto A_input_shape = std::make_shared<ngraph::opset7::ShapeOf>(fc->input_value(0));
-            auto B_input_shape = std::make_shared<ngraph::opset7::ShapeOf>(fc->input_value(1));
+            auto A_input_shape = ngraph::op::util::make_try_fold<ngraph::opset7::ShapeOf>(fc->input_value(0));
+            auto B_input_shape = ngraph::op::util::make_try_fold<ngraph::opset7::ShapeOf>(fc->input_value(1));
             auto I_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_node(A_input_shape, {I_idxs});
             auto O_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_node(B_input_shape, {0});
             ngraph::OutputVector output_shape_dims{I_node, O_node};
 
             const size_t& original_rank = fc->get_original_rank();
             NGRAPH_CHECK(original_rank != 0); // we have set it in the MatMul to FC transformation
-            if (input_rank < original_rank)
+            if (input_rank < original_rank) {
                 output_shape_dims.insert(
-                        output_shape_dims.begin(), ngraph::opset1::Constant::create(I_node->get_element_type(), {original_rank - input_rank}, {1}));
-            auto reshape_output_shape = std::make_shared<ngraph::opset1::Concat>(output_shape_dims, 0);
+                    output_shape_dims.begin(), ngraph::opset1::Constant::create(I_node->get_element_type(), { original_rank - input_rank }, { 1 }));
+            }
+
+            auto reshape_output_shape = ngraph::op::util::make_try_fold<ngraph::opset1::Concat>(output_shape_dims, 0);
             auto reshape_output = std::make_shared<ngraph::opset1::Reshape>(fc_new, reshape_output_shape, false);
             new_ops.push_back(A_input_shape);
             new_ops.push_back(B_input_shape);
