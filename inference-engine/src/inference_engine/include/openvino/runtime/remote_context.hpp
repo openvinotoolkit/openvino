@@ -13,9 +13,9 @@
 #include <memory>
 #include <string>
 
-#include "common.hpp"
-#include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
+#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/parameter.hpp"
 
 namespace InferenceEngine {
 class RemoteBlob;
@@ -119,7 +119,7 @@ public:
      * Abstract method.
      * @return A pointer to plugin object that implements RemoteBlob interface.
      */
-    std::shared_ptr<ie::RemoteBlob> create_blob(const ie::TensorDesc& tensorDesc, const ie::ParamMap& params = {});
+    std::shared_ptr<ie::RemoteBlob> create_blob(const ie::TensorDesc& tensorDesc, const ParamMap& params = {});
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
@@ -130,7 +130,7 @@ public:
      * Abstract method.
      * @return A map of name/parameter elements.
      */
-    ie::ParamMap get_params() const;
+    ParamMap get_params() const;
 };
 
 }  // namespace runtime
