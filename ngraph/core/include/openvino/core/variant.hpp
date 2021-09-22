@@ -7,8 +7,8 @@
 #include <map>
 #include <string>
 
-#include "ngraph/output_vector.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
 
@@ -23,7 +23,7 @@ public:
 
     virtual bool is_copyable() const;
     virtual std::shared_ptr<ov::Variant> init(const std::shared_ptr<Node>& node);
-    virtual std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector& nodes);
+    virtual std::shared_ptr<ov::Variant> merge(const ov::NodeVector& nodes);
     virtual std::string to_string() {
         return "";
     }

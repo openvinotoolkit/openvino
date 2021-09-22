@@ -13,7 +13,7 @@ namespace v8 {
 ///
 class OPENVINO_API MulticlassNms : public util::NmsBase {
 public:
-    OPENVINO_OP("MulticlassNms", "opset8", op::util::NmsBase, 8);
+    OPENVINO_OP("MulticlassNms", "opset8", op::util::NmsBase);
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

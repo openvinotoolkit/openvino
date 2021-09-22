@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "ngraph/compatibility.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 
@@ -53,9 +54,26 @@ private:
 };
 }  // namespace op
 
+template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
+void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    info.emplace_back(T::type_info);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
+void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
+    info.emplace_back(T::get_type_info_static());
+}
+
+template <class T, class... Targs, typename std::enable_if<sizeof...(Targs) != 0, bool>::type = true>
+void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
+    collect_wrap_info<T>(info);
+    collect_wrap_info<Targs...>(info);
+}
 template <class... Args>
 std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const pattern::op::ValuePredicate& pred) {
-    std::vector<DiscreteTypeInfo> info{Args::get_type_info_static()...};
+    std::vector<DiscreteTypeInfo> info;
+    collect_wrap_info<Args...>(info);
     return std::make_shared<op::WrapType>(info, pred, inputs);
 }
 

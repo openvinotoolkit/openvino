@@ -59,7 +59,7 @@ namespace v8 {
 /// are supported and indicate reverse indexing from the end
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
-    OPENVINO_OP("Gather", "opset8", op::util::GatherBase, 8);
+    OPENVINO_OP("Gather", "opset8", op::util::GatherBase);
     BWDCMP_RTTI_DECLARATION;
     Gather() = default;
 

@@ -267,11 +267,11 @@ bool ov::PartialShape::merge_into(PartialShape& dst, const PartialShape& src) {
 
 bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
                                             const PartialShape& src,
-                                            const ov::op::AutoBroadcastSpec& autob) {
+                                            const op::AutoBroadcastSpec& autob) {
     switch (autob.m_type) {
-    case ov::op::AutoBroadcastType::NONE:
+    case op::AutoBroadcastType::NONE:
         return true;
-    case ov::op::AutoBroadcastType::NUMPY: {
+    case op::AutoBroadcastType::NUMPY: {
         if (dst.rank().is_dynamic() || src.rank().is_dynamic()) {
             dst = PartialShape::dynamic();
             return true;
@@ -291,7 +291,7 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
             return success;
         }
     }
-    case ov::op::AutoBroadcastType::PDPD: {
+    case op::AutoBroadcastType::PDPD: {
         if (dst.rank().is_dynamic() || src.rank().is_dynamic()) {
             return true;
         } else {

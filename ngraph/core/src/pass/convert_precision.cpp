@@ -116,7 +116,7 @@ bool convert_precision(pass::PassBase& pass,
     };
 
     auto convert_node_output_precision = [&](const std::shared_ptr<ngraph::Node>& node) {
-        for (auto output : node->outputs()) {
+        for (const auto& output : node->outputs()) {
             if (output.get_element_type() == from) {
                 // Handle case with Constants as they can have consumers from other nGraph
                 // Function object
@@ -222,8 +222,8 @@ using precisions_set_t = std::unordered_set<ngraph::element::Type_t, EnumClassHa
 precisions_set_t find_all_used_precisions(const std::shared_ptr<ngraph::Function>& fn) {
     precisions_set_t used_precisions;
 
-    ngraph::traverse_nodes(fn, [&](std::shared_ptr<ngraph::Node> node) {
-        for (auto output : node->outputs()) {
+    ngraph::traverse_nodes(fn, [&](const std::shared_ptr<ngraph::Node>& node) {
+        for (const auto& output : node->outputs()) {
             used_precisions.emplace(output.get_element_type());
         }
         if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(node)) {
