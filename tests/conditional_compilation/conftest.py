@@ -252,7 +252,7 @@ def prepare_omz_model(openvino_ref, model, omz_repo, omz_cache_dir, tmpdir):
         cmd += f' --cache_dir {omz_cache_dir}'
 
     return_code, output = cmd_exec(cmd, log=omz_log)
-    assert return_code == 0, "Downloading OMZ models is failed!"
+    assert return_code == 0, "Downloading OMZ models has failed!"
 
     # Step 2: converter
     converter_path = omz_repo / "tools" / "downloader" / "converter.py"
@@ -266,14 +266,14 @@ def prepare_omz_model(openvino_ref, model, omz_repo, omz_cache_dir, tmpdir):
           f' --mo {openvino_ref / "tools"/ "model_optimizer" / "mo.py"}'
 
     return_code, output = cmd_exec(cmd, env=get_openvino_environment(openvino_ref), log=omz_log)
-    assert return_code == 0, "Converting OMZ models is failed!"
+    assert return_code == 0, "Converting OMZ models has failed!"
 
     # Step 3: info_dumper
     info_dumper_path = omz_repo / "tools" / "downloader" / "info_dumper.py"
     cmd = f'"{python_executable}" "{info_dumper_path}" --name {model["name"]}'
 
     return_code, output = cmd_exec(cmd, log=omz_log)
-    assert return_code == 0, "Getting information about OMZ models is failed!"
+    assert return_code == 0, "Getting information about OMZ models has failed!"
     model_info = json.loads(output)[0]
 
     # Step 4: form model_path
