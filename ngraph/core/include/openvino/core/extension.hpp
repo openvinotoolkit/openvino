@@ -27,7 +27,9 @@ public:
 };
 
 OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::string& path);
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
 OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::wstring& path);
+#endif
 
 OPENVINO_EXTENSION_API
 void create_extensions(std::vector<Extension::Ptr>&);
