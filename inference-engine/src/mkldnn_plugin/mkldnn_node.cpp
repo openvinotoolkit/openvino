@@ -941,10 +941,16 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
 }
 
 MemoryDescPtr MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    if (isDynamicNode()) {
+        return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), inputShapes[idx]);
+    }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
 MemoryDescPtr MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    if (isDynamicNode()) {
+        return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), outputShapes[idx]);
+    }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
 }
 
@@ -1217,18 +1223,33 @@ bool MKLDNNNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
+    std::vector<Shape> shapes;
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        shapes.push_back(getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape());
+    }
+
+    auto newOutputShapes = shapeInferGeneric(shapes);
+
+    IE_ASSERT(newOutputShapes.size() == outputShapes.size());
+
+    return newOutputShapes;
+}
+
+std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes) const {
+    if (shapes.size() < opToShapeInfer->get_input_size()) {
+        IE_THROW(Unexpected) << "MKLDNNNode::shapeInferGeneric input shapes vector size is " << shapes.size() << ", but " << opToShapeInfer->get_input_size() <<
+            " required.";
+    }
+
     for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
         if (!dynamic_cast<ngraph::opset1::Constant *>(opToShapeInfer->get_input_node_ptr(i))) {
-            opToShapeInfer->get_input_tensor(i).set_partial_shape(
-                getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape().toPartialShape());
+            opToShapeInfer->get_input_tensor(i).set_partial_shape(shapes[i].toPartialShape());
         }
     }
 
     opToShapeInfer->validate_and_infer_types();
 
-    IE_ASSERT(opToShapeInfer->get_output_size() == outputShapes.size());
-
-    std::vector<VectorDims> newOutputShapes(outputShapes.size());
+    std::vector<VectorDims> newOutputShapes(opToShapeInfer->get_output_size());
     for (size_t i = 0; i < newOutputShapes.size(); i++) {
         const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
         if (partShape.is_dynamic())

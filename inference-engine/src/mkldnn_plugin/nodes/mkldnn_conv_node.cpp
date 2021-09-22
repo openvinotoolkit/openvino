@@ -480,16 +480,14 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
             }
         }
     }
-    currentInDims.resize(getParentEdges().size());
-    currentOutDims.resize(1);
 }
 
 
 void MKLDNNConvolutionNode::createPrimitive() {
-    if (isInputShapesDefined()) {
+    if (inputShapesDefined()) {
         if (needPrepareParams())
             prepareParams();
-        updateCurrentDims();
+        updateLastInputDims();
     }
 }
 
@@ -940,6 +938,8 @@ void MKLDNNConvolutionNode::prepareParams() {
         if (!itpd.next_impl())
             IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
+
+// end of new code
 
     prim.reset(new convolution_forward(prim_desc));
 

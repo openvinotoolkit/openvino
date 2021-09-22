@@ -78,7 +78,6 @@ private:
     createDescriptorInternal(const std::array<mkldnn::memory::desc, 3>& inputDesc,
                              const mkldnn::memory::desc& outputDesc,
                              mkldnn::algorithm alg);
-    void compileKernel() override {}
 
     bool withBiases;
     bool withSum;
