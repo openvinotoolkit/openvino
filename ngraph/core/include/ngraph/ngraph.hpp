@@ -10,8 +10,8 @@
 
 #include <string>
 
-#include "ngraph/version.hpp"
 #include "ngraph/deprecated.hpp"
+#include "ngraph/version.hpp"
 
 #ifdef IN_NGRAPH_LIBRARY
 #    error("ngraph.hpp is for external use only")

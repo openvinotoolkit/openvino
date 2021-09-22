@@ -11,7 +11,7 @@ const char* NGRAPH_VERSION_NUMBER = CI_BUILD_NUMBER;
 namespace ov {
 
 const Version* get_openvino_version() noexcept {
-    static const Version version = { NGRAPH_VERSION_NUMBER, "OpenVINO Runtime" };
+    static const Version version = {NGRAPH_VERSION_NUMBER, "OpenVINO Runtime"};
     return &version;
 }
 
