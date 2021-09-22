@@ -495,3 +495,16 @@ TensorSlice make_roi_slice(const TensorDesc& origDesc, const ROI& roi) {
 TensorDesc InferenceEngine::make_roi_desc(const TensorDesc& origDesc, const ROI& roi, bool useOrigMemDesc) {
     return make_roi_desc(origDesc, make_roi_slice(origDesc, roi), useOrigMemDesc);
 }
+
+TensorDesc InferenceEngine::make_roi_desc(const TensorDesc& origDesc,
+                                          const std::vector<size_t>& begin,
+                                          const std::vector<size_t>& end,
+                                          bool useOrigMemDesc) {
+    IE_ASSERT(begin.size() == end.size());
+    TensorSlice slice;
+    for (size_t i = 0; i < begin.size(); ++i) {
+        IE_ASSERT(end[i] >= begin[i]);
+        slice.emplace_back(begin[i], end[i] - begin[i]);
+    }
+    return make_roi_desc(origDesc, slice, useOrigMemDesc);
+}
