@@ -16,9 +16,12 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
     if (out.GetLayout() == DataLayout::yxfb) {
         dispatchData.gws = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
-    } else if (out.GetLayout() == DataLayout::b_fs_yx_fsv16) {
+    } else if (out.GetLayout() == DataLayout::b_fs_yx_fsv16 || out.GetLayout() == DataLayout::b_fs_yx_fsv32) {
         dispatchData.gws = {Align(out.Feature().v, 16) * out.Batch().v, out.X().v, out.Y().v};
         dispatchData.lws = {16, 1, 1};
+    } else if (out.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || out.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
+        dispatchData.gws = {out.X().v * out.Y().v, Align(out.Feature().v, 16), Align(out.Batch().v, 16)};
+        dispatchData.lws = {1, 16, 16};
     } else {
         dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);

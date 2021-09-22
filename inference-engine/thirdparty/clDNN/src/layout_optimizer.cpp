@@ -955,6 +955,9 @@ bool layout_optimizer::is_format_optimized(const convolution_node& node, const f
             return convolution_fs_b_yx_fsv32_opt(input_layout, output_layout, weights_layout, prim);
         case format::bs_fs_yx_bsv16_fsv16:
             return convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_layout, weights_layout, prim);
+        case format::bs_fs_yx_bsv32_fsv32:
+        case format::bs_fs_yx_bsv32_fsv16:
+            return false;
         default:
             throw std::invalid_argument(
                 "[Layout optimizer] Other formats in is_format_optimized(...) method are not implemented!");

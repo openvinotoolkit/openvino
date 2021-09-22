@@ -16,7 +16,13 @@ ParamsKey LRNKernelAcrossChannelMultipleFeaturesFSV16::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableLRNMode(LRNMode::ACROSS_CHANNEL);
     k.EnableLRNKernelDividerMode(KernelDividerMode::FIXED);
     k.EnableTensorOffset();

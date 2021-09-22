@@ -10,21 +10,8 @@
 ///////////////////////// Input Index /////////////////////////
 inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
 {
-#if   INPUT0_SIMPLE
-    return GET_DATA_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_BS_F_BSV8__AF8  || \
-      defined INPUT0_LAYOUT_BS_F_BSV16__AF8
-    return GET_DATA_BS_FYX_BSV8_INDEX(INPUT0, b, f, y, x, SUB_GROUP_SIZE);
-#elif defined INPUT0_LAYOUT_B_FS_YX_FSV16
-    return GET_DATA_B_FS_YX_FSV16_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_FS_B_YX_FSV32
-    return GET_DATA_FS_B_YX_FSV32_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_B_FS_ZYX_FSV16
-    return GET_DATA_B_FS_ZYX_FSV16_INDEX(INPUT0, b, f, 0, y, x);
-#elif defined INPUT0_LAYOUT_BS_FS_ZYX_BSV16_FSV16
-    return GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(INPUT0, b, f, 0, y, x);
-#elif defined INPUT0_LAYOUT_BS_FS_YX_BSV16_FSV16
-    return GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(INPUT0, b, f, y, x);
+#if INPUT0_DIMS == 4
+    return INPUT0_GET_INDEX(b, f, y, x);
 #else
 #error reorder_data_to_yxfb_batched.cl: input format - not supported
 #endif

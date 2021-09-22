@@ -10,6 +10,7 @@ namespace kernel_selector {
 
 ParamsKey ActivationKernelOpt::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::F16);
