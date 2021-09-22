@@ -3,13 +3,13 @@
 //
 
 #include <vector>
-#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset8.hpp>
 
 #include "shared_test_classes/single_layer/scatter_update.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::opset3;
+using namespace ngraph::opset8;
 
 namespace {
 TEST_P(ScatterUpdateLayerTest, Serialize) {
