@@ -21,13 +21,6 @@ struct average_unpooling_impl : typed_primitive_impl_ocl<average_unpooling> {
         return make_unique<average_unpooling_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<average_unpooling>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-        return args;
-    }
-
-public:
     static primitive_impl* create(const average_unpooling_node& arg) {
         auto average_unpooling_params = get_default_params<kernel_selector::average_unpooling_params>(arg);
         auto average_unpooling_optional_params =

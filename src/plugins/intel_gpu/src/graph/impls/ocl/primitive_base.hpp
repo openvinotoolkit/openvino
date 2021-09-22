@@ -25,17 +25,11 @@ For example, all gpu convolution implementations should derive from typed_primit
 */
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
-    engine& _engine;
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
 
-    typed_primitive_impl_ocl(engine& engine) :
-    _engine(engine),
-    _kernel_data({}),
-    _kernel_ids({}),
-    _kernels({}),
-    _intermediates_memory({}) {
+    typed_primitive_impl_ocl() : _kernel_data({}), _kernel_ids({}), _kernels({}) {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
         _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
@@ -43,11 +37,9 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name),
-    _engine(other._engine),
     _kernel_data(other._kernel_data),
     _kernel_ids(other._kernel_ids),
-    _kernels({}),
-    _intermediates_memory({}) {
+    _kernels({}) {
         _kernels.reserve(other._kernels.size());
         for (const auto& kernel : other._kernels) {
             _kernels.emplace_back(std::move(kernel->clone()));
@@ -56,8 +48,9 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     typed_primitive_impl_ocl(const typed_program_node<PType>& arg, const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
-          _engine(arg.get_program().get_engine()),
-          _kernel_data(kd) {
+          _kernel_data(kd),
+          _kernel_ids({}),
+          _kernels({}) {
         // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
         _kernel_data.weightsReorderParams.cpuKernel = nullptr;

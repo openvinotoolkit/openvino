@@ -61,57 +61,8 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
     }
 };
 
-// TODO: move this file to cpu folder and add a new traget to 'cldnn::engine_types'
-struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
-    // const generic_layer_node& outer;
-    std::shared_ptr<kernel_selector::CPUKernel> _cpu_kernel_data;
-
-    std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<generic_layer_cpu>(*this);
-    }
-
-    explicit generic_layer_cpu(const generic_layer_node& arg) : _cpu_kernel_data(arg.get_primitive()->generic_params.cpuKernel) {}
-
-    void align_state(const program_node& arg) override {
-        if (!arg.is_type<generic_layer>()) {
-            throw std::invalid_argument("Should be generic_layer node");
-        }
-        const auto& generic_layer_node = arg.as<generic_layer>();
-        _cpu_kernel_data = generic_layer_node.get_primitive()->generic_params.cpuKernel;
-    }
-
-    event::ptr execute_impl(const std::vector<event::ptr>& events, generic_layer_inst& instance) override {
-        stream& stream = instance.get_network().get_stream();
-        auto input_mem = instance.input_memory_ptr();
-        auto output_mem = instance.output_memory_ptr();
-
-        auto ev = stream.create_user_event(false);
-        std::vector<event::ptr> tmp_events(events);
-
-        for (auto& a : events) {
-            a->wait();
-        }
-
-        mem_lock<uint8_t, mem_lock_type::read> old_pointer(input_mem, stream);
-        mem_lock<uint8_t, mem_lock_type::write> new_pointer(output_mem, stream);
-
-        // const auto& cpu_kernel = *outer.get_primitive()->generic_params.cpuKernel.get();
-
-        _cpu_kernel_data->Execute(old_pointer.data(), old_pointer.size(), new_pointer.data(), new_pointer.size());
-
-        ev->set();
-        return ev;
-    }
-
-    void init_kernels(const program_node&) override {}
-};
-
 static primitive_impl* create(const generic_layer_node& arg) {
-    if (arg.get_primitive()->generic_params.engine == kernel_selector::generic_kernel_params::Engine::GPU) {
-        return new generic_layer_impl(arg);
-    } else {
-        return new generic_layer_cpu(arg);
-    }
+    return new generic_layer_impl(arg);
 }
 
 namespace detail {

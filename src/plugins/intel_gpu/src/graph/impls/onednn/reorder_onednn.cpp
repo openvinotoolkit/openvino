@@ -65,7 +65,7 @@ public:
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return new reorder_onednn(arg, dummy, attr, *desc);
+        return new reorder_onednn(dummy, attr, *desc);
     }
 };
 

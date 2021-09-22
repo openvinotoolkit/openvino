@@ -22,13 +22,6 @@ struct eltwise_impl : typed_primitive_impl_ocl<eltwise> {
         return make_unique<eltwise_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<eltwise>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-        return args;
-    }
-
-public:
     static primitive_impl* create(const eltwise_node& arg) {
         auto ew_params = get_default_params<kernel_selector::eltwise_params>(arg);
         auto ew_optional_params =
