@@ -23,7 +23,7 @@ void generic_arg_max_test_xyf(int input_b, int input_f, int input_y, int input_x
     auto input = engine.allocate_memory({ type_to_data_type<Tin>::value, test_input_fmt, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, mode, 1U, axis, sort_type, false, padding(), type_to_data_type<Tout>::value));
+    topology.add(arg_max_min("arg_max", { "input" }, mode, 1U, axis, sort_type, false, "", padding(), type_to_data_type<Tout>::value));
 
     int min_random = -2, max_random = 2;
     VVVVF<Tin> input_rnd = generate_random_4d<Tin>(input_b, input_f, input_y, input_x, min_random, max_random);
@@ -393,7 +393,7 @@ TEST(arg_max_gpu_min_axis_batch, i32) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, padding(), data_types::i32));
+    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, "", padding(), data_types::i32));
 
     std::vector<float> input_vec = {
         //y0x0 y0x1 y1x0 y1x1
@@ -436,7 +436,7 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ batch_num, feature_num, x_size , y_size, z_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, padding(), data_types::i32));
+    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, "", padding(), data_types::i32));
 
     std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1
@@ -478,7 +478,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,
@@ -542,7 +542,7 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,
@@ -606,7 +606,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,
@@ -735,7 +735,7 @@ TEST(top_k_layer_tests, second_output2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
     topology.add(mutable_data("second_output", second_output));
-    topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, arg_max_min::max, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, arg_max_min::max, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,
@@ -825,7 +825,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,
@@ -899,7 +899,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_indices, false, padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_indices, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,

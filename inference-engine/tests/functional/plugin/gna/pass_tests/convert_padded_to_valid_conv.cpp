@@ -25,10 +25,11 @@ namespace LayerTestsDefinitions {
 enum class modelType {
     TranspConvTransp = 0,               /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) */
     TranspConvBcastAddTransp,           /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Transpose(NCHW->NHWC) */
+    TranspConvActTransp,                /* Transpose(NHWC->NCHW) => Conv => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvBcastAddMaxPoolTransp,    /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPooling => Transpose(NCHW->NHWC) (2D Max Pool case) */
     TranspConvBcastAddActTransp,        /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvBcastAddMaxPoolActTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPool => Activation Function => Transpose(NCHW->NHWC) */
-    TranspConvTranspBcastAdd,           /* Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => Bias */
+    TranspConvTranspBcastAdd,           /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) => Bias */
     TranspConvTranspBcastAddAct         /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) => Bias => Activation Function */
 };
 
@@ -139,6 +140,13 @@ protected:
         {
             auto bias = std::make_shared<Add>(conv, biasConst);
             lastOp = std::make_shared<Transpose>(bias, transposeOutOrder);
+        }
+        break;
+
+        case modelType::TranspConvActTransp:
+        {
+            auto activation = std::make_shared<Relu>(conv);
+            lastOp = std::make_shared<Transpose>(activation, transposeOutOrder);
         }
         break;
 
@@ -257,6 +265,7 @@ const std::vector<op::PadType> padTypes = {
 const std::vector<modelType> models = {
     modelType::TranspConvTransp,
     modelType::TranspConvBcastAddTransp,
+    modelType::TranspConvActTransp,
     modelType::TranspConvBcastAddActTransp,
     modelType::TranspConvTranspBcastAdd,
     modelType::TranspConvTranspBcastAddAct,
@@ -277,8 +286,8 @@ const std::vector<std::vector<size_t >> maxpool1DPools = {{1, 2}};
 const std::vector<std::vector<size_t >> maxpool1DStrides = {{1, 1}};
 
 const std::vector<std::vector<size_t>> input2DNHWC = {{1, 16, 16, 32}};
-const std::vector<std::vector<size_t >> kernels2D = {{2, 2}, {4, 1}, {1, 3}};
-const std::vector<std::vector<size_t >> strides2D = {{1, 1}, {1, 2}, {2, 1}, {2, 2}};
+const std::vector<std::vector<size_t >> kernels2D = {{2, 2}, {4, 1}};
+const std::vector<std::vector<size_t >> strides2D = {{1, 1}, {2, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{1, 2}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{3, 1}};
 const std::vector<std::vector<size_t >> dilations2D = {{1, 1}};
