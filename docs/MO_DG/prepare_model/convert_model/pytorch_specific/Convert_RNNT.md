@@ -82,7 +82,7 @@ g, hidden = model.prediction.forward(symbol, hidden)
 torch.onnx.export(model.prediction, (symbol, hidden), "rnnt_prediction.onnx", opset_version=12,
                   input_names=['symbol', 'hidden_in_1', 'hidden_in_2'],
                   output_names=['g', 'hidden_out_1', 'hidden_out_2'],
-                  dynamic_axes={'symbol': {0: 'batch'}, 'hidden_out_1': {1: 'batch'}, 'hidden_out_2': {1: 'batch'}})
+                  dynamic_axes={'symbol': {0: 'batch'}, 'hidden_in_1': {1: 'batch'}, 'hidden_in_2': {1: 'batch'}})
 
 f = torch.randn([batch_size, 1, 1024])
 model.joint.forward(f, g)
