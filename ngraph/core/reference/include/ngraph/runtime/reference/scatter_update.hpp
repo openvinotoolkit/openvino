@@ -28,8 +28,8 @@ void scatter_update(const dataType* input_data,
 
     const auto num_of_updates = shape_size(indices_shape);
 
-    const auto size_before_axis = shape_size(Shape(data_shape.begin(), data_shape.begin() + axis));
-    const auto size_after_axis = shape_size(Shape(data_shape.begin() + axis + 1, data_shape.end()));
+    const auto data_size_before_axis = shape_size(Shape(data_shape.begin(), data_shape.begin() + axis));
+    const auto data_size_after_axis = shape_size(Shape(data_shape.begin() + axis + 1, data_shape.end()));
 
     const auto updates_size_before_axis = shape_size(Shape(updates_shape.begin(), updates_shape.begin() + axis));
     const auto updates_size_after_axis = shape_size(Shape(updates_shape.begin() + axis + 1, updates_shape.end()));
@@ -47,13 +47,11 @@ void scatter_update(const dataType* input_data,
         updates_step = updates_shape[axis];
     }
 
-    const auto data_start_idx_step = data_last_dim ? size_after_axis : size_after_axis * size_before_axis;
+    const auto data_start_idx_step = data_last_dim ? 1 : data_size_after_axis * data_size_before_axis;
     const auto data_step = data_last_dim ? data_shape.back() : 1;
 
-    // TODO: probably wrong
-    const auto data_num_swaps = data_last_dim ? size_before_axis : size_after_axis * size_before_axis;
-    const auto udpate_num_swaps =
-        updates_last_dim ? size_before_axis : updates_size_before_axis * updates_size_after_axis;
+    const auto data_num_swaps = data_size_after_axis * data_size_before_axis;
+    const auto udpate_num_swaps = updates_size_before_axis * updates_size_after_axis;
     const auto num_of_swaps = std::min(data_num_swaps, udpate_num_swaps);
 
     for (size_t i = 0; i < num_of_updates; ++i) {
