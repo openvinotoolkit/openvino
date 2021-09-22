@@ -357,22 +357,18 @@ inline std::string vec2str(const std::vector<vecElementType> &vec) {
 TEST_P(InferRequestDynamicTests, CPU_ONLY) {
     const std::string param_name = "Param_1";
 
-    std::tuple<int, int> axis_batchIdx{1, 1};
-    std::vector<size_t> indicesShape{4, 2};
-    std::vector<size_t> inputShape{4, 5, 6, 7};
+    InferenceEngine::SizeVector inputShapes{2, 19, 5, 10};
     InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32;
-    int axis = std::get<0>(axis_batchIdx);
-    int batchIdx = std::get<1>(axis_batchIdx);
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto functionParams = ngraph::builder::makeParams(ngPrc, { inputShape });
-    functionParams[0]->set_friendly_name(param_name);
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
-    auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
-                                                          inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1, 0);
-    auto axisNode = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
-    auto gather = std::make_shared<ngraph::opset7::Gather>(paramOuts[0], indicesNode, axisNode, batchIdx);
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset7::Result>(gather) };
-    function = std::make_shared<ngraph::Function>(results, functionParams, "gather");
+    ngraph::AxisSet axes;
+    bool acrossChanels = true, normalizeVariance = true;
+    double eps = 0.000000001;
+    auto netPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto param = ngraph::builder::makeParams(netPrc, {inputShapes});
+    param[0]->set_friendly_name(param_name);
+    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
+    auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
+
+    function = std::make_shared<ngraph::Function>(mvn, param, "MVN");
 
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
@@ -383,27 +379,27 @@ TEST_P(InferRequestDynamicTests, CPU_ONLY) {
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShape, InferenceEngine::Layout::NCHW});
+    InferenceEngine::Blob::Ptr blob = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShapes, InferenceEngine::Layout::NCHW});
 
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), inputShape);
+    req = execNet.CreateInferRequest();
+    req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob);
+    ASSERT_EQ(blob->getTensorDesc().getDims(), inputShapes);
     req.Infer();
     InferenceEngine::StatusCode sts;
     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
+    blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
     std::cout << vec2str(blob->getTensorDesc().getDims()) << std::endl;
     // ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
 
-    std::vector<size_t> inputShape2{4, 10, 12, 14};
+    std::vector<size_t> inputShape2{1, 16, 5, 8};
     blob = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShape2, InferenceEngine::Layout::NCHW});
-    ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
+    req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob);
     ASSERT_EQ(blob->getTensorDesc().getDims(), inputShape2);
     req.Infer();
     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
+    blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
     std::cout << vec2str(blob->getTensorDesc().getDims()) << std::endl;
     // ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape2);
 }
