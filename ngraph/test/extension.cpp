@@ -10,7 +10,7 @@
 #include "openvino/util/file_util.hpp"
 
 std::string get_extension_path() {
-    return ov::util::make_plugin_library_name<char>({}, std::string("template_extension") + IE_BUILD_POSTFIX);
+    return ov::util::make_plugin_library_name<char>({}, std::string("template_ov_extension") + IE_BUILD_POSTFIX);
 }
 
 TEST(extension, load_extension) {

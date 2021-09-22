@@ -367,7 +367,7 @@ set(SRC
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
 
-list(APPEND UNIT_TESTS_DEPENDENCIES template_extension)
+list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
 if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")

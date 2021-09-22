@@ -5,7 +5,6 @@
 #include <openvino/core/extension.hpp>
 #include <openvino/core/op_extension.hpp>
 
-#include "fft_op.hpp"
 #include "op.hpp"
 
 OPENVINO_CREATE_EXTENSIONS(
