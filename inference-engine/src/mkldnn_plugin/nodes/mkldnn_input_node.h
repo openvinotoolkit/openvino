@@ -30,13 +30,8 @@ public:
         return false;
     }
 
-    std::vector<VectorDims> shapeInfer() const override {
-        return std::vector<VectorDims>();
-    }
-
-    bool needPrepareParams() const override {
-        return false;
-    }
+    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override { return false; }
 
 private:
     void cloneBlobIfRequired();
