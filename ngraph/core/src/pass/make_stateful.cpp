@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/pass/make_stateful_test.hpp"
-
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/op/util/variable.hpp>
 #include <openvino/opsets/opset8.hpp>
+
+#include "openvino/pass/make_stateful_test.hpp"
 
 NGRAPH_RTTI_DEFINITION(ov::pass::MakeStateful, "MakeStateful", 0);
 

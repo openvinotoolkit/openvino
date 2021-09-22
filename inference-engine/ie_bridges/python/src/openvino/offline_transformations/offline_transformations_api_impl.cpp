@@ -4,14 +4,13 @@
 
 #include "offline_transformations_api_impl.hpp"
 
-#include <openvino/pass/make_stateful_test.hpp>
-
 #include <generate_mapping_file.hpp>
 #include <moc_transformations.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/low_latency.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/pass/make_stateful_test.hpp>
 #include <pot_transformations.hpp>
 #include <pruning.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
@@ -38,7 +37,8 @@ void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython:
 void ApplyMakeStatefulTransformation(InferenceEnginePython::IENetwork network,
                                      std::vector<std::pair<std::string, std::string>>& in_out_names) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ov::pass::MakeStateful>(ov::pass::MakeStateful::findInputsOutputsByName(in_out_names));
+    manager.register_pass<ov::pass::MakeStateful>(
+        ov::pass::MakeStateful::findInputsOutputsByName(network.actual->getFunction(), in_out_names));
     manager.run_passes(network.actual->getFunction());
 }
 

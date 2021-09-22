@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <pair>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Python.h"

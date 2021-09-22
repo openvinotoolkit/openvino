@@ -19,8 +19,8 @@ def ApplyPOTTransformations(IENetwork network, string device):
     C.ApplyPOTTransformations(network.impl, device)
 
 
-def MakeStateful(IENetwork network, vector[pair[string, string]]& in_out_names):
-    C.MakeStateful(network.impl, in_out_names)
+def ApplyMakeStatefulTransformation(IENetwork network, vector[pair[string, string]]& in_out_names):
+    C.ApplyMakeStatefulTransformation(network.impl, in_out_names)
 
 
 def ApplyLowLatencyTransformation(IENetwork network, bool use_const_initializer = True):

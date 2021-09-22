@@ -15,7 +15,7 @@ cdef extern from "offline_transformations_api_impl.hpp" namespace "InferenceEngi
 
     cdef void ApplyLowLatencyTransformation(IENetwork network, bool use_const_initializer)
 
-    cdef void MakeStateful(IENetwork network, vector[pair[string, string]]& in_out_names)
+    cdef void ApplyMakeStatefulTransformation(IENetwork network, vector[pair[string, string]]& in_out_names)
 
     cdef void ApplyPruningTransformation(IENetwork network)
 

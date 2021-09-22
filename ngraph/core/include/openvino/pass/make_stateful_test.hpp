@@ -7,28 +7,29 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/pass.hpp"
 #include "ngraph/opsets/opset8.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov {
-    namespace pass {
-        /**
-         * @brief The transformation replaces the provided pairs Parameter and Result with ngraph Memory layers
-         * ReadValue and Assign
-         */
-        class OPENVINO_API MakeStateful : public FunctionPass {
-        public:
-            OPENVINO_RTTI_DECLARATION;
+namespace pass {
+/**
+ * @brief The transformation replaces the provided pairs Parameter and Result with ngraph Memory layers
+ * ReadValue and Assign
+ */
+class OPENVINO_API MakeStateful : public FunctionPass {
+public:
+    OPENVINO_RTTI_DECLARATION;
 
-            using InOutPairs = std::vector<std::pair<std::shared_ptr<ngraph::opset8::Parameter>,
-                                                     std::shared_ptr<ngraph::opset8::Result>>>;
+    using InOutPairs =
+        std::vector<std::pair<std::shared_ptr<ngraph::opset8::Parameter>, std::shared_ptr<ngraph::opset8::Result>>>;
 
-            static InOutPairs findInputsOutputsByName(const std::shared_ptr<ngraph::Function>& func, const
-                                               std::vector<std::pair<std::string, std::string>>& param_res_names);
-            explicit MakeStateful(const InOutPairs& pairs_to_replace) : m_pairs_to_replace(pairs_to_replace) {}
-            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
-        private:
-            InOutPairs m_pairs_to_replace;
-        };
-    }  // namespace pass
+    static InOutPairs findInputsOutputsByName(const std::shared_ptr<ngraph::Function>& func,
+                                              const std::vector<std::pair<std::string, std::string>>& param_res_names);
+    explicit MakeStateful(const InOutPairs& pairs_to_replace) : m_pairs_to_replace(pairs_to_replace) {}
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+
+private:
+    InOutPairs m_pairs_to_replace;
+};
+}  // namespace pass
 }  // namespace ov
