@@ -190,7 +190,7 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
             }
 
             if (bytes_to_load >= 8 && bytes_to_load < 16)
-                h->pinsrq(xmm, addr(start_bytes), 0);
+                h->uni_vpinsrq(xmm, xmm, addr(start_bytes), 0);
             else if (bytes_to_load == 16)
                 h->uni_vmovdqu(xmm, addr(start_bytes));
 
@@ -202,17 +202,17 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes), 0);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 2), 2);
                     break;
-                case 4: h->pinsrd(xmm, addr(start_bytes), 0); break;
+                case 4: h->uni_vpinsrd(xmm, xmm, addr(start_bytes), 0); break;
                 case 5:
-                    h->pinsrd(xmm, addr(start_bytes), 0);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes), 0);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 4), 4);
                     break;
                 case 6:
-                    h->pinsrd(xmm, addr(start_bytes), 0);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes), 0);
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 4), 2);
                     break;
                 case 7:
-                    h->pinsrd(xmm, addr(start_bytes), 0);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes), 0);
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 4), 2);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 6), 6);
                     break;
@@ -223,17 +223,17 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 8), 4);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 10), 10);
                     break;
-                case 12: h->pinsrd(xmm, addr(start_bytes + 8), 2); break;
+                case 12: h->uni_vpinsrd(xmm, xmm, addr(start_bytes + 8), 2); break;
                 case 13:
-                    h->pinsrd(xmm, addr(start_bytes + 8), 2);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes + 8), 2);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 12), 12);
                     break;
                 case 14:
-                    h->pinsrd(xmm, addr(start_bytes + 8), 2);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes + 8), 2);
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 12), 6);
                     break;
                 case 15:
-                    h->pinsrd(xmm, addr(start_bytes + 8), 2);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes + 8), 2);
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 12), 6);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 14), 14);
                     break;
@@ -465,10 +465,7 @@ template <typename Vmm>
         if (is_xmm || is_ymm) {
             uint8 imm = 1;
             imm = ~((imm << load_num) - imm);  // shift load_num bit
-            if (is_xmm)
-                h->blendps(vmm, table_val(fill_value), imm);
-            else
-                h->vblendps(vmm, vmm, table_val(fill_value), imm);
+            h->uni_vblendps(vmm, vmm, table_val(fill_value), imm);
         } else if (is_zmm) {
             uint64_t tail_mask = 1;
             tail_mask = ~((tail_mask << load_num) - tail_mask);
@@ -668,7 +665,7 @@ template <typename Vmm>
                 }
 
                 if (bytes_to_store >= 8 && bytes_to_store < 16)
-                    h->pextrq(addr(start_bytes), xmm, 0);
+                    h->uni_vpextrq(addr(start_bytes), xmm, 0);
                 else if (bytes_to_store == 16)
                     h->uni_vmovdqu(addr(start_bytes), xmm);
 
@@ -682,17 +679,17 @@ template <typename Vmm>
                         h->uni_vpextrw(addr(start_bytes), xmm, 0);
                         h->uni_vpextrb(addr(start_bytes + 2), xmm, 2);
                         break;
-                    case 4: h->pextrd(addr(start_bytes), xmm, 0); break;
+                    case 4: h->uni_vpextrd(addr(start_bytes), xmm, 0); break;
                     case 5:
-                        h->pextrd(addr(start_bytes), xmm, 0);
+                        h->uni_vpextrd(addr(start_bytes), xmm, 0);
                         h->uni_vpextrb(addr(start_bytes + 4), xmm, 4);
                         break;
                     case 6:
-                        h->pextrd(addr(start_bytes), xmm, 0);
+                        h->uni_vpextrd(addr(start_bytes), xmm, 0);
                         h->uni_vpextrw(addr(start_bytes + 4), xmm, 2);
                         break;
                     case 7:
-                        h->pextrd(addr(start_bytes), xmm, 0);
+                        h->uni_vpextrd(addr(start_bytes), xmm, 0);
                         h->uni_vpextrw(addr(start_bytes + 4), xmm, 2);
                         h->uni_vpextrb(addr(start_bytes + 6), xmm, 6);
                         break;
@@ -703,17 +700,17 @@ template <typename Vmm>
                         h->uni_vpextrw(addr(start_bytes + 8), xmm, 4);
                         h->uni_vpextrb(addr(start_bytes + 10), xmm, 10);
                         break;
-                    case 12: h->pextrd(addr(start_bytes + 8), xmm, 2); break;
+                    case 12: h->uni_vpextrd(addr(start_bytes + 8), xmm, 2); break;
                     case 13:
-                        h->pextrd(addr(start_bytes + 8), xmm, 2);
+                        h->uni_vpextrd(addr(start_bytes + 8), xmm, 2);
                         h->uni_vpextrb(addr(start_bytes + 12), xmm, 12);
                         break;
                     case 14:
-                        h->pextrd(addr(start_bytes + 8), xmm, 2);
+                        h->uni_vpextrd(addr(start_bytes + 8), xmm, 2);
                         h->uni_vpextrw(addr(start_bytes + 12), xmm, 6);
                         break;
                     case 15:
-                        h->pextrd(addr(start_bytes + 8), xmm, 2);
+                        h->uni_vpextrd(addr(start_bytes + 8), xmm, 2);
                         h->uni_vpextrw(addr(start_bytes + 12), xmm, 6);
                         h->uni_vpextrb(addr(start_bytes + 14), xmm, 14);
                         break;
