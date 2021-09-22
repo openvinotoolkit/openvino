@@ -18,10 +18,10 @@ NamedOutputs stack(const NodeContext& node) {
 
     auto axis_const = std::make_shared<opset8::Constant>(element::i64, Shape{}, axis);
     for (const auto& data : datas) {
-        PDPD_OP_VALIDATION_CHECK(node, data.get_partial_shape().rank().is_static(), "stack rank must be static");
-        PDPD_OP_VALIDATION_CHECK(node,
-                                 data_shape == data.get_partial_shape(),
-                                 "stack input tensor must the same shape!");
+        if (data.get_partial_shape().rank().is_static())
+            PDPD_OP_VALIDATION_CHECK(node,
+                                     data_shape == data.get_partial_shape(),
+                                     "stack input tensor must the same shape!");
         PDPD_OP_VALIDATION_CHECK(node,
                                  data_type == data.get_element_type(),
                                  "stack input tensor must the same data types!");
