@@ -39,11 +39,12 @@ if (paddlepaddle_FOUND)
         set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
         add_custom_command(OUTPUT ${OUT_DONE_FILE}
                 COMMAND ${PYTHON_EXECUTABLE}
-                ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
-                ${GEN_SCRIPT}
-                ${TEST_PADDLE_MODELS}
-                ${OUT_DONE_FILE}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
+                    ${GEN_SCRIPT}
+                    ${TEST_PADDLE_MODELS}
+                    ${OUT_DONE_FILE}
                 DEPENDS ${PADDLE_ALL_SCRIPTS}
+                JOB_POOL four_jobs
                 )
     endforeach()
     add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILES})
