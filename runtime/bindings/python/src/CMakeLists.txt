@@ -3,4 +3,4 @@
 #
 
 add_subdirectory(compatibility)
-add_subdirectory(pyopenvino)
+#add_subdirectory(pyopenvino)
