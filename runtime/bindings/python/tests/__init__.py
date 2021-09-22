@@ -23,67 +23,65 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
-xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "MaxUnpool")
-xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "Scan")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
-xfail_issue_33589 = xfail_test(reason="nGraph does not support the following ONNX operations:"
+xfail_issue_33589 = xfail_test(reason="nGraph does not support the following ONNX operations: "
                                       "IsNaN and isInf")
-xfail_issue_33595 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_33595 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "Unique")
-xfail_issue_33596 = xfail_test(reason="RuntimeError: nGraph does not support different sequence operations:"
-                                      "ConcatFromSequence, SequenceConstruct, SequenceAt, SplitToSequence,"
+xfail_issue_33596 = xfail_test(reason="RuntimeError: nGraph does not support different sequence operations: "
+                                      "ConcatFromSequence, SequenceConstruct, SequenceAt, SplitToSequence, "
                                       "SequenceEmpty, SequenceInsert, SequenceErase, SequenceLength ")
-xfail_issue_33606 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_33606 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "Det")
-xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "TfIdfVectorizer")
-xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "GatherElements")
 xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
-xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i)"
-                                      "is_static() nGraph <value> operation with name: <value> cannot be"
-                                      "converted to <value> layer with name: <value> because output"
+xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i)."
+                                      "is_static() nGraph <value> operation with name: <value> cannot be "
+                                      "converted to <value> layer with name: <value> because output "
                                       "with index 0 contains dynamic shapes: {<value>}. Try to use "
                                       "CNNNetwork::reshape() method in order to specialize shapes "
                                       "before the conversion.")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
-xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Gradient")
 xfail_issue_38701 = xfail_test(reason="RuntimeError: unsupported element type: STRING")
 xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimension which is not allowed")
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
 xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
-xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Momentum")
-xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "If")
-xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop"
+xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop "
                                       "Not constant termination condition body output is not supported")
-xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger"
-                                      "and QLinearMatMul"
+xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger "
+                                      "and QLinearMatMul "
                                       "Input0 scale and input0 zero point shape must be same and 1")
-xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>':"
-                                      "tf_crop_and_resize - this type of coordinate transformation mode"
-                                      "is not supported. Choose one of the following modes:"
-                                      "tf_half_pixel_for_nn, asymmetric, align_corners, pytorch_half_pixel,"
+xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>': "
+                                      "tf_crop_and_resize - this type of coordinate transformation mode "
+                                      "is not supported. Choose one of the following modes: "
+                                      "tf_half_pixel_for_nn, asymmetric, align_corners, pytorch_half_pixel, "
                                       "half_pixel")
-xfail_issue_38725 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop):"
+xfail_issue_38725 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop): "
                                       "value info has no element type specified")
-xfail_issue_38726 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_38726 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "LessOrEqual")
-xfail_issue_38732 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_38732 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ConvInteger")
-xfail_issue_38734 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_38734 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Adam")
-xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
@@ -96,15 +94,14 @@ xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero
 xfail_issue_44958 = xfail_test(reason="Expected: Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no element")
 xfail_issue_44968 = xfail_test(reason="Expected: Unsupported dynamic op: Squeeze")
-xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if uint data type is used")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
 xfail_issue_55760 = xfail_test(reason="RuntimeError: Reversed axis have axes above the source space shape")
 
 # Model MSFT issues:
-xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "com.microsoft.CropAndResize, com.microsoft.GatherND,"
+xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
+                                      "com.microsoft.CropAndResize, com.microsoft.GatherND, "
                                       "com.microsoft.Pad, com.microsoft.Range")
 xfail_issue_39669 = xfail_test(reason="AssertionError: This model has no test data")
 xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
@@ -152,3 +149,4 @@ skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with
 xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
+xfail_issue_63643 = xfail_test(reason="RuntimeError: Unsupported operation of type: Convolution name")
