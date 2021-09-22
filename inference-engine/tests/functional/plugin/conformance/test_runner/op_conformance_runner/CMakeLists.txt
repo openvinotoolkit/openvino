@@ -6,19 +6,15 @@ set(TARGET_NAME conformanceTests)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
-        ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        ROOT "${CMAKE_CURRENT_SOURCE_DIR}"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
-        INCLUDES
-            PUBLIC
-                "${CMAKE_CURRENT_SOURCE_DIR}/include"
         LINK_LIBRARIES
             PUBLIC
-                gflags
-                funcSharedTests
+                conformanceShared
         LABELS
-            CONFORMANCE
+            OP_CONFORMANCE
 )
 
 ie_faster_build(${TARGET_NAME} UNITY)

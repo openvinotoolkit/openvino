@@ -10,12 +10,6 @@
 namespace ConformanceTests {
 using namespace LayerTestsDefinitions;
 
-const char* targetDevice = "";
-const char* targetPluginName = "";
-
-std::vector<std::string> IRFolderPaths = {};
-std::vector<std::string> disabledTests = {};
-
 namespace {
 INSTANTIATE_TEST_SUITE_P(conformance,
                         ReadIRTest,

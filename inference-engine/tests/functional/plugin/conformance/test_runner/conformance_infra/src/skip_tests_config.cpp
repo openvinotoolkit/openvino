@@ -5,11 +5,17 @@
 #include <vector>
 #include <string>
 
-#include "common_test_utils/test_constants.hpp"
-
 #include "conformance.hpp"
 
 #include "functional_test_utils/skip_tests_config.hpp"
+
+namespace ConformanceTests {
+const char *targetDevice = "";
+const char *targetPluginName = "";
+
+std::vector<std::string> IRFolderPaths = {};
+std::vector<std::string> disabledTests = {};
+}
 
 std::vector<std::string> disabledTestPatterns() {
     return ConformanceTests::disabledTests;
