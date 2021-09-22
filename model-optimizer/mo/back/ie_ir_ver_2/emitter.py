@@ -248,6 +248,44 @@ def serialize_meta_list(graph, node, schema, element, edges, unsupported):
     for item in items:
         serialize_node_attributes(graph, item, [sub_schema], element, edges, unsupported)
 
+def serialize_runtime_info(        graph: Graph,
+        node,
+        schema: list,
+        parent_element: Element,
+        edges: Element,
+        unsupported):
+    name, attrs, subelements = schema
+    element = SubElement(parent_element, name)
+
+    # assert 'original_type' in node and 'original_shape' in node, \
+    #     'Lack of information for `old_api_map` serialization, {}'.format(self.info)
+    # assert 'inverse_order' in self.info['old_api'] or 'legacy_type' in self.info['old_api'], \
+    #     'Lack of information for `old_api_map` serialization, {}'.format(self.info)
+
+
+    for attr in attrs:
+        key = attr
+        if 'rt_info' not in node:
+            continue
+        value = None
+        if key == 'old_api_element_type' and 'original_type' in node.rt_info.info:
+            value = np_data_type_to_destination_type(node.rt_info.info['original_type'])
+        elif key == 'old_api_transpose_order':
+            if op.soft_get('type') == 'Parameter':
+                value = '{}'.format(node.rt_info.info['old_api']['inverse_order']).replace(' ', ',')
+            elif op.soft_get('type') == 'Result':
+                value = '{}'.format(node.rt_info.info['old_api']['order']).replace(' ', ',')
+            else:
+                raise Exception('Unable to serialize runtime info for operation {}'.format(op.soft_get('type')))
+        elif key == 'convert_dst_type':
+            value = '{}'.format(node.rt_info.info['old_api']['legacy_type'])
+        if value is not None:
+            element.set(key, value)
+    serialize_node_attributes(graph, node, subelements, element, edges, unsupported)
+    if len(element.attrib) == 0 and len(list(element)) == 0:
+        parent_element.remove(element)
+
+
 
 def serialize_node_attributes(
         graph: Graph,  # the current network graph
@@ -280,6 +318,8 @@ def serialize_node_attributes(
                     serialize_meta_list(graph, node, s, parent_element, edges, unsupported)
                 elif name == '@network':
                     serialize_network(node[s[1]], parent_element, unsupported)
+               # elif name == 'runtime_info':
+               #     serialize_runtime_info(graph, node, s, parent_element, edges, unsupported)
                 else:
                     serialize_element(graph, node, s, parent_element, edges, unsupported)
     except Exception as e:

@@ -15,6 +15,7 @@ from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.utils import class_registration
 from mo.utils.error import Error
+from mo.front.common.partial_infer.utils import unmask_shape, is_fully_defined
 
 
 class Op(object):
@@ -74,7 +75,7 @@ class Op(object):
                 [('id', lambda node: node.node), 'name', 'type', 'version'],
                 [
                     ('data', backend_attrs_mapping[self.ir_version]() + self.default_backend_attrs, []),
-                    ('runtime_info', ['old_api_map'], []),
+                    ('runtime_info', ['old_api_element_type', 'old_api_transpose_order'],[]),
                     '@ports',
                     '@consts'])]
         })
@@ -491,20 +492,19 @@ class RTInfo:
         result = {}
         if len(self.info) == 0:
             return result
+        #
+        # assert 'original_type' in node and 'original_shape' in node, \
+        #     'Lack of information for `old_api_map` serialization, {}'.format(self.info)
+        # assert 'inverse_order' in self.info['old_api'] or 'legacy_type' in self.info['old_api'], \
+        #     'Lack of information for `old_api_map` serialization, {}'.format(self.info)
 
-        assert 'original_type' in node and 'original_shape' in node, \
-            'Lack of information for `old_api_map` serialization, {}'.format(self.info)
-        assert 'inverse_order' in self.info['old_api'] or 'legacy_type' in self.info['old_api'], \
-            'Lack of information for `old_api_map` serialization, {}'.format(self.info)
 
-        result['old_api_map'] = "Parameter{{element_type={type},shape={shape}}}".format(
-            type=np_data_type_to_destination_type(node['original_type']),
-            shape=self.info['old_api'].get('legacy_shape', node['original_shape']))
-
+        result['element_type'] = "{}".format(np_data_type_to_destination_type(node['original_type']))
+        result['shape'] = "{}".format(unmask_shape(self.info['old_api'].get('legacy_shape', node['original_shape']))).replace(' ', '')
         if 'inverse_order' in self.info['old_api']:
-            result['old_api_map'] += "->Transpose({order})".format(order=self.info['old_api']['inverse_order'])
+            result['transpose_order'] = '{}'.format(self.info['old_api']['inverse_order']).replace(' ', ',')
         if 'legacy_type' in self.info['old_api']:
-            result['old_api_map'] += "->Convert{{dst_type={type}}}".format(type=self.info['old_api']['legacy_type'])
+            result['convert_dst_type'] = '{}'.format(self.info['old_api']['legacy_type'])
         return result
 
     def serialize_for_result(self) -> Dict:
@@ -514,5 +514,6 @@ class RTInfo:
 
         assert 'order' in self.info['old_api'], \
             'Lack of information for `old_api_map` serialization, {}'.format(self.info)
-        result['old_api_map'] = "Transpose({order})->Result".format(order=self.info['old_api']['order'])
+        #result['old_api_map'] = "Transpose({order})->Result".format(order=self.info['old_api']['order'])
+        result['transpose_order'] = '{}'.format(self.info['old_api']['order']).replace(' ', ',')
         return result
