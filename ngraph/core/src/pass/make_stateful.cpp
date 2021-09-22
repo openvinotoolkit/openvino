@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/pass/replace_inputs_outputs_with_memory.h"
+#include "openvino/pass/make_stateful_test.hpp"
 
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>

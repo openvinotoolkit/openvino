@@ -13,7 +13,7 @@
 #include <ngraph/pass/manager.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include <transformations/common_optimizations/replace_inputs_outputs_with_memory.h>
+#include <transformations/common_optimizations/make_stateful.hpp>
 #include <transformations/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"

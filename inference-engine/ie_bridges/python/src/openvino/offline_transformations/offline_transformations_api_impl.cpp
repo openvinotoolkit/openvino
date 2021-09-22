@@ -4,7 +4,7 @@
 
 #include "offline_transformations_api_impl.hpp"
 
-#include <openvino/pass/replace_inputs_outputs_with_memory.h>
+#include <openvino/pass/make_stateful_test.hpp>
 
 #include <generate_mapping_file.hpp>
 #include <moc_transformations.hpp>
