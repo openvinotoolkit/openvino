@@ -9,14 +9,15 @@ set(WHEEL_AUTHOR_EMAIL "openvino_pushbot@intel.com" CACHE STRING "Email address 
 set(WHEEL_DESC "Inference Engine Python* API" CACHE STRING "Short, summary description of the package")
 set(WHEEL_URL "https://docs.openvinotoolkit.org/latest/index.html" CACHE STRING "Home page url")
 set(WHEEL_DOWNLOAD_URL "https://github.com/openvinotoolkit/openvino/tags" CACHE STRING "Download page url")
-set(WHEEL_VERSION "0.0.0" CACHE STRING "Version of this release")
-set(WHEEL_BUILD "000" CACHE STRING "Build number of this release")
+set(WHEEL_VERSION "${IE_VERSION}" CACHE STRING "Version of this release" FORCE)
+set(WHEEL_BUILD "${IE_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
 set(WHEEL_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE" CACHE STRING "Wheel license file")
 set(WHEEL_REQUIREMENTS "${CMAKE_CURRENT_SOURCE_DIR}/meta/openvino.requirements.txt" CACHE STRING "Wheel requirements.txt file")
 set(WHEEL_OVERVIEW "${CMAKE_CURRENT_SOURCE_DIR}/meta/pypi_overview.md" CACHE STRING "Detailed description")
 
 set(SETUP_PY "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
 set(SETUP_ENV "${CMAKE_CURRENT_SOURCE_DIR}/.env.in")
+set(SETUP_ENV_OUT "${CMAKE_CURRENT_SOURCE_DIR}/.env")
 
 set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION})
 set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
@@ -32,7 +33,7 @@ else()
     message(FATAL_ERROR "This platform is not supported")
 endif()
 
-configure_file(${SETUP_ENV} "${CMAKE_CURRENT_SOURCE_DIR}/.env" @ONLY)
+configure_file(${SETUP_ENV} ${SETUP_ENV_OUT} @ONLY)
 
 if(LINUX)
     find_host_program(patchelf_program
@@ -63,13 +64,10 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
         --dist-dir ${openvino_wheels_output_dir}
         --build=${WHEEL_BUILD}
         --plat-name=${WHEEL_PLATFORM}
-    COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_CURRENT_SOURCE_DIR}/.env"
-    DEPENDS ${openvino_wheel_deps}
+    # COMMAND ${CMAKE_COMMAND} -E remove ${SETUP_ENV_OUT}
+    DEPENDS ${openvino_wheel_deps} ${SETUP_ENV_OUT}
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
 
 add_custom_target(ie_wheel DEPENDS ${openvino_wheel_path})
-
-set_target_properties(ie_wheel
-    PROPERTIES ADDITIONAL_CLEAN_FILES "${openvino_wheel_path}")
