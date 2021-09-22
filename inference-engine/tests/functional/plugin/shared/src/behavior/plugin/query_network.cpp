@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "hetero/query_network.hpp"
+#include "behavior/plugin/query_network.hpp"
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/variant.hpp>
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include <random>
+
 namespace HeteroTests {
 
 void QueryNetworkTest::SetUp() {
@@ -24,8 +22,7 @@ std::string QueryNetworkTest::getTestCaseName(const ::testing::TestParamInfo<Que
 }
 
 TEST_P(QueryNetworkTest, queryNetworkResultContainAllAndOnlyInputLayers) {
-    auto& param = GetParam();
-    auto queryNetworkResult = PluginCache::get().ie()->QueryNetwork(cnnNetwork, std::get<Plugin>(param));
+    auto queryNetworkResult = PluginCache::get().ie()->QueryNetwork(cnnNetwork, targetDevice);
     ASSERT_NE(nullptr, cnnNetwork.getFunction());
     std::set<std::string> expectedLayers;
     for (auto&& node : function->get_ops()) {

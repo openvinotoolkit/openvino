@@ -20,9 +20,11 @@ using QueryNetworkTestParameters = std::tuple<
 struct QueryNetworkTest : public testing::WithParamInterface<QueryNetworkTestParameters>,
                           virtual public LayerTestsUtils::LayerTestsCommon {
     enum {Plugin, Function};
+
     ~QueryNetworkTest() override = default;
     void SetUp() override;
     static std::string getTestCaseName(const ::testing::TestParamInfo<QueryNetworkTestParameters>& obj);
+
     std::string targetDevice;
     std::shared_ptr<ngraph::Function> function;
     InferenceEngine::CNNNetwork cnnNetwork;

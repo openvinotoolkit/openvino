@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "hetero/query_network.hpp"
+#include "behavior/plugin/query_network.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
@@ -15,7 +15,7 @@ auto ConvBias = ngraph::builder::subgraph::makeConvBias();
 
 INSTANTIATE_TEST_SUITE_P(smoke_FullySupportedTopologies, QueryNetworkTest,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE, "HETERO:TEMPLATE", "MULTI:TEMPLATE"),
+                                ::testing::Values("CPU", "HETERO:CPU", "MULTI:CPU"),
                                 ::testing::Values(ConvBias)),
                         QueryNetworkTest::getTestCaseName);
 }  // namespace
