@@ -6,10 +6,7 @@
 
 #include <cstring>
 
-#include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
-#include "utils/span.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -39,15 +36,16 @@ void scatter_update(const dataType* input_data,
 
     const auto data_last_dim = data_ndim - axis == 1;
     const auto updates_last_dim = updates_ndim - axis == 1;
+    const auto updates_first_dim = updates_size_before_axis == 1;
 
     auto updates_start_idx_step = axis == 0 ? updates_shape.back() : updates_shape[axis];
-    auto updates_step = updates_size_before_axis == 1 ? 1 : updates_size_after_axis;
+    auto updates_step = updates_first_dim ? updates_size_before_axis : updates_size_after_axis;
     if (updates_last_dim) {
         updates_start_idx_step = 1;
         updates_step = updates_shape[axis];
     }
 
-    const auto data_start_idx_step = data_last_dim ? 1 : data_size_after_axis * data_size_before_axis;
+    const auto data_start_idx_step = data_last_dim ? data_size_after_axis : data_size_after_axis * data_size_before_axis;
     const auto data_step = data_last_dim ? data_shape.back() : 1;
 
     const auto data_num_swaps = data_size_after_axis * data_size_before_axis;
