@@ -46,11 +46,12 @@ void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types() {
                               input_rois_shape.rank().get_length() == 2,
                               "The 'input_rois' input is expected to be a 2D. Got: ",
                               input_rois_shape);
-
-        NODE_VALIDATION_CHECK(this,
-                              input_rois_shape[1] == 4,
-                              "The second dimension of 'input_rois' should be 4. Got: ",
-                              input_rois_shape[1]);
+        if (input_rois_shape.is_static()) {
+            NODE_VALIDATION_CHECK(this,
+                                  input_rois_shape[1] == 4,
+                                  "The second dimension of 'input_rois' should be 4. Got: ",
+                                  input_rois_shape[1]);
+        }
     }
     if (rois_probs_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,

@@ -11,6 +11,7 @@
 #include "frontend.hpp"
 #include "frontend_manager_defs.hpp"
 #include "ngraph/variant.hpp"
+#include "parameters.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -77,6 +78,9 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
+template <>
+FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants);
+
 // --------- Plugin exporting information --------------
 
 /// \brief Each frontend plugin is responsible to export GetAPIVersion function returning
@@ -95,23 +99,3 @@ struct FrontEndPluginInfo {
 
 }  // namespace frontend
 }  // namespace ngraph
-
-namespace ov {
-
-template <>
-class FRONTEND_API VariantWrapper<std::istream*> : public VariantImpl<std::istream*> {
-public:
-    OPENVINO_RTTI("VariantWrapper<std::istream*>");
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-};
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-class FRONTEND_API VariantWrapper<std::wstring> : public VariantImpl<std::wstring> {
-public:
-    OPENVINO_RTTI("VariantWrapper<std::wstring>");
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-};
-#endif
-
-}  // namespace ov

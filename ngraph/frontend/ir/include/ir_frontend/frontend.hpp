@@ -5,9 +5,7 @@
 #pragma once
 
 #include <frontend_manager/frontend.hpp>
-#include <inference_engine.hpp>
 #include <ngraph/variant.hpp>
-#include <pugixml.hpp>
 
 #include "utility.hpp"
 
@@ -43,29 +41,3 @@ protected:
 
 }  // namespace frontend
 }  // namespace ngraph
-
-namespace ov {
-
-template <>
-class IR_API VariantWrapper<pugi::xml_node> : public VariantImpl<pugi::xml_node> {
-public:
-    OPENVINO_RTTI("VariantWrapper<pugi::xml_node>");
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-};
-
-template <>
-class IR_API VariantWrapper<InferenceEngine::Blob::CPtr> : public VariantImpl<InferenceEngine::Blob::CPtr> {
-public:
-    OPENVINO_RTTI("VariantWrapper<InferenceEngine::Blob::CPtr>");
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-};
-
-template <>
-class IR_API VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>>
-    : public VariantImpl<std::vector<InferenceEngine::IExtensionPtr>> {
-public:
-    OPENVINO_RTTI("VariantWrapper<InferenceEngine::IExtensionPtr>");
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-};
-
-}  // namespace ov

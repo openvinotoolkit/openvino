@@ -228,6 +228,11 @@ public:
     OPENVINO_DEPRECATED("Use Constant c-tor with shape argument instead")
     void set_data_shape(const Shape& shape);
 
+    /// \brief Return data size in bytes
+    size_t get_byte_size() const {
+        return m_data->size();
+    }
+
     /// \brief Wrapper around constructing a shared_ptr of a Constant
     ///
     /// \param type The element type of the tensor constant.

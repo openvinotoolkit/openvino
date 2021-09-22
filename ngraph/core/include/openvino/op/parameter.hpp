@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/layout.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {
@@ -50,6 +51,12 @@ public:
     void set_element_type(const element::Type& element_type) {
         m_element_type = element_type;
     }
+
+    /// \brief Returns current layout, or empty Layout if it is not set
+    Layout get_layout() const;
+
+    /// \brief Sets layout runtime information to tensor
+    void set_layout(const Layout& layout);
 
 protected:
     PartialShape m_partial_shape;

@@ -23,7 +23,7 @@ public:
     /// \brief Structure that specifies attributes for interpolation
     struct Attributes {
         // specify dimension indices where interpolation is applied, and `axes` is any
-        // unordered list of indeces of different dimensions of input tensor. Required.
+        // unordered list of indices of different dimensions of input tensor. Required.
         AxisSet axes;
         // specifies type of interpolation
         // one of `nearest`, `linear`, `cubic`, `area`. Required.
