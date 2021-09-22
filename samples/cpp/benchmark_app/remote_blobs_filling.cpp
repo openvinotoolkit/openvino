@@ -2,15 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "remote_blobs_filling.hpp"
+
 #include <memory>
 #include <random>
+#include <samples/slog.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
+#ifdef HAVE_DEVICE_MEM_SUPPORT
+#    include <openvino/runtime/gpu/ocl/ocl.hpp>
+#    include <openvino/runtime/gpu/ocl/ocl_wrapper.hpp>
+#endif
 // clang-format off
 #include <samples/slog.hpp>
-
 #include "remote_blobs_filling.hpp"
 // clang-format on
 
@@ -35,63 +41,38 @@ void fillBufferRandom(void* inputBuffer,
     }
 }
 
-void fillBuffer(void* inputBuffer, size_t elementsNum, InferenceEngine::Precision precision) {
-    if (precision == InferenceEngine::Precision::FP32) {
+void fillBuffer(void* inputBuffer, size_t elementsNum, ov::element::Type precision) {
+    if (precision == ov::element::f32) {
         fillBufferRandom<float, float>(inputBuffer, elementsNum);
-    } else if (precision == InferenceEngine::Precision::FP16) {
+    } else if (precision == ov::element::f16) {
         fillBufferRandom<short, short>(inputBuffer, elementsNum);
-    } else if (precision == InferenceEngine::Precision::I32) {
+    } else if (precision == ov::element::i32) {
         fillBufferRandom<int32_t, int32_t>(inputBuffer, elementsNum);
-    } else if (precision == InferenceEngine::Precision::I64) {
+    } else if (precision == ov::element::i64) {
         fillBufferRandom<int64_t, int64_t>(inputBuffer, elementsNum);
-    } else if (precision == InferenceEngine::Precision::U8) {
+    } else if (precision == ov::element::u8) {
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
         fillBufferRandom<uint8_t, uint32_t>(inputBuffer, elementsNum);
-    } else if (precision == InferenceEngine::Precision::I8) {
+    } else if (precision == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
         fillBufferRandom<int8_t, int32_t>(inputBuffer, elementsNum);
-    } else if (precision == InferenceEngine::Precision::U16) {
+    } else if (precision == ov::element::u16) {
         fillBufferRandom<uint16_t, uint16_t>(inputBuffer, elementsNum);
-    } else if (precision == InferenceEngine::Precision::I16) {
+    } else if (precision == ov::element::i16) {
         fillBufferRandom<int16_t, int16_t>(inputBuffer, elementsNum);
-    } else if (precision == InferenceEngine::Precision::BOOL) {
+    } else if (precision == ov::element::boolean) {
         fillBufferRandom<uint8_t, uint32_t>(inputBuffer, elementsNum, 0, 1);
     } else {
         IE_THROW() << "Requested precision is not supported";
     }
 }
 
-size_t getBytesPerElement(InferenceEngine::Precision precision) {
-    switch (precision) {
-    case InferenceEngine::Precision::FP32:
-        return 4;
-    case InferenceEngine::Precision::FP16:
-        return 2;
-    case InferenceEngine::Precision::I32:
-        return 4;
-    case InferenceEngine::Precision::I64:
-        return 8;
-    case InferenceEngine::Precision::U8:
-        return 1;
-    case InferenceEngine::Precision::I8:
-        return 1;
-    case InferenceEngine::Precision::U16:
-        return 2;
-    case InferenceEngine::Precision::I16:
-        return 2;
-    case InferenceEngine::Precision::BOOL:
-        return 1;
-    default:
-        IE_THROW() << "Requested precision is not supported";
-    }
-}
-
-std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteInputBlobs(
+std::map<std::string, ov::runtime::TensorVector> getRemoteInputBlobs(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
-    const InferenceEngine::ExecutableNetwork& exeNetwork,
+    const ov::runtime::CompiledModel& exeNetwork,
     std::vector<BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     slog::info << "Device memory will be used for input and output blobs" << slog::endl;
@@ -100,33 +81,10 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteInputBlo
                    << slog::endl;
     }
 
-    std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> remoteBlobs;
-    auto context = exeNetwork.GetContext();
-    auto oclContext = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(context)->get();
-    auto oclInstance = std::make_shared<OpenCL>(oclContext);
-
-    auto setShared = [&](const std::string name, const InferenceEngine::TensorDesc& desc, bool fillRandom = false) {
-        cl_int err;
-        auto inputDims = desc.getDims();
-        auto elementsNum = std::accumulate(begin(inputDims), end(inputDims), 1, std::multiplies<size_t>());
-        auto inputSize = elementsNum * getBytesPerElement(desc.getPrecision());
-
-        clBuffer.push_back(cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err));
-
-        if (fillRandom) {
-            void* mappedPtr = oclInstance->_queue.enqueueMapBuffer(clBuffer.back(),
-                                                                   CL_TRUE,
-                                                                   CL_MEM_READ_WRITE,
-                                                                   0,
-                                                                   (cl::size_type)inputSize);
-            fillBuffer(mappedPtr, elementsNum, desc.getPrecision());
-            oclInstance->_queue.enqueueUnmapMemObject(clBuffer.back(), mappedPtr);
-        }
-
-        auto blob = InferenceEngine::gpu::make_shared_blob(desc, context, clBuffer.back());
-        blob->allocate();
-        remoteBlobs[name].push_back(blob);
-    };
+    std::map<std::string, ov::runtime::TensorVector> remoteBlobs;
+    auto context = exeNetwork.get_context();
+    auto& oclContext = static_cast<ov::runtime::gpu::ocl::ClContext&>(context);
+    auto oclInstance = std::make_shared<gpu::OpenCL>(oclContext.get());
 
     for (auto& inputs_info : app_inputs_info) {
         for (auto& input : inputs_info) {
@@ -134,11 +92,34 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteInputBlo
             slog::info << "Prepare remote blob for input '" << input.first << "' with random values ("
                        << std::string((input.second.isImage() ? "image" : "some binary data")) << " is expected)"
                        << slog::endl;
-            setShared(input.first,
-                      InferenceEngine::TensorDesc(input.second.precision,
-                                                  input.second.dataShape,
-                                                  getLayoutFromString(input.second.layout)),
-                      true);
+
+            auto tensor =
+                oclContext.create_tensor(input.second.precision, input.second.dataShape, clBuffer.back().get());
+            remoteBlobs[input.first].push_back(tensor);
+
+            // Creating and filling shared buffers
+            cl_int err;
+            auto elementsNum = std::accumulate(begin(input.second.dataShape),
+                                               end(input.second.dataShape),
+                                               1,
+                                               std::multiplies<size_t>());
+            auto inputSize = elementsNum * input.second.precision.bitwidth() / 8;
+
+            clBuffer.push_back(
+                cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err));
+
+            void* mappedPtr = oclInstance->_queue.enqueueMapBuffer(clBuffer.back(),
+                                                                   CL_TRUE,
+                                                                   CL_MEM_READ_WRITE,
+                                                                   0,
+                                                                   (cl::size_type)inputSize);
+            if (inputFiles.empty()) {
+                // Filling in random data
+                fillBuffer(mappedPtr, elementsNum, input.second.precision);
+            } else {
+                // TODO: add filling with real image data
+            }
+            oclInstance->_queue.enqueueUnmapMemObject(clBuffer.back(), mappedPtr);
         }
     }
 
@@ -148,34 +129,34 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteInputBlo
 #endif
 }
 
-std::map<std::string, InferenceEngine::Blob::Ptr> getRemoteOutputBlobs(
-    const InferenceEngine::ExecutableNetwork& exeNetwork,
-    std::map<std::string, ::gpu::BufferType>& clBuffer) {
+std::map<std::string, ov::runtime::Tensor> getRemoteOutputBlobs(const ov::runtime::CompiledModel& exeNetwork,
+                                                                std::map<std::string, ::gpu::BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
-    std::map<std::string, InferenceEngine::Blob::Ptr> outputBlobs;
-    for (auto& output : exeNetwork.GetOutputsInfo()) {
-        cl_int err;
-        auto context = exeNetwork.GetContext();
-        auto oclContext = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(context)->get();
-        auto oclInstance = std::make_shared<OpenCL>(oclContext);
+    std::map<std::string, ov::runtime::Tensor> outputBlobs;
+    for (auto& output : exeNetwork.outputs()) {
+        auto context = exeNetwork.get_context();
+        auto& oclContext = static_cast<ov::runtime::gpu::ocl::ClContext&>(context);
+        auto oclInstance = std::make_shared<OpenCL>(oclContext.get());
 
-        auto desc = output.second->getTensorDesc();
-        auto inputDims = desc.getDims();
-        auto elementsNum = std::accumulate(begin(inputDims), end(inputDims), 1, std::multiplies<size_t>());
-        auto inputSize = elementsNum * getBytesPerElement(desc.getPrecision());
+        cl_int err;
+        auto elementsNum =
+            std::accumulate(begin(output.get_shape()), end(output.get_shape()), 1, std::multiplies<size_t>());
+        auto inputSize = elementsNum * output.get_element_type().bitwidth() / 8;
 
         cl::size_type bufferSize = 0;
-        if (clBuffer.find(output.first) == clBuffer.end()) {
-            clBuffer[output.first] =
+        if (clBuffer.find(output.get_any_name()) == clBuffer.end()) {
+            clBuffer[output.get_any_name()] =
                 cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
         } else {
-            auto& buff = clBuffer[output.first];
+            auto& buff = clBuffer[output.get_any_name()];
             buff.getInfo(CL_MEM_SIZE, &bufferSize);
             if (inputSize != bufferSize) {
                 buff = cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
             }
         }
-        outputBlobs[output.first] = InferenceEngine::gpu::make_shared_blob(desc, context, clBuffer[output.first]);
+        outputBlobs[output.get_any_name()] = oclContext.create_tensor(output.get_element_type(),
+                                                                      output.get_shape(),
+                                                                      clBuffer[output.get_any_name()].get());
     }
 
     return outputBlobs;

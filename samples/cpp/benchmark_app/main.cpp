@@ -11,7 +11,7 @@
 #include <vector>
 
 // clang-format off
-#include "inference_engine.hpp"
+#include "openvino/pass/serialize.hpp"
 
 #include "gna/gna_config.hpp"
 #include "gpu/gpu_config.hpp"
@@ -29,8 +29,6 @@
 #include "statistics_report.hpp"
 #include "utils.hpp"
 // clang-format on
-
-using namespace InferenceEngine;
 
 static const size_t progressBarDefaultTotalCount = 1000;
 
@@ -114,7 +112,7 @@ static void next_step(const std::string additional_info = "") {
 int main(int argc, char* argv[]) {
     std::shared_ptr<StatisticsReport> statistics;
     try {
-        ExecutableNetwork exeNetwork;
+        ov::runtime::CompiledModel exeNetwork;
 
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
@@ -172,13 +170,13 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------
         next_step();
 
-        Core ie;
+        ov::runtime::Core ie;
 
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a
             // pointer to base extension
             const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
-            ie.AddExtension(extension_ptr);
+            ie.add_extension(extension_ptr);
             slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
         }
 
@@ -191,13 +189,13 @@ int main(int argc, char* argv[]) {
         }
         if (config.count("GPU") && config.at("GPU").count(CONFIG_KEY(CONFIG_FILE))) {
             auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE));
-            ie.SetConfig({{CONFIG_KEY(CONFIG_FILE), ext}}, "GPU");
+            ie.set_config({{CONFIG_KEY(CONFIG_FILE), ext}}, "GPU");
             slog::info << "GPU extensions is loaded " << ext << slog::endl;
         }
 
-        slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
+        slog::info << "OpenVINO: " << ov::get_openvino_version() << slog::endl;
         slog::info << "Device info: " << slog::endl;
-        slog::info << ie.GetVersions(device_name) << slog::endl;
+        slog::info << ie.get_versions(device_name) << slog::endl;
 
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
@@ -269,7 +267,7 @@ int main(int argc, char* argv[]) {
                 if (device_nstreams.count(device)) {
                     // set to user defined value
                     std::vector<std::string> supported_config_keys =
-                        ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                        ie.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                     if (std::find(supported_config_keys.begin(), supported_config_keys.end(), key) ==
                         supported_config_keys.end()) {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "'! " +
@@ -342,7 +340,7 @@ int main(int argc, char* argv[]) {
                     device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
             } else {
                 std::vector<std::string> supported_config_keys =
-                    ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                    ie.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 auto supported = [&](const std::string& key) {
                     return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key) !=
                            std::end(supported_config_keys);
@@ -360,21 +358,23 @@ int main(int argc, char* argv[]) {
         }
 
         for (auto&& item : config) {
-            ie.SetConfig(item.second, item.first);
+            ie.set_config(item.second, item.first);
         }
 
         size_t batchSize = FLAGS_b;
-        Precision precision = Precision::UNSPECIFIED;
+        ov::element::Type precision = ov::element::undefined;
         std::string topology_name = "";
         std::vector<benchmark_app::InputsInfo> app_inputs_info;
         std::string output_name;
 
         // Takes priority over config from file
         if (!FLAGS_cache_dir.empty()) {
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
+            ie.set_config({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
         }
 
         bool isDynamicNetwork = false;
+        std::shared_ptr<const ov::Model> runtimeFunction;
+
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             next_step();
             slog::info << "Skipping the step for loading network from file" << slog::endl;
@@ -383,22 +383,25 @@ int main(int argc, char* argv[]) {
             next_step();
             slog::info << "Skipping the step for loading network from file" << slog::endl;
             auto startTime = Time::now();
-            exeNetwork = ie.LoadNetwork(FLAGS_m, device_name);
+            exeNetwork = ie.compile_model(FLAGS_m, device_name);
             auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
-            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
-                                                             FLAGS_layout,
-                                                             batchSize,
-                                                             FLAGS_data_shape,
-                                                             FLAGS_iscale,
-                                                             FLAGS_imean,
-                                                             exeNetwork.GetInputsInfo());
+            runtimeFunction = exeNetwork.get_runtime_model();
+            app_inputs_info = getInputsInfo(FLAGS_shape,
+                                            FLAGS_layout,
+                                            batchSize,
+                                            FLAGS_data_shape,
+                                            inputFiles,
+                                            FLAGS_iscale,
+                                            FLAGS_imean,
+                                            runtimeFunction->get_parameters());
             if (batchSize == 0) {
                 batchSize = 1;
             }
+
         } else if (!isNetworkCompiled) {
             // ----------------- 4. Reading the Intermediate Representation network
             // ----------------------------------------
@@ -407,14 +410,14 @@ int main(int argc, char* argv[]) {
             slog::info << "Loading network files" << slog::endl;
 
             auto startTime = Time::now();
-            CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
+            auto cnnNetwork = ie.read_model(FLAGS_m);
             auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"read network time (ms)", duration_ms}});
 
-            const InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
+            const ov::ParameterVector& inputInfo = cnnNetwork->get_parameters();
             if (inputInfo.empty()) {
                 throw std::logic_error("no inputs info is provided");
             }
@@ -424,28 +427,56 @@ int main(int argc, char* argv[]) {
             next_step();
             // Parse input shapes if specified
             bool reshape = false;
-            app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape,
-                                                            FLAGS_layout,
-                                                            FLAGS_b,
-                                                            FLAGS_data_shape,
-                                                            FLAGS_iscale,
-                                                            FLAGS_imean,
-                                                            inputInfo,
-                                                            reshape);
+            app_inputs_info = getInputsInfo(FLAGS_shape,
+                                            FLAGS_layout,
+                                            FLAGS_b,
+                                            FLAGS_data_shape,
+                                            inputFiles,
+                                            FLAGS_iscale,
+                                            FLAGS_imean,
+                                            inputInfo,
+                                            reshape);
             if (reshape) {
                 benchmark_app::PartialShapes shapes = {};
                 for (auto& item : app_inputs_info[0])
                     shapes[item.first] = item.second.partialShape;
                 slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
-                cnnNetwork.reshape(shapes);
+                cnnNetwork->reshape(shapes);
                 duration_ms = double_to_string(get_duration_ms_till_now(startTime));
                 slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
                 if (statistics)
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                               {{"reshape network time (ms)", duration_ms}});
             }
-            topology_name = cnnNetwork.getName();
+
+            // ----------------- 6. Configuring inputs and outputs
+            // ----------------------------------------------------------------------
+            next_step();
+            auto preproc = ov::preprocess::PrePostProcessor(cnnNetwork);
+
+            processPrecision(*cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            for (auto& item : cnnNetwork->get_parameters()) {
+                // if precision for input set by user, then set it to app_inputs
+                const auto& name = item->get_friendly_name();
+                if (!FLAGS_ip.empty() || FLAGS_iop.find(name) != std::string::npos) {
+                    for (auto& info : app_inputs_info) {
+                        info.at(name).precision = item->get_element_type();
+                    }
+                } else if (app_inputs_info[0].at(name).isImage()) {
+                    // image input, set U8
+                    for (auto& info : app_inputs_info) {
+                        info.at(name).precision = ov::element::u8;
+                    }
+                }
+                auto& in = preproc.input(name);
+                in.tensor().set_element_type(app_inputs_info[0].at(name).precision);
+
+                // Explicitly set inputs layout.
+                in.model().set_layout(app_inputs_info[0].at(name).layout);
+            }
+
+            cnnNetwork = preproc.build();
 
             // Check if network has dynamic shapes
             auto input_info = app_inputs_info[0];
@@ -455,42 +486,27 @@ int main(int argc, char* argv[]) {
                                                return i.second.partialShape.is_dynamic();
                                            });
 
+            topology_name = cnnNetwork->get_friendly_name();
             // use batch size according to provided layout and shapes (static case)
             if (batchSize == 0 || !isDynamicNetwork) {
-                batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info[0]) : cnnNetwork.getBatchSize();
+                batchSize = getFunctionInputBatchSize(*cnnNetwork);
             }
 
             slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
                        << slog::endl;
 
-            // ----------------- 6. Configuring inputs and outputs
-            // ----------------------------------------------------------------------
-            next_step();
-
-            processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
-            for (auto& item : cnnNetwork.getInputsInfo()) {
-                // if precision for input set by user, then set it to app_inputs
-                // if it an image, set U8
-                if (!FLAGS_ip.empty() || FLAGS_iop.find(item.first) != std::string::npos ||
-                    item.second->getPartialShape().is_dynamic()) {
-                    app_inputs_info[0].at(item.first).precision = item.second->getPrecision();
-                } else if (app_inputs_info[0].at(item.first).isImage()) {
-                    app_inputs_info[0].at(item.first).precision = Precision::U8;
-                    item.second->setPrecision(app_inputs_info[0].at(item.first).precision);
-                }
-            }
-
-            printInputAndOutputsInfo(cnnNetwork);
+            printInputAndOutputsInfoShort(*cnnNetwork);
             // ----------------- 7. Loading the model to the device
             // --------------------------------------------------------
             next_step();
             startTime = Time::now();
-            exeNetwork = ie.LoadNetwork(cnnNetwork, device_name);
+            exeNetwork = ie.compile_model(cnnNetwork, device_name);
             duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
+            runtimeFunction = std::const_pointer_cast<const ov::Model>(cnnNetwork);
         } else {
             next_step();
             slog::info << "Skipping the step for compiled network" << slog::endl;
@@ -502,19 +518,22 @@ int main(int argc, char* argv[]) {
             // --------------------------------------------------------
             next_step();
             auto startTime = Time::now();
-            exeNetwork = ie.ImportNetwork(FLAGS_m, device_name, {});
+            exeNetwork = ie.compile_model(FLAGS_m, device_name, {});
             auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Import network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"import network time (ms)", duration_ms}});
-            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
-                                                             FLAGS_layout,
-                                                             FLAGS_b,
-                                                             FLAGS_data_shape,
-                                                             FLAGS_iscale,
-                                                             FLAGS_imean,
-                                                             exeNetwork.GetInputsInfo());
+
+            runtimeFunction = exeNetwork.get_runtime_model();
+            app_inputs_info = getInputsInfo(FLAGS_shape,
+                                            FLAGS_layout,
+                                            FLAGS_b,
+                                            FLAGS_data_shape,
+                                            inputFiles,
+                                            FLAGS_iscale,
+                                            FLAGS_imean,
+                                            runtimeFunction->get_parameters());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -543,11 +562,11 @@ int main(int argc, char* argv[]) {
         if (!ov_perf_hint.empty()) {
             for (const auto& device : devices) {
                 std::vector<std::string> supported_config_keys =
-                    ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                    ie.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 slog::info << "Device: " << device << slog::endl;
                 for (const auto& cfg : supported_config_keys) {
                     try {
-                        slog::info << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
+                        slog::info << "  {" << cfg << " , " << exeNetwork.get_config(cfg).as<std::string>();
                     } catch (...) {
                     };
                     slog::info << " }" << slog::endl;
@@ -558,7 +577,7 @@ int main(int argc, char* argv[]) {
         // Update number of streams
         for (auto&& ds : device_nstreams) {
             const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
-            device_nstreams[ds.first] = ie.GetConfig(ds.first, key).as<std::string>();
+            device_nstreams[ds.first] = ie.get_config(ds.first, key).as<std::string>();
         }
 
         // Number of requests
@@ -569,11 +588,10 @@ int main(int argc, char* argv[]) {
             } else {
                 std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
                 try {
-                    nireq = exeNetwork.GetMetric(key).as<unsigned int>();
+                    nireq = exeNetwork.get_metric(key).as<unsigned int>();
                 } catch (const std::exception& ex) {
                     IE_THROW() << "Every device used with the benchmark_app should "
-                               << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS "
-                                  "ExecutableNetwork metric. "
+                               << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS metric. "
                                << "Failed to query the metric for the " << device_name << " with error:" << ex.what();
                 }
             }
@@ -618,7 +636,7 @@ int main(int argc, char* argv[]) {
                     {"topology", topology_name},
                     {"target device", device_name},
                     {"API", FLAGS_api},
-                    {"precision", std::string(precision.name())},
+                    {"precision", std::string(precision.get_type_name())},
                     {"batch size", std::to_string(batchSize)},
                     {"number of iterations", std::to_string(niter)},
                     {"number of parallel infer requests", std::to_string(nireq)},
@@ -649,7 +667,7 @@ int main(int argc, char* argv[]) {
         std::vector<::gpu::BufferType> clInputsBuffer;
         bool useGpuMem = false;
 
-        std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> inputsData;
+        std::map<std::string, ov::runtime::TensorVector> inputsData;
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0) {
                 inputsData = ::gpu::getRemoteInputBlobs(inputFiles, app_inputs_info, exeNetwork, clInputsBuffer);
@@ -741,9 +759,9 @@ int main(int argc, char* argv[]) {
                     if (useGpuMem) {
                         inferRequest->setBlob(inputName, inputBlob);
                     } else {
-                        InferenceEngine::Blob::Ptr requestBlob = inferRequest->getBlob(inputName);
+                        auto requestBlob = inferRequest->getBlob(inputName);
                         if (isDynamicNetwork) {
-                            requestBlob->setShape(inputBlob->getTensorDesc().getDims());
+                            requestBlob.set_shape(inputBlob.get_shape());
                         }
                         copyBlobData(requestBlob, inputBlob);
                     }
@@ -751,8 +769,8 @@ int main(int argc, char* argv[]) {
 
                 if (useGpuMem) {
                     auto outputBlobs = ::gpu::getRemoteOutputBlobs(exeNetwork, inferRequest->getOutputClBuffer());
-                    for (auto& output : exeNetwork.GetOutputsInfo()) {
-                        inferRequest->setBlob(output.first, outputBlobs[output.first]);
+                    for (auto& output : exeNetwork.outputs()) {
+                        inferRequest->setBlob(output.get_any_name(), outputBlobs[output.get_any_name()]);
                     }
                 }
                 ++i;
@@ -776,8 +794,8 @@ int main(int argc, char* argv[]) {
 
             if (useGpuMem) {
                 auto outputBlobs = ::gpu::getRemoteOutputBlobs(exeNetwork, inferRequest->getOutputClBuffer());
-                for (auto& output : exeNetwork.GetOutputsInfo()) {
-                    inferRequest->setBlob(output.first, outputBlobs[output.first]);
+                for (auto& output : exeNetwork.outputs()) {
+                    inferRequest->setBlob(output.get_any_name(), outputBlobs[output.get_any_name()]);
                 }
             }
         }
@@ -834,8 +852,8 @@ int main(int argc, char* argv[]) {
 
                 if (useGpuMem) {
                     auto outputBlobs = ::gpu::getRemoteOutputBlobs(exeNetwork, inferRequest->getOutputClBuffer());
-                    for (auto& output : exeNetwork.GetOutputsInfo()) {
-                        inferRequest->setBlob(output.first, outputBlobs[output.first]);
+                    for (auto& output : exeNetwork.outputs()) {
+                        inferRequest->setBlob(output.get_any_name(), outputBlobs[output.get_any_name()]);
                     }
                 }
             }
@@ -971,8 +989,9 @@ int main(int argc, char* argv[]) {
 
         if (!FLAGS_exec_graph_path.empty()) {
             try {
-                CNNNetwork execGraphInfo = exeNetwork.GetExecGraphInfo();
-                execGraphInfo.serialize(FLAGS_exec_graph_path);
+                std::string fileName = fileNameNoExt(FLAGS_exec_graph_path);
+                ov::pass::Serialize serializer(fileName + ".xml", fileName + ".bin");
+                serializer.run_on_function(std::const_pointer_cast<ov::Model>(runtimeFunction));
                 slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
             } catch (const std::exception& ex) {
                 slog::err << "Can't get executable graph: " << ex.what() << slog::endl;
@@ -980,7 +999,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (perf_counts) {
-            std::vector<std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfCounts;
+            std::vector<std::vector<ov::runtime::ProfilingInfo>> perfCounts;
             for (size_t ireq = 0; ireq < nireq; ireq++) {
                 auto reqPerfCounts = inferRequestsQueue.requests[ireq]->getPerformanceCounts();
                 if (FLAGS_pc) {
@@ -1011,7 +1030,7 @@ int main(int argc, char* argv[]) {
                     for (auto& item : app_inputs_info[i]) {
                         std::stringstream input_shape;
                         auto shape = item.second.dataShape;
-                        std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<int>(input_shape, ","));
+                        std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<size_t>(input_shape, ","));
                         input_shape << shape.back();
                         slog::info << " " << item.first << " : " << getShapeString(item.second.dataShape);
                     }

@@ -4,40 +4,39 @@
 
 #pragma once
 
-#include "ie_allocator.hpp"
+#include "openvino/runtime/allocator.hpp"
 
-template <class T>
-class SharedBlobAllocator : public InferenceEngine::IAllocator {
+class SharedBlobAllocator : public ov::runtime::AllocatorImpl {
 public:
-    SharedBlobAllocator(const T* data, size_t size) : data(data), size(size){};
-
-    ~SharedBlobAllocator() {
-        free((void*)data);
-    };
-
-    void* lock(void* handle, InferenceEngine::LockOp op = InferenceEngine::LOCK_FOR_WRITE) noexcept override {
-        if (handle == data) {
-            return (void*)data;
-        }
-        return nullptr;
+    SharedBlobAllocator(size_t sizeBytes) : size(sizeBytes) {
+        data = new char[size];
     }
 
-    void unlock(void* handle) noexcept override{};
+    ~SharedBlobAllocator() {
+        delete[] data;
+    }
 
-    void* alloc(size_t size) noexcept override {
-        return size <= this->size ? (void*)data : nullptr;
-    };
+    virtual void* allocate(const size_t bytes, const size_t) override {
+        return bytes <= this->size ? (void*)data : nullptr;
+    }
 
-    bool free(void* handle) noexcept override {
+    void deallocate(void* handle, const size_t bytes, const size_t) override {
         if (handle == data) {
             delete[] data;
             data = nullptr;
-            return true;
         }
-        return false;
-    };
+    }
+
+    bool is_equal(const AllocatorImpl& other) const override {
+        auto other_blob_allocator = dynamic_cast<const SharedBlobAllocator*>(&other);
+        return other_blob_allocator != nullptr && other_blob_allocator == this;
+    }
+
+    char* getBuffer() {
+        return data;
+    }
 
 private:
-    const T* data;
+    char* data;
     size_t size;
 };
