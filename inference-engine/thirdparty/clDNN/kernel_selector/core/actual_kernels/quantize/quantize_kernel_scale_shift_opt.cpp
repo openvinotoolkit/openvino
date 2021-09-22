@@ -8,6 +8,7 @@
 #include <string>
 
 static const size_t sub_group_size = 32;
+static const size_t feature_size = 32;
 
 namespace kernel_selector {
 ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
@@ -43,6 +44,14 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = sub_group_size;
         dispatchData.lws[2] = 1;
+    } else if (output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
+        dispatchData.gws[0] = output.Y().v * output.X().v;
+        dispatchData.gws[1] = Align(output.Feature().v, feature_size);
+        dispatchData.gws[2] = Align(output.Batch().v, feature_size);
+
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = feature_size;
+        dispatchData.lws[2] = params.engineInfo.maxWorkGroupSize / feature_size;
     } else {
         dispatchData.gws = GetTensorFriendlyWorkGroups(output);
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
@@ -54,7 +63,8 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
 JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
-    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16) {
+    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+        params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
         jit.AddConstant(MakeJitConstant("GWS_BATCH", 2));
         jit.AddConstant(MakeJitConstant("GWS_FEATURE", 1));
         jit.AddConstant(MakeJitConstant("GWS_YX", 0));
