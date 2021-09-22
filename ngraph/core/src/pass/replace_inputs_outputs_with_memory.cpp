@@ -37,10 +37,10 @@ bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f
         variables.push_back(variable);
 
         // create ReadValue
-/*        auto const_zero = make_shared<Constant>(param->get_element_type(), ngraph::Shape{1}, 0);
-        auto shape_of = make_shared<ShapeOf>(param);
+        /*        auto const_zero = make_shared<Constant>(param->get_element_type(), ngraph::Shape{1}, 0);
+                auto shape_of = make_shared<ShapeOf>(param);
 
-        auto broadcast = make_shared<Broadcast>(const_zero, shape_of);*/
+                auto broadcast = make_shared<Broadcast>(const_zero, shape_of);*/
         auto read_val = make_shared<ReadValue>(param, variable);
         for (const auto& target_in : target_inputs) {
             target_in.replace_source_output(read_val->output(0));
