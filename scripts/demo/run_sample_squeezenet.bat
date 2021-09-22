@@ -48,8 +48,8 @@ set model_name=squeezenet1.1
 
 set target_image_path=%ROOT_DIR%car.png
 
-if exist "%ROOT_DIR%..\..\bin\setupvars.bat" (
-    call "%ROOT_DIR%..\..\bin\setupvars.bat"
+if exist "%ROOT_DIR%..\..\setupvars.bat" (
+    call "%ROOT_DIR%..\..\setupvars.bat"
 ) else (
     echo setupvars.bat is not found, INTEL_OPENVINO_DIR can't be set
     goto error
@@ -104,7 +104,7 @@ python -m pip install -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requireme
 
 if ERRORLEVEL 1 GOTO errorHandling
 
-set downloader_dir=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader
+set downloader_dir=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader
 
 for /F "tokens=* usebackq" %%d in (
     `python "%downloader_dir%\info_dumper.py" --name "%model_name%" ^|
@@ -134,7 +134,7 @@ echo.
 echo ###############^|^| Install Model Optimizer prerequisites ^|^|###############
 echo.
 CALL :delay 3
-cd /d "%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer"
+cd /d "%INTEL_OPENVINO_DIR%\tools\model_optimizer"
 python -m pip install -r requirements.txt
 if ERRORLEVEL 1 GOTO errorHandling
 
@@ -145,8 +145,8 @@ echo.
 CALL :delay 3
 
 ::set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
-echo python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
-python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
+echo python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
+python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
 if ERRORLEVEL 1 GOTO errorHandling
 
 CALL :delay 7
@@ -226,7 +226,7 @@ set "SOLUTION_DIR64=%BUILD_FOLDER%\inference_engine_cpp_samples_build"
 
 echo Creating Visual Studio !MSBUILD_VERSION! %PLATFORM% files in %SOLUTION_DIR64%... && ^
 if exist "%SOLUTION_DIR64%\CMakeCache.txt" del "%SOLUTION_DIR64%\CMakeCache.txt"
-cd /d "%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\samples\cpp" && cmake -E make_directory "%SOLUTION_DIR64%" && cd /d "%SOLUTION_DIR64%" && cmake -G "Visual Studio !MSBUILD_VERSION!" -A %PLATFORM% "%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\samples\cpp"
+cd /d "%INTEL_OPENVINO_DIR%\samples\cpp" && cmake -E make_directory "%SOLUTION_DIR64%" && cd /d "%SOLUTION_DIR64%" && cmake -G "Visual Studio !MSBUILD_VERSION!" -A %PLATFORM% "%INTEL_OPENVINO_DIR%\samples\cpp"
 if ERRORLEVEL 1 GOTO errorHandling
 
 CALL :delay 7
@@ -250,7 +250,7 @@ CALL :delay 3
 copy /Y "%ROOT_DIR%%model_name%.labels" "%ir_dir%"
 cd /d "%SOLUTION_DIR64%\intel64\Release"
 if not exist classification_sample_async.exe (
-   cd /d "%INTEL_OPENVINO_DIR%\inference_engine\samples\cpp\intel64\Release"
+   cd /d "%INTEL_OPENVINO_DIR%\samples\cpp\intel64\Release"
 )
 echo classification_sample_async.exe -i "%target_image_path%" -m "%ir_dir%\%model_name%.xml" -d !TARGET! !SAMPLE_OPTIONS!
 classification_sample_async.exe -i "%target_image_path%" -m "%ir_dir%\%model_name%.xml" -d !TARGET! !SAMPLE_OPTIONS!
