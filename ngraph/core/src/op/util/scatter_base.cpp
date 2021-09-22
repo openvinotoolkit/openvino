@@ -49,7 +49,7 @@ void ov::op::util::ScatterBase::validate_and_infer_types() {
     const auto& axis_shape = get_input_partial_shape(AXIS);
 
     NODE_VALIDATION_CHECK(this,
-                          axis_shape.compatible(Shape{}) || axis_shape.compatible(Shape{1}),
+                          axis_shape.compatible(PartialShape{}) || axis_shape.compatible(PartialShape{1}),
                           "Axis input shape is required to be scalar or 1D tensor. ",
                           "Got: ",
                           axis_shape);

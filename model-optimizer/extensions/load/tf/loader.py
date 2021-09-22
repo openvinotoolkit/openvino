@@ -55,7 +55,7 @@ class TFLoader(Loader):
         except:
             log.warning("TensorFlow post-processing of loaded model was unsuccessful. "
                         "This is an optional step that Model Optimizer performs for any input model but it is not usually "
-                        "required for all models."
+                        "required for all models. "
                         "It likely means that the original model is ill-formed. "
                         "Model Optimizer will continue converting this model.")
 

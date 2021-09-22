@@ -5,7 +5,7 @@
 /**
  * @brief A header file that provides wrapper classes for infer requests and callbacks.
  *
- * @file infer_request.hpp
+ * @file openvino/runtime/infer_request.hpp
  */
 #pragma once
 
@@ -13,9 +13,9 @@
 #include <memory>
 #include <string>
 
-#include "common.hpp"
-#include "profiling_info.hpp"
-#include "variable_state.hpp"
+#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/variable_state.hpp"
 
 namespace InferenceEngine {
 class IInferRequestInternal;
@@ -24,13 +24,16 @@ class Blob;
 
 namespace ov {
 namespace runtime {
+
+class ExecutableNetwork;
+
 /**
  * @brief This is an interface of asynchronous infer request
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
 class INFERENCE_ENGINE_API_CLASS(InferRequest) {
-    std::shared_ptr<SharedObject> _so;
+    std::shared_ptr<void> _so;
     std::shared_ptr<ie::IInferRequestInternal> _impl;
 
     /**
@@ -39,8 +42,8 @@ class INFERENCE_ENGINE_API_CLASS(InferRequest) {
      * destroyed.
      * @param impl Initialized shared pointer
      */
-    InferRequest(const std::shared_ptr<SharedObject>& so, const std::shared_ptr<ie::IInferRequestInternal>& impl);
-    friend class ExecutableNetwork;
+    InferRequest(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IInferRequestInternal>& impl);
+    friend class ov::runtime::ExecutableNetwork;
 
 public:
     /**

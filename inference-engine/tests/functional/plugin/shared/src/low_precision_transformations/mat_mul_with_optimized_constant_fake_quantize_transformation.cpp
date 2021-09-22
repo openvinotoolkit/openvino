@@ -21,7 +21,7 @@
 namespace LayerTestsDefinitions {
 
 std::string MatMulWithOptimizedConstantFakeQuantizeTransformation::getTestCaseName(
-    testing::TestParamInfo<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams> obj) {
+    const testing::TestParamInfo<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
     std::string targetDevice;
