@@ -31,11 +31,11 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         node_name = node.soft_get('name', node.id)
         # check if we have dropout
         input_port = node.in_port(0)
-        if node['use_dropout']:
+        if node.has_and_set('use_dropout'):
             split_dropout = AttributedVariadicSplit(graph,
                                                     {'name': node_name + '/split_dropout',
                                                      'size_splits': int64_array([-1, 1, 1, 1]),
-                                                     'axis': np.int64(1)}).create_node()
+                                                     'axis': int64_array(1)}).create_node()
             input_port.get_connection().set_destination(split_dropout.in_port(0))
             input_port = split_dropout.out_port(0)
             i_drop_scale = split_dropout.out_port(1)
