@@ -51,7 +51,7 @@ Input NV12 image tensor shall have `NHWC (a.k.a NYXC)` layout and can be represe
 
 **Types:**
 
-* *T*: `uint8` or `float32` type.
+* *T*: `uint8` or any supported floating-point type.
 
 
 **Examples:**

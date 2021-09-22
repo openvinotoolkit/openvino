@@ -24,7 +24,7 @@ Same as specified for [NV12toRGB](NV12toRGB_8.md) operation.
 
 **Types:**
 
-* *T*: `uint8` or `float32` type.
+* *T*: `uint8` or any supported floating-point type.
 
 
 **Examples:**
