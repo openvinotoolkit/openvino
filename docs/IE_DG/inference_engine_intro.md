@@ -46,9 +46,11 @@ This library contains the classes to:
 Starting from 2022.1 release, OpenVINO Runtime introduced a concept of frontend plugins. Such plugins can be automatically dynamically loaded by OpenVINO Runtime dynamically depending on file format:
 * Unix* OS:
     - `libir_ngraph_frontend.so` to read a network from IR
+    - `libpaddlepaddle_ngraph_frontend.so` to read a network from PaddlePaddle model format
     - `libonnx_ngraph_frontend.so` to read a network from ONNX model format
 * Windows* OS:
     - `ir_ngraph_frontend.dll` to read a network from IR
+    - `paddlepaddle_ngraph_frontend.dll` to read a network from PaddlePaddle model format
     - `onnx_ngraph_frontend.dll` to read a network from ONNX model format
 
 ### Device-specific Plugin Libraries ###
