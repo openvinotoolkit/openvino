@@ -16,11 +16,14 @@
 
 #ifdef NGRAPH_STATIC_LIBRARY  // defined if we are building or calling NGRAPH as a static library
 #    define OPENVINO_API
+#    define OPENVINO_API_C(...) __VA_ARGS__
 #else
 #    ifdef ngraph_EXPORTS  // defined if we are building the NGRAPH DLL (instead of using it)
-#        define OPENVINO_API CORE_HELPER_DLL_EXPORT
+#        define OPENVINO_API        CORE_HELPER_DLL_EXPORT
+#        define OPENVINO_API_C(...) OPENVINO_EXTERN_C CORE_HELPER_DLL_EXPORT __VA_ARGS__ OPENVINO_CDECL
 #    else
-#        define OPENVINO_API CORE_HELPER_DLL_IMPORT
+#        define OPENVINO_API        CORE_HELPER_DLL_IMPORT
+#        define OPENVINO_API_C(...) OPENVINO_EXTERN_C CORE_HELPER_DLL_IMPORT __VA_ARGS__ OPENVINO_CDECL
 #    endif  // ngraph_EXPORTS
 #endif      // NGRAPH_STATIC_LIBRARY
 

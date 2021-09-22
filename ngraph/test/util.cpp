@@ -12,6 +12,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
+#include "openvino/core/version.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset6.hpp"
@@ -24,6 +25,16 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
+
+TEST(openvino_version, version) {
+    auto version = ov::get_openvino_version();
+    ASSERT_EQ(std::string("OpenVINO Runtime"), version->description);
+    ASSERT_FALSE(std::string(version->buildNumber).empty());
+}
+
+TEST(ngraph_version_variable, version) {
+    ASSERT_FALSE(std::string(NGRAPH_VERSION_NUMBER).empty());
+}
 
 TEST(util, split) {
     {

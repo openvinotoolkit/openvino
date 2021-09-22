@@ -4,6 +4,23 @@
 
 // https://gcc.gnu.org/wiki/Visibility
 // Generic helper definitions for shared library support
+
+#ifndef OPENVINO_EXTERN_C
+#    ifdef __cplusplus
+#        define OPENVINO_EXTERN_C extern "C"
+#    else
+#        define OPENVINO_EXTERN_C
+#    endif
+#endif
+
+#if defined _WIN32
+#    define OPENVINO_CDECL   __cdecl
+#    define OPENVINO_STDCALL __stdcall
+#else
+#    define OPENVINO_CDECL
+#    define OPENVINO_STDCALL
+#endif
+
 #if defined _WIN32 || defined __CYGWIN__
 #    define CORE_HELPER_DLL_IMPORT __declspec(dllimport)
 #    define CORE_HELPER_DLL_EXPORT __declspec(dllexport)

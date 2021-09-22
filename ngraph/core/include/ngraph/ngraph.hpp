@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "ngraph/version.hpp"
 #include "ngraph/deprecated.hpp"
 
 #ifdef IN_NGRAPH_LIBRARY
