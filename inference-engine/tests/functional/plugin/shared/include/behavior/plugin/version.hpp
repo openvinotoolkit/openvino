@@ -14,12 +14,30 @@
 #include "base/behavior_test_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
-using VersionTest = BehaviorTestsUtils::BehaviorTestsBasic;
+class VersionTest : public testing::WithParamInterface<std::string>,
+                    public CommonTestUtils::TestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
+        InferenceEngine::Precision  netPrecision;
+        std::string targetDevice;
+        std::map<std::string, std::string> config;
+        targetDevice = obj.param;
+        std::ostringstream result;
+        result << "targetDevice=" << targetDevice;
+        return result.str();
+    }
+
+    void SetUp()  override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        targetDevice = this->GetParam();
+    }
+
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::string targetDevice;
+};
 
 // Load unsupported network type to the Plugin
 TEST_P(VersionTest, pluginCurrentVersionIsCorrect) {
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
     if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
