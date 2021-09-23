@@ -155,12 +155,13 @@ void ov::Node::set_arguments(const NodeVector& arguments) {
 }
 
 void ov::Node::set_arguments(const OutputVector& arguments) {
+    // Remove existing inputs of this node
+    m_inputs.clear();
+
     // Add this node as a user of each argument.
     size_t i = 0;
     for (auto& output : arguments) {
-        auto output_node = output.get_node();
-        auto& output_descriptor = output_node->m_outputs.at(output.get_index());
-        m_inputs.emplace_back(this, i++, output_descriptor);
+        set_argument(i++, output);
     }
 }
 
@@ -174,7 +175,7 @@ ov::descriptor::Input& ov::Node::get_input_descriptor(size_t position) {
 ov::descriptor::Output& ov::Node::get_output_descriptor(size_t position) {
     while (m_outputs.size() <= position) {
         size_t i = m_outputs.size();
-        auto tensor_descriptor = make_shared<descriptor::Tensor>(element::dynamic, Shape::dynamic(), this, i);
+        auto tensor_descriptor = make_shared<descriptor::Tensor>(element::dynamic, PartialShape::dynamic(), this, i);
         m_outputs.emplace_back(this, i, tensor_descriptor);
     }
     return m_outputs[position];
@@ -221,7 +222,7 @@ void ov::Node::set_input_is_relevant_to_value(size_t i, bool relevant) {
     m_inputs[i].m_is_relevant_to_value = relevant;
 }
 
-void ov::Node::set_output_type(size_t i, const element::Type& element_type, const Shape& pshape) {
+void ov::Node::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape) {
     get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
 }
 
@@ -238,7 +239,9 @@ const std::string& ov::Node::get_friendly_name() const {
 
 const std::string& ov::Node::get_name() const {
     if (m_unique_name.empty()) {
-        const_cast<Node*>(this)->m_unique_name = description() + "_" + to_string(m_instance_id);
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_unique_name.empty())
+            const_cast<Node*>(this)->m_unique_name = description() + "_" + to_string(m_instance_id);
     }
     return m_unique_name;
 }
@@ -497,17 +500,17 @@ const ov::element::Type& ov::Node::get_element_type() const {
     return get_output_element_type(0);
 }
 
-const ov::StaticShape& ov::Node::get_output_shape(size_t i) const {
+const ov::Shape& ov::Node::get_output_shape(size_t i) const {
     NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_shape(size_t i)");
     return m_outputs[i].get_shape();
 }
 
-const ov::Shape& ov::Node::get_output_partial_shape(size_t i) const {
+const ov::PartialShape& ov::Node::get_output_partial_shape(size_t i) const {
     NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_partial_shape(size_t i)");
     return m_outputs[i].get_partial_shape();
 }
 
-const ov::StaticShape& ov::Node::get_shape() const {
+const ov::Shape& ov::Node::get_shape() const {
     NODE_VALIDATION_CHECK(this, get_output_size() == 1, "get_shape() must be called on a node with exactly one output");
     return get_output_shape(0);
 }
@@ -542,12 +545,12 @@ const ov::element::Type& ov::Node::get_input_element_type(size_t i) const {
     return m_inputs[i].get_element_type();
 }
 
-const ov::StaticShape& ov::Node::get_input_shape(size_t i) const {
+const ov::Shape& ov::Node::get_input_shape(size_t i) const {
     NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_shape(size_t i)");
     return m_inputs[i].get_shape();
 }
 
-const ov::Shape& ov::Node::get_input_partial_shape(size_t i) const {
+const ov::PartialShape& ov::Node::get_input_partial_shape(size_t i) const {
     NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_partial_shape(size_t i)");
     return m_inputs[i].get_partial_shape();
 }
@@ -834,7 +837,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
 }
 
 namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Node>>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<shared_ptr<Node>>);
 
 AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>& value) : m_ref(value) {}
 
@@ -848,7 +851,7 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     return true;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<NodeVector>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<NodeVector>);
 
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 

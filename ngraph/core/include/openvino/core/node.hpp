@@ -10,6 +10,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
 #include <tuple>
@@ -29,6 +30,7 @@
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/variant.hpp"
@@ -239,7 +241,7 @@ public:
     /// Sets/replaces the arguments with new arguments.
     void set_argument(size_t position, const Output<Node>& argument);
 
-    void set_output_type(size_t i, const element::Type& element_type, const Shape& pshape);
+    void set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape);
 
     /// Sets the number of outputs
     void set_output_size(size_t output_size);
@@ -318,10 +320,10 @@ public:
     const element::Type& get_element_type() const;
 
     /// Returns the shape for output i
-    const StaticShape& get_output_shape(size_t i) const;
+    const Shape& get_output_shape(size_t i) const;
 
     /// Returns the partial shape for output i
-    const Shape& get_output_partial_shape(size_t i) const;
+    const PartialShape& get_output_partial_shape(size_t i) const;
 
     /// Return the output to use when converting to an Output<Node> with no index specified.
     /// Throws when not supported.
@@ -337,7 +339,7 @@ public:
     // TODO: deprecate in favor of node->get_output_shape(0) with a suitable check in the
     // calling code, or updates to the calling code if it is making an invalid assumption of
     // only one output.
-    const StaticShape& get_shape() const;
+    const Shape& get_shape() const;
 
     /// Returns the tensor for output or input i
     descriptor::Tensor& get_output_tensor(size_t i) const;
@@ -358,11 +360,11 @@ public:
 
     /// Returns the shape of input i
     // TODO: deprecate in favor of node->get_input_shape(i)
-    const StaticShape& get_input_shape(size_t i) const;
+    const Shape& get_input_shape(size_t i) const;
 
     /// Returns the partial shape of input i
     // TODO: deprecate in favor of node->get_input_partial_shape(i)
-    const Shape& get_input_partial_shape(size_t i) const;
+    const PartialShape& get_input_partial_shape(size_t i) const;
 
     /// Returns the tensor name for input i
     OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
@@ -512,14 +514,13 @@ private:
     std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
     OPENVINO_SUPPRESS_DEPRECATED_END
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
+    mutable std::mutex m_mutex;
 };
 
 using NodeTypeInfo = Node::type_info_t;
 
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node&);
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
-
-#define _OPENVINO_RTTI_EXPAND(X) X
 
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
 /// Should be used in the scope of class that requires type identification besides one provided by
@@ -583,8 +584,6 @@ OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
         return type_info_static;                                                          \
     }                                                                                     \
     _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)
-
-#define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
 
 /// Complementary to OPENVINO_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
 /// OPENVINO_RTTI_DECLARATION.
@@ -685,10 +684,8 @@ public:
     AttributeAdapter(std::shared_ptr<ov::Node>& value);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Node>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     std::shared_ptr<ov::Node>& m_ref;
@@ -701,10 +698,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<NodeVector>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<NodeVector>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::NodeVector& m_ref;

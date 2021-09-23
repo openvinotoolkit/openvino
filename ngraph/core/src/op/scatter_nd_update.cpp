@@ -29,10 +29,10 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg2,
               const HostTensorPtr& out) {
     using T = typename element_type_traits<ET>::value_type;
-    ov::StaticShape params_shape = arg0->get_shape();
-    ov::StaticShape indices_shape = arg1->get_shape();
-    ov::StaticShape updates_shape = arg1->get_shape();
-    const ov::StaticShape& out_shape(params_shape);
+    ov::Shape params_shape = arg0->get_shape();
+    ov::Shape indices_shape = arg1->get_shape();
+    ov::Shape updates_shape = arg1->get_shape();
+    const ov::Shape& out_shape(params_shape);
     out->set_shape(out_shape);
 
     if (arg1->get_element_type() == element::i64) {
