@@ -14,7 +14,8 @@ namespace v4 {
 ///
 class OPENVINO_API Mish : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Mish", "opset4", op::Op, 4);
+    BWDCMP_RTTI_DECLARATION;
 
     Mish() = default;
     /// \brief Constructs an Mish operation.

@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v8::AdaptiveMaxPool, "AdaptiveMaxPool", 8);
-
 op::v8::AdaptiveMaxPool::AdaptiveMaxPool(const Output<Node>& data,
                                          const Output<Node>& output_shape,
                                          const ngraph::element::Type& index_element_type)
