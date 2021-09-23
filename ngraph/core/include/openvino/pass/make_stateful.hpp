@@ -18,7 +18,7 @@ namespace pass {
  */
 class OPENVINO_API MakeStateful : public FunctionPass {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_RTTI("MakeStateful");
 
     using ParamResPairs =
         std::vector<std::pair<std::shared_ptr<ngraph::opset8::Parameter>, std::shared_ptr<ngraph::opset8::Result>>>;

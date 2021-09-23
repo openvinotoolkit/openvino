@@ -10,8 +10,6 @@
 #include <openvino/op/util/variable.hpp>
 #include <openvino/opsets/opset8.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::pass::MakeStateful, "MakeStateful", 0);
-
 using namespace std;
 using namespace ngraph;
 using namespace opset8;
