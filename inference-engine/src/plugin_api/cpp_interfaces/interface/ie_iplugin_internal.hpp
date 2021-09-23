@@ -14,9 +14,9 @@
 #include <memory>
 #include <string>
 
-#include "details/ie_so_pointer.hpp"
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "details/ie_so_pointer.hpp"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
