@@ -73,6 +73,8 @@ TEST(threading, check_atomic_guard) {
         result += 3;
     };
     const auto& thread2_fun = [&]() {
+        std::chrono::milliseconds ms{500};
+        std::this_thread::sleep_for(ms);
         ov::AtomicGuard lock(test_val);
         result *= 3;
     };
