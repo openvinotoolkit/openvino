@@ -71,7 +71,7 @@ namespace {
 void readAllFile(const std::string& string_file_name, void* buffer, size_t maxSize) {
     std::ifstream inputFile;
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring file_name = ov::util::string_to_wstring(string_file_name.c_str());
 #else
     std::string file_name = string_file_name;

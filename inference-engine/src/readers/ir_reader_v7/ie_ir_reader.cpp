@@ -4,6 +4,7 @@
 
 #include <xml_parse_utils.h>
 
+#include "openvino/runtime/common.hpp"
 #include <ie_ir_version.hpp>
 #include <ie_ir_reader.hpp>
 #include <memory>
@@ -41,6 +42,6 @@ CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const 
     return CNNNetwork(parser.parse(root, weights));
 }
 
-INFERENCE_PLUGIN_API(void) InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
+OPENVINO_PLUGIN_API(void) InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
     reader = std::make_shared<IRReader>();
 }

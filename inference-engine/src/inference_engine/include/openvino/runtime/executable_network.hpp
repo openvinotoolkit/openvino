@@ -33,7 +33,7 @@ class Core;
 /**
  * @brief This is an interface of an executable network
  */
-class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
+class OPENVINO_RUNTIME_API ExecutableNetwork {
     std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
 

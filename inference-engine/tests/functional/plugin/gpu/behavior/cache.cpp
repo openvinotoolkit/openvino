@@ -49,7 +49,7 @@ TEST_F(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
     }
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_F(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
@@ -83,4 +83,4 @@ TEST_F(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
     }
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

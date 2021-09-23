@@ -16,7 +16,7 @@
 #include "network_utils.hpp"
 
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 # define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 # include <codecvt>
 #endif
@@ -71,7 +71,7 @@ TEST_P(NetReaderTest, ReadNetworkTwiceSeparately) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
     GTEST_COUT << "params.modelPath: '" << _modelPath << "'" << std::endl;

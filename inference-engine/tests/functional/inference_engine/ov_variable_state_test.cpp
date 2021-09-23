@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include "ie_blob.h"
+
 #include <openvino/core/except.hpp>
 #include <openvino/runtime/variable_state.hpp>
 

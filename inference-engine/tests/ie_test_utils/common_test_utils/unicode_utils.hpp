@@ -13,7 +13,7 @@
 #include "common_utils.hpp"
 #include "w_dirent.h"
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 namespace CommonTestUtils {
 
@@ -161,4 +161,4 @@ inline bool directoryExists(const std::wstring &path) {
 extern const std::vector<std::wstring> test_unicode_postfix_vector;
 
 }  // namespace CommonTestUtils
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

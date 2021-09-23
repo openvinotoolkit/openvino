@@ -26,7 +26,7 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
     return model_proto;
 }
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
     std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
 

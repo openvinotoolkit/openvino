@@ -52,7 +52,7 @@ INFERENCE_ENGINE_API_CPP(bool) directoryExists(const std::string& path);
  */
 INFERENCE_ENGINE_API(long long) fileSize(const char *fileName);
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief      Returns file size for file with UNICODE path name
@@ -66,7 +66,7 @@ inline long long fileSize(const wchar_t* fileName) {
     return fileSize(::ov::util::wstring_to_string(fileName).c_str());
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief Function to get the size of a file. The function supports UNICODE path
@@ -150,7 +150,7 @@ namespace InferenceEngine {
  */
 INFERENCE_ENGINE_API_CPP(std::string) getIELibraryPath();
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief   Returns a unicode path to Inference Engine library
@@ -169,6 +169,6 @@ inline ::ov::util::FilePath getInferenceEngineLibraryPath() {
     return getIELibraryPath();
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 }  // namespace InferenceEngine

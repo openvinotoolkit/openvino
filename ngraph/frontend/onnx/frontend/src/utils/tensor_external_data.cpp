@@ -30,7 +30,7 @@ TensorExternalData::TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor
 
 std::string TensorExternalData::load_external_data() const {
     NGRAPH_SUPPRESS_DEPRECATED_START
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring path = ov::util::string_to_wstring(m_data_location);
 #else
     std::string path = m_data_location;

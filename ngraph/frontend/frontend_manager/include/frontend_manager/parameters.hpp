@@ -35,7 +35,7 @@ public:
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
 class FRONTEND_API VariantWrapper<std::wstring> : public VariantImpl<std::wstring> {
 public:

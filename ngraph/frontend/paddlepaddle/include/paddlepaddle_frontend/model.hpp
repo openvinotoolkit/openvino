@@ -22,7 +22,7 @@ class PDPD_API InputModelPDPD : public InputModel {
 
 public:
     explicit InputModelPDPD(const std::string& path);
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     explicit InputModelPDPD(const std::wstring& path);
 #endif
     explicit InputModelPDPD(const std::vector<std::istream*>& streams);

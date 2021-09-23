@@ -171,7 +171,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     registerReaders();
 
     // Fix unicode name
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
 #else
     std::string model_path = modelPath;
@@ -207,7 +207,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
             }
             if (!bPath.empty()) {
                 // Open weights file
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
                 std::wstring weights_path = ov::util::string_to_wstring(bPath.c_str());
 #else
                 std::string weights_path = bPath;
@@ -251,7 +251,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     }
 
     if (!binPath.empty()) {
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         const std::wstring& weights_path = ov::util::string_to_wstring(binPath.c_str());
 #else
         const std::string& weights_path = binPath;

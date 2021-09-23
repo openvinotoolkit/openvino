@@ -14,7 +14,7 @@
 #include "node_context.hpp"
 #include "pdpd_utils.hpp"
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 #    include <codecvt>
 #    include <locale>
 #endif
@@ -148,7 +148,7 @@ std::basic_string<T> get_const_path(const std::basic_string<T>& folder_with_weig
     return folder_with_weights + pdpd::get_path_sep<T>() + name;
 }
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
 std::basic_string<wchar_t> get_const_path(const std::basic_string<wchar_t>& folder, const std::string& name) {
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
@@ -174,7 +174,7 @@ std::basic_string<T> get_model_path(const std::basic_string<T>& path, std::ifstr
     return model_file;
 }
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
 std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path, std::ifstream* weights_stream) {
     std::wstring model_file{path};
@@ -403,7 +403,7 @@ void InputModelPDPD::InputModelPDPDImpl::setTensorValue(Place::Ptr place, const 
 
 InputModelPDPD::InputModelPDPD(const std::string& path) : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)} {}
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 InputModelPDPD::InputModelPDPD(const std::wstring& path) : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)} {}
 #endif
 
