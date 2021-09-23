@@ -132,6 +132,7 @@ class TestPooling(OnnxRuntimeLayerTest):
                          'rounding_type': 'ceil' if auto_pad != 'NOTSET' or ceil else 'floor',
                          'auto_pad': None},
                 'node_data': {'shape': out_shape, 'kind': 'data'},
+                'node_indicies_data': {'shape': out_shape, 'kind': 'data'},
                 'input_const_data': {'kind': 'data', 'value': constant.flatten()},
                 'const': {'kind': 'op', 'type': 'Const'},
                 'const_data': {'shape': out_shape, 'kind': 'data'},
@@ -141,21 +142,24 @@ class TestPooling(OnnxRuntimeLayerTest):
             }
             if op == 'AveragePool':
                 nodes_attributes['node']['type'] = 'AvgPool'
-                nodes_attributes['node']['exclude-pad'] = 'true' if count_include_pad == 0 else 'false'
+                nodes_attributes['node']['exclude-pad'] = True if count_include_pad == 0 else False
             else:
                 nodes_attributes['node']['type'] = 'MaxPool'
 
+            edges = [('input', 'input_data'),
+                     ('input_data', 'node'),
+                     ('node', 'node_data', {'out': 0}),
+                     ('input_const_data', 'const'),
+                     ('const', 'const_data'),
+                     ('node_data', 'concat'),
+                     ('const_data', 'concat'),
+                     ('concat', 'concat_data'),
+                     ('concat_data', 'result')]
+            if op == "MaxPool":
+                edges.append(('node', 'node_indicies_data', {'out': 1}))
             ref_net = build_graph(nodes_attributes,
-                                  [('input', 'input_data'),
-                                   ('input_data', 'node'),
-                                   ('node', 'node_data'),
-                                   ('input_const_data', 'const'),
-                                   ('const', 'const_data'),
-                                   ('node_data', 'concat'),
-                                   ('const_data', 'concat'),
-                                   ('concat', 'concat_data'),
-                                   ('concat_data', 'result')
-                                   ])
+                                  edges,
+                                  nodes_with_edges_only=True)
 
         return onnx_net, ref_net
 
@@ -335,98 +339,98 @@ class TestPooling(OnnxRuntimeLayerTest):
                         dict(shape=[2, 3, 32, 32]),
                         dict(shape=[2, 3, 32, 32, 32])]
 
-    @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.parametrize("incl_pad", [None, 1])
-    @pytest.mark.nightly
-    def test_avgpool_opset7(self, params, incl_pad, ie_device, precision, ir_version, temp_dir):
-        if not len(params['shape']) in [4, 5]:
-            pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(
-            *self.create_net(**params, op='AveragePool', count_include_pad=incl_pad, ir_version=ir_version, opset=7),
-            ie_device, precision, ir_version, temp_dir=temp_dir)
+    # @pytest.mark.parametrize("params", test_data)
+    # @pytest.mark.parametrize("incl_pad", [None, 1])
+    # @pytest.mark.nightly
+    # def test_avgpool_opset7(self, params, incl_pad, ie_device, precision, ir_version, temp_dir):
+    #     if not len(params['shape']) in [4, 5]:
+    #         pytest.skip("Pooling layer support only 4D and 5D input tensors")
+    #     self._test(
+    #         *self.create_net(**params, op='AveragePool', count_include_pad=incl_pad, ir_version=ir_version, opset=7),
+    #         ie_device, precision, ir_version, temp_dir=temp_dir)
+    #
+    # @pytest.mark.parametrize("params", test_data_autopad)
+    # @pytest.mark.nightly
+    # def test_avgpool_opset7_autopad(self, params, ie_device, precision, ir_version, temp_dir):
+    #     if not len(params['shape']) in [4, 5]:
+    #         pytest.skip("Pooling layer support only 4D and 5D input tensors")
+    #     self._test(*self.create_net(**params, op='AveragePool', ir_version=ir_version, opset=7),
+    #                ie_device, precision, ir_version, temp_dir=temp_dir)
+    #
+    # @pytest.mark.parametrize("params", test_data)
+    # @pytest.mark.parametrize("incl_pad", [None, 1])
+    # @pytest.mark.parametrize("ceil", [True, False])
+    # @pytest.mark.nightly
+    # def test_avgpool_opset10(self, params, incl_pad, ceil, ie_device, precision, ir_version, temp_dir):
+    #     if not len(params['shape']) in [4, 5]:
+    #         pytest.skip("Pooling layer support only 4D and 5D input tensors")
+    #     self._test(
+    #         *self.create_net(**params, op='AveragePool', count_include_pad=incl_pad, ceil=ceil, ir_version=ir_version,
+    #                          opset=10), ie_device, precision, ir_version, temp_dir=temp_dir)
+    #
+    # @pytest.mark.parametrize("params", test_data_autopad)
+    # @pytest.mark.nightly
+    # def test_avgpool_opset10_autopad(self, params, ie_device, precision, ir_version, temp_dir):
+    #     if not len(params['shape']) in [4, 5]:
+    #         pytest.skip("Pooling layer support only 4D and 5D input tensors")
+    #     self._test(*self.create_net(**params, op='AveragePool', ir_version=ir_version, opset=10),
+    #                ie_device, precision, ir_version, temp_dir=temp_dir)
+    #
+    # @pytest.mark.parametrize("params", test_data)
+    # @pytest.mark.parametrize("st_order", [None, 1])
+    # @pytest.mark.nightly
+    # def test_maxpool_opset8(self, params, st_order, ie_device, precision, ir_version, temp_dir):
+    #     if not len(params['shape']) in [4, 5]:
+    #         pytest.skip("Pooling layer support only 4D and 5D input tensors")
+    #     self._test(*self.create_net(**params, op='MaxPool', storage_order=st_order, ir_version=ir_version, opset=8),
+    #                ie_device, precision, ir_version, temp_dir=temp_dir)
+    #
+    # @pytest.mark.parametrize("params", test_data_autopad)
+    # @pytest.mark.nightly
+    # def test_maxpool_opset8_autopad(self, params, ie_device, precision, ir_version, temp_dir):
+    #     if not len(params['shape']) in [4, 5]:
+    #         pytest.skip("Pooling layer support only 4D and 5D input tensors")
+    #     self._test(*self.create_net(**params, op='MaxPool', ir_version=ir_version, opset=8),
+    #                ie_device, precision, ir_version, temp_dir=temp_dir)
+    #
+    # @pytest.mark.parametrize("params", test_data)
+    # @pytest.mark.parametrize("st_order", [None, 1])
+    # @pytest.mark.parametrize("ceil", [True, False])
+    # @pytest.mark.nightly
+    # def test_maxpool_opset10(self, params, st_order, ceil, ie_device, precision, ir_version, temp_dir):
+    #     if not len(params['shape']) in [4, 5]:
+    #         pytest.skip("Pooling layer support only 4D and 5D input tensors")
+    #     self._test(*self.create_net(**params, op='MaxPool', storage_order=st_order, ceil=ceil, ir_version=ir_version,
+    #                                 opset=10), ie_device, precision, ir_version, temp_dir=temp_dir)
+    #
+    # @pytest.mark.parametrize("params", test_data_autopad_precommit)
+    # @pytest.mark.precommit
+    # def test_maxpool_opset10_autopad(self, params, ie_device, precision, ir_version, temp_dir):
+    #     if not len(params['shape']) in [4, 5]:
+    #         pytest.skip("Pooling layer support only 4D and 5D input tensors")
+    #     self._test(*self.create_net(**params, op='MaxPool', ir_version=ir_version, opset=10),
+    #                ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_autopad)
     @pytest.mark.nightly
-    def test_avgpool_opset7_autopad(self, params, ie_device, precision, ir_version, temp_dir):
-        if not len(params['shape']) in [4, 5]:
-            pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(*self.create_net(**params, op='AveragePool', ir_version=ir_version, opset=7),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
-
-    @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.parametrize("incl_pad", [None, 1])
-    @pytest.mark.parametrize("ceil", [True, False])
-    @pytest.mark.nightly
-    def test_avgpool_opset10(self, params, incl_pad, ceil, ie_device, precision, ir_version, temp_dir):
-        if not len(params['shape']) in [4, 5]:
-            pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(
-            *self.create_net(**params, op='AveragePool', count_include_pad=incl_pad, ceil=ceil, ir_version=ir_version,
-                             opset=10), ie_device, precision, ir_version, temp_dir=temp_dir)
-
-    @pytest.mark.parametrize("params", test_data_autopad)
-    @pytest.mark.nightly
-    def test_avgpool_opset10_autopad(self, params, ie_device, precision, ir_version, temp_dir):
-        if not len(params['shape']) in [4, 5]:
-            pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(*self.create_net(**params, op='AveragePool', ir_version=ir_version, opset=10),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
-
-    @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.parametrize("st_order", [None, 1])
-    @pytest.mark.nightly
-    def test_maxpool_opset8(self, params, st_order, ie_device, precision, ir_version, temp_dir):
-        if not len(params['shape']) in [4, 5]:
-            pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(*self.create_net(**params, op='MaxPool', storage_order=st_order, ir_version=ir_version, opset=8),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
-
-    @pytest.mark.parametrize("params", test_data_autopad)
-    @pytest.mark.nightly
-    def test_maxpool_opset8_autopad(self, params, ie_device, precision, ir_version, temp_dir):
-        if not len(params['shape']) in [4, 5]:
-            pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(*self.create_net(**params, op='MaxPool', ir_version=ir_version, opset=8),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
-
-    @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.parametrize("st_order", [None, 1])
-    @pytest.mark.parametrize("ceil", [True, False])
-    @pytest.mark.nightly
-    def test_maxpool_opset10(self, params, st_order, ceil, ie_device, precision, ir_version, temp_dir):
-        if not len(params['shape']) in [4, 5]:
-            pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(*self.create_net(**params, op='MaxPool', storage_order=st_order, ceil=ceil, ir_version=ir_version,
-                                    opset=10), ie_device, precision, ir_version, temp_dir=temp_dir)
-
-    @pytest.mark.parametrize("params", test_data_autopad_precommit)
-    @pytest.mark.precommit
     def test_maxpool_opset10_autopad(self, params, ie_device, precision, ir_version, temp_dir):
         if not len(params['shape']) in [4, 5]:
             pytest.skip("Pooling layer support only 4D and 5D input tensors")
         self._test(*self.create_net(**params, op='MaxPool', ir_version=ir_version, opset=10),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
-
-    @pytest.mark.parametrize("params", test_data_autopad)
-    @pytest.mark.nightly
-    def test_maxpool_opset10_autopad(self, params, ie_device, precision, ir_version, temp_dir):
-        if not len(params['shape']) in [4, 5]:
-            pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(*self.create_net(**params, op='MaxPool', ir_version=ir_version, opset=10),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
-
-    @pytest.mark.parametrize("params", global_test_data)
-    @pytest.mark.nightly
-    def test_global_avgpool(self, params, ie_device, precision, ir_version, temp_dir):
-        if not len(params['shape']) in [4, 5]:
-            pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(*self.create_global_net(**params, op='GlobalAveragePool', ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
-
-    @pytest.mark.parametrize("params", global_test_data)
-    @pytest.mark.nightly
-    def test_global_maxpool(self, params, ie_device, precision, ir_version, temp_dir):
-        if not len(params['shape']) in [4, 5]:
-            pytest.skip("Pooling layer support only 4D and 5D input tensors")
-        self._test(*self.create_global_net(**params, op='GlobalMaxPool', ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    #
+    # @pytest.mark.parametrize("params", global_test_data)
+    # @pytest.mark.nightly
+    # def test_global_avgpool(self, params, ie_device, precision, ir_version, temp_dir):
+    #     if not len(params['shape']) in [4, 5]:
+    #         pytest.skip("Pooling layer support only 4D and 5D input tensors")
+    #     self._test(*self.create_global_net(**params, op='GlobalAveragePool', ir_version=ir_version),
+    #                ie_device, precision, ir_version, temp_dir=temp_dir)
+    #
+    # @pytest.mark.parametrize("params", global_test_data)
+    # @pytest.mark.nightly
+    # def test_global_maxpool(self, params, ie_device, precision, ir_version, temp_dir):
+    #     if not len(params['shape']) in [4, 5]:
+    #         pytest.skip("Pooling layer support only 4D and 5D input tensors")
+    #     self._test(*self.create_global_net(**params, op='GlobalMaxPool', ir_version=ir_version),
+    #                ie_device, precision, ir_version, temp_dir=temp_dir)
