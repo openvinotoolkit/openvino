@@ -76,7 +76,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
     }
 }
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     InferenceEngine::Core ie;
     std::string win_dir_path = CommonTestUtils::getModelFromTestModelZoo(
