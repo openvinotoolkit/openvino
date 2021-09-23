@@ -63,10 +63,9 @@ public:
      * @return
      */
     void* GetData() const {
-        void* data = prim->get_data_handle();
-        if (data == nullptr && pMemDesc->getShape().getElementsCount() != 0)
+        if (dataPtr == nullptr && pMemDesc->getShape().getElementsCount() != 0)
             IE_THROW() << "Cannot get memory!";
-        return data;
+        return dataPtr;
     }
 
     /**
@@ -75,6 +74,11 @@ public:
      * @return
      */
     void* GetPtr() const;
+
+    void SetPtr(void *newPtr) {
+        prim->set_data_handle(newPtr);
+        dataPtr = newPtr;
+    }
 
     mkldnn::memory::data_type GetDataType() const {
         return MKLDNNExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
@@ -126,6 +130,8 @@ private:
     mkldnn::engine eng;
     bool useExternalStorage = false;
     size_t memUpperBound = 0ul;
+    void* dataPtr = nullptr;
+    size_t dataOffset = 0lu;
 };
 
 using MKLDNNMemoryPtr = std::shared_ptr<MKLDNNMemory>;

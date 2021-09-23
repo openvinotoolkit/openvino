@@ -270,8 +270,8 @@ void MKLDNNReorderNode::execute(mkldnn::stream strm) {
     } else if (canUseNcsp2Nspc) {
         optimizedNcsp2Nspc();
     } else {
-        src_blocked->GetPrimitivePtr()->set_data_handle(getParentEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
-        dst_blocked->GetPrimitivePtr()->set_data_handle(getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
+        src_blocked->SetPtr(getParentEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
+        dst_blocked->SetPtr(getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
 
         MKLDNNNode::execute(strm);
     }

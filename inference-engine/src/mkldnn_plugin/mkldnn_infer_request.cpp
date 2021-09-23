@@ -452,7 +452,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
 }
 
 static inline void changeEdgePtr(const MKLDNNPlugin::MKLDNNEdgePtr &edge, void *newPtr) {
-    edge->getMemory().GetPrimitivePtr()->set_data_handle(newPtr);
+    edge->getMemoryPtr()->SetPtr(newPtr);
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {

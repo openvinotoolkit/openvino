@@ -59,12 +59,21 @@ void MKLDNNMemory::Create(const memory::dims& dims, memory::data_type data_type,
 }
 
 void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bool pads_zeroing) {
+    auto cachePtrAndOffset = [this]() {
+        dataPtr = prim->get_data_handle();
+        auto md = prim->get_desc().data;
+        mkldnn::impl::memory_desc_wrapper wrapper(md);
+        dataOffset = wrapper.offset0() * wrapper.data_type_size();
+    };
+
     if (data == nullptr) {
         prim.reset(new memory(desc, eng));
 
         size_t real_size = 0;
-        if (desc.data.format_kind == dnnl_format_kind_wino)
+        if (desc.data.format_kind == dnnl_format_kind_wino) {
+            cachePtrAndOffset();
             return;
+        }
         auto desc_loc = prim->get_desc().data;
         if (desc_loc.ndims > 0) {
             real_size = static_cast<size_t>(desc_loc.padded_dims[0]);
@@ -86,6 +95,8 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
         //
         // ========================
     }
+
+    cachePtrAndOffset();
 }
 
 void MKLDNNMemory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
@@ -137,9 +148,7 @@ void MKLDNNMemory::FillZero() {
 
 void *MKLDNNMemory::GetPtr() const  {
     auto ptr = static_cast<uint8_t*>(GetData());
-    auto md = prim->get_desc().data;
-    mkldnn::impl::memory_desc_wrapper wrapper(md);
-    ptr += wrapper.offset0() * wrapper.data_type_size();
+    ptr += dataOffset;
     return ptr;
 }
 
