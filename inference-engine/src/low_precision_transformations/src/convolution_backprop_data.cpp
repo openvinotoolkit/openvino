@@ -13,6 +13,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
+#include <transformations/rt_info/disable_constant_folding.hpp>
 
 namespace ngraph {
 namespace pass {
