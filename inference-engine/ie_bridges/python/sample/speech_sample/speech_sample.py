@@ -103,6 +103,32 @@ def get_output_layer_list(net: Union[IENetwork, ExecutableNetwork],
         return [list(net.outputs.keys())[-1]]
 
 
+def parse_scale_factors(args: argparse.Namespace) -> list:
+    """Get a list of scale factors for input files"""
+    input_files = re.split(', |,', args.input)
+    scale_factors = re.split(', |,', str(args.scale_factor))
+    scale_factors = list(map(float, scale_factors))
+
+    if len(input_files) != len(scale_factors):
+        log.error(f'Incorrect command line for multiple inputs: {len(scale_factors)} scale factors provided for '
+                  f'{len(input_files)} input files.')
+        sys.exit(-7)
+
+    for i, scale_factor in enumerate(scale_factors):
+        if float(scale_factor) < 0:
+            log.error(f'Scale factor for input #{i} (counting from zero) is out of range (must be positive).')
+            sys.exit(-8)
+
+    return scale_factors
+
+
+def set_scale_factors(plugin_config: dict, scale_factors: list):
+    """Set a scale factor provided for each input"""
+    for i, scale_factor in enumerate(scale_factors):
+        log.info(f'For input {i} using scale factor of {scale_factor:.7f}')
+        plugin_config[f'GNA_SCALE_FACTOR_{i}'] = str(scale_factor)
+
+
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
@@ -149,16 +175,23 @@ def main():
 
         # Set a GNA scale factor
         if args.import_gna_model:
-            log.info(f'Using scale factor from the imported GNA model: {args.import_gna_model}')
-        elif args.scale_factor:
-            log.info(f'Using scale factor of {args.scale_factor:.7f} specified by user.')
-            plugin_config['GNA_SCALE_FACTOR'] = str(args.scale_factor)
+            if args.scale_factor:
+                log.warning(f'Custom scale factor will be used for imported GNA model: {args.import_gna_model}')
+                set_scale_factors(plugin_config, parse_scale_factors(args))
+            else:
+                log.info(f'Using scale factor from the imported GNA model: {args.import_gna_model}')
         else:
-            utterances = read_utterance_file(args.input.split(',')[0])
-            key = sorted(utterances)[0]
-            scale_factor = get_scale_factor(utterances[key])
-            log.info(f'Using scale factor of {scale_factor:.7f} calculated from first utterance.')
-            plugin_config['GNA_SCALE_FACTOR'] = str(scale_factor)
+            if args.scale_factor:
+                set_scale_factors(plugin_config, parse_scale_factors(args))
+            else:
+                scale_factors = []
+
+                for file_name in re.split(', |,', args.input):
+                    first_utterance = next(iter(read_utterance_file(file_name).values()))
+                    scale_factors.append(get_scale_factor(first_utterance))
+
+                log.info('Using scale factor(s) calculated from first utterance')
+                set_scale_factors(plugin_config, scale_factors)
 
         if args.export_embedded_gna_model:
             plugin_config['GNA_FIRMWARE_MODEL_IMAGE'] = args.export_embedded_gna_model

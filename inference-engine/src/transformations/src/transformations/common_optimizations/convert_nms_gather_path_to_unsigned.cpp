@@ -12,6 +12,7 @@
 #include <ngraph/op/util/gather_base.hpp>
 #include <ngraph/rt_info.hpp>
 #include <memory>
+#include <transformations/rt_info/nms_selected_indices.hpp>
 #include "itt.hpp"
 #include "ngraph/node.hpp"
 
@@ -32,8 +33,7 @@ public:
         matcher_pass_callback callback = [=](pattern::Matcher &m) {
             const auto& out_nodes = m.get_match_root()->output(0).get_target_inputs();
             for (const auto& out_node : out_nodes) {
-                auto& out_rt_info = out_node.get_node()->get_rt_info();
-                out_rt_info["NMS_SELECTED_INDICES"] = make_shared<VariantWrapper<string>>("");
+                ov::set_nms_selected_indices(out_node.get_node());
             }
             return true;
         };
@@ -67,10 +67,9 @@ public:
             auto node = m.get_match_root();
             const auto & inputs = node->input_values();
             if (any_of(inputs.begin(), inputs.end(), [](const Output<Node> & output) {
-                return output.get_node()->get_rt_info().count("NMS_SELECTED_INDICES");
+                return ov::has_nms_selected_indices(output.get_node());
             })) {
-                auto & rt_info = node->get_rt_info();
-                rt_info["NMS_SELECTED_INDICES"] = make_shared<VariantWrapper<string>>("");
+                ov::set_nms_selected_indices(node.get());
             }
             return true;
         };
@@ -95,8 +94,7 @@ public:
             auto gather = m.get_match_root();
             auto indices = gather->input_value(1);
 
-            const auto& rt_info = indices.get_node()->get_rt_info();
-            if (!rt_info.count("NMS_SELECTED_INDICES"))
+            if (!ov::has_nms_selected_indices(indices.get_node()))
                 return false;
 
             auto out_type = (indices.get_element_type() == element::i64 ?  element::u64 : element::u32);
