@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <chrono>
 #include <mutex>
 #include <thread>
 #include <vector>
 
+#include "atomic_guard.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 
@@ -59,4 +61,27 @@ TEST(threading, get_friendly_name) {
     for (auto&& th : threads) {
         th.join();
     }
+}
+
+TEST(threading, check_atomic_guard) {
+    std::atomic_bool test_val{false};
+    int result = 2;
+    const auto& thread1_fun = [&]() {
+        ov::AtomicGuard lock(test_val);
+        std::chrono::milliseconds ms{2000};
+        std::this_thread::sleep_for(ms);
+        result += 3;
+    };
+    const auto& thread2_fun = [&]() {
+        ov::AtomicGuard lock(test_val);
+        result *= 3;
+    };
+    std::vector<std::thread> threads(2);
+    threads[0] = std::thread(thread1_fun);
+    threads[1] = std::thread(thread2_fun);
+
+    for (auto&& th : threads) {
+        th.join();
+    }
+    ASSERT_EQ(result, 15);
 }

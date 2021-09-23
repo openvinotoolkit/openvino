@@ -105,7 +105,9 @@ protected:
     PartialShape m_partial_shape;
     ngraph::HostTensorPtr m_lower_value, m_upper_value;
     std::string m_name;
-    std::unordered_set<std::string> m_names;
+
+    mutable std::atomic_bool m_names_changing{false};
+    mutable std::unordered_set<std::string> m_names;
     static std::atomic<size_t> m_next_instance_id;
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
 };

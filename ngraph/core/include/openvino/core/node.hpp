@@ -502,7 +502,8 @@ private:
     std::string m_node_type;
     size_t m_instance_id{m_next_instance_id.fetch_add(1)};
     std::string m_friendly_name;
-    std::string m_unique_name;
+    mutable std::string m_unique_name;
+    mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;
     std::unordered_set<std::string> m_provenance_tags;
     std::set<std::shared_ptr<Node>> m_provenance_group;
@@ -512,7 +513,6 @@ private:
     std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
     OPENVINO_SUPPRESS_DEPRECATED_END
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
-    mutable std::mutex m_mutex;
 };
 
 using NodeTypeInfo = Node::type_info_t;
