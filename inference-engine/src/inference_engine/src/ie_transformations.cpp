@@ -6,7 +6,7 @@
 
 #include "ngraph/pass/low_latency.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "openvino/pass/make_stateful_test.hpp"
+#include "openvino/pass/make_stateful.hpp"
 
 using namespace InferenceEngine;
 

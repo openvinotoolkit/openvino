@@ -2,4 +2,4 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/pass/make_stateful_test.hpp>
+#include <openvino/pass/make_stateful.hpp>

@@ -8,7 +8,7 @@
 #include <openvino/op/util/variable.hpp>
 #include <openvino/opsets/opset8.hpp>
 
-#include "openvino/pass/make_stateful_test.hpp"
+#include "openvino/pass/make_stateful.hpp"
 
 NGRAPH_RTTI_DEFINITION(ov::pass::MakeStateful, "MakeStateful", 0);
 

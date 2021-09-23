@@ -10,10 +10,9 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/low_latency.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <openvino/pass/make_stateful_test.hpp>
+#include <openvino/pass/make_stateful.hpp>
 #include <pot_transformations.hpp>
 #include <pruning.hpp>
-#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf) {
     ngraph::pass::Manager manager;
