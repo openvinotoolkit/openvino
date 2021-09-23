@@ -259,11 +259,6 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
     return {work_size, false /*canBeLinearized*/, ptr};
 }
 
-bool snippets::op::Subgraph::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    INTERNAL_OP_SCOPE(Subgraph);
-    return m_body->evaluate(outputs, inputs);
-}
-
 void snippets::op::Subgraph::print() const {
     INTERNAL_OP_SCOPE(Subgraph);
     remark(13) << "subgraph " << this->get_friendly_name() << " "
