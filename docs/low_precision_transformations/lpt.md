@@ -103,7 +103,7 @@ Low precision transformations pipeline includes four steps:
 * [Step #3: Main transformations](@ref openvino_docs_IE_DG_lpt_step3_main)
 * [Step #4: Cleanup transformations](@ref openvino_docs_IE_DG_lpt_step4_cleanup)
 
-### Step #1. Prerequisites
+### Step 1. Prerequisites
 This step fuses and propagates some operations in the model before run the next step. The step is required for OpenVINO plugins. Transformations:
 * [PullReshapeThroughDequantization](@ref openvino_docs_IE_DG_lpt_PullReshapeThroughDequantization)
 * [PullTransposeThroughDequantization](@ref openvino_docs_IE_DG_lpt_PullTransposeThroughDequantization)
@@ -111,7 +111,7 @@ This step fuses and propagates some operations in the model before run the next 
 
 The model on this step is changed. There are more details in developer guide [Prerequisites transformations](@ref openvino_docs_IE_DG_lpt_step1_prerequisites).
 
-### Step #2. Markup
+### Step 2. Markup
 This step create runtime attributes for operations. Attributes will be used in next step. Transformations:
 * [MarkupCanBeQuantized](@ref openvino_docs_IE_DG_lpt_MarkupCanBeQuantized)
 * [MarkupPrecisions](@ref openvino_docs_IE_DG_lpt_MarkupPrecisions)
@@ -123,7 +123,7 @@ This step create runtime attributes for operations. Attributes will be used in n
 
 The model on this step is changed: only new attributes are added to some operations. There are more details in developer guide [Markup transformations](@ref openvino_docs_IE_DG_lpt_step2_markup).
 
-### Step #3. Main transformations, FakeQuantize decomposition and dequantization operations handling
+### Step 3. Main transformations, FakeQuantize decomposition and dequantization operations handling
 This step has the most transformations. Transformations:
 * [AddTransformation](@ref openvino_docs_IE_DG_lpt_AddTransformation)
 * [AvgPoolTransformation](@ref openvino_docs_IE_DG_lpt_AvgPoolTransformation)
@@ -180,7 +180,7 @@ Original `Convolution` operation in FP32 with dequantization operations before:
 `Convolution` operation in INT8 after decomposition and dequantization operations handling:   
 ![Convolution operation after LPT](img/model_fq_and_convolution.transformed.png)
 
-### Step #4: Cleanup result model
+### Step 4: Cleanup result model
 LPT cleanup transformations is final stage in LPT pipeline. In this step LPT transformations clean up the result model to avoid not handled dequantization operations: fuse dequantization operations if possible (fuse at least `Convert` operations if not) to other model operations to cleanup result model. Transformations:
 * [FoldConvertTransformation](@ref openvino_docs_IE_DG_lpt_FoldConvertTransformation)
 * [FoldFakeQuantizeTransformation](@ref openvino_docs_IE_DG_lpt_FoldFakeQuantizeTransformation)
@@ -202,17 +202,17 @@ There are more details in developer guide [Cleanup transformations](@ref openvin
 ## Low precision transformations in plugin transformation pipeline
 Typical transformation pipeline described below.
 
-### Step #1. Common optimizations
+### Step 1. Common optimizations
 This step is optional for LPT but typically is presented in OpenVINO™ plugins. The step doesn't use any LPT transformation. Firstly, the step disables dequantization operations constant folding on constant subgraph on weights to prevent the lost of dequantization info on the next plugin transformations. After that, it optimizes nGraph function and convert operations to operation set 1. Typically, usage of this step is the simplest way to meet LPT requirements for the input quantized model. If plugin can guarantee that LPT input requirements are met, then this step can be skipped.
 
 @snippet snippets/lpt_mkldnn_plugin.cpp lpt_common
 
-### Step #2. Low precision transformations execution  
+### Step 2. Low precision transformations execution  
 This step is mandatory. The step configure and run LPT transformations.
 
 @snippet snippets/lpt_mkldnn_plugin.cpp lpt_execution
 
-### Step #3. Plugin specific transformations  
+### Step 3. Plugin specific transformations  
 This step is optional. The step modifies nGraph function to device specific operation set.
 
 @snippet snippets/lpt_mkldnn_plugin.cpp lpt_device

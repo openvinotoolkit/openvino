@@ -1,4 +1,4 @@
-# Step #3. Main Transformations {#openvino_docs_IE_DG_lpt_step3_main}
+# Step 3. Main Transformations {#openvino_docs_IE_DG_lpt_step3_main}
 
 Main transformations are the majority of low precision transformations. Transformations operate with dequantization operations. Main transformations include:
 * [AddTransformation](@ref openvino_docs_IE_DG_lpt_AddTransformation)

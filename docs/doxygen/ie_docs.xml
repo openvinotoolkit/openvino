@@ -325,12 +325,12 @@ limitations under the License.
                         <tab type="user" title="Precisions" url="@ref openvino_docs_IE_DG_lpt_Precisions"/>
                         <tab type="user" title="QuantizationAlignment" url="@ref openvino_docs_IE_DG_lpt_QuantizationAlignment"/>
                     </tab>
-                    <tab type="user" title="Step #1. Prerequisites transformations" url="@ref openvino_docs_IE_DG_lpt_step1_prerequisites">
+                    <tab type="user" title="Step 1. Prerequisites transformations" url="@ref openvino_docs_IE_DG_lpt_step1_prerequisites">
                         <tab type="user" title="LinOpSequenceFusion" url="@ref openvino_docs_IE_DG_lpt_LinOpSequenceFusion"/>
                         <tab type="user" title="PullReshapeThroughDequantization" url="@ref openvino_docs_IE_DG_lpt_PullReshapeThroughDequantization"/>
                         <tab type="user" title="PullTransposeThroughDequantization" url="@ref openvino_docs_IE_DG_lpt_PullTransposeThroughDequantization"/>
                     </tab>
-                    <tab type="user" title="Step #2. Markup transformations" url="@ref openvino_docs_IE_DG_lpt_step2_markup">
+                    <tab type="user" title="Step 2. Markup transformations" url="@ref openvino_docs_IE_DG_lpt_step2_markup">
                         <tab type="user" title="AlignQuantizationIntervals" url="@ref openvino_docs_IE_DG_lpt_AlignQuantizationIntervals"/>
                         <tab type="user" title="AlignQuantizationParameters" url="@ref openvino_docs_IE_DG_lpt_AlignQuantizationParameters"/>
                         <tab type="user" title="CreateAttribute" url="@ref openvino_docs_IE_DG_lpt_CreateAttribute"/>
@@ -344,7 +344,7 @@ limitations under the License.
                         <tab type="user" title="PropagateToInput" url="@ref openvino_docs_IE_DG_lpt_PropagateToInput"/>
                         <tab type="user" title="UpdateSharedPrecisionPreserved" url="@ref openvino_docs_IE_DG_lpt_UpdateSharedPrecisionPreserved"/>
                     </tab>
-                    <tab type="user" title="Step #3. Main transformations" url="@ref openvino_docs_IE_DG_lpt_step3_main">
+                    <tab type="user" title="Step 3. Main transformations" url="@ref openvino_docs_IE_DG_lpt_step3_main">
                         <tab type="user" title="AddTransformation" url="@ref openvino_docs_IE_DG_lpt_AddTransformation"/>
                         <tab type="user" title="AvgPoolTransformation" url="@ref openvino_docs_IE_DG_lpt_AvgPoolTransformation"/>
                         <tab type="user" title="ClampTransformation" url="@ref openvino_docs_IE_DG_lpt_ClampTransformation"/>
@@ -377,7 +377,7 @@ limitations under the License.
                         <tab type="user" title="UnsqueezeTransformation" url="@ref openvino_docs_IE_DG_lpt_UnsqueezeTransformation"/>
                         <tab type="user" title="VariadicSplitTransformation" url="@ref openvino_docs_IE_DG_lpt_VariadicSplitTransformation"/>
                     </tab>
-                    <tab type="user" title="Step #4. Cleanup transformations" url="@ref openvino_docs_IE_DG_lpt_step4_cleanup">
+                    <tab type="user" title="Step 4. Cleanup transformations" url="@ref openvino_docs_IE_DG_lpt_step4_cleanup">
                         <tab type="user" title="FoldConvertTransformation" url="@ref openvino_docs_IE_DG_lpt_FoldConvertTransformation"/>
                         <tab type="user" title="FoldFakeQuantizeTransformation" url="@ref openvino_docs_IE_DG_lpt_FoldFakeQuantizeTransformation"/>
                         <tab type="user" title="FuseConvertTransformation" url="@ref openvino_docs_IE_DG_lpt_FuseConvertTransformation"/>
