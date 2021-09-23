@@ -16,7 +16,40 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace reference_tests;
 
-struct ExperimentalROIFunctional {
+struct ExperimentalROIParams {
+    ExperimentalROIParams(const std::vector<Tensor>& experimental_detectron_roi_feature_inputs,
+                          const std::vector<Tensor>& expected_results,
+                          const std::string& test_case_name)
+        : inputs{experimental_detectron_roi_feature_inputs},
+          expected_results{expected_results},
+          test_case_name{test_case_name} {}
+
+    std::vector<Tensor> inputs;
+    std::vector<Tensor> expected_results;
+    std::string test_case_name;
+};
+
+class ReferenceExperimentalROILayerTest : public testing::TestWithParam<ExperimentalROIParams>, public CommonReferenceTest {
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        function = create_function(params.inputs);
+        inputData.reserve(params.inputs.size());
+        refOutData.reserve(params.expected_results.size());
+        for (auto& input_tensor : params.inputs) {
+            inputData.push_back(input_tensor.data);
+        }
+        for (auto& expected_tensor : params.expected_results) {
+            refOutData.push_back(expected_tensor.data);
+        }
+    }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalROIParams>& obj) {
+        auto param = obj.param;
+        return param.test_case_name;
+    }
+
+private:
     std::shared_ptr<Function> create_function(const std::vector<Tensor>& inputs) {
         op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
         attrs.aligned = false;
@@ -40,42 +73,6 @@ struct ExperimentalROIFunctional {
     }
 };
 
-struct ExperimentalROIParams {
-    ExperimentalROIParams(const std::shared_ptr<ExperimentalROIFunctional>& functional,
-                          const std::vector<Tensor>& experimental_detectron_roi_feature_inputs,
-                          const std::vector<Tensor>& expected_results,
-                          const std::string& test_case_name)
-        : function{functional},
-          inputs{experimental_detectron_roi_feature_inputs},
-          expected_results{expected_results},
-          test_case_name{test_case_name} {}
-
-    std::shared_ptr<ExperimentalROIFunctional> function;
-    std::vector<Tensor> inputs;
-    std::vector<Tensor> expected_results;
-    std::string test_case_name;
-};
-
-class ReferenceExperimentalROILayerTest : public testing::TestWithParam<ExperimentalROIParams>, public CommonReferenceTest {
-public:
-    void SetUp() override {
-        auto params = GetParam();
-        function = params.function->create_function(params.inputs);
-        inputData.reserve(params.inputs.size());
-        refOutData.reserve(params.expected_results.size());
-        for (auto& input_tensor : params.inputs) {
-            inputData.push_back(input_tensor.data);
-        }
-        for (auto& expected_tensor : params.expected_results) {
-            refOutData.push_back(expected_tensor.data);
-        }
-    }
-    static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalROIParams>& obj) {
-        auto param = obj.param;
-        return param.test_case_name;
-    }
-};
-
 TEST_P(ReferenceExperimentalROILayerTest, ExperimentalROIWithHardcodedRefs) {
     Exec();
 }
@@ -85,7 +82,6 @@ INSTANTIATE_TEST_SUITE_P(
     ReferenceExperimentalROILayerTest,
     ::testing::Values(
         ExperimentalROIParams(
-            std::make_shared<ExperimentalROIFunctional>(),
             std::vector<Tensor>{Tensor(Shape{2, 4},
                                        ngraph::element::f32,
                                        std::vector<float>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}),
@@ -135,7 +131,6 @@ INSTANTIATE_TEST_SUITE_P(
                                        std::vector<float>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0})},
             "experimental_detectron_roi_feature_eval_f32"),
         ExperimentalROIParams(
-            std::make_shared<ExperimentalROIFunctional>(),
             std::vector<Tensor>{Tensor(Shape{2, 4},
                                        ngraph::element::f16,
                                        std::vector<ngraph::float16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}),
@@ -185,7 +180,6 @@ INSTANTIATE_TEST_SUITE_P(
                                        std::vector<ngraph::float16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0})},
             "experimental_detectron_roi_feature_eval_f16"),
         ExperimentalROIParams(
-            std::make_shared<ExperimentalROIFunctional>(),
             std::vector<Tensor>{Tensor(Shape{2, 4},
                                        ngraph::element::bf16,
                                        std::vector<ngraph::bfloat16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}),
