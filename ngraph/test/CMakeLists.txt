@@ -296,6 +296,9 @@ set(SRC
     visitors/op/divide.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
+    visitors/op/embedding_segments_sum.cpp
+    visitors/op/embeddingbag_offsetssum.cpp
+    visitors/op/embeddingbag_packedsum.cpp
     visitors/op/equal.cpp
     visitors/op/erf.cpp
     visitors/op/exp.cpp
