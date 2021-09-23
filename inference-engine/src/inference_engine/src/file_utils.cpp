@@ -20,7 +20,7 @@
 #    include <dlfcn.h>
 #    include <limits.h>
 #    include <unistd.h>
-#    ifdef ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #        include <codecvt>
 #        include <locale>
 #    endif
@@ -67,7 +67,7 @@
 #endif
 
 long long FileUtils::fileSize(const char* charfilepath) {
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = ov::util::string_to_wstring(charfilepath);
     const wchar_t* fileName = widefilename.c_str();
 #elif defined(__ANDROID__) || defined(ANDROID)
@@ -169,7 +169,7 @@ static std::string getIELibraryPathA() {
 #endif  // _WIN32
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::wstring getIELibraryPathW() {
 #    ifdef _WIN32
@@ -189,10 +189,10 @@ std::wstring getIELibraryPathW() {
 #    endif
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::string getIELibraryPath() {
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     return ov::util::wstring_to_string(getIELibraryPathW());
 #else
     return getIELibraryPathA();
