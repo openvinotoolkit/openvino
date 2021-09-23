@@ -2,16 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
-#include <algorithm>
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
-#include "base_reference_test.hpp"
+#include "embeddingbag.hpp"
 
 using namespace reference_tests;
 using namespace ngraph;
@@ -19,37 +10,33 @@ using namespace InferenceEngine;
 
 struct EmbeddingBagPackedSumParams {
     template <class IT>
-    EmbeddingBagPackedSumParams(const ngraph::PartialShape& shape,
+    EmbeddingBagPackedSumParams(const ngraph::PartialShape& iShape,
                                 const ngraph::element::Type& iType,
-                                const std::vector<IT>& iValues)
-        : pshape(shape),
-          inType(iType),
-          outType(iType),
-          inputData(CreateBlob(iType, iValues)) {
-        std::vector<IT> oValues;
-        std::vector<double> output;
-        for (auto element : iValues)
-            output.push_back(static_cast<double>(element));
-
-        std::transform(output.begin(), output.end(), output.begin(), [](double input) -> double {
-            return std::atanh(input);
-        });
-
-        if (std::is_integral<IT>()) {
-            std::transform(output.begin(), output.end(), output.begin(), [](double input) -> double {
-                return std::round(input);
-            });
-        }
-
-        for (auto element : output)
-            oValues.push_back(static_cast<IT>(element));
-        refData = CreateBlob(outType, oValues);
+                                const std::vector<IT>& iValues,
+                                const ngraph::PartialShape& oShape,
+                                const ngraph::element::Type& oType,
+                                const std::vector<IT>& oValues,
+                                const ConstantPtr& indices,
+                                const ConstantPtr& per_sample_weights = nullptr)
+        : _iShape(iShape),
+          _iType(iType),
+          _iData(CreateBlob(iType, iValues)),
+          _refShape(oShape),
+          _refType(oType),
+          _refData(CreateBlob(oType, oValues)) {
+        _indices = indices;
+        _perSampleWeights = per_sample_weights;
     }
-    ngraph::PartialShape pshape;
-    ngraph::element::Type inType;
-    ngraph::element::Type outType;
-    InferenceEngine::Blob::Ptr inputData;
-    InferenceEngine::Blob::Ptr refData;
+    ngraph::PartialShape _iShape;
+    ngraph::element::Type _iType;
+    InferenceEngine::Blob::Ptr _iData;
+
+    ngraph::PartialShape _refShape;
+    ngraph::element::Type _refType;
+    InferenceEngine::Blob::Ptr _refData;
+
+    ConstantPtr _indices;
+    ConstantPtr _perSampleWeights;  // Optional, default is tensor of ones.
 };
 
 class ReferenceEmbeddingBagPackedSumLayerTest : public testing::TestWithParam<EmbeddingBagPackedSumParams>,
@@ -57,26 +44,34 @@ class ReferenceEmbeddingBagPackedSumLayerTest : public testing::TestWithParam<Em
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params.pshape, params.inType, params.outType);
-        inputData = {params.inputData};
-        refOutData = {params.refData};
+        function = CreateFunction(params._iShape, params._iType, params._indices, params._perSampleWeights);
+        inputData = {params._iData};
+        refOutData = {params._refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<EmbeddingBagPackedSumParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
-        result << "shape=" << param.pshape << "_";
-        result << "iType=" << param.inType << "_";
-        result << "oType=" << param.outType;
+        result << "_iShape=" << param._iShape << "_";
+        result << "_iType=" << param._iType << "_";
+        result << "_refShape=" << param._refShape << "_";
+        result << "_refType=" << param._refType;
         return result.str();
     }
 
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape,
                                                     const element::Type& input_type,
-                                                    const element::Type& expected_output_type) {
+                                                    const ConstantPtr indices,
+                                                    const ConstantPtr per_sample_weights) {
         const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
-        const auto atanh = std::make_shared<op::Atanh>(in);
-        return std::make_shared<Function>(NodeVector{atanh}, ParameterVector{in});
+
+        if (per_sample_weights) {
+            const auto ess = std::make_shared<op::v3::EmbeddingBagPackedSum>(in, indices, per_sample_weights);
+            return std::make_shared<Function>(NodeVector{ess}, ParameterVector{in});
+        } else {
+            const auto ess = std::make_shared<op::v3::EmbeddingBagPackedSum>(in, indices);
+            return std::make_shared<Function>(NodeVector{ess}, ParameterVector{in});
+        }
     }
 };
 
@@ -84,10 +79,85 @@ TEST_P(ReferenceEmbeddingBagPackedSumLayerTest, CompareWithRefs) {
     Exec();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_EmbeddingBagPackedSum_With_Hardcoded_Refs,
-                         ReferenceEmbeddingBagPackedSumLayerTest,
-                         ::testing::Values(EmbeddingBagPackedSumParams(
-                             ngraph::PartialShape{2, 4},
-                             ngraph::element::f32,
-                             std::vector<float>{-INFINITY, -2.0f, -1.0f, -0.5f, 0.0f, 0.8f, 1.0f, INFINITY})),
-                         ReferenceEmbeddingBagPackedSumLayerTest::getTestCaseName);
+template <class T>
+inline ConstantPtr GetConstantVV(const std::vector<std::vector<T>>& val, const ngraph::element::Type& element_type) {
+    if (val.size() > 0) {
+        std::vector<size_t> i_shape({val.size(), val[0].size()});
+        size_t i_size = ngraph::shape_size(i_shape);
+        std::vector<T> i_values(i_size);
+
+        for (size_t i = 0; i < i_shape[0]; i++) {
+            for (size_t j = 0; j < i_shape[1]; j++) {
+                i_values[i * i_shape[1] + j] = val[i][j];
+            }
+        }
+
+        return MakeConstantPtr(element_type, i_shape, i_values);
+    } else {
+        return MakeConstantPtr(element_type, std::vector<size_t>(), std::vector<T>());
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_EmbeddingBagPackedSum_With_Hardcoded_Refs,
+    ReferenceEmbeddingBagPackedSumLayerTest,
+    ::testing::Values(
+        EmbeddingBagPackedSumParams(ngraph::PartialShape{5, 2},
+                                    ngraph::element::f32,
+                                    std::vector<float>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
+                                    ngraph::PartialShape{3, 2},
+                                    ngraph::element::f32,
+                                    std::vector<float>{-1.05f, -1.2f, -1.f, -1.1f, -0.1f, 0.4f},
+                                    GetConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32),
+                                    GetConstantVV<float>({{0.5, 0.5}, {0.5, 0.5}, {0.5, 0.5}}, element::f32)),
+        EmbeddingBagPackedSumParams(ngraph::PartialShape{5, 2},
+                                    ngraph::element::f64,
+                                    std::vector<double>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
+                                    ngraph::PartialShape{3, 2},
+                                    ngraph::element::f64,
+                                    std::vector<double>{-2.1, -2.4, -2.0, -2.2, -0.2, 0.8},
+                                    GetConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32)),
+        EmbeddingBagPackedSumParams(ngraph::PartialShape{5, 2},
+                                    ngraph::element::i32,
+                                    std::vector<int32_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
+                                    ngraph::PartialShape{3, 2},
+                                    ngraph::element::i32,
+                                    std::vector<int32_t>{-6, -4, -2, -2, 2, 18},
+                                    GetConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32)),
+        EmbeddingBagPackedSumParams(ngraph::PartialShape{5, 2},
+                                    ngraph::element::u32,
+                                    std::vector<uint32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+                                    ngraph::PartialShape{3, 2},
+                                    ngraph::element::u32,
+                                    std::vector<uint32_t>{6, 8, 8, 10, 16, 18},
+                                    GetConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32)),
+        EmbeddingBagPackedSumParams(ngraph::PartialShape{5, 2},
+                                    ngraph::element::f16,
+                                    std::vector<float16>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
+                                    ngraph::PartialShape{3, 2},
+                                    ngraph::element::f16,
+                                    std::vector<float16>{-2.1, -2.4, -2.0, -2.2, -0.2, 0.8},
+                                    GetConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64)),
+        EmbeddingBagPackedSumParams(ngraph::PartialShape{5, 2},
+                                    ngraph::element::i64,
+                                    std::vector<int64_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
+                                    ngraph::PartialShape{3, 2},
+                                    ngraph::element::i64,
+                                    std::vector<int64_t>{-6, -4, -2, -2, 2, 18},
+                                    GetConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64)),
+        EmbeddingBagPackedSumParams(ngraph::PartialShape{5, 2},
+                                    ngraph::element::i8,
+                                    std::vector<int8_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
+                                    ngraph::PartialShape{3, 2},
+                                    ngraph::element::i8,
+                                    std::vector<int8_t>{-12, -8, -4, -4, 4, 36},
+                                    GetConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64),
+                                    GetConstantVV<int8_t>({{2, 2}, {2, 2}, {2, 2}}, element::i8)),
+        EmbeddingBagPackedSumParams(ngraph::PartialShape{5, 2},
+                                    ngraph::element::u8,
+                                    std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+                                    ngraph::PartialShape{3, 2},
+                                    ngraph::element::u8,
+                                    std::vector<uint8_t>{6, 8, 8, 10, 16, 18},
+                                    GetConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64))),
+    ReferenceEmbeddingBagPackedSumLayerTest::getTestCaseName);
