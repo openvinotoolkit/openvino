@@ -43,7 +43,3 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/low_precision_trans
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
-
-if (TARGET MKLDNNPlugin)
-    add_dependencies(${TARGET_NAME} MKLDNNPlugin)
-endif()
