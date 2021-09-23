@@ -3,6 +3,7 @@
 //
 
 #include "ie_plugin_config.hpp"
+#include "ie_system_conf.h"
 #include "behavior/plugin/configuration_tests.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -20,6 +21,7 @@ namespace {
     #else
     auto defaultBindThreadParameter = InferenceEngine::Parameter{std::string{CONFIG_VALUE(YES)}};
     #endif
+
     INSTANTIATE_TEST_SUITE_P(
             smoke_Basic,
             DefaultConfigurationTest,
