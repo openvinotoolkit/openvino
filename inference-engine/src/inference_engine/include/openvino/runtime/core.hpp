@@ -15,11 +15,11 @@
 #include <string>
 #include <vector>
 
-#include "common.hpp"
-#include "executable_network.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
-#include "remote_context.hpp"
+#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/executable_network.hpp"
+#include "openvino/runtime/remote_context.hpp"
 
 namespace InferenceEngine {
 class IExtension;
@@ -38,7 +38,7 @@ namespace runtime {
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(Core) {
+class OPENVINO_RUNTIME_API Core {
     class Impl;
     std::shared_ptr<Impl> _impl;
 
@@ -61,7 +61,7 @@ public:
      */
     std::map<std::string, ie::Version> get_versions(const std::string& deviceName) const;
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Reads models from IR and ONNX formats
      * @param modelPath path to model
@@ -188,11 +188,11 @@ public:
      * @param deviceName A name of a device to query
      * @param network Network object to query
      * @param config Optional map of pairs: (config parameter name, config parameter value)
-     * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
+     * @return An object containing a map of pairs a operation name -> a device name supporting this operation.
      */
-    ie::QueryNetworkResult query_model(const std::shared_ptr<const ov::Function>& network,
-                                       const std::string& deviceName,
-                                       const ConfigMap& config = {}) const;
+    SupportedOpsMap query_model(const std::shared_ptr<const ov::Function>& network,
+                                const std::string& deviceName,
+                                const ConfigMap& config = {}) const;
 
     /**
      * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
@@ -213,7 +213,7 @@ public:
      * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
-    ie::Parameter get_config(const std::string& deviceName, const std::string& name) const;
+    Parameter get_config(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware.
@@ -225,7 +225,7 @@ public:
      * @param name - metric name to request.
      * @return Metric value corresponding to metric key.
      */
-    ie::Parameter get_metric(const std::string& deviceName, const std::string& name) const;
+    Parameter get_metric(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Returns devices available for neural networks inference
@@ -292,7 +292,7 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    RemoteContext create_context(const std::string& deviceName, const ie::ParamMap& params);
+    RemoteContext create_context(const std::string& deviceName, const ParamMap& params);
 
     /**
      * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.

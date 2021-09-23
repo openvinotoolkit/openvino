@@ -26,6 +26,9 @@
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
 
+// Uncomment it to compute scales and shifts in double precision
+// #define FQ_DOUBLE_PRECISION
+
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -1060,9 +1063,13 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
                                    << "inputLow = " << il << ", inputHigh = " << ih;
             }
 #endif
-
+#ifdef FQ_DOUBLE_PRECISION
+                inputScale[i] = (levels - 1.0) / (static_cast<double>(ih) - il);
+                inputShift[i] = -il * (levels - 1.0) / (static_cast<double>(ih) - il);
+#else
                 inputScale[i] = (levels - 1) / (ih - il);
                 inputShift[i] = -il * (levels - 1) / (ih - il);
+#endif
             }
 
             for (int i = 0; i < outputScale.size(); i++) {
@@ -1075,8 +1082,11 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
                                        << "outputLow = " << ol << ", outputHigh = " << oh;
                 }
 #endif
-
+#ifdef FQ_DOUBLE_PRECISION
+                outputScale[i] = (static_cast<double>(oh) - ol) / (levels - 1.0);
+#else
                 outputScale[i] = (oh - ol) / (levels - 1);
+#endif
 
                 if (outputScale[i] != 1.f)
                     quantizationOnly = false;

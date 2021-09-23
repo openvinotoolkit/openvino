@@ -8,6 +8,7 @@
 
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
+#include "openvino/util/file_util.hpp"
 #include "shared_object.hpp"
 
 namespace ov {
@@ -26,11 +27,11 @@ std::shared_ptr<void> load_shared_object(const char* path) {
     return shared_object;
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<void> load_shared_object(const wchar_t* path) {
-    return load_shared_object(FileUtils::wStringtoMBCSstringChar(path).c_str());
+    return load_shared_object(ov::util::wstring_to_string(path).c_str());
 }
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 void* get_symbol(const std::shared_ptr<void>& shared_object, const char* symbol_name) {
     if (!shared_object) {
@@ -56,9 +57,9 @@ struct SharedObjectLoader::Impl {
 
     explicit Impl(const char* pluginName) : shared_object{ov::runtime::load_shared_object(pluginName)} {}
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-    explicit Impl(const wchar_t* pluginName) : Impl(FileUtils::wStringtoMBCSstringChar(pluginName).c_str()) {}
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    explicit Impl(const wchar_t* pluginName) : Impl(ov::util::wstring_to_string(pluginName).c_str()) {}
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
     void* get_symbol(const char* symbolName) const {
         return ov::runtime::get_symbol(shared_object, symbolName);
@@ -69,7 +70,7 @@ SharedObjectLoader::SharedObjectLoader(const std::shared_ptr<void>& shared_objec
     _impl.reset(new Impl(shared_object));
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
     _impl.reset(new Impl(pluginName));
 }

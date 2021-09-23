@@ -103,6 +103,32 @@ def get_output_layer_list(net: Union[IENetwork, ExecutableNetwork],
         return [list(net.outputs.keys())[-1]]
 
 
+def parse_scale_factors(args: argparse.Namespace) -> list:
+    """Get a list of scale factors for input files"""
+    input_files = re.split(', |,', args.input)
+    scale_factors = re.split(', |,', str(args.scale_factor))
+    scale_factors = list(map(float, scale_factors))
+
+    if len(input_files) != len(scale_factors):
+        log.error(f'Incorrect command line for multiple inputs: {len(scale_factors)} scale factors provided for '
+                  f'{len(input_files)} input files.')
+        sys.exit(-7)
+
+    for i, scale_factor in enumerate(scale_factors):
+        if float(scale_factor) < 0:
+            log.error(f'Scale factor for input #{i} (counting from zero) is out of range (must be positive).')
+            sys.exit(-8)
+
+    return scale_factors
+
+
+def set_scale_factors(plugin_config: dict, scale_factors: list):
+    """Set a scale factor provided for each input"""
+    for i, scale_factor in enumerate(scale_factors):
+        log.info(f'For input {i} using scale factor of {scale_factor:.7f}')
+        plugin_config[f'GNA_SCALE_FACTOR_{i}'] = str(scale_factor)
+
+
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
@@ -149,16 +175,23 @@ def main():
 
         # Set a GNA scale factor
         if args.import_gna_model:
-            log.info(f'Using scale factor from the imported GNA model: {args.import_gna_model}')
-        elif args.scale_factor:
-            log.info(f'Using scale factor of {args.scale_factor:.7f} specified by user.')
-            plugin_config['GNA_SCALE_FACTOR'] = str(args.scale_factor)
+            if args.scale_factor:
+                log.warning(f'Custom scale factor will be used for imported GNA model: {args.import_gna_model}')
+                set_scale_factors(plugin_config, parse_scale_factors(args))
+            else:
+                log.info(f'Using scale factor from the imported GNA model: {args.import_gna_model}')
         else:
-            utterances = read_utterance_file(args.input.split(',')[0])
-            key = sorted(utterances)[0]
-            scale_factor = get_scale_factor(utterances[key])
-            log.info(f'Using scale factor of {scale_factor:.7f} calculated from first utterance.')
-            plugin_config['GNA_SCALE_FACTOR'] = str(scale_factor)
+            if args.scale_factor:
+                set_scale_factors(plugin_config, parse_scale_factors(args))
+            else:
+                scale_factors = []
+
+                for file_name in re.split(', |,', args.input):
+                    first_utterance = next(iter(read_utterance_file(file_name).values()))
+                    scale_factors.append(get_scale_factor(first_utterance))
+
+                log.info('Using scale factor(s) calculated from first utterance')
+                set_scale_factors(plugin_config, scale_factors)
 
         if args.export_embedded_gna_model:
             plugin_config['GNA_FIRMWARE_MODEL_IMAGE'] = args.export_embedded_gna_model
@@ -228,10 +261,9 @@ def main():
 # ---------------------------Step 7. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
     results = {blob_name: {} for blob_name in output_blobs}
-    infer_times = []
-    perf_counters = []
+    total_infer_time = 0
 
-    for key in sorted(input_data):
+    for i, key in enumerate(sorted(input_data)):
         start_infer_time = default_timer()
 
         # Reset states between utterance inferences to remove a memory impact
@@ -244,43 +276,49 @@ def main():
         for blob_name in result.keys():
             results[blob_name][key] = result[blob_name]
 
-        infer_times.append(default_timer() - start_infer_time)
-        perf_counters.append(exec_net.requests[0].get_perf_counts())
+        infer_time = default_timer() - start_infer_time
+        total_infer_time += infer_time
+        num_of_frames = file_data[0][key].shape[0]
+        avg_infer_time_per_frame = infer_time / num_of_frames
 
 # ---------------------------Step 8. Process output--------------------------------------------------------------------
-    for blob_name in output_blobs:
-        for i, key in enumerate(sorted(results[blob_name])):
-            log.info(f'Utterance {i} ({key})')
+        log.info('')
+        log.info(f'Utterance {i} ({key}):')
+        log.info(f'Total time in Infer (HW and SW): {infer_time * 1000:.2f}ms')
+        log.info(f'Frames in utterance: {num_of_frames}')
+        log.info(f'Average Infer time per frame: {avg_infer_time_per_frame * 1000:.2f}ms')
+
+        for blob_name in output_blobs:
+            log.info('')
             log.info(f'Output blob name: {blob_name}')
-            log.info(f'Frames in utterance: {results[blob_name][key].shape[0]}')
-            log.info(f'Total time in Infer (HW and SW): {infer_times[i] * 1000:.2f}ms')
+            log.info(f'Number scores per frame: {results[blob_name][key].shape[1]}')
 
             if args.reference:
+                log.info('')
                 compare_with_reference(results[blob_name][key], references[blob_name][key])
 
-            if args.performance_counter:
-                if 'GNA' in args.device:
-                    pc = perf_counters[i]
-                    total_cycles = int(pc['1.1 Total scoring time in HW']['real_time'])
-                    stall_cycles = int(pc['1.2 Stall scoring time in HW']['real_time'])
-                    active_cycles = total_cycles - stall_cycles
-                    frequency = 10**6
-                    if args.arch == 'CORE':
-                        frequency *= GNA_CORE_FREQUENCY
-                    else:
-                        frequency *= GNA_ATOM_FREQUENCY
-                    total_inference_time = total_cycles / frequency
-                    active_time = active_cycles / frequency
-                    stall_time = stall_cycles / frequency
-                    log.info('')
-                    log.info('Performance Statistics of GNA Hardware')
-                    log.info(f'   Total Inference Time: {(total_inference_time * 1000):.4f} ms')
-                    log.info(f'   Active Time: {(active_time * 1000):.4f} ms')
-                    log.info(f'   Stall Time:  {(stall_time * 1000):.4f} ms')
+        if args.performance_counter:
+            if 'GNA' in args.device:
+                pc = exec_net.requests[0].get_perf_counts()
+                total_cycles = int(pc['1.1 Total scoring time in HW']['real_time'])
+                stall_cycles = int(pc['1.2 Stall scoring time in HW']['real_time'])
+                active_cycles = total_cycles - stall_cycles
+                frequency = 10**6
+                if args.arch == 'CORE':
+                    frequency *= GNA_CORE_FREQUENCY
+                else:
+                    frequency *= GNA_ATOM_FREQUENCY
+                total_inference_time = total_cycles / frequency
+                active_time = active_cycles / frequency
+                stall_time = stall_cycles / frequency
+                log.info('')
+                log.info('Performance Statistics of GNA Hardware')
+                log.info(f'   Total Inference Time: {(total_inference_time * 1000):.4f} ms')
+                log.info(f'   Active Time: {(active_time * 1000):.4f} ms')
+                log.info(f'   Stall Time:  {(stall_time * 1000):.4f} ms')
 
-            log.info('')
-
-    log.info(f'Total sample time: {sum(infer_times) * 1000:.2f}ms')
+    log.info('')
+    log.info(f'Total sample time: {total_infer_time * 1000:.2f}ms')
 
     if args.output:
         for i, blob_name in enumerate(results):

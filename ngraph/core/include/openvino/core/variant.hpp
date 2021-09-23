@@ -85,7 +85,7 @@ inline std::shared_ptr<Variant> make_variant(const char (&s)[N]) {
     return std::dynamic_pointer_cast<VariantImpl<std::string>>(std::make_shared<VariantWrapper<std::string>>(s));
 }
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <size_t N>
 inline std::shared_ptr<Variant> make_variant(const wchar_t (&s)[N]) {
     return std::dynamic_pointer_cast<VariantImpl<std::wstring>>(std::make_shared<VariantWrapper<std::wstring>>(s));
@@ -93,4 +93,5 @@ inline std::shared_ptr<Variant> make_variant(const wchar_t (&s)[N]) {
 #endif
 
 using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+using VariantVector = std::vector<std::shared_ptr<Variant>>;
 }  // namespace ov

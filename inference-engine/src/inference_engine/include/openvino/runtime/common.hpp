@@ -13,6 +13,33 @@
 #include <map>
 #include <string>
 
+#include "openvino/core/visibility.hpp"
+
+#ifdef USE_STATIC_IE  // defined if we are building or calling OpenVINO Runtime as a static library
+#    define OPENVINO_RUNTIME_API_C(...) OPENVINO_EXTERN_C __VA_ARGS__
+#    define OPENVINO_RUNTIME_API
+#else
+#    ifdef IMPLEMENT_INFERENCE_ENGINE_API  // defined if we are building the OpenVINO runtime DLL (instead of using it)
+#        define OPENVINO_RUNTIME_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS __VA_ARGS__ OPENVINO_CDECL
+#        define OPENVINO_RUNTIME_API        OPENVINO_CORE_EXPORTS
+#    else
+#        define OPENVINO_RUNTIME_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS __VA_ARGS__ OPENVINO_CDECL
+#        define OPENVINO_RUNTIME_API        OPENVINO_CORE_IMPORTS
+#    endif  // IMPLEMENT_INFERENCE_ENGINE_API
+#endif      // USE_STATIC_IE
+
+/**
+ * @def OPENVINO_PLUGIN_API(type)
+ * @brief Defines OpenVINO Runtime Plugin API method
+ * @param type A plugin type
+ */
+
+#ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+#    define OPENVINO_PLUGIN_API(type) OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS type
+#else
+#    define OPENVINO_PLUGIN_API(type) OPENVINO_EXTERN_C type
+#endif
+
 namespace InferenceEngine {}
 
 namespace ov {
@@ -22,5 +49,13 @@ namespace runtime {
  * @brief This type of map is commonly used to pass set of parameters
  */
 using ConfigMap = std::map<std::string, std::string>;
+
+/**
+ * @brief This type of map is used for result of Core::query_model
+ *   - `key` means operation name
+ *   - `value` means device name supporting this operation
+ */
+using SupportedOpsMap = std::map<std::string, std::string>;
+
 }  // namespace runtime
 }  // namespace ov
