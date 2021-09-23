@@ -59,11 +59,11 @@ public:
 
     static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
-                        float threshold, float relThreshold);
+                        float threshold, float absThreshold);
 
     static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                         const InferenceEngine::Blob::Ptr &actual,
-                        float threshold, float relThreshold);
+                        float threshold, float absThreshold);
 
     static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
@@ -97,12 +97,12 @@ public:
 
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
-        Compare(expected, actual, size, threshold, -1); //Disable relThreshold
+        Compare(expected, actual, size, threshold, -1); //Disable absThreshold
     }
 
     template<class T_IE, class T_NGRAPH>
-    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float relThreshold) {
-        if ((threshold < 0) && (relThreshold < 0)) {
+    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float absThreshold) {
+        if ((threshold < 0) && (absThreshold < 0)) {
             IE_THROW() << "Both relative threshold and absolute threshold aren't set properly";
         }
         std::vector<double> absoluteDifferences;
@@ -118,7 +118,7 @@ public:
 
             absoluteDifferences.push_back(diff);
 
-            if ((threshold >= 0) && (diff > threshold))
+            if ((absThreshold >= 0) && (diff > absThreshold))
                     absoluteErrorCount++;
 
             if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
@@ -133,7 +133,7 @@ public:
                 relDiff = (diff / max);
             }
 
-            if ((relThreshold >= 0) && (relDiff > static_cast<float>(relThreshold)))
+            if ((threshold >= 0) && (relDiff > static_cast<float>(threshold)))
                 relativeErrorCount++;
 
             relativeDifferences.push_back(relDiff);
@@ -154,10 +154,10 @@ public:
 
             IE_THROW() << "\nRelative comparison diff tensor mean: " << relDiffMean << ", \tmax: " << relativeDifferences[relDiffMaxIndex]
                        << " @ index: " << relDiffMaxIndex << ", \t# failure(" << relativeErrorCount << "/" << relativeDifferences.size()
-                       << ") of threshold: " << relThreshold << "\n"
+                       << ") of threshold: " << threshold << "\n"
                        << "Absolute comparison diff tensor mean: " << absDiffMean << ", \tmax: " << absoluteDifferences[absDiffMaxIndex]
                        << " @ index: " << absDiffMaxIndex << ", \t# failure(" << absoluteErrorCount << "/" << absoluteDifferences.size()
-                       << ") of threshold: " << threshold << "\n";
+                       << ") of threshold: " << absThreshold << "\n";
         }
     }
 
@@ -190,8 +190,8 @@ protected:
     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED;
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
-    float threshold; // absolute threshold: when it is negative value, the comparison will be skipped
-    float relThreshold; // relative threshold: when it is negative value, the comparison will be skipped
+    float threshold; // relative threshold: when it is negative value, the comparison will be skipped
+    float absThreshold; // absolute threshold: when it is negative value, the comparison will be skipped
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
 

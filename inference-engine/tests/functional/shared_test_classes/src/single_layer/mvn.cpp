@@ -30,6 +30,8 @@ std::string Mvn1LayerTest::getTestCaseName(const testing::TestParamInfo<mvn1Para
 }
 
 void Mvn1LayerTest::SetUp() {
+    threshold = -1; //Disable relative threshold temporarily
+    absThreshold = 0.01f; //Use absolute threshold temporarily
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
     ngraph::AxisSet axes;
