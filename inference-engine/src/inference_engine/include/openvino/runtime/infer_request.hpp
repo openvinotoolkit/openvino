@@ -5,7 +5,7 @@
 /**
  * @brief A header file that provides wrapper classes for infer requests and callbacks.
  *
- * @file infer_request.hpp
+ * @file openvino/runtime/infer_request.hpp
  */
 #pragma once
 
@@ -13,9 +13,9 @@
 #include <memory>
 #include <string>
 
-#include "common.hpp"
-#include "profiling_info.hpp"
-#include "variable_state.hpp"
+#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/variable_state.hpp"
 
 namespace InferenceEngine {
 class IInferRequestInternal;
