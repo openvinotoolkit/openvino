@@ -15,11 +15,11 @@
 
 #ifdef _WIN32
 # include <direct.h>
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 # define mkdir(dir, mode) _wmkdir(dir)
 #else
 # define mkdir(dir, mode) _mkdir(dir)
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #endif  // _WIN32
 
 using namespace InferenceEngine;
@@ -27,7 +27,7 @@ using namespace InferenceEngine;
 namespace CLDNNPlugin {
 
 static void createDirectory(std::string _path) {
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widepath = ov::util::string_to_wstring(_path.c_str());
     const wchar_t* path = widepath.c_str();
 #else
