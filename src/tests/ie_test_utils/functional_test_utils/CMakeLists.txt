@@ -25,6 +25,7 @@ addIeTarget(
         PRIVATE
             ngraphFunctions
             pugixml::static
+            frontend_manager::static
     INCLUDES
         PUBLIC
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>

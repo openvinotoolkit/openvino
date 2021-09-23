@@ -15,7 +15,6 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/graph_util.hpp"
-// #include "frontend_manager/frontend_manager.hpp"
 #include "transformations/serialize.hpp"
 #include "cpp/ie_cnn_network.h"
 #include <ie_core.hpp>
@@ -55,8 +54,6 @@ private:
 
     static void writeToHashMap(const std::string &network_name, const std::string &hash);
 
-    // static ngraph::frontend::FrontEndManager& get_frontend_manager();
-
 protected:
     ExternalNetworkTool() = default;
 
@@ -69,7 +66,7 @@ public:
     InferenceEngine::CNNNetwork loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
                                                     const std::string &network_name) const;
 
-    // std::shared_ptr<ngraph::Function> loadNetworkFromFile(const std::string &network_name) const;
+    std::shared_ptr<ngraph::Function> loadNetworkFromFile(const std::string &network_name) const;
 
     void updateFunctionNames(std::shared_ptr<ngraph::Function> network) const;
     // std::shared_ptr<ngraph::Function> renameFunction(std::shared_ptr<ngraph::Function>) const;
