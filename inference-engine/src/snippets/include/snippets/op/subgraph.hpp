@@ -93,7 +93,6 @@ public:
 
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
                                 ngraph::pass::Manager opt = ngraph::pass::Manager());
-    bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
 
     /// Set a new body for the op; body needs to satisfy requirements on inputs/outputs
     void set_body(std::shared_ptr<Function> body);
