@@ -5,6 +5,7 @@
 #include "shared_test_classes/subgraph/preprocess.hpp"
 #include "ngraph_functions/preprocess/preprocess_builders.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include <ie_ngraph_utils.hpp>
 
 using namespace ov;
 using namespace ov::preprocess;
@@ -28,6 +29,12 @@ void PrePostProcessTest::SetUp() {
     preprocess_func func;
     std::tie(func, targetDevice) = GetParam();
     function = (std::get<0>(func))();
+    outPrc = InferenceEngine::details::convertPrecision(function->get_output_element_type(0));
+    if (function->get_output_element_type(0).is_integral_number()) {
+        threshold = 1; // rounding mismatch is allowed
+    } else {
+        threshold = 0.01f;
+    }
 }
 
 TEST_P(PrePostProcessTest, CompareWithRefs) {
