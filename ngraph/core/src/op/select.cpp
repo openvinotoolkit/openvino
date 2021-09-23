@@ -16,7 +16,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::Select, "Select", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::Select);
 
 op::v1::Select::Select(const Output<Node>& arg0,
                        const Output<Node>& arg1,

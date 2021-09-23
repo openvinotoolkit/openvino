@@ -7,8 +7,9 @@
 #include <algorithm>
 #include <vector>
 
-#include "ngraph/shape.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 /// \brief Coordinates for a tensor element
@@ -43,9 +44,7 @@ class OPENVINO_API AttributeAdapter<Coordinate> : public IndirectVectorValueAcce
 public:
     AttributeAdapter(Coordinate& value) : IndirectVectorValueAccessor<Coordinate, std::vector<int64_t>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Coordinate>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<Coordinate>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

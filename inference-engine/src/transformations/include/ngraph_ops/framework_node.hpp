@@ -53,7 +53,8 @@ private:
 
 class TRANSFORMATIONS_API FrameworkNode : public Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("FrameworkNode", "util");
+    BWDCMP_RTTI_DECLARATION;
 
     explicit FrameworkNode(const OutputVector& inputs, size_t output_size = 1);
 
@@ -90,8 +91,7 @@ class TRANSFORMATIONS_API AttributeAdapter<ngraph::op::FrameworkNodeAttrs>
 public:
     AttributeAdapter(ngraph::op::FrameworkNodeAttrs& value);
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<FrameworkNodeAttr>", 0};
-    const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_RTTI("AttributeAdapter<FrameworkNodeAttr>");
 };
 
 }  // namespace ov

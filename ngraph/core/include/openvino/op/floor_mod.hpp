@@ -13,7 +13,8 @@ namespace v1 {
 ///
 class OPENVINO_API FloorMod : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("FloorMod", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an uninitialized addition operation
     FloorMod() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY){};

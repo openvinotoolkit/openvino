@@ -14,7 +14,7 @@ namespace v8 {
 ///
 class OPENVINO_API Slice : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Slice", "opset8");
 
     Slice() = default;
 

@@ -15,7 +15,8 @@ namespace util {
 ///
 class OPENVINO_API SubGraphOp : public MultiSubGraphOp {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("SubGraphOp", "util");
+    BWDCMP_RTTI_DECLARATION;
 
     virtual const std::shared_ptr<Function>& get_function() const {
         return m_bodies[0];

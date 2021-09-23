@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ConvolutionIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::ConvolutionIE);
 
 op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
                                  const Output<Node>& filters,

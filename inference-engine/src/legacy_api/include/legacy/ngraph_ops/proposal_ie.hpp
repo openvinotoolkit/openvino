@@ -16,8 +16,8 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(ProposalIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"ProposalIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("ProposalIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     //  \brief Constructs a Proposal operation
     //

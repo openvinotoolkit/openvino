@@ -25,7 +25,8 @@ namespace v0 {
 ///
 class OPENVINO_API FakeQuantize : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("FakeQuantize", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     FakeQuantize();
     ///

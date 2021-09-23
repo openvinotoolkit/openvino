@@ -24,9 +24,9 @@ inline std::string getPrimitivesPriorityValue(const std::shared_ptr<ngraph::Node
     const auto &rtInfo = node->get_rt_info();
     using PrimitivesPriorityWraper = ngraph::VariantWrapper<ngraph::PrimitivesPriority>;
 
-    if (!rtInfo.count(PrimitivesPriorityWraper::type_info.name)) return "";
+    if (!rtInfo.count(PrimitivesPriorityWraper::get_type_info_static().name)) return "";
 
-    const auto &attr = rtInfo.at(PrimitivesPriorityWraper::type_info.name);
+    const auto &attr = rtInfo.at(PrimitivesPriorityWraper::get_type_info_static().name);
     ngraph::PrimitivesPriority pp = ngraph::as_type_ptr<PrimitivesPriorityWraper>(attr)->get();
     return pp.getPrimitivesPriority();
 }

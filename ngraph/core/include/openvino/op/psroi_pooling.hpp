@@ -11,7 +11,8 @@ namespace op {
 namespace v0 {
 class OPENVINO_API PSROIPooling : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("PSROIPooling", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     PSROIPooling() = default;
     /// \brief Constructs a PSROIPooling operation

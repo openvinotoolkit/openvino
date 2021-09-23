@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "ngraph/compatibility.hpp"
 #include "ngraph/util.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
@@ -60,18 +61,24 @@ public:
     /// \param type_info Transformation type_info
     void disable(const DiscreteTypeInfo& type_info);
     /// \brief Disable transformation by its class type (based on type_info)
-    template <typename T>
+    template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     void disable() {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        disable(T::type_info);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        disable(T::get_type_info_static());
+    }
+    template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
+    void disable() {
+        disable(T::get_type_info_static());
     }
 
     /// \brief Enable transformation by its type_info
     /// \param type_info Transformation type_info
     void enable(const DiscreteTypeInfo& type_info);
     /// \brief Enable transformation by its class type (based on type_info)
-    template <typename T>
+    template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
+    void enable() {
+        enable(T::get_type_info_static());
+    }
+    template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     void enable() {
         OPENVINO_SUPPRESS_DEPRECATED_START
         enable(T::type_info);
@@ -109,9 +116,20 @@ public:
     ///         return false; // exit from transformation
     ///     }
     ///
-    template <typename T, class... Args>
+    template <typename T,
+              class... Args,
+              typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     void set_callback(const param_callback& callback) {
+        m_callback_map[T::get_type_info_static()] = callback;
+        set_callback<Args...>(callback);
+    }
+    template <typename T,
+              class... Args,
+              typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
+    void set_callback(const param_callback& callback) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         m_callback_map[T::type_info] = callback;
+        OPENVINO_SUPPRESS_DEPRECATED_END
         set_callback<Args...>(callback);
     }
 
@@ -125,11 +143,15 @@ public:
 
     /// \brief Get callback for given transformation class type
     /// \return callback lambda function
-    template <typename T>
+    template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     param_callback get_callback() const {
         NGRAPH_SUPPRESS_DEPRECATED_START
         return get_callback(T::type_info);
         NGRAPH_SUPPRESS_DEPRECATED_END
+    }
+    template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
+    param_callback get_callback() const {
+        return get_callback(T::get_type_info_static());
     }
 
     /// \brief Check either transformation type is disabled or not
@@ -141,11 +163,15 @@ public:
 
     /// \brief Check either transformation class type is disabled or not
     /// \return true if transformation type was disabled and false otherwise
-    template <typename T>
+    template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     bool is_disabled() const {
         NGRAPH_SUPPRESS_DEPRECATED_START
         return is_disabled(T::type_info);
         NGRAPH_SUPPRESS_DEPRECATED_END
+    }
+    template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
+    bool is_disabled() const {
+        return is_disabled(T::get_type_info_static());
     }
 
     /// \brief Check either transformation type is force enabled or not
@@ -157,9 +183,15 @@ public:
 
     /// \brief Check either transformation class type is force enabled or not
     /// \return true if transformation type was force enabled and false otherwise
-    template <typename T>
+    template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     bool is_enabled() const {
+        NGRAPH_SUPPRESS_DEPRECATED_START
         return is_enabled(T::type_info);
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    }
+    template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
+    bool is_enabled() const {
+        return is_enabled(T::get_type_info_static());
     }
 
     void add_disabled_passes(const PassConfig& rhs);

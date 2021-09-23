@@ -23,7 +23,7 @@ NGRAPH_API EnumNames<ngraph::op::PadMode>& EnumNames<ngraph::op::PadMode>::get()
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::PadMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::PadMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::PadType>& EnumNames<ngraph::op::PadType>::get() {
@@ -35,7 +35,7 @@ NGRAPH_API EnumNames<ngraph::op::PadType>& EnumNames<ngraph::op::PadType>::get()
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::PadType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::PadType>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::RoundingType>& EnumNames<ngraph::op::RoundingType>::get() {
@@ -45,7 +45,7 @@ NGRAPH_API EnumNames<ngraph::op::RoundingType>& EnumNames<ngraph::op::RoundingTy
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::RoundingType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::RoundingType>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::AutoBroadcastType>& EnumNames<ngraph::op::AutoBroadcastType>::get() {
@@ -57,7 +57,7 @@ NGRAPH_API EnumNames<ngraph::op::AutoBroadcastType>& EnumNames<ngraph::op::AutoB
                                                   {"pdpd", ngraph::op::AutoBroadcastType::PDPD}});
     return enum_names;
 }
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::AutoBroadcastType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::AutoBroadcastType>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::BroadcastType>& EnumNames<ngraph::op::BroadcastType>::get() {
@@ -71,7 +71,7 @@ NGRAPH_API EnumNames<ngraph::op::BroadcastType>& EnumNames<ngraph::op::Broadcast
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::BroadcastType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::BroadcastType>);
 template <>
 NGRAPH_API EnumNames<ngraph::op::EpsMode>& EnumNames<ngraph::op::EpsMode>::get() {
     static auto enum_names =
@@ -80,7 +80,7 @@ NGRAPH_API EnumNames<ngraph::op::EpsMode>& EnumNames<ngraph::op::EpsMode>::get()
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::EpsMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::EpsMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::TopKSortType>& EnumNames<ngraph::op::TopKSortType>::get() {
@@ -98,8 +98,8 @@ NGRAPH_API EnumNames<ngraph::op::TopKMode>& EnumNames<ngraph::op::TopKMode>::get
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::TopKSortType>::type_info;
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::TopKMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::TopKSortType>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::TopKMode>);
 
 bool AttributeAdapter<ngraph::op::AutoBroadcastSpec>::visit_attributes(AttributeVisitor& visitor) {
     // Maintain back-compatibility
@@ -112,7 +112,7 @@ bool AttributeAdapter<ngraph::op::AutoBroadcastSpec>::visit_attributes(Attribute
     return true;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::AutoBroadcastSpec>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::AutoBroadcastSpec>);
 
 bool AttributeAdapter<ngraph::op::BroadcastModeSpec>::visit_attributes(AttributeVisitor& visitor) {
     // Maintain back-compatibility
@@ -127,10 +127,9 @@ bool AttributeAdapter<ngraph::op::BroadcastModeSpec>::visit_attributes(Attribute
     return true;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::BroadcastModeSpec>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::BroadcastModeSpec>);
 
-NGRAPH_API
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::RecurrentSequenceDirection>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::RecurrentSequenceDirection>);
 template <>
 NGRAPH_API EnumNames<ngraph::op::RecurrentSequenceDirection>& EnumNames<ngraph::op::RecurrentSequenceDirection>::get() {
     static auto enum_names = EnumNames<ngraph::op::RecurrentSequenceDirection>(

@@ -15,7 +15,8 @@ namespace v3 {
 ///
 class OPENVINO_API Asinh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Asinh", "opset4", util::UnaryElementwiseArithmetic, 3);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an Asinh operation.
     Asinh() = default;

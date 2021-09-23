@@ -14,7 +14,8 @@ namespace v3 {
 ///
 class OPENVINO_API ScatterUpdate : public util::ScatterBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ScatterUpdate", "opset3", util::ScatterBase, 3);
+    BWDCMP_RTTI_DECLARATION;
     ScatterUpdate() = default;
     ///
     /// \brief      Constructs ScatterUpdate operator object.

@@ -18,8 +18,8 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(OneHotIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"OneHotIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("OneHotIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     explicit OneHotIE(const Output<ngraph::Node>& input, int axis, int depth, float on_value, float off_value, element::Type type);
 

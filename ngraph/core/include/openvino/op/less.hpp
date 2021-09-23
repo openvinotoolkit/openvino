@@ -12,7 +12,8 @@ namespace v1 {
 /// \brief Elementwise less-than operation.
 class OPENVINO_API Less : public util::BinaryElementwiseComparison {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Less", "opset1", op::util::BinaryElementwiseComparison, 1);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a less-than operation.
     Less() : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY) {}
     /// \brief Constructs a less-than operation.

@@ -50,12 +50,6 @@
  * If MatcherPass register more than one node make sure that this nodes are registered in
  * topological order. */
 
-NGRAPH_RTTI_DEFINITION(ov::pass::GraphRewrite, "ov::pass::GraphRewrite", 0);
-
-NGRAPH_RTTI_DEFINITION(ov::pass::BackwardGraphRewrite, "ov::pass::BackwardGraphRewrite", 0);
-
-NGRAPH_RTTI_DEFINITION(ov::pass::MatcherPass, "ov::pass::MatcherPass", 0);
-
 namespace ov {
 namespace pass {
 namespace internal {

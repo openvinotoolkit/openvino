@@ -15,9 +15,8 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(PowerIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"PowerIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
-
+    OPENVINO_OP("PowerIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
     PowerIE(const Output<Node>& data_batch,
             const float power, const float scale, const float shift, const element::Type output_type = element::undefined);
 

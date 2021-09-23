@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Parameter, "Parameter", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Parameter);
 
 op::Parameter::Parameter(const element::Type& element_type, const ov::PartialShape& pshape)
     : m_partial_shape(pshape),
@@ -62,7 +62,7 @@ void op::Parameter::set_layout(const ov::Layout& layout) {
     get_output_tensor(0).get_rt_info()["LAYOUT"] = std::make_shared<VariantWrapper<ov::Layout>>(layout);
 }
 
-constexpr DiscreteTypeInfo ov::AttributeAdapter<ParameterVector>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ParameterVector>);
 
 ov::AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
 

@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::GatherTreeIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::GatherTreeIE);
 
 op::GatherTreeIE::GatherTreeIE(const Output<Node>& step_ids,
                                const Output<Node>& parent_idx,

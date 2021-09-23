@@ -22,7 +22,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::Asin, "Asin", 0, util::BinaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::Asin);
 
 op::Asin::Asin(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

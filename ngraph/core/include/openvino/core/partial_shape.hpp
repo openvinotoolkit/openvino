@@ -6,11 +6,11 @@
 
 #include <cstddef>
 
-#include "ngraph/op/util/attr_types.hpp"
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace op {
@@ -218,7 +218,7 @@ public:
     /// \brief Try to merge one shape into another along with implicit broadcasting
     static bool broadcast_merge_into(PartialShape& dst,
                                      const PartialShape& src,
-                                     const ngraph::op::AutoBroadcastSpec& autob);
+                                     const ov::op::AutoBroadcastSpec& autob);
 
     /// \brief Returns a read/write iterator that points to the first
     ///        element in the shape. Iteration is done in ordinary

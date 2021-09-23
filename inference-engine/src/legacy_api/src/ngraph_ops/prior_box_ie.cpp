@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PriorBoxIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::PriorBoxIE);
 
 op::PriorBoxIE::PriorBoxIE(const Output<Node>& input, const Output<Node>& image, const PriorBoxAttrs& attrs)
     : Op({input, image}), m_attrs(attrs) {

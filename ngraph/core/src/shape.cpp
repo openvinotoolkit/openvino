@@ -37,4 +37,4 @@ ov::Shape& ov::Shape::operator=(Shape&& v) noexcept {
     return *this;
 }
 
-constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ov::Shape>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::Shape>);

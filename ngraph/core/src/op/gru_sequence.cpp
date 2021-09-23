@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v5::GRUSequence, "GRUSequence", 5);
+BWDCMP_RTTI_DEFINITION(op::v5::GRUSequence);
 
 op::v5::GRUSequence::GRUSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD),

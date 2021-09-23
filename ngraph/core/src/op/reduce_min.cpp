@@ -39,7 +39,7 @@ bool evaluate_min(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 }
 }  // namespace minop
 
-OPENVINO_RTTI_DEFINITION(op::v1::ReduceMin, "ReduceMin", 1, util::ArithmeticReductionKeepDims);
+BWDCMP_RTTI_DEFINITION(op::v1::ReduceMin);
 
 op::v1::ReduceMin::ReduceMin(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {

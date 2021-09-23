@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::NormalizeIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::NormalizeIE);
 
 op::NormalizeIE::NormalizeIE(const Output<Node>& data, const Output<Node>& weights, float eps, bool across_spatial,
                              bool channel_shared, const ngraph::element::Type output_type)

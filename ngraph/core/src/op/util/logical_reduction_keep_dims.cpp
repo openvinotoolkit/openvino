@@ -11,7 +11,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::LogicalReductionKeepDims, "LogicalReductionKeepDims", 1);
+BWDCMP_RTTI_DEFINITION(ov::op::util::LogicalReductionKeepDims);
 
 ov::op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(const ngraph::Output<ngraph::Node>& arg,
                                                                  const ngraph::Output<ngraph::Node>& reduction_axes,

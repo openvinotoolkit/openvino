@@ -12,7 +12,8 @@ namespace v0 {
 /// \brief Elementwise type conversion operation.
 class OPENVINO_API Convert : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Convert", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     Convert() = default;
@@ -47,6 +48,5 @@ protected:
     ov::element::Type m_destination_type;
 };
 }  // namespace v0
-using v0::Convert;
 }  // namespace op
 }  // namespace ov

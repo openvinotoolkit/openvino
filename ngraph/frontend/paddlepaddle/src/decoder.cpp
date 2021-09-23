@@ -38,27 +38,27 @@ std::shared_ptr<Variant> DecoderPDPDProto::get_attribute(const std::string& name
         return nullptr;
     }
 
-    if (type_info == VariantWrapper<std::string>::type_info) {
+    if (type_info == VariantWrapper<std::string>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<std::string>>(attrs[0].s());
-    } else if (type_info == VariantWrapper<int64_t>::type_info) {
+    } else if (type_info == VariantWrapper<int64_t>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<int64_t>>(attrs[0].l());
-    } else if (type_info == VariantWrapper<std::vector<int64_t>>::type_info) {
+    } else if (type_info == VariantWrapper<std::vector<int64_t>>::get_type_info_static()) {
         auto longs = std::vector<int64_t>(attrs[0].longs().begin(), attrs[0].longs().end());
         return std::make_shared<VariantWrapper<std::vector<int64_t>>>(longs);
-    } else if (type_info == VariantWrapper<int32_t>::type_info) {
+    } else if (type_info == VariantWrapper<int32_t>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<int32_t>>(attrs[0].i());
-    } else if (type_info == VariantWrapper<std::vector<int32_t>>::type_info) {
+    } else if (type_info == VariantWrapper<std::vector<int32_t>>::get_type_info_static()) {
         auto ints = std::vector<int32_t>(attrs[0].ints().begin(), attrs[0].ints().end());
         return std::make_shared<VariantWrapper<std::vector<int32_t>>>(ints);
-    } else if (type_info == VariantWrapper<float>::type_info) {
+    } else if (type_info == VariantWrapper<float>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<float>>(attrs[0].f());
-    } else if (type_info == VariantWrapper<std::vector<float>>::type_info) {
+    } else if (type_info == VariantWrapper<std::vector<float>>::get_type_info_static()) {
         auto floats = std::vector<float>(attrs[0].floats().begin(), attrs[0].floats().end());
         return std::make_shared<VariantWrapper<std::vector<float>>>(floats);
-    } else if (type_info == VariantWrapper<ngraph::element::Type>::type_info) {
+    } else if (type_info == VariantWrapper<ngraph::element::Type>::get_type_info_static()) {
         auto data_type = (paddle::framework::proto::VarType_Type)attrs[0].i();
         return std::make_shared<VariantWrapper<ngraph::element::Type>>(TYPE_MAP[data_type]);
-    } else if (type_info == VariantWrapper<bool>::type_info) {
+    } else if (type_info == VariantWrapper<bool>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<bool>>(attrs[0].b());
     }
 

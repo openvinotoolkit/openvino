@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/max.hpp"
-
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/op/max.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/max.hpp"
@@ -41,7 +40,7 @@ bool evaluate_max(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 }
 }  // namespace maxop
 
-OPENVINO_RTTI_DEFINITION(op::v1::ReduceMax, "ReduceMax", 1, util::ArithmeticReductionKeepDims);
+BWDCMP_RTTI_DEFINITION(op::v1::ReduceMax);
 
 op::v1::ReduceMax::ReduceMax(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {

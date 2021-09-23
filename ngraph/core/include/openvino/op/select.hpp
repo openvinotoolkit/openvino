@@ -29,7 +29,8 @@ namespace v1 {
 // clang-format on
 class OPENVINO_API Select : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Select", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a selection operation.
     Select() : m_auto_broadcast(AutoBroadcastSpec(AutoBroadcastType::NUMPY)) {}
 

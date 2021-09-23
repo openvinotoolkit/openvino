@@ -209,7 +209,7 @@ std::shared_ptr<ngraph::Node> clone_node(const std::shared_ptr<ngraph::Node> &no
 }
 }  // namespace
 
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::type_info, clone_node<NAMESPACE::NAME>},
+#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), clone_node<NAMESPACE::NAME>},
 
 const ClonersMap::cloners_map_type ClonersMap::cloners{
 #include <ngraph/opsets/opset1_tbl.hpp>

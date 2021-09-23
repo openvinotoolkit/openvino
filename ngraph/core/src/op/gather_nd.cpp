@@ -12,7 +12,7 @@ using namespace ngraph;
 
 // ------------------------------ V5 ------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v5::GatherND, "GatherND", 5);
+BWDCMP_RTTI_DEFINITION(op::v5::GatherND);
 
 op::v5::GatherND::GatherND(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims)
     : Op({data, indices}),

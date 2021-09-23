@@ -15,7 +15,8 @@ namespace v0 {
 ///
 class OPENVINO_API Atan : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Atan", "opset1", util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an arctan operation.
     Atan() = default;
 

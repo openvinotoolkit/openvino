@@ -14,7 +14,8 @@ namespace util {
 ///
 class OPENVINO_API ScatterNDBase : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ScatterNDBase", "util");
+    BWDCMP_RTTI_DECLARATION;
     // Respective input ordinal number.
     static constexpr int INPUTS = 0;
     static constexpr int INDICES = 1;

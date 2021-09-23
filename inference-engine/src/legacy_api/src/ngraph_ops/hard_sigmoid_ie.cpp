@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::HardSigmoid_IE::type_info;
+BWDCMP_RTTI_DEFINITION(op::HardSigmoid_IE);
 
 op::HardSigmoid_IE::HardSigmoid_IE(const ngraph::Output<ngraph::Node> &arg,
                    float alpha,

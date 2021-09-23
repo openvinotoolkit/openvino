@@ -29,7 +29,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
                 const auto & target_inputs = output.get_target_inputs();
                 return std::all_of(target_inputs.begin(), target_inputs.end(),
                         [](const Input<Node> & input){
-                            return input.get_node()->get_type_info() != opset4::GroupConvolution::type_info;
+                            return input.get_node()->get_type_info() != opset4::GroupConvolution::get_type_info_static();
                         });
             });
 

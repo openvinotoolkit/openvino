@@ -26,7 +26,8 @@ namespace v0 {
 // clang-format on
 class OPENVINO_API Sin : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Sin", "opset1", util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a sine operation.
     ///
     /// \param arg Node that produces the input tensor.

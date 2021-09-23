@@ -12,7 +12,8 @@ namespace v0 {
 /// \brief Elementwise hyperbolic tangent operation.
 class OPENVINO_API Tanh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Tanh", "opset1", op::util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a hyperbolic tangent operation.
     ///

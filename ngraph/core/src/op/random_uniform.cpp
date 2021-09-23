@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v8::RandomUniform, "RandomUniform", 8);
-
 op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape,
                                      const Output<Node>& min_val,
                                      const Output<Node>& max_val,

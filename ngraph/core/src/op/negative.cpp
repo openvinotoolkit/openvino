@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Negative, "Negative", 0, util::UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v0::Negative);
 
 op::Negative::Negative(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

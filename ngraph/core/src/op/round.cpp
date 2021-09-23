@@ -61,7 +61,7 @@ bool evaluate_round(const HostTensorPtr& arg0,
 }
 }  // namespace roundop
 
-OPENVINO_RTTI_DEFINITION(op::v5::Round, "Round", 5);
+BWDCMP_RTTI_DEFINITION(op::v5::Round);
 
 op::v5::Round::Round(const Output<Node>& arg, RoundMode mode) : Op({arg}), m_mode(mode) {
     constructor_validate_and_infer_types();
@@ -127,5 +127,5 @@ EnumNames<ngraph::op::v5::Round::RoundMode>& EnumNames<ngraph::op::v5::Round::Ro
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v5::Round::RoundMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v5::Round::RoundMode>);
 }  // namespace ov

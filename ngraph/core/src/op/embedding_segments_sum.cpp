@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::EmbeddingSegmentsSum, "EmbeddingSegmentsSum", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::EmbeddingSegmentsSum);
 
 op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table,
                                                    const Output<Node>& indices,

@@ -14,7 +14,8 @@ namespace v1 {
 /// Reduces the tensor, eliminating the specified reduction axes by taking the product.
 class OPENVINO_API ReduceProd : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ReduceProd", "opset1", util::ArithmeticReductionKeepDims, 1);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a product reduction operation.
     ReduceProd() = default;
     /// \brief Constructs a product reduction operation.

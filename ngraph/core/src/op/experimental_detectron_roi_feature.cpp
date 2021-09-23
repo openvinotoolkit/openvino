@@ -14,9 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v6::ExperimentalDetectronROIFeatureExtractor,
-                         "ExperimentalDetectronROIFeatureExtractor",
-                         6);
+BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronROIFeatureExtractor);
 
 op::v6::ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor(const OutputVector& args,
                                                                                            const Attributes& attrs)

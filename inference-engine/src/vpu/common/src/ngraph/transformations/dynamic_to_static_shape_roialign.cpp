@@ -19,7 +19,7 @@ void dynamicToStaticShapeROIAlign(std::shared_ptr<ngraph::Node> target) {
     const auto roi_align = std::dynamic_pointer_cast<ngraph::opset3::ROIAlign>(target);
     VPU_THROW_UNLESS(roi_align,
         "dynamicToStaticShapeROIAlign transformation is not applicable for {}, it should be {} instead",
-        target, ngraph::opset3::ROIAlign::type_info);
+        target, ngraph::opset3::ROIAlign::get_type_info_static());
 
     const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(roi_align->input_value(0).get_node_shared_ptr());
     const auto num_roisDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(roi_align->input_value(2).get_node_shared_ptr());

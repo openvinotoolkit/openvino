@@ -11,7 +11,8 @@ namespace op {
 namespace v0 {
 class OPENVINO_API Result : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Result", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Allows a value to be used as a function result.
     Result() = default;
@@ -49,10 +50,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<ResultVector>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ResultVector>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ResultVector& m_ref;

@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Squeeze, "Squeeze", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Squeeze);
 
 op::Squeeze::Squeeze() : Op() {}
 

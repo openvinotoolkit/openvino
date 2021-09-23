@@ -13,7 +13,8 @@ namespace v1 {
 /// The pieces may have variadic lengths depending on "split_lengths" attribute.
 class OPENVINO_API VariadicSplit : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("VariadicSplit", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a variadic split operation.
     VariadicSplit() = default;

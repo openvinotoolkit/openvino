@@ -16,7 +16,8 @@ namespace v1 {
 ///        for each slice along specified axis.
 class OPENVINO_API TopK : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("TopK", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     using SortType = TopKSortType;
     using Mode = TopKMode;
@@ -117,7 +118,8 @@ namespace v3 {
 ///        for each slice along specified axis.
 class OPENVINO_API TopK : public v1::TopK {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("TopK", "opset3", op::Op, 3);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.

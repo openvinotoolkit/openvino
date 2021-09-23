@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v4::HSwish, "HSwish", 4, op::util::UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v4::HSwish);
 
 op::v4::HSwish::HSwish(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

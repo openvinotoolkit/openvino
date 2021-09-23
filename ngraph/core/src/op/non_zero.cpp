@@ -16,7 +16,7 @@
 using namespace ngraph;
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(op::v3::NonZero, "NonZero", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::NonZero);
 
 op::v3::NonZero::NonZero(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();

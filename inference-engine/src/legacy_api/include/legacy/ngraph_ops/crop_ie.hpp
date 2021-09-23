@@ -16,8 +16,8 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(CropIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"CropIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("CropIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     CropIE(const Output<Node>& data1,
            std::vector<int64_t> axes,

@@ -13,7 +13,8 @@ namespace util {
 /// \brief Base class for operations DFT and DFT.
 class OPENVINO_API FFTBase : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("FFTBase", "util");
+    BWDCMP_RTTI_DECLARATION;
     FFTBase() = default;
 
     void validate_and_infer_types() override;

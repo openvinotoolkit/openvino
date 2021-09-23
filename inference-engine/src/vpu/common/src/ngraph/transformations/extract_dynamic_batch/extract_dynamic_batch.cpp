@@ -39,18 +39,18 @@ private:
     using Functor = std::function<SliceConfiguration(const ngraph::Node&)>;
     static const std::unordered_map<ngraph::DiscreteTypeInfo, Functor>& getSlicers() {
         static const std::unordered_map<ngraph::DiscreteTypeInfo, Functor>& slicers = {
-            {ngraph::opset5::MatMul::type_info,                  sliceMatMul},
-            {ngraph::opset5::Convolution::type_info,             sliceConvolution},
-            {ngraph::opset5::GroupConvolution::type_info,        sliceConvolution},
-            {ngraph::opset5::ConvolutionBackpropData::type_info, sliceConvolution},
+            {ngraph::opset5::MatMul::get_type_info_static(),                  sliceMatMul},
+            {ngraph::opset5::Convolution::get_type_info_static(),             sliceConvolution},
+            {ngraph::opset5::GroupConvolution::get_type_info_static(),        sliceConvolution},
+            {ngraph::opset5::ConvolutionBackpropData::get_type_info_static(), sliceConvolution},
 
-            {ngraph::opset5::Add::type_info,              sliceBinaryEltwise},
-            {ngraph::opset5::Multiply::type_info,         sliceBinaryEltwise},
-            {ngraph::opset5::Minimum::type_info,          sliceBinaryEltwise},
-            {ngraph::opset5::Maximum::type_info,          sliceBinaryEltwise},
+            {ngraph::opset5::Add::get_type_info_static(),              sliceBinaryEltwise},
+            {ngraph::opset5::Multiply::get_type_info_static(),         sliceBinaryEltwise},
+            {ngraph::opset5::Minimum::get_type_info_static(),          sliceBinaryEltwise},
+            {ngraph::opset5::Maximum::get_type_info_static(),          sliceBinaryEltwise},
 
-            {ngraph::opset5::Relu::type_info,             sliceUnaryEltwise},
-            {ngraph::opset5::Clamp::type_info,            sliceUnaryEltwise},
+            {ngraph::opset5::Relu::get_type_info_static(),             sliceUnaryEltwise},
+            {ngraph::opset5::Clamp::get_type_info_static(),            sliceUnaryEltwise},
         };
         return slicers;
     }

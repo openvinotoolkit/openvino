@@ -15,7 +15,8 @@ class OPENVINO_API NonMaxSuppression : public Op {
 public:
     enum class BoxEncodingType { CORNER, CENTER };
 
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("NonMaxSuppression", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     NonMaxSuppression() = default;
 
@@ -84,7 +85,8 @@ class OPENVINO_API NonMaxSuppression : public Op {
 public:
     enum class BoxEncodingType { CORNER, CENTER };
 
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("NonMaxSuppression", "opset3", op::Op, 3);
+    BWDCMP_RTTI_DECLARATION;
     NonMaxSuppression() = default;
 
     /// \brief Constructs a NonMaxSuppression operation.
@@ -163,7 +165,8 @@ namespace v4 {
 ///
 class OPENVINO_API NonMaxSuppression : public op::v3::NonMaxSuppression {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("NonMaxSuppression", "opset4", op::v3::NonMaxSuppression, 4);
+    BWDCMP_RTTI_DECLARATION;
     NonMaxSuppression() = default;
 
     /// \brief Constructs a NonMaxSuppression operation.
@@ -213,7 +216,8 @@ namespace v5 {
 ///
 class OPENVINO_API NonMaxSuppression : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("NonMaxSuppression", "opset5", op::Op, 5);
+    BWDCMP_RTTI_DECLARATION;
     enum class BoxEncodingType { CORNER, CENTER };
 
     NonMaxSuppression() = default;
@@ -373,10 +377,8 @@ public:
     AttributeAdapter(op::v1::NonMaxSuppression::BoxEncodingType& value)
         : EnumAttributeAdapterBase<op::v1::NonMaxSuppression::BoxEncodingType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::v1::NonMaxSuppression::BoxEncodingType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -386,10 +388,8 @@ public:
     AttributeAdapter(op::v3::NonMaxSuppression::BoxEncodingType& value)
         : EnumAttributeAdapterBase<op::v3::NonMaxSuppression::BoxEncodingType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::v3::NonMaxSuppression::BoxEncodingType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -399,10 +399,8 @@ public:
     AttributeAdapter(op::v5::NonMaxSuppression::BoxEncodingType& value)
         : EnumAttributeAdapterBase<op::v5::NonMaxSuppression::BoxEncodingType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::v5::NonMaxSuppression::BoxEncodingType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

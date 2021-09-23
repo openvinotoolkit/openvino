@@ -11,8 +11,8 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v3::ReadValue, "ReadValue", 3);
-OPENVINO_RTTI_DEFINITION(ov::op::v6::ReadValue, "ReadValue", 6);
+BWDCMP_RTTI_DEFINITION(ov::op::v3::ReadValue);
+BWDCMP_RTTI_DEFINITION(ov::op::v6::ReadValue);
 
 op::v3::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& variable_id)
     : ReadValueBase({init_value}),

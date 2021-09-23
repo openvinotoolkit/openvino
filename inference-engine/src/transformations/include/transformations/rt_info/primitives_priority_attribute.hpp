@@ -63,11 +63,7 @@ extern template class TRANSFORMATIONS_API VariantImpl<ngraph::PrimitivesPriority
 template<>
 class TRANSFORMATIONS_API VariantWrapper<ngraph::PrimitivesPriority> : public VariantImpl<ngraph::PrimitivesPriority> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::PrimitivesPriority", 0};
-
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("VariantWrapper<PrimitivesPriority>");
 
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 

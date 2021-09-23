@@ -15,7 +15,7 @@
 using namespace ngraph;
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(op::v1::ReduceLogicalAnd, "ReduceLogicalAnd", 1, util::LogicalReductionKeepDims);
+BWDCMP_RTTI_DEFINITION(op::v1::ReduceLogicalAnd);
 
 op::v1::ReduceLogicalAnd::ReduceLogicalAnd(const Output<Node>& data,
                                            const Output<Node>& reduction_axes,
