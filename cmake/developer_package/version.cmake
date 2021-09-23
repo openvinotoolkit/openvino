@@ -27,10 +27,12 @@ function (commitHash VAR)
 endfunction()
 
 macro(ie_parse_ci_build_number)
-    if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)\-.*")
+    set(IE_VERSION_BUILD 000)
+    if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)\-.*")
         set(IE_VERSION_MAJOR ${CMAKE_MATCH_1})
         set(IE_VERSION_MINOR ${CMAKE_MATCH_2})
         set(IE_VERSION_PATCH ${CMAKE_MATCH_3})
+        set(IE_VERSION_BUILD ${CMAKE_MATCH_4})
     endif()
 
     if(NOT DEFINED repo_root)
