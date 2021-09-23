@@ -1,4 +1,4 @@
-# OpenVINO™ Low Precision Transformations: Attributes {#openvino_docs_IE_DG_lpt_attributes}
+# Attributes {#openvino_docs_IE_DG_lpt_attributes}
 
 ## Introduction
 

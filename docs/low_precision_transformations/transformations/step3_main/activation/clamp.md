@@ -1,3 +1,3 @@
-# OpenVINO™ Low Precision Transformations: ClampTransformation {#openvino_docs_IE_DG_lpt_ClampTransformation}
+# ClampTransformation transformation {#openvino_docs_IE_DG_lpt_ClampTransformation}
 
 ngraph::pass::low_precision::ClampTransformation class represents the `Clamp` operation transformation.

@@ -1,3 +1,3 @@
-# OpenVINO™ Low Precision Transformations: FuseSubtractToFakeQuantizeTransformation {#openvino_docs_IE_DG_lpt_FuseSubtractToFakeQuantizeTransformation}
+# FuseSubtractToFakeQuantizeTransformation transformation {#openvino_docs_IE_DG_lpt_FuseSubtractToFakeQuantizeTransformation}
 
 ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation class represents the `FuseSubtractToFakeQuantizeTransformation` transformation.

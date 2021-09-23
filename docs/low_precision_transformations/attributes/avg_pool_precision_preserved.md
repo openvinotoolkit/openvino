@@ -1,4 +1,4 @@
-# OpenVINO™ Low Precision Transformations: AvgPoolPrecisionPreserved {#openvino_docs_IE_DG_lpt_AvgPoolPrecisionPreserved}
+# AvgPoolPrecisionPreserved attribute {#openvino_docs_IE_DG_lpt_AvgPoolPrecisionPreserved}
 
 ngraph::AvgPoolPrecisionPreservedAttribute class represents the `AvgPoolPrecisionPreserved` attribute.
 

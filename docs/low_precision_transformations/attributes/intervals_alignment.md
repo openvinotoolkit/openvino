@@ -1,4 +1,4 @@
-# OpenVINO™ Low Precision Transformations: IntervalsAlignment {#openvino_docs_IE_DG_lpt_IntervalsAlignment}
+# IntervalsAlignment attribute {#openvino_docs_IE_DG_lpt_IntervalsAlignment}
 
 ngraph::IntervalsAlignmentAttribute class represents the `IntervalsAlignment` attribute.
 

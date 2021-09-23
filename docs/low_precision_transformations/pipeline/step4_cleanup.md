@@ -1,4 +1,4 @@
-# OpenVINO™ LPT: Step #4. Cleanup Transformations {#openvino_docs_IE_DG_lpt_step4_cleanup}
+# Step #4. Cleanup Transformations {#openvino_docs_IE_DG_lpt_step4_cleanup}
 
 * [FoldConvertTransformation](@ref openvino_docs_IE_DG_lpt_FoldConvertTransformation)
 * [FoldFakeQuantizeTransformation](@ref openvino_docs_IE_DG_lpt_FoldFakeQuantizeTransformation)

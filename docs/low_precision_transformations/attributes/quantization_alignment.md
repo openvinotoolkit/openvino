@@ -1,4 +1,4 @@
-# OpenVINO™ Low Precision Transformations: QuantizationAlignment {#openvino_docs_IE_DG_lpt_QuantizationAlignment}
+# QuantizationAlignment attribute {#openvino_docs_IE_DG_lpt_QuantizationAlignment}
 
 ngraph::QuantizationAlignmentAttribute class represents the `QuantizationAlignment` attribute.
 
