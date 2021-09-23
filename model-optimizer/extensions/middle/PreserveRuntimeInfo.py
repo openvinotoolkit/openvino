@@ -36,9 +36,7 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                 # rt info update
                 assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op_name)
 
-                if not (op.has_valid('original_shape') and len(op['original_shape'])) > 0:
-                    op['original_shape'] = op_shape
-                op.rt_info.old_api_transpose(op['original_shape'][permutation.perm], permutation.inv)
+                op.rt_info.old_api_transpose(op_shape[permutation.perm], permutation.inv)
 
                 # keep input in the framework format
                 transpose = create_op_node_with_second_input(
