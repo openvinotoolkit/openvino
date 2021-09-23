@@ -509,7 +509,9 @@ void MKLDNNGraph::InitEdges() {
                     layerName = basicLayerName + "_" + std::to_string(idx);
                 }
                 uniqueLayerNames.insert(layerName);
-                InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc());
+
+                // check if just desc update w/o actual physical memory movement by optimized flag
+                InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), edge->isOptimizedReorder());
             }
             graphEdges.erase(graphEdges.begin() + i);
             i--;

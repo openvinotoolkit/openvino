@@ -65,12 +65,7 @@ void MKLDNNEdge::drop() {
     _drop_from(getChild()->parentEdges);
 }
 
-
-bool MKLDNNEdge::needReorder() {
-    if (!getInputDesc().isCompatible(getOutputDesc())) {
-        return true;
-    }
-
+bool MKLDNNEdge::isInPlaceConflicts() {
     bool canBeInPlaceConflicts = false;
     auto parentNode = getParent();
     auto parentSPD = parentNode->getSelectedPrimitiveDescriptor();
@@ -140,6 +135,33 @@ bool MKLDNNEdge::needReorder() {
     }
 
     return false;
+}
+
+bool MKLDNNEdge::needReorder() {
+    if (!getInputDesc().isCompatible(getOutputDesc())) {
+        return true;
+    }
+
+    return isInPlaceConflicts();
+}
+
+bool MKLDNNEdge::isOptimizedReorder() {
+    if (!getInputDesc().isDefined() ||
+        !getOutputDesc().isDefined() ||
+        !(getInputDesc().getType() & MemoryDescType::Blocked) ||
+        !(getOutputDesc().getType() & MemoryDescType::Blocked))
+        return false;
+
+    const auto inMemDesc = MemoryDescUtils::convertToBlockedMemoryDesc(getInputDesc().clone());
+    const auto outMemDesc = MemoryDescUtils::convertToBlockedMemoryDesc(getOutputDesc().clone());
+    if (!inMemDesc->isPhycicalMemCompatible(outMemDesc)) {
+        return false;
+    }
+
+    if (getParent()->isConstant())
+        return false;
+
+    return !isInPlaceConflicts();
 }
 
 void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
