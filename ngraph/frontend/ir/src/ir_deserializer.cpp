@@ -688,14 +688,12 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
 
     auto parse_type_info = [](const std::string& value) {
         std::string name, version;
-        auto pos = value.rfind(":");
+        auto pos = value.rfind('_');
         if (pos == value.npos) {
             IE_THROW() << "Can not parse attribute version from: " << value;
         }
         name = value.substr(0, pos);
-
         version = value.substr(pos + 1, std::string::npos);
-
         return std::tuple<std::string, std::string>(name, version);
     };
 
