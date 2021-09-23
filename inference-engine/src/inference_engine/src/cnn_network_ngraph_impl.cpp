@@ -411,7 +411,7 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
             specialized_ngraph_function->validate_nodes_and_infer_types();
         }
 
-#if 0
+#if 1
         bool obfuscate = true; // set to false to get exact dimensions
         std::map<std::string, std::map<std::string, size_t>> signatures;
         for (const auto& op : _ngraph_function->get_ordered_ops()) {
@@ -436,13 +436,13 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
             shape_representation << "-> ";
             for (const auto& output: op->outputs())  {
                 bool first = true;
+                shape_representation << "{";
                 for (const auto& dimension : output.get_partial_shape()) {
                     if (!first) {
                         shape_representation << ",";
-                    } else {
-                        shape_representation << "{";
-                        first = false;
                     }
+                    first = false;
+
                     if (obfuscate)
                         shape_representation << (dimension.is_dynamic() ? "D" : "S");
                     else
