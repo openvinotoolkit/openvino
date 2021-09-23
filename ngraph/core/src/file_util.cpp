@@ -50,7 +50,7 @@ void file_util::convert_path_win_style(std::string& path) {
     ov::util::convert_path_win_style(path);
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::string file_util::wstring_to_string(const std::wstring& wstr) {
     return ov::util::wstring_to_string(wstr);
@@ -59,4 +59,4 @@ std::string file_util::wstring_to_string(const std::wstring& wstr) {
 std::wstring file_util::multi_byte_char_to_wstring(const char* str) {
     return ov::util::string_to_wstring(str);
 }
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
