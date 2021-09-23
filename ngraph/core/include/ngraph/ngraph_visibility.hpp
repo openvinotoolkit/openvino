@@ -5,7 +5,7 @@
 #include "ngraph/visibility.hpp"
 #include "openvino/core/core_visibility.hpp"
 
-#define NGRAPH_API OPENVINO_API
+#define NGRAPH_API      OPENVINO_API
 #define NGRAPH_API_C    OPENVINO_API_C
 #define NGRAPH_EXTERN_C OPENVINO_EXTERN_C
 
