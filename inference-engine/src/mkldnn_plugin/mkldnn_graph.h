@@ -237,7 +237,7 @@ protected:
     void CreatePrimitives();
     void ExtractConstantAndExecutableNodes();
     void ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::stream& stream) const;
-    void ExecuteConstantNodesOnly();
+    void ExecuteConstantNodesOnly() const;
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
