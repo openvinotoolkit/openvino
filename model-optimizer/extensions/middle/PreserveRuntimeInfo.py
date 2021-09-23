@@ -30,7 +30,9 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
             op_type = op.soft_get('type')
             op_shape = op.soft_get('shape')
             if op_type == 'Parameter' and op.has_valid('permute_attrs') and not op.has_and_set('nchw_layout'):
-                permutation = op.out_port(0).permutation
+                if not op.out_node(0).has_valid('permutation'):
+                    continue
+                permutation = op.out_node(0).permutation
                 # rt info update
                 assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op_name)
 
@@ -53,8 +55,9 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
             elif op_type == 'Result' and len(op_shape) > 3 and op.in_ports():
                 prev_node_out_port = op.in_port(0).get_connection().get_source()
                 in_node = prev_node_out_port.node
-                if in_node.out_node(prev_node_out_port.idx).has_and_set('permutation'):
-                    permutation = in_node.out_node(prev_node_out_port.idx)['permutation']
+                in_data_node = in_node.out_node(prev_node_out_port.idx)
+                if in_data_node.has_and_set('permutation'):
+                    permutation = in_data_node['permutation']
                     # rt info update
                     assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op)
                     op.rt_info.old_api_transpose_result(permutation.perm)
@@ -66,5 +69,5 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
 
                     prev_node_out_port.get_connection().insert_node(transpose)
 
-                    if in_node.has_valid('permutation'):
-                        del in_node.out_node(prev_node_out_port.idx)['permutation']
+                    if in_data_node.has_valid('permutation'):
+                        del in_data_node['permutation']

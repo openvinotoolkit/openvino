@@ -253,12 +253,12 @@ def serialize_runtime_info(node, schema: list, parent_element: Element):
     element = SubElement(parent_element, name)
 
     if 'rt_info' in node:
-        if node.soft_get('type') == 'Parameter':
-            assert 'original_type' in node, 'Lack of information for `old_api_map` serialization, {}'.format(node.rt_info.info)
-            assert 'inverse_order' in node.rt_info.info['old_api'], 'Lack of information for `old_api_map` serialization, {}'.format(node.rt_info.info)
-
-        if node.soft_get('type') == 'Result':
-            assert 'order' in node.rt_info.info['old_api'], 'Lack of information for `old_api_map` serialization, {}'.format(node.rt_info.info)
+        # if node.soft_get('type') == 'Parameter':
+        #     assert 'original_type' in node, 'Lack of information for `old_api_map` serialization, {}'.format(node.rt_info.info)
+        #     assert 'inverse_order' in node.rt_info.info['old_api'], 'Lack of information for `old_api_map` serialization, {}'.format(node.rt_info.info)
+        #
+        # if node.soft_get('type') == 'Result':
+        #     assert 'order' in node.rt_info.info['old_api'], 'Lack of information for `old_api_map` serialization, {}'.format(node.rt_info.info)
 
         for attr in attrs:
             key = attr
@@ -266,9 +266,9 @@ def serialize_runtime_info(node, schema: list, parent_element: Element):
             if key == 'old_api_element_type' and 'original_type' in node:
                 value = np_data_type_to_destination_type(node['original_type'])
             elif key == 'old_api_transpose_order':
-                if node.soft_get('type') == 'Parameter':
+                if node.soft_get('type') == 'Parameter' and 'inverse_order' in node.rt_info.info['old_api']:
                     value = '{}'.format(node.rt_info.info['old_api']['inverse_order']).replace(' ', ',')
-                elif node.soft_get('type') == 'Result':
+                elif node.soft_get('type') == 'Result' and 'order' in node.rt_info.info['old_api']:
                     value = '{}'.format(node.rt_info.info['old_api']['order']).replace(' ', ',')
             elif key == 'convert_dst_type':
                 value = '{}'.format(node.rt_info.info['old_api']['legacy_type'])
