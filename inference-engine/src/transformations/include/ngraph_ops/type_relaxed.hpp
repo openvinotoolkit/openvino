@@ -327,7 +327,7 @@ template <typename BaseOp>
 const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
     auto baseOpTypeInfoPtr = &BaseOp::get_type_info_static();
     static const ::ngraph::Node::type_info_t type_info_static{
-        baseOpTypeInfoPtr->name, baseOpTypeInfoPtr->version, baseOpTypeInfoPtr};
+        baseOpTypeInfoPtr->name, baseOpTypeInfoPtr->version, baseOpTypeInfoPtr->version_id, baseOpTypeInfoPtr};
     return type_info_static;
 }
 

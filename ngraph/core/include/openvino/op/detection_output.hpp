@@ -32,7 +32,8 @@ public:
         float objectness_score = 0;
     };
 
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("DetectionOutput", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     DetectionOutput() = default;
     /// \brief Constructs a DetectionOutput operation
