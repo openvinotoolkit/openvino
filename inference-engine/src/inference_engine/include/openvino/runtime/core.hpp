@@ -38,7 +38,7 @@ namespace runtime {
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(Core) {
+class OPENVINO_RUNTIME_API Core {
     class Impl;
     std::shared_ptr<Impl> _impl;
 
@@ -61,7 +61,7 @@ public:
      */
     std::map<std::string, Version> get_versions(const std::string& deviceName) const;
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Reads models from IR and ONNX formats
      * @param modelPath path to model

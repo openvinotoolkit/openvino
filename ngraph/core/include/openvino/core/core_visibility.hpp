@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "openvino/core/visibility.hpp"
 
 #define OV_NEW_API 1
@@ -19,20 +21,10 @@
 #    define OPENVINO_API_C(...) __VA_ARGS__
 #else
 #    ifdef ngraph_EXPORTS  // defined if we are building the NGRAPH DLL (instead of using it)
-#        define OPENVINO_API        CORE_HELPER_DLL_EXPORT
-#        define OPENVINO_API_C(...) OPENVINO_EXTERN_C CORE_HELPER_DLL_EXPORT __VA_ARGS__ OPENVINO_CDECL
+#        define OPENVINO_API        OPENVINO_CORE_EXPORTS
+#        define OPENVINO_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS __VA_ARGS__ OPENVINO_CDECL
 #    else
-#        define OPENVINO_API        CORE_HELPER_DLL_IMPORT
-#        define OPENVINO_API_C(...) OPENVINO_EXTERN_C CORE_HELPER_DLL_IMPORT __VA_ARGS__ OPENVINO_CDECL
+#        define OPENVINO_API        OPENVINO_CORE_IMPORTS
+#        define OPENVINO_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS __VA_ARGS__ OPENVINO_CDECL
 #    endif  // ngraph_EXPORTS
 #endif      // NGRAPH_STATIC_LIBRARY
-
-#ifndef ENABLE_UNICODE_PATH_SUPPORT
-#    ifdef _WIN32
-#        if defined __INTEL_COMPILER || defined _MSC_VER
-#            define ENABLE_UNICODE_PATH_SUPPORT
-#        endif
-#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#        define ENABLE_UNICODE_PATH_SUPPORT
-#    endif
-#endif

@@ -254,7 +254,7 @@ struct parse_result {
  * @return     The parse_result.
  */
 inline parse_result ParseXml(const char* file_path) {
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     std::wstring wFilePath = ov::util::string_to_wstring(file_path);
     const wchar_t* resolvedFilepath = wFilePath.c_str();
 #else
