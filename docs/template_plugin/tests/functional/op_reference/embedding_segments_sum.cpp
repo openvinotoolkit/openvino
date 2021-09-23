@@ -2,20 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
-#include <algorithm>
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
-#define ConstantPtr     std::shared_ptr<ngraph::opset1::Constant>
-#define MakeConstantPtr std::make_shared<ngraph::opset1::Constant>
-
-#include "base_reference_test.hpp"
+#include "embeddingbag.hpp"
 
 using namespace reference_tests;
 using namespace ngraph;
@@ -99,10 +86,6 @@ private:
 
         if (default_index) {
             if (per_sample_weights) {
-                // std::vector<size_t> i_shape = {per_sample_weights.size()};
-                // auto weightsNode =
-                //     std::make_shared<ngraph::opset1::Constant>(element::f32, i_shape, per_sample_weights);
-
                 const auto ess = std::make_shared<op::v3::EmbeddingSegmentsSum>(in,
                                                                                 indices,
                                                                                 segment_ids,
@@ -129,19 +112,6 @@ TEST_P(ReferenceEmbeddingSegmentsSumLayerTest, CompareWithRefs) {
     Exec();
 }
 
-template <class T>
-inline ConstantPtr GetConstantVec(const std::vector<T>& val, const ngraph::element::Type& element_type) {
-    return MakeConstantPtr(element_type, std::vector<size_t>{val.size()}, val);
-}
-
-inline ConstantPtr GetConstantVal_i32(const int32_t& val) {
-    return MakeConstantPtr(element::i32, std::vector<size_t>{}, val);
-}
-
-inline ConstantPtr GetConstantVal_i64(const int64_t& val) {
-    return MakeConstantPtr(element::i64, std::vector<size_t>{}, val);
-}
-
 INSTANTIATE_TEST_SUITE_P(
     smoke_EmbeddingSegmentsSum_With_Hardcoded_Refs,
     ReferenceEmbeddingSegmentsSumLayerTest,
@@ -154,8 +124,8 @@ INSTANTIATE_TEST_SUITE_P(
                                    {-1.05f, -1.2f, -0.2f, -0.6f, -0.1f, 0.4f},
                                    GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
                                    GetConstantVec<int32_t>({0, 0, 2, 2}, element::i32),
-                                   GetConstantVal_i32(3),
-                                   GetConstantVal_i32(0),
+                                   GetConstantVal<int32_t>(3, element::i32),
+                                   GetConstantVal<int32_t>(0, element::i32),
                                    GetConstantVec<float>({0.5, 0.5, 0.5, 0.5}, element::f32)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
                                    ngraph::element::f64,
@@ -165,8 +135,8 @@ INSTANTIATE_TEST_SUITE_P(
                                    std::vector<double>{-2.1, -2.4, -0.2, -0.6, -0.2, 0.8},
                                    GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
                                    GetConstantVec<int32_t>({0, 0, 2, 2}, element::i32),
-                                   GetConstantVal_i32(3),
-                                   GetConstantVal_i32(0)),
+                                   GetConstantVal<int32_t>(3, element::i32),
+                                   GetConstantVal<int32_t>(0, element::i32)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
                                    ngraph::element::i32,
                                    std::vector<int32_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
@@ -175,7 +145,7 @@ INSTANTIATE_TEST_SUITE_P(
                                    std::vector<int32_t>{-6, -4, 0, 0, 2, 18},
                                    GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
                                    GetConstantVec<int32_t>({0, 0, 2, 2}, element::i32),
-                                   GetConstantVal_i32(3)),
+                                   GetConstantVal<int32_t>(3, element::i32)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
                                    ngraph::element::u32,
                                    std::vector<uint32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
@@ -184,8 +154,8 @@ INSTANTIATE_TEST_SUITE_P(
                                    std::vector<uint32_t>{6, 8, 3, 4, 16, 18},
                                    GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
                                    GetConstantVec<int32_t>({0, 0, 2, 2}, element::i32),
-                                   GetConstantVal_i32(3),
-                                   GetConstantVal_i32(1)),
+                                   GetConstantVal<int32_t>(3, element::i32),
+                                   GetConstantVal<int32_t>(1, element::i32)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
                                    ngraph::element::f16,
                                    std::vector<float16>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
@@ -194,7 +164,7 @@ INSTANTIATE_TEST_SUITE_P(
                                    std::vector<float16>{-2.1, -2.4, 0, 0, -0.2, 0.8},
                                    GetConstantVec<int64_t>({0, 2, 3, 4}, element::i64),
                                    GetConstantVec<int64_t>({0, 0, 2, 2}, element::i64),
-                                   GetConstantVal_i64(3)),
+                                   GetConstantVal<int64_t>(3, element::i64)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
                                    ngraph::element::i64,
                                    std::vector<int64_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
@@ -203,8 +173,8 @@ INSTANTIATE_TEST_SUITE_P(
                                    std::vector<int64_t>{-6, -4, -1, 2, 2, 18},
                                    GetConstantVec<int64_t>({0, 2, 3, 4}, element::i64),
                                    GetConstantVec<int64_t>({0, 0, 2, 2}, element::i64),
-                                   GetConstantVal_i64(3),
-                                   GetConstantVal_i64(0)),
+                                   GetConstantVal<int64_t>(3, element::i64),
+                                   GetConstantVal<int64_t>(0, element::i64)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
                                    ngraph::element::i8,
                                    std::vector<int8_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
@@ -213,8 +183,8 @@ INSTANTIATE_TEST_SUITE_P(
                                    std::vector<int8_t>{-12, -8, -1, 2, 4, 36},
                                    GetConstantVec<int64_t>({0, 2, 3, 4}, element::i64),
                                    GetConstantVec<int64_t>({0, 0, 2, 2}, element::i64),
-                                   GetConstantVal_i64(3),
-                                   GetConstantVal_i64(0),
+                                   GetConstantVal<int64_t>(3, element::i64),
+                                   GetConstantVal<int64_t>(0, element::i64),
                                    GetConstantVec<int8_t>({2, 2, 2, 2}, element::i8)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
                                    ngraph::element::u8,
@@ -224,6 +194,6 @@ INSTANTIATE_TEST_SUITE_P(
                                    std::vector<uint8_t>{6, 8, 1, 2, 16, 18},
                                    GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
                                    GetConstantVec<int32_t>({0, 0, 2, 2}, element::i32),
-                                   GetConstantVal_i32(3),
-                                   GetConstantVal_i32(0))),
+                                   GetConstantVal<int32_t>(3, element::i32),
+                                   GetConstantVal<int32_t>(0, element::i32))),
     ReferenceEmbeddingSegmentsSumLayerTest::getTestCaseName);
