@@ -55,7 +55,8 @@ void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op::v6::Ga
                                             inputPrimitives[1],
                                             outLayout,
                                             CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                            GetGatherAxis(axis, rank));
+                                            GetGatherAxis(axis, rank),
+                                            op->get_friendly_name());
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);
