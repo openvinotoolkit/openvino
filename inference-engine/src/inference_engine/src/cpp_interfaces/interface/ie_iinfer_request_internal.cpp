@@ -364,8 +364,4 @@ void* IInferRequestInternal::GetUserData() noexcept {
 void IInferRequestInternal::SetUserData(void* userData) noexcept {
     _userData = userData;
 }
-
-std::shared_ptr<IExecutableNetworkInternal> IInferRequestInternal::GetExecutableNetwork() const noexcept {
-    return _exeNetwork;
-}
 }  // namespace InferenceEngine

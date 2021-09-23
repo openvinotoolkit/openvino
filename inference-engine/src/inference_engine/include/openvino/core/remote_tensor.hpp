@@ -9,8 +9,8 @@
  */
 #pragma once
 
-#include "ie_parameter.hpp"
 #include "ie_remote_blob.hpp"
+#include "openvino/runtime/parameter.hpp"
 #include "openvino/core/tensor.hpp"
 
 namespace ov {
@@ -23,15 +23,11 @@ class RemoteContext;
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(RemoteTensor) : public Tensor {
+class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
     using Tensor::Tensor;
     friend class ov::runtime::RemoteContext;
 
 public:
-    using Tensor::get_element_type;
-
-    using Tensor::get_shape;
-
     void* data(const element::Type) = delete;
 
     template <typename T>
@@ -41,24 +37,24 @@ public:
      * @brief Returns a map of device-specific parameters required for low-level
      * operations with underlying object.
      * Parameters include device/context/surface/buffer handles, access flags,
-     * etc. Contents of the map returned depend on remote execution context that is
+     * etc. Content of the returned map depends on remote execution context that is
      * currently set on the device (working scenario).
      * Abstract method.
      * @return A map of name/parameter elements.
      */
-    ie::ParamMap get_params() const;
+    runtime::ParamMap get_params() const;
 
     /**
      * @brief Returns name of the device on which underlying object is allocated.
      * Abstract method.
-     * @return A device name string in the same format as that in plugin metric.
+     * @return A device name string in fully specified format <device_name>[.<device_id>[.<tile_id>]].
      */
     std::string get_device_name() const;
 
     /**
-     * @brief Checks if the RemoteContext object can be cast to the type T*
+     * @brief Checks if the RemoteTensor object can be cast to the type T*
      *
-     * @tparam T Type to be checked. Must represent a class derived from the RemoteContext
+     * @tparam T Type to be checked. Must represent a class derived from the RemoteTensor
      * @return true if this object can be dynamically cast to the type T*. Otherwise, false
      */
     template <typename T,
@@ -69,9 +65,9 @@ public:
     }
 
     /**
-     * @brief Checks if the RemoteContext object can be cast to the type const T*
+     * @brief Checks if the RemoteTensor object can be cast to the type const T*
      *
-     * @tparam T Type to be checked. Must represent a class derived from the RemoteContext
+     * @tparam T Type to be checked. Must represent a class derived from the RemoteTensor
      * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
      */
     template <typename T>
@@ -80,9 +76,9 @@ public:
     }
 
     /**
-     * @brief Casts this RemoteContext object to the type T*.
+     * @brief Casts this RemoteTensor object to the type T*.
      *
-     * @tparam T Type to cast to. Must represent a class derived from the RemoteContext
+     * @tparam T Type to cast to. Must represent a class derived from the RemoteTensor
      * @return Raw pointer to the object of the type T or nullptr on error
      */
     template <typename T,
@@ -93,9 +89,9 @@ public:
     }
 
     /**
-     * @brief Casts this RemoteContext object to the type const T*.
+     * @brief Casts this RemoteTensor object to the type const T*.
      *
-     * @tparam T Type to cast to. Must represent a class derived from the RemoteContext
+     * @tparam T Type to cast to. Must represent a class derived from the RemoteTensor
      * @return Raw pointer to the object of the type const T or nullptr on error
      */
     template <typename T,

@@ -24,18 +24,16 @@ namespace ov {
     }
 
 Tensor::Tensor(const std::shared_ptr<void>& so, const std::shared_ptr<ie::Blob>& impl) : _so{so}, _impl{impl} {
-    if (_impl == nullptr) {
-        IE_THROW() << "Tensor was not initialized.";
-    }
+    OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
 }
 
 Tensor::Tensor(const element::Type element_type, const Shape& shape, const Allocator& allocator) {
-    OPENVINO_ASSERT(allocator, "Allocator was not initalized");
+    OPENVINO_ASSERT(allocator, "Allocator was not initialized");
     auto allocator_impl = dynamic_cast<const BlobAllocator*>(allocator._impl.get());
     auto blob_allocator =
         (allocator_impl != nullptr) ? allocator_impl->_impl : std::make_shared<ie::BlobAllocator>(allocator._impl);
     _impl = make_blob_with_precision({ie::details::convertPrecision(element_type),
-                                      {shape.begin(), shape.end()},
+                                      shape,
                                       ie::TensorDesc::getLayoutByRank(shape.size())},
                                      blob_allocator);
     _impl->allocate();
@@ -43,7 +41,7 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, const Alloc
 
 Tensor::Tensor(const element::Type element_type,
                const Shape& shape,
-               void* ptr,
+               void* host_ptr,
                const size_t size,
                const Strides& strides) {
     ie::SizeVector blk_order(shape.size());
@@ -51,16 +49,25 @@ Tensor::Tensor(const element::Type element_type,
     ie::SizeVector dim_offset(shape.size(), 0);
     ie::SizeVector blk_strides;
     if (strides.empty()) {
-        blk_strides.assign(shape.begin(), shape.end());
+        blk_strides = ov::row_major_strides(shape);
     } else {
+        OPENVINO_ASSERT(shape.size() == strides.size(),
+            "shape.size() (", shape.size(), ") must be equal to strides.size() (", strides.size(), ")");
         blk_strides.assign(strides.begin(), strides.end());
     }
-    _impl = make_blob_with_precision(ie::details::convertPrecision(element_type),
-                                     ie::TensorDesc{ie::details::convertPrecision(element_type),
-                                                    shape,
-                                                    ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}},
-                                     ptr,
-                                     size);
+
+    try {
+        _impl = make_blob_with_precision(ie::details::convertPrecision(element_type),
+                                        ie::TensorDesc{ie::details::convertPrecision(element_type),
+                                                        shape,
+                                                        ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}},
+                                        host_ptr,
+                                        size);
+    } catch (const std::exception& ex) {
+        throw ov::Exception(ex.what());
+    } catch (...) {
+        OPENVINO_ASSERT(false, "Unexpected exception");
+    }
 }
 
 Tensor::Tensor(const Tensor& owner, const Coordinate& begin, const Coordinate& end) : _so{owner._so} {
@@ -83,8 +90,7 @@ void Tensor::set_shape(const ov::Shape& shape) {
 
 Shape Tensor::get_shape() const {
     OV_TENSOR_STATEMENT({
-        auto dims = _impl->getTensorDesc().getDims();
-        return {dims.begin(), dims.end()};
+        return _impl->getTensorDesc().getDims();
     });
 }
 

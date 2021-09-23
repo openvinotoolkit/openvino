@@ -109,7 +109,7 @@ public:
     /**
      * @brief Returns name of the device on which underlying object is allocated.
      * Abstract method.
-     * @return A device name string in the same format as that in plugin metric.
+     * @return A device name string in fully specified format <device_name>[.<device_id>[.<tile_id>]].
      */
     std::string get_device_name() const;
 
@@ -129,7 +129,7 @@ public:
      * @brief Returns a map of device-specific parameters required for low-level
      * operations with underlying object.
      * Parameters include device/context handles, access flags,
-     * etc. Contents of the map returned depend on remote execution context that is
+     * etc. Content of the returned map depends on remote execution context that is
      * currently set on the device (working scenario).
      * Abstract method.
      * @return A map of name/parameter elements.

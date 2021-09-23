@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <memory>
 
-#include "ie_api.h"
+#include "openvino/runtime/common.hpp"
 
 namespace ov {
 
@@ -20,7 +20,7 @@ namespace ov {
  * @interface AllocatorImpl
  * @brief Tries to act like [std::pmr::memory_resource](https://en.cppreference.com/w/cpp/memory/memory_resource)
  */
-struct INFERENCE_ENGINE_API_CLASS(AllocatorImpl) : public std::enable_shared_from_this<AllocatorImpl> {
+struct OPENVINO_RUNTIME_API AllocatorImpl : public std::enable_shared_from_this<AllocatorImpl> {
     /**
      * @brief A smart pointer containing AllocatorImpl object
      */
@@ -59,10 +59,10 @@ protected:
 class Tensor;
 
 /**
- * @brief Wraps allocator implementation to provide safe way to store allocater loaded from DLL
- *        And construct default based on `new` `delete` c++ calls allocator if created with out paramters
+ * @brief Wraps allocator implementation to provide safe way to store allocater loaded from shared library
+ *        And constructs default based on `new` `delete` c++ calls allocator if created without parameters
  */
-class INFERENCE_ENGINE_API_CLASS(Allocator) {
+class OPENVINO_RUNTIME_API Allocator {
     std::shared_ptr<void> _so;
     AllocatorImpl::Ptr _impl;
 
@@ -116,13 +116,13 @@ public:
 
     /**
      * @brief Checks if current Allocator object is not initialized
-     * @return true if current Allocator object is not initialized, false - otherwise
+     * @return `true` if current Allocator object is not initialized, `false` - otherwise
      */
     bool operator!() const noexcept;
 
     /**
      * @brief Checks if current Allocator object is initialized
-     * @return true if current Allocator object is initialized, false - otherwise
+     * @return `true` if current Allocator object is initialized, `false` - otherwise
      */
     explicit operator bool() const noexcept;
 };

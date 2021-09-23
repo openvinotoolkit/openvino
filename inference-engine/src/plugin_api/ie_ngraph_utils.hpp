@@ -10,8 +10,6 @@
 #include "cpp/ie_cnn_network.h"
 #include "ie_precision.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/common.hpp"
 
 namespace InferenceEngine {
 namespace details {

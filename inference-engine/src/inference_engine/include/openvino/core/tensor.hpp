@@ -9,10 +9,8 @@
  */
 #pragma once
 
-#include "ie_api.h"
 #include "openvino/core/allocator.hpp"
 #include "openvino/core/coordinate.hpp"
-#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
@@ -29,13 +27,13 @@ class VariableState;
 }  // namespace runtime
 
 /**
- * @brief Memory access and interpretation API
+ * @brief Tensor API holding host memory
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(Tensor) {
+class OPENVINO_RUNTIME_API Tensor {
 protected:
-    std::shared_ptr<void> _so;        //!< Refernce to dynamicly loaded library
+    std::shared_ptr<void> _so;        //!< Reference to dynamicly loaded library
     std::shared_ptr<ie::Blob> _impl;  //!< Shared pointer to internal tensor representation
 
     /**
@@ -66,48 +64,45 @@ public:
 
     /**
      * @brief Constructs Tensor using element type and shape. Wraps allocated host memory.
-     * @note Dose not own the memory
+     * @note Does not perform memory allocation internally
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param ptr Pointer to allocate memory
-     * @param size Optional size of allocated host memory in elements. If it is not used the size of memory supposed to
+     * @param host_ptr Pointer to pre-allocated host memory
+     * @param size Optional size of allocated host memory in elements. If it is not set (default is `0`), the size of memory supposed to
      * be not less then ov::shape_size(shape) * type.size() in bytes.
-     * @param strides Optional element strides paramters. It is supposed that strides is equal to shape if it is not
-     * used
+     * @param strides Optional strides parameters in elements. Strides are supposed to be equal to shape if they are not set
      */
-    Tensor(const element::Type type, const Shape& shape, void* ptr, const size_t size = 0, const Strides& strides = {});
+    Tensor(const element::Type type, const Shape& shape, void* host_ptr, const size_t size = 0, const Strides& strides = {});
 
     /**
-     * @brief constructs region of interest (ROI) tensor form other tensor.
-     * @note Dose not own the memory
+     * @brief Constructs region of interest (ROI) tensor form another tensor.
+     * @note Does not perform memory allocation internally
      * @param other original tensor
      * @param begin start coordinate of ROI object inside of the original object.
      * @param end end coordinate of ROI object inside of the original object.
+     * @note A Number of dimensions in `begin` and `end` must match number of dimensions in `other.get_shape()`
      */
     Tensor(const Tensor& other, const Coordinate& begin, const Coordinate& end);
 
     /**
      * @brief Set new shape for tensor, deallocate/allocate if new total size is bigger than previous one.
-     *
-     * @param shape new shape
+     * @note Memory allocation may happen
+     * @param shape A new shape
      */
     void set_shape(const ov::Shape& shape);
 
     /**
-     * @return tensor element type
+     * @return A tensor element type
      */
     element::Type get_element_type() const;
 
     /**
-     * @return tensor element type
+     * @return A tensor shape
      */
     Shape get_shape() const;
 
     /**
-     * @brief By default, returns the total number of elements (a product of all the dims or 1 for scalar)
-     *
-     * Return value and its interpretation heavily depend on the internal tensor implementation
-     *
+     * @brief Returns the total number of elements (a product of all the dims or 1 for scalar)
      * @return The total number of elements
      */
     size_t get_size() const;
@@ -119,21 +114,23 @@ public:
     size_t get_byte_size() const;
 
     /**
-     * @return Tensor's strides
+     * @return Tensor's strides in elements
      */
     Strides get_strides() const;
 
     /**
-     * @return host pointer to tensor memory
+     * @brief Provides an access to the underlaying host memory
      * @param type Optional type parameter.
-     * If type parameter is specified throws exception
-     * if specified type fundamental type dose not match with tensor element type fundamental type
+     * @note If type parameter is specified, the method throws an exception
+     * if specified type's fundamental type does not match with tensor element type's fundamental type
+     * @return A host pointer to tensor memory
      */
     void* data(const element::Type type = {}) const;
 
     /**
-     * @return host pointer to tensor memory casted to specified type.
-     * Throws exception if specified type dose not match with tensor element type
+     * @brief Provides an access to the underlaying host memory casted to type `T`
+     * @return A host pointer to tensor memory casted to specified type `T`.
+     * @note Throws exception if specified type does not match with tensor element type
      */
     template <typename T>
     T* data() const {
@@ -142,13 +139,13 @@ public:
 
     /**
      * @brief Checks if current Tensor object is not initialized
-     * @return true if current Tensor object is not initialized, false - otherwise
+     * @return `true` if current Tensor object is not initialized, `false` - otherwise
      */
     bool operator!() const noexcept;
 
     /**
      * @brief Checks if current Tensor object is initialized
-     * @return true if current Tensor object is initialized, false - otherwise
+     * @return `true` if current Tensor object is initialized, `false` - otherwise
      */
     explicit operator bool() const noexcept;
 };
