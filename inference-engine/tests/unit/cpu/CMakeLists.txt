@@ -18,7 +18,7 @@ addIeTargetTest(
             mkldnn
             inference_engine_transformations
             inference_engine_lp_transformations
-            ov::shape_inference
+            ov_shape_inference
             inference_engine_s
         ADD_CPPLINT
         LABELS

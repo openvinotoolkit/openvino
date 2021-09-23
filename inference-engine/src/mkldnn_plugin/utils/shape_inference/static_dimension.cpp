@@ -4,8 +4,6 @@
 
 #include "static_dimension.hpp"
 
-#include <iostream>
-
 using namespace ov;
 
 std::ostream& ov::operator<<(std::ostream& str, const StaticDimension& dimension) {

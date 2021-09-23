@@ -16,16 +16,8 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create shared library
 add_library(${TARGET_NAME} INTERFACE)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(${TARGET_NAME} PUBLIC /wd4146)
-endif()
-
-
 # Defines macro in C++ to load backend plugin
 target_include_directories(${TARGET_NAME} INTERFACE ${SHAPE_INFER_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH})
 
-# Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(ov::shape_inference ALIAS ${TARGET_NAME})
-
 # developer package
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ov::shape_inference)
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ${TARGET_NAME})

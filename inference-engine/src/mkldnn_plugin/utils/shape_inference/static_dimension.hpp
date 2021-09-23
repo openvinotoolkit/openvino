@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <limits>
 #include <stdexcept>
+#include <ostream>
 
 namespace ov {
 /// \brief Class representing a dimension, which must be static,
