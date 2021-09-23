@@ -154,4 +154,21 @@ namespace {
                                 ::testing::ValuesIn(multiinconfigs)),
                             IncorrectConfigAPITests::getTestCaseName);
 
+    const std::vector<std::map<std::string, std::string>> ConfigsSetTwice = {
+            {},
+            {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT}},
+            {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY}},
+            {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
+                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}},
+            {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "8"}},
+            {{InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD, InferenceEngine::PluginConfigParams::NO}},
+            {{InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD, InferenceEngine::PluginConfigParams::YES}},
+            {{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "10"}}
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigSetTwice,
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                     ::testing::ValuesIn(ConfigsSetTwice)),
+                             CorrectConfigSetTwice::getTestCaseName);
 } // namespace

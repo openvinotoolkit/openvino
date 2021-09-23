@@ -141,6 +141,12 @@ public:
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            ie->SetConfig({});
+        }
+    }
 };
 
 using BehaviorParamsSingleOptionCustom = std::tuple<
@@ -193,5 +199,6 @@ using CorrectConfigPrivateOptionsTests = BehaviorTestsSingleOption;
 using IncorrectConfigTests = CorrectConfigTests;
 using IncorrectConfigSingleOptionTests = BehaviorTestsSingleOption;
 using IncorrectConfigAPITests = CorrectConfigTests;
+using CorrectConfigSetTwice = CorrectConfigTests;
 
 } // namespace BehaviorTestsDefinitions

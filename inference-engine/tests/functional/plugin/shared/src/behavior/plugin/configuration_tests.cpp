@@ -107,6 +107,28 @@ TEST_P(CorrectConfigTests, CanUseCache) {
     CommonTestUtils::removeDir("./test_cache");
 }
 
+TEST_P(CorrectConfigTests, canSetConfigAndCheckGetConfig) {
+    ie->SetConfig(configuration, targetDevice);
+    for (const auto& configItem : configuration) {
+        InferenceEngine::Parameter param;
+        ASSERT_NO_THROW(param = ie->GetConfig(targetDevice, configItem.first));
+        ASSERT_FALSE(param.empty());
+        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+    }
+}
+
+TEST_P(CorrectConfigSetTwice, canSetConfigTwiceAndCheckGetConfig) {
+    ie->SetConfig({}, targetDevice);
+    ie->SetConfig(configuration, targetDevice);
+    for (const auto& configItem : configuration) {
+        InferenceEngine::Parameter param;
+//        ASSERT_NO_THROW(param = ie->GetConfig(targetDevice, configItem.first));
+        param = ie->GetConfig(targetDevice, configItem.first);
+        ASSERT_FALSE(param.empty());
+        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+    }
+}
+
 TEST_P(CorrectSingleOptionCustomValueConfigTests, CheckCustomValueOfConfig) {
     ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::map<std::string, std::string> configuration = {{key, value}};
