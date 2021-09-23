@@ -1480,7 +1480,7 @@ void MKLDNNGraphOptimizer::FuseClampAndFakeQuantize(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableClampNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Eltwise && node->getAlgorithm() == EltwiseClamp && !node->isDynamicNode() && node->getChildEdges().size() == 1;
+        return node->getType() == Eltwise && node->getChildEdges().size() == 1 && node->getAlgorithm() == EltwiseClamp;
     };
 
     auto isSuitableFakeQuantizeNode = [](MKLDNNNodePtr node) {
@@ -1539,7 +1539,7 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
     };
 
     auto isSuitableScaleShiftNode = [getConstPort](MKLDNNNodePtr node) {
-        if (!node->isDynamicNode() && one_of(node->getAlgorithm(), EltwiseAdd, EltwiseSubtract, EltwiseMultiply, EltwiseDivide, EltwiseMulAdd)) {
+        if (one_of(node->getAlgorithm(), EltwiseAdd, EltwiseSubtract, EltwiseMultiply, EltwiseDivide, EltwiseMulAdd)) {
             MKLDNNNode *parent = nullptr;
             if (node->getAlgorithm() != EltwiseMulAdd) {
                 const auto constPort = getConstPort(node);

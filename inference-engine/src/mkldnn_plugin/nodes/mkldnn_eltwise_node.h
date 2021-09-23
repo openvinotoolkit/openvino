@@ -97,19 +97,19 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    struct EltwisePrim {
-        EltwisePrim(size_t batch) : batchDimIdx(batch) {}
+    struct EltwiseExecutor {
+        EltwiseExecutor(size_t batch) : batchDimIdx(batch) {}
         virtual void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) = 0;
         virtual const jit_eltwise_params& getJep() const = 0;
-        virtual ~EltwisePrim() = default;
+        virtual ~EltwiseExecutor() = default;
 
         size_t batchDimIdx = 0;
     };
-    using primPtr = std::shared_ptr<EltwisePrim>;
+    using primPtr = std::shared_ptr<EltwiseExecutor>;
     primPtr pPrim = nullptr;
 
-    struct EltwiseJitPrim : public EltwisePrim {
-        EltwiseJitPrim(const jit_eltwise_params &_jep, MKLDNNEltwiseNode& node, const size_t schedWA, const size_t batch);
+    struct EltwiseJitExecutor : public EltwiseExecutor {
+        EltwiseJitExecutor(const jit_eltwise_params &_jep, MKLDNNEltwiseNode& node, const size_t schedWA, const size_t batch);
         void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
         const jit_eltwise_params& getJep() const override;
 
@@ -117,8 +117,9 @@ private:
         size_t schedulerWorkAmount = 0;
     };
 
-    struct EltwiseRefPrim : public EltwisePrim {
-        EltwiseRefPrim(const jit_eltwise_params &_jep, const size_t fullWA, const size_t batch) : jep(_jep), fullWorkAmount(fullWA), EltwisePrim(batch) {}
+    struct EltwiseRefExecutor : public EltwiseExecutor {
+        EltwiseRefExecutor(const jit_eltwise_params &_jep, const size_t fullWA, const size_t batch) : jep(_jep), fullWorkAmount(fullWA),
+                                                                                                       EltwiseExecutor(batch) {}
         void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
         const jit_eltwise_params& getJep() const override { return jep; }
 

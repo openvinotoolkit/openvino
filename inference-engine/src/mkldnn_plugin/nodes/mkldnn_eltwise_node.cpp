@@ -1442,9 +1442,9 @@ void MKLDNNEltwiseNode::prepareParams() {
                    [](size_t& offset) { return offset * sizeof(float);});
 
     if (canUseOptimizedImpl) {
-        pPrim = std::make_shared<EltwiseJitPrim>(jep, *this, schedulerWorkAmount, batchDimIdx);
+        pPrim = std::make_shared<EltwiseJitExecutor>(jep, *this, schedulerWorkAmount, batchDimIdx);
     } else {
-        pPrim = std::make_shared<EltwiseRefPrim>(jep, fullWorkAmount, batchDimIdx);
+        pPrim = std::make_shared<EltwiseRefExecutor>(jep, fullWorkAmount, batchDimIdx);
     }
 }
 
@@ -1802,8 +1802,8 @@ InferenceEngine::Precision MKLDNNEltwiseNode::getRuntimePrecision() const {
     return getMaxPrecision(inputPrecisions);
 }
 
-MKLDNNEltwiseNode::EltwiseJitPrim::EltwiseJitPrim(const jit_eltwise_params &_jep, MKLDNNEltwiseNode& node, const size_t schedWA, const size_t batch)
-                                                    : schedulerWorkAmount(schedWA), EltwisePrim(batch) {
+MKLDNNEltwiseNode::EltwiseJitExecutor::EltwiseJitExecutor(const jit_eltwise_params &_jep, MKLDNNEltwiseNode& node, const size_t schedWA, const size_t batch)
+                                                    : schedulerWorkAmount(schedWA), EltwiseExecutor(batch) {
     if (mayiuse(x64::avx512_common)) {
         pKernel.reset(new jit_uni_eltwise_generic<x64::avx512_common>(_jep, node));
     } else if (mayiuse(x64::avx2)) {
@@ -1818,7 +1818,7 @@ MKLDNNEltwiseNode::EltwiseJitPrim::EltwiseJitPrim(const jit_eltwise_params &_jep
         pKernel->create_ker();
 }
 
-void MKLDNNEltwiseNode::EltwiseJitPrim::exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) {
+void MKLDNNEltwiseNode::EltwiseJitExecutor::exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) {
     if (!pKernel)
         IE_THROW() << "Can't execute, kernel for eltwise node is not compiled";
 
@@ -1829,11 +1829,11 @@ void MKLDNNEltwiseNode::EltwiseJitPrim::exec(const MKLDNNEltwiseNode& node, cons
     }
 }
 
-void MKLDNNEltwiseNode::EltwiseRefPrim::exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) {
+void MKLDNNEltwiseNode::EltwiseRefExecutor::exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) {
     node.executeReference(jep, args_ptrs, dims_out, fullWorkAmount);
 }
 
-const jit_eltwise_params& MKLDNNEltwiseNode::EltwiseJitPrim::getJep() const {
+const jit_eltwise_params& MKLDNNEltwiseNode::EltwiseJitExecutor::getJep() const {
     if (!pKernel)
         IE_THROW() << "Can't get jit eltwise params, kernel for eltwise node is not compiled";
     return pKernel->jep_;
