@@ -242,6 +242,18 @@ public:
      */
     virtual Blob::Ptr createROI(const ROI& roi) const;
 
+    /**
+     * @brief Creates a blob describing given ROI object based on the current blob with memory sharing.
+     *
+     * Note: default implementation may throws "not implemented" exception.
+     *
+     * @param begin A ROI start coordinate
+     * @param end A ROI end coordinate
+     *
+     * @return A shared pointer to the newly created ROI blob.
+     */
+    virtual Blob::Ptr createROI(const std::vector<std::size_t>& begin, const std::vector<std::size_t>& end) const;
+
 protected:
     /**
      * @brief The tensor descriptor of the given blob.
@@ -662,6 +674,10 @@ public:
         return Blob::Ptr(new TBlob<T>(*this, roi));
     }
 
+    Blob::Ptr createROI(const std::vector<std::size_t>& begin, const std::vector<std::size_t>& end) const override {
+        return Blob::Ptr(new TBlob<T>(*this, begin, end));
+    }
+
     /**
      * @brief Gets BlobIterator for the data.
      *
@@ -789,6 +805,20 @@ protected:
 
         _handle = origBlob._handle;
     }
+
+    /**
+     * @brief Creates a blob from the existing blob with a given ROI
+     * @param origBlob An original blob
+     * @param begin ROI start coordinate
+     * @param end ROI end coordinate
+     */
+    TBlob(const TBlob& origBlob, const std::vector<size_t>& begin, const std::vector<size_t>& end)
+        : MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), begin, end, true)),
+          _allocator(origBlob._allocator) {
+        IE_ASSERT(origBlob._handle != nullptr) << "Original Blob must be allocated before ROI creation";
+
+        _handle = origBlob._handle;
+    }
 };
 
 #ifdef __clang__
@@ -891,5 +921,16 @@ std::shared_ptr<T> make_shared_blob(Args&&... args) {
  * @return A shared pointer to the newly created blob.
  */
 INFERENCE_ENGINE_API_CPP(Blob::Ptr) make_shared_blob(const Blob::Ptr& inputBlob, const ROI& roi);
+
+/**
+ * @brief Creates a blob describing given ROI object based on the given blob with pre-allocated memory.
+ *
+ * @param inputBlob original blob with pre-allocated memory.
+ * @param begin A ROI object start coordinate inside of the original blob.
+ * @param end A ROI object end coordinate inside of the original blob.
+ * @return A shared pointer to the newly created blob.
+ */
+INFERENCE_ENGINE_API_CPP(Blob::Ptr)
+make_shared_blob(const Blob::Ptr& inputBlob, const std::vector<size_t>& begin, const std::vector<size_t>& end);
 
 }  // namespace InferenceEngine

@@ -10,6 +10,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
 #include <tuple>
@@ -29,6 +30,7 @@
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/variant.hpp"
@@ -512,111 +514,13 @@ private:
     std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
     OPENVINO_SUPPRESS_DEPRECATED_END
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
+    mutable std::mutex m_mutex;
 };
 
 using NodeTypeInfo = Node::type_info_t;
 
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node&);
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
-
-#define _OPENVINO_RTTI_EXPAND(X) X
-
-/// Helper macro that puts necessary declarations of RTTI block inside a class definition.
-/// Should be used in the scope of class that requires type identification besides one provided by
-/// C++ RTTI.
-/// Recommended to be used for all classes that are inherited from class ov::Node to enable
-/// pattern
-/// matching for them. Accepts necessary type identification details like type of the operation,
-/// version and optional parent class.
-///
-/// Applying this macro within a class definition provides declaration of type_info static
-/// constant for backward compatibility with old RTTI definition for Node,
-/// static function get_type_info_static which returns a reference to an object that is equal to
-/// type_info but not necessary to the same object, and get_type_info virtual function that
-/// overrides Node::get_type_info and returns a reference to the same object that
-/// get_type_info_static gives.
-///
-/// Use this macro as a public part of the class definition:
-///
-///     class MyOp : public Node
-///     {
-///         public:
-///             // Don't use Node as a parent for type_info, it doesn't have any value and
-///             prohibited
-///             OPENVINO_RTTI_DECLARATION;
-///
-///             ...
-///     };
-///
-///     class MyInheritedOp : public MyOp
-///     {
-///         public:
-///             OPENVINO_RTTI_DECLARATION;
-///
-///             ...
-///     };
-///
-/// To complete type identification for a class, use OPENVINO_RTTI_DEFINITION.
-///
-#define OPENVINO_RTTI_DECLARATION                                  \
-    static const ::ov::Node::type_info_t type_info;                \
-    const ::ov::Node::type_info_t& get_type_info() const override; \
-    static const ::ov::Node::type_info_t& get_type_info_static()
-
-#define _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)                   \
-    const ::ov::Node::type_info_t& CLASS::get_type_info() const { \
-        return get_type_info_static();                            \
-    }                                                             \
-    const ::ov::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
-#define _OPENVINO_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)         \
-    const ::ov::Node::type_info_t& CLASS::get_type_info_static() {                                    \
-        static const ::ov::Node::type_info_t type_info_static{TYPE_NAME,                              \
-                                                              _VERSION_INDEX,                         \
-                                                              &PARENT_CLASS::get_type_info_static()}; \
-        return type_info_static;                                                                      \
-    }                                                                                                 \
-    _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)
-
-#define _OPENVINO_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)             \
-    const ::ov::Node::type_info_t& CLASS::get_type_info_static() {                        \
-        static const ::ov::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX}; \
-        return type_info_static;                                                          \
-    }                                                                                     \
-    _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)
-
-#define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
-
-/// Complementary to OPENVINO_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
-/// OPENVINO_RTTI_DECLARATION.
-/// Should be used outside the class definition scope in place where ODR is ensured.
-///
-/// \param CLASS is a C++ name of the class where corresponding OPENVINO_RTTI_DECLARATION was applied.
-/// \param TYPE_NAME a string literal of type const char* that names your class in type
-/// identification namespace;
-///        It is your choice how to name it, but it should be unique among all
-///        OPENVINO_RTTI_DECLARATION-enabled classes that can be
-///        used in conjunction with each other in one transformation flow.
-/// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
-///        operations that shares the same TYPE_NAME
-/// \param PARENT_CLASS is an optional direct or indirect parent class for this class; define
-///        it only in case if there is a need to capture any operation from some group of operations
-///        that all derived from some common base class. Don't use Node as a parent, it is a base
-///        class
-///        for all operations and doesn't provide ability to define some perfect subset of
-///        operations. PARENT_CLASS should define RTTI with OPENVINO_RTTI_{DECLARATION/DEFINITION}
-///        macros.
-///
-/// Examples (see corresponding declarations in OPENVINO_RTTI_DECLARATION description):
-///
-///     OPENVINO_RTTI_DEFINITION(MyOp,"MyOp", 1);
-///     OPENVINO_RTTI_DEFINITION(MyInheritedOp, "MyInheritedOp", 1, MyOp)
-///
-/// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
-///
-#define OPENVINO_RTTI_DEFINITION(...)                                                               \
-    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                           \
-                                                             _OPENVINO_RTTI_DEFINITION_WITH_PARENT, \
-                                                             _OPENVINO_RTTI_DEFINITION_NO_PARENT)(__VA_ARGS__))
 
 // Like an Output but with a Node* instead of a shared_ptr<Node>
 struct RawNodeOutput {
@@ -685,10 +589,8 @@ public:
     AttributeAdapter(std::shared_ptr<ov::Node>& value);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Node>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     std::shared_ptr<ov::Node>& m_ref;
@@ -701,10 +603,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<NodeVector>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<NodeVector>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::NodeVector& m_ref;

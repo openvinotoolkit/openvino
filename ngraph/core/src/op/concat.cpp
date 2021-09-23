@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::Concat, "Concat", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::Concat);
 
 op::Concat::Concat(const OutputVector& args, int64_t axis) : Op(args), m_axis(axis) {
     constructor_validate_and_infer_types();

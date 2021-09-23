@@ -29,7 +29,7 @@ try:
     from ngraph.utils.types import get_element_type
 
 except Exception:
-    print("No mock frontend API available,"
+    print("No mock frontend API available, "
           "ensure to use -DENABLE_TESTS=ON option when running these tests")
     mock_available = False
 

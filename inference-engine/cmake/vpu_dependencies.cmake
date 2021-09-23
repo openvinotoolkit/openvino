@@ -110,8 +110,6 @@ if(ANDROID)
 
     set(LIBUSB_INCLUDE_DIR "${LIBUSB}/include")
     set(LIBUSB_LIBRARY "${LIBUSB}/libs/${ANDROID_ABI}/libusb1.0.so")
-
-    log_rpath_from_dir(LIBUSB "${LIBUSB}/libs/${ANDROID_ABI}")
 endif()
 
 #
