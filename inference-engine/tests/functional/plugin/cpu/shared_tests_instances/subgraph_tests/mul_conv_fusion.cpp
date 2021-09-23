@@ -12,7 +12,7 @@
 using namespace SubgraphTestsDefinitions;
 
 namespace {
-const std::vector<ngraph::element::Type> types{ngraph::element::f32};
+    const std::vector<ngraph::element::Type> types{ngraph::element::f32};
 
     const std::vector<ngraph::Shape> const_shapes_fprop_1d{
         {},
