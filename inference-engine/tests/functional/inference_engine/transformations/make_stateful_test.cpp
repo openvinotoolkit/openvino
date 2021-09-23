@@ -38,7 +38,7 @@ TEST(TransformationTests, make_stateful_by_name) {
         result1->set_friendly_name("res1");
 
         f = make_shared<Function>(ResultVector{result0, result1}, ParameterVector{X, Y});
-        std::vector<std::pair<std::string, std::string>> pair_names = {{"x", "res0"}, {"y", "res1"}};
+        std::map<std::string, std::string> pair_names = {{"x", "res0"}, {"y", "res1"}};
         f->validate_nodes_and_infer_types();
 
         ngraph::pass::Manager manager;
@@ -91,7 +91,7 @@ TEST(TransformationTests, make_stateful_by_param_res) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::MakeStateful>(ov::pass::MakeStateful::InOutPairs{{X, result0}, {Y, result1}});
+        manager.register_pass<ov::pass::MakeStateful>(ov::pass::MakeStateful::ParamResPairs{{X, result0}, {Y, result1}});
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

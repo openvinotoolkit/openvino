@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include <map>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "Python.h"
@@ -20,7 +20,7 @@ void ApplyPOTTransformations(InferenceEnginePython::IENetwork network, std::stri
 void ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network, bool use_const_initializer = true);
 
 void ApplyMakeStatefulTransformation(InferenceEnginePython::IENetwork network,
-                                     std::vector<std::pair<std::string, std::string>>& in_out_names);
+                                     std::map<std::string, std::string>& param_res_names);
 
 void ApplyPruningTransformation(InferenceEnginePython::IENetwork network);
 

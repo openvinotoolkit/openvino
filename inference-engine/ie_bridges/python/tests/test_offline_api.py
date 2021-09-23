@@ -12,13 +12,12 @@ from ngraph.impl import Function, Shape, Type
 from conftest import model_path
 
 
-test_net_xml, test_net_bin = model_path()
+#test_net_xml, test_net_bin = model_path()
 
 def get_test_cnnnetwork():
-    element_type = Type.f32
-    param = Parameter(element_type, Shape([1, 3, 22, 22]), 'parameter')
+    param = ng.parameter(Shape([1, 3, 22, 22]), name="parameter")
     relu = ng.relu(param)
-    res = ng.result(relu, 'result')
+    res = ng.result(relu, name='result')
     func = Function([res], [param], 'test')
     caps = Function.to_capsule(func)
 
@@ -47,11 +46,12 @@ def test_low_latency_transformations():
 
 def test_make_stateful_transformations():
     net = get_test_cnnnetwork()
-    ApplyMakeStatefulTransformation(net, [["parameter", "result"]])
+    ApplyMakeStatefulTransformation(net, {"parameter": "result"})
 
     f = ng.function_from_cnn(net)
     assert f != None
-    assert len(f.get_ops()) == 3
+    assert len(f.get_parameters()) == 0
+    assert len(f.get_results()) == 0
 
 
 def test_pruning_transformations():
