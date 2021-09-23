@@ -47,14 +47,14 @@ static void regclass_pyngraph_PreProcessSteps(py::module m) {
             me->mean(values);
             return me;
         },
-        py::arg("value"),
+        py::arg("values"),
         R"(
                 Subtracts a given single float value from each element in a given channel from input tensor.
                 Input tensor must have ngraph.Type.f32 data type.
                 Parameters
                 ----------
-                value : float
-                    Value to subtract.
+                values : List
+                    Values to subtract.
                 Returns
                 ----------
                 mean : PreProcessSteps
@@ -85,13 +85,13 @@ static void regclass_pyngraph_PreProcessSteps(py::module m) {
             me->scale(values);
             return me;
         },
-        py::arg("value"),
+        py::arg("values"),
         R"(
-                Divides each element in input tensor by specified constant float value.
+                Divides each element in a given channel from input tensor by a given single float value.
                 Input tensor must have ngraph.Type.f32 data type.
                 Parameters
                 ----------
-                value : float
+                value : List
                     Value to divide.
                 Returns
                 ----------
@@ -163,6 +163,10 @@ static void regclass_pyngraph_InputTensorInfo(py::module m) {
                 tensor : InputTensorInfo
                     Reference to itself to allow chaining of calls in client's code in a builder-like manner.
               )");
+    info.def("set_layout", [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me, const ov::Layout& layout) {
+        me->set_layout(layout);
+        return me;
+    });
 }
 
 static void regclass_pyngraph_InputInfo(py::module m) {
@@ -171,6 +175,7 @@ static void regclass_pyngraph_InputInfo(py::module m) {
 
     inp.def(py::init<>(), R"(Default constructor, can be used only for networks with exactly one input)");
     inp.def(py::init<size_t>(), R"(Constructor with parameter index as argument)");
+
     inp.def(
         "tensor",
         [](const std::shared_ptr<ov::preprocess::InputInfo>& me,
