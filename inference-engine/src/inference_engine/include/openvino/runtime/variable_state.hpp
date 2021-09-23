@@ -13,8 +13,8 @@
 #include <memory>
 #include <string>
 
-#include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace InferenceEngine {
 class IVariableStateInternal;

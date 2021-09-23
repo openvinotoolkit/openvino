@@ -19,8 +19,8 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/runtime/common.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/common.hpp"
 
 namespace ov {
 namespace runtime {
@@ -350,8 +350,7 @@ extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<uns
 extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<std::vector<int>>;
 extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<std::vector<std::string>>;
 extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<std::vector<unsigned long>>;
-extern template struct OPENVINO_RUNTIME_API
-    ov::runtime::Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
+extern template struct OPENVINO_RUNTIME_API ov::runtime::Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
 extern template struct OPENVINO_RUNTIME_API
     ov::runtime::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
 #endif

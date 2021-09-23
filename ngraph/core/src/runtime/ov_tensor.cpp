@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/tensor.hpp"
-
 #include <numeric>
 
-#include "runtime/blob_allocator.hpp"
-#include "blob_factory.hpp" // IE private header
-#include "ie_ngraph_utils.hpp" // IE private header
+#include "blob_factory.hpp"     // IE private header
+#include "ie_ngraph_utils.hpp"  // IE private header
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "runtime/blob_allocator.hpp"
 
 namespace ov {
 
@@ -32,10 +31,9 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, const Alloc
     auto allocator_impl = dynamic_cast<const BlobAllocator*>(allocator._impl.get());
     auto blob_allocator =
         (allocator_impl != nullptr) ? allocator_impl->_impl : std::make_shared<ie::BlobAllocator>(allocator._impl);
-    _impl = make_blob_with_precision({ie::details::convertPrecision(element_type),
-                                      shape,
-                                      ie::TensorDesc::getLayoutByRank(shape.size())},
-                                     blob_allocator);
+    _impl = make_blob_with_precision(
+        {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
+        blob_allocator);
     _impl->allocate();
 }
 
@@ -52,17 +50,21 @@ Tensor::Tensor(const element::Type element_type,
         blk_strides = ov::row_major_strides(shape);
     } else {
         OPENVINO_ASSERT(shape.size() == strides.size(),
-            "shape.size() (", shape.size(), ") must be equal to strides.size() (", strides.size(), ")");
+                        "shape.size() (",
+                        shape.size(),
+                        ") must be equal to strides.size() (",
+                        strides.size(),
+                        ")");
         blk_strides.assign(strides.begin(), strides.end());
     }
 
     try {
         _impl = make_blob_with_precision(ie::details::convertPrecision(element_type),
-                                        ie::TensorDesc{ie::details::convertPrecision(element_type),
+                                         ie::TensorDesc{ie::details::convertPrecision(element_type),
                                                         shape,
                                                         ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}},
-                                        host_ptr,
-                                        size);
+                                         host_ptr,
+                                         size);
     } catch (const std::exception& ex) {
         throw ov::Exception(ex.what());
     } catch (...) {
@@ -89,9 +91,7 @@ void Tensor::set_shape(const ov::Shape& shape) {
 }
 
 Shape Tensor::get_shape() const {
-    OV_TENSOR_STATEMENT({
-        return _impl->getTensorDesc().getDims();
-    });
+    OV_TENSOR_STATEMENT({ return _impl->getTensorDesc().getDims(); });
 }
 
 Strides Tensor::get_strides() const {

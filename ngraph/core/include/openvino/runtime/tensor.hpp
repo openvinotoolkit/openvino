@@ -9,10 +9,10 @@
  */
 #pragma once
 
-#include "openvino/runtime/allocator.hpp"
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/allocator.hpp"
 
 namespace InferenceEngine {
 class Blob;
@@ -32,7 +32,7 @@ class VariableState;
  */
 class OPENVINO_API Tensor {
 protected:
-    std::shared_ptr<void> _so;        //!< Reference to dynamicly loaded library
+    std::shared_ptr<void> _so;                     //!< Reference to dynamicly loaded library
     std::shared_ptr<InferenceEngine::Blob> _impl;  //!< Shared pointer to internal tensor representation
 
     /**
@@ -67,11 +67,16 @@ public:
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param host_ptr Pointer to pre-allocated host memory
-     * @param size Optional size of allocated host memory in elements. If it is not set (default is `0`), the size of memory supposed to
-     * be not less then ov::shape_size(shape) * type.size() in bytes.
-     * @param strides Optional strides parameters in elements. Strides are supposed to be equal to shape if they are not set
+     * @param size Optional size of allocated host memory in elements. If it is not set (default is `0`), the size of
+     * memory supposed to be not less then ov::shape_size(shape) * type.size() in bytes.
+     * @param strides Optional strides parameters in elements. Strides are supposed to be equal to shape if they are not
+     * set
      */
-    Tensor(const element::Type type, const Shape& shape, void* host_ptr, const size_t size = 0, const Strides& strides = {});
+    Tensor(const element::Type type,
+           const Shape& shape,
+           void* host_ptr,
+           const size_t size = 0,
+           const Strides& strides = {});
 
     /**
      * @brief Constructs region of interest (ROI) tensor form another tensor.

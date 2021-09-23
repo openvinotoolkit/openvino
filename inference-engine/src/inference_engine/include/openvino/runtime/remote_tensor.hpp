@@ -46,7 +46,7 @@ public:
     /**
      * @brief Returns name of the device on which underlying object is allocated.
      * Abstract method.
-     * @return A device name string in fully specified format <device_name>[.<device_id>[.<tile_id>]].
+     * @return A device name string in fully specified format `<device_name>[.<device_id>[.<tile_id>]]`.
      */
     std::string get_device_name() const;
 

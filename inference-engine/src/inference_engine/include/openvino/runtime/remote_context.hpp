@@ -14,11 +14,11 @@
 #include <string>
 
 #include "ie_remote_context.hpp"
-#include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/parameter.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
 
 namespace InferenceEngine {
 class RemoteBlob;
@@ -109,7 +109,7 @@ public:
     /**
      * @brief Returns name of the device on which underlying object is allocated.
      * Abstract method.
-     * @return A device name string in fully specified format <device_name>[.<device_id>[.<tile_id>]].
+     * @return A device name string in fully specified format `<device_name>[.<device_id>[.<tile_id>]]`.
      */
     std::string get_device_name() const;
 
@@ -117,7 +117,7 @@ public:
      * @brief Allocates memory tensor in device memory or wraps user-supplied memory handle
      * using the specified tensor description and low-level device-specific parameters.
      * Returns a pointer to the object which implements RemoteTensor interface.
-     * @param element_type Defines the element type of the tensor
+     * @param type Defines the element type of the tensor
      * @param shape Defines the shape of the tensor
      * @param params Map of the low-level tensor object parameters.
      * Abstract method.

@@ -39,10 +39,9 @@ RemoteTensor RemoteContext::create_tensor(const element::Type& element_type,
                                           const ie::ParamMap& params) {
     OV_REMOTE_CONTEXT_STATEMENT({
         return {_so,
-                _impl->CreateBlob({ie::details::convertPrecision(element_type),
-                                   shape,
-                                   ie::TensorDesc::getLayoutByRank(shape.size())},
-                                  params)};
+                _impl->CreateBlob(
+                    {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
+                    params)};
     });
 }
 

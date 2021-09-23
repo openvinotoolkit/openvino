@@ -11,7 +11,6 @@
 #include <gmock/gmock.h>
 
 #include "ie_allocator.hpp"
-#include "openvino/runtime/allocator.hpp"
 
 class MockAllocator : public InferenceEngine::IAllocator {
 public:
@@ -19,12 +18,4 @@ public:
     MOCK_METHOD(void, unlock, (void *), (noexcept));
     MOCK_METHOD(void*, alloc, (size_t), (noexcept));
     MOCK_METHOD(bool, free, (void*), (noexcept));  // NOLINT(readability/casting)
-};
-
-
-class OVMockAllocator : public ov::AllocatorImpl {
-public:
-    MOCK_METHOD(void*, allocate, (size_t, size_t), ());
-    MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());  // NOLINT(readability/casting)
-    MOCK_METHOD(bool, is_equal, (const ov::AllocatorImpl&), (const, noexcept));  // NOLINT(readability/casting)
 };

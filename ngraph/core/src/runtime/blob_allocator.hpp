@@ -4,11 +4,11 @@
 
 #include <unordered_map>
 
-#include "ie_allocator.hpp" // IE public header
-#include "openvino/runtime/allocator.hpp"
+#include "ie_allocator.hpp"  // IE public header
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/common.hpp"
-#include "system_allocator.hpp" // IE private header
+#include "system_allocator.hpp"  // IE private header
 
 namespace InferenceEngine {
 struct BlobAllocator : public IAllocator {

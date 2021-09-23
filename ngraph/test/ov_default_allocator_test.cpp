@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
 #include <gtest/gtest.h>
 
-#include "openvino/runtime/allocator.hpp"
-#include "openvino/core/except.hpp"
+#include <memory>
 
-using OVDefaultAllocatorTest  = ::testing::Test;
+#include "openvino/core/except.hpp"
+#include "openvino/runtime/allocator.hpp"
+
+using OVDefaultAllocatorTest = ::testing::Test;
 
 TEST_F(OVDefaultAllocatorTest, notThrowOnZeroSize) {
     ov::Allocator allocator;
@@ -51,8 +52,8 @@ TEST_F(OVDefaultAllocatorTest, defaultAllocatorsAreEqual) {
 TEST_F(OVDefaultAllocatorTest, canAllocate10KMemory) {
     ov::Allocator allocator;
     // large block such as 10k will result in sigsegv if not allocated
-    void *handle = allocator.allocate(10000);
-    char *ptr = reinterpret_cast<char *>(handle);
+    void* handle = allocator.allocate(10000);
+    char* ptr = reinterpret_cast<char*>(handle);
     ptr[9999] = 11;
     EXPECT_EQ(ptr[9999], 11);
     allocator.deallocate(handle);

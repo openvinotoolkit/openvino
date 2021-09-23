@@ -13,9 +13,9 @@
 #include <memory>
 #include <string>
 
-#include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/variable_state.hpp"
 
 namespace InferenceEngine {
