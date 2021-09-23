@@ -16,9 +16,11 @@ class PerfCount {
     std::chrono::high_resolution_clock::time_point __finish = {};
 
 public:
-    PerfCount(): duration(0), num(0) {}
+    PerfCount() : duration(0), num(0) {}
 
-    uint64_t avg() { return (num == 0) ? 0 : duration / num; }
+    uint64_t avg() {
+        return (num == 0) ? 0 : duration / num;
+    }
 
 private:
     void start_itr() {
@@ -36,15 +38,19 @@ private:
 };
 
 class PerfHelper {
-    PerfCount &counter;
+    PerfCount& counter;
 
 public:
-    explicit PerfHelper(PerfCount &count): counter(count) { counter.start_itr(); }
+    explicit PerfHelper(PerfCount& count) : counter(count) {
+        counter.start_itr();
+    }
 
-    ~PerfHelper() { counter.finish_itr(); }
+    ~PerfHelper() {
+        counter.finish_itr();
+    }
 };
 
 }  // namespace MKLDNNPlugin
 
-#define GET_PERF(_counter) std::unique_ptr<PerfHelper>(new PerfHelper(_counter->PerfCounter()))
+#define GET_PERF(_counter)    std::unique_ptr<PerfHelper>(new PerfHelper(_counter->PerfCounter()))
 #define PERF(_need, _counter) auto pc = _need ? GET_PERF(_counter) : nullptr;

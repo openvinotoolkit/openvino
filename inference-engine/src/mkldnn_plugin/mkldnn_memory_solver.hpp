@@ -8,12 +8,12 @@
  */
 #pragma once
 
-#include "ie_api.h"
-
 #include <stdint.h>
 
-#include <vector>
 #include <map>
+#include <vector>
+
+#include "ie_api.h"
 
 namespace MKLDNNPlugin {
 

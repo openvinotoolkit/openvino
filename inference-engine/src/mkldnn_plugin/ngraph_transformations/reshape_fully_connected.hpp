@@ -16,7 +16,7 @@
 
 namespace MKLDNNPlugin {
 
-class ReshapeFullyConnected: public ngraph::pass::MatcherPass {
+class ReshapeFullyConnected : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReshapeFullyConnected();

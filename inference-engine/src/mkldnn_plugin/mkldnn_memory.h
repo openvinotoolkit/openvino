@@ -4,21 +4,21 @@
 
 #pragma once
 
+#include <cpu_shape.h>
+#include <mkldnn_types.h>
+
+#include <functional>
+#include <ie_precision.hpp>
+#include <memory>
+#include <mkldnn.hpp>
+#include <string>
+#include <vector>
+
 #include "ie_layouts.h"
 #include "memory_desc/cpu_memory_desc.h"
-#include "mkldnn_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include <mkldnn.hpp>
-#include <mkldnn_types.h>
-#include <cpu_shape.h>
-
 #include "memory_desc/dnnl_memory_desc.h"
-
-#include <string>
-#include <functional>
-#include <memory>
-#include <vector>
-#include <ie_precision.hpp>
+#include "mkldnn_extension_utils.h"
 
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
@@ -36,10 +36,10 @@ public:
     explicit MKLDNNMemory(const mkldnn::engine& eng);
 
     MKLDNNMemory(const MKLDNNMemory&) = delete;
-    MKLDNNMemory& operator= (const MKLDNNMemory&) = delete;
+    MKLDNNMemory& operator=(const MKLDNNMemory&) = delete;
 
     MKLDNNMemory(MKLDNNMemory&&) = default;
-    MKLDNNMemory& operator= (MKLDNNMemory&&) = default;
+    MKLDNNMemory& operator=(MKLDNNMemory&&) = default;
 
     const mkldnn::memory& GetPrimitive() const {
         return *prim;
@@ -54,8 +54,8 @@ public:
     }
 
     template <typename T,
-            typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-            typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
     std::shared_ptr<T> GetDescWithType() const;
 
     /**
@@ -92,8 +92,8 @@ public:
     // Redefines descriptor. The memory descriptor will be replaced with the new one.
     // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
-    void redefineDesc(const MemoryDesc& desc, void *data = nullptr);
-    void redefineDesc(MemoryDescPtr desc, void *data = nullptr);
+    void redefineDesc(const MemoryDesc& desc, void* data = nullptr);
+    void redefineDesc(MemoryDescPtr desc, void* data = nullptr);
 
     void SetData(const MKLDNNMemory& memory, size_t size = 0, bool ftz = true) const;
     void FillZero();
@@ -115,7 +115,9 @@ public:
     }
 
 private:
-    void Create(const mkldnn::memory::dims& dims, mkldnn::memory::data_type data_type, mkldnn::memory::format_tag format,
+    void Create(const mkldnn::memory::dims& dims,
+                mkldnn::memory::data_type data_type,
+                mkldnn::memory::format_tag format,
                 const void* data = nullptr);
 
     void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);

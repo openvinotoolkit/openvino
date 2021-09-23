@@ -12,11 +12,12 @@ namespace MKLDNNPlugin {
 class MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode : public MKLDNNNode {
 public:
     MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode(const std::shared_ptr<ngraph::Node>& op,
-        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+                                                                const mkldnn::engine& eng,
+                                                                MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -29,12 +30,12 @@ private:
     // Outputs:
     //      top_rois, shape [max_rois, 4]
 
-    const int INPUT_IM_INFO {0};
-    const int INPUT_ANCHORS {1};
-    const int INPUT_DELTAS {2};
-    const int INPUT_SCORES {3};
-    const int OUTPUT_ROIS {0};
-    const int OUTPUT_SCORES {1};
+    const int INPUT_IM_INFO{0};
+    const int INPUT_ANCHORS{1};
+    const int INPUT_DELTAS{2};
+    const int INPUT_SCORES{3};
+    const int OUTPUT_ROIS{0};
+    const int OUTPUT_SCORES{1};
 
     float min_size_;
     int pre_nms_topn_;

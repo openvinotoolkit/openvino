@@ -6,8 +6,9 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 using namespace InferenceEngine;
@@ -16,11 +17,13 @@ namespace MKLDNNPlugin {
 
 class MKLDNNNonMaxSuppressionNode : public MKLDNNNode {
 public:
-    MKLDNNNonMaxSuppressionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNNonMaxSuppressionNode(const std::shared_ptr<ngraph::Node>& op,
+                                const mkldnn::engine& eng,
+                                MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -32,8 +35,11 @@ public:
         int class_index;
         int box_index;
         filteredBoxes() = default;
-        filteredBoxes(float _score, int _batch_index, int _class_index, int _box_index) :
-                score(_score), batch_index(_batch_index), class_index(_class_index), box_index(_box_index) {}
+        filteredBoxes(float _score, int _batch_index, int _class_index, int _box_index)
+            : score(_score),
+              batch_index(_batch_index),
+              class_index(_class_index),
+              box_index(_box_index) {}
     };
 
     struct boxInfo {
@@ -42,15 +48,23 @@ public:
         int suppress_begin_index;
     };
 
-    float intersectionOverUnion(const float *boxesI, const float *boxesJ);
+    float intersectionOverUnion(const float* boxesI, const float* boxesJ);
 
-    void nmsWithSoftSigma(const float *boxes, const float *scores, const SizeVector &boxesStrides,
-                          const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes);
+    void nmsWithSoftSigma(const float* boxes,
+                          const float* scores,
+                          const SizeVector& boxesStrides,
+                          const SizeVector& scoresStrides,
+                          std::vector<filteredBoxes>& filtBoxes);
 
-    void nmsWithoutSoftSigma(const float *boxes, const float *scores, const SizeVector &boxesStrides,
-                             const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes);
+    void nmsWithoutSoftSigma(const float* boxes,
+                             const float* scores,
+                             const SizeVector& boxesStrides,
+                             const SizeVector& scoresStrides,
+                             std::vector<filteredBoxes>& filtBoxes);
 
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override {
+        execute(strm);
+    }
 
     std::vector<VectorDims> shapeInfer() const override {
         return std::vector<VectorDims>();
@@ -68,17 +82,9 @@ private:
     } InputNumber;
 
     // output
-    enum : size_t {
-        NMS_SELECTEDINDICES,
-        NMS_SELECTEDSCORES,
-        NMS_VALIDOUTPUTS
-    } OutputNumber;
+    enum : size_t { NMS_SELECTEDINDICES, NMS_SELECTEDSCORES, NMS_VALIDOUTPUTS } OutputNumber;
 
-
-    enum class boxEncoding {
-        CORNER,
-        CENTER
-    };
+    enum class boxEncoding { CORNER, CENTER };
     boxEncoding boxEncodingType = boxEncoding::CORNER;
     bool sort_result_descending = true;
 
@@ -97,9 +103,18 @@ private:
     std::vector<std::vector<size_t>> numFiltBox;
     const std::string inType = "input", outType = "output";
 
-    void checkPrecision(const Precision& prec, const std::vector<Precision>& precList, const std::string& name, const std::string& type);
-    void check1DInput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
-    void checkOutput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
+    void checkPrecision(const Precision& prec,
+                        const std::vector<Precision>& precList,
+                        const std::string& name,
+                        const std::string& type);
+    void check1DInput(const Shape& shape,
+                      const std::vector<Precision>& precList,
+                      const std::string& name,
+                      const size_t port);
+    void checkOutput(const Shape& shape,
+                     const std::vector<Precision>& precList,
+                     const std::string& name,
+                     const size_t port);
 };
 
 }  // namespace MKLDNNPlugin

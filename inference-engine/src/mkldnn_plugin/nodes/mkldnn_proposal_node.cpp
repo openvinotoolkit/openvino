@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "mkldnn_proposal_node.h"
+
+#include <ngraph/op/proposal.hpp>
 #include <string>
 #include <vector>
 
-#include <ngraph/op/proposal.hpp>
 #include "ie_parallel.hpp"
-#include "mkldnn_proposal_node.h"
 
-static std::vector<float> generate_anchors(proposal_conf &conf) {
+static std::vector<float> generate_anchors(proposal_conf& conf) {
     auto base_size = conf.base_size_;
     auto coordinates_offset = conf.coordinates_offset;
     auto round_ratios = conf.round_ratios;
@@ -41,10 +42,10 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
             ratio_h = ratio_w * ratios[ratio];
         }
 
-        float * const p_anchors_wm = anchors_ptr + 0 * num_ratios * num_scales + ratio * num_scales;
-        float * const p_anchors_hm = anchors_ptr + 1 * num_ratios * num_scales + ratio * num_scales;
-        float * const p_anchors_wp = anchors_ptr + 2 * num_ratios * num_scales + ratio * num_scales;
-        float * const p_anchors_hp = anchors_ptr + 3 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_wm = anchors_ptr + 0 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_hm = anchors_ptr + 1 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_wp = anchors_ptr + 2 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_hp = anchors_ptr + 3 * num_ratios * num_scales + ratio * num_scales;
 
         for (int scale = 0; scale < num_scales; ++scale) {
             // transformed width & height for given scale factors
@@ -71,7 +72,8 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNProposalNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNProposalNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                              std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -94,8 +96,10 @@ bool MKLDNNProposalNode::isSupportedOperation(const std::shared_ptr<const ngraph
     return true;
 }
 
-MKLDNNProposalNode::MKLDNNProposalNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNProposalNode::MKLDNNProposalNode(const std::shared_ptr<ngraph::Node>& op,
+                                       const mkldnn::engine& eng,
+                                       MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -147,8 +151,7 @@ void MKLDNNProposalNode::initSupportedPrimitiveDescriptors() {
         addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
                               {LayoutType::ncsp, Precision::FP32},
                               {LayoutType::ncsp, Precision::FP32}},
-                             {{LayoutType::ncsp, Precision::FP32},
-                              {LayoutType::ncsp, Precision::FP32}},
+                             {{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::FP32}},
                              impl_desc_type::ref_any);
     } else {
         addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
@@ -161,13 +164,17 @@ void MKLDNNProposalNode::initSupportedPrimitiveDescriptors() {
 
 void MKLDNNProposalNode::execute(mkldnn::stream strm) {
     try {
-        const float* probabilitiesData = reinterpret_cast<const float *>(getParentEdgeAt(PROBABILITIES_IN_IDX)->getMemoryPtr()->GetPtr());
-        const float* anchorsData = reinterpret_cast<const float *>(getParentEdgeAt(ANCHORS_IN_IDX)->getMemoryPtr()->GetPtr());
-        const float* imgInfoData = reinterpret_cast<const float *>(getParentEdgeAt(IMG_INFO_IN_IDX)->getMemoryPtr()->GetPtr());
-        float* outRoiData = reinterpret_cast <float *>(getChildEdgesAtPort(ROI_OUT_IDX)[0]->getMemoryPtr()->GetPtr());
+        const float* probabilitiesData =
+            reinterpret_cast<const float*>(getParentEdgeAt(PROBABILITIES_IN_IDX)->getMemoryPtr()->GetPtr());
+        const float* anchorsData =
+            reinterpret_cast<const float*>(getParentEdgeAt(ANCHORS_IN_IDX)->getMemoryPtr()->GetPtr());
+        const float* imgInfoData =
+            reinterpret_cast<const float*>(getParentEdgeAt(IMG_INFO_IN_IDX)->getMemoryPtr()->GetPtr());
+        float* outRoiData = reinterpret_cast<float*>(getChildEdgesAtPort(ROI_OUT_IDX)[0]->getMemoryPtr()->GetPtr());
         float* outProbData = nullptr;
         if (store_prob)
-            outProbData = reinterpret_cast <float *>(getChildEdgesAtPort(PROBABILITIES_OUT_IDX)[0]->getMemoryPtr()->GetPtr());
+            outProbData =
+                reinterpret_cast<float*>(getChildEdgesAtPort(PROBABILITIES_OUT_IDX)[0]->getMemoryPtr()->GetPtr());
 
         auto inProbDims = getParentEdgeAt(0)->getMemory().getStaticDims();
         const size_t imgInfoSize = getParentEdgeAt(2)->getMemory().getStaticDims()[0];
@@ -186,8 +193,15 @@ void MKLDNNProposalNode::execute(mkldnn::stream strm) {
             IE_THROW() << "Proposal operation image info input must have non negative scales.";
         }
 
-        InferenceEngine::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData, anchorsData, inProbDims,
-                {imgHeight, imgWidth, scaleHeight, scaleWidth}, anchors.data(), roi_indices.data(), outRoiData, outProbData, conf);
+        InferenceEngine::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData,
+                                                               anchorsData,
+                                                               inProbDims,
+                                                               {imgHeight, imgWidth, scaleHeight, scaleWidth},
+                                                               anchors.data(),
+                                                               roi_indices.data(),
+                                                               outRoiData,
+                                                               outProbData,
+                                                               conf);
     } catch (const InferenceEngine::Exception& e) {
         std::string errorMsg = e.what();
         IE_THROW() << errorMsg;

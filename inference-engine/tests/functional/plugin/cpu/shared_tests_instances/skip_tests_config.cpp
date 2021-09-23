@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include <ie_system_conf.h>
-#include "functional_test_utils/skip_tests_config.hpp"
+
+#include <string>
+#include <vector>
+
 #include "ie_parallel.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
@@ -92,8 +94,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
 
         // Issue: 62746
-        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)"
-    };
+        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)"};
 
 #define FIX_62820 0
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
@@ -101,14 +102,14 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
 
 #ifdef __APPLE__
-        // TODO: Issue 55717
-        //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
+    // TODO: Issue 55717
+    // retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
 #endif
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
-       retVector.emplace_back(R"(.*BF16.*)");
-       retVector.emplace_back(R"(.*bfloat16.*)");
+        retVector.emplace_back(R"(.*BF16.*)");
+        retVector.emplace_back(R"(.*bfloat16.*)");
     }
 
     return retVector;

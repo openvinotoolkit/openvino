@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+
 #include "mkldnn/ie_mkldnn.h"
 
 class MKLDNNDescriptor {
@@ -49,8 +50,9 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::eltwise_forward::desc> desc);
     operator std::shared_ptr<mkldnn::eltwise_forward::desc>();
 
-    mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::engine &engine,
-            const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) const;
+    mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(
+        const mkldnn::engine& engine,
+        const mkldnn::primitive_attr& attr = mkldnn::primitive_attr()) const;
 
     size_t outputNumbers() const;
     size_t inputNumbers() const;
@@ -61,19 +63,21 @@ private:
     class IDesc {
     public:
         virtual ~IDesc() {}
-        virtual mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::primitive_attr &attr,
-                                                                                  const mkldnn::engine &engine) const = 0;
+        virtual mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(
+            const mkldnn::primitive_attr& attr,
+            const mkldnn::engine& engine) const = 0;
         static constexpr bool allow_empty = true;
     };
 
     template <class T>
-    class DescFwdImpl: public IDesc {
+    class DescFwdImpl : public IDesc {
         std::shared_ptr<T> desc;
+
     public:
         explicit DescFwdImpl(std::shared_ptr<T> d) : desc(d) {}
 
-        mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::primitive_attr &attr,
-                                                                          const mkldnn::engine &engine) const override {
+        mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::primitive_attr& attr,
+                                                                          const mkldnn::engine& engine) const override {
             return mkldnn::primitive_desc_iterator(&desc->data, &attr, engine, nullptr, allow_empty);
         }
 
@@ -82,17 +86,16 @@ private:
         }
     };
 
-
     template <class T, class P>
-    class DescBwdImpl: public IDesc {
+    class DescBwdImpl : public IDesc {
         std::shared_ptr<T> desc;
         std::shared_ptr<P> prim;
 
     public:
         DescBwdImpl(std::shared_ptr<T> d, std::shared_ptr<P> p) : desc(d), prim(p) {}
 
-        mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::primitive_attr &attr,
-                                                                          const mkldnn::engine &engine) const override {
+        mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::primitive_attr& attr,
+                                                                          const mkldnn::engine& engine) const override {
             return mkldnn::primitive_desc_iterator(&desc->data, &attr, engine, prim.get()->get(), allow_empty);
         }
 

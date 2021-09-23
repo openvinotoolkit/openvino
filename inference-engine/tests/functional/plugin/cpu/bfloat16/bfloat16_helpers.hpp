@@ -4,22 +4,23 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
-#include "ie_common.h"
 #include <ie_blob.h>
+#include <ie_system_conf.h>
 #include <math.h>
+
+#include <inference_engine.hpp>
 #include <map>
-#include <string>
-#include <utility>
 #include <memory>
+#include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
-#include "ngraph/opsets/opset1.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include <ie_system_conf.h>
+#include "ie_common.h"
+#include "ngraph/opsets/opset1.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -79,14 +80,12 @@ public:
     }
 };
 
-
-typedef std::tuple<
-                   InferenceEngine::Precision,
+typedef std::tuple<InferenceEngine::Precision,
                    InferenceEngine::Precision,
                    InferenceEngine::SizeVector,
                    InferenceEngine::SizeVector,
-                   std::string> basicParams;
-
+                   std::string>
+    basicParams;
 
 /**
  * Base class for bf16 tests
@@ -106,7 +105,8 @@ typedef std::tuple<
         threshold = 9e-1;
 
         // STAGE2:
-        // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
+        // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and
+reflected in
         // performance counters
         expectedPrecisions["Add_4"] = "FP32";
         expectedPrecisions["Convolution_6"] = "BF16";
@@ -132,8 +132,7 @@ typedef std::tuple<
  *
  * In 3rd stage do not forget bfloat16 preffix!
  */
-class BasicBF16Test : public testing::WithParamInterface<basicParams>,
-                      public CommonTestUtils::TestsCommon {
+class BasicBF16Test : public testing::WithParamInterface<basicParams>, public CommonTestUtils::TestsCommon {
 protected:
     virtual std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) = 0;
 
@@ -153,7 +152,7 @@ public:
 
         std::ostringstream result;
         if (!newInputShapes.empty()) {
-            result << "Reshape_From=" << CommonTestUtils::vec2str(inputShapes);;
+            result << "Reshape_From=" << CommonTestUtils::vec2str(inputShapes);
             result << "_To=" << CommonTestUtils::vec2str(newInputShapes) << "_";
         } else {
             result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -164,15 +163,16 @@ public:
         return result.str();
     }
 
-    static void setNetInOutPrecision(InferenceEngine::CNNNetwork &cnnNet, InferenceEngine::Precision inPrc,
+    static void setNetInOutPrecision(InferenceEngine::CNNNetwork& cnnNet,
+                                     InferenceEngine::Precision inPrc,
                                      InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED) {
         if (inPrc != InferenceEngine::Precision::UNSPECIFIED) {
-            for (const auto &inputItem : cnnNet.getInputsInfo()) {
+            for (const auto& inputItem : cnnNet.getInputsInfo()) {
                 inputItem.second->setPrecision(inPrc);
             }
         }
         if (outPrc != InferenceEngine::Precision::UNSPECIFIED) {
-            for (const auto &output : cnnNet.getOutputsInfo()) {
+            for (const auto& output : cnnNet.getOutputsInfo()) {
                 output.second->setPrecision(outPrc);
             }
         }
@@ -218,10 +218,11 @@ public:
         std::string inputNameFP32 = cnnNetFP32.getInputsInfo().begin()->first;
         std::string outputNameFP32 = cnnNetFP32.getOutputsInfo().begin()->first;
         setNetInOutPrecision(cnnNetFP32, inputPrecision);
-        auto exec_net2 = ie.LoadNetwork(cnnNetFP32, targetDevice,
-                                        { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO } });
+        auto exec_net2 = ie.LoadNetwork(
+            cnnNetFP32,
+            targetDevice,
+            {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}});
         auto req2 = exec_net2.CreateInferRequest();
-
 
         req2.SetBlob(inputNameFP32, inBlob1);
 
@@ -236,9 +237,10 @@ public:
         //      BFloat16Helpers::getMaxAbsValue(lm1.as<const float *>(), mout1->size()) << std::endl;
         // std::cout << "Max in fp32 network by output " << outputNameFP32 << ": " <<
         //     BFloat16Helpers::getMaxAbsValue(lm2.as<const float *>(), mout2->size()) << std::endl;
-        FuncTestUtils::compareRawBuffers(lm1.as<const float *>(),
-                                         lm2.as<const float *>(),
-                                         mout1->size(), mout2->size(),
+        FuncTestUtils::compareRawBuffers(lm1.as<const float*>(),
+                                         lm2.as<const float*>(),
+                                         mout1->size(),
+                                         mout2->size(),
                                          FuncTestUtils::CompareType::ABS,
                                          threshold);
         // Stage2: verification of performance counters
@@ -254,5 +256,3 @@ public:
 };
 
 }  // namespace LayerTestsDefinitions
-
-

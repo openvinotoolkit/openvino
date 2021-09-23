@@ -3,14 +3,15 @@
 //
 
 #include "mkldnn_memory_state.h"
-#include "mkldnn_extension_utils.h"
+
 #include "blob_factory.hpp"
+#include "mkldnn_extension_utils.h"
 
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-void  MKLDNNVariableState::Reset() {
+void MKLDNNVariableState::Reset() {
     std::memset(state->buffer(), 0, state->byteSize());
 }
 

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef CPU_DEBUG_CAPS
-#pragma once
+#    pragma once
 
-#include "mkldnn_node.h"
-#include "utils/blob_dump.h"
-#include "utils/debug_capabilities.h"
+#    include <string>
+#    include <unordered_map>
 
-#include <unordered_map>
-#include <string>
+#    include "mkldnn_node.h"
+#    include "utils/blob_dump.h"
+#    include "utils/debug_capabilities.h"
 
 namespace MKLDNNPlugin {
 
@@ -25,13 +25,13 @@ class NodeDumper {
 public:
     NodeDumper(const DebugCaps::Config& config);
 
-    void dumpInputBlobs(const MKLDNNNodePtr &node, int count = -1) const;
-    void dumpOutputBlobs(const MKLDNNNodePtr &node, int count = -1) const;
+    void dumpInputBlobs(const MKLDNNNodePtr& node, int count = -1) const;
+    void dumpOutputBlobs(const MKLDNNNodePtr& node, int count = -1) const;
 
 private:
     void dumpInternalBlobs(const MKLDNNNodePtr& node) const;
     void dump(const BlobDumper& bd, const std::string& file) const;
-    bool shouldBeDumped(const MKLDNNNodePtr &node, const std::string& portsKind) const;
+    bool shouldBeDumped(const MKLDNNNodePtr& node, const std::string& portsKind) const;
 
     enum class FORMAT {
         BIN,
@@ -64,7 +64,7 @@ class DumpHelper {
     const int count;
 
 public:
-    explicit DumpHelper(const MKLDNNNodePtr& _node, int _count = -1): node(_node), count(_count) {
+    explicit DumpHelper(const MKLDNNNodePtr& _node, int _count = -1) : node(_node), count(_count) {
         getNodeDumper()->dumpInputBlobs(node, count);
     }
 
@@ -73,8 +73,8 @@ public:
     }
 };
 
-#define DUMP(...) DumpHelper __helper##__node (__VA_ARGS__);
-} // namespace MKLDNNPlugin
-#else // CPU_DEBUG_CAPS
-#define DUMP(...)
-#endif // CPU_DEBUG_CAPS
+#    define DUMP(...) DumpHelper __helper##__node(__VA_ARGS__);
+}  // namespace MKLDNNPlugin
+#else  // CPU_DEBUG_CAPS
+#    define DUMP(...)
+#endif  // CPU_DEBUG_CAPS

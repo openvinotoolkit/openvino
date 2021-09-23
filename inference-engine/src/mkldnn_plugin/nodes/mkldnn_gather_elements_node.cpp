@@ -2,21 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
-#include <mkldnn_types.h>
-#include "ie_parallel.hpp"
 #include "mkldnn_gather_elements_node.h"
-#include <ngraph/opsets/opset1.hpp>
+
+#include <mkldnn_types.h>
 #include <precision_utils.h>
 #include <utils/general_utils.h>
+
+#include <cmath>
+#include <ngraph/opsets/opset1.hpp>
+#include <string>
+#include <vector>
+
 #include "common/cpu_memcpy.h"
+#include "ie_parallel.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNGatherElementsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNGatherElementsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                    std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -34,8 +38,10 @@ bool MKLDNNGatherElementsNode::isSupportedOperation(const std::shared_ptr<const 
     return true;
 }
 
-MKLDNNGatherElementsNode::MKLDNNGatherElementsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNGatherElementsNode::MKLDNNGatherElementsNode(const std::shared_ptr<ngraph::Node>& op,
+                                                   const mkldnn::engine& eng,
+                                                   MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -90,17 +96,16 @@ void MKLDNNGatherElementsNode::initSupportedPrimitiveDescriptors() {
 
     dataTypeSize_ = inDataPrecision.size();
 
-    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
-                          {LayoutType::ncsp, Precision::I32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, Precision::I32}},
                          {{LayoutType::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
 
 template <typename dataType>
 void MKLDNNGatherElementsNode::directExecution() {
-    const auto *srcData = reinterpret_cast<const dataType *>(getParentEdgeAt(dataIndex_)->getMemoryPtr()->GetPtr());
-    const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(indicesIndex_)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* srcData = reinterpret_cast<const dataType*>(getParentEdgeAt(dataIndex_)->getMemoryPtr()->GetPtr());
+    const auto* indices = reinterpret_cast<const int*>(getParentEdgeAt(indicesIndex_)->getMemoryPtr()->GetPtr());
+    auto* dstData = reinterpret_cast<dataType*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     const int outSize = getChildEdgesAtPort(0)[0]->getMemory().GetShape().getElementsCount();
     auto threadBody = [&](const int ithr, const int nthr) {
@@ -131,14 +136,14 @@ void MKLDNNGatherElementsNode::directExecution() {
 
 void MKLDNNGatherElementsNode::execute(mkldnn::stream strm) {
     switch (dataTypeSize_) {
-        case sizeof(PrecisionTrait<Precision::I32>::value_type):
-            return directExecution<PrecisionTrait<Precision::I32>::value_type>();
-        case sizeof(PrecisionTrait<Precision::I16>::value_type):
-            return directExecution<PrecisionTrait<Precision::I16>::value_type>();
-        case sizeof(PrecisionTrait<Precision::I8>::value_type):
-            return directExecution<PrecisionTrait<Precision::I8>::value_type>();
-        default:
-            return IE_THROW() << "Unsupported data type size";
+    case sizeof(PrecisionTrait<Precision::I32>::value_type):
+        return directExecution<PrecisionTrait<Precision::I32>::value_type>();
+    case sizeof(PrecisionTrait<Precision::I16>::value_type):
+        return directExecution<PrecisionTrait<Precision::I16>::value_type>();
+    case sizeof(PrecisionTrait<Precision::I8>::value_type):
+        return directExecution<PrecisionTrait<Precision::I8>::value_type>();
+    default:
+        return IE_THROW() << "Unsupported data type size";
     }
 }
 

@@ -11,25 +11,27 @@ namespace MKLDNNPlugin {
 
 class MKLDNNExperimentalDetectronDetectionOutputNode : public MKLDNNNode {
 public:
-    MKLDNNExperimentalDetectronDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNExperimentalDetectronDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op,
+                                                   const mkldnn::engine& eng,
+                                                   MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    const int INPUT_ROIS {0};
-    const int INPUT_DELTAS {1};
-    const int INPUT_SCORES {2};
-    const int INPUT_IM_INFO {3};
+    const int INPUT_ROIS{0};
+    const int INPUT_DELTAS{1};
+    const int INPUT_SCORES{2};
+    const int INPUT_IM_INFO{3};
 
-    const int OUTPUT_BOXES {0};
-    const int OUTPUT_CLASSES {1};
-    const int OUTPUT_SCORES {2};
+    const int OUTPUT_BOXES{0};
+    const int OUTPUT_CLASSES{1};
+    const int OUTPUT_SCORES{2};
 
     float score_threshold_;
     float nms_threshold_;

@@ -6,19 +6,22 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNPSROIPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNPSROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNPSROIPoolingNode(const std::shared_ptr<ngraph::Node>& op,
+                           const mkldnn::engine& eng,
+                           MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -50,32 +53,50 @@ private:
 
     std::string errorPrefix;
 
-    void unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc,
-                      int& hInputStride, int& wInputStride,
-                      int& hOutputStride, int& wOutputStride,
-                      int& inBlockSize, int& outBlockSize,
+    void unpackParams(const BlockedMemoryDesc& srcDesc,
+                      const BlockedMemoryDesc& dstDesc,
+                      int& hInputStride,
+                      int& wInputStride,
+                      int& hOutputStride,
+                      int& wOutputStride,
+                      int& inBlockSize,
+                      int& outBlockSize,
                       int& outBlockCount,
-                      unsigned long& inputChannelsPadding, unsigned long& outputChannelsPadding);
+                      unsigned long& inputChannelsPadding,
+                      unsigned long& outputChannelsPadding);
 
     template <typename inputType, typename outputType>
-    void executeAverage(const inputType *srcData, outputType *dstData, const float *bottomRois,
-                        const int n, const int roiBatchInd,
-                        const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc);
+    void executeAverage(const inputType* srcData,
+                        outputType* dstData,
+                        const float* bottomRois,
+                        const int n,
+                        const int roiBatchInd,
+                        const BlockedMemoryDesc& srcDesc,
+                        const BlockedMemoryDesc& dstDesc);
 
     template <typename inputType, typename outputType>
-    void executeBilinear(const inputType *srcData, outputType *dstData, const float *bottomRois,
-                         const int currentRoi, const int roiBatchInd,
-                         const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc);
+    void executeBilinear(const inputType* srcData,
+                         outputType* dstData,
+                         const float* bottomRois,
+                         const int currentRoi,
+                         const int roiBatchInd,
+                         const BlockedMemoryDesc& srcDesc,
+                         const BlockedMemoryDesc& dstDesc);
 
     template <typename inputType, typename outputType>
-    void executeBilinearDeformable(const inputType *srcData, outputType *dstData, const float *bottomRois,
-                                   const float *bottomTrans, const int numClasses, const int channelsEachClass,
-                                   const int currentRoi, const int roiBatchInd);
+    void executeBilinearDeformable(const inputType* srcData,
+                                   outputType* dstData,
+                                   const float* bottomRois,
+                                   const float* bottomTrans,
+                                   const int numClasses,
+                                   const int channelsEachClass,
+                                   const int currentRoi,
+                                   const int roiBatchInd);
 
     template <typename inputType, typename outputType>
     void executeSpecified();
 
-    template<typename T>
+    template <typename T>
     struct PSROIPoolingExecute;
 };
 

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
 #include "ngraph_conversion_tests/conv_bias_fusion.hpp"
+
+#include <vector>
 
 using namespace NGraphConversionTestsDefinitions;
 

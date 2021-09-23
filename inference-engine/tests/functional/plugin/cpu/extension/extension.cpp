@@ -2,26 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <file_utils.h>
 #include <gtest/gtest.h>
+
+#include <common_test_utils/test_assertions.hpp>
 #include <ie_core.hpp>
 #include <ngraph/ngraph.hpp>
-#include <onnx_import/onnx_utils.hpp>
-#include <file_utils.h>
-#include <common_test_utils/test_assertions.hpp>
 #include <onnx_custom_op.hpp>
-
+#include <onnx_import/onnx_utils.hpp>
 
 class CustomAbsKernel : public InferenceEngine::ILayerExecImpl {
 public:
-    explicit CustomAbsKernel(const std::shared_ptr<ngraph::Node>& node): node(node) {}
+    explicit CustomAbsKernel(const std::shared_ptr<ngraph::Node>& node) : node(node) {}
 
-    InferenceEngine::StatusCode
-    init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+    InferenceEngine::StatusCode init(InferenceEngine::LayerConfig& /*config*/,
+                                     InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         return InferenceEngine::StatusCode::OK;
     }
 
     InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
-                                                            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+                                                           InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         InferenceEngine::LayerConfig layerConfig;
         layerConfig.dynBatchSupport = true;
 
@@ -41,17 +41,16 @@ public:
         for (size_t i = 0; i < shape.size(); i++) {
             order.push_back(i);
         }
-        cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
-                                                shape, {shape, order});
+        cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, shape, {shape, order});
         layerConfig.outConfs.push_back(cfg);
         layerConfig.inConfs.push_back(cfg);
         conf.push_back(layerConfig);
         return InferenceEngine::OK;
     }
 
-    InferenceEngine::StatusCode
-    execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
-            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+    InferenceEngine::StatusCode execute(std::vector<InferenceEngine::Blob::Ptr>& inputs,
+                                        std::vector<InferenceEngine::Blob::Ptr>& outputs,
+                                        InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         for (size_t i = 0; i < inputs.size(); i++) {
             InferenceEngine::MemoryBlob::CPtr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputs[i]);
             InferenceEngine::MemoryBlob::Ptr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputs[i]);
@@ -62,8 +61,8 @@ public:
             auto minputHolder = minput->rmap();
             auto moutputHolder = moutput->wmap();
 
-            auto inputData = minputHolder.as<const float *>();
-            auto outputData = moutputHolder.as<float  *>();
+            auto inputData = minputHolder.as<const float*>();
+            auto outputData = moutputHolder.as<float*>();
             for (size_t j = 0; j < minput->size(); j++) {
                 outputData[j] = inputData[j] < 0 ? (-inputData[j] * 2) : inputData[j];
             }
@@ -78,9 +77,11 @@ private:
 class CustomAbs : public ngraph::op::Op {
 public:
     static constexpr ngraph::NodeTypeInfo type_info{"CustomAbs", 100500};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
+    const ngraph::NodeTypeInfo& get_type_info() const override {
+        return type_info;
+    }
     CustomAbs() = default;
-    CustomAbs(const ngraph::Output<ngraph::Node>& arg): ngraph::op::Op({arg}) {
+    CustomAbs(const ngraph::Output<ngraph::Node>& arg) : ngraph::op::Op({arg}) {
         constructor_validate_and_infer_types();
     }
     void validate_and_infer_types() override {
@@ -116,13 +117,16 @@ public:
         return {"CPU"};
     }
 
-    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
+    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node,
+                                                       const std::string& implType) override {
         return std::make_shared<CustomAbsKernel>(node);
     }
 };
 
-void infer_model(InferenceEngine::Core& ie, const std::string& model,
-                 const std::vector<float>& input_values, const std::vector<float>& expected) {
+void infer_model(InferenceEngine::Core& ie,
+                 const std::string& model,
+                 const std::vector<float>& input_values,
+                 const std::vector<float>& expected) {
     InferenceEngine::Blob::CPtr weights;
     auto network = ie.ReadNetwork(model, weights);
     auto function = network.getFunction();
@@ -144,14 +148,13 @@ void infer_model(InferenceEngine::Core& ie, const std::string& model,
     inference_req.Infer();
 
     auto output = network_outputs.begin();
-    InferenceEngine::MemoryBlob::CPtr computed = InferenceEngine::as<InferenceEngine::MemoryBlob>(inference_req.GetBlob(output->first));
+    InferenceEngine::MemoryBlob::CPtr computed =
+        InferenceEngine::as<InferenceEngine::MemoryBlob>(inference_req.GetBlob(output->first));
     const auto computed_data = computed->rmap();
     const auto* computed_data_buffer = computed_data.template as<const float*>();
-    std::vector<float> computed_values(computed_data_buffer,
-                                   computed_data_buffer + computed->size());
+    std::vector<float> computed_values(computed_data_buffer, computed_data_buffer + computed->size());
     ASSERT_EQ(expected, computed_values);
 }
-
 
 TEST(Extension, OnnxModelWithCustomAbs) {
     std::string model = R"V0G0N(
@@ -203,16 +206,17 @@ opset_import {
     std::vector<float> expected{1, 4, 3, 8, 5, 12, 7, 16, 9, 20};
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<CustomAbsExtension>());
-    ngraph::onnx_import::register_operator(
-        CustomAbs::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
-            ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
-            return {std::make_shared<CustomAbs>(ng_inputs.at(0))};
-    });
+    ngraph::onnx_import::register_operator(CustomAbs::type_info.name,
+                                           1,
+                                           "custom_domain",
+                                           [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
+                                               ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
+                                               return {std::make_shared<CustomAbs>(ng_inputs.at(0))};
+                                           });
 
     infer_model(ie, model, input_values, expected);
     ngraph::onnx_import::unregister_operator(CustomAbs::type_info.name, 1, "custom_domain");
 }
-
 
 TEST(Extension, XmlModelWithCustomAbs) {
     std::string model = R"V0G0N(
@@ -260,11 +264,9 @@ TEST(Extension, XmlModelWithCustomAbs) {
     infer_model(ie, model, input_values, expected);
 }
 
-
 static std::string get_extension_path() {
     return FileUtils::makePluginLibraryName<char>({}, std::string("template_extension") + IE_BUILD_POSTFIX);
 }
-
 
 TEST(Extension, XmlModelWithExtensionFromDSO) {
     std::string model = R"V0G0N(
@@ -324,7 +326,6 @@ TEST(Extension, XmlModelWithExtensionFromDSO) {
     ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
     infer_model(ie, model, input_values, expected);
 }
-
 
 TEST(Extension, OnnxModelWithExtensionFromDSO) {
     std::string model = R"V0G0N(
@@ -401,7 +402,6 @@ opset_import {
     ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
     infer_model(ie, model, input_values, expected);
 }
-
 
 TEST(Extension, OnnxModelWithCustomReluDocsExample) {
     std::vector<float> input_values{0, -1, 2, -3, 4, -5, 6, -7};

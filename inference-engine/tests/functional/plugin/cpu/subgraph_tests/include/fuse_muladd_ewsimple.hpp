@@ -4,23 +4,22 @@
 
 #pragma once
 
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-
+#include "test_utils/cpu_test_utils.hpp"
 
 namespace SubgraphTestsDefinitions {
 
-using FuseMulAddAndEwSimpleParams = std::tuple<
-        InferenceEngine::SizeVector,    // Input shape
-        InferenceEngine::Precision      // Input precision
->;
+using FuseMulAddAndEwSimpleParams = std::tuple<InferenceEngine::SizeVector,  // Input shape
+                                               InferenceEngine::Precision    // Input precision
+                                               >;
 
-class FuseMulAddAndEwSimpleTest : public testing::WithParamInterface<FuseMulAddAndEwSimpleParams>, public CPUTestUtils::CPUTestsBase,
-        virtual public LayerTestsUtils::LayerTestsCommon {
+class FuseMulAddAndEwSimpleTest : public testing::WithParamInterface<FuseMulAddAndEwSimpleParams>,
+                                  public CPUTestUtils::CPUTestsBase,
+                                  virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<FuseMulAddAndEwSimpleParams> obj);
 
@@ -47,4 +46,4 @@ protected:
     void CreateGraph() override;
 };
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

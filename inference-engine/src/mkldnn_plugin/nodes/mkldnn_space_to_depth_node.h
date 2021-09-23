@@ -6,14 +6,18 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <string>
+
 #include "common/permute_kernel.h"
 
 namespace MKLDNNPlugin {
 
 class MKLDNNSpaceToDepthNode : public MKLDNNNode {
 public:
-    MKLDNNSpaceToDepthNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNSpaceToDepthNode(const std::shared_ptr<ngraph::Node>& op,
+                           const mkldnn::engine& eng,
+                           MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -24,10 +28,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    enum Mode {
-        BLOCKS_FIRST = 0,
-        DEPTH_FIRST = 1
-    };
+    enum Mode { BLOCKS_FIRST = 0, DEPTH_FIRST = 1 };
 
     Mode mode;
     size_t blockSize;

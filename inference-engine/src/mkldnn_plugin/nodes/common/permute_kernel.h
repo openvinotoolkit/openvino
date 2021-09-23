@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <memory>
 
 namespace MKLDNNPlugin {
@@ -36,9 +37,9 @@ struct jit_args_permute {
 };
 
 struct jit_uni_permute_kernel {
-    void (*ker_)(const jit_args_permute *);
+    void (*ker_)(const jit_args_permute*);
 
-    void operator()(const jit_args_permute *args) {
+    void operator()(const jit_args_permute* args) {
         assert(ker_);
         ker_(args);
     }

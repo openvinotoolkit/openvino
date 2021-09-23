@@ -5,11 +5,11 @@
 #pragma once
 
 #include <mkldnn_node.h>
-#include <mkldnn.hpp>
-#include <cassert>
 
-#include <cpu/ref_eltwise.hpp>
+#include <cassert>
 #include <cpu/ref_depthwise_injector.hpp>
+#include <cpu/ref_eltwise.hpp>
+#include <mkldnn.hpp>
 
 using namespace InferenceEngine;
 
@@ -28,10 +28,10 @@ struct jit_normalize_config_params {
 };
 
 struct jit_normalize_call_args {
-    const void *src;
-    void *dst;
-    const float *modulo;
-    const float *fused_factor;
+    const void* src;
+    void* dst;
+    const float* modulo;
+    const float* fused_factor;
     size_t src_stride;
     size_t dst_stride;
     size_t work_amount;
@@ -39,9 +39,9 @@ struct jit_normalize_call_args {
 };
 
 struct jit_uni_normalize_modulo_kernel {
-    void (*ker_)(const jit_normalize_call_args *);
+    void (*ker_)(const jit_normalize_call_args*);
 
-    void operator()(const jit_normalize_call_args *args) {
+    void operator()(const jit_normalize_call_args* args) {
         assert(ker_);
         ker_(args);
     }
@@ -55,25 +55,30 @@ struct jit_uni_normalize_modulo_kernel {
 };
 
 struct jit_uni_normalize_kernel {
-    void (*ker_)(const jit_normalize_call_args *);
+    void (*ker_)(const jit_normalize_call_args*);
 
-    void operator()(const jit_normalize_call_args *args) {
+    void operator()(const jit_normalize_call_args* args) {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_normalize_kernel(jit_normalize_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
+    explicit jit_uni_normalize_kernel(jit_normalize_config_params jcp, const mkldnn_primitive_attr& attr)
+        : ker_(nullptr),
+          jcp_(jcp),
+          attr_(attr) {}
     virtual ~jit_uni_normalize_kernel() {}
 
     virtual void create_ker() = 0;
 
     jit_normalize_config_params jcp_;
-    const mkldnn_primitive_attr &attr_;
+    const mkldnn_primitive_attr& attr_;
 };
 
 class MKLDNNNormalizeL2Node : public MKLDNNNode {
 public:
-    MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op,
+                          const mkldnn::engine& eng,
+                          MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -88,13 +93,10 @@ public:
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
 private:
-    enum class NormEpsMode {
-        ADD,
-        MAX
-    };
+    enum class NormEpsMode { ADD, MAX };
     NormEpsMode epsMode = NormEpsMode::ADD;
 
-    float epsApply(const float &modulo) const {
+    float epsApply(const float& modulo) const {
         if (epsMode == NormEpsMode::ADD) {
             return modulo + eps;
         } else if (epsMode == NormEpsMode::MAX) {
@@ -106,7 +108,7 @@ private:
 
     bool cornerCase = false;
 
-    template<typename T>
+    template <typename T>
     struct NormalizeExecute;
 
     template <typename in_data_t, typename out_data_t>
@@ -121,8 +123,8 @@ private:
     template <typename in_data_t, typename out_data_t>
     void normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
 
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
-    inline void apply_post_ops_scalar(float &dst_value, int index_c);
+    void setPostOps(mkldnn::primitive_attr& attr, bool initWeights = false);
+    inline void apply_post_ops_scalar(float& dst_value, int index_c);
 
     template <typename in_data_t, typename out_data_t>
     void normalize_function(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
@@ -152,4 +154,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-

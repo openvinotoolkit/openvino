@@ -4,34 +4,36 @@
 
 #include "mkldnn_concat_node.h"
 
+#include <memory_desc/cpu_memory_desc_utils.h>
+#include <mkldnn_extension_utils.h>
+
+#include <limits>
 #include <map>
 #include <utility>
 #include <vector>
-#include <mkldnn_extension_utils.h>
 
+#include "common/blocked_desc_creator.h"
+#include "common/cpu_memcpy.h"
+#include "ie_parallel.hpp"
 #include "mkldnn.hpp"
 #include "mkldnn/iml_type_mapper.h"
-#include "mkldnn_edge.h"
-#include "mkldnn_memory.h"
-#include "ie_parallel.hpp"
 #include "mkldnn_conv_node.h"
-#include "mkldnn_fake_quantize_node.h"
-#include "mkldnn_pooling_node.h"
+#include "mkldnn_edge.h"
 #include "mkldnn_eltwise_node.h"
-#include <limits>
-#include "common/cpu_memcpy.h"
-#include "common/blocked_desc_creator.h"
-#include <memory_desc/cpu_memory_desc_utils.h>
+#include "mkldnn_fake_quantize_node.h"
+#include "mkldnn_memory.h"
+#include "mkldnn_pooling_node.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 namespace {
-    constexpr size_t channelAxis = 1lu;
+constexpr size_t channelAxis = 1lu;
 }
 
-bool MKLDNNConcatNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNConcatNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                            std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -49,8 +51,10 @@ bool MKLDNNConcatNode::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-MKLDNNConcatNode::MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+MKLDNNConcatNode::MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op,
+                                   const mkldnn::engine& eng,
+                                   MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -83,9 +87,12 @@ void MKLDNNConcatNode::getSupportedDescriptors() {
         }
     }
 
-    // we need the first dims before axis to be 1 to avoid the reorder in the edge between the first parent and this concat
+    // we need the first dims before axis to be 1 to avoid the reorder in the edge between the first parent and this
+    // concat
     const auto& childDims = outputShapes[0].getStaticDims();
-    if (std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) { return  dim == 1; }))
+    if (std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) {
+            return dim == 1;
+        }))
         canBeInPlace = true;
 }
 
@@ -113,10 +120,11 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     const auto& dstShape = getOutputShapeAtPort(0);
     std::vector<LayoutType> tdCreatorTypes = {LayoutType::ncsp, LayoutType::nspc};
 
-    // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow oneDNN ref implementation
+    // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow
+    // oneDNN ref implementation
     if (dstShape.getRank() > channelAxis) {
-        for (auto item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
-            const VectorDims &blkDims = dstShape.getStaticDims();
+        for (auto item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
+            const VectorDims& blkDims = dstShape.getStaticDims();
             if (blkDims[channelAxis] % item.first)
                 continue;
 
@@ -138,7 +146,8 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
-    auto itrRange = BlockedDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(dstShape.getRank()), tdCreatorTypes);
+    auto itrRange =
+        BlockedDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(dstShape.getRank()), tdCreatorTypes);
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
         NodeConfig config;
 
@@ -153,7 +162,8 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < getParentEdges().size(); ++i) {
             config.inConfs[i].inPlace = -1;
             config.inConfs[i].constant = false;
-            config.inConfs[i].desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(itr->second->createDesc(inputPrecision, getInputShapeAtPort(i)));
+            config.inConfs[i].desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(
+                itr->second->createDesc(inputPrecision, getInputShapeAtPort(i)));
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
         if (itr->first != LayoutType::nspc) {
@@ -176,8 +186,8 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         const auto& refConfig = supportedPrimitiveDescriptors[refPdIndex].getConfig();
         auto config = refConfig;
 
-        const auto &order = refConfig.outConfs[0].desc->as<CpuBlockedMemoryDesc>()->getOrder();
-        const auto &blkDims = refConfig.outConfs[0].desc->as<CpuBlockedMemoryDesc>()->getBlockDims();
+        const auto& order = refConfig.outConfs[0].desc->as<CpuBlockedMemoryDesc>()->getOrder();
+        const auto& blkDims = refConfig.outConfs[0].desc->as<CpuBlockedMemoryDesc>()->getBlockDims();
         auto numOfDim = blkDims.size();
 
         SizeVector offsets(numOfDim, 0lu);
@@ -193,14 +203,21 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        config.outConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(outputPrecision, dstShape, blkDims, order, offset, offsets, strides);
+        config.outConfs[0].desc =
+            std::make_shared<CpuBlockedMemoryDesc>(outputPrecision, dstShape, blkDims, order, offset, offsets, strides);
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             const auto& srcBlkDims = refConfig.inConfs[i].desc->as<CpuBlockedMemoryDesc>()->getBlockDims();
             const auto& shape = refConfig.inConfs[i].desc->getShape();
 
             config.inConfs[i].inPlace = 0;
-            config.inConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(inputPrecision, shape, srcBlkDims, order, offset, offsets, strides);
+            config.inConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(inputPrecision,
+                                                                            shape,
+                                                                            srcBlkDims,
+                                                                            order,
+                                                                            offset,
+                                                                            offsets,
+                                                                            strides);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -214,12 +231,16 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
     // for that case.
     for (int i = 0; i < getParentEdges().size(); i++) {
         for (int j = i + 1; j < getParentEdges().size(); j++) {
-            if (getParentEdgeAt(i) == getParentEdgeAt(j)) canBeInPlace = false;
+            if (getParentEdgeAt(i) == getParentEdgeAt(j))
+                canBeInPlace = false;
         }
     }
 
     std::map<LayoutType, size_t> formatFrequency;
-    std::vector<LayoutType> supportedLayouts = {LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp8c, LayoutType::nCsp16c};
+    std::vector<LayoutType> supportedLayouts = {LayoutType::ncsp,
+                                                LayoutType::nspc,
+                                                LayoutType::nCsp8c,
+                                                LayoutType::nCsp16c};
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         auto parent = parentEdge->getParent();
@@ -228,11 +249,11 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         if (parent_pdesc == nullptr)
             continue;
 
-        const auto &parent_config = parent_pdesc->getConfig();
+        const auto& parent_config = parent_pdesc->getConfig();
         int outputIndex = parentEdge->getInputNum();
         if (outputIndex < 0 || outputIndex >= parent_config.outConfs.size())
             IE_THROW() << "Cannot find index of output node";
-        const auto &port_desc = parent_config.outConfs[outputIndex].desc;
+        const auto& port_desc = parent_config.outConfs[outputIndex].desc;
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
                 formatFrequency[item] += 1;
@@ -242,15 +263,15 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         auto child = childEdge->getChild();
-        const auto *prim_desc = child->getSelectedPrimitiveDescriptor();
+        const auto* prim_desc = child->getSelectedPrimitiveDescriptor();
         if (prim_desc == nullptr)
             continue;
 
-        const auto &config = prim_desc->getConfig();
+        const auto& config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
         if (inputIndex < 0 || inputIndex >= config.inConfs.size())
             IE_THROW() << "Cannot find index of output node";
-        const auto &port_desc = config.inConfs[inputIndex].desc;
+        const auto& port_desc = config.inConfs[inputIndex].desc;
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
                 formatFrequency[item] += 1;
@@ -261,7 +282,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
     size_t maxCount = 0;
     auto outDims = getOutputShapeAtPort(0).getStaticDims();
     LayoutType convertTo = LayoutType::ncsp;
-    for (auto &it : formatFrequency) {
+    for (auto& it : formatFrequency) {
         if (it.second > maxCount) {
             maxCount = it.second;
             convertTo = it.first;
@@ -274,7 +295,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         }
     }
 
-    for (auto& item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c) }) {
+    for (auto& item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
         if (convertTo == item.second) {
             if (outDims[1] % item.first != 0) {
                 convertTo = LayoutType::ncsp;
@@ -292,7 +313,8 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
 
     for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
         if (supportedPrimitiveDescriptors[i].getConfig().outConfs[0].desc->hasLayoutType(convertTo)) {
-            if (IMPLICATION(supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown, canBeInPlace)) {
+            if (IMPLICATION(supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown,
+                            canBeInPlace)) {
                 canSelectPrimitive.push_back(i);
             }
         }
@@ -340,7 +362,7 @@ void MKLDNNConcatNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    //check if selected Tensor descriptor has nspc layout and concat axis is C
+    // check if selected Tensor descriptor has nspc layout and concat axis is C
     if (axis == channelAxis && getChildEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
         canOptimizeNspc = true;
         return;
@@ -352,10 +374,10 @@ void MKLDNNConcatNode::createPrimitive() {
         auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr()) {
             auto parent = getParentEdgeAt(i)->getParent();
-            IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
-                               << getName() << ".";
+            IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node " << getName()
+                       << ".";
         }
-// DnnlBlockedMemoryDesc
+        // DnnlBlockedMemoryDesc
         auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         auto& dims = getInputShapeAtPort(i).getStaticDims();
         for (size_t j = 0; j < dims.size(); j++) {
@@ -390,17 +412,19 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-   if (!isOptimized()) {
-       MKLDNNNode::initOptimalPrimitiveDescriptor();
+    if (!isOptimized()) {
+        MKLDNNNode::initOptimalPrimitiveDescriptor();
         auto config = selected_pd->getConfig();
         if (!isConfigDefined(config)) {
             for (size_t i = 0; i < config.inConfs.size(); i++) {
                 // Concat doesn't support different precision on inputs
-                config.inConfs[i].desc = MemoryDescUtils::cloneWithNewPrecision(*getDefinedInputDesc(config, i), inputPrecision);
+                config.inConfs[i].desc =
+                    MemoryDescUtils::cloneWithNewPrecision(*getDefinedInputDesc(config, i), inputPrecision);
             }
 
             for (size_t i = 0; i < config.outConfs.size(); i++) {
-                config.outConfs[i].desc = MemoryDescUtils::cloneWithNewPrecision(*getDefinedOutputDesc(config, i), outputPrecision);
+                config.outConfs[i].desc =
+                    MemoryDescUtils::cloneWithNewPrecision(*getDefinedOutputDesc(config, i), outputPrecision);
             }
 
             initDescriptor(config);
@@ -418,7 +442,8 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         int num = getChildEdgeAt(i)->getOutputNum();
         if (num >= 0) {
             auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-            childConf.desc = MemoryDescUtils::cloneWithNewPrecision(*childConf.desc, config.outConfs[i].desc->getPrecision());
+            childConf.desc =
+                MemoryDescUtils::cloneWithNewPrecision(*childConf.desc, config.outConfs[i].desc->getPrecision());
 
             if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
                 if (!childConf.desc->isDefined() && childConf.inPlace >= 0)
@@ -440,18 +465,20 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         auto oldDesc = config.inConfs[i].desc;
         auto inpBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
 
-        config.inConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(inpBlockingDesc->getPrecision(),
-                                                                                 inpBlockingDesc->getShape(),
-                                                                                 inpBlockingDesc->getBlockDims(),
-                                                                                 inpBlockingDesc->getOrder(),
-                                                                                 firstOutBlockingDesc->getOffsetPadding() + offset,
-                                                                                 firstOutBlockingDesc->getOffsetPaddingToData(),
-                                                                                 firstOutBlockingDesc->getStrides());
+        config.inConfs[i].desc =
+            std::make_shared<CpuBlockedMemoryDesc>(inpBlockingDesc->getPrecision(),
+                                                   inpBlockingDesc->getShape(),
+                                                   inpBlockingDesc->getBlockDims(),
+                                                   inpBlockingDesc->getOrder(),
+                                                   firstOutBlockingDesc->getOffsetPadding() + offset,
+                                                   firstOutBlockingDesc->getOffsetPaddingToData(),
+                                                   firstOutBlockingDesc->getStrides());
         size_t axisSize = 1;
 
         auto firstInpBlockingDesc = config.inConfs[0].desc->as<BlockedMemoryDesc>();
         if (firstInpBlockingDesc->hasLayoutType(LayoutType::nspc)) {
-            // This is more general and works for any "direct" Layout (such as nchw or nhwc), but it doesn't work for blocked
+            // This is more general and works for any "direct" Layout (such as nchw or nhwc), but it doesn't work for
+            // blocked
             size_t realAxis = inverseOrder(firstInpBlockingDesc->getOrder(), axis);
             for (size_t j = realAxis; j < inpBlockingDesc->getBlockDims().size(); j++) {
                 size_t jj = firstInpBlockingDesc->getOrder()[j];
@@ -480,7 +507,7 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
 
     const MKLDNNMemory& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
-    std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
+    std::unordered_map<int, memory> mem_ags{{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
     for (int i = 0; i < num_src; i++)
         mem_ags[DNNL_ARG_MULTIPLE_SRC + i] = getParentEdgeAt(i)->getMemory().GetPrimitive();
 

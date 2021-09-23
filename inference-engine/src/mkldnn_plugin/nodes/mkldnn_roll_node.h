@@ -6,13 +6,16 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <string>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNRollNode : public MKLDNNNode {
 public:
-    MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op,
+                   const mkldnn::engine& eng,
+                   MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

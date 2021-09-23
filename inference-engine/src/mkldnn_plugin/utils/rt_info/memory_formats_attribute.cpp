@@ -24,4 +24,3 @@ constexpr VariantTypeInfo VariantWrapper<MLKDNNOutputMemoryFormats>::type_info;
 std::string ngraph::getMLKDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
     return MLKDNNMemoryFormatsHelper<MLKDNNOutputMemoryFormats>::getMemoryFormats(node);
 }
-

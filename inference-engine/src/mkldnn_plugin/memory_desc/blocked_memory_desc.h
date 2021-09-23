@@ -69,7 +69,7 @@ protected:
      * Doesn't perform descs specific attributes check
      * @return true if compatible, otherwise false
      */
-    bool isCompatible(const BlockedMemoryDesc &rhs) const;
+    bool isCompatible(const BlockedMemoryDesc& rhs) const;
 
     mutable VectorDims blockedDims;
     mutable VectorDims strides;
@@ -80,4 +80,4 @@ protected:
 using BlockedMemoryDescPtr = std::shared_ptr<BlockedMemoryDesc>;
 using BlockedMemoryDescCPtr = std::shared_ptr<const BlockedMemoryDesc>;
 
-} // namespace MKLDNNPlugin
+}  // namespace MKLDNNPlugin

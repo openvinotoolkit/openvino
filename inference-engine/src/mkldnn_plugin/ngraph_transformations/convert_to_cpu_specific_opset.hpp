@@ -3,22 +3,23 @@
 //
 
 #include <ngraph/pass/constant_folding.hpp>
+
+#include "convert_broadcast_to_tiles.hpp"
 #include "convert_matmul_to_fc_or_gemm.hpp"
+#include "convert_tile_to_seq_tiles.hpp"
+#include "convert_to_leaky_relu.hpp"
+#include "convert_to_power_static.hpp"
+#include "convert_to_swish_cpu.hpp"
 #include "fc_bias_fusion.hpp"
+#include "reshape_1d_ops.hpp"
 #include "reshape_fc_fusion.hpp"
 #include "reshape_fully_connected.hpp"
-#include "convert_broadcast_to_tiles.hpp"
-#include "convert_tile_to_seq_tiles.hpp"
-#include "reshape_1d_ops.hpp"
-#include "convert_to_power_static.hpp"
-#include "convert_to_leaky_relu.hpp"
-#include "convert_to_swish_cpu.hpp"
 #include "reshape_prelu.hpp"
 #include "rnn_sequences_optimization.hpp"
 
 namespace MKLDNNPlugin {
 
-inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
+inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function>& nGraphFunc) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<Reshape1DConvolution>();
@@ -42,7 +43,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
         manager.register_pass<ReshapeFullyConnectedFusion>();
     }
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
+    manager.register_pass<ngraph::pass::ConvertPrecision>(
+        precisions_array{{ngraph::element::i64, ngraph::element::i32}});
     manager.run_passes(nGraphFunc);
 }
 

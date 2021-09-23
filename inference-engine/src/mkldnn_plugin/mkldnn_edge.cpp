@@ -3,16 +3,22 @@
 //
 
 #include "mkldnn_edge.h"
-#include "mkldnn_node.h"
-#include "mkldnn_extension_utils.h"
-#include <blob_factory.hpp>
+
 #include <nodes/mkldnn_input_node.h>
+
+#include <blob_factory.hpp>
+
+#include "mkldnn_extension_utils.h"
+#include "mkldnn_node.h"
 
 using namespace mkldnn;
 namespace MKLDNNPlugin {
 
-MKLDNNEdge::MKLDNNEdge(const MKLDNNNodePtr &parent, const MKLDNNNodePtr &child, int pr_port, int ch_port) :
-        parent(parent), child(child), parent_port(pr_port), child_port(ch_port) {}
+MKLDNNEdge::MKLDNNEdge(const MKLDNNNodePtr& parent, const MKLDNNNodePtr& child, int pr_port, int ch_port)
+    : parent(parent),
+      child(child),
+      parent_port(pr_port),
+      child_port(ch_port) {}
 
 const MKLDNNNodePtr MKLDNNEdge::getParent() const {
     auto parentPtr = parent.lock();
@@ -38,14 +44,14 @@ bool MKLDNNEdge::isDropped() const {
 
     auto parent_ptr = parent.lock();
     if (parent_ptr) {
-        for (auto &edge : parent_ptr->childEdges)
+        for (auto& edge : parent_ptr->childEdges)
             if (edge.lock().get() == this)
                 not_in_parent = false;
     }
 
     auto child_ptr = child.lock();
     if (child_ptr) {
-        for (auto &edge : child_ptr->parentEdges)
+        for (auto& edge : child_ptr->parentEdges)
             if (edge.lock().get() == this)
                 not_in_child = false;
     }
@@ -53,9 +59,10 @@ bool MKLDNNEdge::isDropped() const {
 }
 
 void MKLDNNEdge::drop() {
-    auto _drop_from = [&] (std::vector<MKLDNNEdgeWeakPtr> &list) {
-        auto myself = std::find_if(list.begin(), list.end(),
-                [&] (MKLDNNEdgeWeakPtr edge) { return edge.lock().get() == this; });
+    auto _drop_from = [&](std::vector<MKLDNNEdgeWeakPtr>& list) {
+        auto myself = std::find_if(list.begin(), list.end(), [&](MKLDNNEdgeWeakPtr edge) {
+            return edge.lock().get() == this;
+        });
 
         if (myself != list.end())
             list.erase(myself);
@@ -64,7 +71,6 @@ void MKLDNNEdge::drop() {
     _drop_from(getParent()->childEdges);
     _drop_from(getChild()->parentEdges);
 }
-
 
 bool MKLDNNEdge::needReorder() {
     if (!getInputDesc().isCompatible(getOutputDesc())) {
@@ -106,7 +112,7 @@ bool MKLDNNEdge::needReorder() {
     if (in_place && childCanChangeMem && portChildEdges.size() > 1 && detectInPlaceChildrenNum(portChildEdges) > 1)
         canBeInPlaceConflicts = true;
     if (!canBeInPlaceConflicts && in_place && !parentNode->getChildEdges().empty()) {
-        for (auto &p_edge_peer : portChildEdges) {
+        for (auto& p_edge_peer : portChildEdges) {
             if (p_edge_peer.get() == this)
                 continue;
             if (p_edge_peer->getChild()->getType() != Reorder && p_edge_peer->inPlace(LOOK_DOWN))
@@ -115,8 +121,9 @@ bool MKLDNNEdge::needReorder() {
     }
 
     if (in_place) {
-        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() && parentSPD->getConfig().outConfs[inNumber].inPlace >= 0 &&
-            outNumber >= 0 && outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace >= 0)
+        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() &&
+            parentSPD->getConfig().outConfs[inNumber].inPlace >= 0 && outNumber >= 0 &&
+            outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace >= 0)
             canBeInPlaceConflicts = true;
     }
 
@@ -125,10 +132,9 @@ bool MKLDNNEdge::needReorder() {
     }
 
     // In case the parent node is an input constant, the memory is unaligned and the child primitive isa is SSE,
-    // we have to insert reorder since the vast majority of arithmetic and data processing instructions in legacy SSE isa requires
-    // the memory address in the operands must be aligned on 16-byte boundary.
-    if ((childSPD->getImplementationType() & impl_desc_type::sse42) &&
-        Type::Input == parentNode->getType() &&
+    // we have to insert reorder since the vast majority of arithmetic and data processing instructions in legacy SSE
+    // isa requires the memory address in the operands must be aligned on 16-byte boundary.
+    if ((childSPD->getImplementationType() & impl_desc_type::sse42) && Type::Input == parentNode->getType() &&
         parentNode->isConstant()) {
         if (auto pInputNode = std::dynamic_pointer_cast<MKLDNNInputNode>(parentNode)) {
             auto rawMemPtr = pInputNode->getMemoryPtr()->GetData();
@@ -182,9 +188,10 @@ std::string MKLDNNEdge::name() const {
 
     std::stringstream result;
 
-    result << parentPtr->getName() << " port " << parent_port << " <-> " << childPtr->getName() << " port " << child_port;
+    result << parentPtr->getName() << " port " << parent_port << " <-> " << childPtr->getName() << " port "
+           << child_port;
 
-    return  result.str();
+    return result.str();
 }
 
 void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
@@ -192,7 +199,7 @@ void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
         return;
 
     if (weightsCache) {
-        auto alloc = [this] () {
+        auto alloc = [this]() {
             allocate();
             return memoryPtr;
         };
@@ -261,20 +268,19 @@ const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
 
 const MemoryDesc& MKLDNNEdge::getDesc() const {
     if (!getInputDesc().isCompatible(getOutputDesc()))
-        IE_THROW() << "Cannot get descriptor for edge: " << getParent()->getName() << "->"
-                   << getChild()->getName();
+        IE_THROW() << "Cannot get descriptor for edge: " << getParent()->getName() << "->" << getChild()->getName();
 
     return getInputDesc();
 }
 
-const MKLDNNMemory &MKLDNNEdge::getMemory() {
+const MKLDNNMemory& MKLDNNEdge::getMemory() {
     return *getMemoryPtr();
 }
 
-MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {
+MKLDNNMemoryPtr& MKLDNNEdge::getMemoryPtr() {
     if (status == Status::NotAllocated) {
         memoryPtr.reset(new MKLDNNMemory(getParent()->getEngine()));
-        const auto &desc = getDesc();
+        const auto& desc = getDesc();
         memoryPtr->Create(desc, desc.isDefined() ? getSharedEdge()->getMemoryPtr()->GetData() : nullptr);
         memoryFromEdge.reset();
         changeStatus(Status::Allocated);
@@ -283,7 +289,7 @@ MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {
     return memoryPtr;
 }
 
-void MKLDNNEdge::sharedMemFrom(const MKLDNNEdgePtr &edge) {
+void MKLDNNEdge::sharedMemFrom(const MKLDNNEdgePtr& edge) {
     memoryFromEdge = edge;
     status = Status::NotAllocated;
 }
@@ -304,7 +310,8 @@ void MKLDNNEdge::validate() {
 MKLDNNEdgePtr MKLDNNEdge::getSharedEdge() const {
     auto memoryFromEdgePtr = memoryFromEdge.lock();
     if (!memoryFromEdgePtr) {
-        IE_THROW() << "Cannot get memory ptr for edge( " << name() << " ). The pointer on the edge with memory is empty!";
+        IE_THROW() << "Cannot get memory ptr for edge( " << name()
+                   << " ). The pointer on the edge with memory is empty!";
     }
     return memoryFromEdgePtr;
 }
@@ -335,8 +342,8 @@ void MKLDNNEdge::init() {
         if (edge->getStatus() != Status::NeedAllocation && edge->getStatus() != Status::Uninitialized) {
             if (edge->getSharedEdge() != edgePtr)
                 IE_THROW() << "Unsupported behavior. Cannot mark edge "
-                                   << getParent()->getChildEdgeAt(0)->getParent()->getName() << "->"
-                                   << getParent()->getChildEdgeAt(0)->getChild()->getName() << " as not allocated!";
+                           << getParent()->getChildEdgeAt(0)->getParent()->getName() << "->"
+                           << getParent()->getChildEdgeAt(0)->getChild()->getName() << " as not allocated!";
         } else {
             if (edge != edgePtr)
                 edge->sharedMemFrom(edgePtr);
@@ -369,12 +376,12 @@ MKLDNNEdgePtr MKLDNNEdge::getBaseEdge(int look) {
         }
 
         auto ch_edges = getChild()->getChildEdgesAtPort(next_port_idx);
-        auto &next_ch_edge = ch_edges[0];
+        auto& next_ch_edge = ch_edges[0];
 
         // Multiple connection to some out port
         // Will try to find inplace consumer
-        for (auto &ch_edge : ch_edges) {
-            auto &chch_conf = ch_edge->getChild()->getSelectedPrimitiveDescriptor()->getConfig();
+        for (auto& ch_edge : ch_edges) {
+            auto& chch_conf = ch_edge->getChild()->getSelectedPrimitiveDescriptor()->getConfig();
 
             if (chch_conf.inConfs[ch_edge->getOutputNum()].inPlace >= 0)
                 next_ch_edge = ch_edge;
@@ -394,7 +401,8 @@ MKLDNNEdgePtr MKLDNNEdge::getBaseEdge(int look) {
         for (auto edge : edges_for_same_port) {
             if (edge.get() != this) {
                 auto base = edge->getBaseEdge(LOOK_BOTH | LOOK_NO_RECURRENT);
-                if (base != edge && base != edges_for_same_port[0]) return base;
+                if (base != edge && base != edges_for_same_port[0])
+                    return base;
             }
         }
     }

@@ -4,12 +4,15 @@
 
 #include <string>
 #include <vector>
-#include "multi/multi_remote_blob_tests.hpp"
-#include "common_test_utils/test_constants.hpp"
 
-const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remote_blobs {
-        {{CPU}, false}, // CPU via MULTI
+#include "common_test_utils/test_constants.hpp"
+#include "multi/multi_remote_blob_tests.hpp"
+
+const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remote_blobs{
+    {{CPU}, false},  // CPU via MULTI
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiCPU, MultiDevice_SupportTest,
-        ::testing::ValuesIn(device_names_and_support_for_remote_blobs), MultiDevice_SupportTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiCPU,
+                         MultiDevice_SupportTest,
+                         ::testing::ValuesIn(device_names_and_support_for_remote_blobs),
+                         MultiDevice_SupportTest::getTestCaseName);

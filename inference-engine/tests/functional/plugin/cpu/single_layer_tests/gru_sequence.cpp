@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/gru_sequence.hpp"
+
 #include "ngraph/pass/visualize_tree.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
@@ -13,13 +14,14 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
-using GRUSequenceCpuSpecificParams = typename std::tuple<LayerTestsDefinitions::GRUSequenceParams, CPUSpecificParams, std::map<std::string, std::string>>;
+using GRUSequenceCpuSpecificParams = typename std::
+    tuple<LayerTestsDefinitions::GRUSequenceParams, CPUSpecificParams, std::map<std::string, std::string>>;
 
 class GRUSequenceCPUTest : public testing::WithParamInterface<GRUSequenceCpuSpecificParams>,
                            virtual public LayerTestsUtils::LayerTestsCommon,
                            public CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<GRUSequenceCpuSpecificParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GRUSequenceCpuSpecificParams>& obj) {
         CPUSpecificParams cpuParams;
         LayerTestsDefinitions::GRUSequenceParams basicParamsSet;
         std::map<std::string, std::string> additionalConfig;
@@ -27,12 +29,13 @@ public:
         std::tie(basicParamsSet, cpuParams, additionalConfig) = obj.param;
         std::ostringstream result;
 
-        result << LayerTestsDefinitions::GRUSequenceTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::GRUSequenceParams>(basicParamsSet, 0));
+        result << LayerTestsDefinitions::GRUSequenceTest::getTestCaseName(
+            testing::TestParamInfo<LayerTestsDefinitions::GRUSequenceParams>(basicParamsSet, 0));
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
-            for (auto &item : additionalConfig) {
+            for (auto& item : additionalConfig) {
                 if (item.second == PluginConfigParams::YES)
                     result << "_" << item.first << "=" << item.second;
             }
@@ -60,7 +63,16 @@ protected:
 
         std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        std::tie(m_mode, seq_lengths, batch, hidden_size, activations, clip, linear_before_reset, direction, netPrecision, targetDevice) = basicParamsSet;
+        std::tie(m_mode,
+                 seq_lengths,
+                 batch,
+                 hidden_size,
+                 activations,
+                 clip,
+                 linear_before_reset,
+                 direction,
+                 netPrecision,
+                 targetDevice) = basicParamsSet;
 
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
         std::vector<std::vector<size_t>> inputShapes = {
@@ -92,31 +104,32 @@ protected:
         m_max_seq_len = seq_lengths;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::FP32);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
-        if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM
-            || m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
+        if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
+            m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
             auto seq_lengths = ngraph::builder::makeParams(ngraph::element::i64, {inputShapes[2]}).at(0);
             seq_lengths->set_friendly_name("seq_lengths");
             params.push_back(seq_lengths);
         }
         std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5], inputShapes[2]};
-        auto gru_sequence = ngraph::builder::makeGRU(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
-                                                     WRB,
-                                                     hidden_size,
-                                                     activations,
-                                                     {},
-                                                     {},
-                                                     clip,
-                                                     linear_before_reset,
-                                                     true,
-                                                     direction,
-                                                     m_mode);
+        auto gru_sequence =
+            ngraph::builder::makeGRU(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+                                     WRB,
+                                     hidden_size,
+                                     activations,
+                                     {},
+                                     {},
+                                     clip,
+                                     linear_before_reset,
+                                     true,
+                                     direction,
+                                     m_mode);
 
         // method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
         // returned output format always tnc
         if (ngraph::shape_size(gru_sequence->get_output_shape(0)) == 1) {
             outFmts[0] = tnc;
         } else if (ngraph::shape_size(gru_sequence->get_output_shape(1)) == 1 ||
-                gru_sequence->get_output_shape(0)[0] == 1) {
+                   gru_sequence->get_output_shape(0)[0] == 1) {
             outFmts[1] = tnc;
         }
 
@@ -140,8 +153,8 @@ protected:
     }
 
     void GenerateInputs() override {
-        for (const auto &input : executableNetwork.GetInputsInfo()) {
-            const auto &info = input.second;
+        for (const auto& input : executableNetwork.GetInputsInfo()) {
+            const auto& info = input.second;
             auto blob = GenerateInput(*info);
             if (input.first == "seq_lengths") {
                 blob = FuncTestUtils::createAndFillBlob(info->getTensorDesc(), m_max_seq_len, 0);
@@ -164,11 +177,12 @@ TEST_P(GRUSequenceCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> additionalConfig
-    = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
+std::vector<std::map<std::string, std::string>> additionalConfig = {
+    {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
+    {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
 CPUSpecificParams cpuParams{{ntc, tnc}, {ntc, tnc}, {"ref_any"}, "ref_any"};
-CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};;
+CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lengths = 2
@@ -184,35 +198,35 @@ std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::Rec
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
 INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCPU,
-                        GRUSequenceCPUTest,
-                        ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
-                                                              ::testing::ValuesIn(seq_lengths_zero_clip),
-                                                              ::testing::ValuesIn(batch),
-                                                              ::testing::ValuesIn(hidden_size),
-                                                              ::testing::ValuesIn(activations),
-                                                              ::testing::ValuesIn(clip),
-                                                              ::testing::ValuesIn(linear_before_reset),
-                                                              ::testing::ValuesIn(direction),
-                                                              ::testing::ValuesIn(netPrecisions),
-                                                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::Values(cpuParams),
-                                           ::testing::ValuesIn(additionalConfig)),
-                        GRUSequenceCPUTest::getTestCaseName);
+                         GRUSequenceCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
+                                                               ::testing::ValuesIn(seq_lengths_zero_clip),
+                                                               ::testing::ValuesIn(batch),
+                                                               ::testing::ValuesIn(hidden_size),
+                                                               ::testing::ValuesIn(activations),
+                                                               ::testing::ValuesIn(clip),
+                                                               ::testing::ValuesIn(linear_before_reset),
+                                                               ::testing::ValuesIn(direction),
+                                                               ::testing::ValuesIn(netPrecisions),
+                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                            ::testing::Values(cpuParams),
+                                            ::testing::ValuesIn(additionalConfig)),
+                         GRUSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCPUBatchSizeOne,
-                        GRUSequenceCPUTest,
-                        ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
-                                                              ::testing::ValuesIn(seq_lengths_zero_clip),
-                                                              ::testing::ValuesIn(batch_size_one),
-                                                              ::testing::ValuesIn(hidden_size),
-                                                              ::testing::ValuesIn(activations),
-                                                              ::testing::ValuesIn(clip),
-                                                              ::testing::ValuesIn(linear_before_reset),
-                                                              ::testing::ValuesIn(direction),
-                                                              ::testing::ValuesIn(netPrecisions),
-                                                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::Values(cpuParamsBatchSizeOne),
-                                           ::testing::ValuesIn(additionalConfig)),
-                        GRUSequenceCPUTest::getTestCaseName);
-} // namespace
-} // namespace CPULayerTestsDefinitions
+                         GRUSequenceCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
+                                                               ::testing::ValuesIn(seq_lengths_zero_clip),
+                                                               ::testing::ValuesIn(batch_size_one),
+                                                               ::testing::ValuesIn(hidden_size),
+                                                               ::testing::ValuesIn(activations),
+                                                               ::testing::ValuesIn(clip),
+                                                               ::testing::ValuesIn(linear_before_reset),
+                                                               ::testing::ValuesIn(direction),
+                                                               ::testing::ValuesIn(netPrecisions),
+                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                            ::testing::Values(cpuParamsBatchSizeOne),
+                                            ::testing::ValuesIn(additionalConfig)),
+                         GRUSequenceCPUTest::getTestCaseName);
+}  // namespace
+}  // namespace CPULayerTestsDefinitions

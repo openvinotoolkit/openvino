@@ -6,21 +6,20 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
 
-enum class ScatterUpdateMode {
-    ScatterUpdate,
-    ScatterNDUpdate,
-    ScatterElementsUpdate
-};
+enum class ScatterUpdateMode { ScatterUpdate, ScatterNDUpdate, ScatterElementsUpdate };
 
 class MKLDNNScatterUpdateNode : public MKLDNNNode {
 public:
-    MKLDNNScatterUpdateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNScatterUpdateNode(const std::shared_ptr<ngraph::Node>& op,
+                            const mkldnn::engine& eng,
+                            MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -34,10 +33,10 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
-    void scatterNDUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, uint8_t *dstDataPtr);
-    void scatterElementsUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
-    inline int64_t getIndicesValue(uint8_t *indices, size_t offset);
+    void scatterUpdate(uint8_t* indicesPtr, uint8_t* updatePtr, int axis, uint8_t* dstDataPtr);
+    void scatterNDUpdate(uint8_t* indicesPtr, uint8_t* updatePtr, uint8_t* dstDataPtr);
+    void scatterElementsUpdate(uint8_t* indicesPtr, uint8_t* updatePtr, int axis, uint8_t* dstDataPtr);
+    inline int64_t getIndicesValue(uint8_t* indices, size_t offset);
 
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
     const size_t DATA_ID = 0;

@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "mkldnn_reverse_sequence_node.h"
+
+#include <ngraph/opsets/opset1.hpp>
 #include <string>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
 #include "ie_parallel.hpp"
-#include "mkldnn_reverse_sequence_node.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNReverseSequenceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNReverseSequenceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                     std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -29,8 +31,10 @@ bool MKLDNNReverseSequenceNode::isSupportedOperation(const std::shared_ptr<const
     return true;
 }
 
-MKLDNNReverseSequenceNode::MKLDNNReverseSequenceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                         MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNReverseSequenceNode::MKLDNNReverseSequenceNode(const std::shared_ptr<ngraph::Node>& op,
+                                                     const mkldnn::engine& eng,
+                                                     MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -39,8 +43,8 @@ MKLDNNReverseSequenceNode::MKLDNNReverseSequenceNode(const std::shared_ptr<ngrap
     errorPrefix = "ReverseSequence layer with name '" + op->get_friendly_name() + "'";
     const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
     if (revSeq == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of ReverseSequence from opset1.";
+        IE_THROW() << "Operation with name '" << op->get_friendly_name()
+                   << "' is not an instance of ReverseSequence from opset1.";
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
@@ -90,93 +94,95 @@ void MKLDNNReverseSequenceNode::initSupportedPrimitiveDescriptors() {
     if (lengthsPrecision != Precision::I32 && lengthsPrecision != Precision::FP32)
         lengthsPrecision = Precision::I32;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, lengthsPrecision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, lengthsPrecision}},
                          {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNReverseSequenceNode::execute(mkldnn::stream strm) {
     size_t i;
-    const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr()->GetPtr());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const float* src_data =
+        reinterpret_cast<const float*>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr()->GetPtr());
+    float* dst_data = reinterpret_cast<float*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     switch (getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision()) {
-        case Precision::FP32: {
-            float *seq_lengths_data = reinterpret_cast<float *>(getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr()->GetPtr());
-            for (i = 0; i < src_dims[batch_axis]; i++) {
-                if (static_cast<int32_t>(seq_lengths_data[i]) > static_cast<int>(src_dims[seq_axis])) {
-                    std::string errorMsg = "Incorrect input 'seq_lengths' values!";
-                    IE_THROW() << errorMsg;
-                }
+    case Precision::FP32: {
+        float* seq_lengths_data =
+            reinterpret_cast<float*>(getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr()->GetPtr());
+        for (i = 0; i < src_dims[batch_axis]; i++) {
+            if (static_cast<int32_t>(seq_lengths_data[i]) > static_cast<int>(src_dims[seq_axis])) {
+                std::string errorMsg = "Incorrect input 'seq_lengths' values!";
+                IE_THROW() << errorMsg;
+            }
+        }
+
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t i, start = 0, end = 0, src_idx = 0;
+            SizeVector counters(src_dims.size(), 0);
+            splitter(work_amount_dst, nthr, ithr, start, end);
+            for (int j = src_dims.size() - 1, i = start; j >= 0; j--) {
+                counters[j] = i % src_dims[j];
+                i /= src_dims[j];
             }
 
-            parallel_nt(0, [&](const int ithr, const int nthr) {
-                size_t i, start = 0, end = 0, src_idx = 0;
-                SizeVector counters(src_dims.size(), 0);
-                splitter(work_amount_dst, nthr, ithr, start, end);
-                for (int j = src_dims.size() - 1, i = start; j >= 0; j--) {
-                    counters[j] = i % src_dims[j];
-                    i /= src_dims[j];
-                }
-
-                for (size_t iwork = start; iwork < end; ++iwork) {
-                    for (i = 0, src_idx = 0; i < src_dims.size(); ++i) {
-                        size_t idx = counters[i];
-                        if (static_cast<int>(i) == seq_axis &&
-                            static_cast<int>(idx) < static_cast<int32_t>(seq_lengths_data[counters[batch_axis]])) {
-                            idx = static_cast<int32_t>(seq_lengths_data[counters[batch_axis]]) - idx - 1;
-                        }
-                        src_idx += idx * srcStrides[i];
+            for (size_t iwork = start; iwork < end; ++iwork) {
+                for (i = 0, src_idx = 0; i < src_dims.size(); ++i) {
+                    size_t idx = counters[i];
+                    if (static_cast<int>(i) == seq_axis &&
+                        static_cast<int>(idx) < static_cast<int32_t>(seq_lengths_data[counters[batch_axis]])) {
+                        idx = static_cast<int32_t>(seq_lengths_data[counters[batch_axis]]) - idx - 1;
                     }
-                    dst_data[iwork] = src_data[src_idx];
-                    for (int j = src_dims.size() - 1; j >= 0; j--) {
-                        counters[j] = (counters[j] + 1) % src_dims[j];
-                        if (counters[j] != 0) break;
-                    }
+                    src_idx += idx * srcStrides[i];
                 }
-            });
-        }
-        break;
-        case Precision::I32: {
-            int32_t *seq_lengths_data = reinterpret_cast<int32_t *>(getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr()->GetPtr());
-            for (i = 0; i < src_dims[batch_axis]; i++) {
-                if (seq_lengths_data[i] > static_cast<int>(src_dims[seq_axis])) {
-                    std::string errorMsg = "Incorrect input 'seq_lengths' values!";
-                    IE_THROW() << errorMsg;
+                dst_data[iwork] = src_data[src_idx];
+                for (int j = src_dims.size() - 1; j >= 0; j--) {
+                    counters[j] = (counters[j] + 1) % src_dims[j];
+                    if (counters[j] != 0)
+                        break;
                 }
             }
-
-            parallel_nt(0, [&](const int ithr, const int nthr) {
-                size_t i, start = 0, end = 0, src_idx = 0;
-                SizeVector counters(src_dims.size(), 0);
-                splitter(work_amount_dst, nthr, ithr, start, end);
-                for (int j = src_dims.size() - 1, i = start; j >= 0; j--) {
-                    counters[j] = i % src_dims[j];
-                    i /= src_dims[j];
-                }
-
-                for (size_t iwork = start; iwork < end; ++iwork) {
-                    for (i = 0, src_idx = 0; i < src_dims.size(); ++i) {
-                        size_t idx = counters[i];
-                        if (static_cast<int>(i) == seq_axis &&
-                            static_cast<int>(idx) < seq_lengths_data[counters[batch_axis]]) {
-                            idx = seq_lengths_data[counters[batch_axis]] - idx - 1;
-                        }
-                        src_idx += idx * srcStrides[i];
-                    }
-                    dst_data[iwork] = src_data[src_idx];
-                    for (int j = src_dims.size() - 1; j >= 0; j--) {
-                        counters[j] = (counters[j] + 1) % src_dims[j];
-                        if (counters[j] != 0) break;
-                    }
-                }
-            });
+        });
+    } break;
+    case Precision::I32: {
+        int32_t* seq_lengths_data =
+            reinterpret_cast<int32_t*>(getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr()->GetPtr());
+        for (i = 0; i < src_dims[batch_axis]; i++) {
+            if (seq_lengths_data[i] > static_cast<int>(src_dims[seq_axis])) {
+                std::string errorMsg = "Incorrect input 'seq_lengths' values!";
+                IE_THROW() << errorMsg;
+            }
         }
-        break;
-        default:
-            IE_THROW() << "ReverseSequence layer does not support "
-                        << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision()  << " precision";
+
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t i, start = 0, end = 0, src_idx = 0;
+            SizeVector counters(src_dims.size(), 0);
+            splitter(work_amount_dst, nthr, ithr, start, end);
+            for (int j = src_dims.size() - 1, i = start; j >= 0; j--) {
+                counters[j] = i % src_dims[j];
+                i /= src_dims[j];
+            }
+
+            for (size_t iwork = start; iwork < end; ++iwork) {
+                for (i = 0, src_idx = 0; i < src_dims.size(); ++i) {
+                    size_t idx = counters[i];
+                    if (static_cast<int>(i) == seq_axis &&
+                        static_cast<int>(idx) < seq_lengths_data[counters[batch_axis]]) {
+                        idx = seq_lengths_data[counters[batch_axis]] - idx - 1;
+                    }
+                    src_idx += idx * srcStrides[i];
+                }
+                dst_data[iwork] = src_data[src_idx];
+                for (int j = src_dims.size() - 1; j >= 0; j--) {
+                    counters[j] = (counters[j] + 1) % src_dims[j];
+                    if (counters[j] != 0)
+                        break;
+                }
+            }
+        });
+    } break;
+    default:
+        IE_THROW() << "ReverseSequence layer does not support "
+                   << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision() << " precision";
     }
 }
 

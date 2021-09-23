@@ -4,17 +4,20 @@
 
 #pragma once
 
-#include <mkldnn_node.h>
-#include <string>
-#include <memory>
-#include <vector>
 #include <mkldnn_extension_utils.h>
+#include <mkldnn_node.h>
+
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNAdaptivePoolingNode : public MKLDNNNode {
 public:
-  MKLDNNAdaptivePoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNAdaptivePoolingNode(const std::shared_ptr<ngraph::Node>& op,
+                              const mkldnn::engine& eng,
+                              MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -27,7 +30,7 @@ public:
 private:
     int spatialDimsCount;
     InferenceEngine::Precision precision = InferenceEngine::Precision::FP32;
-    inline void setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength);
+    inline void setBinBorders(size_t* startPtr, size_t* endPtr, size_t idx, size_t inputLength, size_t outputLength);
 
     std::string errorPrefix;
 };

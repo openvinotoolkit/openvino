@@ -5,8 +5,8 @@
 #include "convert_broadcast_to_tiles.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertBroadcastToTiles, "ConvertBroadcastToTiles", 0);
 
@@ -25,9 +25,12 @@ MKLDNNPlugin::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             return false;
         }
 
-        auto shape_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(broadcast->input_value(1).get_node_shared_ptr());
-        auto axes_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(broadcast->input_value(2).get_node_shared_ptr());
-        if (!shape_node || !axes_node) return false;
+        auto shape_node =
+            std::dynamic_pointer_cast<ngraph::opset1::Constant>(broadcast->input_value(1).get_node_shared_ptr());
+        auto axes_node =
+            std::dynamic_pointer_cast<ngraph::opset1::Constant>(broadcast->input_value(2).get_node_shared_ptr());
+        if (!shape_node || !axes_node)
+            return false;
 
         auto output_shape = shape_node->cast_vector<int64_t>();
         auto input_shape = data_node.get_shape();
@@ -59,7 +62,8 @@ MKLDNNPlugin::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             } else {
                 return false;
             }
-            auto shape_const = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{shape.size()}, shape);
+            auto shape_const =
+                std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{shape.size()}, shape);
             auto reshape = std::make_shared<ngraph::opset1::Reshape>(data_node, shape_const, true);
             new_ops.push_back(reshape);
             last_node = reshape;
@@ -83,7 +87,8 @@ MKLDNNPlugin::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             ++input_shape_it;
         }
 
-        auto const_node = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{dims_count}, dims);
+        auto const_node =
+            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{dims_count}, dims);
         auto tile = register_new_node<ngraph::opset1::Tile>(last_node, const_node);
         new_ops.push_back(tile);
         tile->set_friendly_name(broadcast->get_friendly_name());

@@ -8,25 +8,25 @@
 
 namespace MKLDNNPlugin {
 
-class Reshape1DConvolution: public ngraph::pass::MatcherPass {
+class Reshape1DConvolution : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     Reshape1DConvolution();
 };
 
-class Reshape1DGroupConvolution: public ngraph::pass::MatcherPass {
+class Reshape1DGroupConvolution : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     Reshape1DGroupConvolution();
 };
 
-class Reshape1DAvgPool: public ngraph::pass::MatcherPass {
+class Reshape1DAvgPool : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     Reshape1DAvgPool();
 };
 
-class Reshape1DMaxPool: public ngraph::pass::MatcherPass {
+class Reshape1DMaxPool : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     Reshape1DMaxPool();

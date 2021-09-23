@@ -4,14 +4,15 @@
 
 #include "permute_kernel.h"
 
-#include <vector>
-#include <mkldnn_types.h>
-#include <ie_parallel.hpp>
 #include <mkldnn_extension_utils.h>
-#include "cpu_memcpy.h"
-#include "utils/bfloat16.hpp"
+#include <mkldnn_types.h>
+
+#include <ie_parallel.hpp>
+#include <vector>
 
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_memcpy.h"
+#include "utils/bfloat16.hpp"
 
 using namespace InferenceEngine;
 using namespace MKLDNNPlugin;
@@ -27,7 +28,9 @@ template <cpu_isa_t isa>
 struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_permute_kernel_f32)
 
-    explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_) : jit_uni_permute_kernel(jcp_), jit_generator() {}
+    explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_)
+        : jit_uni_permute_kernel(jcp_),
+          jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -45,23 +48,43 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
         this->postamble();
     }
 
-    void load(const Xbyak::Xmm &xmm, const Xbyak::Address &addr) {
+    void load(const Xbyak::Xmm& xmm, const Xbyak::Address& addr) {
         switch (jcp.data_size) {
-            case 16: movups(xmm, addr); break;
-            case 8: movsd(xmm, addr); break;
-            case 4: movss(xmm, addr); break;
-            case 2: pinsrw(xmm, addr, 0x0); break;
-            case 1: pinsrb(xmm, addr, 0x0); break;
+        case 16:
+            movups(xmm, addr);
+            break;
+        case 8:
+            movsd(xmm, addr);
+            break;
+        case 4:
+            movss(xmm, addr);
+            break;
+        case 2:
+            pinsrw(xmm, addr, 0x0);
+            break;
+        case 1:
+            pinsrb(xmm, addr, 0x0);
+            break;
         }
     }
 
-    void store(const Xbyak::Address &addr, const Xbyak::Xmm &xmm) {
+    void store(const Xbyak::Address& addr, const Xbyak::Xmm& xmm) {
         switch (jcp.data_size) {
-            case 16: movups(addr, xmm); break;
-            case 8: movsd(addr, xmm); break;
-            case 4: movss(addr, xmm); break;
-            case 2: pextrw(addr, xmm, 0x0); break;
-            case 1: pextrb(addr, xmm, 0x0); break;
+        case 16:
+            movups(addr, xmm);
+            break;
+        case 8:
+            movsd(addr, xmm);
+            break;
+        case 4:
+            movss(addr, xmm);
+            break;
+        case 2:
+            pextrw(addr, xmm, 0x0);
+            break;
+        case 1:
+            pextrb(addr, xmm, 0x0);
+            break;
         }
     }
 
@@ -93,7 +116,8 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
             }
         }
 
-        L(tail_loop_label); {
+        L(tail_loop_label);
+        {
             cmp(reg_work_amount, 0);
             je(exit_label, T_NEAR);
 
@@ -123,7 +147,8 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
@@ -162,27 +187,28 @@ void PermuteKernel::prepareParams() {
     }
 
     for (int i = tmp_order.size() - 1; i >= 0; i--) {
-        int pos = std::distance(std::find(
-                params.src_block_order.rbegin(), params.src_block_order.rend(), tmp_order[i]), params.src_block_order.rend() - 1);
+        int pos = std::distance(std::find(params.src_block_order.rbegin(), params.src_block_order.rend(), tmp_order[i]),
+                                params.src_block_order.rend() - 1);
         if (pos != -1) {
             new_src_block_strides[i] = src_block_strides[pos];
             params.src_block_order.erase(params.src_block_order.begin() + pos);
             src_block_strides.erase(src_block_strides.begin() + pos);
             mask[i] = 0;
         } else {
-            new_src_block_strides[i] = new_src_block_strides[tmp_order.size() - 1] * params.dst_block_dims[tmp_order.size() - 1];
+            new_src_block_strides[i] =
+                new_src_block_strides[tmp_order.size() - 1] * params.dst_block_dims[tmp_order.size() - 1];
             mask[i] = 1;
             mask[tmp_order.size() - 1] = 1;
         }
     }
     if (!params.src_block_order.empty()) {
-        int pos = std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), params.src_block_order[0]));
-        new_src_block_strides.insert(new_src_block_strides.begin() + pos,
-                                     src_block_strides[0]);
-        new_dst_block_strides.insert(new_dst_block_strides.begin() + pos,
-                                  new_dst_block_strides[pos] * params.src_block_dims[params.src_block_dims.size() - 1]);
-        new_dst_block_order.insert(new_dst_block_order.begin() + pos,
-                                   new_dst_block_order[pos]);
+        int pos =
+            std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), params.src_block_order[0]));
+        new_src_block_strides.insert(new_src_block_strides.begin() + pos, src_block_strides[0]);
+        new_dst_block_strides.insert(
+            new_dst_block_strides.begin() + pos,
+            new_dst_block_strides[pos] * params.src_block_dims[params.src_block_dims.size() - 1]);
+        new_dst_block_order.insert(new_dst_block_order.begin() + pos, new_dst_block_order[pos]);
         new_dst_block_dims.insert(new_dst_block_dims.begin() + pos + 1,
                                   params.src_block_dims[params.src_block_dims.size() - 1]);
         new_dst_block_dims[pos] = div_up(new_dst_block_dims[pos], new_dst_block_dims[pos + 1]);
@@ -236,12 +262,12 @@ void PermuteKernel::prepareParams() {
     }
 
     int max_threads = parallel_get_max_threads();
-    const int n_max = 3;    //  max count dims for parallel
+    const int n_max = 3;  //  max count dims for parallel
     int n = 0;
     int work_amount = sorted_dst_dims[0];
     for (size_t i = 1; i < sorted_dst_dims.size() && n < n_max; i++) {
         n++;
-        if (work_amount >= 4 * max_threads) {   //  4 * max_threads is a specially selected value for best performance
+        if (work_amount >= 4 * max_threads) {  //  4 * max_threads is a specially selected value for best performance
             break;
         }
         work_amount *= sorted_dst_dims[i];
@@ -294,42 +320,42 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
         dst_dims[0] = mb;
 
     switch (jcp.n) {
-        case 1:
-            parallel_for(dst_dims[0], [&](int i0) {
-                auto arg = jit_args_permute();
+    case 1:
+        parallel_for(dst_dims[0], [&](int i0) {
+            auto arg = jit_args_permute();
 
-                size_t dst_off = i0 * dst_strides[0];
-                size_t src_off = i0 * src_strides[0];
-                arg.src = &src_data[src_off * jcp.data_size];
-                arg.dst = &dst_data[dst_off * jcp.data_size];
+            size_t dst_off = i0 * dst_strides[0];
+            size_t src_off = i0 * src_strides[0];
+            arg.src = &src_data[src_off * jcp.data_size];
+            arg.dst = &dst_data[dst_off * jcp.data_size];
 
-                (*permute_kernel)(&arg);
-            });
-            break;
-        case 2:
-            parallel_for2d(dst_dims[0], dst_dims[1], [&](int i0, int i1) {
-                auto arg = jit_args_permute();
+            (*permute_kernel)(&arg);
+        });
+        break;
+    case 2:
+        parallel_for2d(dst_dims[0], dst_dims[1], [&](int i0, int i1) {
+            auto arg = jit_args_permute();
 
-                size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1];
-                size_t src_off = i0 * src_strides[0] + i1 * src_strides[1];
-                arg.src = &src_data[src_off * jcp.data_size];
-                arg.dst = &dst_data[dst_off * jcp.data_size];
+            size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1];
+            size_t src_off = i0 * src_strides[0] + i1 * src_strides[1];
+            arg.src = &src_data[src_off * jcp.data_size];
+            arg.dst = &dst_data[dst_off * jcp.data_size];
 
-                (*permute_kernel)(&arg);
-            });
-            break;
-        case 3:
-            parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](int i0, int i1, int i2) {
-                auto arg = jit_args_permute();
+            (*permute_kernel)(&arg);
+        });
+        break;
+    case 3:
+        parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](int i0, int i1, int i2) {
+            auto arg = jit_args_permute();
 
-                size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1] + i2 * dst_strides[2];
-                size_t src_off = i0 * src_strides[0] + i1 * src_strides[1] + i2 * src_strides[2];
-                arg.src = &src_data[src_off * jcp.data_size];
-                arg.dst = &dst_data[dst_off * jcp.data_size];
+            size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1] + i2 * dst_strides[2];
+            size_t src_off = i0 * src_strides[0] + i1 * src_strides[1] + i2 * src_strides[2];
+            arg.src = &src_data[src_off * jcp.data_size];
+            arg.dst = &dst_data[dst_off * jcp.data_size];
 
-                (*permute_kernel)(&arg);
-            });
-            break;
+            (*permute_kernel)(&arg);
+        });
+        break;
     }
     return;
 }

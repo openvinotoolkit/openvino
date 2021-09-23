@@ -3,19 +3,22 @@
 //
 
 #include "convert_matmul_to_fc_or_gemm.hpp"
-#include "op/fully_connected.hpp"
-#include <numeric>
+
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <numeric>
 #include <transformations/utils/utils.hpp>
+
+#include "op/fully_connected.hpp"
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertMatMulToFC, "ConvertMatMulToFC", 0);
 
 MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
-    auto matmul = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-                                                                      ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
-                                                                      ngraph::pattern::has_static_shape());
+    auto matmul = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>(
+        {ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
+         ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
+        ngraph::pattern::has_static_shape());
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
@@ -78,7 +81,8 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
          *  order will be [0, 1, 3, 2] that emulates transpose_a or transpose_b attribute.
          */
 
-        auto create_transpose = [this](ngraph::Output<ngraph::Node> node, const std::string& transpose_name) -> std::shared_ptr<ngraph::Node> {
+        auto create_transpose = [this](ngraph::Output<ngraph::Node> node,
+                                       const std::string& transpose_name) -> std::shared_ptr<ngraph::Node> {
             ngraph::Shape output_shape = node.get_node_shared_ptr()->get_shape();
 
             std::vector<size_t> transpose_order(output_shape.size());
@@ -86,7 +90,10 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
             auto transpose = ngraph::pass::MatcherPass::register_new_node<ngraph::opset1::Transpose>(
-                    node, ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order));
+                node,
+                ngraph::opset1::Constant::create(ngraph::element::i64,
+                                                 ngraph::Shape{transpose_order.size()},
+                                                 transpose_order));
             transpose->set_friendly_name(transpose_name);
             return transpose;
         };
@@ -104,7 +111,9 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
         // Otherwise we replace MatMul with Gemm.
         if ((std::dynamic_pointer_cast<ngraph::opset1::Constant>(fc_input_b.get_node_shared_ptr()) ||
              std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fc_input_b.get_node_shared_ptr())) &&
-             std::count_if(shape_b.begin(), shape_b.end(), [](size_t x) { return x != 1; }) <= 2) {
+            std::count_if(shape_b.begin(), shape_b.end(), [](size_t x) {
+                return x != 1;
+            }) <= 2) {
             ngraph::Shape shape_a_aligned, shape_b_aligned;
             std::tie(shape_a_aligned, shape_b_aligned) = get_aligned_shapes();
 
@@ -124,8 +133,9 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
             }
 
             if (shape_b.size() != 2) {
-                auto reshape_shape =
-                        ngraph::opset1::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{2}, {-1ll, static_cast<int64_t>(K)});
+                auto reshape_shape = ngraph::opset1::Constant::create<int64_t>(ngraph::element::i64,
+                                                                               ngraph::Shape{2},
+                                                                               {-1ll, static_cast<int64_t>(K)});
                 fc_input_b = std::make_shared<ngraph::opset1::Reshape>(fc_input_b, reshape_shape, true);
                 new_ops.push_back(fc_input_b.get_node_shared_ptr());
             }
@@ -137,7 +147,10 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
             }
 
             // Create FullyConnected
-            auto fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(fc_input_a, fc_input_b, output_shape, matmul->output(0).get_element_type());
+            auto fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(fc_input_a,
+                                                                         fc_input_b,
+                                                                         output_shape,
+                                                                         matmul->output(0).get_element_type());
             fc->set_friendly_name(matmul->get_friendly_name());
             new_ops.push_back(fc);
 
@@ -155,9 +168,10 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertMatMulToGemm, "ConvertMatMulToGemm", 0);
 
 MKLDNNPlugin::ConvertMatMulToGemm::ConvertMatMulToGemm() {
-    auto matmul = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-                                                                      ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
-                                                                      ngraph::pattern::has_static_shape());
+    auto matmul = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>(
+        {ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
+         ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
+        ngraph::pattern::has_static_shape());
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
@@ -179,7 +193,8 @@ MKLDNNPlugin::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             // If the first input is 1D tensor, it is unsqueezed to 2D tensor (row vector)
             // by adding axes with size 1 at ROW_INDEX_DIM, to the left of the shape.
             // For example {S} will be reshaped to {1, S}.
-            fc_input_a = std::make_shared<ngraph::opset1::Unsqueeze>(fc_input_a,
+            fc_input_a = std::make_shared<ngraph::opset1::Unsqueeze>(
+                fc_input_a,
                 ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
             shape_a = fc_input_a.get_shape();
             new_ops.push_back(fc_input_a.get_node_shared_ptr());
@@ -190,7 +205,8 @@ MKLDNNPlugin::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
             // by adding axes with size 1 at COL_INDEX_DIM, to the right of the shape.
             // For example {S} will be reshaped to {S, 1}.
-            fc_input_b = std::make_shared<ngraph::opset1::Unsqueeze>(fc_input_b,
+            fc_input_b = std::make_shared<ngraph::opset1::Unsqueeze>(
+                fc_input_b,
                 ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}));
             shape_b = fc_input_b.get_shape();
             new_ops.push_back(fc_input_b.get_node_shared_ptr());
@@ -216,18 +232,21 @@ MKLDNNPlugin::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             new_ops.push_back(fc_input_b.get_node_shared_ptr());
         }
 
-        auto gemm = matmul->copy_with_new_inputs({ fc_input_a, fc_input_b });
+        auto gemm = matmul->copy_with_new_inputs({fc_input_a, fc_input_b});
         new_ops.push_back(gemm);
 
         if (gemm->get_shape() != output_shape) {
-            // This case is possible when one of the inputs has exactly 1 dimension (that is not supported by GEMM operation)
-            // So to preserve output shape we insert additional reshape operation
+            // This case is possible when one of the inputs has exactly 1 dimension (that is not supported by GEMM
+            // operation) So to preserve output shape we insert additional reshape operation
             std::shared_ptr<ngraph::Node> reshape_output;
             if (output_shape.size() == 0) {
                 std::vector<int64_t> dim_indices(gemm->get_shape().size());
                 std::iota(dim_indices.begin(), dim_indices.end(), 0);
-                reshape_output = std::make_shared<ngraph::opset1::Squeeze>(gemm,
-                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{dim_indices.size()}, dim_indices));
+                reshape_output = std::make_shared<ngraph::opset1::Squeeze>(
+                    gemm,
+                    ngraph::opset1::Constant::create(ngraph::element::i64,
+                                                     ngraph::Shape{dim_indices.size()},
+                                                     dim_indices));
             } else {
                 reshape_output = ngraph::op::util::reshapeTo(gemm, output_shape);
             }

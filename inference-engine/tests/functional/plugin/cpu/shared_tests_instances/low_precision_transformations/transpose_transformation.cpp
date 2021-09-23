@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision_transformations/transpose_transformation.hpp"
+
 #include <vector>
 
-#include "low_precision_transformations/transpose_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -17,34 +18,27 @@ const std::vector<ngraph::element::Type> precisions = {
 
 const std::vector<TransposeTransformationTestValues> testValues = {
     // U8: per-tensor quantization
-    {
-        { 1, 1000, 1, 1},
-        { 0, 2, 3, 1},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        ngraph::element::f32,
-        {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
-    },
+    {{1, 1000, 1, 1},
+     {0, 2, 3, 1},
+     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+     ngraph::element::f32,
+     {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}},
     // U8: per-channel quantization
-    {
-        { 1, 3, 1, 1},
-        { 0, 2, 3, 1},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        ngraph::element::f32,
-        {
-            256,
-            {1, 3, 1, 1},
-            {0.f, 0.f, 0.f},
-            {25.5f, 25.5f, 25.5f},
-            {0.f, 12.5f, 25.5f},
-            {25.5f, 25.5f + 12.5f * 2, 25.5f + 12.5f * 4}
-        }
-    }
-};
+    {{1, 3, 1, 1},
+     {0, 2, 3, 1},
+     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+     ngraph::element::f32,
+     {256,
+      {1, 3, 1, 1},
+      {0.f, 0.f, 0.f},
+      {25.5f, 25.5f, 25.5f},
+      {0.f, 12.5f, 25.5f},
+      {25.5f, 25.5f + 12.5f * 2, 25.5f + 12.5f * 4}}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, TransposeTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(testValues)),
-    TransposeTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         TransposeTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                            ::testing::ValuesIn(testValues)),
+                         TransposeTransformation::getTestCaseName);
 }  // namespace

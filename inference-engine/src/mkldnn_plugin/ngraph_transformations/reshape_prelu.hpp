@@ -8,7 +8,7 @@
 
 namespace MKLDNNPlugin {
 
-class ReshapePRelu: public ngraph::pass::MatcherPass {
+class ReshapePRelu : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReshapePRelu();

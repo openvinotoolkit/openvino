@@ -3,17 +3,20 @@
 //
 
 #include "mkldnn_roi_align_node.h"
-#include <mkldnn.hpp>
-#include <string>
-#include <vector>
+
 #include <math.h>
 #include <mkldnn_extension_utils.h>
-#include <mkldnn_types.h>
-#include <utils/bfloat16.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include "ie_parallel.hpp"
 #include <mkldnn_selective_build.h>
+#include <mkldnn_types.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <mkldnn.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <string>
+#include <utils/bfloat16.hpp>
+#include <vector>
+
+#include "ie_parallel.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -23,7 +26,8 @@ using namespace mkldnn::impl::cpu::x64;
 
 using ngPoolingMode = ngraph::op::v3::ROIAlign::PoolingMode;
 
-bool MKLDNNROIAlignNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNROIAlignNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                              std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -46,8 +50,10 @@ bool MKLDNNROIAlignNode::isSupportedOperation(const std::shared_ptr<const ngraph
     return true;
 }
 
-MKLDNNROIAlignNode::MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                       MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNROIAlignNode::MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op,
+                                       const mkldnn::engine& eng,
+                                       MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
@@ -94,14 +100,14 @@ void MKLDNNROIAlignNode::getSupportedDescriptors() {
     }
 
     if (getInputShapeAtPort(1).getStaticDims()[1] != 4) {
-        IE_THROW() << errorPrefix << "has invalid shape on 1st input: ["
-                           << getInputShapeAtPort(1).getStaticDims()[0] << "," << getInputShapeAtPort(1).getStaticDims()[1] << "]";
+        IE_THROW() << errorPrefix << "has invalid shape on 1st input: [" << getInputShapeAtPort(1).getStaticDims()[0]
+                   << "," << getInputShapeAtPort(1).getStaticDims()[1] << "]";
     }
 
     if (getInputShapeAtPort(1).getStaticDims()[0] != getInputShapeAtPort(2).getStaticDims()[0]) {
         IE_THROW() << errorPrefix << "has different sizes of inputs for proposals ("
-                           << getInputShapeAtPort(1).getStaticDims()[0] << ") and indexes ("
-                           << getInputShapeAtPort(2).getStaticDims()[0] << ")";
+                   << getInputShapeAtPort(1).getStaticDims()[0] << ") and indexes ("
+                   << getInputShapeAtPort(2).getStaticDims()[0] << ")";
     }
 }
 
@@ -122,34 +128,31 @@ void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(3);
     config.outConfs.resize(1);
 
-    std::vector<std::pair<LayoutType, LayoutType>> supportedFormats {
-            {LayoutType::ncsp, LayoutType::ncsp},
-            {LayoutType::nspc, LayoutType::nspc},
-            {LayoutType::nCsp16c, LayoutType::nCsp16c},
-            {LayoutType::nCsp8c, LayoutType::nCsp8c}
-    };
+    std::vector<std::pair<LayoutType, LayoutType>> supportedFormats{{LayoutType::ncsp, LayoutType::ncsp},
+                                                                    {LayoutType::nspc, LayoutType::nspc},
+                                                                    {LayoutType::nCsp16c, LayoutType::nCsp16c},
+                                                                    {LayoutType::nCsp8c, LayoutType::nCsp8c}};
 
     for (auto fmts : supportedFormats) {
-        addSupportedPrimDesc({{fmts.first, inputPrec0},
-                              {LayoutType::ncsp, Precision::FP32},
-                              {LayoutType::ncsp, Precision::I32}},
-                             {{fmts.second, outputPrec}},
-                              impl_desc_type::unknown);
+        addSupportedPrimDesc(
+            {{fmts.first, inputPrec0}, {LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::I32}},
+            {{fmts.second, outputPrec}},
+            impl_desc_type::unknown);
     }
 }
 
 namespace {
 struct ROIAlignContext {
-    MKLDNNROIAlignNode &node;
+    MKLDNNROIAlignNode& node;
 };
-}
+}  // namespace
 
-template<typename T>
+template <typename T>
 struct MKLDNNROIAlignNode::ROIAlignExecute {
     using srcT = typename std::tuple_element<0, T>::type;
     using dstT = typename std::tuple_element<1, T>::type;
 
-    void operator()(ROIAlignContext & ctx) {
+    void operator()(ROIAlignContext& ctx) {
         ctx.node.executeSpecified<srcT, dstT>();
     }
 };
@@ -158,36 +161,37 @@ void MKLDNNROIAlignNode::execute(mkldnn::stream strm) {
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
     if (!((inputPrec == mkldnn_bf16 && outputPrec == mkldnn_bf16) ||
           (inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)))
-        IE_THROW() <<"ROIAlign doesn't support demanded precisions";
+        IE_THROW() << "ROIAlign doesn't support demanded precisions";
 
-    ROIAlignContext ctx = {
-            *this
-    };
+    ROIAlignContext ctx = {*this};
 
-    OV_SWITCH(MKLDNNPlugin, ROIAlignExecute, ctx, std::tie(inputPrec, outputPrec),
+    OV_SWITCH(MKLDNNPlugin,
+              ROIAlignExecute,
+              ctx,
+              std::tie(inputPrec, outputPrec),
               OV_CASE2(mkldnn_f32, mkldnn_f32, float, float),
               OV_CASE2(mkldnn_bf16, mkldnn_bf16, bfloat16_t, bfloat16_t))
 }
 
 template <typename inputType, typename outputType>
 void MKLDNNROIAlignNode::executeSpecified() {
-    auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto &dstMemory = getChildEdgeAt(0)->getMemory();
+    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    auto& dstMemory = getChildEdgeAt(0)->getMemory();
 
     auto srcBlockDesc = srcMemory0.GetDescWithType<BlockedMemoryDesc>();
     auto dstBlockDesc = dstMemory.GetDescWithType<BlockedMemoryDesc>();
 
     auto isPlainFmt = srcBlockDesc->hasLayoutType(LayoutType::ncsp);
-    auto isNhwcFmt =  srcBlockDesc->hasLayoutType(LayoutType::nspc);
-    auto isBlkFmt =   srcBlockDesc->hasLayoutType(LayoutType::nCsp16c) || srcBlockDesc->hasLayoutType(LayoutType::nCsp8c);
+    auto isNhwcFmt = srcBlockDesc->hasLayoutType(LayoutType::nspc);
+    auto isBlkFmt = srcBlockDesc->hasLayoutType(LayoutType::nCsp16c) || srcBlockDesc->hasLayoutType(LayoutType::nCsp8c);
 
     int blockSize = isBlkFmt ? srcBlockDesc->getBlockDims().back() : 1;
 
-    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-    auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* srcData = reinterpret_cast<const inputType*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* srcRoi = reinterpret_cast<const float*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    const auto* srcRoiIdx = reinterpret_cast<const int*>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
+    auto* dst = reinterpret_cast<outputType*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     auto nominalRoiCount = static_cast<int>(srcMemory1.getStaticDims()[0]);
     int realRois = 0;
@@ -199,8 +203,8 @@ void MKLDNNROIAlignNode::executeSpecified() {
     const int binCount = pooledH * pooledW;
 
     const size_t tailDimsOffset = (isNhwcFmt ? -1 : 0);
-    const auto &srcStrides = srcBlockDesc->getStrides();
-    const auto &dstStrides = dstBlockDesc->getStrides();
+    const auto& srcStrides = srcBlockDesc->getStrides();
+    const auto& dstStrides = dstBlockDesc->getStrides();
     const int hInputStride = srcStrides[2 + tailDimsOffset];
     const int wInputStride = srcStrides[3 + tailDimsOffset];
     const int hOutputStride = dstStrides[2 + tailDimsOffset];
@@ -255,8 +259,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
                     float sampleY = y1 + yBinInd * binHeight + sampleDistanceY * (0.5f + ySampleInd);
                     for (int xSampleInd = 0; xSampleInd < samplingRatioX; xSampleInd++) {
                         float sampleX = x1 + xBinInd * binWidth + sampleDistanceX * (0.5f + xSampleInd);
-                        if (sampleX < -1.0 || sampleX > W ||
-                            sampleY < -1.0 || sampleY > H) {
+                        if (sampleX < -1.0 || sampleX > W || sampleY < -1.0 || sampleY > H) {
                             // For this sample we save 4x point (0,0) with weight 0
                             pointVector.insert(pointVector.end(), 4, {0, 0});
                             weightVector.insert(weightVector.end(), 4, float{0});
@@ -300,7 +303,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
                 }
             }
         }
-        auto pool = [&] (int xBinInd_, int yBinInd_, int binOffsetInput_, int binOffsetOutput_, int blockResidual_) {
+        auto pool = [&](int xBinInd_, int yBinInd_, int binOffsetInput_, int binOffsetOutput_, int blockResidual_) {
             float pooledValue = 0;
             unsigned int sampleIndex = 4 * (yBinInd_ * pooledW + xBinInd_) * numSamplesInBin;
             for (unsigned int binSampleInd = 0; binSampleInd < numSamplesInBin; binSampleInd++) {
@@ -318,31 +321,24 @@ void MKLDNNROIAlignNode::executeSpecified() {
                 float part4 = srcData[part4Index];
 
                 switch (getAlgorithm()) {
-                    case Algorithm::ROIAlignMax:
-                    {
-                        float sampleValue = std::max(
-                                {weightVector[sampleIndex] * part1,
-                                 weightVector[sampleIndex + 1] * part2,
-                                 weightVector[sampleIndex + 2] * part3,
-                                 weightVector[sampleIndex + 3] * part4});
-                        pooledValue = sampleValue > pooledValue ? sampleValue : pooledValue;
-                        break;
-                    }
-                    case Algorithm::ROIAlignAvg:
-                    default:
-                    {
-                        float sampleValue =
-                                weightVector[sampleIndex] * part1 +
-                                weightVector[sampleIndex + 1] * part2 +
-                                weightVector[sampleIndex + 2] * part3 +
-                                weightVector[sampleIndex + 3] * part4;
-                        pooledValue += sampleValue / numSamplesInBin;
-                    }
+                case Algorithm::ROIAlignMax: {
+                    float sampleValue = std::max({weightVector[sampleIndex] * part1,
+                                                  weightVector[sampleIndex + 1] * part2,
+                                                  weightVector[sampleIndex + 2] * part3,
+                                                  weightVector[sampleIndex + 3] * part4});
+                    pooledValue = sampleValue > pooledValue ? sampleValue : pooledValue;
+                    break;
+                }
+                case Algorithm::ROIAlignAvg:
+                default: {
+                    float sampleValue = weightVector[sampleIndex] * part1 + weightVector[sampleIndex + 1] * part2 +
+                                        weightVector[sampleIndex + 2] * part3 + weightVector[sampleIndex + 3] * part4;
+                    pooledValue += sampleValue / numSamplesInBin;
+                }
                 }
                 sampleIndex += 4;
             }
-            size_t dstIndex = binOffsetOutput_ + yBinInd_ * hOutputStride +
-                              xBinInd_ * wOutputStride + blockResidual_;
+            size_t dstIndex = binOffsetOutput_ + yBinInd_ * hOutputStride + xBinInd_ * wOutputStride + blockResidual_;
             dst[dstIndex] = pooledValue;
         };
         if (isNhwcFmt) {

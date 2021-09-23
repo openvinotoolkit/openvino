@@ -5,16 +5,18 @@
 #pragma once
 
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
+
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
 class MKLDNNRNN : public MKLDNNNode {
 public:
-    MKLDNNRNN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNRNN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -62,31 +64,27 @@ private:
     mkldnn::algorithm cell_act = mkldnn::algorithm::eltwise_tanh;
 
     // Internal attributes
-    size_t N = 0;   /**< Batch value */
-    size_t T = 0;   /**< Sequence value */
-    size_t DC = 0;  /**< Input data channel size */
-    size_t SC = 0;  /**< State channel size value */
-    size_t G = 0;   /**< Gate size. LSTM - 4, GRU - 3, RNN - 1 */
-    size_t Gb = 0;  /**< Gate size for biases. Gb = GRU_lbr ? G+1 : G */
-    size_t S = 2;   /**< Num of state. LSTM - 2, GRU & RNN - 1 */
-    const size_t L = 1;   /**< What is it??. Constant for mkldnn impl */
-    const size_t D = 1;   /**< Num of direction. 1 or 2 */
+    size_t N = 0;       /**< Batch value */
+    size_t T = 0;       /**< Sequence value */
+    size_t DC = 0;      /**< Input data channel size */
+    size_t SC = 0;      /**< State channel size value */
+    size_t G = 0;       /**< Gate size. LSTM - 4, GRU - 3, RNN - 1 */
+    size_t Gb = 0;      /**< Gate size for biases. Gb = GRU_lbr ? G+1 : G */
+    size_t S = 2;       /**< Num of state. LSTM - 2, GRU & RNN - 1 */
+    const size_t L = 1; /**< What is it??. Constant for mkldnn impl */
+    const size_t D = 1; /**< Num of direction. 1 or 2 */
 
     std::vector<DnnlBlockedMemoryDesc> in_data_d;
     std::vector<DnnlBlockedMemoryDesc> out_data_d;
 
-    enum RNNInOutKind {
-        Layer       = 0,
-        HiddenState = 1,
-        CellState   = 2
-    };
+    enum RNNInOutKind { Layer = 0, HiddenState = 1, CellState = 2 };
 
     DnnlBlockedMemoryDescPtr w_data_d;
     DnnlBlockedMemoryDescPtr w_state_d;
     DnnlBlockedMemoryDescPtr w_bias_d;
 
-    std::vector<size_t > in_data_dims;
-    std::vector<size_t > out_data_dims;
+    std::vector<size_t> in_data_dims;
+    std::vector<size_t> out_data_dims;
 
     size_t wIdx = 0;
     size_t rIdx = 0;

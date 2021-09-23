@@ -3,25 +3,32 @@
 //
 
 #include "reshape_fully_connected.hpp"
-#include "op/fully_connected.hpp"
+
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
 #include <ngraph/pattern/op/or.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <transformations/utils/utils.hpp>
+
+#include "op/fully_connected.hpp"
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ReshapeFullyConnected, "ReshapeFullyConnected", 0);
 
 MKLDNNPlugin::ReshapeFullyConnected::ReshapeFullyConnected() {
-    ngraph::OutputVector twoInputs = {ngraph::pattern::any_input(ngraph::pattern::has_static_shape()), ngraph::pattern::any_input()};
-    ngraph::OutputVector threeInputs = {ngraph::pattern::any_input(ngraph::pattern::has_static_shape()), ngraph::pattern::any_input(),
+    ngraph::OutputVector twoInputs = {ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
+                                      ngraph::pattern::any_input()};
+    ngraph::OutputVector threeInputs = {ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
+                                        ngraph::pattern::any_input(),
                                         ngraph::pattern::any_input()};
-    auto fcTwoInputs = ngraph::pattern::wrap_type<MKLDNNPlugin::FullyConnectedNode>(twoInputs, ngraph::pattern::has_static_shape());
-    auto fcThreeInputs = ngraph::pattern::wrap_type<MKLDNNPlugin::FullyConnectedNode>(threeInputs, ngraph::pattern::has_static_shape());
-    const auto fcTwoOrThreeInputs = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fcTwoInputs, fcThreeInputs});
+    auto fcTwoInputs =
+        ngraph::pattern::wrap_type<MKLDNNPlugin::FullyConnectedNode>(twoInputs, ngraph::pattern::has_static_shape());
+    auto fcThreeInputs =
+        ngraph::pattern::wrap_type<MKLDNNPlugin::FullyConnectedNode>(threeInputs, ngraph::pattern::has_static_shape());
+    const auto fcTwoOrThreeInputs =
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fcTwoInputs, fcThreeInputs});
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto fc = std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode> (m.get_match_root());
+        auto fc = std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode>(m.get_match_root());
         if (!fc || transformation_callback(fc)) {
             return false;
         }
@@ -36,8 +43,10 @@ MKLDNNPlugin::ReshapeFullyConnected::ReshapeFullyConnected() {
         ngraph::NodeVector new_ops;
 
         std::vector<int64_t> reshape_shape{-1, static_cast<int64_t>(input_shape.back())};
-        auto reshape = std::make_shared<ngraph::opset1::Reshape>(fc->input_value(0),
-                                                         ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, reshape_shape), true);
+        auto reshape = std::make_shared<ngraph::opset1::Reshape>(
+            fc->input_value(0),
+            ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, reshape_shape),
+            true);
         new_ops.push_back(reshape);
 
         reshape->set_friendly_name(fc->get_friendly_name() + "/Reshape");

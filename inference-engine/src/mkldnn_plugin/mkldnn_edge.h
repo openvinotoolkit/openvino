@@ -5,13 +5,14 @@
 #pragma once
 
 #include <ie_blob.h>
-#include "cpu_shape.h"
-#include "memory_desc/cpu_memory_desc.h"
-#include "mkldnn_weights_cache.hpp"
 
 #include <map>
 #include <memory>
 #include <vector>
+
+#include "cpu_shape.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "mkldnn_weights_cache.hpp"
 
 namespace MKLDNNPlugin {
 
@@ -25,15 +26,10 @@ class MKLDNNEdge {
 public:
     MKLDNNEdge(const std::shared_ptr<MKLDNNNode>& parent,
                const std::shared_ptr<MKLDNNNode>& child,
-               int pr_port = 0, int ch_port = 0);
+               int pr_port = 0,
+               int ch_port = 0);
 
-    enum class Status {
-        Uninitialized,
-        NeedAllocation,
-        NotAllocated,
-        Allocated,
-        Validated
-    };
+    enum class Status { Uninitialized, NeedAllocation, NotAllocated, Allocated, Validated };
 
     inline Status getStatus() const noexcept {
         return status;
@@ -61,7 +57,9 @@ public:
     int getInputNum() const;
     int getOutputNum() const;
 
-    void setChildPort(const size_t port) { child_port = port; }
+    void setChildPort(const size_t port) {
+        child_port = port;
+    }
 
     void sharedMemFrom(const MKLDNNEdgePtr& edge);
     MKLDNNEdgePtr getSharedEdge() const;

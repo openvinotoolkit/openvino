@@ -11,22 +11,24 @@ namespace MKLDNNPlugin {
 
 class MKLDNNExperimentalDetectronROIFeatureExtractorNode : public MKLDNNNode {
 public:
-    MKLDNNExperimentalDetectronROIFeatureExtractorNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNExperimentalDetectronROIFeatureExtractorNode(const std::shared_ptr<ngraph::Node>& op,
+                                                       const mkldnn::engine& eng,
+                                                       MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    const int INPUT_ROIS {0};
-    const int INPUT_FEATURES_START {1};
+    const int INPUT_ROIS{0};
+    const int INPUT_FEATURES_START{1};
 
-    const int OUTPUT_ROI_FEATURES {0};
-    const int OUTPUT_ROIS {1};
+    const int OUTPUT_ROI_FEATURES{0};
+    const int OUTPUT_ROIS{1};
 
     int output_dim_ = 0;
     int pooled_height_ = 0;

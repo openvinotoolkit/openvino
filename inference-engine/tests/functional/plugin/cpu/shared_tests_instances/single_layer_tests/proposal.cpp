@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "single_layer_tests/proposal.hpp"
+
 #include <vector>
 
-#include "single_layer_tests/proposal.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ngraph::helpers;
@@ -26,23 +27,19 @@ const std::vector<clip_after_nms_type> clip_after_nms_ = {false};
 // empty string corresponds to Caffe framework
 const std::vector<framework_type> framework_ = {""};
 
-const auto proposalParams = ::testing::Combine(
-        ::testing::ValuesIn(base_size_),
-        ::testing::ValuesIn(pre_nms_topn_),
-        ::testing::ValuesIn(post_nms_topn_),
-        ::testing::ValuesIn(nms_thresh_),
-        ::testing::ValuesIn(min_size_),
-        ::testing::ValuesIn(ratio_),
-        ::testing::ValuesIn(scale_),
-        ::testing::ValuesIn(clip_before_nms_),
-        ::testing::ValuesIn(clip_after_nms_),
-        ::testing::ValuesIn(framework_)
-);
+const auto proposalParams = ::testing::Combine(::testing::ValuesIn(base_size_),
+                                               ::testing::ValuesIn(pre_nms_topn_),
+                                               ::testing::ValuesIn(post_nms_topn_),
+                                               ::testing::ValuesIn(nms_thresh_),
+                                               ::testing::ValuesIn(min_size_),
+                                               ::testing::ValuesIn(ratio_),
+                                               ::testing::ValuesIn(scale_),
+                                               ::testing::ValuesIn(clip_before_nms_),
+                                               ::testing::ValuesIn(clip_after_nms_),
+                                               ::testing::ValuesIn(framework_));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Proposal_tests, ProposalLayerTest,
-                        ::testing::Combine(
-                                proposalParams,
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ProposalLayerTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_Proposal_tests,
+                         ProposalLayerTest,
+                         ::testing::Combine(proposalParams, ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ProposalLayerTest::getTestCaseName);
 }  // namespace

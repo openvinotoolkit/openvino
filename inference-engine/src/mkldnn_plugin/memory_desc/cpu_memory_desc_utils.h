@@ -4,8 +4,10 @@
 
 #pragma once
 
-#include <ie_layouts.h>
 #include <ie_blob.h>
+#include <ie_layouts.h>
+
+#include "cpu_types.h"
 #include "mkldnn/ie_mkldnn.h"
 
 namespace MKLDNNPlugin {
@@ -24,7 +26,7 @@ public:
      * @param desc MemoryDesc to be converted
      * @return converted DnnlMemoryDesc
      */
-    static std::shared_ptr<DnnlMemoryDesc> convertToDnnlMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
+    static std::shared_ptr<DnnlMemoryDesc> convertToDnnlMemoryDesc(const std::shared_ptr<MemoryDesc>& desc);
 
     /**
      * @brief Converts MemoryDesc to DnnlBlockedMemoryDesc
@@ -52,7 +54,7 @@ public:
      * @param desc MemoryDesc to be converted
      * @return converted BlockedMemoryDesc
      */
-    static std::shared_ptr<BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
+    static std::shared_ptr<BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<MemoryDesc>& desc);
 
     /**
      * @brief Creates BlockedMemoryDesc with offsetPadding and strides of UNDEFINED_DIM size
@@ -73,7 +75,8 @@ public:
      * @param desc is the MemoryDesc to be cloned
      * @return pointer to the new MemoryDesc
      */
-    static std::shared_ptr<MemoryDesc> cloneWithNewPrecision(const MemoryDesc& desc, const InferenceEngine::Precision prec);
+    static std::shared_ptr<MemoryDesc> cloneWithNewPrecision(const MemoryDesc& desc,
+                                                             const InferenceEngine::Precision prec);
 
     /**
      * @brief Creates InferenceEngine::Blob from MKLDNNMemory with the memory reuse

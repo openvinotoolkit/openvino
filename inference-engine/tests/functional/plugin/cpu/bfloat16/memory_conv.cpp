@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
 #include <fstream>
-
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ie_system_conf.h"
-
 #include <ngraph/ngraph.hpp>
+#include <string>
+
+#include "ie_system_conf.h"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -53,12 +52,12 @@ protected:
         auto fc1_w = make_shared<op::v0::Constant>(type, Shape{C, C}, 1);
         auto fc1_b = make_shared<op::v0::Constant>(type, Shape{C}, 1);
         auto fc1 = make_shared<op::v0::MatMul>(sig, fc1_w);
-        auto bias_1 =  make_shared<op::v1::Add>(fc1, fc1_b);
+        auto bias_1 = make_shared<op::v1::Add>(fc1, fc1_b);
 
         auto fc2_w = make_shared<op::v0::Constant>(type, Shape{C, C}, 1);
         auto fc2_b = make_shared<op::v0::Constant>(type, Shape{C}, 1);
         auto fc2 = make_shared<op::v0::MatMul>(bias_1, fc2_w);
-        auto bias_2 =  make_shared<op::v1::Add>(fc2, fc2_b);
+        auto bias_2 = make_shared<op::v1::Add>(fc2, fc2_b);
 
         auto mem_w = make_shared<op::v3::Assign>(bias_1, "id");
 
@@ -66,10 +65,8 @@ protected:
         mem_w->add_control_dependency(mem_r);
         bias_2->add_control_dependency(mem_w);
 
-        function = std::make_shared<ngraph::Function>(
-                ngraph::NodeVector      {bias_2},
-                ngraph::ParameterVector {input},
-                "SimpleNet");
+        function =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{bias_2}, ngraph::ParameterVector{input}, "SimpleNet");
     }
 };
 
@@ -89,7 +86,7 @@ TEST_P(MemoryConv, CheckTypeConversion) {
     auto exec_ops = exec_graph.getFunction()->get_ops();
     std::shared_ptr<ngraph::Node> mem_r, mem_w;
 
-    for (auto &node : exec_ops) {
+    for (auto& node : exec_ops) {
         auto var = node->get_rt_info()["layerType"];
         auto s_val = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(var);
         if (s_val->get() == "MemoryOutput")
@@ -105,11 +102,11 @@ TEST_P(MemoryConv, CheckTypeConversion) {
     ASSERT_EQ(ngraph::element::bf16, mem_w->input(0).get_element_type());
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_CPU, MemoryConv,
-                        ::testing::Combine(
-                                ::testing::Values<Precision>(Precision::BF16, Precision::FP32),
-                                ::testing::Values(SizeVector{1, 200}),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        MemoryConv::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPU,
+                         MemoryConv,
+                         ::testing::Combine(::testing::Values<Precision>(Precision::BF16, Precision::FP32),
+                                            ::testing::Values(SizeVector{1, 200}),
+                                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         MemoryConv::getTestCaseName);
 
 }  // namespace LayerTestsDefinitions

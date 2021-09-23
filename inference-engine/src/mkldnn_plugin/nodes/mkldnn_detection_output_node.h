@@ -6,17 +6,20 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include "common/permute_kernel.h"
 
 namespace MKLDNNPlugin {
 
 class MKLDNNDetectionOutputNode : public MKLDNNNode {
 public:
-    MKLDNNDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op,
+                              const mkldnn::engine& eng,
+                              MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -43,8 +46,8 @@ private:
     float sparsityThreshold = 0.03f;
     int topK = 0;
     float NMSThreshold = 0.0f;
-    bool clipBeforeNMS   = false;
-    bool clipAfterNMS    = false;
+    bool clipBeforeNMS = false;
+    bool clipAfterNMS = false;
     int backgroundClassId = 0;
     bool decreaseClassId = false;
     int keepTopK = 0;
@@ -70,28 +73,51 @@ private:
 
     inline void confFilterCF(float* reorderedConfData, int* indicesData, int* indicesBufData, int* detectionsData);
 
-    inline void confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
-        int* indicesData, int* indicesBufData, int* detectionsData);
+    inline void confFilterMX(const float* confData,
+                             const float* ARMConfData,
+                             float* reorderedConfData,
+                             int* indicesData,
+                             int* indicesBufData,
+                             int* detectionsData);
 
-    inline void confReorderAndFilterSparsityCF(const float* confData, const float* ARMConfData, float* reorderedConfData,
-        int* indicesData, int* indicesBufData, int* detectionsData);
+    inline void confReorderAndFilterSparsityCF(const float* confData,
+                                               const float* ARMConfData,
+                                               float* reorderedConfData,
+                                               int* indicesData,
+                                               int* indicesBufData,
+                                               int* detectionsData);
 
-    inline void confReorderAndFilterSparsityMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
-        int* indicesData, int* indicesBufData, int* detectionsData);
+    inline void confReorderAndFilterSparsityMX(const float* confData,
+                                               const float* ARMConfData,
+                                               float* reorderedConfData,
+                                               int* indicesData,
+                                               int* indicesBufData,
+                                               int* detectionsData);
 
-    inline void decodeBBoxes(const float* prior_data, const float* loc_data, const float* variance_data,
-                      float* decoded_bboxes, float* decoded_bbox_sizes, int* num_priors_actual, int n, const int& offs, const int& pr_size,
-                      bool decodeType = true, const int* conf_info_h = nullptr, const int* conf_info_v = nullptr); // decodeType is false after ARM
+    inline void decodeBBoxes(const float* prior_data,
+                             const float* loc_data,
+                             const float* variance_data,
+                             float* decoded_bboxes,
+                             float* decoded_bbox_sizes,
+                             int* num_priors_actual,
+                             int n,
+                             const int& offs,
+                             const int& pr_size,
+                             bool decodeType = true,
+                             const int* conf_info_h = nullptr,
+                             const int* conf_info_v = nullptr);  // decodeType is false after ARM
 
-    inline void NMSCF(int* indicesIn, int& detections, int* indicesOut,
-        const float* bboxes, const float* boxSizes);
+    inline void NMSCF(int* indicesIn, int& detections, int* indicesOut, const float* bboxes, const float* boxSizes);
 
-    inline void NMSMX(int* indicesIn, int* detections, int* indicesOut,
-        const float* bboxes, const float* sizes);
+    inline void NMSMX(int* indicesIn, int* detections, int* indicesOut, const float* bboxes, const float* sizes);
 
     inline void topk(const int* indicesIn, int* indicesOut, const float* conf, int n, int k);
 
-    inline void generateOutput(float* reorderedConfData, int* indicesData, int* detectionsData, float* decodedBboxesData, float* dstData);
+    inline void generateOutput(float* reorderedConfData,
+                               int* indicesData,
+                               int* detectionsData,
+                               float* decodedBboxesData,
+                               float* dstData);
 
     std::vector<float> decodedBboxes;
     std::vector<int> indicesBuffer;

@@ -6,11 +6,13 @@
 
 #include <cassert>
 #include <ngraph/variant.hpp>
+
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace MKLDNNPlugin {
 
-inline std::string getRTInfoValue(const std::map<std::string, std::shared_ptr<ngraph::Variant>>& rtInfo, std::string paramName) {
+inline std::string getRTInfoValue(const std::map<std::string, std::shared_ptr<ngraph::Variant>>& rtInfo,
+                                  std::string paramName) {
     auto it = rtInfo.find(paramName);
     if (it != rtInfo.end()) {
         auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
@@ -20,13 +22,14 @@ inline std::string getRTInfoValue(const std::map<std::string, std::shared_ptr<ng
     }
 }
 
-inline std::string getPrimitivesPriorityValue(const std::shared_ptr<ngraph::Node> &node) {
-    const auto &rtInfo = node->get_rt_info();
+inline std::string getPrimitivesPriorityValue(const std::shared_ptr<ngraph::Node>& node) {
+    const auto& rtInfo = node->get_rt_info();
     using PrimitivesPriorityWraper = ngraph::VariantWrapper<ngraph::PrimitivesPriority>;
 
-    if (!rtInfo.count(PrimitivesPriorityWraper::get_type_info_static().name)) return "";
+    if (!rtInfo.count(PrimitivesPriorityWraper::get_type_info_static().name))
+        return "";
 
-    const auto &attr = rtInfo.at(PrimitivesPriorityWraper::get_type_info_static().name);
+    const auto& attr = rtInfo.at(PrimitivesPriorityWraper::get_type_info_static().name);
     ngraph::PrimitivesPriority pp = ngraph::as_type_ptr<PrimitivesPriorityWraper>(attr)->get();
     return pp.getPrimitivesPriority();
 }

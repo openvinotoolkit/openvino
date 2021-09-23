@@ -6,13 +6,14 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <string>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNPadNode : public MKLDNNNode {
 public:
-    MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -23,15 +24,11 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    enum PadMode {
-        CONSTANT = 0,
-        EDGE = 1,
-        REFLECT = 2,
-        SYMMETRIC = 3
-    };
+    enum PadMode { CONSTANT = 0, EDGE = 1, REFLECT = 2, SYMMETRIC = 3 };
 
     void padConstant();
-    template<typename T> void padConstantCommon();
+    template <typename T>
+    void padConstantCommon();
     void padConstantZero();
     void padEdge();
     void padReflectOrSymmetric(const bool isSymmetric = false);
@@ -58,7 +55,7 @@ private:
         uint8_t sizeData = 1;
     } params;
 
-    template<typename T>
+    template <typename T>
     struct PadConstantEmitter {
         void operator()(MKLDNNPadNode* node) {
             node->padConstantCommon<T>();

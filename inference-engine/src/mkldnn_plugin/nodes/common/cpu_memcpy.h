@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstring>
+
 #include "ie_api.h"
 
 /**
@@ -32,8 +33,7 @@ inline void cpu_memcpy(void* dst, const void* src, size_t count) {
 }
 
 inline int cpu_memcpy_s(void* dst, size_t dst_size, const void* src, size_t count) {
-    if (!src ||
-        count > dst_size ||
+    if (!src || count > dst_size ||
         count > (dst > src ? ((uintptr_t)dst - (uintptr_t)src) : ((uintptr_t)src - (uintptr_t)dst))) {
         // zero out dest if error detected
         std::memset(dst, 0, dst_size);

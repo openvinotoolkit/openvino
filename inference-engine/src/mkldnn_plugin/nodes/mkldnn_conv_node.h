@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,7 +17,9 @@ class MKLDNNEltwiseNode;
 
 class MKLDNNConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
+                          const mkldnn::engine& eng,
+                          MKLDNNWeightsSharing::Ptr& cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -32,7 +35,7 @@ public:
         return false;
     }
     InferenceEngine::Precision getRuntimePrecision() const override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
 
     const mkldnn::memory& getWeights() const;
     const mkldnn::memory& getBias() const;
@@ -42,35 +45,51 @@ public:
     }
 
     bool canBeExecutedInInt8() const;
-    size_t getGroupNum() const { return groupNum; }
+    size_t getGroupNum() const {
+        return groupNum;
+    }
 
     std::vector<uint8_t> inputZeroPoints;
     std::vector<float> weightsZeroPoints;
     std::vector<int32_t> outputCompensation;
 
-    const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
-    const std::vector<size_t> &getStride() { return stride; }
-    const std::vector<ptrdiff_t> &getDilation() { return dilation; }
-    const std::vector<ptrdiff_t> &getPaddingL() { return paddingL; }
-    const std::vector<ptrdiff_t> &getPaddingR() { return paddingR; }
+    const InferenceEngine::SizeVector& getWeightDims() {
+        return weightDims;
+    }
+    const std::vector<size_t>& getStride() {
+        return stride;
+    }
+    const std::vector<ptrdiff_t>& getDilation() {
+        return dilation;
+    }
+    const std::vector<ptrdiff_t>& getPaddingL() {
+        return paddingL;
+    }
+    const std::vector<ptrdiff_t>& getPaddingR() {
+        return paddingR;
+    }
 
     bool canFuse(const MKLDNNNodePtr& node) const override;
     bool isDepthWise() const {
         return isGrouped && 1 == groupOC && 1 == groupIC;
     }
 
-    bool isWinograd() const { return isWino; }
+    bool isWinograd() const {
+        return isWino;
+    }
 
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 
 private:
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights) const;
+    void setPostOps(mkldnn::primitive_attr& attr, bool initWeights) const;
     void filterSupportedDescriptors();
-    bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
+    bool isPossibleToSkipInitConfig(MKLDNNDescriptor& desc) const;
     bool isNspcAvailable() const;
-    InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
+    InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims,
+                                                  size_t edgeNum,
+                                                  bool isGrouped = false);
 
     bool withBiases;
     bool withSum;
@@ -105,4 +124,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-

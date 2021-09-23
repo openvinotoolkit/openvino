@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/fusing_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -13,7 +13,8 @@ namespace SubgraphTestsDefinitions {
 
 using ConvPoolActivTestParams = fusingSpecificParams;
 
-class ConvPoolActivTest : public testing::WithParamInterface<ConvPoolActivTestParams>, public CpuTestWithFusing,
+class ConvPoolActivTest : public testing::WithParamInterface<ConvPoolActivTestParams>,
+                          public CpuTestWithFusing,
                           virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConvPoolActivTestParams> obj) {
@@ -44,7 +45,15 @@ protected:
             const std::vector<size_t> dilation = {1, 1};
             const size_t numOutChannels = 16;
             const op::PadType paddingType = op::PadType::EXPLICIT;
-            conv = builder::makeConvolution(paramOuts[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
+            conv = builder::makeConvolution(paramOuts[0],
+                                            element::f32,
+                                            kernelSize,
+                                            strides,
+                                            padBegin,
+                                            padEnd,
+                                            dilation,
+                                            paddingType,
+                                            numOutChannels);
         }
         std::shared_ptr<Node> pooling;
         {
@@ -55,7 +64,15 @@ protected:
             const op::PadType paddingType = op::PadType::EXPLICIT;
             ngraph::helpers::PoolingTypes poolType = ngraph::helpers::PoolingTypes::MAX;
             ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::CEIL;
-            pooling = builder::makePooling(conv, strides, padBegin, padEnd, kernelSize, roundingType, paddingType, false, poolType);
+            pooling = builder::makePooling(conv,
+                                           strides,
+                                           padBegin,
+                                           padEnd,
+                                           kernelSize,
+                                           roundingType,
+                                           paddingType,
+                                           false,
+                                           poolType);
         }
 
         function = makeNgraphFunction(element::f32, inputParams, pooling, "ConvPoolActiv");
@@ -71,15 +88,13 @@ TEST_P(ConvPoolActivTest, CompareWithRefs) {
 
 namespace {
 
-const std::vector<fusingSpecificParams> fusingParamsSet {
-        emptyFusingSpec,
-        fusingRelu,
-        fusingSwish,
-        fusingSigmoid
-};
+const std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec, fusingRelu, fusingSwish, fusingSigmoid};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Check, ConvPoolActivTest, ::testing::ValuesIn(fusingParamsSet), ConvPoolActivTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Check,
+                         ConvPoolActivTest,
+                         ::testing::ValuesIn(fusingParamsSet),
+                         ConvPoolActivTest::getTestCaseName);
 
-} // namespace
+}  // namespace
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

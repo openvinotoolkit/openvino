@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include <mkldnn_node.h>
 #include <mkldnn_graph.h>
-#include <string>
+#include <mkldnn_node.h>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
@@ -34,12 +35,12 @@ class PortMapHelper {
 public:
     virtual ~PortMapHelper() = default;
     virtual void execute(mkldnn::stream strm, int n_iter = -1) = 0;
+
 protected:
     mkldnn::reorder reorder;
     mkldnn::memory mem_holder_src;
     mkldnn::memory mem_holder_dst;
 };
-
 
 /**
  * Functor interface to perform check of data tensor (captured in constructor)
@@ -50,14 +51,16 @@ class PortChecker {
 public:
     virtual ~PortChecker() = default;
     virtual int getStatus() = 0;
+
 protected:
     mkldnn::memory mem_holder;
 };
 
-
 class MKLDNNTensorIteratorNode : public MKLDNNNode {
 public:
-    MKLDNNTensorIteratorNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNTensorIteratorNode(const std::shared_ptr<ngraph::Node>& op,
+                             const mkldnn::engine& eng,
+                             MKLDNNWeightsSharing::Ptr& cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
@@ -66,7 +69,9 @@ public:
     bool created() const override;
     void execute(mkldnn::stream strm) override;
 
-    void setExtManager(const MKLDNNExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
+    void setExtManager(const MKLDNNExtensionManager::Ptr& extMgr) {
+        ext_mng = extMgr;
+    }
 
 private:
     int n_iter = 0;
@@ -75,20 +80,18 @@ private:
     MKLDNNGraph sub_graph;
     std::vector<MKLDNNMemoryPtr> input_mem, output_mem;
 
-    std::vector<std::shared_ptr<PortMapHelper>>
-        first_mappers,   /// < Applied once before loop
-        last_mappers,    /// < Applied once after loop
-        before_mappers,  /// < Applied before each iteration
-        after_mappers;   /// < Applied after each iteration
+    std::vector<std::shared_ptr<PortMapHelper>> first_mappers,  /// < Applied once before loop
+        last_mappers,                                           /// < Applied once after loop
+        before_mappers,                                         /// < Applied before each iteration
+        after_mappers;                                          /// < Applied after each iteration
 
-    std::shared_ptr<PortChecker>
-        trip_count_check,      /// < Perform check of trip count value. value >= -1
+    std::shared_ptr<PortChecker> trip_count_check,  /// < Perform check of trip count value. value >= -1
         initial_cond_check,   /// < Perform check of initial continue condition value. value [0, 1]
         continue_cond_check;  /// < Perform check of continue condition value of body. value [0, 1]
 
-    std::vector<PortMap> inputPortMap;  //!< Input ports map
+    std::vector<PortMap> inputPortMap;   //!< Input ports map
     std::vector<PortMap> outputPortMap;  //!< Output ports map
-    std::vector<PortMap> backEdges;  //!< Back edges map
+    std::vector<PortMap> backEdges;      //!< Back edges map
 
     std::vector<int> loopBodyCurrentIterationIdx;
     int loopBodyConditionOutputIdx = -1;

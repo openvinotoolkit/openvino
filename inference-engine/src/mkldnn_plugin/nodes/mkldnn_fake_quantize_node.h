@@ -6,12 +6,12 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <common/primitive_attr.hpp>
 
-#include <string>
+#include <common/primitive_attr.hpp>
 #include <memory>
-#include <vector>
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace MKLDNNPlugin {
 
@@ -49,9 +49,9 @@ struct jit_quantize_call_args {
 };
 
 struct jit_uni_quantize_kernel {
-    void (*ker_)(const jit_quantize_call_args *);
+    void (*ker_)(const jit_quantize_call_args*);
 
-    void operator()(const jit_quantize_call_args *args) {
+    void operator()(const jit_quantize_call_args* args) {
         assert(ker_);
         ker_(args);
     }
@@ -66,7 +66,9 @@ struct jit_uni_quantize_kernel {
 
 class MKLDNNFakeQuantizeNode : public MKLDNNNode {
 public:
-    MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Node>& op,
+                           const mkldnn::engine& eng,
+                           MKLDNNWeightsSharing::Ptr& cache);
 
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
@@ -74,36 +76,90 @@ public:
     bool created() const override;
     void execute(mkldnn::stream strm) override;
 
-    size_t getAxis() const { return axis; }
+    size_t getAxis() const {
+        return axis;
+    }
 
-    bool isBinarization() const { return getAlgorithm() == Algorithm::FQBinarization; }
+    bool isBinarization() const {
+        return getAlgorithm() == Algorithm::FQBinarization;
+    }
 
-    const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
-    const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
-    size_t getBinarizationTresholdsSize() const { return binarizationThresholds.size(); }
-    size_t getBinarizationOutputMaskSize() const { return binarizationOutputMask.size(); }
+    const float* getBinarizationTresholdsPtr() const {
+        return &binarizationThresholds[0];
+    }
+    const float* getBinarizationOutputMaskPtr() const {
+        return reinterpret_cast<const float*>(&binarizationOutputMask[0]);
+    }
+    size_t getBinarizationTresholdsSize() const {
+        return binarizationThresholds.size();
+    }
+    size_t getBinarizationOutputMaskSize() const {
+        return binarizationOutputMask.size();
+    }
 
-    const std::vector<float>& getCropLow() const { return cropLow; }
-    const std::vector<float>& getCropHigh() const { return cropHigh; }
-    const std::vector<float>& getInputScale() const { return inputScale; }
-    const std::vector<float>& getInputShift() const { return inputShift; }
-    const std::vector<float>& getOutputScale() const { return outputScale; }
-    const std::vector<float>& getOutputShift() const { return outputShift; }
+    const std::vector<float>& getCropLow() const {
+        return cropLow;
+    }
+    const std::vector<float>& getCropHigh() const {
+        return cropHigh;
+    }
+    const std::vector<float>& getInputScale() const {
+        return inputScale;
+    }
+    const std::vector<float>& getInputShift() const {
+        return inputShift;
+    }
+    const std::vector<float>& getOutputScale() const {
+        return outputScale;
+    }
+    const std::vector<float>& getOutputShift() const {
+        return outputShift;
+    }
 
-    void setCropLow(std::vector<float> newCropLow) { cropLow = std::move(newCropLow); isPostOpDataInitialized = false; }
-    void setCropHigh(std::vector<float> newCropHigh) { cropHigh = std::move(newCropHigh); isPostOpDataInitialized = false; }
-    void setInputScale(std::vector<float> newInputScale) { inputScale = std::move(newInputScale); isPostOpDataInitialized = false; }
-    void setInputShift(std::vector<float> newInputShift) { inputShift = std::move(newInputShift); isPostOpDataInitialized = false; }
-    void setOutputScale(std::vector<float> newOutputScale) { outputScale = std::move(newOutputScale); isPostOpDataInitialized = false;}
-    void setOutputShift(std::vector<float> newOutputShift) { outputShift = std::move(newOutputShift); isPostOpDataInitialized = false; }
+    void setCropLow(std::vector<float> newCropLow) {
+        cropLow = std::move(newCropLow);
+        isPostOpDataInitialized = false;
+    }
+    void setCropHigh(std::vector<float> newCropHigh) {
+        cropHigh = std::move(newCropHigh);
+        isPostOpDataInitialized = false;
+    }
+    void setInputScale(std::vector<float> newInputScale) {
+        inputScale = std::move(newInputScale);
+        isPostOpDataInitialized = false;
+    }
+    void setInputShift(std::vector<float> newInputShift) {
+        inputShift = std::move(newInputShift);
+        isPostOpDataInitialized = false;
+    }
+    void setOutputScale(std::vector<float> newOutputScale) {
+        outputScale = std::move(newOutputScale);
+        isPostOpDataInitialized = false;
+    }
+    void setOutputShift(std::vector<float> newOutputShift) {
+        outputShift = std::move(newOutputShift);
+        isPostOpDataInitialized = false;
+    }
 
-    bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
-    bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
-    bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
-    bool isOutputHighBroadcast() const { return isOutputHighBroadcasted; }
+    bool isInputLowBroadcast() const {
+        return isInputLowBroadcasted;
+    }
+    bool isInputHighBroadcast() const {
+        return isInputHighBroadcasted;
+    }
+    bool isOutputLowBroadcast() const {
+        return isOutputLowBroadcasted;
+    }
+    bool isOutputHighBroadcast() const {
+        return isOutputHighBroadcasted;
+    }
 
-    InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
-    InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
+    InferenceEngine::Precision getInputPrecision() const {
+        return inputPrecision;
+    }
+    InferenceEngine::Precision getOutputPrecision() const {
+        return outputPrecision;
+    }
 
     void appendPostOps(mkldnn::post_ops& ops) override;
 

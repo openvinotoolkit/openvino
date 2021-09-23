@@ -4,19 +4,22 @@
 
 #pragma once
 
-#include <ie_iextension.h>
 #include <ie_common.h>
+#include <ie_iextension.h>
 #include <mkldnn_node.h>
+
+#include <map>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include <map>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNGenericNode : public MKLDNNNode {
 public:
-    MKLDNNGenericNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNGenericNode(const std::shared_ptr<ngraph::Node>& op,
+                      const mkldnn::engine& eng,
+                      MKLDNNWeightsSharing::Ptr& cache);
     ~MKLDNNGenericNode() = default;
 
     void getSupportedDescriptors() override;
@@ -35,8 +38,8 @@ public:
     void cleanup() override;
 
 protected:
-    NodeConfig convertLayerToNodeConfig(const InferenceEngine::LayerConfig &layerConfig);
-    InferenceEngine::LayerConfig convertNodeToLayerConfig(const NodeConfig &nodeConfig);
+    NodeConfig convertLayerToNodeConfig(const InferenceEngine::LayerConfig& layerConfig);
+    InferenceEngine::LayerConfig convertNodeToLayerConfig(const NodeConfig& nodeConfig);
 
     InferenceEngine::ILayerImplFactory::Ptr extFactory;
     std::vector<InferenceEngine::ILayerExecImpl::Ptr> impls;
@@ -45,4 +48,3 @@ protected:
 };
 
 }  // namespace MKLDNNPlugin
-

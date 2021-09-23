@@ -215,4 +215,4 @@ enum Algorithm {
     MathTan
 };
 
-} // namespace MKLDNNPlugin
+}  // namespace MKLDNNPlugin

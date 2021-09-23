@@ -4,31 +4,31 @@
 
 #include "mkldnn_graph_dumper.h"
 
-#include "utils/debug_capabilities.h"
 #include <ie_ngraph_utils.hpp>
+#include <map>
+#include <memory>
+#include <ngraph/pass/manager.hpp>
+#include <ngraph/variant.hpp>
+#include <string>
+#include <transformations/serialize.hpp>
+#include <vector>
+
 #include "exec_graph_info.hpp"
 #include "ie_common.h"
 #include "mkldnn_debug.h"
-#include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
-#include <ngraph/pass/manager.hpp>
-#include <transformations/serialize.hpp>
-
-#include <vector>
-#include <string>
-#include <memory>
-#include <map>
+#include "utils/debug_capabilities.h"
 
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-void serializeToCout(const MKLDNNGraph &graph);
-void serializeToXML(const MKLDNNGraph &graph, const std::string& path);
+void serializeToCout(const MKLDNNGraph& graph);
+void serializeToXML(const MKLDNNGraph& graph, const std::string& path);
 
 namespace {
 
-std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &node) {
+std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr& node) {
     std::map<std::string, std::string> serialization_info;
 
     if (node->getType() == Input && node->isConstant()) {
@@ -53,7 +53,8 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
         bool isAllEqual = true;
         for (size_t i = 1; i < node->getChildEdges().size(); i++) {
-            if (node->getChildEdgeAt(i - 1)->getMemory().getDesc().getPrecision() != node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision()) {
+            if (node->getChildEdgeAt(i - 1)->getMemory().getDesc().getPrecision() !=
+                node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision()) {
                 isAllEqual = false;
                 break;
             }
@@ -62,7 +63,8 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
         // If all output precisions are the same, we store the name only once
         if (!isAllEqual) {
             for (size_t i = 1; i < node->getChildEdges().size(); i++)
-                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().name());
+                outputPrecisionsStr +=
+                    "," + std::string(node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().name());
         }
     } else {
         // Branch to correctly handle output nodes
@@ -101,7 +103,8 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
     if (node->PerfCounter().avg() != 0) {
         serialization_info[ExecGraphInfoSerialization::PERF_COUNTER] = std::to_string(node->PerfCounter().avg());
     } else {
-        serialization_info[ExecGraphInfoSerialization::PERF_COUNTER] = "not_executed";  // it means it was not calculated yet
+        serialization_info[ExecGraphInfoSerialization::PERF_COUNTER] =
+            "not_executed";  // it means it was not calculated yet
     }
 
     serialization_info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
@@ -113,14 +116,14 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
 }  // namespace
 
-std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
-    std::map<MKLDNNNodePtr, std::shared_ptr<ngraph::Node> > node2layer;
+std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph& graph) {
+    std::map<MKLDNNNodePtr, std::shared_ptr<ngraph::Node>> node2layer;
 
     ngraph::ResultVector results;
     ngraph::ParameterVector params;
     ngraph::NodeVector to_hold;
 
-    auto get_inputs = [&] (const MKLDNNNodePtr & node) {
+    auto get_inputs = [&](const MKLDNNNodePtr& node) {
         auto pr_edges = node->getParentEdges();
         ngraph::OutputVector inputs(pr_edges.size());
 
@@ -139,16 +142,16 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
         return inputs;
     };
 
-    auto create_ngraph_node = [&](const MKLDNNNodePtr &node) {
+    auto create_ngraph_node = [&](const MKLDNNNodePtr& node) {
         bool is_input = false, is_output = false, should_be_hold = false;
-        for (auto && kvp : graph.inputNodesMap) {
+        for (auto&& kvp : graph.inputNodesMap) {
             if (kvp.second == node) {
                 is_input = true;
                 break;
             }
         }
 
-        for (auto && kvp : graph.outputNodesMap) {
+        for (auto&& kvp : graph.outputNodesMap) {
             if (kvp.second == node) {
                 is_output = true;
                 break;
@@ -165,7 +168,8 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
         std::shared_ptr<ngraph::Node> return_node;
         if (is_input) {
             auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
-            auto param = std::make_shared<ngraph::op::Parameter>(details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
+            auto param = std::make_shared<ngraph::op::Parameter>(details::convertPrecision(desc.getPrecision()),
+                                                                 desc.getShape().toPartialShape());
             return_node = param;
             params.push_back(param);
         } else if (is_output) {
@@ -173,11 +177,14 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
             return_node = results.back();
         } else {
             return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
-                get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
+                get_inputs(node),
+                node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
                 auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
-                return_node->set_output_type(port, details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
+                return_node->set_output_type(port,
+                                             details::convertPrecision(desc.getPrecision()),
+                                             desc.getShape().toPartialShape());
             }
         }
 
@@ -185,7 +192,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
             to_hold.push_back(return_node);
         }
 
-        for (auto && kvp : meta_data)
+        for (auto&& kvp : meta_data)
             return_node->get_rt_info()[kvp.first] = std::make_shared<::ngraph::VariantWrapper<std::string>>(kvp.second);
         return_node->set_friendly_name(node->getName());
 
@@ -194,13 +201,13 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
 
     ngraph::NodeVector nodes;
     nodes.reserve(graph.graphNodes.size());
-    for (auto &node : graph.graphNodes) {  // important: graph.graphNodes are in topological order
+    for (auto& node : graph.graphNodes) {  // important: graph.graphNodes are in topological order
         nodes.emplace_back(create_ngraph_node(node));
         node2layer[node] = nodes.back();
     }
 
     auto holder = results[0];
-    for (auto &node : to_hold) {
+    for (auto& node : to_hold) {
         holder->add_control_dependency(node);
     }
 
@@ -208,7 +215,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
 }
 
 #ifdef CPU_DEBUG_CAPS
-void serialize(const MKLDNNGraph &graph) {
+void serialize(const MKLDNNGraph& graph) {
     const std::string& path = graph.getConfig().debugCaps.execGraphPath;
 
     if (path.empty())
@@ -222,19 +229,17 @@ void serialize(const MKLDNNGraph &graph) {
         IE_THROW() << "Unknown serialize format. Should be either 'cout' or '*.xml'. Got " << path;
 }
 
-void serializeToXML(const MKLDNNGraph &graph, const std::string& path) {
+void serializeToXML(const MKLDNNGraph& graph, const std::string& path) {
     if (path.empty())
         return;
 
     std::string binPath;
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(path,
-                                                   binPath,
-                                                   ngraph::pass::Serialize::Version::IR_V10);
+    manager.register_pass<ngraph::pass::Serialize>(path, binPath, ngraph::pass::Serialize::Version::IR_V10);
     manager.run_passes(graph.dump());
 }
 
-void serializeToCout(const MKLDNNGraph &graph) {
+void serializeToCout(const MKLDNNGraph& graph) {
     for (const auto& node : graph.GetNodes()) {
         std::cout << "name: " << node->getName() << " [ ";
         auto nodeDesc = node->getSelectedPrimitiveDescriptor();
@@ -242,8 +247,7 @@ void serializeToCout(const MKLDNNGraph &graph) {
             auto& inConfs = nodeDesc->getConfig().inConfs;
             if (!inConfs.empty()) {
                 std::cout << "in: " << inConfs.front().desc->getPrecision().name()
-                          << "/l=" << inConfs.front().desc->serializeFormat()
-                          << "; ";
+                          << "/l=" << inConfs.front().desc->serializeFormat() << "; ";
             }
             auto& outConfs = nodeDesc->getConfig().outConfs;
             if (!outConfs.empty()) {
@@ -251,7 +255,7 @@ void serializeToCout(const MKLDNNGraph &graph) {
                           << "/l=" << outConfs.front().desc->serializeFormat();
             }
         }
-        std::cout << " ]"  << std::endl;
+        std::cout << " ]" << std::endl;
     }
 }
 #endif

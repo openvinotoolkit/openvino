@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "single_layer_tests/conversion.hpp"
+
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "single_layer_tests/conversion.hpp"
 
 using namespace LayerTestsDefinitions;
 

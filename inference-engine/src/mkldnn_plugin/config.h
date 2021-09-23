@@ -4,12 +4,15 @@
 
 #pragma once
 
-#include <threading/ie_istreams_executor.hpp>
+#include "ie_metric_helpers.hpp"
+/* must be included before "ie_performance_hints.hpp"
+ * because of weird include order sensitivity of "ie_plugin_config.hpp" */
 #include <ie_performance_hints.hpp>
-#include "utils/debug_capabilities.h"
-
-#include <string>
 #include <map>
+#include <string>
+#include <threading/ie_istreams_executor.hpp>
+
+#include "utils/debug_capabilities.h"
 
 namespace MKLDNNPlugin {
 
@@ -27,7 +30,7 @@ struct Config {
     std::string dumpToDot = "";
     int batchLimit = 0;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
-    InferenceEngine::PerfHintsConfig  perfHintsConfig;
+    InferenceEngine::PerfHintsConfig perfHintsConfig;
 #if defined(__arm__) || defined(__aarch64__)
     // Currently INT8 mode is not optimized on ARM, fallback to FP32 mode.
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
@@ -42,7 +45,7 @@ struct Config {
     DebugCaps::Config debugCaps;
 #endif
 
-    void readProperties(const std::map<std::string, std::string> &config);
+    void readProperties(const std::map<std::string, std::string>& config);
     void updateProperties();
     std::map<std::string, std::string> _config;
 };

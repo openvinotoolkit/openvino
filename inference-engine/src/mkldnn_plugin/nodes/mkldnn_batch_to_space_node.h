@@ -6,26 +6,29 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNBatchToSpaceNode : public MKLDNNNode {
 public:
-    MKLDNNBatchToSpaceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNBatchToSpaceNode(const std::shared_ptr<ngraph::Node>& op,
+                           const mkldnn::engine& eng,
+                           MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    template<typename T>
+    template <typename T>
     void batchToSpaceKernel();
 
 private:

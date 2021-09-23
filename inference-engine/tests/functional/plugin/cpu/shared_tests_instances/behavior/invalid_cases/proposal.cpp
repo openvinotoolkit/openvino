@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
 #include "behavior/invalid_cases/proposal.hpp"
+
+#include <vector>
 
 using namespace ngraph::helpers;
 using namespace LayerTestsDefinitions;
@@ -31,25 +32,22 @@ const std::vector<std::vector<float>> img_info_invalid = {{0.f, 225.f, 1.f},
 // empty string corresponds to Caffe framework
 const std::vector<framework_type> framework_ = {""};
 
-const auto proposalParams = ::testing::Combine(
-        ::testing::ValuesIn(base_size_),
-        ::testing::ValuesIn(pre_nms_topn_),
-        ::testing::ValuesIn(post_nms_topn_),
-        ::testing::ValuesIn(nms_thresh_),
-        ::testing::ValuesIn(min_size_),
-        ::testing::ValuesIn(ratio_),
-        ::testing::ValuesIn(scale_),
-        ::testing::ValuesIn(clip_before_nms_),
-        ::testing::ValuesIn(clip_after_nms_),
-        ::testing::ValuesIn(framework_)
-);
+const auto proposalParams = ::testing::Combine(::testing::ValuesIn(base_size_),
+                                               ::testing::ValuesIn(pre_nms_topn_),
+                                               ::testing::ValuesIn(post_nms_topn_),
+                                               ::testing::ValuesIn(nms_thresh_),
+                                               ::testing::ValuesIn(min_size_),
+                                               ::testing::ValuesIn(ratio_),
+                                               ::testing::ValuesIn(scale_),
+                                               ::testing::ValuesIn(clip_before_nms_),
+                                               ::testing::ValuesIn(clip_after_nms_),
+                                               ::testing::ValuesIn(framework_));
 
-INSTANTIATE_TEST_SUITE_P(invalid, ProposalBehTest,
-                        ::testing::Combine(
-                                proposalParams,
-                                ::testing::ValuesIn(img_info_invalid),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ProposalBehTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(invalid,
+                         ProposalBehTest,
+                         ::testing::Combine(proposalParams,
+                                            ::testing::ValuesIn(img_info_invalid),
+                                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ProposalBehTest::getTestCaseName);
 
 }  // namespace

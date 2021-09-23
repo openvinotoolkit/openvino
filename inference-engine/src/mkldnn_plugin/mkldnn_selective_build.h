@@ -6,5 +6,5 @@
 #include <openvino/cc/factory.h>
 
 namespace MKLDNNPlugin {
-    OV_CC_DOMAINS(MKLDNNPlugin)
+OV_CC_DOMAINS(MKLDNNPlugin)
 }

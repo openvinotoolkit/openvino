@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace ngraph;
@@ -20,14 +20,15 @@ using fqSpecificParams = std::tuple<int64_t,                  // 'data' input lo
                                     size_t>;                  // levels
 
 using fqLayerTestParamsSet = std::tuple<fqSpecificParams,
-                                        SizeVector,                                        // 'data' input shape
-                                        Precision,                                         // input precision
-                                        std::pair<std::vector<float>, std::vector<float>>, // il and ih values
-                                        bool,                                              // should be decomposed
+                                        SizeVector,                                         // 'data' input shape
+                                        Precision,                                          // input precision
+                                        std::pair<std::vector<float>, std::vector<float>>,  // il and ih values
+                                        bool,                                               // should be decomposed
                                         CPUSpecificParams>;
 
 class FakeQuantizeLayerCPUTest : public testing::WithParamInterface<fqLayerTestParamsSet>,
-                                 virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+                                 virtual public LayerTestsUtils::LayerTestsCommon,
+                                 public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj) {
         fqSpecificParams fqParams;
@@ -72,10 +73,12 @@ public:
         inferRequest = executableNetwork.CreateInferRequest();
         inputs.clear();
 
-        const InputsDataMap &inDataMap = cnnNetwork.getInputsInfo();
+        const InputsDataMap& inDataMap = cnnNetwork.getInputsInfo();
         auto input = inDataMap.begin();
 
-        Blob::Ptr blob = FuncTestUtils::createAndFillBlob(input->second->getTensorDesc(), inDataHighBounds - inDataLowBounds, inDataLowBounds);
+        Blob::Ptr blob = FuncTestUtils::createAndFillBlob(input->second->getTensorDesc(),
+                                                          inDataHighBounds - inDataLowBounds,
+                                                          inDataLowBounds);
         inferRequest.SetBlob(input->second->name(), blob);
         inputs.push_back(blob);
 
@@ -102,7 +105,8 @@ protected:
         std::vector<std::vector<float>> rangesBounds(RANGES_INPUT_NUMBER);
         rangesBounds[0] = inputRangesValues.first;
         rangesBounds[1] = inputRangesValues.second;
-        std::tie(inDataLowBounds, inDataHighBounds, rangesBounds[2], rangesBounds[3], inRangesShapes, levels) = fqParams;
+        std::tie(inDataLowBounds, inDataHighBounds, rangesBounds[2], rangesBounds[3], inRangesShapes, levels) =
+            fqParams;
 
         auto ngInPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
         ParameterVector params = builder::makeParams(ngInPrec, {inDataShape});
@@ -117,7 +121,7 @@ protected:
         layerName = shouldBeDecomposed ? "" : "FakeQuantize";
 
         if (selectedType.empty()) {
-           selectedType = getPrimitiveType() + "_" + inPrec.name();
+            selectedType = getPrimitiveType() + "_" + inPrec.name();
         }
 
         fq->get_rt_info() = getCPUInfo();
@@ -137,30 +141,24 @@ TEST_P(FakeQuantizeLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(executableNetwork, layerName);
 }
 
-
 const std::vector<size_t> levels = {16, 255, 256};
 
 int64_t dataLowBounds{-10}, dataHighBounds{10};
 
-const std::vector<std::pair<std::vector<float>, std::vector<float>>> input_ranges = {
-    {{0.0f}, {5.f}},
-    {{-10.0f}, {-5.f}}
-};
+const std::vector<std::pair<std::vector<float>, std::vector<float>>> input_ranges = {{{0.0f}, {5.f}},
+                                                                                     {{-10.0f}, {-5.f}}};
 
 const std::vector<float> outputLow{5.0f}, outputHigh{25.0f};
 
 namespace fqImpl {
 
-std::vector<CPUSpecificParams> memForm4D_jit = {
-        CPUSpecificParams({nchw}, {nchw}, {}, {}),
-        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
-};
+std::vector<CPUSpecificParams> memForm4D_jit = {CPUSpecificParams({nchw}, {nchw}, {}, {}),
+                                                CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
+                                                CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})};
 
 const std::vector<std::vector<SizeVector>> rangesShapes4D_jit = {
     {{1, 5, 1, 1}, {1, 5, 1, 1}, {1, 5, 1, 1}, {1, 5, 1, 1}},
-    {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}
-};
+    {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}};
 
 const auto specificParams4D_jit = ::testing::Combine(::testing::Values(dataLowBounds),
                                                      ::testing::Values(dataHighBounds),
@@ -174,16 +172,15 @@ const auto testParams4D_jit = ::testing::Combine(specificParams4D_jit,
                                                  ::testing::ValuesIn(input_ranges),
                                                  ::testing::Values(false),
                                                  ::testing::ValuesIn(filterCPUSpecificParams(memForm4D_jit)));
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_jit, FakeQuantizeLayerCPUTest, testParams4D_jit, FakeQuantizeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_jit,
+                         FakeQuantizeLayerCPUTest,
+                         testParams4D_jit,
+                         FakeQuantizeLayerCPUTest::getTestCaseName);
 
-
-std::vector<CPUSpecificParams> memForm4D_ref = {
-        CPUSpecificParams({nchw}, {nchw}, {"ref_FP32"}, {"ref_FP32"})
-};
+std::vector<CPUSpecificParams> memForm4D_ref = {CPUSpecificParams({nchw}, {nchw}, {"ref_FP32"}, {"ref_FP32"})};
 
 const std::vector<std::vector<SizeVector>> rangesShapes4D_ref = {
-    {{4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}}
-};
+    {{4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}}};
 
 const auto specificParams4D_ref = ::testing::Combine(::testing::Values(dataLowBounds),
                                                      ::testing::Values(dataHighBounds),
@@ -197,19 +194,18 @@ const auto testParams4D_ref = ::testing::Combine(specificParams4D_ref,
                                                  ::testing::ValuesIn(input_ranges),
                                                  ::testing::Values(false),
                                                  ::testing::ValuesIn(memForm4D_ref));
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_ref, FakeQuantizeLayerCPUTest, testParams4D_ref, FakeQuantizeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_ref,
+                         FakeQuantizeLayerCPUTest,
+                         testParams4D_ref,
+                         FakeQuantizeLayerCPUTest::getTestCaseName);
 
-
-std::vector<CPUSpecificParams> memForm5D_jit = {
-        CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
-        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
-        CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {})
-};
+std::vector<CPUSpecificParams> memForm5D_jit = {CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
+                                                CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
+                                                CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {})};
 
 const std::vector<std::vector<SizeVector>> rangesShapes5D_jit = {
     {{1, 4, 1, 1, 1}, {1, 4, 1, 1, 1}, {1, 4, 1, 1, 1}, {1, 4, 1, 1, 1}},
-    {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}
-};
+    {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}};
 
 const auto specificParams5D_jit = ::testing::Combine(::testing::Values(dataLowBounds),
                                                      ::testing::Values(dataHighBounds),
@@ -224,16 +220,15 @@ const auto testParams5D_jit = ::testing::Combine(specificParams5D_jit,
                                                  ::testing::Values(false),
                                                  ::testing::ValuesIn(filterCPUSpecificParams(memForm5D_jit)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_5D_jit, FakeQuantizeLayerCPUTest, testParams5D_jit, FakeQuantizeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_5D_jit,
+                         FakeQuantizeLayerCPUTest,
+                         testParams5D_jit,
+                         FakeQuantizeLayerCPUTest::getTestCaseName);
 
-
-std::vector<CPUSpecificParams> memForm5D_ref = {
-        CPUSpecificParams({ncdhw}, {ncdhw}, {"ref_FP32"}, {"ref_FP32"})
-};
+std::vector<CPUSpecificParams> memForm5D_ref = {CPUSpecificParams({ncdhw}, {ncdhw}, {"ref_FP32"}, {"ref_FP32"})};
 
 const std::vector<std::vector<SizeVector>> rangesShapes5D_ref = {
-    {{3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}}
-};
+    {{3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}}};
 
 const auto specificParams5D_ref = ::testing::Combine(::testing::Values(dataLowBounds),
                                                      ::testing::Values(dataHighBounds),
@@ -248,9 +243,12 @@ const auto testParams5D_ref = ::testing::Combine(specificParams5D_ref,
                                                  ::testing::Values(false),
                                                  ::testing::ValuesIn(memForm5D_ref));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_5D_ref, FakeQuantizeLayerCPUTest, testParams5D_ref, FakeQuantizeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_5D_ref,
+                         FakeQuantizeLayerCPUTest,
+                         testParams5D_ref,
+                         FakeQuantizeLayerCPUTest::getTestCaseName);
 
-} // namespace fqImpl
+}  // namespace fqImpl
 
 const std::vector<SizeVector> dataShapes = {
     {4, 5, 6, 7},
@@ -258,13 +256,11 @@ const std::vector<SizeVector> dataShapes = {
     {2, 3, 4, 5, 6, 7},
 };
 
-const std::vector<std::vector<SizeVector>> rangesShapes = {
-    {{4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}},
-    {{1, 5, 1, 1}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}},
-    {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}},
-    {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 1, 1}, {1, 1, 1, 1}},
-    {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}
-};
+const std::vector<std::vector<SizeVector>> rangesShapes = {{{4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}},
+                                                           {{1, 5, 1, 1}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}},
+                                                           {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}},
+                                                           {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 1, 1}, {1, 1, 1, 1}},
+                                                           {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}};
 
 namespace fqDecompos {
 
@@ -281,8 +277,11 @@ const auto testParams = ::testing::Combine(specificParams,
                                            ::testing::Values(true),
                                            ::testing::Values(CPUSpecificParams{}));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_Decompos, FakeQuantizeLayerCPUTest, testParams, FakeQuantizeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_Decompos,
+                         FakeQuantizeLayerCPUTest,
+                         testParams,
+                         FakeQuantizeLayerCPUTest::getTestCaseName);
 
-} // namespace fqDecompos
+}  // namespace fqDecompos
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace CPULayerTestsDefinitions

@@ -6,8 +6,9 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
@@ -32,8 +33,11 @@ struct jit_extract_image_patches_args {
 };
 
 struct jit_uni_extract_image_patches_kernel {
-    void (*ker_)(const jit_extract_image_patches_args *);
-    void operator()(const jit_extract_image_patches_args *args) { assert(ker_); ker_(args); }
+    void (*ker_)(const jit_extract_image_patches_args*);
+    void operator()(const jit_extract_image_patches_args* args) {
+        assert(ker_);
+        ker_(args);
+    }
     jit_extract_image_patches_params jpp;
     virtual void create_ker() = 0;
     explicit jit_uni_extract_image_patches_kernel(jit_extract_image_patches_params jpp) : ker_(nullptr), jpp(jpp) {}
@@ -42,22 +46,20 @@ struct jit_uni_extract_image_patches_kernel {
 
 class MKLDNNExtractImagePatchesNode : public MKLDNNNode {
 public:
-    MKLDNNExtractImagePatchesNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNExtractImagePatchesNode(const std::shared_ptr<ngraph::Node>& op,
+                                  const mkldnn::engine& eng,
+                                  MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    enum class ExtImgPatcherPadType {
-        VALID,
-        SAME_LOWER,
-        SAME_UPPER
-    };
+    enum class ExtImgPatcherPadType { VALID, SAME_LOWER, SAME_UPPER };
 
     std::vector<size_t> _ksizes;
     std::vector<size_t> _strides;

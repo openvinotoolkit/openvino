@@ -8,7 +8,7 @@
 
 namespace MKLDNNPlugin {
 
-class ConvertToPowerStatic: public ngraph::pass::MatcherPass {
+class ConvertToPowerStatic : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertToPowerStatic();

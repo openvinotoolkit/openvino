@@ -2,32 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "bfloat16_helpers.hpp"
-
-#include <memory>
-#include <tuple>
-#include <vector>
-#include <string>
 #include <functional>
-#include <map>
-#include <utility>
-
 #include <ie_core.hpp>
+#include <map>
+#include <memory>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
 
-#include "functional_test_utils/blob_utils.hpp"
+#include "bfloat16_helpers.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "functional_test_utils/blob_utils.hpp"
 #include "ngraph/opsets/opset1.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace std;
 using namespace ngraph;
 using namespace InferenceEngine;
 
 namespace LayerTestsDefinitions {
-typedef std::tuple< Precision, SizeVector, string, size_t, CoordinateDiff, string> convEltwiseDepthwiseTestParamsSet;
+typedef std::tuple<Precision, SizeVector, string, size_t, CoordinateDiff, string> convEltwiseDepthwiseTestParamsSet;
 
-class ConvEltwiseDepthwise :
-    public testing::WithParamInterface<convEltwiseDepthwiseTestParamsSet>, virtual public LayerTestsUtils::LayerTestsCommon {
+class ConvEltwiseDepthwise : public testing::WithParamInterface<convEltwiseDepthwiseTestParamsSet>,
+                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     std::shared_ptr<Function> fnPtr;
     SizeVector inputShapes;
@@ -52,29 +50,35 @@ protected:
         size_t chCnt = inputShapes[1];
 
         // multiply
-        auto input1 = std::make_shared<opset1::Parameter>(ntype, Shape{ inputShapes });
+        auto input1 = std::make_shared<opset1::Parameter>(ntype, Shape{inputShapes});
         input1->set_friendly_name("Input_1");
         std::shared_ptr<opset1::Constant> const1 = nullptr;
         if (netPrecision == Precision::FP32) {
-            const1 = opset1::Constant::create(ntype, Shape{ 1 }, { 2.0f });
+            const1 = opset1::Constant::create(ntype, Shape{1}, {2.0f});
         } else {
-            const1 = opset1::Constant::create(ntype, Shape{ 1 }, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
+            const1 = opset1::Constant::create(
+                ntype,
+                Shape{1},
+                {bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f))});
         }
         auto mulNode = std::make_shared<opset1::Multiply>(input1, const1);
 
         // add
         std::shared_ptr<opset1::Constant> const2 = nullptr;
         if (netPrecision == Precision::FP32) {
-            const2 = opset1::Constant::create(ntype, Shape{ 1 }, { 1.0f });
+            const2 = opset1::Constant::create(ntype, Shape{1}, {1.0f});
         } else {
-            const2 = opset1::Constant::create(ntype, Shape{ 1 }, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f)) });
+            const2 = opset1::Constant::create(
+                ntype,
+                Shape{1},
+                {bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f))});
         }
         auto addNode = std::make_shared<opset1::Add>(mulNode, const2);
         addNode->set_friendly_name("SS_1");
 
         // convolution
         std::shared_ptr<opset1::Constant> weightsNode = nullptr;
-        Shape convFilterShape = { chCnt, chCnt, kernel, kernel };  // out channel, /input channels, kernel h, kernel w
+        Shape convFilterShape = {chCnt, chCnt, kernel, kernel};  // out channel, /input channels, kernel h, kernel w
         if (netPrecision == Precision::FP32) {
             std::vector<float> weightValuesFP32;
             weightValuesFP32.resize(chCnt * chCnt * kernel * kernel);
@@ -87,8 +91,13 @@ protected:
             weightsNode = std::make_shared<opset1::Constant>(ntype, convFilterShape, weightValuesBF16.data());
         }
 
-        std::shared_ptr<Node> convNode1 = std::make_shared<opset1::Convolution>(
-            addNode, weightsNode, Strides({ 1, 1 }), pads, pads, Strides({ 1, 1 }), op::PadType::EXPLICIT);
+        std::shared_ptr<Node> convNode1 = std::make_shared<opset1::Convolution>(addNode,
+                                                                                weightsNode,
+                                                                                Strides({1, 1}),
+                                                                                pads,
+                                                                                pads,
+                                                                                Strides({1, 1}),
+                                                                                op::PadType::EXPLICIT);
         convNode1->set_friendly_name("CONV");
 
         // Eltwise, i.e. Relu
@@ -98,26 +107,31 @@ protected:
         // multiply
         std::shared_ptr<opset1::Constant> const3 = nullptr;
         if (netPrecision == Precision::FP32) {
-            const3 = opset1::Constant::create(ntype, Shape{ 1, chCnt, 1, 1 }, { 3.0f });
+            const3 = opset1::Constant::create(ntype, Shape{1, chCnt, 1, 1}, {3.0f});
         } else {
-            const3 = opset1::Constant::create(ntype, Shape{ 1, chCnt, 1, 1 },
-                    { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(3.0f)) });
+            const3 = opset1::Constant::create(
+                ntype,
+                Shape{1, chCnt, 1, 1},
+                {bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(3.0f))});
         }
         auto mulNode2 = std::make_shared<opset1::Multiply>(reluNode, const3);
 
         // add
         std::shared_ptr<opset1::Constant> const4 = nullptr;
         if (netPrecision == Precision::FP32) {
-            const4 = opset1::Constant::create(ntype, Shape{ 1, chCnt, 1, 1 }, { 2.0f });
+            const4 = opset1::Constant::create(ntype, Shape{1, chCnt, 1, 1}, {2.0f});
         } else {
-            const4 = opset1::Constant::create(ntype, Shape{ 1, chCnt, 1, 1 },
-                    { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
+            const4 = opset1::Constant::create(
+                ntype,
+                Shape{1, chCnt, 1, 1},
+                {bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f))});
         }
         auto addNode2 = std::make_shared<opset1::Add>(mulNode2, const4);
         addNode2->set_friendly_name("SS_2");
 
-        return std::make_shared<Function>(NodeVector{ addNode2 }, ParameterVector{ input1 });
+        return std::make_shared<Function>(NodeVector{addNode2}, ParameterVector{input1});
     }
+
 public:
     static string getTestCaseName(testing::TestParamInfo<convEltwiseDepthwiseTestParamsSet> obj) {
         Precision netPrecision;
@@ -138,8 +152,8 @@ public:
 
     void Run_test() {
         if (!InferenceEngine::with_cpu_x86_bfloat16()) {
-            // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
-            // tests are useless on such platforms
+            // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16
+            // primitives, tests are useless on such platforms
             return;
         }
         std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, mkldnnPrimitive) = this->GetParam();
@@ -181,8 +195,10 @@ public:
         for (const auto& inputItem : cnnNetFP32.getInputsInfo()) {
             inputItem.second->setPrecision(Precision::FP32);
         }
-        auto exec_net2 = ie.LoadNetwork(cnnNetFP32, targetDevice,
-            { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO } });
+        auto exec_net2 = ie.LoadNetwork(
+            cnnNetFP32,
+            targetDevice,
+            {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}});
         auto req2 = exec_net2.CreateInferRequest();
 
         req2.SetBlob(inputNameFP32, inBlob1);
@@ -193,9 +209,13 @@ public:
         ASSERT_NE(mout2, nullptr);
         auto lm2 = mout2->rmap();
 
-        FuncTestUtils::compareRawBuffers(lm1.as<const float*>(), lm2.as<const float*>(), mout1->size(), mout2->size(),
-                                                         FuncTestUtils::CompareType::ABS_AND_REL,
-                                                         threshold, threshold);
+        FuncTestUtils::compareRawBuffers(lm1.as<const float*>(),
+                                         lm2.as<const float*>(),
+                                         mout1->size(),
+                                         mout2->size(),
+                                         FuncTestUtils::CompareType::ABS_AND_REL,
+                                         threshold,
+                                         threshold);
 
         // Stage2: verification of performance counters
         std::pair<string, string> wrongLayer =
@@ -226,34 +246,34 @@ TEST_P(ConvEltwiseDepthwise, CompareWithRefImpl) {
     Run_test();
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_1x1_depthwise_BF16, ConvEltwiseDepthwise,
-    ::testing::Combine(
-        ::testing::Values(Precision::FP32),
-        ::testing::Values(SizeVector({ 1, 5, 1, 1 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::Values(size_t(1)),
-        ::testing::Values(CoordinateDiff({ 0, 0 })),
-        ::testing::Values(std::string("jit_avx512_1x1_BF16"))),
-    ConvEltwiseDepthwise::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_1x1_depthwise_BF16,
+                         ConvEltwiseDepthwise,
+                         ::testing::Combine(::testing::Values(Precision::FP32),
+                                            ::testing::Values(SizeVector({1, 5, 1, 1})),
+                                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                            ::testing::Values(size_t(1)),
+                                            ::testing::Values(CoordinateDiff({0, 0})),
+                                            ::testing::Values(std::string("jit_avx512_1x1_BF16"))),
+                         ConvEltwiseDepthwise::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_gemm_depthwise_BF16, ConvEltwiseDepthwise,
-    ::testing::Combine(
-        ::testing::Values(Precision::FP32),
-        ::testing::Values(SizeVector({ 1, 3, 10, 10 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::Values(size_t(3)),
-        ::testing::Values(CoordinateDiff({ 1, 1 })),
-        ::testing::Values(std::string("jit_avx512_BF16"))),
-    ConvEltwiseDepthwise::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_gemm_depthwise_BF16,
+                         ConvEltwiseDepthwise,
+                         ::testing::Combine(::testing::Values(Precision::FP32),
+                                            ::testing::Values(SizeVector({1, 3, 10, 10})),
+                                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                            ::testing::Values(size_t(3)),
+                                            ::testing::Values(CoordinateDiff({1, 1})),
+                                            ::testing::Values(std::string("jit_avx512_BF16"))),
+                         ConvEltwiseDepthwise::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_conv_depthwise_BF16, ConvEltwiseDepthwise,
-    ::testing::Combine(
-        ::testing::Values(Precision::FP32),
-        ::testing::Values(SizeVector({ 1, 5, 10, 10 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::Values(size_t(3)),
-        ::testing::Values(CoordinateDiff({ 0, 0 })),
-        ::testing::Values(std::string("jit_avx512_BF16"))),
-    ConvEltwiseDepthwise::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_conv_depthwise_BF16,
+                         ConvEltwiseDepthwise,
+                         ::testing::Combine(::testing::Values(Precision::FP32),
+                                            ::testing::Values(SizeVector({1, 5, 10, 10})),
+                                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                            ::testing::Values(size_t(3)),
+                                            ::testing::Values(CoordinateDiff({0, 0})),
+                                            ::testing::Values(std::string("jit_avx512_BF16"))),
+                         ConvEltwiseDepthwise::getTestCaseName);
 
 }  // namespace LayerTestsDefinitions

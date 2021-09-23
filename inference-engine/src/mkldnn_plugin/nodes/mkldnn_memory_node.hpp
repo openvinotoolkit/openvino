@@ -5,25 +5,28 @@
 #pragma once
 
 #include <ie_common.h>
+#include <mkldnn_node.h>
+
+#include <map>
+#include <memory>
+#include <string>
+
 #include "ie_algorithm.hpp"
 #include "mkldnn_input_node.h"
-#include <mkldnn_node.h>
-#include <string>
-#include <memory>
-#include <map>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNMemoryNode {
     std::string _id;
- public:
+
+public:
     explicit MKLDNNMemoryNode(std::string id) : _id(id) {}
     explicit MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op);
     virtual ~MKLDNNMemoryNode() = default;
     std::string getId() {
         return _id;
     }
-    virtual void setInputNode(MKLDNNNode *) = 0;
+    virtual void setInputNode(MKLDNNNode*) = 0;
 };
 class MKLDNNMemoryOutputNode;
 class MKLDNNMemoryInputNode;
@@ -34,14 +37,14 @@ class MKLDNNMemoryInputNode;
  * WARNING: thread_local and holderMutex are not needed if moved into graph
  */
 class MKLDNNMemoryNodeVirtualEdge {
- public:
+public:
     using Holder = std::map<std::string, MKLDNNMemoryNode*>;
-    static Holder & getExisted() {
+    static Holder& getExisted() {
         thread_local static Holder existed;
         return existed;
     }
 
-    static MKLDNNMemoryNode * getByName(Holder& holder, std::string name) {
+    static MKLDNNMemoryNode* getByName(Holder& holder, std::string name) {
         auto result = holder.find(name);
         if (result != holder.end()) {
             return result->second;
@@ -49,15 +52,17 @@ class MKLDNNMemoryNodeVirtualEdge {
         return nullptr;
     }
 
-    static Holder* registerOutput(MKLDNNMemoryOutputNode * node);
-    static Holder* registerInput(MKLDNNMemoryInputNode * node);
-    static void remove(MKLDNNMemoryNode * node, Holder* holder);
+    static Holder* registerOutput(MKLDNNMemoryOutputNode* node);
+    static Holder* registerInput(MKLDNNMemoryInputNode* node);
+    static void remove(MKLDNNMemoryNode* node, Holder* holder);
     static std::mutex holderMutex;
 };
 
 class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
- public:
-    MKLDNNMemoryOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+public:
+    MKLDNNMemoryOutputNode(const std::shared_ptr<ngraph::Node>& op,
+                           const mkldnn::engine& eng,
+                           MKLDNNWeightsSharing::Ptr& cache);
     ~MKLDNNMemoryOutputNode() override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -72,7 +77,7 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
         inputNode = node;
     }
 
- private:
+private:
     /**
      * @brief keeps reference to input sibling node
      */
@@ -82,7 +87,9 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
 
 class MKLDNNMemoryInputNode : public MKLDNNInputNode, public MKLDNNMemoryNode {
 public:
-    MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>& op,
+                          const mkldnn::engine& eng,
+                          MKLDNNWeightsSharing::Ptr& cache);
     ~MKLDNNMemoryInputNode() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -96,10 +103,10 @@ public:
     void setInputNode(MKLDNNNode* node) override {}
     void storeState(const MKLDNNMemory& mem);
     MKLDNNMemoryPtr getStore();
- private:
+
+private:
     MKLDNNMemoryPtr dataStore;
     MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
 }  // namespace MKLDNNPlugin
-

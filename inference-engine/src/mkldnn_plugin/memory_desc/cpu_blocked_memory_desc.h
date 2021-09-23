@@ -13,8 +13,12 @@ class CpuBlockedMemoryDesc : public BlockedMemoryDesc {
 public:
     CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape);
 
-    CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
-                         const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
+    CpuBlockedMemoryDesc(InferenceEngine::Precision prc,
+                         const Shape& shape,
+                         const VectorDims& blockedDims,
+                         const VectorDims& order,
+                         size_t offsetPadding = 0,
+                         const VectorDims& offsetPaddingToData = {},
                          const VectorDims& strides = {});
 
     MemoryDescPtr clone() const override {
@@ -22,8 +26,8 @@ public:
     }
 
     bool isCompatible(const MemoryDesc& rhs) const override;
-    bool isCompatible(const CpuBlockedMemoryDesc &rhs) const;
-    bool isCompatible(const DnnlBlockedMemoryDesc &rhs) const;
+    bool isCompatible(const CpuBlockedMemoryDesc& rhs) const;
+    bool isCompatible(const DnnlBlockedMemoryDesc& rhs) const;
 
     InferenceEngine::Precision getPrecision() const override {
         return precision;
@@ -101,4 +105,4 @@ private:
 using CpuBlockedMemoryDescPtr = std::shared_ptr<CpuBlockedMemoryDesc>;
 using CpuBlockedMemoryDescCPtr = std::shared_ptr<const CpuBlockedMemoryDesc>;
 
-} // namespace MKLDNNPlugin
+}  // namespace MKLDNNPlugin

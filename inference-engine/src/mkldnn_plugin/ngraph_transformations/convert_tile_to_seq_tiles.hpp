@@ -8,10 +8,10 @@
 
 namespace MKLDNNPlugin {
 
-class ConvertTileToSeqTiles: public ngraph::pass::MatcherPass {
+class ConvertTileToSeqTiles : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertTileToSeqTiles();
 };
 
-} // namespace MKLDNNPlugin
+}  // namespace MKLDNNPlugin

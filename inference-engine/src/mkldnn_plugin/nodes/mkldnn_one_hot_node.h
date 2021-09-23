@@ -4,22 +4,25 @@
 
 #pragma once
 
+#include <ie_blob.h>
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
-#include <ie_blob.h>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNOneHotNode : public MKLDNNNode {
 public:
-    MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op,
+                     const mkldnn::engine& eng,
+                     MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -34,9 +37,9 @@ private:
         size_t suffix_size;
     };
 
-    template<typename dst_t>
+    template <typename dst_t>
     struct OneHotExecute {
-        void operator()(OneHotContext & ctx) {
+        void operator()(OneHotContext& ctx) {
             ctx.nodePtr->one_hot<dst_t>(ctx.prefix_size, ctx.suffix_size);
         }
     };
@@ -55,7 +58,7 @@ private:
     static const size_t ON_VALUE_ID = 2;
     static const size_t OFF_VALUEAXES_ID = 3;
 
-    template<typename out_type>
+    template <typename out_type>
     void one_hot(size_t prefix_size, size_t suffix_size);
 };
 

@@ -2,22 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
+#include "mkldnn_broadcast_node.h"
+
+#include <mkldnn_selective_build.h>
 #include <mkldnn_types.h>
+#include <nodes/common/blocked_desc_creator.h>
+
+#include <cmath>
+#include <ngraph/opsets/opset1.hpp>
+#include <string>
+#include <vector>
+
+#include "common/cpu_memcpy.h"
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
-#include <mkldnn_selective_build.h>
-#include "mkldnn_broadcast_node.h"
-#include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset1.hpp>
-#include "common/cpu_memcpy.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                               std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -32,7 +36,8 @@ bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ngrap
             errorMessage = "Only NUMPY broadcast type is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(broadcast->get_input_node_shared_ptr(BROADCAST_SHAPE)) == nullptr) {
+        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(
+                broadcast->get_input_node_shared_ptr(BROADCAST_SHAPE)) == nullptr) {
             errorMessage = "Only const 'shape' input is supported";
             return false;
         }
@@ -42,8 +47,10 @@ bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ngrap
     return true;
 }
 
-MKLDNNBroadcastNode::MKLDNNBroadcastNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNBroadcastNode::MKLDNNBroadcastNode(const std::shared_ptr<ngraph::Node>& op,
+                                         const mkldnn::engine& eng,
+                                         MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -64,8 +71,7 @@ void MKLDNNBroadcastNode::initSupportedPrimitiveDescriptors() {
 
     Precision prec = getOriginalInputPrecisionAtPort(BROADCAST_INPUT);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, prec},
-                          {LayoutType::ncsp, Precision::I32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, prec}, {LayoutType::ncsp, Precision::I32}},
                          {{LayoutType::ncsp, prec}},
                          impl_desc_type::ref_any);
 }
@@ -108,8 +114,8 @@ void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
     }
 
     size_t work_amount_dst = dstStrides[0] * dst_dims[0];
-    const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(BROADCAST_INPUT)->getMemoryPtr()->GetPtr());
-    auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* src_data = reinterpret_cast<const uint8_t*>(getParentEdgeAt(BROADCAST_INPUT)->getMemoryPtr()->GetPtr());
+    auto* dst_data = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t i, src_idx, start = 0, end = 0;
@@ -127,7 +133,8 @@ void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
 
             for (int j = dst_dims.size() - 1; j >= 0; j--) {
                 counters[j] = (counters[j] + 1) % dst_dims[j];
-                if (counters[j] != 0) break;
+                if (counters[j] != 0)
+                    break;
             }
         }
     });

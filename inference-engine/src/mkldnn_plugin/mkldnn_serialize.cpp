@@ -3,75 +3,68 @@
 //
 #include "mkldnn_serialize.h"
 
-#include <transformations/serialize.hpp>
-
 #include <pugixml.hpp>
+#include <transformations/serialize.hpp>
 
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 namespace {
-    std::string to_string(InferenceEngine::Layout layout) {
-        std::stringstream ss;
-        ss << layout;
-        return ss.str();
-    }
-
-    InferenceEngine::Layout layout_from_string(const std::string & name) {
-        static const std::unordered_map<std::string, InferenceEngine::Layout> layouts = {
-            { "ANY", InferenceEngine::Layout::ANY },
-            { "NCHW", InferenceEngine::Layout::NCHW },
-            { "NHWC", InferenceEngine::Layout::NHWC },
-            { "NCDHW", InferenceEngine::Layout::NCDHW },
-            { "NDHWC", InferenceEngine::Layout::NDHWC },
-            { "OIHW", InferenceEngine::Layout::OIHW },
-            { "C", InferenceEngine::Layout::C },
-            { "CHW", InferenceEngine::Layout::CHW },
-            { "HWC", InferenceEngine::Layout::HWC },
-            { "HW", InferenceEngine::Layout::HW },
-            { "NC", InferenceEngine::Layout::NC },
-            { "CN", InferenceEngine::Layout::CN },
-            { "BLOCKED", InferenceEngine::Layout::BLOCKED }
-        };
-        auto it = layouts.find(name);
-        if (it != layouts.end()) {
-            return it->second;
-        }
-        IE_THROW(NetworkNotRead) << "Unknown layout with name '" << name << "'";
-    }
-
-    template<typename T>
-    void setPrecisionsAndLayouts(
-        pugi::xml_object_range<pugi::xml_named_node_iterator> && nodes,
-        T && info) {
-        for (auto n : nodes) {
-            auto name_attr = n.attribute("name");
-            auto precision_attr = n.attribute("precision");
-            auto layout_attr = n.attribute("layout");
-
-            if (!name_attr
-                || !precision_attr
-                || !layout_attr) {
-                IE_THROW(NetworkNotRead) << "The inputs/outputs information is invalid.";
-            }
-
-            auto it = info.find(name_attr.value());
-            if (it == info.end()) {
-                IE_THROW(NetworkNotRead) << "The input/output with name '" << name_attr.value() << "' not found";
-            }
-
-            it->second->setPrecision(Precision::FromStr(precision_attr.value()));
-            it->second->setLayout(layout_from_string(layout_attr.value()));
-        }
-    }
-};  // namespace
-
-CNNNetworkSerializer::CNNNetworkSerializer(std::ostream & ostream, MKLDNNExtensionManager::Ptr extensionManager)
-    : _ostream(ostream)
-    , _extensionManager(extensionManager) {
+std::string to_string(InferenceEngine::Layout layout) {
+    std::stringstream ss;
+    ss << layout;
+    return ss.str();
 }
 
-void CNNNetworkSerializer::operator << (const CNNNetwork & network) {
+InferenceEngine::Layout layout_from_string(const std::string& name) {
+    static const std::unordered_map<std::string, InferenceEngine::Layout> layouts = {
+        {"ANY", InferenceEngine::Layout::ANY},
+        {"NCHW", InferenceEngine::Layout::NCHW},
+        {"NHWC", InferenceEngine::Layout::NHWC},
+        {"NCDHW", InferenceEngine::Layout::NCDHW},
+        {"NDHWC", InferenceEngine::Layout::NDHWC},
+        {"OIHW", InferenceEngine::Layout::OIHW},
+        {"C", InferenceEngine::Layout::C},
+        {"CHW", InferenceEngine::Layout::CHW},
+        {"HWC", InferenceEngine::Layout::HWC},
+        {"HW", InferenceEngine::Layout::HW},
+        {"NC", InferenceEngine::Layout::NC},
+        {"CN", InferenceEngine::Layout::CN},
+        {"BLOCKED", InferenceEngine::Layout::BLOCKED}};
+    auto it = layouts.find(name);
+    if (it != layouts.end()) {
+        return it->second;
+    }
+    IE_THROW(NetworkNotRead) << "Unknown layout with name '" << name << "'";
+}
+
+template <typename T>
+void setPrecisionsAndLayouts(pugi::xml_object_range<pugi::xml_named_node_iterator>&& nodes, T&& info) {
+    for (auto n : nodes) {
+        auto name_attr = n.attribute("name");
+        auto precision_attr = n.attribute("precision");
+        auto layout_attr = n.attribute("layout");
+
+        if (!name_attr || !precision_attr || !layout_attr) {
+            IE_THROW(NetworkNotRead) << "The inputs/outputs information is invalid.";
+        }
+
+        auto it = info.find(name_attr.value());
+        if (it == info.end()) {
+            IE_THROW(NetworkNotRead) << "The input/output with name '" << name_attr.value() << "' not found";
+        }
+
+        it->second->setPrecision(Precision::FromStr(precision_attr.value()));
+        it->second->setLayout(layout_from_string(layout_attr.value()));
+    }
+}
+};  // namespace
+
+CNNNetworkSerializer::CNNNetworkSerializer(std::ostream& ostream, MKLDNNExtensionManager::Ptr extensionManager)
+    : _ostream(ostream),
+      _extensionManager(extensionManager) {}
+
+void CNNNetworkSerializer::operator<<(const CNNNetwork& network) {
     auto getCustomOpSets = [this]() {
         std::map<std::string, ngraph::OpSet> custom_opsets;
 
@@ -86,32 +79,26 @@ void CNNNetworkSerializer::operator << (const CNNNetwork & network) {
         return custom_opsets;
     };
 
-    auto serializeInputsAndOutputs = [&](std::ostream & stream) {
+    auto serializeInputsAndOutputs = [&](std::ostream& stream) {
         const std::string name = "cnndata";
         pugi::xml_document xml_doc;
         pugi::xml_node root = xml_doc.append_child(name.c_str());
         pugi::xml_node inputs = root.append_child("inputs");
         pugi::xml_node outputs = root.append_child("outputs");
 
-        for (const auto & in : network.getInputsInfo()) {
+        for (const auto& in : network.getInputsInfo()) {
             auto in_node = inputs.append_child("in");
 
-            in_node.append_attribute("name")
-                    .set_value(in.first.c_str());
-            in_node.append_attribute("precision")
-                    .set_value(in.second->getPrecision().name());
-            in_node.append_attribute("layout")
-                    .set_value(to_string(in.second->getLayout()).c_str());
+            in_node.append_attribute("name").set_value(in.first.c_str());
+            in_node.append_attribute("precision").set_value(in.second->getPrecision().name());
+            in_node.append_attribute("layout").set_value(to_string(in.second->getLayout()).c_str());
         }
 
-        for (const auto & out : network.getOutputsInfo()) {
+        for (const auto& out : network.getOutputsInfo()) {
             auto out_node = outputs.append_child("out");
-            out_node.append_attribute("name")
-                    .set_value(out.first.c_str());
-            out_node.append_attribute("precision")
-                    .set_value(out.second->getPrecision().name());
-            out_node.append_attribute("layout")
-                    .set_value(to_string(out.second->getLayout()).c_str());
+            out_node.append_attribute("name").set_value(out.first.c_str());
+            out_node.append_attribute("precision").set_value(out.second->getPrecision().name());
+            out_node.append_attribute("layout").set_value(to_string(out.second->getLayout()).c_str());
         }
 
         xml_doc.save(stream);
@@ -121,12 +108,11 @@ void CNNNetworkSerializer::operator << (const CNNNetwork & network) {
     serializer.run_on_function(std::const_pointer_cast<ngraph::Function>(network.getFunction()));
 }
 
-CNNNetworkDeserializer::CNNNetworkDeserializer(std::istream & istream, cnn_network_builder fn)
-    : _istream(istream)
-    , _cnn_network_builder(fn) {
-}
+CNNNetworkDeserializer::CNNNetworkDeserializer(std::istream& istream, cnn_network_builder fn)
+    : _istream(istream),
+      _cnn_network_builder(fn) {}
 
-void CNNNetworkDeserializer::operator >> (InferenceEngine::CNNNetwork & network) {
+void CNNNetworkDeserializer::operator>>(InferenceEngine::CNNNetwork& network) {
     using namespace ngraph::pass;
 
     std::string xmlString, xmlInOutString;

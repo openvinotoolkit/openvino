@@ -11,11 +11,13 @@ namespace MKLDNNPlugin {
 
 class MKLDNNCTCGreedyDecoderSeqLenNode : public MKLDNNNode {
 public:
-    MKLDNNCTCGreedyDecoderSeqLenNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNCTCGreedyDecoderSeqLenNode(const std::shared_ptr<ngraph::Node>& op,
+                                     const mkldnn::engine& eng,
+                                     MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 

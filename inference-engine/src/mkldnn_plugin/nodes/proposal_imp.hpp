@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <array>
 #include <cstddef>
 #include <vector>
-#include <array>
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -37,10 +37,15 @@ struct proposal_conf {
 
 namespace XARCH {
 
-void proposal_exec(const float* input0, const float* input1,
-        std::vector<size_t> dims0, std::array<float, 4> img_info,
-        const float* anchors, int* roi_indices,
-        float* output0, float* output1, proposal_conf &conf);
+void proposal_exec(const float* input0,
+                   const float* input1,
+                   std::vector<size_t> dims0,
+                   std::array<float, 4> img_info,
+                   const float* anchors,
+                   int* roi_indices,
+                   float* output0,
+                   float* output1,
+                   proposal_conf& conf);
 
 }  // namespace XARCH
 }  // namespace Cpu

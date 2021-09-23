@@ -2,18 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-#include <mkldnn_types.h>
-#include "ie_parallel.hpp"
 #include "mkldnn_gather_node.h"
+
+#include <mkldnn_types.h>
+
 #include <ngraph/opsets/opset1.hpp>
+#include <string>
+#include <vector>
+
 #include "common/cpu_memcpy.h"
+#include "ie_parallel.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                            std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -37,8 +41,10 @@ bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ngraph::Node>& op,
+                                   const mkldnn::engine& eng,
+                                   MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     errorPrefix_ = std::string("Layer Gather with name '") + op->get_friendly_name() + "' ";
 
     std::string errorMessage;
@@ -64,7 +70,8 @@ MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ngraph::Node>& op, cons
     batchDims = static_cast<int>(gatherOp->get_batch_dims());
     if (batchDims < 0)
         batchDims += idxDims.size();
-    if (!(0 <= batchDims && batchDims <= std::min(static_cast<int>(srcDims.size()), static_cast<int>(idxDims.size()))) ||
+    if (!(0 <= batchDims &&
+          batchDims <= std::min(static_cast<int>(srcDims.size()), static_cast<int>(idxDims.size()))) ||
         batchDims > axis)
         IE_THROW() << errorPrefix_ << "has incorrect batch_dims " << batchDims << "!";
 
@@ -79,11 +86,10 @@ void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
         return;
 
     Precision dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
-    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32}},
-                         {{LayoutType::ncsp, dataPrecision}},
-                         impl_desc_type::ref_any);
+    addSupportedPrimDesc(
+        {{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, Precision::I32}, {LayoutType::ncsp, Precision::I32}},
+        {{LayoutType::ncsp, dataPrecision}},
+        impl_desc_type::ref_any);
 }
 
 void MKLDNNGatherNode::createPrimitive() {
@@ -115,7 +121,8 @@ void MKLDNNGatherNode::createPrimitive() {
 }
 
 void MKLDNNGatherNode::execute(mkldnn::stream strm) {
-    const int32_t* srcIndexes = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_INDEXES)->getMemoryPtr()->GetPtr());
+    const int32_t* srcIndexes =
+        reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_INDEXES)->getMemoryPtr()->GetPtr());
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 

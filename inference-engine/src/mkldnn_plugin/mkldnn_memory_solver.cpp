@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_common.h>
-
 #include "mkldnn_memory_solver.hpp"
 
+#include <ie_common.h>
 
 #include <algorithm>
-#include <vector>
 #include <map>
+#include <vector>
 
 namespace MKLDNNPlugin {
 
@@ -20,25 +19,37 @@ MemorySolver::MemorySolver(const std::vector<Box>& boxes) : _boxes(boxes) {
     // 2. Box.finish >= Box.start (except Box.finish == -1)
     // 3. Box.size > 0 (or == 0 ?)
     // 4. Box.id == any unique value
-    for (const Box &box : _boxes) max_ts = std::max(std::max(max_ts, box.start), box.finish);
-    for (Box &box : _boxes) if (box.finish == -1) box.finish = max_ts;
+    for (const Box& box : _boxes)
+        max_ts = std::max(std::max(max_ts, box.start), box.finish);
+    for (Box& box : _boxes)
+        if (box.finish == -1)
+            box.finish = max_ts;
 
     // sort by start and finish ts
-    std::sort(_boxes.begin(), _boxes.end(), [](const Box& l, const Box& r) -> bool
-        { return l.start < r.start || (l.start == r.start && l.finish < r.finish); });
+    std::sort(_boxes.begin(), _boxes.end(), [](const Box& l, const Box& r) -> bool {
+        return l.start < r.start || (l.start == r.start && l.finish < r.finish);
+    });
 
     // remove unused timestamps (not a begin of some box)
     // each ts should start a box
-    std::vector<bool> ts_exist(max_ts+1);
-    for (const Box &b : _boxes) ts_exist[b.start] = true;
+    std::vector<bool> ts_exist(max_ts + 1);
+    for (const Box& b : _boxes)
+        ts_exist[b.start] = true;
 
     int rm_ts_s = 0, rm_ts_f = 0;
     int ts_s = 0, ts_f = 0;
-    for (Box &b : _boxes) {
-        while (ts_s < b.start) if (!ts_exist[ts_s++]) rm_ts_s++;
+    for (Box& b : _boxes) {
+        while (ts_s < b.start)
+            if (!ts_exist[ts_s++])
+                rm_ts_s++;
 
-        if (ts_f > b.finish + 1) { ts_f = ts_s; rm_ts_f = rm_ts_s; }
-        while (ts_f <= b.finish) if (!ts_exist[ts_f++]) rm_ts_f++;
+        if (ts_f > b.finish + 1) {
+            ts_f = ts_s;
+            rm_ts_f = rm_ts_s;
+        }
+        while (ts_f <= b.finish)
+            if (!ts_exist[ts_f++])
+                rm_ts_f++;
 
         b.start -= rm_ts_s;
         b.finish -= rm_ts_f;
@@ -46,9 +57,8 @@ MemorySolver::MemorySolver(const std::vector<Box>& boxes) : _boxes(boxes) {
     _time_duration = ts_f - rm_ts_f;
 }
 
-inline bool popupTogetherWith(MemorySolver::Box &box_new, const MemorySolver::Box &box_old) {
-    if (box_new.id+box_new.size > box_old.id &&
-        box_old.id+box_old.size > box_new.id) {
+inline bool popupTogetherWith(MemorySolver::Box& box_new, const MemorySolver::Box& box_old) {
+    if (box_new.id + box_new.size > box_old.id && box_old.id + box_old.size > box_new.id) {
         // Move the new one up. There is an intersection
         box_new.id = box_old.id + box_old.size;
         return true;
@@ -60,12 +70,14 @@ inline bool popupTogetherWith(MemorySolver::Box &box_new, const MemorySolver::Bo
 int64_t MemorySolver::solve() {
     maxTopDepth();  // at first make sure that we no need more for boxes sorted by box.start
     std::vector<std::vector<const Box*>> time_slots(_time_duration);
-    for (auto & slot : time_slots) slot.reserve(_top_depth);  // 2D array [_time_duration][_top_depth]
+    for (auto& slot : time_slots)
+        slot.reserve(_top_depth);  // 2D array [_time_duration][_top_depth]
 
     // Sort be box size. First is biggest
     // Comment this line to check other order of box putting
-    std::sort(_boxes.begin(), _boxes.end(), [](const Box& l, const Box& r)
-        { return l.size > r.size; });
+    std::sort(_boxes.begin(), _boxes.end(), [](const Box& l, const Box& r) {
+        return l.size > r.size;
+    });
 
     int64_t _min_required = 0;
 
@@ -77,7 +89,7 @@ int64_t MemorySolver::solve() {
         do {
             popped_up = false;
             for (int i_slot = box.start; i_slot <= box.finish; i_slot++) {
-                for (auto *box_in_slot : time_slots[i_slot]) {
+                for (auto* box_in_slot : time_slots[i_slot]) {
                     // intersect with already stored boxes for all covered time slots
                     // and move up the new one if needed
                     popped_up |= popupTogetherWith(box, *box_in_slot);
@@ -98,18 +110,21 @@ int64_t MemorySolver::solve() {
 }
 
 int64_t MemorySolver::maxDepth() {
-    if (_depth == -1) calcDepth();
+    if (_depth == -1)
+        calcDepth();
     return _depth;
 }
 
 int64_t MemorySolver::maxTopDepth() {
-    if (_top_depth == -1) calcDepth();
+    if (_top_depth == -1)
+        calcDepth();
     return _top_depth;
 }
 
 int64_t MemorySolver::getOffset(int id) const {
     auto res = _offsets.find(id);
-    if (res == _offsets.end()) IE_THROW() << "There are no box for provided ID";
+    if (res == _offsets.end())
+        IE_THROW() << "There are no box for provided ID";
     return res->second;
 }
 
@@ -125,9 +140,9 @@ void MemorySolver::calcDepth() {
         depth += box.size;
         top_depth++;
 
-        release_at[box.finish+1].push_back(&box);
+        release_at[box.finish + 1].push_back(&box);
 
-        for (const Box *b : release_at[time]) {
+        for (const Box* b : release_at[time]) {
             depth -= b->size;
             top_depth--;
         }

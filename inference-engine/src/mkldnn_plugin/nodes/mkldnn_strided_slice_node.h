@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <string>
 #include <vector>
 
@@ -13,7 +14,9 @@ namespace MKLDNNPlugin {
 
 class MKLDNNStridedSliceNode : public MKLDNNNode {
 public:
-    MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Node>& op,
+                           const mkldnn::engine& eng,
+                           MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -32,7 +35,9 @@ private:
     void addHiddenDims(const size_t nSrcDims);
     void orderParametersByLayouts();
     void dimsNormalization(InferenceEngine::SizeVector& newSrcDims, InferenceEngine::SizeVector& newDstDims);
-    void dimsGluing(const size_t realNDims, const InferenceEngine::SizeVector& newSrcDims, const InferenceEngine::SizeVector& newDstDims);
+    void dimsGluing(const size_t realNDims,
+                    const InferenceEngine::SizeVector& newSrcDims,
+                    const InferenceEngine::SizeVector& newDstDims);
     void indicesCalculation();
     void indicesCalculationForOptimized();
 

@@ -4,12 +4,14 @@
 
 #pragma once
 
-#include "perf_count.h"
-#include <vector>
-#include <utility>
 #include <ie_common.h>
+
 #include <ngraph/partial_shape.hpp>
+#include <utility>
+#include <vector>
+
 #include "cpu_types.h"
+#include "perf_count.h"
 
 namespace MKLDNNPlugin {
 
@@ -19,9 +21,13 @@ public:
 
     explicit Shape(const ngraph::PartialShape& shape) {
         minDims = shape.get_min_shape();
-        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
+        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](Dim x) {
+            return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;
+        });
         maxDims = shape.get_max_shape();
-        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
+        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](Dim x) {
+            return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;
+        });
         type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
 
         initDims();
@@ -140,21 +146,21 @@ public:
 
     std::string toString() const;
 
-    bool operator == (const Shape& rhs) const {
+    bool operator==(const Shape& rhs) const {
         return minDims == rhs.minDims && maxDims == rhs.maxDims;
     }
 
-    bool operator != (const Shape& rhs) const {
+    bool operator!=(const Shape& rhs) const {
         return !(*this == rhs);
     }
 
     bool hasDefinedUpperBounds() const {
-        return std::all_of(maxDims.begin(), maxDims.end(), [](Dim dim){ return dim != UNDEFINED_DIM; });
+        return std::all_of(maxDims.begin(), maxDims.end(), [](Dim dim) {
+            return dim != UNDEFINED_DIM;
+        });
     }
 
-    enum : Dim {
-        UNDEFINED_DIM = 0xffffffffffffffff
-    };
+    enum : Dim { UNDEFINED_DIM = 0xffffffffffffffff };
 
 private:
     void initDims() {
@@ -164,10 +170,7 @@ private:
         }
     }
 
-    enum class ShapeType {
-        Static,
-        Dynamic
-    } type {ShapeType::Static};
+    enum class ShapeType { Static, Dynamic } type{ShapeType::Static};
 
     VectorDims minDims;
     VectorDims maxDims;

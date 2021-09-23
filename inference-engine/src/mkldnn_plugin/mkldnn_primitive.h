@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include <mkldnn.hpp>
-#include <functional>
 #include <ie_common.h>
-#include <vector>
+
+#include <functional>
 #include <memory>
+#include <mkldnn.hpp>
+#include <vector>
 
 namespace MKLDNNPlugin {
 

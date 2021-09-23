@@ -4,14 +4,15 @@
 
 #include "mkldnn_space_to_depth_node.h"
 
-#include <cpu/x64/jit_generator.hpp>
 #include <mkldnn_extension_utils.h>
-#include "common/blocked_desc_creator.h"
 #include <utils/general_utils.h>
-#include <ngraph/opsets/opset1.hpp>
 
-#include <string>
 #include <cmath>
+#include <cpu/x64/jit_generator.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <string>
+
+#include "common/blocked_desc_creator.h"
 
 #define THROW_ERROR IE_THROW() << "SpaceToDepth layer with name '" << getName() << "' "
 
@@ -21,7 +22,8 @@ using namespace mkldnn;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 
-bool MKLDNNSpaceToDepthNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNSpaceToDepthNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                  std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -33,7 +35,9 @@ bool MKLDNNSpaceToDepthNode::isSupportedOperation(const std::shared_ptr<const ng
             return false;
         }
         const auto mode = spaceToDepth->get_mode();
-        if (!one_of(mode, ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST)) {
+        if (!one_of(mode,
+                    ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST,
+                    ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST)) {
             errorMessage = "Does not support mode: " + ngraph::as_string(mode);
             return false;
         }
@@ -43,8 +47,10 @@ bool MKLDNNSpaceToDepthNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-MKLDNNSpaceToDepthNode::MKLDNNSpaceToDepthNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+MKLDNNSpaceToDepthNode::MKLDNNSpaceToDepthNode(const std::shared_ptr<ngraph::Node>& op,
+                                               const mkldnn::engine& eng,
+                                               MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         const auto spaceToDepth = std::dynamic_pointer_cast<const ngraph::opset1::SpaceToDepth>(op);
@@ -149,8 +155,8 @@ void MKLDNNSpaceToDepthNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNSpaceToDepthNode::createPrimitive() {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
         THROW_ERROR << "has not allocated destination memory";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
@@ -165,7 +171,8 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
     const size_t nSpatialDims = nDims - 2;
     const bool isBlocked = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c) ||
                            getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c);
-    const size_t reshapedRank = nDims + nSpatialDims + static_cast<int>(isBlocked) + static_cast<int>(isBlocked && mode == Mode::DEPTH_FIRST);
+    const size_t reshapedRank =
+        nDims + nSpatialDims + static_cast<int>(isBlocked) + static_cast<int>(isBlocked && mode == Mode::DEPTH_FIRST);
     const size_t lastIdx = reshapedRank - 1;
     size_t firstSpatialOrder = 2;
 
@@ -184,18 +191,20 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
     //            mode = depth_first  : [0,  1, 3, 5, ..., K + (K + 1),  2, 4, ..., K + K]
     // where `k` is number of spatial dimensions
 
-    auto reshapeAndSetPermOrder = [&](const size_t idx1, const size_t idx2, const size_t shift, const SizeVector& dims) {
-        for (size_t i = 0; i < nSpatialDims; i++) {
-            params.order[i + idx1] = i * 2 + shift;
-            params.order[i + idx2] = i * 2 + shift + 1;
+    auto reshapeAndSetPermOrder =
+        [&](const size_t idx1, const size_t idx2, const size_t shift, const SizeVector& dims) {
+            for (size_t i = 0; i < nSpatialDims; i++) {
+                params.order[i + idx1] = i * 2 + shift;
+                params.order[i + idx2] = i * 2 + shift + 1;
 
-            params.src_block_dims[params.order[i + idx1]] = dims[i + shift];
-            params.src_block_dims[params.order[i + idx2]] = blockSize;
-        }
-    };
+                params.src_block_dims[params.order[i + idx1]] = dims[i + shift];
+                params.src_block_dims[params.order[i + idx2]] = blockSize;
+            }
+        };
 
     if (isBlocked) {
-        VectorDims srcBlockedDims = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+        VectorDims srcBlockedDims =
+            getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
         VectorDims dstBlockedDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
         size_t orderShiftForBlocks, orderShiftForDims;

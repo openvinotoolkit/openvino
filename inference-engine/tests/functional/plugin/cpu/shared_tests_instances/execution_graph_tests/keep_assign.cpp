@@ -3,14 +3,16 @@
 //
 
 #include "execution_graph_tests/keep_assign.hpp"
+
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ExecutionGraphTests;
 
 namespace {
 
-INSTANTIATE_TEST_SUITE_P(smoke_KeepAssign, ExecGraphKeepAssignNode,
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ExecGraphKeepAssignNode::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_KeepAssign,
+                         ExecGraphKeepAssignNode,
+                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                         ExecGraphKeepAssignNode::getTestCaseName);
 
 }  // namespace

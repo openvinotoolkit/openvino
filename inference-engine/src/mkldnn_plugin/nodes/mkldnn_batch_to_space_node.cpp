@@ -2,21 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
+#include "mkldnn_batch_to_space_node.h"
+
+#include <mkldnn_selective_build.h>
 #include <mkldnn_types.h>
+#include <nodes/common/blocked_desc_creator.h>
+
+#include <cmath>
+#include <ngraph/opsets/opset2.hpp>
+#include <string>
+#include <vector>
+
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
-#include <mkldnn_selective_build.h>
-#include "mkldnn_batch_to_space_node.h"
-#include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset2.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNBatchToSpaceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNBatchToSpaceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                  std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -39,8 +43,10 @@ bool MKLDNNBatchToSpaceNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-MKLDNNBatchToSpaceNode::MKLDNNBatchToSpaceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNBatchToSpaceNode::MKLDNNBatchToSpaceNode(const std::shared_ptr<ngraph::Node>& op,
+                                               const mkldnn::engine& eng,
+                                               MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -58,8 +64,10 @@ MKLDNNBatchToSpaceNode::MKLDNNBatchToSpaceNode(const std::shared_ptr<ngraph::Nod
     if (inDims.size() != outDims.size())
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
 
-    blockShapeIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<size_t>();
-    cropsBeginIn  = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<size_t>();
+    blockShapeIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1))
+                       ->cast_vector<size_t>();
+    cropsBeginIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2))
+                       ->cast_vector<size_t>();
 }
 
 void MKLDNNBatchToSpaceNode::initSupportedPrimitiveDescriptors() {
@@ -71,37 +79,27 @@ void MKLDNNBatchToSpaceNode::initSupportedPrimitiveDescriptors() {
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
         IE_THROW() << errorPrefix << " has unsupported precision: " << precision.name();
 
-    addSupportedPrimDesc({{LayoutType::nspc, precision},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp}},
+    addSupportedPrimDesc({{LayoutType::nspc, precision}, {LayoutType::ncsp}, {LayoutType::ncsp}, {LayoutType::ncsp}},
                          {{LayoutType::nspc, precision}},
                          impl_desc_type::ref_any);
-    addSupportedPrimDesc({{LayoutType::ncsp, precision},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp}},
+    addSupportedPrimDesc({{LayoutType::ncsp, precision}, {LayoutType::ncsp}, {LayoutType::ncsp}, {LayoutType::ncsp}},
                          {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
     if (inDims[1] % 8 == 0) {
-        addSupportedPrimDesc({{LayoutType::nCsp8c, precision},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp}},
-                             {{LayoutType::nCsp8c, precision}},
-                             impl_desc_type::ref_any);
+        addSupportedPrimDesc(
+            {{LayoutType::nCsp8c, precision}, {LayoutType::ncsp}, {LayoutType::ncsp}, {LayoutType::ncsp}},
+            {{LayoutType::nCsp8c, precision}},
+            impl_desc_type::ref_any);
     }
     if (inDims[1] % 16 == 0) {
-        addSupportedPrimDesc({{LayoutType::nCsp16c, precision},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp}},
-                             {{LayoutType::nCsp16c, precision}},
-                             impl_desc_type::ref_any);
+        addSupportedPrimDesc(
+            {{LayoutType::nCsp16c, precision}, {LayoutType::ncsp}, {LayoutType::ncsp}, {LayoutType::ncsp}},
+            {{LayoutType::nCsp16c, precision}},
+            impl_desc_type::ref_any);
     }
 }
 
-static std::vector<size_t> getShape5D(const SizeVector &shape) {
+static std::vector<size_t> getShape5D(const SizeVector& shape) {
     std::vector<size_t> shape5D(5, 1);
     for (int i = 0; i < 2; i++) {
         shape5D[i] = shape[i];
@@ -111,10 +109,10 @@ static std::vector<size_t> getShape5D(const SizeVector &shape) {
     return shape5D;
 }
 
-template<typename T>
+template <typename T>
 void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
-    const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* srcData = reinterpret_cast<const T*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto* dstData = reinterpret_cast<T*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
 
@@ -209,12 +207,13 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
                             const size_t dstIdx4 = dstIdx3 + tmpOw * blockSize;
                             for (size_t it = 0; it < itEnd + 1; ++it) {
                                 const size_t i5Begin = it == 0 ? 0 : (it * blockSize - 1 - oAdd[1]) / blockShape[1] + 1;
-                                const size_t i5End = it == itEnd ? (block - 1) : ((it + 1) * blockSize - 1 - oAdd[1]) / blockShape[1];
+                                const size_t i5End =
+                                    it == itEnd ? (block - 1) : ((it + 1) * blockSize - 1 - oAdd[1]) / blockShape[1];
                                 for (size_t i5 = i5Begin; i5 < i5End + 1; ++i5) {
                                     const int64_t tmpOc = i5 * blockShape[1] + addTmpOc;
                                     const size_t srcIdx5 = srcIdx4 + i5;
                                     const size_t dstIdx5 =
-                                            dstIdx4 + it * outSpatialStep * blockSize + (tmpOc - it * blockSize);
+                                        dstIdx4 + it * outSpatialStep * blockSize + (tmpOc - it * blockSize);
                                     dstData[dstIdx5] = srcData[srcIdx5];
                                 }
                             }
@@ -229,12 +228,18 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
 
 void MKLDNNBatchToSpaceNode::execute(mkldnn::stream strm) {
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
-        case 1: batchToSpaceKernel<PrecisionTrait<Precision::U8>::value_type>();  break;
-        case 2: batchToSpaceKernel<PrecisionTrait<Precision::U16>::value_type>(); break;
-        case 4: batchToSpaceKernel<PrecisionTrait<Precision::I32>::value_type>(); break;
-        default:
-            IE_THROW() << "BatchToSpace layer does not support precision '" <<
-                std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().name()) << "'";
+    case 1:
+        batchToSpaceKernel<PrecisionTrait<Precision::U8>::value_type>();
+        break;
+    case 2:
+        batchToSpaceKernel<PrecisionTrait<Precision::U16>::value_type>();
+        break;
+    case 4:
+        batchToSpaceKernel<PrecisionTrait<Precision::I32>::value_type>();
+        break;
+    default:
+        IE_THROW() << "BatchToSpace layer does not support precision '"
+                   << std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().name()) << "'";
     }
 }
 

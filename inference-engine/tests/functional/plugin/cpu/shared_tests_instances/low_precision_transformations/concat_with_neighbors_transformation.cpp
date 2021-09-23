@@ -4,8 +4,8 @@
 
 #include <vector>
 
-#include "low_precision_transformations/concat_with_neighbors_graph_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "low_precision_transformations/concat_with_neighbors_graph_transformation.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
@@ -23,16 +23,13 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
     // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<ngraph::PartialShape> shapes = {
-    { 1, 3, 16, 16 },
-    { 4, 3, 16, 16 }
-};
+const std::vector<ngraph::PartialShape> shapes = {{1, 3, 16, 16}, {4, 3, 16, 16}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithNeighborsGraphTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues)),
-    ConcatWithNeighborsGraphTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ConcatWithNeighborsGraphTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(shapes),
+                                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                            ::testing::ValuesIn(trasformationParamValues)),
+                         ConcatWithNeighborsGraphTransformation::getTestCaseName);
 }  // namespace

@@ -2,21 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-
-#include <ngraph/op/topk.hpp>
-#include "ie_parallel.hpp"
 #include "mkldnn_topk_node.h"
+
+#include <cmath>
+#include <ngraph/op/topk.hpp>
+
+#include "ie_parallel.hpp"
 #include "utils/general_utils.h"
 
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
-#include <immintrin.h>
+#    include <immintrin.h>
 #endif
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNTopKNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNTopKNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                          std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -27,12 +29,12 @@ bool MKLDNNTopKNode::isSupportedOperation(const std::shared_ptr<const ngraph::No
             errorMessage = "Node is not an instance of the TopK from the operations set v1 or v3";
             return false;
         }
-        if (topKOp->get_mode() != ngraph::op::TopKMode::MAX &&
-            topKOp->get_mode() != ngraph::op::TopKMode::MIN) {
+        if (topKOp->get_mode() != ngraph::op::TopKMode::MAX && topKOp->get_mode() != ngraph::op::TopKMode::MIN) {
             errorMessage = "Unsupported mode.";
             return false;
         }
-        if (!MKLDNNPlugin::one_of(topKOp->get_sort_type(), ngraph::op::TopKSortType::NONE,
+        if (!MKLDNNPlugin::one_of(topKOp->get_sort_type(),
+                                  ngraph::op::TopKSortType::NONE,
                                   ngraph::op::TopKSortType::SORT_VALUES,
                                   ngraph::op::TopKSortType::SORT_INDICES)) {
             errorMessage = "Unsupported sort type.";
@@ -44,8 +46,10 @@ bool MKLDNNTopKNode::isSupportedOperation(const std::shared_ptr<const ngraph::No
     return true;
 }
 
-MKLDNNTopKNode::MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                     MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNTopKNode::MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op,
+                               const mkldnn::engine& eng,
+                               MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -69,9 +73,11 @@ MKLDNNTopKNode::MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op, const mk
 
     int j;
     for (j = src_dims.size() - 1; j >= 0; j--) {
-        if (src_dims[j] != 1) break;
+        if (src_dims[j] != 1)
+            break;
     }
-    if (static_cast<size_t>(j) == axis) is_last_dim = true;
+    if (static_cast<size_t>(j) == axis)
+        is_last_dim = true;
 
     for (size_t i = 0; i < axis; i++) {
         axis_step *= src_dims[i];
@@ -94,23 +100,22 @@ void MKLDNNTopKNode::initSupportedPrimitiveDescriptors() {
     for (int i = 1; i < outputShapes.size(); ++i)
         outDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::I32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::I32}},
                          outDataConf,
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNTopKNode::execute(mkldnn::stream strm) {
-    const float *src = reinterpret_cast<const float *>(getParentEdgeAt(TOPK_DATA)->getMemoryPtr()->GetPtr());
-    src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+    const float* src = reinterpret_cast<const float*>(getParentEdgeAt(TOPK_DATA)->getMemoryPtr()->GetPtr());
+    src_k = reinterpret_cast<int*>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
     float* dst_data = nullptr;
     int* dst_idx = nullptr;
 
     if (outputShapes.size() == 1) {
         if (getOriginalOutputPrecisionAtPort(0) == Precision::FP32) {
-            dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+            dst_data = reinterpret_cast<float*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
         } else {
-            dst_idx = reinterpret_cast<int *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+            dst_idx = reinterpret_cast<int*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
         }
         const VectorDims& dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
@@ -119,10 +124,10 @@ void MKLDNNTopKNode::execute(mkldnn::stream strm) {
             IE_THROW() << errorMsg;
         }
     } else if (outputShapes.size() == 2) {
-        dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(TOPK_VALUE)[0]->getMemoryPtr()->GetPtr());
+        dst_data = reinterpret_cast<float*>(getChildEdgesAtPort(TOPK_VALUE)[0]->getMemoryPtr()->GetPtr());
         const VectorDims& dst_data_dims = getChildEdgesAtPort(TOPK_VALUE)[0]->getMemory().getStaticDims();
 
-        dst_idx = reinterpret_cast<int *>(getChildEdgesAtPort(TOPK_INDEX)[0]->getMemoryPtr()->GetPtr());
+        dst_idx = reinterpret_cast<int*>(getChildEdgesAtPort(TOPK_INDEX)[0]->getMemoryPtr()->GetPtr());
         const VectorDims& dst_idx_dims = getChildEdgesAtPort(TOPK_INDEX)[0]->getMemory().getStaticDims();
 
         if (dst_idx_dims[axis] != static_cast<size_t>(src_k) || dst_data_dims[axis] != static_cast<size_t>(src_k)) {
@@ -177,28 +182,29 @@ void MKLDNNTopKNode::top1_axis(const float* src_data, float* dst_data, int* dst_
 
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
     parallel_for2d(before_num, after_num / block_size, [&](int i0, int ib1) {
-            int s_index = i0 * dim * after_num + ib1 * block_size;
-            vec_type_f vmax_val = _mm_uni_loadu_ps(src_data + s_index);
-            vec_type_i vindex_max_val = _mm_uni_setzero_si();
-            for (int i2 = 1; i2 < dim; i2++) {
-                s_index += after_num;
-                vec_type_f vsrc = _mm_uni_loadu_ps(src_data + s_index);
-                vmask_type vmask = Compare1::cmp_ps(vsrc, vmax_val);
-                vmax_val = _mm_uni_blendv_ps(vmax_val, vsrc, vmask);
+        int s_index = i0 * dim * after_num + ib1 * block_size;
+        vec_type_f vmax_val = _mm_uni_loadu_ps(src_data + s_index);
+        vec_type_i vindex_max_val = _mm_uni_setzero_si();
+        for (int i2 = 1; i2 < dim; i2++) {
+            s_index += after_num;
+            vec_type_f vsrc = _mm_uni_loadu_ps(src_data + s_index);
+            vmask_type vmask = Compare1::cmp_ps(vsrc, vmax_val);
+            vmax_val = _mm_uni_blendv_ps(vmax_val, vsrc, vmask);
 
-                vec_type_i vindex_cur_val = _mm_uni_set1_epi32(i2);
-#if defined(HAVE_AVX512F)
-                vindex_max_val = _mm512_mask_blend_epi32(vmask, vindex_max_val, vindex_cur_val);
-#else
+            vec_type_i vindex_cur_val = _mm_uni_set1_epi32(i2);
+#    if defined(HAVE_AVX512F)
+            vindex_max_val = _mm512_mask_blend_epi32(vmask, vindex_max_val, vindex_cur_val);
+#    else
                 vindex_max_val = _mm_uni_blendv_epi8(vindex_max_val, vindex_cur_val, _mm_uni_castps_si(vmask));
-#endif
-            }
-            if (dst_data)
-                _mm_uni_storeu_ps(dst_data + i0 * after_num + ib1 * block_size, vmax_val);
-            if (dst_idx)
-                _mm_uni_storeu_si(reinterpret_cast<vec_type_i*>(dst_idx + i0 * after_num + ib1 * block_size), vindex_max_val);
-        });
-        first_index = after_num / block_size * block_size;
+#    endif
+        }
+        if (dst_data)
+            _mm_uni_storeu_ps(dst_data + i0 * after_num + ib1 * block_size, vmax_val);
+        if (dst_idx)
+            _mm_uni_storeu_si(reinterpret_cast<vec_type_i*>(dst_idx + i0 * after_num + ib1 * block_size),
+                              vindex_max_val);
+    });
+    first_index = after_num / block_size * block_size;
 #endif
     int rest = after_num - first_index;
     parallel_for2d(before_num, rest, [&](int i0, int i1) {
@@ -246,104 +252,106 @@ void MKLDNNTopKNode::topk_axis(const float* src_data, float* dst_data, int* dst_
 
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
     if (src_k < count_vec) {
-            parallel_for2d(before_num, after_num / block_size, [&](int i0, int ib1) {
-#if defined(HAVE_AVX512F)
-                const int N = 32;
-                vec_type_f vmax_values[N];
-                vec_type_i vmax_indexes[N];
-#else
+        parallel_for2d(before_num, after_num / block_size, [&](int i0, int ib1) {
+#    if defined(HAVE_AVX512F)
+            const int N = 32;
+            vec_type_f vmax_values[N];
+            vec_type_i vmax_indexes[N];
+#    else
                 const int N = 16;
                 vec_type_f vmax_values[N];
                 vec_type_i vmax_indexes[N];
-#endif
-                vec_type_f vtmp;
-                vec_type_i vtmp_indexes;
-                vmask_type vmask;
-                int s_index = i0 * dim * after_num + ib1 * block_size;
+#    endif
+            vec_type_f vtmp;
+            vec_type_i vtmp_indexes;
+            vmask_type vmask;
+            int s_index = i0 * dim * after_num + ib1 * block_size;
 
-                auto vswap_func = [&](int index1, int index2) {
-                    vtmp = vmax_values[index1];
-                    vmax_values[index1] = _mm_uni_blendv_ps(vmax_values[index1], vmax_values[index2], vmask);
-                    vmax_values[index2] = _mm_uni_blendv_ps(vmax_values[index2], vtmp, vmask);
+            auto vswap_func = [&](int index1, int index2) {
+                vtmp = vmax_values[index1];
+                vmax_values[index1] = _mm_uni_blendv_ps(vmax_values[index1], vmax_values[index2], vmask);
+                vmax_values[index2] = _mm_uni_blendv_ps(vmax_values[index2], vtmp, vmask);
 
-                    vtmp_indexes = vmax_indexes[index1];
-#if defined(HAVE_AVX512F)
-                    vmax_indexes[index1] = _mm512_mask_blend_epi32(vmask, vmax_indexes[index1], vmax_indexes[index2]);
-                    vmax_indexes[index2] = _mm512_mask_blend_epi32(vmask, vmax_indexes[index2], vtmp_indexes);
-#else
+                vtmp_indexes = vmax_indexes[index1];
+#    if defined(HAVE_AVX512F)
+                vmax_indexes[index1] = _mm512_mask_blend_epi32(vmask, vmax_indexes[index1], vmax_indexes[index2]);
+                vmax_indexes[index2] = _mm512_mask_blend_epi32(vmask, vmax_indexes[index2], vtmp_indexes);
+#    else
                     vmax_indexes[index1] = _mm_uni_blendv_epi8(vmax_indexes[index1], vmax_indexes[index2], _mm_uni_castps_si(vmask));
                     vmax_indexes[index2] = _mm_uni_blendv_epi8(vmax_indexes[index2], vtmp_indexes, _mm_uni_castps_si(vmask));
-#endif
-                };
+#    endif
+            };
 
-                for (int i2 = 0; i2 < src_k; i2++) {
-                    vmax_values[i2] = _mm_uni_loadu_ps(src_data + s_index);
-                    vmax_indexes[i2] = _mm_uni_set1_epi32(i2);
-                    s_index += after_num;
+            for (int i2 = 0; i2 < src_k; i2++) {
+                vmax_values[i2] = _mm_uni_loadu_ps(src_data + s_index);
+                vmax_indexes[i2] = _mm_uni_set1_epi32(i2);
+                s_index += after_num;
+            }
+            for (int i2 = 0; i2 < src_k - 1; i2++) {
+                for (int i3 = src_k - 1; i3 > i2; i3--) {
+                    vmask = Compare1::cmp_ps(vmax_values[i3], vmax_values[i3 - 1]);
+#    if defined(HAVE_AVX512F)
+                    if (vmask)
+                        vswap_func(i3, i3 - 1);
+#    else
+                        int swap = _mm_uni_movemask_ps(vmask);
+                        if (swap)
+                            vswap_func(i3, i3 - 1);
+#    endif
                 }
+            }
+            for (int i2 = src_k; i2 < dim; i2++) {
+                vmax_values[src_k] = _mm_uni_loadu_ps(src_data + s_index);
+                vmax_indexes[src_k] = _mm_uni_set1_epi32(i2);
+                for (int i3 = src_k; i3 > 0; i3--) {
+                    vmask = Compare1::cmp_ps(vmax_values[i3], vmax_values[i3 - 1]);
+#    if defined(HAVE_AVX512F)
+                    if (vmask)
+                        vswap_func(i3, i3 - 1);
+                    else
+                        break;
+#    else
+                        int swap = _mm_uni_movemask_ps(vmask);
+                        if (swap)
+                            vswap_func(i3, i3 - 1);
+                        else
+                            break;
+#    endif
+                }
+                s_index += after_num;
+            }
+            if (!sort_value) {
                 for (int i2 = 0; i2 < src_k - 1; i2++) {
                     for (int i3 = src_k - 1; i3 > i2; i3--) {
-                        vmask = Compare1::cmp_ps(vmax_values[i3], vmax_values[i3 - 1]);
-#if defined(HAVE_AVX512F)
-                        if (vmask)
-                            vswap_func(i3, i3 - 1);
-#else
-                        int swap = _mm_uni_movemask_ps(vmask);
-                        if (swap)
-                            vswap_func(i3, i3 - 1);
-#endif
-                    }
-                }
-                for (int i2 = src_k; i2 < dim; i2++) {
-                    vmax_values[src_k] = _mm_uni_loadu_ps(src_data + s_index);
-                    vmax_indexes[src_k] = _mm_uni_set1_epi32(i2);
-                    for (int i3 = src_k; i3 > 0; i3--) {
-                        vmask = Compare1::cmp_ps(vmax_values[i3], vmax_values[i3 - 1]);
-#if defined(HAVE_AVX512F)
+                        vmask = _mm_uni_cmpgt_i32(vmax_indexes[i3 - 1], vmax_indexes[i3]);
+#    if defined(HAVE_AVX512F)
                         if (vmask)
                             vswap_func(i3, i3 - 1);
                         else
                             break;
-#else
-                        int swap = _mm_uni_movemask_ps(vmask);
-                        if (swap)
-                            vswap_func(i3, i3 - 1);
-                        else
-                            break;
-#endif
-                    }
-                    s_index += after_num;
-                }
-                if (!sort_value) {
-                    for (int i2 = 0; i2 < src_k - 1; i2++) {
-                        for (int i3 = src_k - 1; i3 > i2; i3--) {
-                            vmask = _mm_uni_cmpgt_i32(vmax_indexes[i3 - 1], vmax_indexes[i3]);
-#if defined(HAVE_AVX512F)
-                            if (vmask)
-                                vswap_func(i3, i3 - 1);
-                            else
-                                break;
-#else
+#    else
                             int swap = _mm_uni_movemask_ps(vmask);
                             if (swap)
                                 vswap_func(i3, i3 - 1);
                             else
                                 break;
-#endif
-                        }
+#    endif
                     }
                 }
-                if (dst_data) {
-                    for (int i2 = 0; i2 < src_k; i2++)
-                        _mm_uni_storeu_ps(dst_data + (i0 * src_k + i2) * after_num + ib1 * block_size, vmax_values[i2]);
-                }
-                if (dst_idx) {
-                    for (int i2 = 0; i2 < src_k; i2++)
-                        _mm_uni_storeu_si(reinterpret_cast<vec_type_i*>(dst_idx + (i0 * src_k + i2) * after_num + ib1 * block_size), vmax_indexes[i2]);
-                }
-            });
-            first_index = after_num / block_size * block_size;
-        }
+            }
+            if (dst_data) {
+                for (int i2 = 0; i2 < src_k; i2++)
+                    _mm_uni_storeu_ps(dst_data + (i0 * src_k + i2) * after_num + ib1 * block_size, vmax_values[i2]);
+            }
+            if (dst_idx) {
+                for (int i2 = 0; i2 < src_k; i2++)
+                    _mm_uni_storeu_si(
+                        reinterpret_cast<vec_type_i*>(dst_idx + (i0 * src_k + i2) * after_num + ib1 * block_size),
+                        vmax_indexes[i2]);
+            }
+        });
+        first_index = after_num / block_size * block_size;
+    }
 #endif
     int rest = after_num - first_index;
     parallel_for2d(before_num, rest, [&](int i0, int i1) {

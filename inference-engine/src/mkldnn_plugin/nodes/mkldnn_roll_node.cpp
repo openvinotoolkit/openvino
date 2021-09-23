@@ -2,24 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <vector>
-#include <cmath>
+#include "mkldnn_roll_node.h"
+
 #include <mkldnn_extension_utils.h>
 
-#include "mkldnn_roll_node.h"
+#include <cmath>
+#include <ngraph/opsets/opset7.hpp>
+#include <string>
+#include <vector>
+
+#include "common/cpu_memcpy.h"
 #include "ie_parallel.hpp"
 #include "ie_precision.hpp"
 #include "mkldnn/ie_mkldnn.h"
 #include "utils/general_utils.h"
-#include "common/cpu_memcpy.h"
-#include <ngraph/opsets/opset7.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNRollNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNRollNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                          std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -36,8 +39,10 @@ bool MKLDNNRollNode::isSupportedOperation(const std::shared_ptr<const ngraph::No
     return true;
 }
 
-MKLDNNRollNode::MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-                MKLDNNNode(op, eng, cache) {
+MKLDNNRollNode::MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op,
+                               const mkldnn::engine& eng,
+                               MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         layerErrorPrefix = "Roll layer with name '" + getName() + "'";
@@ -46,9 +51,10 @@ MKLDNNRollNode::MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mk
         }
 
         shape = inputShapes[DATA_INDEX].getStaticDims();
-        const auto &dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
+        const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
 
-        if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) == supportedPrecisionSizes.end())
+        if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) ==
+            supportedPrecisionSizes.end())
             IE_THROW() << layerErrorPrefix << "has unsupported precision: " << dataPrecision.name();
 
         if (shape.size() < 1) {
@@ -103,25 +109,24 @@ void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref);
 }
 
-
 void MKLDNNRollNode::execute(mkldnn::stream strm) {
     const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
     switch (dataTypeSize) {
-        case sizeof(PrecisionTrait<Precision::I8>::value_type): {
-            rollImpl<PrecisionTrait<Precision::I8>::value_type>();
-            break;
-        }
-        case sizeof(PrecisionTrait<Precision::I16>::value_type): {
-            rollImpl<PrecisionTrait<Precision::I16>::value_type>();
-            break;
-        }
-        case sizeof(PrecisionTrait<Precision::I32>::value_type): {
-            rollImpl<PrecisionTrait<Precision::I32>::value_type>();
-            break;
-        }
-        default:
-            IE_THROW() << layerErrorPrefix <<  "has unsupported 'data' input precision: " << dataPrecision.name();
+    case sizeof(PrecisionTrait<Precision::I8>::value_type): {
+        rollImpl<PrecisionTrait<Precision::I8>::value_type>();
+        break;
+    }
+    case sizeof(PrecisionTrait<Precision::I16>::value_type): {
+        rollImpl<PrecisionTrait<Precision::I16>::value_type>();
+        break;
+    }
+    case sizeof(PrecisionTrait<Precision::I32>::value_type): {
+        rollImpl<PrecisionTrait<Precision::I32>::value_type>();
+        break;
+    }
+    default:
+        IE_THROW() << layerErrorPrefix << "has unsupported 'data' input precision: " << dataPrecision.name();
     }
 }
 
@@ -137,15 +142,15 @@ void MKLDNNRollNode::rollImpl() {
     const auto axesEdge = getParentEdgeAt(AXES_INDEX);
     const auto shiftsEdge = getParentEdgeAt(SHIFT_INDEX);
 
-    const auto *axes = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
-    const auto *shifts = reinterpret_cast<const int32_t*>(shiftsEdge->getMemoryPtr()->GetPtr());
+    const auto* axes = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
+    const auto* shifts = reinterpret_cast<const int32_t*>(shiftsEdge->getMemoryPtr()->GetPtr());
 
-    const auto *input = reinterpret_cast<const DataType*>(dataEdge->getMemoryPtr()->GetPtr());
-    auto *output = reinterpret_cast<DataType*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* input = reinterpret_cast<const DataType*>(dataEdge->getMemoryPtr()->GetPtr());
+    auto* output = reinterpret_cast<DataType*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     std::vector<size_t> shiftsVector(numOfDims, 0);
 
     const size_t axesLength = axesEdge->getMemory().getStaticDims()[0];
-    for (size_t dim = 0; dim < axesLength ; ++dim) {
+    for (size_t dim = 0; dim < axesLength; ++dim) {
         int32_t currentAxis = axes[dim] < 0 ? axes[dim] + numOfDims : axes[dim];
         int32_t shiftSum = shiftsVector[currentAxis] + shifts[dim];
         int32_t dimSize = shape[currentAxis];
@@ -166,20 +171,17 @@ void MKLDNNRollNode::rollImpl() {
         size_t rightBlockStartOffset = start + leftBlockSize;
 
         for (int dim = numOfDims - 1; dim >= 0; --dim) {
-            leftBlockStartOffset = calculateShiftOffset(leftBlockStartOffset, shiftsVector[dim], strides[dim], shape[dim]);
-            rightBlockStartOffset = calculateShiftOffset(rightBlockStartOffset, shiftsVector[dim], strides[dim], shape[dim]);
+            leftBlockStartOffset =
+                calculateShiftOffset(leftBlockStartOffset, shiftsVector[dim], strides[dim], shape[dim]);
+            rightBlockStartOffset =
+                calculateShiftOffset(rightBlockStartOffset, shiftsVector[dim], strides[dim], shape[dim]);
         }
 
         if (leftBlockSize > 0)
-            cpu_memcpy(output + leftBlockStartOffset,
-                       input + start,
-                       leftBlockSize * elementSize);
-
+            cpu_memcpy(output + leftBlockStartOffset, input + start, leftBlockSize * elementSize);
 
         if (rightBlockSize > 0)
-            cpu_memcpy(output + rightBlockStartOffset,
-                       input + (start + leftBlockSize),
-                       rightBlockSize * elementSize);
+            cpu_memcpy(output + rightBlockStartOffset, input + (start + leftBlockSize), rightBlockSize * elementSize);
     });
 }
 

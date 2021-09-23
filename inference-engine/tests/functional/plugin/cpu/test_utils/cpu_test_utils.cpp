@@ -3,14 +3,17 @@
 //
 
 #include "cpu_test_utils.hpp"
+
 #include "utils/rt_info/memory_formats_attribute.hpp"
 
 namespace CPUTestUtils {
 
-const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
-#define CASE(_fmt) do { \
-    if (v == _fmt) return #_fmt; \
-} while (0)
+const char* CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
+#define CASE(_fmt)        \
+    do {                  \
+        if (v == _fmt)    \
+            return #_fmt; \
+    } while (0)
     CASE(undef);
     CASE(ncw);
     CASE(nCw8c);
@@ -39,12 +42,12 @@ const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
     return "undef";
 }
 
-cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
-#define CASE(_fmt) do { \
-    if (!strcmp(#_fmt, str) \
-            || !strcmp("mkldnn_" #_fmt, str)) \
-        return _fmt; \
-} while (0)
+cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char* str) {
+#define CASE(_fmt)                                                \
+    do {                                                          \
+        if (!strcmp(#_fmt, str) || !strcmp("mkldnn_" #_fmt, str)) \
+            return _fmt;                                          \
+    } while (0)
     CASE(undef);
     CASE(a);
     CASE(ab);
@@ -90,9 +93,9 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     return undef;
 }
 
-std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t> &fmts, const std::string &prefix) {
+std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t>& fmts, const std::string& prefix) {
     std::string str;
-    for (auto &fmt : fmts) {
+    for (auto& fmt : fmts) {
         ((str += prefix) += cpu_fmt2str(fmt)) += ",";
     }
     if (!str.empty()) {
@@ -101,9 +104,9 @@ std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t> &fmts,
     return str;
 }
 
-std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
+std::string CPUTestsBase::impls2str(const std::vector<std::string>& priority) {
     std::string str;
-    for (auto &impl : priority) {
+    for (auto& impl : priority) {
         ((str += "cpu:") += impl) += ",";
     }
     if (!str.empty()) {
@@ -112,24 +115,25 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
     return str;
 }
 
-void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
-    if (nodeType.empty()) return;
+void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork& execNet, std::string nodeType) const {
+    if (nodeType.empty())
+        return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     bool isNodeFound = false;
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
     ASSERT_NE(nullptr, function);
-    for (const auto &node : function->get_ops()) {
-        const auto & rtInfo = node->get_rt_info();
-        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+    for (const auto& node : function->get_ops()) {
+        const auto& rtInfo = node->get_rt_info();
+        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
             auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
             IE_ASSERT(nullptr != value);
             return value->get();
         };
-        auto getExecValueOutputsLayout = [] (std::shared_ptr<ngraph::Node> node) -> std::string {
+        auto getExecValueOutputsLayout = [](std::shared_ptr<ngraph::Node> node) -> std::string {
             auto rtInfo = node->get_rt_info();
             auto it = rtInfo.find(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
             IE_ASSERT(rtInfo.end() != it);
@@ -138,9 +142,11 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
             return value->get();
         };
         // skip policy
-        auto should_be_skipped = [] (const ngraph::Shape &shape, cpu_memory_format_t fmt) {
-            bool skip_unsquized_1D =  std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
-            bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc || fmt == cpu_memory_format_t::nwc) && shape[1] == 1;
+        auto should_be_skipped = [](const ngraph::Shape& shape, cpu_memory_format_t fmt) {
+            bool skip_unsquized_1D = std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
+            bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc ||
+                                 fmt == cpu_memory_format_t::nwc) &&
+                                shape[1] == 1;
             return skip_unsquized_1D || permule_of_1;
         };
 
@@ -164,7 +170,7 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 
             /* actual output formats are represented as a single string, for example 'fmt1' or 'fmt1, fmt2, fmt3'
              * convert it to the list of formats */
-            auto getActualOutputMemoryFormats = [] (const std::string& fmtStr) -> std::vector<std::string> {
+            auto getActualOutputMemoryFormats = [](const std::string& fmtStr) -> std::vector<std::string> {
                 std::vector<std::string> result;
                 std::stringstream ss(fmtStr);
                 std::string str;
@@ -244,45 +250,51 @@ std::string CPUTestsBase::getPrimitiveType() const {
     return isaType;
 }
 
-CPUTestsBase::CPUInfo
-CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<cpu_memory_format_t> outFmts, std::vector<std::string> priority) {
+CPUTestsBase::CPUInfo CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
+                                                std::vector<cpu_memory_format_t> outFmts,
+                                                std::vector<std::string> priority) {
     CPUInfo cpuInfo;
 
     if (!inFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts, "cpu:")))});
+                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(
+                            ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts, "cpu:")))});
     }
     if (!outFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:")))});
+                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(
+                            ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:")))});
     }
     if (!priority.empty()) {
-        cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
+        cpuInfo.insert(
+            {"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
     }
 
     return cpuInfo;
 }
 
-std::shared_ptr<ngraph::Function>
-CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
-                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name) const {
-   auto newLastNode = modifyGraph(ngPrc, params, lastNode);
-   ngraph::ResultVector results;
+std::shared_ptr<ngraph::Function> CPUTestsBase::makeNgraphFunction(const ngraph::element::Type& ngPrc,
+                                                                   ngraph::ParameterVector& params,
+                                                                   const std::shared_ptr<ngraph::Node>& lastNode,
+                                                                   std::string name) const {
+    auto newLastNode = modifyGraph(ngPrc, params, lastNode);
+    ngraph::ResultVector results;
 
-   for (int i = 0; i < newLastNode->get_output_size(); i++)
+    for (int i = 0; i < newLastNode->get_output_size(); i++)
         results.push_back(std::make_shared<ngraph::opset1::Result>(newLastNode->output(i)));
 
-   return std::make_shared<ngraph::Function>(results, params, name);
+    return std::make_shared<ngraph::Function>(results, params, name);
 }
 
-std::shared_ptr<ngraph::Node>
-CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+std::shared_ptr<ngraph::Node> CPUTestsBase::modifyGraph(const ngraph::element::Type& ngPrc,
+                                                        ngraph::ParameterVector& params,
+                                                        const std::shared_ptr<ngraph::Node>& lastNode) const {
     lastNode->get_rt_info() = getCPUInfo();
     return lastNode;
 }
 
-std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
-auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
+std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector) {
+    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
         for (int i = 0; i < formats.size(); i++) {
             if (formats[i] == nChw16c)
                 formats[i] = nChw8c;
@@ -301,14 +313,14 @@ auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
     return paramsVector;
 }
 
-void CheckNodeOfTypeCount(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount) {
+void CheckNodeOfTypeCount(InferenceEngine::ExecutableNetwork& execNet, std::string nodeType, size_t expectedCount) {
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
     ASSERT_NE(nullptr, function);
     size_t actualNodeCount = 0;
-    for (const auto &node : function->get_ops()) {
-        const auto & rtInfo = node->get_rt_info();
-        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+    for (const auto& node : function->get_ops()) {
+        const auto& rtInfo = node->get_rt_info();
+        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
             auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
@@ -345,4 +357,4 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificPar
 
     return resCPUParams;
 }
-} // namespace CPUTestUtils
+}  // namespace CPUTestUtils

@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstring>
-#include <string>
-#include <cmath>
-
-#include <ngraph/opsets/opset3.hpp>
-#include "ie_parallel.hpp"
 #include "mkldnn_extract_image_patches_node.h"
-#include "list.hpp"
+
+#include <cmath>
 #include <cpu/x64/jit_generator.hpp>
+#include <cstring>
+#include <ngraph/opsets/opset3.hpp>
+#include <string>
+
 #include "caseless.hpp"
+#include "ie_parallel.hpp"
+#include "list.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -29,7 +30,9 @@ template <cpu_isa_t isa>
 struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_extract_image_patches_kernel)
 
-    explicit jit_extract_image_patches_kernel(jit_extract_image_patches_params jpp) : jit_uni_extract_image_patches_kernel(jpp), jit_generator() {}
+    explicit jit_extract_image_patches_kernel(jit_extract_image_patches_params jpp)
+        : jit_uni_extract_image_patches_kernel(jpp),
+          jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -94,33 +97,47 @@ private:
 
     Vmm vmm = Vmm(0);
     Xmm xmm = Xmm(0);
-    Vmm vmm_zero = Vmm(1); // reserved for pad
+    Vmm vmm_zero = Vmm(1);  // reserved for pad
     Xbyak::Xmm xmm_aux = Xbyak::Xmm(2);
     Vmm vmm_gather_index = Vmm(3);
     Vmm vmm_gather_mask = Vmm(4);
     Opmask k_mask = Xbyak::Opmask(1);
     Xbyak::Label gather_index_table;
 
-    inline void load_scalar(Vmm vmm_arg, const Xbyak::Address &op) {
+    inline void load_scalar(Vmm vmm_arg, const Xbyak::Address& op) {
         Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
-            case 4: uni_vmovss(vmm_arg, op); break;
-            case 2: uni_vpinsrw(xmm_src, xmm_src, op, 0x0); break;
-            case 1: uni_vpinsrb(xmm_src, xmm_src, op, 0x0); break;
-            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+        case 4:
+            uni_vmovss(vmm_arg, op);
+            break;
+        case 2:
+            uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
+            break;
+        case 1:
+            uni_vpinsrb(xmm_src, xmm_src, op, 0x0);
+            break;
+        default:
+            IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
         }
     }
-    inline void store_scalar(const Xbyak::Address &op, Vmm vmm_arg) {
+    inline void store_scalar(const Xbyak::Address& op, Vmm vmm_arg) {
         Xbyak::Xmm xmm_dst = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
-            case 4: uni_vmovss(op, vmm_arg); break;
-            case 2: uni_vpextrw(op, xmm_dst, 0x0); break;
-            case 1: uni_vpextrb(op, xmm_dst, 0x0); break;
-            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+        case 4:
+            uni_vmovss(op, vmm_arg);
+            break;
+        case 2:
+            uni_vpextrw(op, xmm_dst, 0x0);
+            break;
+        case 1:
+            uni_vpextrb(op, xmm_dst, 0x0);
+            break;
+        default:
+            IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
         }
     }
 
-    inline void pad_with_zeros(reg64_t &reg_num_pads_arg, reg64_t &reg_dst_arg) {
+    inline void pad_with_zeros(reg64_t& reg_num_pads_arg, reg64_t& reg_dst_arg) {
         Xbyak::Label main, tail, exit;
         L(main);
         {
@@ -143,54 +160,67 @@ private:
         L(exit);
     }
 
-    inline void custom_uni_vgatherdps(const Vmm &vmm_arg, reg64_t &mem_base, const Vmm &mem_offset, Vmm &vmm_mask) {
+    inline void custom_uni_vgatherdps(const Vmm& vmm_arg, reg64_t& mem_base, const Vmm& mem_offset, Vmm& vmm_mask) {
         switch (isa) {
-            case x64::avx2:
-                uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
-                vgatherdps(vmm_arg, ptr[mem_base + mem_offset], vmm_mask);
-                break;
-            case x64::avx512_common:
-                kxnord(k_mask, k_mask, k_mask);
-                vgatherdps(vmm_arg | k_mask, ptr[mem_base + mem_offset]);
-                break;
-            case x64::sse41:
-                emulate_gather(vmm_arg, mem_base);
-                break;
-            default: IE_THROW() << "Got unsupported instruction set.";
+        case x64::avx2:
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            vgatherdps(vmm_arg, ptr[mem_base + mem_offset], vmm_mask);
+            break;
+        case x64::avx512_common:
+            kxnord(k_mask, k_mask, k_mask);
+            vgatherdps(vmm_arg | k_mask, ptr[mem_base + mem_offset]);
+            break;
+        case x64::sse41:
+            emulate_gather(vmm_arg, mem_base);
+            break;
+        default:
+            IE_THROW() << "Got unsupported instruction set.";
         }
     }
 
-    inline void gather_src2vmm(const Vmm &vmm_arg, reg64_t &mem_base) {
+    inline void gather_src2vmm(const Vmm& vmm_arg, reg64_t& mem_base) {
         switch (jpp.dtype_size) {
-            case 4: custom_uni_vgatherdps(vmm, mem_base, vmm_gather_index, vmm_gather_mask); break;
-            case 2:
-            case 1: emulate_gather(vmm_arg, mem_base); break;
-            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+        case 4:
+            custom_uni_vgatherdps(vmm, mem_base, vmm_gather_index, vmm_gather_mask);
+            break;
+        case 2:
+        case 1:
+            emulate_gather(vmm_arg, mem_base);
+            break;
+        default:
+            IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
         }
     }
 
-    inline void emulate_gather(const Xbyak::Xmm &xmm_arg, reg64_t &mem_base, int xmm_offset = 0) {
-        const int xmm_size = 16; // bytes
+    inline void emulate_gather(const Xbyak::Xmm& xmm_arg, reg64_t& mem_base, int xmm_offset = 0) {
+        const int xmm_size = 16;  // bytes
         const int xmm_block_size = xmm_size / jpp.dtype_size;
         const int offset = xmm_offset * jpp.SW * jpp.dtype_size * xmm_block_size;
         for (int i = 0; i < xmm_block_size; i++) {
             Xbyak::Address addr = ptr[mem_base + i * jpp.SW * jpp.dtype_size + offset];
             switch (jpp.dtype_size) {
-                case 4: uni_vpinsrd(xmm_arg, xmm_arg, addr, i); break;
-                case 2: uni_vpinsrw(xmm_arg, xmm_arg, addr, i); break;
-                case 1: uni_vpinsrb(xmm_arg, xmm_arg, addr, i); break;
-                default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+            case 4:
+                uni_vpinsrd(xmm_arg, xmm_arg, addr, i);
+                break;
+            case 2:
+                uni_vpinsrw(xmm_arg, xmm_arg, addr, i);
+                break;
+            case 1:
+                uni_vpinsrb(xmm_arg, xmm_arg, addr, i);
+                break;
+            default:
+                IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
             }
         }
     }
-    inline void emulate_gather(const Xbyak::Ymm &ymm_arg, reg64_t &mem_base) {
+    inline void emulate_gather(const Xbyak::Ymm& ymm_arg, reg64_t& mem_base) {
         Xbyak::Xmm low_xmm = Xbyak::Xmm(ymm_arg.getIdx());
         emulate_gather(low_xmm, mem_base, 0);
         emulate_gather(xmm_aux, mem_base, 1);
         vinserti128(ymm_arg, ymm_arg, xmm_aux, 1);
     }
 
-    inline void emulate_gather(const Xbyak::Zmm &zmm_arg, reg64_t &mem_base) {
+    inline void emulate_gather(const Xbyak::Zmm& zmm_arg, reg64_t& mem_base) {
         Xbyak::Xmm low_xmm = Xbyak::Xmm(zmm_arg.getIdx());
         emulate_gather(low_xmm, mem_base, 0);
         for (int i = 1; i < 4; i++) {
@@ -268,7 +298,8 @@ private:
     }
 };
 
-bool MKLDNNExtractImagePatchesNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNExtractImagePatchesNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                         std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -280,11 +311,17 @@ bool MKLDNNExtractImagePatchesNode::isSupportedOperation(const std::shared_ptr<c
             return false;
         }
         const auto padValue = extImgPatcher->get_auto_pad();
-        if (!one_of(padValue, ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER)) {
+        if (!one_of(padValue,
+                    ngraph::op::PadType::VALID,
+                    ngraph::op::PadType::SAME_LOWER,
+                    ngraph::op::PadType::SAME_UPPER)) {
             errorMessage = "Does not support pad type: " + ngraph::as_string(padValue);
             return false;
         }
-        if (!everyone_is(2, extImgPatcher->get_sizes().size(), extImgPatcher->get_strides().size(), extImgPatcher->get_rates().size())) {
+        if (!everyone_is(2,
+                         extImgPatcher->get_sizes().size(),
+                         extImgPatcher->get_strides().size(),
+                         extImgPatcher->get_rates().size())) {
             errorMessage = "Doesn't support 'sizes', 'strides', 'rates', attributes with rank != 2";
             return false;
         }
@@ -294,8 +331,10 @@ bool MKLDNNExtractImagePatchesNode::isSupportedOperation(const std::shared_ptr<c
     return true;
 }
 
-MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_ptr<ngraph::Node>& op,
+                                                             const mkldnn::engine& eng,
+                                                             MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -332,17 +371,17 @@ MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_p
     _ksizes.clear();
     _strides.clear();
     _rates.clear();
-    for (const auto& x :  ksizes) {
+    for (const auto& x : ksizes) {
         if (x < 0)
             IE_THROW() << "Kernel sizes must be non-negative, got '" << x << "'.";
         _ksizes.push_back(static_cast<size_t>(x));
     }
-    for (const auto& x :  strides) {
+    for (const auto& x : strides) {
         if (x < 0)
             IE_THROW() << "Strides must be non-negative, got '" << x << "'.";
         _strides.push_back(static_cast<size_t>(x));
     }
-    for (const auto& x :  rates) {
+    for (const auto& x : rates) {
         if (x < 0)
             IE_THROW() << "Rates must be non-negative, got '" << x << "'.";
         _rates.push_back(static_cast<size_t>(x));
@@ -359,8 +398,8 @@ MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_p
         const int64_t ihStep = _ksizes[0] + (_rates[0] - 1) * (_ksizes[0] - 1);
         const int64_t iwStep = _ksizes[1] + (_rates[1] - 1) * (_ksizes[1] - 1);
 
-        int64_t PW = (std::ceil(1.f * iwidth/_strides[1]) - 1) * _strides[1] + iwStep - iwidth;
-        int64_t PH = (std::ceil(1.f * iheight/_strides[0]) - 1) * _strides[0] + ihStep - iheight;
+        int64_t PW = (std::ceil(1.f * iwidth / _strides[1]) - 1) * _strides[1] + iwStep - iwidth;
+        int64_t PH = (std::ceil(1.f * iheight / _strides[0]) - 1) * _strides[0] + ihStep - iheight;
 
         int64_t increment_sign = 0;
         if (_auto_pad == ExtImgPatcherPadType::SAME_LOWER) {
@@ -413,14 +452,12 @@ void MKLDNNExtractImagePatchesNode::initSupportedPrimitiveDescriptors() {
     if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
         IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
 
-    addSupportedPrimDesc({{LayoutType::ncsp, precision}},
-                         {{LayoutType::ncsp, precision}},
-                         impl_desc_type::ref_any);
+    addSupportedPrimDesc({{LayoutType::ncsp, precision}}, {{LayoutType::ncsp, precision}}, impl_desc_type::ref_any);
 }
 
 void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
-    const char *src_data = reinterpret_cast<const char *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    char *dst_data = reinterpret_cast<char *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const char* src_data = reinterpret_cast<const char*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    char* dst_data = reinterpret_cast<char*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
     const size_t dtype_size = getOriginalInputPrecisionAtPort(0).size();
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
@@ -438,8 +475,10 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
     const size_t RH = _rates[0], RW = _rates[1];
     const size_t PT = _pad_top, PL = _pad_left;
 
-    const std::vector<size_t> istrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    const std::vector<size_t> ostrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const std::vector<size_t> istrides =
+        getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const std::vector<size_t> ostrides =
+        getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     const std::vector<size_t> ostrides_partial = {ostrides[0], KW * IC * ostrides[1], IC * ostrides[1], ostrides[1]};
 
     if (extract_image_patches_kernel) {
@@ -448,11 +487,15 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
             const int64_t iw_start = kw * RW - PL;
             const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.f * ih_start / SH);
             const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.f * iw_start / SW);
-            const size_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH - 1.f * ih_start) / SH);
-            const size_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
+            const size_t ih_hpad =
+                std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH - 1.f * ih_start) / SH);
+            const size_t iw_hpad =
+                std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
 
-            size_t dst_offset = ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] + ic * ostrides_partial[3];
-            size_t src_offset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start + ih_lpad * SH * IW;
+            size_t dst_offset = ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] +
+                                ic * ostrides_partial[3];
+            size_t src_offset =
+                ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start + ih_lpad * SH * IW;
 
             auto args = jit_extract_image_patches_args();
             args.src = src_data + src_offset * dtype_size;
@@ -467,30 +510,34 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
         parallel_for4d(OB, KH, KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
             const int64_t iw_start = kw * RW - PL;
             const int64_t ih_start = kh * RH - PT;
-            const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
-            const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
+            const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.f * ih_start / SH);
+            const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.f * iw_start / SW);
 
-            const size_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH + -1.f * ih_start) / SH);
-            const size_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
+            const size_t ih_hpad =
+                std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH + -1.f * ih_start) / SH);
+            const size_t iw_hpad =
+                std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
 
-            char *my_dst_ptr = dst_data +
-                               (ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] + ic * ostrides_partial[3]) * dtype_size;
-            const char *my_src_ptr = src_data + (ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start) * dtype_size;
+            char* my_dst_ptr = dst_data + (ob * ostrides_partial[0] + kh * ostrides_partial[1] +
+                                           kw * ostrides_partial[2] + ic * ostrides_partial[3]) *
+                                              dtype_size;
+            const char* my_src_ptr =
+                src_data + (ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start) * dtype_size;
 
             size_t num_bytes_to_set = ih_lpad * OW * dtype_size;
             memset(my_dst_ptr, 0, num_bytes_to_set);
             my_dst_ptr += num_bytes_to_set;
 
             const char* src_ptr_h_stop = my_src_ptr + ih_hpad * SH * IW * dtype_size;
-            for (const char *src_h_ptr = my_src_ptr + ih_lpad * SH * IW * dtype_size;
-                 src_h_ptr < src_ptr_h_stop; src_h_ptr += SH * IW * dtype_size) {
+            for (const char* src_h_ptr = my_src_ptr + ih_lpad * SH * IW * dtype_size; src_h_ptr < src_ptr_h_stop;
+                 src_h_ptr += SH * IW * dtype_size) {
                 num_bytes_to_set = iw_lpad * dtype_size;
                 memset(my_dst_ptr, 0, num_bytes_to_set);
                 my_dst_ptr += num_bytes_to_set;
 
                 const char* src_ptr_w_stop = src_h_ptr + iw_hpad * SW * dtype_size;
-                for (const char* src_w_ptr = src_h_ptr + iw_lpad * SW * dtype_size;
-                     src_w_ptr < src_ptr_w_stop; src_w_ptr += SW * dtype_size) {
+                for (const char* src_w_ptr = src_h_ptr + iw_lpad * SW * dtype_size; src_w_ptr < src_ptr_w_stop;
+                     src_w_ptr += SW * dtype_size) {
                     num_bytes_to_set = dtype_size;
                     memcpy(my_dst_ptr, src_w_ptr, num_bytes_to_set);
                     my_dst_ptr += num_bytes_to_set;

@@ -2,27 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
-#include <mkldnn_types.h>
-#include "ie_parallel.hpp"
 #include "mkldnn_embedding_bag_sum_node.h"
+
+#include <mkldnn_types.h>
+
+#include <cmath>
 #include <ngraph/opsets/opset1.hpp>
+#include <string>
+#include <vector>
+
 #include "common/cpu_memcpy.h"
+#include "ie_parallel.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNEmbeddingBagSumNode::MKLDNNEmbeddingBagSumNode(
-            const std::shared_ptr<ngraph::Node>& op,
-            size_t requiredInputNum,
-            size_t indicesIdx,
-            size_t perSampleWeightsIdx,
-            size_t defaultIndexIdx) :
-                INDICES_IDX(indicesIdx),
-                PER_SAMPLE_WEIGHTS_IDX(perSampleWeightsIdx),
-                DEFAULT_INDEX_IDX(defaultIndexIdx) {
+MKLDNNEmbeddingBagSumNode::MKLDNNEmbeddingBagSumNode(const std::shared_ptr<ngraph::Node>& op,
+                                                     size_t requiredInputNum,
+                                                     size_t indicesIdx,
+                                                     size_t perSampleWeightsIdx,
+                                                     size_t defaultIndexIdx)
+    : INDICES_IDX(indicesIdx),
+      PER_SAMPLE_WEIGHTS_IDX(perSampleWeightsIdx),
+      DEFAULT_INDEX_IDX(defaultIndexIdx) {
     _layerName = op->get_friendly_name();
     std::string logPrefix = std::string("Layer EmbeddingBagSum with name '") + _layerName + "' ";
     if (op->get_input_size() < requiredInputNum || op->get_output_size() != 1)
@@ -32,7 +34,7 @@ MKLDNNEmbeddingBagSumNode::MKLDNNEmbeddingBagSumNode(
         _withWeights = true;
     if (_withWeights) {
         if (op->get_input_shape(PER_SAMPLE_WEIGHTS_IDX) != op->get_input_shape(INDICES_IDX))
-             IE_THROW() << logPrefix << "must have equal shapes for indices and per_sample_weights inputs.";
+            IE_THROW() << logPrefix << "must have equal shapes for indices and per_sample_weights inputs.";
     }
 
     const auto& inDataDims = op->get_input_shape(EMB_TABLE_IDX);
@@ -42,9 +44,12 @@ MKLDNNEmbeddingBagSumNode::MKLDNNEmbeddingBagSumNode(
     }
 }
 
-template<typename T>
-void MKLDNNEmbeddingBagSumNode::processData(const T* srcData, const T* weightsData, T* dstData,
-                                            const InferenceEngine::SizeVector& inDataDims, const InferenceEngine::SizeVector& outDataDims) {
+template <typename T>
+void MKLDNNEmbeddingBagSumNode::processData(const T* srcData,
+                                            const T* weightsData,
+                                            T* dstData,
+                                            const InferenceEngine::SizeVector& inDataDims,
+                                            const InferenceEngine::SizeVector& outDataDims) {
     std::string msgPrefix = std::string("Node EmbeddingBagSum with name '") + _layerName + "' ";
 
     initFromInputs();
@@ -88,7 +93,8 @@ void MKLDNNEmbeddingBagSumNode::processData(const T* srcData, const T* weightsDa
 
                 for (inIdx = 1lu; inIdx < indicesSize; inIdx++) {
                     if (indices[inIdx] >= inDataDims[0]) {
-                        IE_THROW() << msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]);
+                        IE_THROW() << msgPrefix +
+                                          "' has invalid embedding bag index: " + std::to_string(indices[inIdx]);
                     }
                     size_t srcIndex = indices[inIdx] * _embDepth;
 
@@ -114,27 +120,39 @@ void MKLDNNEmbeddingBagSumNode::processData(const T* srcData, const T* weightsDa
     parallel_nt(0, threadBody);
 }
 
-void MKLDNNEmbeddingBagSumNode::execute(const uint8_t* srcData, const uint8_t* weightsData, uint8_t* dstData, const InferenceEngine::Precision &srcPrc,
-                                        const InferenceEngine::SizeVector& inDims, const InferenceEngine::SizeVector& outDims) {
+void MKLDNNEmbeddingBagSumNode::execute(const uint8_t* srcData,
+                                        const uint8_t* weightsData,
+                                        uint8_t* dstData,
+                                        const InferenceEngine::Precision& srcPrc,
+                                        const InferenceEngine::SizeVector& inDims,
+                                        const InferenceEngine::SizeVector& outDims) {
     switch (srcPrc) {
-        case Precision::FP32: {
-            return processData<PrecisionTrait<Precision::FP32>::value_type>(reinterpret_cast<const float*>(srcData),
-                    reinterpret_cast<const float*>(weightsData), reinterpret_cast<float*>(dstData), inDims, outDims);
-        }
-        case Precision::I8: {
-            return processData<PrecisionTrait<Precision::I8>::value_type>(reinterpret_cast<const int8_t*>(srcData),
-                    reinterpret_cast<const int8_t*>(weightsData), reinterpret_cast<int8_t*>(dstData), inDims, outDims);
-        }
-        case Precision::U8: {
-            return processData<PrecisionTrait<Precision::U8>::value_type>(srcData, weightsData, dstData, inDims, outDims);
-        }
-        case Precision::I32: {
-            return processData<PrecisionTrait<Precision::I32>::value_type>(reinterpret_cast<const int32_t*>(srcData),
-                    reinterpret_cast<const int32_t*>(weightsData), reinterpret_cast<int32_t*>(dstData), inDims, outDims);
-        }
-        default: {
-            IE_THROW() << "EmbeddingBagSum layer does not support precision '"
-                        + std::string(srcPrc.name()) + "'";
-        }
+    case Precision::FP32: {
+        return processData<PrecisionTrait<Precision::FP32>::value_type>(reinterpret_cast<const float*>(srcData),
+                                                                        reinterpret_cast<const float*>(weightsData),
+                                                                        reinterpret_cast<float*>(dstData),
+                                                                        inDims,
+                                                                        outDims);
+    }
+    case Precision::I8: {
+        return processData<PrecisionTrait<Precision::I8>::value_type>(reinterpret_cast<const int8_t*>(srcData),
+                                                                      reinterpret_cast<const int8_t*>(weightsData),
+                                                                      reinterpret_cast<int8_t*>(dstData),
+                                                                      inDims,
+                                                                      outDims);
+    }
+    case Precision::U8: {
+        return processData<PrecisionTrait<Precision::U8>::value_type>(srcData, weightsData, dstData, inDims, outDims);
+    }
+    case Precision::I32: {
+        return processData<PrecisionTrait<Precision::I32>::value_type>(reinterpret_cast<const int32_t*>(srcData),
+                                                                       reinterpret_cast<const int32_t*>(weightsData),
+                                                                       reinterpret_cast<int32_t*>(dstData),
+                                                                       inDims,
+                                                                       outDims);
+    }
+    default: {
+        IE_THROW() << "EmbeddingBagSum layer does not support precision '" + std::string(srcPrc.name()) + "'";
+    }
     }
 }

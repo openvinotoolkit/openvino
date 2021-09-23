@@ -5,17 +5,18 @@
 #include "reshape_1d_ops.hpp"
 
 #include <memory>
-#include <vector>
-
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
+#include <vector>
 
 #include "transformations/utils/utils.hpp"
 
 template <class BaseOp>
-std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<BaseOp> node, ngraph::NodeVector &new_ops) {
+std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node>& data,
+                                      std::shared_ptr<BaseOp> node,
+                                      ngraph::NodeVector& new_ops) {
     auto new_strides = node->get_strides();
     auto new_dilations = node->get_dilations();
     auto new_pads_begin = node->get_pads_begin();
@@ -33,15 +34,16 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
     new_ops.push_back(weights);
 
     if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(node)) {
-        return std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(std::vector<ngraph::element::Type>{ngraph::element::f32, ngraph::element::f32},
-                                                                 std::vector<ngraph::element::Type>{ngraph::element::f32},
-                                                                 ngraph::op::TemporaryReplaceOutputType(data, ngraph::element::f32).get(),
-                                                                 ngraph::op::TemporaryReplaceOutputType(weights, ngraph::element::f32).get(),
-                                                                 new_strides,
-                                                                 new_pads_begin,
-                                                                 new_pad_end,
-                                                                 new_dilations,
-                                                                 node->get_auto_pad());
+        return std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(
+            std::vector<ngraph::element::Type>{ngraph::element::f32, ngraph::element::f32},
+            std::vector<ngraph::element::Type>{ngraph::element::f32},
+            ngraph::op::TemporaryReplaceOutputType(data, ngraph::element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(weights, ngraph::element::f32).get(),
+            new_strides,
+            new_pads_begin,
+            new_pad_end,
+            new_dilations,
+            node->get_auto_pad());
     } else {
         return std::make_shared<BaseOp>(data,
                                         weights,
@@ -54,7 +56,9 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
 }
 
 template <>
-std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<ngraph::opset1::MaxPool> node, ngraph::NodeVector & new_ops) {
+std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node>& data,
+                                      std::shared_ptr<ngraph::opset1::MaxPool> node,
+                                      ngraph::NodeVector& new_ops) {
     auto new_strides = node->get_strides();
     auto new_pads_begin = node->get_pads_begin();
     auto new_pad_end = node->get_pads_end();
@@ -75,7 +79,9 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
 }
 
 template <>
-std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<ngraph::opset1::AvgPool> node, ngraph::NodeVector & new_ops) {
+std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node>& data,
+                                      std::shared_ptr<ngraph::opset1::AvgPool> node,
+                                      ngraph::NodeVector& new_ops) {
     // Update Pooling attributes with additional dimension
     auto new_strides = node->get_strides();
     auto new_pads_begin = node->get_pads_begin();
@@ -88,13 +94,13 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
     new_kernel.insert(new_kernel.begin(), 1);
 
     return std::make_shared<ngraph::opset1::AvgPool>(data,
-                                             new_strides,
-                                             new_pads_begin,
-                                             new_pad_end,
-                                             new_kernel,
-                                             node->get_exclude_pad(),
-                                             node->get_rounding_type(),
-                                             node->get_auto_pad());
+                                                     new_strides,
+                                                     new_pads_begin,
+                                                     new_pad_end,
+                                                     new_kernel,
+                                                     node->get_exclude_pad(),
+                                                     node->get_rounding_type(),
+                                                     node->get_auto_pad());
 }
 
 ngraph::matcher_pass_callback get_callback() {
@@ -132,19 +138,22 @@ ngraph::matcher_pass_callback get_callback() {
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/new");
         new_ops.push_back(last.get_node_shared_ptr());
 
-        // if convolution is followed by add we need to replace add before output reshape to fuse conv+bias on plug-in side
+        // if convolution is followed by add we need to replace add before output reshape to fuse conv+bias on plug-in
+        // side
         std::shared_ptr<ngraph::Node> addToReplace = nullptr;
         std::shared_ptr<ngraph::Node> reshapedAdd = nullptr;
         ngraph::NodeVector biasOps;
-        if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) || std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node)) {
+        if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
+            std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node)) {
             ngraph::Shape expectedShape = ngraph::Shape(node->get_output_shape(0).size(), 1);
             expectedShape[1] = node->get_output_shape(0)[1];
             const auto dstNodes = node->get_output_target_inputs(0);
             if (dstNodes.size() == 1) {
                 addToReplace = dstNodes.begin()->get_node()->shared_from_this();
                 if (std::dynamic_pointer_cast<ngraph::opset1::Add>(addToReplace) &&
-                    std::dynamic_pointer_cast<ngraph::opset1::Constant>(addToReplace->input(1).get_source_output().get_node_shared_ptr()) &&
-                        addToReplace->get_input_shape(1) == expectedShape) {
+                    std::dynamic_pointer_cast<ngraph::opset1::Constant>(
+                        addToReplace->input(1).get_source_output().get_node_shared_ptr()) &&
+                    addToReplace->get_input_shape(1) == expectedShape) {
                     ngraph::Shape newBiasShape(addToReplace->get_input_shape(1));
                     newBiasShape.push_back(1);
                     auto newBias = ngraph::op::util::reshapeTo(addToReplace->input_value(1), newBiasShape);

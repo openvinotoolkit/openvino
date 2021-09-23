@@ -2,24 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <vector>
-#include <cmath>
+#include "mkldnn_dft_node.h"
+
 #include <mkldnn_extension_utils.h>
 
-#include "mkldnn_dft_node.h"
+#include <cmath>
+#include <ngraph/opsets/opset7.hpp>
+#include <string>
+#include <vector>
+
+#include "common/cpu_memcpy.h"
 #include "ie_parallel.hpp"
 #include "ie_precision.hpp"
 #include "mkldnn/ie_mkldnn.h"
 #include "utils/general_utils.h"
-#include "common/cpu_memcpy.h"
-#include <ngraph/opsets/opset7.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNDFTNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNDFTNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                         std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -38,8 +41,10 @@ bool MKLDNNDFTNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
     return true;
 }
 
-MKLDNNDFTNode::MKLDNNDFTNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-               MKLDNNNode(op, eng, cache) {
+MKLDNNDFTNode::MKLDNNDFTNode(const std::shared_ptr<ngraph::Node>& op,
+                             const mkldnn::engine& eng,
+                             MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -93,14 +98,15 @@ void MKLDNNDFTNode::initSupportedPrimitiveDescriptors() {
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizeTensorPrec = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
         if (signalSizeTensorPrec != Precision::I32 && signalSizeTensorPrec != Precision::I64) {
-            IE_THROW() << layerErrorPrefix << " has unsupported 'signal_size' input precision: " << signalSizeTensorPrec.name();
+            IE_THROW() << layerErrorPrefix
+                       << " has unsupported 'signal_size' input precision: " << signalSizeTensorPrec.name();
         }
     }
 
-    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, Precision::FP32},
-                                                       {LayoutType::ncsp, Precision::I32}});
+    std::vector<PortConfigurator> inDataConfigurators(
+        {{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::I32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX)
-        inDataConfigurators.push_back({LayoutType::ncsp,  Precision::I32});
+        inDataConfigurators.push_back({LayoutType::ncsp, Precision::I32});
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
 }
@@ -116,7 +122,7 @@ inline float getImaginaryFromComplexProd(float lhsReal, float lhsImag, float rhs
 
 /*
     Returns true while we can iterate
-    Specified axis is skipped in counters   
+    Specified axis is skipped in counters
 */
 inline bool nextIterationStep(std::vector<size_t>& counters, const std::vector<size_t>& iterationRange, size_t axis) {
     auto itCounter = counters.rbegin();
@@ -165,8 +171,12 @@ size_t calculateOffsetFromStrides(const std::vector<size_t>& coords, const std::
     return offset;
 }
 
-void gatherToBufferND(float* buffer, const float* data, size_t axis, const std::vector<size_t>& dimIndexes,
-                                     const std::vector<size_t>& shape, const std::vector<size_t>& strides) {
+void gatherToBufferND(float* buffer,
+                      const float* data,
+                      size_t axis,
+                      const std::vector<size_t>& dimIndexes,
+                      const std::vector<size_t>& shape,
+                      const std::vector<size_t>& strides) {
     size_t numberOfComplex = shape[axis];
     size_t offset = calculateOffsetFromStrides(dimIndexes, strides);
 
@@ -177,8 +187,12 @@ void gatherToBufferND(float* buffer, const float* data, size_t axis, const std::
     }
 }
 
-void applyBufferND(const float* buffer, float* output, size_t axis, const std::vector<size_t>& dimIndexes,
-                                  const std::vector<size_t>& shape, const std::vector<size_t>& strides) {
+void applyBufferND(const float* buffer,
+                   float* output,
+                   size_t axis,
+                   const std::vector<size_t>& dimIndexes,
+                   const std::vector<size_t>& shape,
+                   const std::vector<size_t>& strides) {
     size_t numberOfComplex = shape[axis];
     size_t offset = calculateOffsetFromStrides(dimIndexes, strides);
 
@@ -189,8 +203,12 @@ void applyBufferND(const float* buffer, float* output, size_t axis, const std::v
     }
 }
 
-void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t>& inputShape, const std::vector<size_t>& inputStrides,
-                                    float* output, const std::vector<size_t>& outputShape, const std::vector<size_t>& outputStrides) {
+void copyDataToOutputWithSignalSize(const float* input,
+                                    const std::vector<size_t>& inputShape,
+                                    const std::vector<size_t>& inputStrides,
+                                    float* output,
+                                    const std::vector<size_t>& outputShape,
+                                    const std::vector<size_t>& outputStrides) {
     auto totalInput = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<size_t>());
     auto totalOutput = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<size_t>());
     std::fill_n(output, totalOutput, 0);
@@ -214,7 +232,8 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
 
     const std::vector<size_t> inputStridesRange(inputStrides.begin(), inputStrides.begin() + iterationRange.size());
     const std::vector<size_t> outputStridesRange(outputStrides.begin(), outputStrides.begin() + iterationRange.size());
-    const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1, inputShape.end(), 1ul, std::multiplies<size_t>());
+    const size_t blockSize =
+        std::accumulate(inputShape.begin() + lastChangedDim + 1, inputShape.end(), 1ul, std::multiplies<size_t>());
     const size_t blockSizeBytes = blockSize * sizeof(float);
     std::vector<size_t> iterationCounter(iterationRange.size(), 0);
     do {
@@ -224,7 +243,7 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
     } while (copyStep(iterationCounter, iterationRange));
 }
 
-} // namespace
+}  // namespace
 
 void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
@@ -248,8 +267,8 @@ void MKLDNNDFTNode::execute(mkldnn::stream strm) {
 
     auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
     auto outputDataEdge = getChildEdgeAt(0);
-    const auto *input = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->GetPtr());
-    auto *output = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->GetPtr());
+    const auto* input = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->GetPtr());
+    auto* output = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->GetPtr());
 
     auto inputStrides = inputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     auto outputStrides = outputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -289,16 +308,31 @@ void MKLDNNDFTNode::dftNd(float* output, const std::vector<size_t>& outputStride
                     std::vector<float> gatheredData(outputLen);
                     auto parallelIterationCounter = iterationCounter;
                     parallelIterationCounter[parallelDimIndex] = dim;
-                    gatherToBufferND(gatheredData.data(), output, currentAxis, parallelIterationCounter, outputShape, outputStrides);
+                    gatherToBufferND(gatheredData.data(),
+                                     output,
+                                     currentAxis,
+                                     parallelIterationCounter,
+                                     outputShape,
+                                     outputStrides);
                     fft(gatheredData.data(), outputLen);
-                    applyBufferND(gatheredData.data(), output, currentAxis, parallelIterationCounter, outputShape, outputStrides);
+                    applyBufferND(gatheredData.data(),
+                                  output,
+                                  currentAxis,
+                                  parallelIterationCounter,
+                                  outputShape,
+                                  outputStrides);
                 });
                 iterationCounter[parallelDimIndex] = iterationRange[parallelDimIndex] - 1;
             } while (nextIterationStep(iterationCounter, iterationRange, currentAxis));
         } else {
             std::vector<float> gatheredData(outputLen);
             do {
-                gatherToBufferND(gatheredData.data(), output, currentAxis, iterationCounter, outputShape, outputStrides);
+                gatherToBufferND(gatheredData.data(),
+                                 output,
+                                 currentAxis,
+                                 iterationCounter,
+                                 outputShape,
+                                 outputStrides);
                 naiveDFT(gatheredData.data(), outputLen);
                 applyBufferND(gatheredData.data(), output, currentAxis, iterationCounter, outputShape, outputStrides);
             } while (nextIterationStep(iterationCounter, iterationRange, currentAxis));
@@ -318,30 +352,31 @@ void MKLDNNDFTNode::fft(float* data, int64_t dataLength, bool parallelize) const
     float* inBufferStart = buffer + dataLength;
     float* outBufferStart = buffer;
 
-    auto blockIteration = [&] (const size_t block, const size_t blockSize, const size_t nextIterationBlockSize, const float anglePart) {
-        float* curInpBufferPtr = inBufferStart + block * blockSize;
-        float* curOutBufferPtr = outBufferStart + block * nextIterationBlockSize;
+    auto blockIteration =
+        [&](const size_t block, const size_t blockSize, const size_t nextIterationBlockSize, const float anglePart) {
+            float* curInpBufferPtr = inBufferStart + block * blockSize;
+            float* curOutBufferPtr = outBufferStart + block * nextIterationBlockSize;
 
-        const float angle = anglePart * block;
-        const float twiddleReal = std::cos(angle);
-        const float twiddleImag = -std::sin(angle);
-        for (int64_t pair = 0; pair < blockSize / 2; pair += 2) {
-            const float evenReal = curInpBufferPtr[pair];
-            const float evenImag = curInpBufferPtr[pair + 1];
+            const float angle = anglePart * block;
+            const float twiddleReal = std::cos(angle);
+            const float twiddleImag = -std::sin(angle);
+            for (int64_t pair = 0; pair < blockSize / 2; pair += 2) {
+                const float evenReal = curInpBufferPtr[pair];
+                const float evenImag = curInpBufferPtr[pair + 1];
 
-            const float oddReal = curInpBufferPtr[(blockSize / 2 + pair)];
-            const float oddImag = curInpBufferPtr[(blockSize / 2 + pair) + 1];
+                const float oddReal = curInpBufferPtr[(blockSize / 2 + pair)];
+                const float oddImag = curInpBufferPtr[(blockSize / 2 + pair) + 1];
 
-            const float twiddledOddReal = getRealFromComplexProd(twiddleReal, twiddleImag, oddReal, oddImag);
-            const float twiddledOddImag = getImaginaryFromComplexProd(twiddleReal, twiddleImag, oddReal, oddImag);
+                const float twiddledOddReal = getRealFromComplexProd(twiddleReal, twiddleImag, oddReal, oddImag);
+                const float twiddledOddImag = getImaginaryFromComplexProd(twiddleReal, twiddleImag, oddReal, oddImag);
 
-            curOutBufferPtr[pair] = evenReal + twiddledOddReal;
-            curOutBufferPtr[pair + 1] = evenImag + twiddledOddImag;
+                curOutBufferPtr[pair] = evenReal + twiddledOddReal;
+                curOutBufferPtr[pair + 1] = evenImag + twiddledOddImag;
 
-            curOutBufferPtr[nComplex + pair] = evenReal - twiddledOddReal;
-            curOutBufferPtr[nComplex + pair + 1] = evenImag - twiddledOddImag;
-        }
-    };
+                curOutBufferPtr[nComplex + pair] = evenReal - twiddledOddReal;
+                curOutBufferPtr[nComplex + pair + 1] = evenImag - twiddledOddImag;
+            }
+        };
 
     for (int64_t numBlocks = 1; numBlocks < nComplex; numBlocks *= 2) {
         const float anglePart = PI / numBlocks * (inverse ? -1 : 1);
@@ -350,7 +385,7 @@ void MKLDNNDFTNode::fft(float* data, int64_t dataLength, bool parallelize) const
         const int64_t blockSize = dataLength / numBlocks;
         const int64_t nextIterationBlockSize = blockSize / 2;
         if (parallelize && blockSize >= 4 * elementsPerCacheLine) {
-            parallel_for(numBlocks, [&] (const size_t block) {
+            parallel_for(numBlocks, [&](const size_t block) {
                 blockIteration(block, blockSize, nextIterationBlockSize, anglePart);
             });
         } else {
@@ -382,7 +417,7 @@ void MKLDNNDFTNode::naiveDFT(float* data, size_t dataLength) const {
             float complexImag = it.second;
 
             if (inverse) {
-                complexImag *= -1; // conjugate
+                complexImag *= -1;  // conjugate
             }
             float complexProdReal = getRealFromComplexProd(data[2 * n], data[2 * n + 1], complexReal, complexImag);
             float complexProdImag = getImaginaryFromComplexProd(data[2 * n], data[2 * n + 1], complexReal, complexImag);
@@ -405,7 +440,7 @@ std::vector<std::pair<float, float>> MKLDNNDFTNode::generateTwiddles(size_t n_co
     std::vector<std::pair<float, float>> twiddles(n_complex * n_complex);
     parallel_for(n_complex, [&](const size_t k) {
         for (size_t n = 0; n < n_complex; ++n) {
-            float phase =  2.0f * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
+            float phase = 2.0f * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
             auto complexReal = std::cos(phase);
             auto complexImag = -std::sin(phase);
             twiddles[k * n_complex + n] = std::make_pair(complexReal, complexImag);
@@ -419,6 +454,5 @@ bool MKLDNNDFTNode::created() const {
 }
 
 void MKLDNNDFTNode::createPrimitive() {}
-
 
 REG_MKLDNN_PRIM_FOR(MKLDNNDFTNode, DFT)

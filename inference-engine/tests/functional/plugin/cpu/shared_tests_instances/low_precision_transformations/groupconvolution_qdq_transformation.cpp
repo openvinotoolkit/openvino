@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision_transformations/groupconvolution_qdq_transformation.hpp"
+
 #include <vector>
 
-#include "low_precision_transformations/groupconvolution_qdq_transformation.hpp"
-#include "low_precision_transformations/convolution_with_incorrect_weights.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "low_precision_transformations/convolution_with_incorrect_weights.hpp"
 
 using namespace LayerTestsDefinitions;
 
@@ -48,7 +49,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //
     // Transformed:
     //
-    //FakeQuantize Constant  Constant
+    // FakeQuantize Constant  Constant
     //   \U8      /U8        /I8
     //    \      /          /
     //    Subtract        Subtract
@@ -61,22 +62,18 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //            \          /
     //              Multiply
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
-        {
-            {ngraph::element::f32},
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
-            { {0.1f}, ngraph::element::f32, {}, false }
-        },
-        { std::vector<float>(4, 15.f), ngraph::element::f32, {2, 2, 1, 1} },
-        { 255ul, ngraph::Shape({ 1, 1, 1, 1 }), { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
-        { ngraph::element::i8, false },
-        {
-            { ngraph::element::f32, false },
-            { {-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
-            { {0.2f}, ngraph::element::f32, {}, false }
-        },
-        { {2, 1, 2, 1, 1} },
+        {256ul, {{1, 1, 1, 1}}, {-12.8f}, {12.7f}, {0.f}, {255.f}, ngraph::element::f32},
+        {ngraph::element::u8, false},
+        {{ngraph::element::f32},
+         {{128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true},
+         {{0.1f}, ngraph::element::f32, {}, false}},
+        {std::vector<float>(4, 15.f), ngraph::element::f32, {2, 2, 1, 1}},
+        {255ul, ngraph::Shape({1, 1, 1, 1}), {0.f}, {25.5f}, {-128.f}, {127.f}, ngraph::element::f32},
+        {ngraph::element::i8, false},
+        {{ngraph::element::f32, false},
+         {{-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true},
+         {{0.2f}, ngraph::element::f32, {}, false}},
+        {{2, 1, 2, 1, 1}},
         "output_original",
         "FP32",
         false,
@@ -111,7 +108,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //
     // Transformed:
     //
-    //FakeQuantize Constant  Constant
+    // FakeQuantize Constant  Constant
     //   \U8      /U8        /I8
     //    \      /          /
     //    Subtract        Subtract
@@ -125,22 +122,18 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //              Multiply
 
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
-        {
-            {ngraph::element::f32},
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
-            { {0.1f}, ngraph::element::f32, {}, false }
-        },
-        { std::vector<float>(4, 15.f), ngraph::element::f32, {2, 2, 1, 1} },
-        { 255ul, ngraph::Shape({ 1, 1, 1, 1 }), { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
-        { ngraph::element::i8, false },
-        {
-            { ngraph::element::f32, false },
-            { {-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
-            { {0.2f}, ngraph::element::f32, {}, false }
-        },
-        { {2, 1, 2, 1, 1} },
+        {256ul, {{1, 1, 1, 1}}, {-12.8f}, {12.7f}, {0.f}, {255.f}, ngraph::element::f32},
+        {ngraph::element::u8, false},
+        {{ngraph::element::f32},
+         {{128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true},
+         {{0.1f}, ngraph::element::f32, {}, false}},
+        {std::vector<float>(4, 15.f), ngraph::element::f32, {2, 2, 1, 1}},
+        {255ul, ngraph::Shape({1, 1, 1, 1}), {0.f}, {25.5f}, {-128.f}, {127.f}, ngraph::element::f32},
+        {ngraph::element::i8, false},
+        {{ngraph::element::f32, false},
+         {{-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true},
+         {{0.2f}, ngraph::element::f32, {}, false}},
+        {{2, 1, 2, 1, 1}},
         "output_original",
         "FP32",
         true,
@@ -176,27 +169,17 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //          \FP32      /FP32
     //           \        /
     //            Multiply
-    {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
-        {
-            {ngraph::element::f32},
-            {},
-            { {0.1f}, ngraph::element::f32, {}, false }
-        },
-        { std::vector<float>(4, 15.f), ngraph::element::f32, {2, 2, 1, 1} },
-        { 255ul, ngraph::Shape({ 1, 1, 1, 1 }), { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
-        { ngraph::element::i8, false },
-        {
-            { ngraph::element::f32, false },
-            {},
-            { {0.2f}, ngraph::element::f32, {}, false }
-        },
-        { {2, 1, 2, 1, 1} },
-        "output_original",
-        "U8",
-        false
-    },
+    {{256ul, {{1, 1, 1, 1}}, {-12.8f}, {12.7f}, {0.f}, {255.f}, ngraph::element::f32},
+     {ngraph::element::u8, false},
+     {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}, false}},
+     {std::vector<float>(4, 15.f), ngraph::element::f32, {2, 2, 1, 1}},
+     {255ul, ngraph::Shape({1, 1, 1, 1}), {0.f}, {25.5f}, {-128.f}, {127.f}, ngraph::element::f32},
+     {ngraph::element::i8, false},
+     {{ngraph::element::f32, false}, {}, {{0.2f}, ngraph::element::f32, {}, false}},
+     {{2, 1, 2, 1, 1}},
+     "output_original",
+     "U8",
+     false},
 
     // Actual:
     //
@@ -232,22 +215,14 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //           \        /
     //            Multiply
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
-        {
-            {ngraph::element::f32},
-            {},
-            { {0.1f}, ngraph::element::f32, {}, false }
-        },
-        { std::vector<float>(4, 15.f), ngraph::element::f32, {2, 2, 1, 1}},
-        { 255ul, ngraph::Shape({ 1, 1, 1, 1 }), { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
-        { ngraph::element::i8, false },
-        {
-            { ngraph::element::f32, false },
-            {},
-            { {0.2f}, ngraph::element::f32, {}, false }
-        },
-        { {2, 1, 2, 1, 1} },
+        {256ul, {{1, 1, 1, 1}}, {-12.8f}, {12.7f}, {0.f}, {255.f}, ngraph::element::f32},
+        {ngraph::element::u8, false},
+        {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}, false}},
+        {std::vector<float>(4, 15.f), ngraph::element::f32, {2, 2, 1, 1}},
+        {255ul, ngraph::Shape({1, 1, 1, 1}), {0.f}, {25.5f}, {-128.f}, {127.f}, ngraph::element::f32},
+        {ngraph::element::i8, false},
+        {{ngraph::element::f32, false}, {}, {{0.2f}, ngraph::element::f32, {}, false}},
+        {{2, 1, 2, 1, 1}},
         "output_original",
         "U8",
         true,
@@ -289,22 +264,18 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //          \        /
     //           Multiply
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
-        {
-            { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
-            { {0.1f}, ngraph::element::f32, {}, false }
-        },
-        { std::vector<float>(4, 15.f), ngraph::element::i8, {2, 2, 1, 1} },
+        {256ul, {{1, 1, 1, 1}}, {-12.8f}, {12.7f}, {0.f}, {255.f}, ngraph::element::f32},
+        {ngraph::element::u8, false},
+        {{ngraph::element::f32, false},
+         {{128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true},
+         {{0.1f}, ngraph::element::f32, {}, false}},
+        {std::vector<float>(4, 15.f), ngraph::element::i8, {2, 2, 1, 1}},
         {},
         {},
-        {
-            { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
-            { {0.2f}, ngraph::element::f32, {}, false }
-        },
-        { {2, 1, 2, 1, 1} },
+        {{ngraph::element::f32, false},
+         {{128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true},
+         {{0.2f}, ngraph::element::f32, {}, false}},
+        {{2, 1, 2, 1, 1}},
         "output_original",
         "FP32",
         false,
@@ -349,22 +320,18 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //          \         /
     //           Multiply
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
-        {
-            { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
-            { {0.1f}, ngraph::element::f32, {}, false }
-        },
-        { std::vector<float>(4, 15.f), ngraph::element::i8, {2, 2, 1, 1} },
+        {256ul, {{1, 1, 1, 1}}, {-12.8f}, {12.7f}, {0.f}, {255.f}, ngraph::element::f32},
+        {ngraph::element::u8, false},
+        {{ngraph::element::f32, false},
+         {{128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true},
+         {{0.1f}, ngraph::element::f32, {}, false}},
+        {std::vector<float>(4, 15.f), ngraph::element::i8, {2, 2, 1, 1}},
         {},
         {},
-        {
-            { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
-            { {0.2f}, ngraph::element::f32, {}, false }
-        },
-        { {2, 1, 2, 1, 1} },
+        {{ngraph::element::f32, false},
+         {{128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true},
+         {{0.2f}, ngraph::element::f32, {}, false}},
+        {{2, 1, 2, 1, 1}},
         "output_original",
         "FP32",
         true,
@@ -406,22 +373,16 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //            \        /
     //             Multiply
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
-        {
-            { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
-            { {0.1f}, ngraph::element::f32, {}, false }
-        },
-        { std::vector<float>(4, 15.f), ngraph::element::i8, {2, 2, 1, 1} },
+        {256ul, {{1, 1, 1, 1}}, {-12.8f}, {12.7f}, {0.f}, {255.f}, ngraph::element::f32},
+        {ngraph::element::u8, false},
+        {{ngraph::element::f32, false},
+         {{128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true},
+         {{0.1f}, ngraph::element::f32, {}, false}},
+        {std::vector<float>(4, 15.f), ngraph::element::i8, {2, 2, 1, 1}},
         {},
         {},
-        {
-            { ngraph::element::f32, false },
-            {},
-            { {0.2f}, ngraph::element::f32, {}, false }
-        },
-        { {2, 1, 2, 1, 1} },
+        {{ngraph::element::f32, false}, {}, {{0.2f}, ngraph::element::f32, {}, false}},
+        {{2, 1, 2, 1, 1}},
         "output_original",
         "U8",
         false,
@@ -466,38 +427,30 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //            \        /
     //             Multiply
     {
-        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ngraph::element::f32 },
-        { ngraph::element::u8, false },
-        {
-            { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
-            { {0.1f}, ngraph::element::f32, {}, false }
-        },
-        { std::vector<float>(4, 15.f), ngraph::element::i8, {2, 2, 1, 1} },
+        {256ul, {{1, 1, 1, 1}}, {-12.8f}, {12.7f}, {0.f}, {255.f}, ngraph::element::f32},
+        {ngraph::element::u8, false},
+        {{ngraph::element::f32, false},
+         {{128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true},
+         {{0.1f}, ngraph::element::f32, {}, false}},
+        {std::vector<float>(4, 15.f), ngraph::element::i8, {2, 2, 1, 1}},
         {},
         {},
-        {
-            { ngraph::element::f32, false },
-            {},
-            { {0.2f}, ngraph::element::f32, {}, false }
-        },
-        { {2, 1, 2, 1, 1} },
+        {{ngraph::element::f32, false}, {}, {{0.2f}, ngraph::element::f32, {}, false}},
+        {{2, 1, 2, 1, 1}},
         "output_original",
         "U8",
         true,
     },
 };
 
-const std::vector<ngraph::PartialShape> shapes = {
-    { 1, 4, 7, 7 }
-};
+const std::vector<ngraph::PartialShape> shapes = {{1, 4, 7, 7}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionQDqTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(params)),
-    GroupConvolutionQDqTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         GroupConvolutionQDqTransformation,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(shapes),
+                                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                            ::testing::ValuesIn(trasformationParamValues),
+                                            ::testing::ValuesIn(params)),
+                         GroupConvolutionQDqTransformation::getTestCaseName);
 }  // namespace

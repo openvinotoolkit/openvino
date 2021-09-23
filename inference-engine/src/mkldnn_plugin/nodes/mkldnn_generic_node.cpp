@@ -2,21 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "mkldnn_generic_node.h"
+
 #include <mkldnn_extension_mngr.h>
 #include <mkldnn_extension_utils.h>
-#include "mkldnn_generic_node.h"
-#include <vector>
-#include <string>
+
 #include <blob_factory.hpp>
+#include <string>
+#include <vector>
+
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 
-MKLDNNGenericNode::MKLDNNGenericNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache), ngraphOp(op) {
-}
+MKLDNNGenericNode::MKLDNNGenericNode(const std::shared_ptr<ngraph::Node>& op,
+                                     const mkldnn::engine& eng,
+                                     MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache),
+      ngraphOp(op) {}
 
 void MKLDNNGenericNode::getSupportedDescriptors() {
     if (!extFactory && impls.empty()) {
@@ -24,7 +29,7 @@ void MKLDNNGenericNode::getSupportedDescriptors() {
     }
 }
 
-NodeConfig MKLDNNGenericNode::convertLayerToNodeConfig(const InferenceEngine::LayerConfig &layerConfig) {
+NodeConfig MKLDNNGenericNode::convertLayerToNodeConfig(const InferenceEngine::LayerConfig& layerConfig) {
     NodeConfig config;
     config.dynBatchSupport = layerConfig.dynBatchSupport;
     config.inConfs.resize(layerConfig.inConfs.size());
@@ -42,7 +47,7 @@ NodeConfig MKLDNNGenericNode::convertLayerToNodeConfig(const InferenceEngine::La
     return config;
 }
 
-InferenceEngine::LayerConfig MKLDNNGenericNode::convertNodeToLayerConfig(const NodeConfig &nodeConfig) {
+InferenceEngine::LayerConfig MKLDNNGenericNode::convertNodeToLayerConfig(const NodeConfig& nodeConfig) {
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = nodeConfig.dynBatchSupport;
     config.inConfs.resize(nodeConfig.inConfs.size());
@@ -65,7 +70,7 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::ResponseDesc resp;
-    for (auto &impl : impls) {
+    for (auto& impl : impls) {
         std::vector<InferenceEngine::LayerConfig> configs;
         auto rc = impl->getSupportedConfigurations(configs, &resp);
         if (rc != InferenceEngine::OK) {
@@ -101,7 +106,7 @@ bool MKLDNNGenericNode::created() const {
     return Generic == getType();
 }
 
-bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
+bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr& extMgr) {
     if (ngraphOp && extMgr) {
         // We should save extension manager in order to avoid situation when
         // it will destroyed before extensibility primitives
@@ -191,7 +196,7 @@ void MKLDNNGenericNode::execLayer() {
     }
 }
 
-void MKLDNNGenericNode::initDescriptor(const NodeConfig &config) {
+void MKLDNNGenericNode::initDescriptor(const NodeConfig& config) {
     NodeConfig rightConfig = config;
     InferenceEngine::StatusCode rc;
     InferenceEngine::ResponseDesc resp;
@@ -217,13 +222,12 @@ void MKLDNNGenericNode::initDescriptor(const NodeConfig &config) {
             rightConfig.inConfs[j].inPlace = -1;
         }
     }
-    for (auto &outConf : rightConfig.outConfs) {
+    for (auto& outConf : rightConfig.outConfs) {
         if (outConf.inPlace < getParentEdges().size() &&
             getParentEdgeAt(static_cast<size_t>(outConf.inPlace))->getParent()->getChildEdges().size() > 1) {
             outConf.inPlace = -1;
         }
     }
-
 
     impls.clear();
     impls.emplace_back(selectedImpl);
@@ -238,10 +242,10 @@ void MKLDNNGenericNode::initDescriptor(const NodeConfig &config) {
         descriptor->setConfig(rightConfig);
     }
     bool isConst = !rightConfig.inConfs.empty() || !rightConfig.outConfs.empty();
-    for (const auto &inConf : rightConfig.inConfs) {
+    for (const auto& inConf : rightConfig.inConfs) {
         isConst = isConst && inConf.constant;
     }
-    for (const auto &outConf : rightConfig.outConfs) {
+    for (const auto& outConf : rightConfig.outConfs) {
         isConst = isConst && outConf.constant;
     }
     if (isConst) {

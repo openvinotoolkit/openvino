@@ -6,13 +6,13 @@
 
 #include <mkldnn_memory.h>
 
-#include <unordered_map>
-#include <functional>
-#include <string>
-#include <memory>
 #include <atomic>
-#include <mutex>
+#include <functional>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_map>
 
 // TODO: While CPU plugin has no ease way to clone graph object we use weight
 //       caching in global Engine context to avoid tensor memory duplication.
@@ -56,10 +56,7 @@ class MKLDNNWeightsSharing {
     struct MKLDNNMemoryInfo {
         typedef std::shared_ptr<MKLDNNMemoryInfo> Ptr;
 
-        MKLDNNMemoryInfo(MKLDNNMemoryPtr memoryPtr, bool valid)
-            : sharedMemory(memoryPtr)
-            , valid(valid)
-        {}
+        MKLDNNMemoryInfo(MKLDNNMemoryPtr memoryPtr, bool valid) : sharedMemory(memoryPtr), valid(valid) {}
 
         std::mutex guard;
         std::weak_ptr<MKLDNNMemory> sharedMemory;
@@ -73,8 +70,8 @@ public:
     public:
         typedef std::shared_ptr<MKLDNNSharedMemory> Ptr;
 
-        MKLDNNSharedMemory(std::unique_lock<std::mutex> && lock,
-                           const MKLDNNMemoryInfo::Ptr & memory,
+        MKLDNNSharedMemory(std::unique_lock<std::mutex>&& lock,
+                           const MKLDNNMemoryInfo::Ptr& memory,
                            MKLDNNMemoryPtr newPtr = nullptr);
 
         operator MKLDNNMemoryPtr() const;
@@ -93,7 +90,9 @@ public:
 
     MKLDNNSharedMemory::Ptr get(const std::string& key) const;
 
-    static const SimpleDataHash& GetHashFunc () { return simpleCRC; }
+    static const SimpleDataHash& GetHashFunc() {
+        return simpleCRC;
+    }
 
 protected:
     mutable std::mutex guard;

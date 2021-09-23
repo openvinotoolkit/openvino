@@ -3,14 +3,17 @@
 //
 
 #include "dnnl_memory_desc.h"
-#include "mkldnn_extension_utils.h"
+
 #include <common/memory_desc_wrapper.hpp>
+
 #include "mkldnn/ie_mkldnn.h"
+#include "mkldnn_extension_utils.h"
 
 namespace MKLDNNPlugin {
 
-DnnlMemoryDesc::DnnlMemoryDesc(const mkldnn::memory::desc& desc) :
-    MemoryDesc(Shape(MKLDNNExtensionUtils::convertToVectorDims(desc.dims())), Mkldnn), desc(desc) {
+DnnlMemoryDesc::DnnlMemoryDesc(const mkldnn::memory::desc& desc)
+    : MemoryDesc(Shape(MKLDNNExtensionUtils::convertToVectorDims(desc.dims())), Mkldnn),
+      desc(desc) {
     if (desc.data.format_kind == dnnl::impl::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 }
@@ -24,7 +27,7 @@ size_t DnnlMemoryDesc::getElementOffset(size_t elemNumber) const {
     return wrapped.off_l(elemNumber);
 }
 
-bool DnnlMemoryDesc::isCompatible(const MemoryDesc &rhs) const {
+bool DnnlMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     if (MemoryDescType::Mkldnn == rhs.getType()) {
         return this->desc == rhs.as<DnnlMemoryDesc>()->desc;
     } else {
@@ -36,11 +39,16 @@ bool DnnlMemoryDesc::isCompatible(const MemoryDesc &rhs) const {
 std::string DnnlMemoryDesc::serializeFormat() const {
     if (desc.data.format_kind == dnnl_format_kind_wino) {
         switch (desc.data.format_desc.wino_desc.wino_format) {
-            case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOIoi: return "wino_aaOIoi";
-            case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOio: return "wino_aaOio";
-            case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOBiOo: return "wino_aaOBiOo";
-            case dnnl_wino_memory_format_t::dnnl_wino_wei_OBaaIBOIio: return "wino_OBaaIBOIio";
-            default: return "wino_undef";
+        case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOIoi:
+            return "wino_aaOIoi";
+        case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOio:
+            return "wino_aaOio";
+        case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOBiOo:
+            return "wino_aaOBiOo";
+        case dnnl_wino_memory_format_t::dnnl_wino_wei_OBaaIBOIio:
+            return "wino_OBaaIBOIio";
+        default:
+            return "wino_undef";
         }
     }
     return "undef";
@@ -60,7 +68,7 @@ InferenceEngine::Precision DnnlMemoryDesc::getPrecision() const {
     return MKLDNNExtensionUtils::DataTypeToIEPrecision(desc.data_type());
 }
 
-MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {
+MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) const {
     IE_THROW(Unexpected) << "Cannot clone non blocked oneDNN desc with new dims";
 }
 
@@ -72,4 +80,4 @@ size_t DnnlMemoryDesc::getMaxMemSize() const {
     return getCurrentMemSize();
 }
 
-} // namespace MKLDNNPlugin
+}  // namespace MKLDNNPlugin

@@ -5,8 +5,8 @@
 #pragma once
 
 #include "blocked_memory_desc.h"
-#include "mkldnn_memory.h"
 #include "mkldnn_extension_utils.h"
+#include "mkldnn_memory.h"
 
 namespace MKLDNNPlugin {
 
@@ -58,9 +58,13 @@ public:
     size_t getPaddedElementsCount() const override;
 
 private:
-    DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
-                            const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
-                            const VectorDims& strides = {});
+    DnnlBlockedMemoryDesc(InferenceEngine::Precision prc,
+                          const Shape& shape,
+                          const VectorDims& blockedDims,
+                          const VectorDims& order,
+                          size_t offsetPadding = 0,
+                          const VectorDims& offsetPaddingToData = {},
+                          const VectorDims& strides = {});
 
     DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc);
 
@@ -70,7 +74,8 @@ private:
     bool isBlockedCFormat(size_t blk_size = UNREACHABLE_DIM) const;
     bool isTailCFormat() const;
 
-    // WA: we need to initialize blocked params into ctor to avoid bugs when we calculate these params in throughput mode
+    // WA: we need to initialize blocked params into ctor to avoid bugs when we calculate these params in throughput
+    // mode
     // TODO [DS]: should be reimplemented to avoid useless calculation
     void initBlockedParams() {
         initBlockDims();
@@ -89,11 +94,11 @@ private:
      */
     mkldnn::memory::format_tag getFormat() const;
 
-    friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
+    friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc& desc);
     friend class MemoryDescUtils;
 };
 
 using DnnlBlockedMemoryDescPtr = std::shared_ptr<DnnlBlockedMemoryDesc>;
 using DnnlBlockedMemoryDescCPtr = std::shared_ptr<const DnnlBlockedMemoryDesc>;
 
-} // namespace MKLDNNPlugin
+}  // namespace MKLDNNPlugin

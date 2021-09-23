@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/lstm_sequence.hpp"
+
 #include "ngraph/pass/visualize_tree.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
@@ -13,13 +14,14 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
-using LSTMSequenceCpuSpecificParams = typename std::tuple<LayerTestsDefinitions::LSTMSequenceParams, CPUSpecificParams, std::map<std::string, std::string>>;
+using LSTMSequenceCpuSpecificParams = typename std::
+    tuple<LayerTestsDefinitions::LSTMSequenceParams, CPUSpecificParams, std::map<std::string, std::string>>;
 
 class LSTMSequenceCPUTest : public testing::WithParamInterface<LSTMSequenceCpuSpecificParams>,
                             virtual public LayerTestsUtils::LayerTestsCommon,
                             public CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<LSTMSequenceCpuSpecificParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<LSTMSequenceCpuSpecificParams>& obj) {
         CPUSpecificParams cpuParams;
         LayerTestsDefinitions::LSTMSequenceParams basicParamsSet;
         std::map<std::string, std::string> additionalConfig;
@@ -33,7 +35,7 @@ public:
 
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
-            for (auto &item : additionalConfig) {
+            for (auto& item : additionalConfig) {
                 if (item.second == PluginConfigParams::YES)
                     result << "_" << item.first << "=" << item.second;
             }
@@ -60,7 +62,16 @@ protected:
 
         std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        std::tie(m_mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction, netPrecision, targetDevice) = basicParamsSet;
+        std::tie(m_mode,
+                 seq_lengths,
+                 batch,
+                 hidden_size,
+                 input_size,
+                 activations,
+                 clip,
+                 direction,
+                 netPrecision,
+                 targetDevice) = basicParamsSet;
 
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
         m_max_seq_len = seq_lengths;
@@ -97,30 +108,31 @@ protected:
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::FP32);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
-        if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM
-            || m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
+        if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
+            m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
             auto seq_lengths = ngraph::builder::makeParams(ngraph::element::i64, {inputShapes[3]}).at(0);
             seq_lengths->set_friendly_name("seq_lengths");
             params.push_back(seq_lengths);
         }
         std::vector<ngraph::Shape> WRB = {inputShapes[4], inputShapes[5], inputShapes[6], inputShapes[3]};
-        auto lstm_sequence = ngraph::builder::makeLSTM(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
-                                                       WRB,
-                                                       hidden_size,
-                                                       activations,
-                                                       {},
-                                                       {},
-                                                       clip,
-                                                       true,
-                                                       direction,
-                                                       m_mode);
+        auto lstm_sequence =
+            ngraph::builder::makeLSTM(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+                                      WRB,
+                                      hidden_size,
+                                      activations,
+                                      {},
+                                      {},
+                                      clip,
+                                      true,
+                                      direction,
+                                      m_mode);
 
         // method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
         // returned output format always tnc
         if (outFmts.size() >= 3) {
             for (size_t i = 1; i < 3; i++) {
                 if (ngraph::shape_size(lstm_sequence->get_output_shape(i)) == 1 ||
-                        lstm_sequence->get_output_shape(0) == ngraph::Shape{1, 1, 2, 10}) {
+                    lstm_sequence->get_output_shape(0) == ngraph::Shape{1, 1, 2, 10}) {
                     outFmts[i] = tnc;
                 }
             }
@@ -147,8 +159,8 @@ protected:
     }
 
     void GenerateInputs() override {
-        for (const auto &input : executableNetwork.GetInputsInfo()) {
-            const auto &info = input.second;
+        for (const auto& input : executableNetwork.GetInputsInfo()) {
+            const auto& info = input.second;
             auto blob = GenerateInput(*info);
             if (input.first == "seq_lengths") {
                 blob = FuncTestUtils::createAndFillBlob(info->getTensorDesc(), m_max_seq_len, 0);
@@ -172,9 +184,9 @@ TEST_P(LSTMSequenceCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> additionalConfig
-    = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
-       {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
+std::vector<std::map<std::string, std::string>> additionalConfig = {
+    {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
+    {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
 CPUSpecificParams cpuParams{{ntc, tnc, tnc}, {ntc, tnc, tnc}, {"ref_any"}, "ref_any"};
 CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc, ntc}, {tnc, ntc, ntc}, {"ref_any"}, "ref_any"};
@@ -193,35 +205,35 @@ std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::Rec
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
 INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCPU,
-                        LSTMSequenceCPUTest,
-                        ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
-                                                              ::testing::ValuesIn(seq_lengths_zero_clip),
-                                                              ::testing::ValuesIn(batch),
-                                                              ::testing::ValuesIn(hidden_size),
-                                                              ::testing::ValuesIn(input_size),
-                                                              ::testing::ValuesIn(activations),
-                                                              ::testing::ValuesIn(clip),
-                                                              ::testing::ValuesIn(direction),
-                                                              ::testing::ValuesIn(netPrecisions),
-                                                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::Values(cpuParams),
-                                           ::testing::ValuesIn(additionalConfig)),
-                        LSTMSequenceCPUTest::getTestCaseName);
+                         LSTMSequenceCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
+                                                               ::testing::ValuesIn(seq_lengths_zero_clip),
+                                                               ::testing::ValuesIn(batch),
+                                                               ::testing::ValuesIn(hidden_size),
+                                                               ::testing::ValuesIn(input_size),
+                                                               ::testing::ValuesIn(activations),
+                                                               ::testing::ValuesIn(clip),
+                                                               ::testing::ValuesIn(direction),
+                                                               ::testing::ValuesIn(netPrecisions),
+                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                            ::testing::Values(cpuParams),
+                                            ::testing::ValuesIn(additionalConfig)),
+                         LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCPUbatchSizeOne,
-                        LSTMSequenceCPUTest,
-                        ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
-                                                              ::testing::ValuesIn(seq_lengths_zero_clip),
-                                                              ::testing::ValuesIn(batch_size_one),
-                                                              ::testing::ValuesIn(hidden_size),
-                                                              ::testing::ValuesIn(input_size),
-                                                              ::testing::ValuesIn(activations),
-                                                              ::testing::ValuesIn(clip),
-                                                              ::testing::ValuesIn(direction),
-                                                              ::testing::ValuesIn(netPrecisions),
-                                                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::Values(cpuParamsBatchSizeOne),
-                                           ::testing::ValuesIn(additionalConfig)),
-                        LSTMSequenceCPUTest::getTestCaseName);
-} // namespace
-} // namespace CPULayerTestsDefinitions
+                         LSTMSequenceCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
+                                                               ::testing::ValuesIn(seq_lengths_zero_clip),
+                                                               ::testing::ValuesIn(batch_size_one),
+                                                               ::testing::ValuesIn(hidden_size),
+                                                               ::testing::ValuesIn(input_size),
+                                                               ::testing::ValuesIn(activations),
+                                                               ::testing::ValuesIn(clip),
+                                                               ::testing::ValuesIn(direction),
+                                                               ::testing::ValuesIn(netPrecisions),
+                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                            ::testing::Values(cpuParamsBatchSizeOne),
+                                            ::testing::ValuesIn(additionalConfig)),
+                         LSTMSequenceCPUTest::getTestCaseName);
+}  // namespace
+}  // namespace CPULayerTestsDefinitions

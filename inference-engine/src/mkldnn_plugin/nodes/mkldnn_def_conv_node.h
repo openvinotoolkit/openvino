@@ -5,6 +5,7 @@
 #pragma once
 
 #include <mkldnn_node.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -40,20 +41,20 @@ struct jit_def_conv_params {
 };
 
 struct jit_def_conv_call_args {
-    const void *src;
-    const void *off;
-    const void *modulation;
-    const void *filt;
-    const void *bias;
-    const void *dst;
-    const void *buf;
+    const void* src;
+    const void* off;
+    const void* modulation;
+    const void* filt;
+    const void* bias;
+    const void* dst;
+    const void* buf;
     size_t oh_pos;
 };
 
 struct jit_uni_def_conv_kernel {
-    void (*ker_)(const jit_def_conv_call_args *);
+    void (*ker_)(const jit_def_conv_call_args*);
 
-    void operator()(const jit_def_conv_call_args *args) {
+    void operator()(const jit_def_conv_call_args* args) {
         assert(ker_);
         ker_(args);
     }
@@ -68,7 +69,9 @@ struct jit_uni_def_conv_kernel {
 
 class MKLDNNDeformableConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNDeformableConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNDeformableConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
+                                    const mkldnn::engine& eng,
+                                    MKLDNNWeightsSharing::Ptr& cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -96,13 +99,23 @@ private:
 
     std::shared_ptr<jit_uni_def_conv_kernel> def_conv_kernel = nullptr;
 
-    void executeReference(const float* src, const float* offsets, const float* weights, float* dst,
-                          const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides,
-                          const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides,
-                          const float* modulation = nullptr, const std::vector<size_t>& modulation_strides = {});
-    void executeOptimized(const float* src, const float* offsets, const float* weights, float* dst,
-                          const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides, const std::vector<size_t>& dst_strides);
+    void executeReference(const float* src,
+                          const float* offsets,
+                          const float* weights,
+                          float* dst,
+                          const std::vector<size_t>& src_strides,
+                          const std::vector<size_t>& off_strides,
+                          const std::vector<size_t>& wei_strides,
+                          const std::vector<size_t>& dst_strides,
+                          const float* modulation = nullptr,
+                          const std::vector<size_t>& modulation_strides = {});
+    void executeOptimized(const float* src,
+                          const float* offsets,
+                          const float* weights,
+                          float* dst,
+                          const std::vector<size_t>& src_strides,
+                          const std::vector<size_t>& off_strides,
+                          const std::vector<size_t>& dst_strides);
 };
 
 }  // namespace MKLDNNPlugin
-

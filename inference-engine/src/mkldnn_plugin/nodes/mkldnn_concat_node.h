@@ -6,14 +6,17 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <ie_precision.hpp>
+#include <string>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNConcatNode : public MKLDNNNode {
 public:
-    MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op,
+                     const mkldnn::engine& eng,
+                     MKLDNNWeightsSharing::Ptr& cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -41,4 +44,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-

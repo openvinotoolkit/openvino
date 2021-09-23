@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <mkldnn_node.h>
 #include <ie_common.h>
+#include <mkldnn_node.h>
 
-#include <string>
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
@@ -32,8 +32,8 @@ struct jit_roi_pooling_params {
 };
 
 struct jit_roi_pooling_call_args {
-    const void *src;
-    void *dst;
+    const void* src;
+    void* dst;
 
     size_t kh;
     size_t kw;
@@ -49,9 +49,9 @@ struct jit_roi_pooling_call_args {
 };
 
 struct jit_uni_roi_pooling_kernel {
-    void (*ker_)(const jit_roi_pooling_call_args *);
+    void (*ker_)(const jit_roi_pooling_call_args*);
 
-    void operator()(const jit_roi_pooling_call_args *args) {
+    void operator()(const jit_roi_pooling_call_args* args) {
         assert(ker_);
         ker_(args);
     }
@@ -66,7 +66,9 @@ struct jit_uni_roi_pooling_kernel {
 
 class MKLDNNROIPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNROIPoolingNode(const std::shared_ptr<ngraph::Node>& op,
+                         const mkldnn::engine& eng,
+                         MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -77,8 +79,10 @@ public:
 private:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    template<typename T> void execute();
-    template<typename T> struct ROIPoolingExecute;
+    template <typename T>
+    void execute();
+    template <typename T>
+    struct ROIPoolingExecute;
 
     InferenceEngine::Precision runtimePrecision;
 

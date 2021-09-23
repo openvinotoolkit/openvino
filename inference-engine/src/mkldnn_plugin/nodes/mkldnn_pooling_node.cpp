@@ -4,29 +4,33 @@
 
 #include "mkldnn_pooling_node.h"
 
-#include "mkldnn_fake_quantize_node.h"
-#include "mkldnn_conv_node.h"
-#include "mkldnn_concat_node.h"
+#include <memory_desc/cpu_memory_desc_utils.h>
+#include <mkldnn_extension_utils.h>
+#include <mkldnn_types.h>
+#include <utils/general_utils.h>
+
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
-#include <mkldnn_extension_utils.h>
-#include <utils/general_utils.h>
-#include <memory_desc/cpu_memory_desc_utils.h>
+
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "mkldnn_concat_node.h"
+#include "mkldnn_conv_node.h"
+#include "mkldnn_fake_quantize_node.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                             std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
-        if (!ngraph::as_type_ptr<const ngraph::op::v1::MaxPool>(op) && !ngraph::as_type_ptr<const ngraph::op::v1::AvgPool>(op)) {
+        if (!ngraph::as_type_ptr<const ngraph::op::v1::MaxPool>(op) &&
+            !ngraph::as_type_ptr<const ngraph::op::v1::AvgPool>(op)) {
             errorMessage = "Only opset1 MaxPool and AvgPool operations are supported";
             return false;
         }
@@ -36,8 +40,10 @@ bool MKLDNNPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNPoolingNode::MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+MKLDNNPoolingNode::MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op,
+                                     const mkldnn::engine& eng,
+                                     MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -80,7 +86,7 @@ MKLDNNPoolingNode::MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op, co
     }
 }
 
-std::vector<memory::format_tag> MKLDNNPoolingNode::getAvailableFormatsForDims(const Shape &dims) const {
+std::vector<memory::format_tag> MKLDNNPoolingNode::getAvailableFormatsForDims(const Shape& dims) const {
     if (dims.getRank() == 0)
         return {memory::format_tag::x};
     else if (dims.getRank() == 1)
@@ -90,9 +96,15 @@ std::vector<memory::format_tag> MKLDNNPoolingNode::getAvailableFormatsForDims(co
     else if (dims.getRank() == 3)
         return {memory::format_tag::tnc, memory::format_tag::ntc};
     else if (dims.getRank() == 4)
-        return {memory::format_tag::nChw8c, memory::format_tag::nChw16c, memory::format_tag::nhwc, memory::format_tag::nchw};
+        return {memory::format_tag::nChw8c,
+                memory::format_tag::nChw16c,
+                memory::format_tag::nhwc,
+                memory::format_tag::nchw};
     else if (dims.getRank() == 5)
-        return {memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c, memory::format_tag::ndhwc, memory::format_tag::ncdhw};
+        return {memory::format_tag::nCdhw8c,
+                memory::format_tag::nCdhw16c,
+                memory::format_tag::ndhwc,
+                memory::format_tag::ncdhw};
     return {memory::format_tag::any};
 }
 
@@ -152,18 +164,26 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         if (outputDataType == memory::data_type::bf16)
             outputDataType = memory::data_type::f32;
         // i8 layers supports only ndhwc and nhwc layouts
-        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 5 ?
-                                                                                   memory::format_tag::ndhwc : memory::format_tag::nhwc);
-        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, inputRank == 5 ?
-                                                                                    memory::format_tag::ndhwc : memory::format_tag::nhwc);
-        createDescriptor({ in_candidate }, { out_candidate });
+        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
+            parentShape,
+            inputDataType,
+            inputRank == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc);
+        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
+            childShape,
+            outputDataType,
+            inputRank == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc);
+        createDescriptor({in_candidate}, {out_candidate});
     } else if ((inputRank == 4 || inputRank == 5) && parentShape.getStaticDims()[1] == 1) {
         // WA. We should force planar layout since it provides better performance
-        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 5 ?
-                                                                                   memory::format_tag::ncdhw : memory::format_tag::nchw);
-        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, inputRank == 5 ?
-                                                                                    memory::format_tag::ncdhw : memory::format_tag::nchw);
-        createDescriptor({ in_candidate }, { out_candidate });
+        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
+            parentShape,
+            inputDataType,
+            inputRank == 5 ? memory::format_tag::ncdhw : memory::format_tag::nchw);
+        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
+            childShape,
+            outputDataType,
+            inputRank == 5 ? memory::format_tag::ncdhw : memory::format_tag::nchw);
+        createDescriptor({in_candidate}, {out_candidate});
     } else {
         if (inputDataType != memory::data_type::bf16) {
             inputDataType = memory::data_type::f32;
@@ -198,9 +218,9 @@ bool MKLDNNPoolingNode::created() const {
     return getType() == Pooling;
 }
 
-void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                         const std::vector<MemoryDescPtr> &outputDesc) {
-    auto in_candidate =  MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc();
+void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                                         const std::vector<MemoryDescPtr>& outputDesc) {
+    auto in_candidate = MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc();
     auto out_candidate = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0])->getDnnlDesc();
 
     mkldnn::algorithm alg;
@@ -229,16 +249,17 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &input
         IE_THROW() << "Unsupported pooling type";
     }
 
-    auto convert = [] (std::vector<ptrdiff_t> orig_dims) {
+    auto convert = [](std::vector<ptrdiff_t> orig_dims) {
         return memory::dims(orig_dims.begin(), orig_dims.end());
     };
-    std::shared_ptr<pooling_forward::desc> desc_ptr(
-            new pooling_forward::desc(prop_kind::forward_scoring, alg,
-                                      in_candidate, out_candidate,
-                                      convert(stride),
-                                      convert(kernel),
-                                      convert(effective_pad_begin),
-                                      convert(effective_pad_end)));
+    std::shared_ptr<pooling_forward::desc> desc_ptr(new pooling_forward::desc(prop_kind::forward_scoring,
+                                                                              alg,
+                                                                              in_candidate,
+                                                                              out_candidate,
+                                                                              convert(stride),
+                                                                              convert(kernel),
+                                                                              convert(effective_pad_begin),
+                                                                              convert(effective_pad_end)));
 
     if (alg == mkldnn::algorithm::pooling_avg_include_padding) {
         // In case of AVG including paddings the norm coeff should be calculated
@@ -249,7 +270,7 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &input
         //     in compare with Caffe. In mkldnn coeff is always 1/(KH*KW)
         for (int i = 0; i < data_pad_end.size(); i++) {
             if (data_pad_end[i] != effective_pad_end[i])
-            desc_ptr->data.padding[1][i] = static_cast<ptrdiff_t>(data_pad_end[i]);
+                desc_ptr->data.padding[1][i] = static_cast<ptrdiff_t>(data_pad_end[i]);
         }
     }
 
@@ -321,7 +342,7 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
     NodeConfig rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
     for (size_t j = 0; j < descs.size(); j++) {
-        const auto &desc = descs[j];
+        const auto& desc = descs[j];
         primitive_desc_iterator itpd;
 
         itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
@@ -364,7 +385,8 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
 
     if (descs.empty()) {
         const auto& selectedConfig = selectedPD->getConfig();
-        if (selectedConfig.inConfs.size() != config.inConfs.size() || selectedConfig.outConfs.size() != config.outConfs.size())
+        if (selectedConfig.inConfs.size() != config.inConfs.size() ||
+            selectedConfig.outConfs.size() != config.outConfs.size())
             return;
 
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
@@ -382,17 +404,18 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(rightConfig);
 }
 
-void MKLDNNPoolingNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
+void MKLDNNPoolingNode::setPostOps(mkldnn::primitive_attr& attr, bool initWeights) {
     mkldnn::post_ops ops;
 
-    for (auto &node : fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+    for (auto& node : fusedWith) {
+        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode*>(node.get());
         if (fakeQuantizeNode) {
             fakeQuantizeNode->appendPostOps(ops);
             continue;
         }
 
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType())
+                   << " node is not implemented";
     }
 
     attr.set_post_ops(ops);

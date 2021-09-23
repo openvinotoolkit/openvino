@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <mkldnn_types.h>
-#include <mkldnn_extension_utils.h>
 #include "mkldnn_memory_node.hpp"
+
+#include <mkldnn_extension_utils.h>
+#include <mkldnn_types.h>
+
+#include <string>
+
 #include "common/cpu_memcpy.h"
-#include "utils/general_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
 using namespace mkldnn;
@@ -25,7 +28,8 @@ MKLDNNMemoryNode::MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op) {
     }
 }
 
-bool MKLDNNMemoryOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNMemoryOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                  std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -33,8 +37,8 @@ bool MKLDNNMemoryOutputNode::isSupportedOperation(const std::shared_ptr<const ng
         }
 
         if (!MKLDNNPlugin::one_of(op->get_type_info(),
-                ngraph::op::v3::Assign::type_info,
-                ngraph::op::v6::Assign::type_info)) {
+                                  ngraph::op::v3::Assign::type_info,
+                                  ngraph::op::v6::Assign::type_info)) {
             errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
             return false;
         }
@@ -44,8 +48,11 @@ bool MKLDNNMemoryOutputNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-MKLDNNMemoryOutputNode::MKLDNNMemoryOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) , MKLDNNMemoryNode(op) {
+MKLDNNMemoryOutputNode::MKLDNNMemoryOutputNode(const std::shared_ptr<ngraph::Node>& op,
+                                               const mkldnn::engine& eng,
+                                               MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache),
+      MKLDNNMemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -75,7 +82,7 @@ void MKLDNNMemoryOutputNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
+void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm) {
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
 
     auto inputMemoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(inputNode);
@@ -83,7 +90,8 @@ void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
     inputMemoryNode->storeState(srcMemory);
 }
 
-bool MKLDNNMemoryInputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNMemoryInputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                 std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -91,8 +99,8 @@ bool MKLDNNMemoryInputNode::isSupportedOperation(const std::shared_ptr<const ngr
         }
 
         if (!MKLDNNPlugin::one_of(op->get_type_info(),
-                ngraph::op::v3::ReadValue::type_info,
-                ngraph::op::v6::ReadValue::type_info)) {
+                                  ngraph::op::v3::ReadValue::type_info,
+                                  ngraph::op::v6::ReadValue::type_info)) {
             errorMessage = "Node is not an instance of ReadValue from the operation set v3 or v6.";
             return false;
         }
@@ -102,8 +110,12 @@ bool MKLDNNMemoryInputNode::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNInputNode(op, eng, cache), MKLDNNMemoryNode(op), dataStore(new MKLDNNMemory{eng}) {
+MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>& op,
+                                             const mkldnn::engine& eng,
+                                             MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNInputNode(op, eng, cache),
+      MKLDNNMemoryNode(op),
+      dataStore(new MKLDNNMemory{eng}) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -129,8 +141,7 @@ void MKLDNNMemoryInputNode::createPrimitive() {
  * @param dst destination memory object
  * @param src source memory object
  */
-inline
-static void simple_copy(const MKLDNNMemory& dst, const MKLDNNMemory& src) {
+inline static void simple_copy(const MKLDNNMemory& dst, const MKLDNNMemory& src) {
     auto srcPtr = static_cast<uint8_t*>(src.GetPtr());
     auto dstPtr = static_cast<uint8_t*>(dst.GetPtr());
     auto srcSizeInByte = src.GetSize();
@@ -149,7 +160,7 @@ MKLDNNMemoryPtr MKLDNNMemoryInputNode::getStore() {
     return dataStore;
 }
 
-void MKLDNNMemoryInputNode::storeState(const MKLDNNMemory &new_state) {
+void MKLDNNMemoryInputNode::storeState(const MKLDNNMemory& new_state) {
     // TODO: Should be next one call:
     //           dataStore.SetData(new_state, false);
     //       But because of performance reason we use simple manual copy
@@ -163,7 +174,7 @@ void MKLDNNMemoryInputNode::execute(mkldnn::stream strm) {
     simple_copy(getChildEdgeAt(0)->getMemory(), *dataStore);
 }
 
-MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerInput(MKLDNNMemoryInputNode * node) {
+MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerInput(MKLDNNMemoryInputNode* node) {
     std::lock_guard<std::mutex> lock{MKLDNNMemoryNodeVirtualEdge::holderMutex};
     // in case of output already registered
     auto& holder = MKLDNNMemoryNodeVirtualEdge::getExisted();
@@ -178,7 +189,7 @@ MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerInput(
     return &holder;
 }
 
-MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerOutput(MKLDNNMemoryOutputNode * node) {
+MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerOutput(MKLDNNMemoryOutputNode* node) {
     std::lock_guard<std::mutex> lock{MKLDNNMemoryNodeVirtualEdge::holderMutex};
     // in case of output layer
     auto& holder = MKLDNNMemoryNodeVirtualEdge::getExisted();
@@ -193,10 +204,10 @@ MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerOutput
     return &holder;
 }
 
-void MKLDNNMemoryNodeVirtualEdge::remove(MKLDNNMemoryNode * node, Holder* holder) {
+void MKLDNNMemoryNodeVirtualEdge::remove(MKLDNNMemoryNode* node, Holder* holder) {
     std::lock_guard<std::mutex> lock{MKLDNNMemoryNodeVirtualEdge::holderMutex};
     if (nullptr != holder) {
-        InferenceEngine::details::erase_if(*holder, [&](const Holder::value_type & it){
+        InferenceEngine::details::erase_if(*holder, [&](const Holder::value_type& it) {
             return it.second == node;
         });
     }

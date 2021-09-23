@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "ie_input_info.hpp"
+#include <limits>
+#include <vector>
 
 #include "cpu_shape.h"
+#include "ie_input_info.hpp"
 #include "ie_parallel.hpp"
-#include <vector>
-#include <limits>
 
 namespace MKLDNNPlugin {
 
@@ -19,10 +19,10 @@ public:
 
 public:
     void Load(const Shape& inputShape, InferenceEngine::InputInfo::Ptr inputInfo);
-    void NormalizeImage(const Shape &inputShape, float *input, InferenceEngine::Layout layout);
+    void NormalizeImage(const Shape& inputShape, float* input, InferenceEngine::Layout layout);
 
-    template<typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-    void NormalizeImage(const Shape &inputShape, T *input, InferenceEngine::Layout layout) {
+    template <typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+    void NormalizeImage(const Shape& inputShape, T* input, InferenceEngine::Layout layout) {
         IE_ASSERT(input != nullptr);
 
         const auto inputDims = inputShape.getStaticDims();
@@ -38,13 +38,15 @@ public:
         int srcSize = inputShape.getElementsCount() / MB;
 
         if (meanBuffer && meanBuffer->size()) {
-            const float * meanBufferValues = meanBuffer->readOnly();
+            const float* meanBufferValues = meanBuffer->readOnly();
 
             InferenceEngine::parallel_for2d(MB, srcSize, [&](int mb, int i) {
                 int buf = input[srcSize * mb + i];
                 buf -= meanBufferValues[i];
-                if (buf < (std::numeric_limits<T>::min)()) buf = (std::numeric_limits<T>::min)();
-                if (buf > (std::numeric_limits<T>::max)()) buf = (std::numeric_limits<T>::max)();
+                if (buf < (std::numeric_limits<T>::min)())
+                    buf = (std::numeric_limits<T>::min)();
+                if (buf > (std::numeric_limits<T>::max)())
+                    buf = (std::numeric_limits<T>::max)();
                 input[srcSize * mb + i] = buf;
             });
         } else if (!meanValues.empty() && !stdScales.empty()) {
@@ -60,8 +62,10 @@ public:
                 InferenceEngine::parallel_for3d(MB, C, srcSize, [&](int mb, int c, int i) {
                     int buf = input[srcSize * mb * C + c * srcSize + i];
                     buf -= meanValues[c];
-                    if (buf < (std::numeric_limits<T>::min)()) buf = (std::numeric_limits<T>::min)();
-                    if (buf > (std::numeric_limits<T>::max)()) buf = (std::numeric_limits<T>::max)();
+                    if (buf < (std::numeric_limits<T>::min)())
+                        buf = (std::numeric_limits<T>::min)();
+                    if (buf > (std::numeric_limits<T>::max)())
+                        buf = (std::numeric_limits<T>::max)();
                     input[srcSize * mb * C + c * srcSize + i] = buf;
                 });
             } else if (layout == InferenceEngine::NHWC) {
@@ -69,8 +73,10 @@ public:
                     for (int c = 0; c < C; c++) {
                         int buf = input[mb * srcSize * C + i * C + c];
                         buf -= meanValues[c];
-                        if (buf < (std::numeric_limits<T>::min)()) buf = (std::numeric_limits<T>::min)();
-                        if (buf > (std::numeric_limits<T>::max)()) buf = (std::numeric_limits<T>::max)();
+                        if (buf < (std::numeric_limits<T>::min)())
+                            buf = (std::numeric_limits<T>::min)();
+                        if (buf > (std::numeric_limits<T>::max)())
+                            buf = (std::numeric_limits<T>::max)();
                         input[mb * srcSize * C + i * C + c] = buf;
                     }
                 });

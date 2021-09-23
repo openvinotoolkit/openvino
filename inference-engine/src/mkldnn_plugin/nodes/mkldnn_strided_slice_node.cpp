@@ -4,21 +4,20 @@
 
 #include "mkldnn_strided_slice_node.h"
 
-#include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include <mkldnn_types.h>
 
-#include "ie_parallel.hpp"
-#include "caseless.hpp"
-#include "common/cpu_memcpy.h"
-#include "common/blocked_desc_creator.h"
-#include "utils/general_utils.h"
-#include "mkldnn_input_node.h"
-
+#include <algorithm>
+#include <ngraph/opsets/opset1.hpp>
 #include <string>
 #include <tuple>
-#include <algorithm>
+
 #include "caseless.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include "common/blocked_desc_creator.h"
+#include "common/cpu_memcpy.h"
+#include "ie_parallel.hpp"
+#include "mkldnn_input_node.h"
+#include "utils/general_utils.h"
 
 #define THROW_ERROR IE_THROW() << "StridedSlice layer with name '" << getName() << "' "
 
@@ -35,7 +34,8 @@ static inline size_t parallel_init(size_t start, size_t nDims, const SizeVector&
     return start;
 }
 
-bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                  std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -53,21 +53,24 @@ bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Node>& op,
+                                               const mkldnn::engine& eng,
+                                               MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         const auto ss = std::dynamic_pointer_cast<const ngraph::opset1::StridedSlice>(op);
 
         const size_t nDims = std::max(inputShapes[DATA_ID].getRank(), outputShapes[0].getRank());
 
-        auto createMask = [&](const std::vector<int64_t> &origMask, const int bit = 0, bool needReverse = false) {
+        auto createMask = [&](const std::vector<int64_t>& origMask, const int bit = 0, bool needReverse = false) {
             std::vector<int> mask(origMask.begin(), origMask.end());
             if (needReverse) {
                 for (size_t i = 0; i < mask.size(); i++)
                     mask[i] = 1 - mask[i];
             }
-            for (size_t i = mask.size(); i < nDims; ++i) mask.push_back(bit);
+            for (size_t i = mask.size(); i < nDims; ++i)
+                mask.push_back(bit);
             return mask;
         };
 
@@ -77,11 +80,12 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Nod
         shrinkAxisMask = createMask(ss->get_shrink_axis_mask());
 
         auto origEllipsisMask = ss->get_ellipsis_mask();
-        for (const auto &o : origEllipsisMask) {
+        for (const auto& o : origEllipsisMask) {
             ellipsisMask.push_back(o);
         }
         if (ellipsisMask.size() == 0) {
-            for (size_t i = ellipsisMask.size(); i < nDims; ++i) ellipsisMask.push_back(0);
+            for (size_t i = ellipsisMask.size(); i < nDims; ++i)
+                ellipsisMask.push_back(0);
         }
 
     } else {
@@ -90,7 +94,7 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Nod
 }
 
 void MKLDNNStridedSliceNode::getSupportedDescriptors() {
-    auto isConstantNode = [](const MKLDNNNodePtr &node) {
+    auto isConstantNode = [](const MKLDNNNodePtr& node) {
         return node->getType() == Input && node->isConstant();
     };
 
@@ -142,21 +146,24 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     params.equalDims = newAxis == 0 && shrinkAxis == 0;
 
     if (params.parametersAreConstant) {
-        auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
-            const auto constNode = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgesAtPort(type)[0]->getParent());
-            if (!constNode) {
-                THROW_ERROR << "can't cast node on " << type << " port to MKLDNNInputNode";
-            }
-            auto blob = constNode->getMemoryPtr();
-            if (blob->GetDataType() != mkldnn::memory::data_type::s32)
-                THROW_ERROR << "supports only parameters input with precision I32";
-            const int *ptr = static_cast<const int*>(blob->GetPtr());
-            parameter.assign(ptr, ptr + size);
+        auto fillingInParameters =
+            [&](std::vector<int>& parameter, const size_t type, const size_t size, const int value) {
+                const auto constNode =
+                    std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgesAtPort(type)[0]->getParent());
+                if (!constNode) {
+                    THROW_ERROR << "can't cast node on " << type << " port to MKLDNNInputNode";
+                }
+                auto blob = constNode->getMemoryPtr();
+                if (blob->GetDataType() != mkldnn::memory::data_type::s32)
+                    THROW_ERROR << "supports only parameters input with precision I32";
+                const int* ptr = static_cast<const int*>(blob->GetPtr());
+                parameter.assign(ptr, ptr + size);
 
-            if (ellipsisMaskCounter == 0 && size < nDims) {
-                for (size_t i = size; i < nDims; i++) parameter.push_back(value);
-            }
-        };
+                if (ellipsisMaskCounter == 0 && size < nDims) {
+                    for (size_t i = size; i < nDims; i++)
+                        parameter.push_back(value);
+                }
+            };
 
         if (beginDims.size())
             fillingInParameters(begin, BEGIN_ID, beginDims[0], 0);
@@ -172,7 +179,8 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
 
 void MKLDNNStridedSliceNode::addHiddenDims(const size_t nSrcDims) {
     // all masks and input parameters are for planar layouts. So if we use blocked or per channel layout and
-    // there is ellipsis should to add default values in hidden dimensions to know real order of mask or parameter values
+    // there is ellipsis should to add default values in hidden dimensions to know real order of mask or parameter
+    // values
     size_t afterDims = ellipsisMask.size() - params.ellipsisPos1 - 1;
     size_t ellipsisPos2 = nSrcDims - afterDims - 1;
 
@@ -231,7 +239,8 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     std::vector<LayoutType> supportedTypes;
     if (nDims > 2 && params.equalDims) {
         auto canUseBlocked = [=](const size_t blockSize) {
-            return srcDims[1] % blockSize == 0 && abs(stride[1]) == 1 && (begin[1] > srcDims[1] || begin[1] % blockSize == 0);
+            return srcDims[1] % blockSize == 0 && abs(stride[1]) == 1 &&
+                   (begin[1] > srcDims[1] || begin[1] % blockSize == 0);
         };
 
         supportedTypes.push_back(LayoutType::nspc);
@@ -246,10 +255,13 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
 
     for (auto itr = range.first; itr != range.second; ++itr) {
         config.inConfs[0].desc = itr->second->createSharedDesc(dataPrecision, getInputShapeAtPort(DATA_ID));
-        config.inConfs[BEGIN_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(beginPrecision, getInputShapeAtPort(BEGIN_ID));
-        config.inConfs[END_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(endPrecision, getInputShapeAtPort(END_ID));
+        config.inConfs[BEGIN_ID].desc =
+            creators.at(LayoutType::ncsp)->createSharedDesc(beginPrecision, getInputShapeAtPort(BEGIN_ID));
+        config.inConfs[END_ID].desc =
+            creators.at(LayoutType::ncsp)->createSharedDesc(endPrecision, getInputShapeAtPort(END_ID));
         if (hasStrides)
-            config.inConfs[STRIDE_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(stridePrecision, getInputShapeAtPort(STRIDE_ID));
+            config.inConfs[STRIDE_ID].desc =
+                creators.at(LayoutType::ncsp)->createSharedDesc(stridePrecision, getInputShapeAtPort(STRIDE_ID));
 
         config.outConfs[0].desc = itr->second->createSharedDesc(dataPrecision, getOutputShapeAtPort(DATA_ID));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
@@ -328,18 +340,20 @@ void MKLDNNStridedSliceNode::dimsNormalization(SizeVector& newSrcDims, SizeVecto
     // creating new src and dst dimensions and parameters of the same size using masks
     //
     // example 1: before srcDims = [5, 6, 8, 3, 2], begin = [1, 0], end = [4, 0], stride = [1, 1]
-    //            beginMask = [0, 1], endMask = [0, 1], ellipsisMask = [1, 0], newAxisMas = [0, 0], shrinkAxisMask = [0, 0]
-    //            after srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], end = [4, 5, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [4, 6, 8, 3, 2]
+    //            beginMask = [0, 1], endMask = [0, 1], ellipsisMask = [1, 0], newAxisMas = [0, 0], shrinkAxisMask = [0,
+    //            0] after srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], end = [4, 5, 7, 2, 1], stride = [1, 1, 1,
+    //            1, 1], dstDims = [4, 6, 8, 3, 2]
     //
-    // example 2: before srcDims = [5, 6, 8, 3, 2], begin = [0, 3, 0, 0, 0], end = [0, 3, 0, 0, 0], stride = [1, 1, 1, 1, 1]
-    //            beginMask = [1, 0, 1, 1, 1], endMask = [1, 0, 1, 1, 1], ellipsisMask = [0, 0, 0, 0, 0], newAxisMask = [0, 0, 0, 0, 0],
-    //            shrinkAxisMask = [0, 1, 0, 0, 0]
-    //            after srcDims = [5, 6, 8, 3, 2], begin = [0, 3, 0, 0, 0], end = [4, 3, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [5, 1, 8, 3, 2]
+    // example 2: before srcDims = [5, 6, 8, 3, 2], begin = [0, 3, 0, 0, 0], end = [0, 3, 0, 0, 0], stride = [1, 1, 1,
+    // 1, 1]
+    //            beginMask = [1, 0, 1, 1, 1], endMask = [1, 0, 1, 1, 1], ellipsisMask = [0, 0, 0, 0, 0], newAxisMask =
+    //            [0, 0, 0, 0, 0], shrinkAxisMask = [0, 1, 0, 0, 0] after srcDims = [5, 6, 8, 3, 2], begin = [0, 3, 0,
+    //            0, 0], end = [4, 3, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [5, 1, 8, 3, 2]
     //
     // example 3: before srcDims = [5, 8, 3, 2], begin = [0, 0, 0, 0], end = [0, 0, 0, 0], stride = [1, 1, 1, 1]
-    //            beginMask = [1, 0, 1, 1, 1], endMask = [1, 0, 1, 1, 1], ellipsisMask = [0, 0, 0, 0, 0], newAxisMask = [0, 1, 0, 0, 0],
-    //            shrinkAxisMask = [0, 0, 0, 0, 0]
-    //            after srcDims = [5, 1, 8, 3, 2], begin = [0, 0, 0, 0, 0], end = [4, 0, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [5, 1, 8, 3, 2]
+    //            beginMask = [1, 0, 1, 1, 1], endMask = [1, 0, 1, 1, 1], ellipsisMask = [0, 0, 0, 0, 0], newAxisMask =
+    //            [0, 1, 0, 0, 0], shrinkAxisMask = [0, 0, 0, 0, 0] after srcDims = [5, 1, 8, 3, 2], begin = [0, 0, 0,
+    //            0, 0], end = [4, 0, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [5, 1, 8, 3, 2]
 
     auto clipping = [](int& idx, const int min, const int max) {
         idx = (idx > min) ? idx : min;
@@ -401,8 +415,8 @@ void MKLDNNStridedSliceNode::dimsNormalization(SizeVector& newSrcDims, SizeVecto
                 correcting(b, params.srcDims[srcIdx]);
                 clipping(b, 0, params.srcDims[srcIdx]);
 
-                int e = endMask[axis] == 1 ? (stride[axis] > 0 ? end[axis] - 1 : end[axis] + 1) :
-                        (stride[axis] > 0 ? -1 : 0);
+                int e = endMask[axis] == 1 ? (stride[axis] > 0 ? end[axis] - 1 : end[axis] + 1)
+                                           : (stride[axis] > 0 ? -1 : 0);
                 correcting(e, params.srcDims[srcIdx]);
                 clipping(e, 0, params.srcDims[srcIdx]);
 
@@ -410,7 +424,8 @@ void MKLDNNStridedSliceNode::dimsNormalization(SizeVector& newSrcDims, SizeVecto
                 endTemp.push_back(e);
                 strideTemp.push_back(stride[axis]);
                 newSrcDims.push_back(params.srcDims[srcIdx]);
-                newDstDims.push_back(ceil(static_cast<float>(abs(e - b) + 1) / static_cast<float>(abs(strideTemp.back()))));
+                newDstDims.push_back(
+                    ceil(static_cast<float>(abs(e - b) + 1) / static_cast<float>(abs(strideTemp.back()))));
 
                 srcIdx++;
             }
@@ -432,12 +447,16 @@ void MKLDNNStridedSliceNode::dimsNormalization(SizeVector& newSrcDims, SizeVecto
     }
 }
 
-void MKLDNNStridedSliceNode::dimsGluing(const size_t realNDims, const SizeVector& newSrcDims, const SizeVector& newDstDims) {
+void MKLDNNStridedSliceNode::dimsGluing(const size_t realNDims,
+                                        const SizeVector& newSrcDims,
+                                        const SizeVector& newDstDims) {
     // gluing of dimensions if there aren't begin, end and stride != 1 on this axis
-    // example: before gluing srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], stride = [1, 1, 2, 1, 1], dstDims = [4, 6, 4, 3, 2]
-    //          after gluing  srcDims = [30, 8, 6],      begin = [6, 0, 0],       stride = [1, 2, 1],       dstDims = [24, 4, 6]
+    // example: before gluing srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], stride = [1, 1, 2, 1, 1], dstDims =
+    // [4, 6, 4, 3, 2]
+    //          after gluing  srcDims = [30, 8, 6],      begin = [6, 0, 0],       stride = [1, 2, 1],       dstDims =
+    //          [24, 4, 6]
 
-    std::pair<size_t, size_t> secondDim = { 0, begin.size() };
+    std::pair<size_t, size_t> secondDim = {0, begin.size()};
     SizeVector indexes(1, 0);
     for (int idx = 0; idx < begin.size(); idx++) {
         if (begin[idx] != 0 || end[idx] != params.srcDims[idx] - 1 || stride[idx] != 1) {
@@ -519,8 +538,9 @@ void MKLDNNStridedSliceNode::dimsGluing(const size_t realNDims, const SizeVector
         params.workAmount = params.dstDims[0] * params.dstDims[1];
         params.srcShift = (begin[0] * params.srcStrides[0] + begin[1] * params.srcStrides[1]) * params.dataSize;
     } else {
-        params.srcShift = stride.back() == 1 && stride.size() > 1 ?
-                          begin[params.nDimsForWork] * params.srcStrides[params.nDimsForWork] * params.dataSize : 0;
+        params.srcShift = stride.back() == 1 && stride.size() > 1
+                              ? begin[params.nDimsForWork] * params.srcStrides[params.nDimsForWork] * params.dataSize
+                              : 0;
     }
 }
 
@@ -538,7 +558,7 @@ void MKLDNNStridedSliceNode::indicesCalculation() {
         return;
     }
 
-    auto getSrcIdx = [this](const SizeVector& indexes){
+    auto getSrcIdx = [this](const SizeVector& indexes) {
         size_t srcIdx = 0;
         for (int i = 0; i < params.nDimsForWork; ++i)
             srcIdx += (begin[i] + indexes[i] * stride[i]) * params.srcStrides[i];
@@ -600,14 +620,16 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
         const size_t nDims = std::max(srcDims.size(), dstDims.size());
         const size_t ellipsisMaskCounter = std::accumulate(ellipsisMask.begin(), ellipsisMask.end(), 0);
 
-        auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
-            const int *ptr = reinterpret_cast<const int*>(this->getParentEdgeAt(type)->getMemoryPtr()->GetPtr());
-            parameter.assign(ptr, ptr + size);
+        auto fillingInParameters =
+            [&](std::vector<int>& parameter, const size_t type, const size_t size, const int value) {
+                const int* ptr = reinterpret_cast<const int*>(this->getParentEdgeAt(type)->getMemoryPtr()->GetPtr());
+                parameter.assign(ptr, ptr + size);
 
-            if (ellipsisMaskCounter == 0 && size < nDims) {
-                for (size_t i = size; i < nDims; i++) parameter.push_back(value);
-            }
-        };
+                if (ellipsisMaskCounter == 0 && size < nDims) {
+                    for (size_t i = size; i < nDims; i++)
+                        parameter.push_back(value);
+                }
+            };
 
         if (beginDims.size())
             fillingInParameters(begin, BEGIN_ID, beginDims[0], 0);

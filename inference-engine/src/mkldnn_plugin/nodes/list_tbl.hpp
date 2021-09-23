@@ -3,7 +3,6 @@
 //
 
 #ifndef MKLDNN_EXTENSION_NODE
-# warning "MKLDNN_EXTENSION_NODE is not defined"
-# define MKLDNN_EXTENSION_NODE(__prim, __type)
+#warning "MKLDNN_EXTENSION_NODE is not defined"
+#define MKLDNN_EXTENSION_NODE(__prim, __type)
 #endif
-

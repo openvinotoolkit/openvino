@@ -5,8 +5,9 @@
 #include "convert_to_swish_cpu.hpp"
 
 #include <ngraph/opsets/opset4.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+
 #include "op/swish_cpu.hpp"
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertToSwishCPU, "ConvertToSwishCPU", 0);
@@ -15,7 +16,7 @@ MKLDNNPlugin::ConvertToSwishCPU::ConvertToSwishCPU() {
     auto swish = ngraph::pattern::wrap_type<ngraph::opset4::Swish>();
 
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
-        auto swish = std::dynamic_pointer_cast<ngraph::opset4::Swish> (m.get_match_root());
+        auto swish = std::dynamic_pointer_cast<ngraph::opset4::Swish>(m.get_match_root());
         if (!swish) {
             return false;
         }

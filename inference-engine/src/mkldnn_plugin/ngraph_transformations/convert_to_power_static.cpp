@@ -7,14 +7,15 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset6.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
-#include "op/power_static.hpp"
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+
 #include "op/fully_connected.hpp"
+#include "op/power_static.hpp"
 #include "utils/general_utils.h"
 
-int getConstPort(const std::shared_ptr<ngraph::Node> &node) {
+int getConstPort(const std::shared_ptr<ngraph::Node>& node) {
     const auto const1 = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(0));
     const auto const2 = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(1));
     int constPort = -1;
@@ -27,10 +28,10 @@ int getConstPort(const std::shared_ptr<ngraph::Node> &node) {
 }
 
 template <class BaseOp>
-bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
+bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp>& node) {
     const int constPort = getConstPort(node);
-    if ((!node->get_input_element_type(0).is_real() && !node->get_input_element_type(1).is_real()) || !node->get_output_element_type(0).is_real() ||
-            constPort == -1) {
+    if ((!node->get_input_element_type(0).is_real() && !node->get_input_element_type(1).is_real()) ||
+        !node->get_output_element_type(0).is_real() || constPort == -1) {
         return false;
     }
 
@@ -39,21 +40,21 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
     if (input_rank.is_dynamic())
         return false;
     auto const_shape = node->get_input_shape(constPort);
-    return ngraph::shape_size(const_shape) == 1 &&
-           input_rank.get_length() >= const_shape.size() &&
-           !MKLDNNPlugin::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(), ngraph::opset1::NormalizeL2::type_info,
-                                                                                                 ngraph::opset4::Interpolate::type_info,
-                                                                                                 ngraph::opset1::Convolution::type_info,
-                                                                                                 ngraph::opset1::GroupConvolution::type_info,
-                                                                                                 ngraph::opset1::ConvolutionBackpropData::type_info,
-                                                                                                 ngraph::opset1::GroupConvolutionBackpropData::type_info,
-                                                                                                 MKLDNNPlugin::FullyConnectedNode::type_info,
-                                                                                                 ngraph::op::v0::MVN::type_info,
-                                                                                                 ngraph::opset6::MVN::type_info);
+    return ngraph::shape_size(const_shape) == 1 && input_rank.get_length() >= const_shape.size() &&
+           !MKLDNNPlugin::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
+                                 ngraph::opset1::NormalizeL2::type_info,
+                                 ngraph::opset4::Interpolate::type_info,
+                                 ngraph::opset1::Convolution::type_info,
+                                 ngraph::opset1::GroupConvolution::type_info,
+                                 ngraph::opset1::ConvolutionBackpropData::type_info,
+                                 ngraph::opset1::GroupConvolutionBackpropData::type_info,
+                                 MKLDNNPlugin::FullyConnectedNode::type_info,
+                                 ngraph::op::v0::MVN::type_info,
+                                 ngraph::opset6::MVN::type_info);
 }
 
 template <>
-bool isConvertableToPowerStatic(const std::shared_ptr<ngraph::opset1::Power> &node) {
+bool isConvertableToPowerStatic(const std::shared_ptr<ngraph::opset1::Power>& node) {
     auto input_rank = node->get_input_partial_shape(0).rank();
     auto const_shape = node->get_input_shape(1);
     if (input_rank.is_dynamic())
@@ -63,16 +64,23 @@ bool isConvertableToPowerStatic(const std::shared_ptr<ngraph::opset1::Power> &no
 }
 
 template <class BaseOp>
-std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
+std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp>& node) {
     const int constPort = getConstPort(node);
     const int nonConstPort = 1 - constPort;
-    std::shared_ptr<ngraph::opset1::Constant> powerNode = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(constPort));
+    std::shared_ptr<ngraph::opset1::Constant> powerNode =
+        std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(constPort));
     const float value = powerNode->cast_vector<float>()[0];
     if (std::is_same<BaseOp, ngraph::opset1::Power>::value) {
-        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), value, 1.0f, 0.0f,
+        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
+                                                               value,
+                                                               1.0f,
+                                                               0.0f,
                                                                node->output(0).get_element_type());
     } else if (std::is_same<BaseOp, ngraph::opset1::Add>::value) {
-        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.0f, 1.0f, value,
+        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
+                                                               1.0f,
+                                                               1.0f,
+                                                               value,
                                                                node->output(0).get_element_type());
     } else if (std::is_same<BaseOp, ngraph::opset1::Subtract>::value) {
         float scale = 1.0f;
@@ -82,10 +90,16 @@ std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
         } else {
             shift *= -1.0f;
         }
-        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.0f, scale, shift,
+        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
+                                                               1.0f,
+                                                               scale,
+                                                               shift,
                                                                node->output(0).get_element_type());
     } else if (std::is_same<BaseOp, ngraph::opset1::Multiply>::value) {
-        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.f, value, 0.0f,
+        return std::make_shared<MKLDNNPlugin::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
+                                                               1.f,
+                                                               value,
+                                                               0.0f,
                                                                node->output(0).get_element_type());
     } else {
         throw ngraph::ngraph_error("ConvertToPowerStatic: op type is not supported");
@@ -103,7 +117,7 @@ MKLDNNPlugin::ConvertToPowerStatic::ConvertToPowerStatic() {
     auto mult = ngraph::pattern::wrap_type<ngraph::opset1::Multiply>(twoInputs);
     const auto candidate = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{power, add, sub, mult});
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto node = m.get_match_root();
 
         std::shared_ptr<ngraph::Node> toReplace = node;

@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include "proposal_imp.hpp"
 
 using proposal_conf = InferenceEngine::Extensions::Cpu::proposal_conf;
@@ -14,11 +15,13 @@ namespace MKLDNNPlugin {
 
 class MKLDNNProposalNode : public MKLDNNNode {
 public:
-    MKLDNNProposalNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNProposalNode(const std::shared_ptr<ngraph::Node>& op,
+                       const mkldnn::engine& eng,
+                       MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 

@@ -3,23 +3,23 @@
 //
 
 #include "mkldnn_extension.h"
+
+#include <mutex>
+#include <ngraph/ngraph.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
+
 #include "ngraph_transformations/op/fully_connected.hpp"
 #include "ngraph_transformations/op/leaky_relu.hpp"
 #include "ngraph_transformations/op/power_static.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
-
-#include <mutex>
-
 namespace MKLDNNPlugin {
 
 void MKLDNNExtension::GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept {
     static const InferenceEngine::Version version = {
-        {1, 0},             // extension API version
+        {1, 0},  // extension API version
         "1.0",
-        "MKLDNNExtension"   // extension description message
+        "MKLDNNExtension"  // extension description message
     };
 
     versionInfo = &version;
@@ -95,10 +95,8 @@ std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
         return opset;
     };
 
-    static std::map<std::string, ngraph::OpSet> opsets = {
-        { "cpu_plugin_opset", cpu_plugin_opset() },
-        { "type_relaxed_opset", type_relaxed_opset() }
-    };
+    static std::map<std::string, ngraph::OpSet> opsets = {{"cpu_plugin_opset", cpu_plugin_opset()},
+                                                          {"type_relaxed_opset", type_relaxed_opset()}};
 
     return opsets;
 }
@@ -107,7 +105,8 @@ std::vector<std::string> MKLDNNExtension::getImplTypes(const std::shared_ptr<ngr
     return {};
 }
 
-InferenceEngine::ILayerImpl::Ptr MKLDNNExtension::getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) {
+InferenceEngine::ILayerImpl::Ptr MKLDNNExtension::getImplementation(const std::shared_ptr<ngraph::Node>& node,
+                                                                    const std::string& implType) {
     return nullptr;
 }
 

@@ -3,8 +3,9 @@
 //
 
 #include <shared_test_classes/single_layer/normalize_l2.hpp>
-#include "test_utils/fusing_test_utils.hpp"
+
 #include "ngraph_functions/builders.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -13,12 +14,11 @@ using namespace LayerTestsDefinitions;
 
 namespace CPULayerTestsDefinitions {
 
-using NormalizeL2LayerCPUTestParamSet = std::tuple<NormalizeL2LayerTestParams,
-                                                   CPUSpecificParams,
-                                                   fusingSpecificParams>;
+using NormalizeL2LayerCPUTestParamSet = std::tuple<NormalizeL2LayerTestParams, CPUSpecificParams, fusingSpecificParams>;
 
 class NormalizeL2LayerCPUTest : public testing::WithParamInterface<NormalizeL2LayerCPUTestParamSet>,
-                                virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
+                                virtual public LayerTestsUtils::LayerTestsCommon,
+                                public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerCPUTestParamSet> obj) {
         NormalizeL2LayerTestParams basicParamsSet;
@@ -27,7 +27,8 @@ public:
         std::tie(basicParamsSet, cpuParams, fusingParams) = obj.param;
 
         std::ostringstream result;
-        result << NormalizeL2LayerTest::getTestCaseName(testing::TestParamInfo<NormalizeL2LayerTestParams>(basicParamsSet, 0));
+        result << NormalizeL2LayerTest::getTestCaseName(
+            testing::TestParamInfo<NormalizeL2LayerTestParams>(basicParamsSet, 0));
         result << CPUTestsBase::getTestCaseName(cpuParams);
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
@@ -73,40 +74,29 @@ TEST_P(NormalizeL2LayerCPUTest, CompareWithRefs) {
 namespace {
 
 /* ============= Common params ============= */
-std::vector<fusingSpecificParams> fusingParamsSet {
-        emptyFusingSpec,
-        fusingMultiplyPerTensor,
-        fusingMultiplyPerChannel,
-        fusingAddPerTensor,
-        fusingAddPerChannel,
-        fusingSubtractPerTensor,
-        fusingSubtractPerChannel,
-        fusingDividePerTensor,
-        fusingDividePerChannel,
-        fusingPReluPerChannel,
-        fusingPReluPerTensor,
-        fusingRelu,
-        fusingGelu,
-        fusingReluScaleShift
-};
+std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec,
+                                                  fusingMultiplyPerTensor,
+                                                  fusingMultiplyPerChannel,
+                                                  fusingAddPerTensor,
+                                                  fusingAddPerChannel,
+                                                  fusingSubtractPerTensor,
+                                                  fusingSubtractPerChannel,
+                                                  fusingDividePerTensor,
+                                                  fusingDividePerChannel,
+                                                  fusingPReluPerChannel,
+                                                  fusingPReluPerTensor,
+                                                  fusingRelu,
+                                                  fusingGelu,
+                                                  fusingReluScaleShift};
 
 const float epsilon = 1e-4f;
 const op::EpsMode epsMode = op::EpsMode::ADD;
-const std::vector<Precision> netPrecisions = {
-    Precision::FP32,
-    Precision::BF16
-};
+const std::vector<Precision> netPrecisions = {Precision::FP32, Precision::BF16};
 
 /* ============= 2D ============= */
-const std::vector<std::vector<size_t>> inputShape_2D = {
-    {2, 3},
-    {2, 16},
-    {3, 20}
-};
+const std::vector<std::vector<size_t>> inputShape_2D = {{2, 3}, {2, 16}, {3, 20}};
 
-const std::vector<std::vector<int64_t>> axes_2D = {
-    {1}
-};
+const std::vector<std::vector<int64_t>> axes_2D = {{1}};
 
 const auto normalizeParams_2D = ::testing::Combine(::testing::ValuesIn(axes_2D),
                                                    ::testing::Values(epsilon),
@@ -122,17 +112,9 @@ const auto testParams_2D = ::testing::Combine(normalizeParams_2D,
 INSTANTIATE_TEST_SUITE_P(smoke_2D, NormalizeL2LayerCPUTest, testParams_2D, NormalizeL2LayerCPUTest::getTestCaseName);
 
 /* ============= 3D ============= */
-const std::vector<std::vector<size_t>> inputShape_3D = {
-    {2, 3, 4},
-    {2, 16, 6},
-    {3, 20, 10}
-};
+const std::vector<std::vector<size_t>> inputShape_3D = {{2, 3, 4}, {2, 16, 6}, {3, 20, 10}};
 
-const std::vector<std::vector<int64_t>> axes_3D = {
-    {1, 2},
-    {2, 1},
-    {1}
-};
+const std::vector<std::vector<int64_t>> axes_3D = {{1, 2}, {2, 1}, {1}};
 
 const auto normalizeParams_3D = ::testing::Combine(::testing::ValuesIn(axes_3D),
                                                    ::testing::Values(epsilon),
@@ -148,17 +130,9 @@ const auto testParams_3D = ::testing::Combine(normalizeParams_3D,
 INSTANTIATE_TEST_SUITE_P(smoke_3D, NormalizeL2LayerCPUTest, testParams_3D, NormalizeL2LayerCPUTest::getTestCaseName);
 
 /* ============= 4D ============= */
-const std::vector<std::vector<size_t>> inputShape_4D = {
-    {2, 3, 4, 4},
-    {2, 16, 7, 6},
-    {3, 20, 2, 10}
-};
+const std::vector<std::vector<size_t>> inputShape_4D = {{2, 3, 4, 4}, {2, 16, 7, 6}, {3, 20, 2, 10}};
 
-const std::vector<std::vector<int64_t>> axes_4D = {
-    {1, 2, 3},
-    {3, 1, 2},
-    {1}
-};
+const std::vector<std::vector<int64_t>> axes_4D = {{1, 2, 3}, {3, 1, 2}, {1}};
 
 std::vector<CPUSpecificParams> getCPUSpecificParams() {
     std::vector<CPUSpecificParams> result;
@@ -187,6 +161,6 @@ const auto testParams_4D = ::testing::Combine(normalizeParams_4D,
 
 INSTANTIATE_TEST_SUITE_P(smoke_4D, NormalizeL2LayerCPUTest, testParams_4D, NormalizeL2LayerCPUTest::getTestCaseName);
 
-} // namespace
+}  // namespace
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace CPULayerTestsDefinitions

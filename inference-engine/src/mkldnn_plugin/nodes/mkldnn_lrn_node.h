@@ -6,15 +6,16 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNLrnNode : public MKLDNNNode {
 public:
-    MKLDNNLrnNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNLrnNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -22,7 +23,7 @@ public:
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
@@ -42,4 +43,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-

@@ -5,17 +5,20 @@
 #pragma once
 
 #include <ie_common.h>
-#include <mkldnn_node.h>
-#include <string>
-#include <memory>
-#include <vector>
 #include <mkldnn_extension_utils.h>
+#include <mkldnn_node.h>
+
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNROIAlignNode : public MKLDNNNode {
 public:
-    MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op,
+                       const mkldnn::engine& eng,
+                       MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -32,7 +35,7 @@ private:
     float spatialScale = 1.0f;
     template <typename inputType, typename outputType>
     void executeSpecified();
-    template<typename T>
+    template <typename T>
     struct ROIAlignExecute;
 
     std::string errorPrefix;

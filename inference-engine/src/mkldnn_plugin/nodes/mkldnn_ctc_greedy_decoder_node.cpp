@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "mkldnn_ctc_greedy_decoder_node.h"
+
+#include <ngraph/op/ctc_greedy_decoder.hpp>
 #include <string>
 #include <vector>
 
-#include <ngraph/op/ctc_greedy_decoder.hpp>
 #include "ie_parallel.hpp"
-#include "mkldnn_ctc_greedy_decoder_node.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNCTCGreedyDecoderNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNCTCGreedyDecoderNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                      std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -29,8 +31,10 @@ bool MKLDNNCTCGreedyDecoderNode::isSupportedOperation(const std::shared_ptr<cons
     return true;
 }
 
-MKLDNNCTCGreedyDecoderNode::MKLDNNCTCGreedyDecoderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNCTCGreedyDecoderNode::MKLDNNCTCGreedyDecoderNode(const std::shared_ptr<ngraph::Node>& op,
+                                                       const mkldnn::engine& eng,
+                                                       MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -62,16 +66,16 @@ void MKLDNNCTCGreedyDecoderNode::initSupportedPrimitiveDescriptors() {
     if (seqLenPrecision != Precision::FP32 && seqLenPrecision != Precision::BF16)
         IE_THROW() << errorPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::FP32}},
                          {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNCTCGreedyDecoderNode::execute(mkldnn::stream strm) {
-    const float* probabilities = reinterpret_cast<const float *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
-    const float* sequenceMask = reinterpret_cast<const float *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
-    float* outputSequences = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const float* probabilities = reinterpret_cast<const float*>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
+    const float* sequenceMask =
+        reinterpret_cast<const float*>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
+    float* outputSequences = reinterpret_cast<float*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];
     const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];
@@ -142,7 +146,7 @@ void MKLDNNCTCGreedyDecoderNode::execute(mkldnn::stream strm) {
             }
             tStart = 0lu;
         }
-    }; // thread body
+    };  // thread body
 
     parallel_nt(0, threadBody);
 
@@ -152,8 +156,7 @@ void MKLDNNCTCGreedyDecoderNode::execute(mkldnn::stream strm) {
         const size_t sequenceLength = sequenceLengths[b];
         float* shiftedOut = outputSequences + b * T;
         for (size_t t = 0; t < sequenceLength; ++t) {
-            if (*shiftedOut < blankIndex &&
-                !(mergeRepeated && *shiftedOut == prevClassIdx)) {
+            if (*shiftedOut < blankIndex && !(mergeRepeated && *shiftedOut == prevClassIdx)) {
                 outputSequences[outputIndex++] = *shiftedOut;
             }
             prevClassIdx = *shiftedOut;

@@ -27,7 +27,15 @@ protected:
             const std::vector<size_t> dilation = {1, 1};
             const size_t numOutChannels = 16;
             const op::PadType paddingType = op::PadType::EXPLICIT;
-            conv = builder::makeConvolution(paramOuts[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
+            conv = builder::makeConvolution(paramOuts[0],
+                                            element::f32,
+                                            kernelSize,
+                                            strides,
+                                            padBegin,
+                                            padEnd,
+                                            dilation,
+                                            paddingType,
+                                            numOutChannels);
         }
         const auto sharedNode = builder::makeConstant(element::f32, {1, 16, 1, 1}, std::vector<float>{}, true);
         const auto postOpCandidate = builder::makeEltwise(conv, sharedNode, EltwiseTypes::ADD);
@@ -45,4 +53,4 @@ TEST_F(NotFusedConvSimpleOp, smoke_CompareWithRefs) {
     Run();
 }
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

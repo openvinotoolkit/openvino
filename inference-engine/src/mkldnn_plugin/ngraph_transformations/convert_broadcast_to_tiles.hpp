@@ -8,10 +8,10 @@
 
 namespace MKLDNNPlugin {
 
-class ConvertBroadcastToTiles: public ngraph::pass::MatcherPass {
+class ConvertBroadcastToTiles : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertBroadcastToTiles();
 };
 
-} // namespace MKLDNNPlugin
+}  // namespace MKLDNNPlugin

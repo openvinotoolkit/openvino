@@ -6,17 +6,20 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
-#include <memory>
-#include <vector>
 #include <utils/general_utils.h>
+
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNReorderNode : public MKLDNNNode {
 public:
-    MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    MKLDNNReorderNode(const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op,
+                      const mkldnn::engine& eng,
+                      MKLDNNWeightsSharing::Ptr& cache);
+    MKLDNNReorderNode(const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -45,12 +48,16 @@ public:
         return false;
     }
 
-    const MemoryDesc& getInput() { return *input; }
-    const MemoryDesc& getOutput() { return *output; }
+    const MemoryDesc& getInput() {
+        return *input;
+    }
+    const MemoryDesc& getOutput() {
+        return *output;
+    }
 
-    static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
+    static std::string getReorderArgs(const MemoryDesc& parentDesc, const MemoryDesc& childDesc);
 
-    static void reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size = 0);
+    static void reorderData(const MKLDNNMemory& input, const MKLDNNMemory& output, size_t size = 0);
 
 private:
     std::shared_ptr<MemoryDesc> input;
@@ -65,7 +72,10 @@ private:
 
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
-    void createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr);
+    void createReorderPrimitive(const mkldnn::memory::desc& srcDesc,
+                                void* srcPtr,
+                                const mkldnn::memory::desc& dstDesc,
+                                void* dstPtr);
 };
 
 }  // namespace MKLDNNPlugin

@@ -3,6 +3,7 @@
 //
 
 #include "normalize_preprocess.h"
+
 #include "ie_parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
 #include "utils/general_utils.h"
@@ -10,11 +11,10 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-NormalizePreprocess::NormalizePreprocess() : meanBuffer(nullptr) {
-}
+NormalizePreprocess::NormalizePreprocess() : meanBuffer(nullptr) {}
 
 void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo) {
-    PreProcessInfo &pp = inputInfo->getPreProcess();
+    PreProcessInfo& pp = inputInfo->getPreProcess();
     size_t inChannels = pp.getNumberOfChannels();
     if (inChannels == 0) {
         meanBuffer = nullptr;
@@ -26,58 +26,60 @@ void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo
     }
 
     switch (pp.getMeanVariant()) {
-        case MEAN_VALUE: {
-            // mean and standard deviation image common value per channel (1x1xC)
-            meanValues.resize(inChannels);
-            stdScales.resize(inChannels);
+    case MEAN_VALUE: {
+        // mean and standard deviation image common value per channel (1x1xC)
+        meanValues.resize(inChannels);
+        stdScales.resize(inChannels);
 
-            for (unsigned channel = 0; channel < inChannels; channel++) {
-                if (pp[channel]->stdScale == 0) {
-                    IE_THROW() << "Preprocessing error: stdScale cannot be equal zero";
-                }
-                meanValues[channel] = pp[channel]->meanValue;
-                stdScales[channel] = pp[channel]->stdScale;
+        for (unsigned channel = 0; channel < inChannels; channel++) {
+            if (pp[channel]->stdScale == 0) {
+                IE_THROW() << "Preprocessing error: stdScale cannot be equal zero";
             }
+            meanValues[channel] = pp[channel]->meanValue;
+            stdScales[channel] = pp[channel]->stdScale;
         }
-        break;
-        case MEAN_IMAGE: {
-            // since MKLDNN expects all channels in the same buffer - we copy it here as it comes from different channels...
-            auto meanWidth = pp[0]->meanData->getTensorDesc().getDims()[pp[0]->meanData->getTensorDesc().getDims().size() - 1];
-            auto meanHeight = pp[0]->meanData->getTensorDesc().getDims()[pp[0]->meanData->getTensorDesc().getDims().size() - 2];
+    } break;
+    case MEAN_IMAGE: {
+        // since MKLDNN expects all channels in the same buffer - we copy it here as it comes from different channels...
+        auto meanWidth =
+            pp[0]->meanData->getTensorDesc().getDims()[pp[0]->meanData->getTensorDesc().getDims().size() - 1];
+        auto meanHeight =
+            pp[0]->meanData->getTensorDesc().getDims()[pp[0]->meanData->getTensorDesc().getDims().size() - 2];
 
-            TensorDesc desc(Precision::FP32, {inChannels, meanHeight, meanWidth}, Layout::CHW);
+        TensorDesc desc(Precision::FP32, {inChannels, meanHeight, meanWidth}, Layout::CHW);
 
-            meanBuffer = make_shared_blob<float>(desc);
+        meanBuffer = make_shared_blob<float>(desc);
 
-            meanBuffer->allocate();
+        meanBuffer->allocate();
 
-            for (unsigned channel = 0; channel < inChannels; channel++) {
-                Blob::Ptr meanBlob = pp[channel]->meanData;
-                if (!meanBlob || meanBlob->getTensorDesc().getPrecision() != Precision::FP32)
-                    IE_THROW() << "mean image not provided or not in Float 32";
-                if (meanBlob->size() != meanHeight*meanWidth) {
-                    IE_THROW() << "mean image size does not match expected network input, expecting " << meanWidth << " x " << meanHeight;
-                }
-                // todo: cast to TBlob and make sure it is floats
-                cpu_memcpy_s(meanBuffer->data() + channel*meanBlob->size(), meanBuffer->byteSize() - channel*meanBlob->byteSize(),
-                          meanBlob->buffer(), meanBlob->byteSize());
+        for (unsigned channel = 0; channel < inChannels; channel++) {
+            Blob::Ptr meanBlob = pp[channel]->meanData;
+            if (!meanBlob || meanBlob->getTensorDesc().getPrecision() != Precision::FP32)
+                IE_THROW() << "mean image not provided or not in Float 32";
+            if (meanBlob->size() != meanHeight * meanWidth) {
+                IE_THROW() << "mean image size does not match expected network input, expecting " << meanWidth << " x "
+                           << meanHeight;
             }
+            // todo: cast to TBlob and make sure it is floats
+            cpu_memcpy_s(meanBuffer->data() + channel * meanBlob->size(),
+                         meanBuffer->byteSize() - channel * meanBlob->byteSize(),
+                         meanBlob->buffer(),
+                         meanBlob->byteSize());
         }
-            break;
+    } break;
 
-        case NONE: {
-            // there is no mean image. So disable mean image step
-            meanBuffer = nullptr;
-        }
-            break;
+    case NONE: {
+        // there is no mean image. So disable mean image step
+        meanBuffer = nullptr;
+    } break;
 
-        default: {
-            IE_THROW() << "Unsupported mean variant: " << pp.getMeanVariant();
-        }
+    default: {
+        IE_THROW() << "Unsupported mean variant: " << pp.getMeanVariant();
+    }
     }
 }
 
-void NormalizePreprocess::NormalizeImage(const Shape &inputShape, float *input, InferenceEngine::Layout layout) {
+void NormalizePreprocess::NormalizeImage(const Shape& inputShape, float* input, InferenceEngine::Layout layout) {
     IE_ASSERT(input != nullptr);
 
     const auto inputDims = inputShape.getStaticDims();
@@ -93,7 +95,7 @@ void NormalizePreprocess::NormalizeImage(const Shape &inputShape, float *input, 
     int srcSize = inputShape.getElementsCount() / MB;
 
     if (meanBuffer && meanBuffer->size()) {
-        const float * meanBufferValues = meanBuffer->readOnly();
+        const float* meanBufferValues = meanBuffer->readOnly();
 
         parallel_for2d(MB, srcSize, [&](int mb, int i) {
             input[srcSize * mb + i] -= meanBufferValues[i];

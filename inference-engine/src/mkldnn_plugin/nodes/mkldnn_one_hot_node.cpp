@@ -2,22 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
+#include "mkldnn_one_hot_node.h"
+
+#include <mkldnn_selective_build.h>
 #include <mkldnn_types.h>
+#include <nodes/common/blocked_desc_creator.h>
+
+#include <cmath>
+#include <ngraph/opsets/opset1.hpp>
+#include <string>
+#include <vector>
+
+#include "common/cpu_memcpy.h"
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
-#include <mkldnn_selective_build.h>
-#include "mkldnn_one_hot_node.h"
-#include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset1.hpp>
-#include "common/cpu_memcpy.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                            std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -28,15 +32,18 @@ bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<const ngraph::
             errorMessage = "Only opset1 OneHot operation is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID)) == nullptr) {
+        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID)) ==
+            nullptr) {
             errorMessage = "Only const 'depth' input is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) == nullptr) {
+        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) ==
+            nullptr) {
             errorMessage = "Only const 'on_value' input is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID)) == nullptr) {
+        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(
+                oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID)) == nullptr) {
             errorMessage = "Only const 'off_value' input is supported";
             return false;
         }
@@ -46,8 +53,10 @@ bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op,
+                                   const mkldnn::engine& eng,
+                                   MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -55,9 +64,12 @@ MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, cons
 
     errorPrefix = "OneHot layer with name '" + op->get_friendly_name() + "'";
     const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
-    const auto depthNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
-    const auto onValueNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID));
-    const auto offValueNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID));
+    const auto depthNode =
+        std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
+    const auto onValueNode =
+        std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID));
+    const auto offValueNode =
+        std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID));
     depth = depthNode->cast_vector<uint32_t>()[0];
     axis = oneHot->get_axis();
     src_dims = oneHot->get_input_shape(INDICES_ID);
@@ -77,8 +89,8 @@ MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW() << errorPrefix << " has unsupported 'axis' attribute: " << oneHot->get_axis();
     }
 
-    if (!( ((1 + src_dims.size()) == dst_dims.size()) ||
-           (src_dims.size() == 1 && dst_dims.size() == 1 && dst_dims[0] == depth && src_dims[0] == 1)))
+    if (!(((1 + src_dims.size()) == dst_dims.size()) ||
+          (src_dims.size() == 1 && dst_dims.size() == 1 && dst_dims[0] == depth && src_dims[0] == 1)))
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
 }
 
@@ -101,13 +113,13 @@ void MKLDNNOneHotNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-template<typename out_type>
+template <typename out_type>
 void MKLDNNOneHotNode::one_hot(size_t prefix_size, size_t suffix_size) {
-    const auto *src_data = reinterpret_cast<const in_type *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dst_data = reinterpret_cast<out_type *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* src_data = reinterpret_cast<const in_type*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto* dst_data = reinterpret_cast<out_type*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    const out_type on_value = reinterpret_cast<const out_type *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr())[0];
-    const out_type off_value = reinterpret_cast<const out_type *>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr())[0];
+    const out_type on_value = reinterpret_cast<const out_type*>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr())[0];
+    const out_type off_value = reinterpret_cast<const out_type*>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr())[0];
 
     // fill the output with off_value
     std::size_t dst_size = prefix_size * depth * suffix_size;
@@ -138,7 +150,10 @@ void MKLDNNOneHotNode::execute(mkldnn::stream strm) {
     std::size_t suffix_size = getParentEdgeAt(0)->getMemory().GetShape().getElementsCount() / prefix_size;
 
     OneHotContext ctx = {this, prefix_size, suffix_size};
-    OV_SWITCH(MKLDNNPlugin, OneHotExecute, ctx, output_precision.size(),
+    OV_SWITCH(MKLDNNPlugin,
+              OneHotExecute,
+              ctx,
+              output_precision.size(),
               OV_CASE(sizeof(uint32_t), uint32_t),
               OV_CASE(sizeof(uint16_t), uint16_t),
               OV_CASE(sizeof(uint8_t), uint8_t))

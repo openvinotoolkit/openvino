@@ -6,10 +6,11 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
-#include <memory>
-#include <vector>
 #include <nodes/common/softmax.h>
+
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace MKLDNNPlugin {
 
@@ -27,9 +28,12 @@ struct jit_logistic_config_params {
 };
 
 struct jit_uni_logistic_kernel {
-    void (*ker_)(const jit_args_logistic *);
+    void (*ker_)(const jit_args_logistic*);
 
-    void operator()(const jit_args_logistic *args) { assert(ker_); ker_(args); }
+    void operator()(const jit_args_logistic* args) {
+        assert(ker_);
+        ker_(args);
+    }
 
     virtual void create_ker() = 0;
 
@@ -39,9 +43,11 @@ struct jit_uni_logistic_kernel {
 
 class MKLDNNRegionYoloNode : public MKLDNNNode {
 public:
-    MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& op,
+                         const mkldnn::engine& eng,
+                         MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
@@ -69,7 +75,7 @@ private:
     };
 
     inline float logistic_scalar(float src);
-    inline void calculate_logistic(size_t start_index, int count, uint8_t * dst_data);
+    inline void calculate_logistic(size_t start_index, int count, uint8_t* dst_data);
 };
 
 }  // namespace MKLDNNPlugin

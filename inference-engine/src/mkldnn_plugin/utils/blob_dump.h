@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "mkldnn_memory.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-
 #include <string>
+
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "mkldnn_memory.h"
 
 namespace MKLDNNPlugin {
 
@@ -22,30 +22,30 @@ namespace MKLDNNPlugin {
 class BlobDumper {
     MKLDNNMemoryPtr memory;
 
-    void prepare_plain_data(const MKLDNNMemoryPtr &memory, std::vector<uint8_t> &data) const;
+    void prepare_plain_data(const MKLDNNMemoryPtr& memory, std::vector<uint8_t>& data) const;
 
 public:
     BlobDumper() = default;
-    BlobDumper(const DnnlBlockedMemoryDesc &desc) {
+    BlobDumper(const DnnlBlockedMemoryDesc& desc) {
         mkldnn::engine eng(mkldnn::engine::kind::cpu, 0);
         memory = std::make_shared<MKLDNNMemory>(eng);
         memory->Create(desc);
     }
     BlobDumper(const BlobDumper&) = default;
-    BlobDumper& operator = (BlobDumper&&) = default;
+    BlobDumper& operator=(BlobDumper&&) = default;
 
-    explicit BlobDumper(const MKLDNNMemoryPtr &_memory) : memory(_memory) {}
+    explicit BlobDumper(const MKLDNNMemoryPtr& _memory) : memory(_memory) {}
 
-    static BlobDumper read(const std::string &file_path);
-    static BlobDumper read(std::istream &stream);
+    static BlobDumper read(const std::string& file_path);
+    static BlobDumper read(std::istream& stream);
 
-    void dump(const std::string &file_path) const;
-    void dump(std::ostream &stream) const;
+    void dump(const std::string& file_path) const;
+    void dump(std::ostream& stream) const;
 
-    void dumpAsTxt(const std::string &file_path) const;
-    void dumpAsTxt(std::ostream &stream) const;
+    void dumpAsTxt(const std::string& file_path) const;
+    void dumpAsTxt(std::ostream& stream) const;
 
-    void *getDataPtr() const {
+    void* getDataPtr() const {
         return memory->GetPtr();
     }
 };

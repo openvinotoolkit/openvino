@@ -5,30 +5,32 @@
 #pragma once
 
 #include <ie_api.h>
-#include <memory>
-#include <vector>
-#include <string>
-#include <cassert>
+#include <nodes/common/blocked_desc_creator.h>
+
 #include <algorithm>
 #include <caseless.hpp>
-#include "mkldnn_memory.h"
-#include "mkldnn_edge.h"
-#include "mkldnn_descriptor.h"
-#include "mkldnn_selective_build.h"
-#include "mkldnn/iml_type_mapper.h"
-#include "mkldnn_extension_mngr.h"
-#include "mkldnn_primitive.h"
-#include "mkldnn_weights_cache.hpp"
-#include "mkldnn.hpp"
-#include <openvino/itt.hpp>
-#include "utils/ngraph_utils.hpp"
-#include <ngraph/ops.hpp>
-#include <ngraph/node.hpp>
+#include <cassert>
 #include <ie_precision.hpp>
-#include <nodes/common/blocked_desc_creator.h>
-#include "cpu_types.h"
+#include <memory>
+#include <ngraph/node.hpp>
+#include <ngraph/ops.hpp>
+#include <openvino/itt.hpp>
+#include <string>
+#include <vector>
+
 #include "cpu_shape.h"
+#include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "mkldnn.hpp"
+#include "mkldnn/iml_type_mapper.h"
+#include "mkldnn_descriptor.h"
+#include "mkldnn_edge.h"
+#include "mkldnn_extension_mngr.h"
+#include "mkldnn_memory.h"
+#include "mkldnn_primitive.h"
+#include "mkldnn_selective_build.h"
+#include "mkldnn_weights_cache.hpp"
+#include "utils/ngraph_utils.hpp"
 
 namespace MKLDNNPlugin {
 
@@ -36,18 +38,30 @@ using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
 using MKLDNNNodeConstPtr = std::shared_ptr<const MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
-Type TypeFromName(const std::string & type);
+Type TypeFromName(const std::string& type);
 std::string NameFromType(Type type);
 
 class PortConfigurator {
 public:
-    PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
-                     bool constant = false, int inPlace = -1) :
-            blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), shape(shape), constant(constant), inPlace(inPlace) {}
+    PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType,
+                     InferenceEngine::Precision prc,
+                     const Shape& shape,
+                     bool constant = false,
+                     int inPlace = -1)
+        : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
+          prc(prc),
+          shape(shape),
+          constant(constant),
+          inPlace(inPlace) {}
 
-    PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
-                     bool constant = false, int inPlace = -1) :
-            blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), constant(constant), inPlace(inPlace) {}
+    PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType,
+                     InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
+                     bool constant = false,
+                     int inPlace = -1)
+        : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
+          prc(prc),
+          constant(constant),
+          inPlace(inPlace) {}
 
     MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr blockedDescCreator;
     const InferenceEngine::Precision prc;
@@ -56,7 +70,8 @@ public:
     int inPlace = -1;
 
 private:
-    static MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(MKLDNNPlugin::LayoutType blockedDescType) {
+    static MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(
+        MKLDNNPlugin::LayoutType blockedDescType) {
         auto& creators = MKLDNNPlugin::BlockedDescCreator::getCommonCreators();
         if (creators.find(blockedDescType) == creators.end()) {
             IE_THROW() << "Cannot find tensor descriptor creator";
@@ -102,7 +117,7 @@ struct NodeConfig {
 
 class NodeDesc {
 public:
-    NodeDesc(const NodeConfig& conf, impl_desc_type type): config(conf) {
+    NodeDesc(const NodeConfig& conf, impl_desc_type type) : config(conf) {
         implementationType = type;
     }
 
@@ -129,28 +144,35 @@ private:
 
 class MKLDNNNode {
 public:
-    template<typename T, int N>
+    template <typename T, int N>
     struct Tag {};
 
     struct PerfCounters {
         PerfCounters(std::string const& name)
-            : execute(openvino::itt::handle(name))
-            , getSupportedDescriptors(openvino::itt::handle<Tag<MKLDNNNode, 0>>("MKLDNNNode::getSupportedDescriptors"))
-            , initSupportedPrimitiveDescriptors(openvino::itt::handle<Tag<MKLDNNNode, 1>>("MKLDNNNode::initSupportedPrimitiveDescriptors"))
-            , filterSupportedPrimitiveDescriptors(openvino::itt::handle<Tag<MKLDNNNode, 2>>("MKLDNNNode::filterSupportedPrimitiveDescriptors"))
-            , selectOptimalPrimitiveDescriptor(openvino::itt::handle<Tag<MKLDNNNode, 3>>("MKLDNNNode::selectOptimalPrimitiveDescriptor"))
-            , createPrimitive(openvino::itt::handle<Tag<MKLDNNNode, 4>>("MKLDNNNode::createPrimitive"))
-            , initOptimalPrimitiveDescriptor(openvino::itt::handle<Tag<MKLDNNNode, 5>>("MKLDNNNode::initOptimalPrimitiveDescriptor"))
-        {}
+            : execute(openvino::itt::handle(name)),
+              getSupportedDescriptors(openvino::itt::handle<Tag<MKLDNNNode, 0>>("MKLDNNNode::getSupportedDescriptors")),
+              initSupportedPrimitiveDescriptors(
+                  openvino::itt::handle<Tag<MKLDNNNode, 1>>("MKLDNNNode::initSupportedPrimitiveDescriptors")),
+              filterSupportedPrimitiveDescriptors(
+                  openvino::itt::handle<Tag<MKLDNNNode, 2>>("MKLDNNNode::filterSupportedPrimitiveDescriptors")),
+              selectOptimalPrimitiveDescriptor(
+                  openvino::itt::handle<Tag<MKLDNNNode, 3>>("MKLDNNNode::selectOptimalPrimitiveDescriptor")),
+              createPrimitive(openvino::itt::handle<Tag<MKLDNNNode, 4>>("MKLDNNNode::createPrimitive")),
+              initOptimalPrimitiveDescriptor(
+                  openvino::itt::handle<Tag<MKLDNNNode, 5>>("MKLDNNNode::initOptimalPrimitiveDescriptor")) {}
 
-        template<typename NodeType>
+        template <typename NodeType>
         void buildClassCounters(const std::string& type_name) {
             getSupportedDescriptors = openvino::itt::handle<Tag<NodeType, 0>>(type_name + "::getSupportedDescriptors");
-            initSupportedPrimitiveDescriptors = openvino::itt::handle<Tag<NodeType, 1>>(type_name + "::initSupportedPrimitiveDescriptors");
-            filterSupportedPrimitiveDescriptors = openvino::itt::handle<Tag<NodeType, 2>>(type_name + "::filterSupportedPrimitiveDescriptors");
-            selectOptimalPrimitiveDescriptor = openvino::itt::handle<Tag<NodeType, 3>>(type_name + "::selectOptimalPrimitiveDescriptor");
+            initSupportedPrimitiveDescriptors =
+                openvino::itt::handle<Tag<NodeType, 1>>(type_name + "::initSupportedPrimitiveDescriptors");
+            filterSupportedPrimitiveDescriptors =
+                openvino::itt::handle<Tag<NodeType, 2>>(type_name + "::filterSupportedPrimitiveDescriptors");
+            selectOptimalPrimitiveDescriptor =
+                openvino::itt::handle<Tag<NodeType, 3>>(type_name + "::selectOptimalPrimitiveDescriptor");
             createPrimitive = openvino::itt::handle<Tag<NodeType, 4>>(type_name + "::createPrimitive");
-            initOptimalPrimitiveDescriptor = openvino::itt::handle<Tag<NodeType, 5>>(type_name + "::initOptimalPrimitiveDescriptor");
+            initOptimalPrimitiveDescriptor =
+                openvino::itt::handle<Tag<NodeType, 5>>(type_name + "::initOptimalPrimitiveDescriptor");
         }
 
         openvino::itt::handle_t execute;
@@ -163,7 +185,7 @@ public:
     };
 
     class NodesFactory;
-    static NodesFactory & factory();
+    static NodesFactory& factory();
 
     virtual ~MKLDNNNode() = default;
 
@@ -173,11 +195,11 @@ public:
     virtual void cleanup();
     void remove();
 
-    const std::vector<MKLDNNEdgeWeakPtr> &getParentEdges() const noexcept {
+    const std::vector<MKLDNNEdgeWeakPtr>& getParentEdges() const noexcept {
         return parentEdges;
     }
 
-    const std::vector<MKLDNNEdgeWeakPtr> &getChildEdges() const noexcept {
+    const std::vector<MKLDNNEdgeWeakPtr>& getChildEdges() const noexcept {
         return childEdges;
     }
 
@@ -201,12 +223,13 @@ public:
 
     bool isFusedWith(Type type) const;
 
-    void addFusedNode(const MKLDNNNodePtr &fusingNode) {
+    void addFusedNode(const MKLDNNNodePtr& fusingNode) {
         fusedWith.push_back(fusingNode);
     }
 
     virtual void fuseInto(MKLDNNNodePtr& parentNode) {
-        // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input port a node was fused into parent one.
+        // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input
+        // port a node was fused into parent one.
         for (int i = 0; i < getParentEdges().size(); i++) {
             if (getParentEdgesAtPort(i)[0]->getParent().get() == parentNode.get()) {
                 setFusingPort(i);
@@ -217,7 +240,8 @@ public:
         auto parentFusedNodes = parentNode->getFusedWith();
         if (getFusingPort() < 0 && !parentFusedNodes.empty()) {
             for (int i = 0; i < getParentEdges().size(); i++) {
-                if (getParentEdgesAtPort(i)[0]->getParent().get() == parentFusedNodes[parentFusedNodes.size() - 1].get()) {
+                if (getParentEdgesAtPort(i)[0]->getParent().get() ==
+                    parentFusedNodes[parentFusedNodes.size() - 1].get()) {
                     setFusingPort(i);
                     break;
                 }
@@ -225,7 +249,8 @@ public:
         }
 
         if (getFusingPort() == -1) {
-            IE_THROW() << "Cannot determine fusing port between nodes: " << parentNode->getName() << " and " << getName();
+            IE_THROW() << "Cannot determine fusing port between nodes: " << parentNode->getName() << " and "
+                       << getName();
         }
 
         parentNode->addFusedNode(getParentEdgesAtPort(getFusingPort())[0]->getChild());
@@ -236,15 +261,15 @@ public:
         fusedWith.clear();
     }
 
-    void mergeWith(const MKLDNNNodePtr &merge) {
+    void mergeWith(const MKLDNNNodePtr& merge) {
         mergedWith.push_back(merge);
     }
 
-    const std::vector <MKLDNNNodePtr> &getMergeWith() {
+    const std::vector<MKLDNNNodePtr>& getMergeWith() {
         return mergedWith;
     }
 
-    const std::vector <MKLDNNNodePtr> &getFusedWith() {
+    const std::vector<MKLDNNNodePtr>& getFusedWith() {
         return fusedWith;
     }
 
@@ -256,13 +281,13 @@ public:
         this->fusingPort = fusingPort;
     }
 
-    const std::string &getName() const {
+    const std::string& getName() const {
         return name;
     }
 
     void addOriginalLayer(const std::string& layerName);
 
-    const std::string &getOriginalLayers() const {
+    const std::string& getOriginalLayers() const {
         return originalLayers;
     }
 
@@ -335,7 +360,9 @@ public:
 
     std::string getPrimitiveDescriptorType();
 
-    PerfCount &PerfCounter() { return perfCounter; }
+    PerfCount& PerfCounter() {
+        return perfCounter;
+    }
 
     virtual void setDynamicBatchLim(int lim);
 
@@ -343,7 +370,7 @@ public:
 
     virtual void execute(mkldnn::stream strm);
     void executeDynamic(mkldnn::stream strm);
-    void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
+    void redefineOutputMemory(const std::vector<VectorDims>& newShapes);
 
     virtual void initSupportedPrimitiveDescriptors();
 
@@ -370,14 +397,15 @@ public:
 
     /**
      * @brief Performs Node initialization based on graph context.
-     * This is an auxiliary method that allows to use information not available in Node constructor (e.g. connection information with other nodes)
+     * This is an auxiliary method that allows to use information not available in Node constructor (e.g. connection
+     * information with other nodes)
      */
     virtual void init() {}
 
     template <class PD, class D, typename FPD = bool>
-    PD createPrimitiveDescriptor(const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) {
+    PD createPrimitiveDescriptor(const mkldnn::primitive_attr& attr = mkldnn::primitive_attr()) {
         auto descsCompatible = [](const std::vector<MemoryDescPtr>& srcDescs,
-                               const std::vector<PortConfig>& selectedDescs) {
+                                  const std::vector<PortConfig>& selectedDescs) {
             if (srcDescs.empty() && selectedDescs.empty())
                 return true;
             if (srcDescs.empty() || selectedDescs.empty())
@@ -388,14 +416,14 @@ public:
             return true;
         };
 
-        const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+        const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
         for (const auto& desc : descs) {
             auto itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
 
-            while (static_cast<bool>(itpd))  {
+            while (static_cast<bool>(itpd)) {
                 std::vector<MemoryDescPtr> srcDescs;
                 for (size_t i = 0; i < descInputNumbers(desc); i++)
                     srcDescs.push_back(getSrcMemDesc(itpd, i));
@@ -429,7 +457,7 @@ public:
         return typeStr;
     }
 
-    void setTypeStr(const std::string &typeStr) {
+    void setTypeStr(const std::string& typeStr) {
         this->typeStr = typeStr;
     }
 
@@ -441,11 +469,11 @@ public:
         return desc.outputNumbers();
     }
 
-    const PerfCounters & perfCounters() const {
+    const PerfCounters& perfCounters() const {
         return profiling;
     }
 
-    PerfCounters & perfCounters() {
+    PerfCounters& perfCounters() {
         return profiling;
     }
 
@@ -534,7 +562,7 @@ public:
         isInQuantizedGraph = flag;
     }
 
-    bool canBePerformedAsScaleShift(const MKLDNNNode *parentNode = nullptr) const;
+    bool canBePerformedAsScaleShift(const MKLDNNNode* parentNode = nullptr) const;
 
     bool isDynamicNode() const {
         return isDynamic;
@@ -565,7 +593,10 @@ protected:
 
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
     // TODO [mandrono]: place outside of the node API
-    void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
+    void fillScalesAndShifts(const MKLDNNNode* parentNode,
+                             std::vector<float>& scales,
+                             std::vector<float>& shifts,
+                             const int align = -1);
 
     void setType(Type type) {
         this->type = type;
@@ -573,11 +604,10 @@ protected:
 
     virtual size_t getMaxBatch();
 
-
-    virtual MemoryDescPtr getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
-    virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual MemoryDescPtr getDefinedInputDesc(const NodeConfig& config, size_t idx) const;
+    virtual MemoryDescPtr getDefinedOutputDesc(const NodeConfig& config, size_t idx) const;
+    virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx);
+    virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx);
 
     /**
      * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
@@ -585,35 +615,36 @@ protected:
      * @param ops List of fused post operations
      */
     virtual void appendPostOps(mkldnn::post_ops& ops);
-    virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
+    virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const {
+        return nullptr;
+    }
 
-    typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
-            GetPrimitiveMemoryFormatFunc;
+    typedef std::function<DnnlMemoryDescPtr(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx)>
+        GetPrimitiveMemoryFormatFunc;
     std::vector<GetPrimitiveMemoryFormatFunc> internalBlobDesc;
 
     std::vector<Shape> inputShapes;
     std::vector<Shape> outputShapes;
 
-    std::vector <MKLDNNNodePtr> fusedWith;
-    std::vector <MKLDNNNodePtr> mergedWith;
-    std::vector <impl_desc_type> implPriorities;
-    std::vector <mkldnn::memory::format_tag> inputMemoryFormatsFilter;
-    std::vector <mkldnn::memory::format_tag> outputMemoryFormatsFilter;
+    std::vector<MKLDNNNodePtr> fusedWith;
+    std::vector<MKLDNNNodePtr> mergedWith;
+    std::vector<impl_desc_type> implPriorities;
+    std::vector<mkldnn::memory::format_tag> inputMemoryFormatsFilter;
+    std::vector<mkldnn::memory::format_tag> outputMemoryFormatsFilter;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache);
-    MKLDNNNode(const std::string& type, const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache);
+    MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& w_cache);
+    MKLDNNNode(const std::string& type,
+               const std::string& name,
+               const mkldnn::engine& eng,
+               MKLDNNWeightsSharing::Ptr& w_cache);
 
     int selectedPrimitiveDescriptorIndex = -1;
     bool permanent = false;
     bool temporary = false;
     int dynBatchLim = 0;
-    enum class ConstantType {
-        Unknown,
-        Const,
-        NoConst
-    };
+    enum class ConstantType { Unknown, Const, NoConst };
     ConstantType constant = ConstantType::Unknown;
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MKLDNNMemoryPtr> internalBlobMemory;
@@ -634,7 +665,7 @@ protected:
     friend class NodeDumper;
 
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
-    bool isConfigDefined(const NodeConfig &config) const;
+    bool isConfigDefined(const NodeConfig& config) const;
     virtual bool canBeInPlace() const;
 
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
@@ -646,13 +677,15 @@ protected:
 
     /**
      * @brief Auxiliary function to get node input precisions
-     * @return Vector of precisions based on information from node input edges. Return empty vector in case edges are not initialized yet.
+     * @return Vector of precisions based on information from node input edges. Return empty vector in case edges are
+     * not initialized yet.
      */
     virtual std::vector<InferenceEngine::Precision> getInputPrecisions() const;
 
     /**
      * @brief Auxiliary function to get node output precisions
-     * @return Vector of precisions based on information from node output edges. Return empty vector in case edges are not initialized yet.
+     * @return Vector of precisions based on information from node output edges. Return empty vector in case edges are
+     * not initialized yet.
      */
     virtual std::vector<InferenceEngine::Precision> getOutputPrecisions() const;
 
@@ -660,10 +693,13 @@ protected:
                               const std::vector<PortConfigurator>& outPortConfigs,
                               impl_desc_type implType,
                               bool dynBatchSupport = false) {
-        auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
-                             InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
-            // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
-            // This should be suitable for major of scenarios since almost all nodes add `ncsp` blockedDescCreator which supports any shape rank.
+        auto fill_port = [](const PortConfigurator& portConfigurator,
+                            const Shape& shape,
+                            InferenceEngine::Precision prc,
+                            std::vector<PortConfig>& port) -> bool {
+            // In order to simplify particular node initialization logic we just don't add config in case target shape
+            // is not supported by blockedDescCreator. This should be suitable for major of scenarios since almost all
+            // nodes add `ncsp` blockedDescCreator which supports any shape rank.
             if (shape.getRank() < portConfigurator.blockedDescCreator->getMinimalRank())
                 return false;
 
@@ -680,14 +716,18 @@ protected:
         NodeConfig config;
         for (size_t i = 0; i < inPortConfigs.size(); i++) {
             auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
-            auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
+            auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED
+                           ? getOriginalInputPrecisionAtPort(i)
+                           : inPortConfigs[i].prc;
             if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs))
                 return;
         }
 
         for (size_t i = 0; i < outPortConfigs.size(); i++) {
             auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
-            auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
+            auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED
+                           ? getOriginalOutputPrecisionAtPort(i)
+                           : outPortConfigs[i].prc;
             if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
                 return;
         }
@@ -722,54 +762,53 @@ private:
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 
     template <class PD, class D, typename FPD>
-    typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
-    createPd(MKLDNNDescriptor desc) {
+    typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type createPd(MKLDNNDescriptor desc) {
         std::shared_ptr<D> selected_desc_ptr = desc;
         std::shared_ptr<FPD> backward_prim_desc_ptr = desc;
         return PD(*selected_desc_ptr, engine, *backward_prim_desc_ptr);
     }
 
     template <class PD, class D, typename FPD>
-    typename std::enable_if<std::is_same<FPD, bool>::value, PD>::type
-    createPd(MKLDNNDescriptor desc) {
+    typename std::enable_if<std::is_same<FPD, bool>::value, PD>::type createPd(MKLDNNDescriptor desc) {
         std::shared_ptr<D> selected_desc_ptr = desc;
         return PD(*selected_desc_ptr, engine);
     }
 
-    void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
+    void prepareMemory(const NodeDesc* selected_pd, mkldnn::primitive_desc_iterator& itpd);
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 };
 
-class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,
-                                            MKLDNNNode*(const std::shared_ptr<ngraph::Node>& op,
-                                                        const mkldnn::engine &,
-                                                        MKLDNNWeightsSharing::Ptr &)> {
+class MKLDNNNode::NodesFactory
+    : public openvino::cc::Factory<
+          Type,
+          MKLDNNNode*(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine&, MKLDNNWeightsSharing::Ptr&)> {
 public:
-    NodesFactory()
-        : Factory("NodesFactory") {}
+    NodesFactory() : Factory("NodesFactory") {}
 
-    MKLDNNNode* create(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                       const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache);
+    MKLDNNNode* create(const std::shared_ptr<ngraph::Node>& op,
+                       const mkldnn::engine& eng,
+                       const MKLDNNExtensionManager::Ptr& extMgr,
+                       MKLDNNWeightsSharing::Ptr& w_cache);
 };
 
-template<typename MKLDNNNodeType>
+template <typename MKLDNNNodeType>
 struct MKLDNNNodeImpl : public MKLDNNNodeType {
-    MKLDNNNodeImpl(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+    MKLDNNNodeImpl(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache)
         : MKLDNNNodeType(op, eng, cache) {
-        MKLDNNNodeType::perfCounters().template buildClassCounters<MKLDNNNodeType>(NameFromType(MKLDNNNodeType::getType()));
+        MKLDNNNodeType::perfCounters().template buildClassCounters<MKLDNNNodeType>(
+            NameFromType(MKLDNNNodeType::getType()));
     }
 };
 
-#define REG_MKLDNN_CONCAT3_(X, Y, Z) X ## Y ## Z
-#define REG_MKLDNN_CONCAT3(X, Y, Z) REG_MKLDNN_CONCAT3_(X, Y, Z)
+#define REG_MKLDNN_CONCAT3_(X, Y, Z) X##Y##Z
+#define REG_MKLDNN_CONCAT3(X, Y, Z)  REG_MKLDNN_CONCAT3_(X, Y, Z)
 
-#define REG_MKLDNN_PRIM_FOR(__prim, __type)                                                 \
-static struct REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__) {                            \
-    REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__)() {                                    \
-        MKLDNNNode::factory()                                                               \
-            .registerNodeIfRequired(MKLDNNPlugin, __prim, __type, MKLDNNNodeImpl<__prim>);  \
-    }                                                                                       \
-} REG_MKLDNN_CONCAT3(_reg_, __prim, __LINE__);
+#define REG_MKLDNN_PRIM_FOR(__prim, __type)                                                                     \
+    static struct REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__) {                                            \
+        REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__)() {                                                    \
+            MKLDNNNode::factory().registerNodeIfRequired(MKLDNNPlugin, __prim, __type, MKLDNNNodeImpl<__prim>); \
+        }                                                                                                       \
+    } REG_MKLDNN_CONCAT3(_reg_, __prim, __LINE__);
 
 }  // namespace MKLDNNPlugin

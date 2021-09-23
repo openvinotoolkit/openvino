@@ -3,12 +3,13 @@
 //
 
 #include "cpu_shape.h"
-#include "utils/general_utils.h"
+
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "utils/general_utils.h"
 
 using namespace MKLDNNPlugin;
 
-bool Shape::isCompatible(const VectorDims &vecDims) const {
+bool Shape::isCompatible(const VectorDims& vecDims) const {
     if (getRank() != vecDims.size()) {
         return false;
     }
@@ -21,17 +22,21 @@ bool Shape::isCompatible(const VectorDims &vecDims) const {
         return false;
     }
 
-    if (!std::equal(getMaxDims().begin(), getMaxDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) { return lhs >= rhs; })) {
+    if (!std::equal(getMaxDims().begin(), getMaxDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) {
+            return lhs >= rhs;
+        })) {
         return false;
     }
 
-    if (!std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) { return lhs <= rhs; })) {
+    if (!std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) {
+            return lhs <= rhs;
+        })) {
         return false;
     }
     return true;
 }
 
-std::string Shape::toString() const  {
+std::string Shape::toString() const {
     std::stringstream output;
     output << "{";
 

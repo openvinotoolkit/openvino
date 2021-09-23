@@ -4,25 +4,26 @@
 
 #include "mkldnn_reduce_node.h"
 
-#include "mkldnn_fake_quantize_node.h"
-#include <mkldnn.hpp>
-#include <string>
-#include <vector>
-#include <set>
-#include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include "utils/bfloat16.hpp"
-#include "emitters/jit_bf16_emitters.hpp"
-#include "ie_parallel.hpp"
-#include <algorithm>
+#include <mkldnn_types.h>
 
+#include <algorithm>
 #include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/jit_uni_eltwise.hpp>
 #include <cpu/x64/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/jit_uni_eltwise.hpp>
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/jit_uni_quantization_injector.hpp>
+#include <mkldnn.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <set>
+#include <string>
+#include <vector>
+
+#include "emitters/jit_bf16_emitters.hpp"
+#include "ie_parallel.hpp"
+#include "mkldnn_fake_quantize_node.h"
+#include "utils/bfloat16.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -32,41 +33,54 @@ using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
-#define SET_SRC_DIM_VALUE(batch, channel, depth, height, width) IB = batch;   \
-                                                                IC = channel; \
-                                                                ID = depth;   \
-                                                                IH = height;  \
-                                                                IW = width;
-#define SET_DST_DIM_VALUE(batch, channel, depth, height, width) OB = batch;   \
-                                                                OC = channel; \
-                                                                OD = depth;   \
-                                                                OH = height;  \
-                                                                OW = width;
+#define SET_SRC_DIM_VALUE(batch, channel, depth, height, width) \
+    IB = batch;                                                 \
+    IC = channel;                                               \
+    ID = depth;                                                 \
+    IH = height;                                                \
+    IW = width;
+#define SET_DST_DIM_VALUE(batch, channel, depth, height, width) \
+    OB = batch;                                                 \
+    OC = channel;                                               \
+    OD = depth;                                                 \
+    OH = height;                                                \
+    OW = width;
 
 #define GET_OFF(field) offsetof(jit_reduce_call_args, field)
 
-#define GET_PTR_N_PLN              const uint8_t    *in_ptr_n      = in_ptr       + src_data_size * ib * IC * ID * IH * IW;               \
-                                         uint8_t    *out_ptr_n     = out_ptr      + dst_data_size * ob * OC * OD * OH * OW;
-#define GET_PTR_NC_PLN             const uint8_t    *in_ptr_nc     = in_ptr_n     + src_data_size * ic * ID * IH * IW;                    \
-                                         uint8_t    *out_ptr_nc    = out_ptr_n    + dst_data_size * oc * OD * OH * OW;
-#define GET_PTR_NCD_PLN            const uint8_t    *in_ptr_ncd    = in_ptr_nc    + src_data_size * id * IH * IW;                         \
-                                         uint8_t    *out_ptr_ncd   = out_ptr_nc   + dst_data_size * od * OH * OW;
-#define GET_PTR_NCDH_PLN           const uint8_t    *in_ptr_ncdh   = in_ptr_ncd   + src_data_size * ih * IW;                              \
-                                         uint8_t    *out_ptr_ncdh  = out_ptr_ncd  + dst_data_size * oh * OW;
-#define GET_PTR_NCD_BASE_PTR_N_PLN const uint8_t    *in_ptr_ncd    = in_ptr_n     + src_data_size * (ic * ID + id) * IH * IW;             \
-                                         uint8_t    *out_ptr_ncd   = out_ptr_n    + dst_data_size * (oc * OD + od) * OH * OW;
-#define GET_PTR_N_BLK              const uint8_t    *in_ptr_n      = in_ptr       + src_data_size * ib * ICB * ID * IH * IW * blk_size;   \
-                                         uint8_t    *out_ptr_n     = out_ptr      + dst_data_size * ob * OCB * OD * OH * OW * blk_size;
-#define GET_PTR_NC_BLK             const uint8_t    *in_ptr_nc     = in_ptr_n     + src_data_size * icb * ID * IH * IW * blk_size;        \
-                                         uint8_t    *out_ptr_nc    = out_ptr_n    + dst_data_size * ocb * OD * OH * OW * blk_size;
-#define GET_PTR_NCD_BLK            const uint8_t    *in_ptr_ncd    = in_ptr_nc    + src_data_size * id * IH * IW * blk_size;              \
-                                         uint8_t    *out_ptr_ncd   = out_ptr_nc   + dst_data_size * od * OH * OW * blk_size;
-#define GET_PTR_NCDH_BLK           const uint8_t    *in_ptr_ncdh   = in_ptr_ncd   + src_data_size * ih * IW * blk_size;                   \
-                                         uint8_t    *out_ptr_ncdh  = out_ptr_ncd  + dst_data_size * oh * OW * blk_size;
-#define GET_PTR_NCDHW_BLK          const uint8_t    *in_ptr_ncdhw  = in_ptr_ncdh  + src_data_size * iw * blk_size;                        \
-                                         uint8_t    *out_ptr_ncdhw = out_ptr_ncdh + dst_data_size * ow * blk_size;
-#define GET_PTR_NCD_BASE_PTR_N_BLK const uint8_t    *in_ptr_ncd    = in_ptr_n     + src_data_size * (icb * ID + id) * IH * IW * blk_size; \
-                                         uint8_t    *out_ptr_ncd   = out_ptr_n    + dst_data_size * (ocb * OD + od) * OH * OW * blk_size;
+#define GET_PTR_N_PLN                                                          \
+    const uint8_t* in_ptr_n = in_ptr + src_data_size * ib * IC * ID * IH * IW; \
+    uint8_t* out_ptr_n = out_ptr + dst_data_size * ob * OC * OD * OH * OW;
+#define GET_PTR_NC_PLN                                                       \
+    const uint8_t* in_ptr_nc = in_ptr_n + src_data_size * ic * ID * IH * IW; \
+    uint8_t* out_ptr_nc = out_ptr_n + dst_data_size * oc * OD * OH * OW;
+#define GET_PTR_NCD_PLN                                                   \
+    const uint8_t* in_ptr_ncd = in_ptr_nc + src_data_size * id * IH * IW; \
+    uint8_t* out_ptr_ncd = out_ptr_nc + dst_data_size * od * OH * OW;
+#define GET_PTR_NCDH_PLN                                               \
+    const uint8_t* in_ptr_ncdh = in_ptr_ncd + src_data_size * ih * IW; \
+    uint8_t* out_ptr_ncdh = out_ptr_ncd + dst_data_size * oh * OW;
+#define GET_PTR_NCD_BASE_PTR_N_PLN                                                   \
+    const uint8_t* in_ptr_ncd = in_ptr_n + src_data_size * (ic * ID + id) * IH * IW; \
+    uint8_t* out_ptr_ncd = out_ptr_n + dst_data_size * (oc * OD + od) * OH * OW;
+#define GET_PTR_N_BLK                                                                      \
+    const uint8_t* in_ptr_n = in_ptr + src_data_size * ib * ICB * ID * IH * IW * blk_size; \
+    uint8_t* out_ptr_n = out_ptr + dst_data_size * ob * OCB * OD * OH * OW * blk_size;
+#define GET_PTR_NC_BLK                                                                   \
+    const uint8_t* in_ptr_nc = in_ptr_n + src_data_size * icb * ID * IH * IW * blk_size; \
+    uint8_t* out_ptr_nc = out_ptr_n + dst_data_size * ocb * OD * OH * OW * blk_size;
+#define GET_PTR_NCD_BLK                                                              \
+    const uint8_t* in_ptr_ncd = in_ptr_nc + src_data_size * id * IH * IW * blk_size; \
+    uint8_t* out_ptr_ncd = out_ptr_nc + dst_data_size * od * OH * OW * blk_size;
+#define GET_PTR_NCDH_BLK                                                          \
+    const uint8_t* in_ptr_ncdh = in_ptr_ncd + src_data_size * ih * IW * blk_size; \
+    uint8_t* out_ptr_ncdh = out_ptr_ncd + dst_data_size * oh * OW * blk_size;
+#define GET_PTR_NCDHW_BLK                                                      \
+    const uint8_t* in_ptr_ncdhw = in_ptr_ncdh + src_data_size * iw * blk_size; \
+    uint8_t* out_ptr_ncdhw = out_ptr_ncdh + dst_data_size * ow * blk_size;
+#define GET_PTR_NCD_BASE_PTR_N_BLK                                                               \
+    const uint8_t* in_ptr_ncd = in_ptr_n + src_data_size * (icb * ID + id) * IH * IW * blk_size; \
+    uint8_t* out_ptr_ncd = out_ptr_n + dst_data_size * (ocb * OD + od) * OH * OW * blk_size;
 
 // some utility functions
 static inline bool isFloatCompatible(memory::data_type type) {
@@ -77,8 +91,7 @@ template <cpu_isa_t isa>
 struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_kernel_f32)
 
-    explicit jit_uni_reduce_kernel_f32(jit_reduce_config_params jcp)
-    : jit_uni_reduce_kernel(jcp), jit_generator() {}
+    explicit jit_uni_reduce_kernel_f32(jit_reduce_config_params jcp) : jit_uni_reduce_kernel(jcp), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -128,11 +141,13 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
-    Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
+    Xbyak::Address table_val(int index) {
+        return ptr[reg_table + index * vlen];
+    }
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_dst = r9;
@@ -227,7 +242,7 @@ private:
         Xbyak::Label reduce_to_scalar_label;
         Xbyak::Label reduce_main_end_label;
         if (jcp_.planar_layout) {
-            cmp(reg_reduce_w, 1); // planar layout reducing W
+            cmp(reg_reduce_w, 1);  // planar layout reducing W
             je(reduce_to_scalar_label, T_NEAR);
         }
 
@@ -237,7 +252,7 @@ private:
         {
             int step = vlen / sizeof(float) < 8 ? 8 : vlen / sizeof(float);
             cmp(reg_work_amount, step);
-            jl(reduce_main_end_label, T_NEAR); //avoid illegal loading and storing
+            jl(reduce_main_end_label, T_NEAR);  // avoid illegal loading and storing
 
             if (jcp_.reduce_mode == ReduceL1) {
                 uni_vmovups(vmm_aux, table_val(1));
@@ -282,37 +297,37 @@ private:
         {
             // init dst, dst loading is embedded in horiz_reduce_store
             switch (jcp_.reduce_mode) {
-                case ReduceAnd:
-                case ReduceProd:
-                    uni_vmovups(vmm_dst, table_val(0));
-                    break;
-                case ReduceL1:
-                    uni_vmovups(vmm_aux, table_val(1));
-                    uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
-                    break;
-                case ReduceL2:
-                case ReduceLogSum:
-                case ReduceLogSumExp:
-                case ReduceMean:
-                case ReduceOr:
-                case ReduceSum:
-                case ReduceSumSquare:
-                    uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
-                    break;
-                case ReduceMax:
-                    if (isFloatCompatible(jcp_.dst_dt))
-                        uni_vmovups(vmm_dst, table_val(2));
-                    else
-                        uni_vmovups(vmm_dst, table_val(4));
-                    break;
-                case ReduceMin:
-                    if (isFloatCompatible(jcp_.dst_dt))
-                        uni_vmovups(vmm_dst, table_val(3));
-                    else
-                        uni_vmovups(vmm_dst, table_val(5));
-                    break;
-                default:
-                    assert(!"unsupported reduce mode");
+            case ReduceAnd:
+            case ReduceProd:
+                uni_vmovups(vmm_dst, table_val(0));
+                break;
+            case ReduceL1:
+                uni_vmovups(vmm_aux, table_val(1));
+                uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
+                break;
+            case ReduceL2:
+            case ReduceLogSum:
+            case ReduceLogSumExp:
+            case ReduceMean:
+            case ReduceOr:
+            case ReduceSum:
+            case ReduceSumSquare:
+                uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
+                break;
+            case ReduceMax:
+                if (isFloatCompatible(jcp_.dst_dt))
+                    uni_vmovups(vmm_dst, table_val(2));
+                else
+                    uni_vmovups(vmm_dst, table_val(4));
+                break;
+            case ReduceMin:
+                if (isFloatCompatible(jcp_.dst_dt))
+                    uni_vmovups(vmm_dst, table_val(3));
+                else
+                    uni_vmovups(vmm_dst, table_val(5));
+                break;
+            default:
+                assert(!"unsupported reduce mode");
             }
             // reduce
             reduce_main_loop();
@@ -459,98 +474,98 @@ private:
 
     inline void reduce_kernel(Vmm vmm_src, Vmm vmm_dst) {
         switch (jcp_.reduce_mode) {
-            case ReduceAnd:
-                if (isa == cpu::x64::avx512_common) {
-                    vcmpps(k_mask, vmm_src, vmm_zero, _cmp_neq_uq);
-                    vblendmps(vmm_src | k_mask, vmm_zero, vmm_aux);
-                } else if (isa == cpu::x64::avx2) {
-                    vcmpneqps(vmm_src, vmm_src, vmm_zero);
-                } else {
-                    cmpneqps(vmm_src, vmm_zero);
-                }
-                uni_vandps(vmm_dst, vmm_dst, vmm_src);
-                break;
-            case ReduceL1:
-                uni_vandps(vmm_src, vmm_src, vmm_aux);
-                uni_vaddps(vmm_dst, vmm_dst, vmm_src);
-                break;
-            case ReduceLogSum:
-            case ReduceMean:
-            case ReduceSum:
-                uni_vaddps(vmm_dst, vmm_dst, vmm_src);
-                break;
-            case ReduceMax:
-                uni_vmaxps(vmm_dst, vmm_dst, vmm_src);
-                break;
-            case ReduceMin:
-                uni_vminps(vmm_dst, vmm_dst, vmm_src);
-                break;
-            case ReduceL2:
-            case ReduceSumSquare:
-                uni_vmulps(vmm_src, vmm_src, vmm_src);
-                uni_vaddps(vmm_dst, vmm_dst, vmm_src);
-                break;
-            case ReduceLogSumExp:
-                exp_injector->compute_vector_range(vmm_src.getIdx(), vmm_src.getIdx() + 1);
-                uni_vaddps(vmm_dst, vmm_dst, vmm_src);
-                break;
-            case ReduceOr:
-                if (isa == cpu::x64::avx512_common) {
-                    vcmpps(k_mask, vmm_src, vmm_zero, _cmp_neq_uq);
-                    vblendmps(vmm_src | k_mask, vmm_zero, vmm_aux);
-                }
-                uni_vorps(vmm_dst, vmm_dst, vmm_src);
-                break;
-            case ReduceProd:
-                uni_vmulps(vmm_dst, vmm_dst, vmm_src);
-                break;
-            default:
-                assert(!"unsupported reduce mode");
+        case ReduceAnd:
+            if (isa == cpu::x64::avx512_common) {
+                vcmpps(k_mask, vmm_src, vmm_zero, _cmp_neq_uq);
+                vblendmps(vmm_src | k_mask, vmm_zero, vmm_aux);
+            } else if (isa == cpu::x64::avx2) {
+                vcmpneqps(vmm_src, vmm_src, vmm_zero);
+            } else {
+                cmpneqps(vmm_src, vmm_zero);
+            }
+            uni_vandps(vmm_dst, vmm_dst, vmm_src);
+            break;
+        case ReduceL1:
+            uni_vandps(vmm_src, vmm_src, vmm_aux);
+            uni_vaddps(vmm_dst, vmm_dst, vmm_src);
+            break;
+        case ReduceLogSum:
+        case ReduceMean:
+        case ReduceSum:
+            uni_vaddps(vmm_dst, vmm_dst, vmm_src);
+            break;
+        case ReduceMax:
+            uni_vmaxps(vmm_dst, vmm_dst, vmm_src);
+            break;
+        case ReduceMin:
+            uni_vminps(vmm_dst, vmm_dst, vmm_src);
+            break;
+        case ReduceL2:
+        case ReduceSumSquare:
+            uni_vmulps(vmm_src, vmm_src, vmm_src);
+            uni_vaddps(vmm_dst, vmm_dst, vmm_src);
+            break;
+        case ReduceLogSumExp:
+            exp_injector->compute_vector_range(vmm_src.getIdx(), vmm_src.getIdx() + 1);
+            uni_vaddps(vmm_dst, vmm_dst, vmm_src);
+            break;
+        case ReduceOr:
+            if (isa == cpu::x64::avx512_common) {
+                vcmpps(k_mask, vmm_src, vmm_zero, _cmp_neq_uq);
+                vblendmps(vmm_src | k_mask, vmm_zero, vmm_aux);
+            }
+            uni_vorps(vmm_dst, vmm_dst, vmm_src);
+            break;
+        case ReduceProd:
+            uni_vmulps(vmm_dst, vmm_dst, vmm_src);
+            break;
+        default:
+            assert(!"unsupported reduce mode");
         }
     }
 
     inline void reduce_kernel_scalar(Xmm xmm_src, Xmm xmm_dst) {
         switch (jcp_.reduce_mode) {
-            case ReduceAnd:
-                if (isa == cpu::x64::sse41) {
-                    cmpneqps(xmm_src, xmm_zero);
-                } else {
-                    vcmpneqps(xmm_src, xmm_src, xmm_zero);
-                }
-                uni_vandps(xmm_dst, xmm_dst, xmm_src);
-                break;
-            case ReduceL1:
-                uni_vandps(xmm_src, xmm_src, xmm_aux);
-                uni_vaddps(xmm_dst, xmm_dst, xmm_src);
-                break;
-            case ReduceLogSum:
-            case ReduceMean:
-            case ReduceSum:
-                uni_vaddps(xmm_dst, xmm_dst, xmm_src);
-                break;
-            case ReduceMax:
-                uni_vmaxps(xmm_dst, xmm_dst, xmm_src);
-                break;
-            case ReduceMin:
-                uni_vminps(xmm_dst, xmm_dst, xmm_src);
-                break;
-            case ReduceL2:
-            case ReduceSumSquare:
-                uni_vmulps(xmm_src, xmm_src, xmm_src);
-                uni_vaddps(xmm_dst, xmm_dst, xmm_src);
-                break;
-            case ReduceLogSumExp:
-                exp_injector->compute_vector_range(xmm_src.getIdx(), xmm_src.getIdx() + 1);
-                uni_vaddps(xmm_dst, xmm_dst, xmm_src);
-                break;
-            case ReduceOr:
-                uni_vorps(xmm_dst, xmm_dst, xmm_src);
-                break;
-            case ReduceProd:
-                uni_vmulps(xmm_dst, xmm_dst, xmm_src);
-                break;
-            default:
-                assert(!"unsupported reduce mode");
+        case ReduceAnd:
+            if (isa == cpu::x64::sse41) {
+                cmpneqps(xmm_src, xmm_zero);
+            } else {
+                vcmpneqps(xmm_src, xmm_src, xmm_zero);
+            }
+            uni_vandps(xmm_dst, xmm_dst, xmm_src);
+            break;
+        case ReduceL1:
+            uni_vandps(xmm_src, xmm_src, xmm_aux);
+            uni_vaddps(xmm_dst, xmm_dst, xmm_src);
+            break;
+        case ReduceLogSum:
+        case ReduceMean:
+        case ReduceSum:
+            uni_vaddps(xmm_dst, xmm_dst, xmm_src);
+            break;
+        case ReduceMax:
+            uni_vmaxps(xmm_dst, xmm_dst, xmm_src);
+            break;
+        case ReduceMin:
+            uni_vminps(xmm_dst, xmm_dst, xmm_src);
+            break;
+        case ReduceL2:
+        case ReduceSumSquare:
+            uni_vmulps(xmm_src, xmm_src, xmm_src);
+            uni_vaddps(xmm_dst, xmm_dst, xmm_src);
+            break;
+        case ReduceLogSumExp:
+            exp_injector->compute_vector_range(xmm_src.getIdx(), xmm_src.getIdx() + 1);
+            uni_vaddps(xmm_dst, xmm_dst, xmm_src);
+            break;
+        case ReduceOr:
+            uni_vorps(xmm_dst, xmm_dst, xmm_src);
+            break;
+        case ReduceProd:
+            uni_vmulps(xmm_dst, xmm_dst, xmm_src);
+            break;
+        default:
+            assert(!"unsupported reduce mode");
         }
     }
 
@@ -579,50 +594,50 @@ private:
             store_vector(ptr[reg_dst + 4 * jcp_.dst_data_size], vmm_dst_aux, jcp_.dst_dt);
     }
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
+    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                uni_vmovups(vmm_src, op);
-                break;
-            case memory::data_type::bf16:
-                uni_vpmovzxwd(vmm_src, op);
-                uni_vpslld(vmm_src, vmm_src, 16);
-                break;
-            case memory::data_type::s8:
-                uni_vpmovsxbd(vmm_src, op);
-                break;
-            case memory::data_type::u8:
-                uni_vpmovzxbd(vmm_src, op);
-                break;
-            default:
-                assert(!"unknown src_dt");
+        case memory::data_type::f32:
+        case memory::data_type::s32:
+            uni_vmovups(vmm_src, op);
+            break;
+        case memory::data_type::bf16:
+            uni_vpmovzxwd(vmm_src, op);
+            uni_vpslld(vmm_src, vmm_src, 16);
+            break;
+        case memory::data_type::s8:
+            uni_vpmovsxbd(vmm_src, op);
+            break;
+        case memory::data_type::u8:
+            uni_vpmovzxbd(vmm_src, op);
+            break;
+        default:
+            assert(!"unknown src_dt");
         }
 
         if (!isFloatCompatible(src_dt))
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
+    inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                movss(xmm_src, op);
-                break;
-            case memory::data_type::bf16:
-                pinsrw(xmm_src, op, 0x0);
-                uni_vpslld(xmm_src, xmm_src, 16);
-                break;
-            case memory::data_type::s8:
-                movsx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
-                break;
-            case memory::data_type::u8:
-                movzx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
-                break;
-            default:
-                assert(!"unknown src_dt");
+        case memory::data_type::f32:
+        case memory::data_type::s32:
+            movss(xmm_src, op);
+            break;
+        case memory::data_type::bf16:
+            pinsrw(xmm_src, op, 0x0);
+            uni_vpslld(xmm_src, xmm_src, 16);
+            break;
+        case memory::data_type::s8:
+            movsx(reg_tmp_32, op);
+            movq(xmm_src, reg_tmp_64);
+            break;
+        case memory::data_type::u8:
+            movzx(reg_tmp_32, op);
+            movq(xmm_src, reg_tmp_64);
+            break;
+        default:
+            assert(!"unknown src_dt");
         }
 
         if (!isFloatCompatible(src_dt)) {
@@ -630,7 +645,7 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
+    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
@@ -639,79 +654,80 @@ private:
         }
 
         switch (dst_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                uni_vmovups(op, vmm_dst);
-                break;
-            case memory::data_type::bf16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
+        case memory::data_type::f32:
+        case memory::data_type::s32:
+            uni_vmovups(op, vmm_dst);
+            break;
+        case memory::data_type::bf16:
+            if (mayiuse(avx512_core_bf16))
+                vcvtneps2bf16(ymm_dst, vmm_dst);
+            else
+                emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(ymm_dst.getIdx())});
+            vmovdqu16(op, ymm_dst);
+            break;
+        case memory::data_type::s8:
+            if (isa == cpu::x64::avx512_common) {
+                vmaxps(vmm_dst, vmm_zero, vmm_dst);
+                vpmovsdb(op, vmm_dst);
+            } else {
+                uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
+                if (isa != cpu::x64::sse41)
+                    vpermq(ymm_dst, ymm_dst, 0x08);
+                uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
+                if (isa != cpu::x64::sse41)
+                    vmovq(op, xmm_dst);
                 else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
-                vmovdqu16(op, ymm_dst);
-                break;
-            case memory::data_type::s8:
-                if (isa == cpu::x64::avx512_common) {
-                    vmaxps(vmm_dst, vmm_zero, vmm_dst);
-                    vpmovsdb(op, vmm_dst);
-                } else {
-                    uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::x64::sse41)
-                        vpermq(ymm_dst, ymm_dst, 0x08);
-                    uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::x64::sse41)
-                        vmovq(op, xmm_dst);
-                    else
-                        movd(op, xmm_dst);
-                }
-                break;
-            case memory::data_type::u8:
-                if (isa == cpu::x64::avx512_common) {
-                    vpmovusdb(op, vmm_dst);
-                } else {
-                    uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::x64::sse41)
-                        vpermq(ymm_dst, ymm_dst, 0x08);
-                    uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::x64::sse41)
-                        vmovq(op, xmm_dst);
-                    else
-                        movd(op, xmm_dst);
-                }
-                break;
-            default:
-                assert(!"unknown dst_dt");
+                    movd(op, xmm_dst);
+            }
+            break;
+        case memory::data_type::u8:
+            if (isa == cpu::x64::avx512_common) {
+                vpmovusdb(op, vmm_dst);
+            } else {
+                uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
+                if (isa != cpu::x64::sse41)
+                    vpermq(ymm_dst, ymm_dst, 0x08);
+                uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
+                if (isa != cpu::x64::sse41)
+                    vmovq(op, xmm_dst);
+                else
+                    movd(op, xmm_dst);
+            }
+            break;
+        default:
+            assert(!"unknown dst_dt");
         }
     }
 
-    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
+    inline void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, memory::data_type dst_dt) {
         if (!isFloatCompatible(dst_dt)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                movss(op, xmm_dst);
-                break;
-            case memory::data_type::bf16:
-                uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(op, xmm_dst, 0x0);
-                break;
-            case memory::data_type::s8:
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            case memory::data_type::u8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            default:
-                assert(!"unknown dst_dt");
+        case memory::data_type::f32:
+        case memory::data_type::s32:
+            movss(op, xmm_dst);
+            break;
+        case memory::data_type::bf16:
+            uni_vpsrld(xmm_dst, xmm_dst, 16);
+            pextrw(op, xmm_dst, 0x0);
+            break;
+        case memory::data_type::s8:
+            uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+            movq(reg_tmp_64, xmm_dst);
+            mov(op, reg_tmp_8);
+            break;
+        case memory::data_type::u8:
+            uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+            movq(reg_tmp_64, xmm_dst);
+            mov(op, reg_tmp_8);
+            break;
+        default:
+            assert(!"unknown dst_dt");
         }
     }
 
@@ -738,70 +754,70 @@ private:
     }
 
     inline void load_embedded_horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt) {
-        movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
-        horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
-        horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2,3,4),...
+        movshdup(xmm_aux3, xmm_dst);  // dst:1,2,3,4; aux3:2,2,4,4
+        horiz_ps(xmm_dst, xmm_aux3);  // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        movhlps(xmm_aux3, xmm_dst);   // aux3:f(3,4),f(4,4),4,4
+        horiz_ps(xmm_dst, xmm_aux3);  // dst:f(1,2,3,4),...
         load_scalar(xmm_aux3, ptr[reg_dst], dst_dt);
 
         switch (dst_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::bf16:
-                horiz_ps(xmm_dst, xmm_aux3);
-                store_scalar(ptr[reg_dst], xmm_dst, dst_dt);
-                break;
-            case memory::data_type::s32:
-                horiz_ps(xmm_dst, xmm_aux3);
-                uni_vcvtps2dq(xmm_dst, xmm_dst);
-                movss(ptr[reg_dst], xmm_dst);
-                break;
-            case memory::data_type::u8:
-                horiz_ps(xmm_dst, xmm_aux3);
-                uni_vcvtps2dq(xmm_dst, xmm_dst);
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
-                break;
-            case memory::data_type::s8:
-                horiz_ps(xmm_dst, xmm_aux3);
-                uni_vcvtps2dq(xmm_dst, xmm_dst);
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
-                break;
-            default:
-                assert(!"unknown dst_dt");
+        case memory::data_type::f32:
+        case memory::data_type::bf16:
+            horiz_ps(xmm_dst, xmm_aux3);
+            store_scalar(ptr[reg_dst], xmm_dst, dst_dt);
+            break;
+        case memory::data_type::s32:
+            horiz_ps(xmm_dst, xmm_aux3);
+            uni_vcvtps2dq(xmm_dst, xmm_dst);
+            movss(ptr[reg_dst], xmm_dst);
+            break;
+        case memory::data_type::u8:
+            horiz_ps(xmm_dst, xmm_aux3);
+            uni_vcvtps2dq(xmm_dst, xmm_dst);
+            uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+            pextrb(ptr[reg_dst], xmm_dst, 0);
+            break;
+        case memory::data_type::s8:
+            horiz_ps(xmm_dst, xmm_aux3);
+            uni_vcvtps2dq(xmm_dst, xmm_dst);
+            uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+            pextrb(ptr[reg_dst], xmm_dst, 0);
+            break;
+        default:
+            assert(!"unknown dst_dt");
         }
     }
 
     inline void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
-            case ReduceAnd:
-                andps(xmm, op);
-                break;
-            case ReduceL1:
-            case ReduceL2:
-            case ReduceLogSum:
-            case ReduceMean:
-            case ReduceSum:
-            case ReduceSumSquare:
-            case ReduceLogSumExp:
-                addps(xmm, op);
-                break;
-            case ReduceMax:
-                maxps(xmm, op);
-                break;
-            case ReduceMin:
-                minps(xmm, op);
-                break;
-            case ReduceOr:
-                orps(xmm, op);
-                break;
-            case ReduceProd:
-                mulps(xmm, op);
-                break;
-            default:
-                assert(!"unsupported reduce mode");
+        case ReduceAnd:
+            andps(xmm, op);
+            break;
+        case ReduceL1:
+        case ReduceL2:
+        case ReduceLogSum:
+        case ReduceMean:
+        case ReduceSum:
+        case ReduceSumSquare:
+        case ReduceLogSumExp:
+            addps(xmm, op);
+            break;
+        case ReduceMax:
+            maxps(xmm, op);
+            break;
+        case ReduceMin:
+            minps(xmm, op);
+            break;
+        case ReduceOr:
+            orps(xmm, op);
+            break;
+        case ReduceProd:
+            mulps(xmm, op);
+            break;
+        default:
+            assert(!"unsupported reduce mode");
         }
     }
 
@@ -824,12 +840,12 @@ private:
     }
 
     const struct aux_vals_type {
-        int float_one = 0x3f800000; // 1.0f
-        int float_abs = 0x7fffffff; // mask to make positive
-        int float_min = 0xff7fffff; // float minimum
-        int float_max = 0x7f7fffff; // float maximum
-        int int32_min = 0xcf000000; // -2^31 presented in float
-        int int32_max = 0x4effffff; // 2^31-1 presented in float
+        int float_one = 0x3f800000;  // 1.0f
+        int float_abs = 0x7fffffff;  // mask to make positive
+        int float_min = 0xff7fffff;  // float minimum
+        int float_max = 0x7f7fffff;  // float maximum
+        int int32_min = 0xcf000000;  // -2^31 presented in float
+        int int32_max = 0x4effffff;  // 2^31-1 presented in float
     } aux_vals;
 };
 
@@ -838,7 +854,8 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_post_kernel_f32)
 
     explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp)
-    : jit_uni_reduce_post_kernel(jcp), jit_generator() {}
+        : jit_uni_reduce_post_kernel(jcp),
+          jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -877,8 +894,8 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Reg64 reg_dst = r8;
@@ -954,8 +971,8 @@ private:
         // cases: [ReduceL2] [ReduceLogSum] [ReduceLogSumExp] [ReduceMean]
         L(reduce_map_label);
         {
-            if (jcp_.reduce_mode == ReduceL2 || jcp_.reduce_mode == ReduceMean ||
-                jcp_.reduce_mode == ReduceLogSum || jcp_.reduce_mode == ReduceLogSumExp) {
+            if (jcp_.reduce_mode == ReduceL2 || jcp_.reduce_mode == ReduceMean || jcp_.reduce_mode == ReduceLogSum ||
+                jcp_.reduce_mode == ReduceLogSumExp) {
                 if (jcp_.reduce_mode == ReduceMean)
                     uni_vbroadcastss(vmm_aux, ptr[reg_divisor]);
 
@@ -996,8 +1013,8 @@ private:
     inline void reduce_post_tail() {
         // reduce map for tail in dst memory
         // cases: [ReduceL2] [ReduceLogSum] [ReduceLogSumExp] [ReduceMean] in planar layout
-        if (jcp_.reduce_mode == ReduceL2 || jcp_.reduce_mode == ReduceMean ||
-                jcp_.reduce_mode == ReduceLogSum || jcp_.reduce_mode == ReduceLogSumExp) {
+        if (jcp_.reduce_mode == ReduceL2 || jcp_.reduce_mode == ReduceMean || jcp_.reduce_mode == ReduceLogSum ||
+            jcp_.reduce_mode == ReduceLogSumExp) {
             if (jcp_.reduce_mode == ReduceMean)
                 uni_vbroadcastss(xmm_aux, ptr[reg_divisor]);
 
@@ -1046,50 +1063,50 @@ private:
             log_injector->compute_vector_range(xmm_dst.getIdx(), xmm_dst.getIdx() + 1);
     }
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
+    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                uni_vmovups(vmm_src, op);
-                break;
-            case memory::data_type::bf16:
-                uni_vpmovzxwd(vmm_src, op);
-                uni_vpslld(vmm_src, vmm_src, 16);
-                break;
-            case memory::data_type::s8:
-                uni_vpmovsxbd(vmm_src, op);
-                break;
-            case memory::data_type::u8:
-                uni_vpmovzxbd(vmm_src, op);
-                break;
-            default:
-                assert(!"unknown src_dt");
+        case memory::data_type::f32:
+        case memory::data_type::s32:
+            uni_vmovups(vmm_src, op);
+            break;
+        case memory::data_type::bf16:
+            uni_vpmovzxwd(vmm_src, op);
+            uni_vpslld(vmm_src, vmm_src, 16);
+            break;
+        case memory::data_type::s8:
+            uni_vpmovsxbd(vmm_src, op);
+            break;
+        case memory::data_type::u8:
+            uni_vpmovzxbd(vmm_src, op);
+            break;
+        default:
+            assert(!"unknown src_dt");
         }
 
         if (!isFloatCompatible(src_dt))
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
+    inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                movss(xmm_src, op);
-                break;
-            case memory::data_type::bf16:
-                pinsrw(xmm_src, op, 0x0);
-                uni_vpslld(xmm_src, xmm_src, 16);
-                break;
-            case memory::data_type::s8:
-                movsx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
-                break;
-            case memory::data_type::u8:
-                movzx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
-                break;
-            default:
-                assert(!"unknown src_dt");
+        case memory::data_type::f32:
+        case memory::data_type::s32:
+            movss(xmm_src, op);
+            break;
+        case memory::data_type::bf16:
+            pinsrw(xmm_src, op, 0x0);
+            uni_vpslld(xmm_src, xmm_src, 16);
+            break;
+        case memory::data_type::s8:
+            movsx(reg_tmp_32, op);
+            movq(xmm_src, reg_tmp_64);
+            break;
+        case memory::data_type::u8:
+            movzx(reg_tmp_32, op);
+            movq(xmm_src, reg_tmp_64);
+            break;
+        default:
+            assert(!"unknown src_dt");
         }
 
         if (!isFloatCompatible(src_dt)) {
@@ -1097,7 +1114,7 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
+    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
@@ -1106,79 +1123,80 @@ private:
         }
 
         switch (dst_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                uni_vmovups(op, vmm_dst);
-                break;
-            case memory::data_type::bf16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
+        case memory::data_type::f32:
+        case memory::data_type::s32:
+            uni_vmovups(op, vmm_dst);
+            break;
+        case memory::data_type::bf16:
+            if (mayiuse(avx512_core_bf16))
+                vcvtneps2bf16(ymm_dst, vmm_dst);
+            else
+                emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(ymm_dst.getIdx())});
+            vmovdqu16(op, ymm_dst);
+            break;
+        case memory::data_type::s8:
+            if (isa == cpu::x64::avx512_common) {
+                vmaxps(vmm_dst, vmm_zero, vmm_dst);
+                vpmovsdb(op, vmm_dst);
+            } else {
+                uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
+                if (isa != cpu::x64::sse41)
+                    vpermq(ymm_dst, ymm_dst, 0x08);
+                uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
+                if (isa != cpu::x64::sse41)
+                    vmovq(op, xmm_dst);
                 else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
-                vmovdqu16(op, ymm_dst);
-                break;
-            case memory::data_type::s8:
-                if (isa == cpu::x64::avx512_common) {
-                    vmaxps(vmm_dst, vmm_zero, vmm_dst);
-                    vpmovsdb(op, vmm_dst);
-                } else {
-                    uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::x64::sse41)
-                        vpermq(ymm_dst, ymm_dst, 0x08);
-                    uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::x64::sse41)
-                        vmovq(op, xmm_dst);
-                    else
-                        movd(op, xmm_dst);
-                }
-                break;
-            case memory::data_type::u8:
-                if (isa == cpu::x64::avx512_common) {
-                    vpmovusdb(op, vmm_dst);
-                } else {
-                    uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::x64::sse41)
-                        vpermq(ymm_dst, ymm_dst, 0x08);
-                    uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::x64::sse41)
-                        vmovq(op, xmm_dst);
-                    else
-                        movd(op, xmm_dst);
-                }
-                break;
-            default:
-                assert(!"unknown dst_dt");
+                    movd(op, xmm_dst);
+            }
+            break;
+        case memory::data_type::u8:
+            if (isa == cpu::x64::avx512_common) {
+                vpmovusdb(op, vmm_dst);
+            } else {
+                uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
+                if (isa != cpu::x64::sse41)
+                    vpermq(ymm_dst, ymm_dst, 0x08);
+                uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
+                if (isa != cpu::x64::sse41)
+                    vmovq(op, xmm_dst);
+                else
+                    movd(op, xmm_dst);
+            }
+            break;
+        default:
+            assert(!"unknown dst_dt");
         }
     }
 
-    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
+    inline void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, memory::data_type dst_dt) {
         if (!isFloatCompatible(dst_dt)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                movss(op, xmm_dst);
-                break;
-            case memory::data_type::bf16:
-                uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(op, xmm_dst, 0x0);
-                break;
-            case memory::data_type::s8:
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            case memory::data_type::u8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            default:
-                assert(!"unknown dst_dt");
+        case memory::data_type::f32:
+        case memory::data_type::s32:
+            movss(op, xmm_dst);
+            break;
+        case memory::data_type::bf16:
+            uni_vpsrld(xmm_dst, xmm_dst, 16);
+            pextrw(op, xmm_dst, 0x0);
+            break;
+        case memory::data_type::s8:
+            uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+            movq(reg_tmp_64, xmm_dst);
+            mov(op, reg_tmp_8);
+            break;
+        case memory::data_type::u8:
+            uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+            movq(reg_tmp_64, xmm_dst);
+            mov(op, reg_tmp_8);
+            break;
+        default:
+            assert(!"unknown dst_dt");
         }
     }
 
@@ -1205,36 +1223,36 @@ private:
     }
 
     inline void horize_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt) {
-        movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
-        horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
-        horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2,3,4),...
+        movshdup(xmm_aux3, xmm_dst);  // dst:1,2,3,4; aux3:2,2,4,4
+        horiz_ps(xmm_dst, xmm_aux3);  // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        movhlps(xmm_aux3, xmm_dst);   // aux3:f(3,4),f(4,4),4,4
+        horiz_ps(xmm_dst, xmm_aux3);  // dst:f(1,2,3,4),...
         switch (dst_dt) {
-            case memory::data_type::f32:
-                movss(ptr[reg_dst], xmm_dst);
-                break;
-            case memory::data_type::bf16:
-                uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(ptr[reg_dst], xmm_dst, 0x0);
-                break;
-            case memory::data_type::s32:
-                uni_vcvtps2dq(xmm_dst, xmm_dst);
-                movss(ptr[reg_dst], xmm_dst);
-                break;
-            case memory::data_type::u8:
-                uni_vcvtps2dq(xmm_dst, xmm_dst);
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
-                break;
-            case memory::data_type::s8:
-                uni_vcvtps2dq(xmm_dst, xmm_dst);
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
-                break;
-            default:
-                assert(!"unknown dst_dt");
+        case memory::data_type::f32:
+            movss(ptr[reg_dst], xmm_dst);
+            break;
+        case memory::data_type::bf16:
+            uni_vpsrld(xmm_dst, xmm_dst, 16);
+            pextrw(ptr[reg_dst], xmm_dst, 0x0);
+            break;
+        case memory::data_type::s32:
+            uni_vcvtps2dq(xmm_dst, xmm_dst);
+            movss(ptr[reg_dst], xmm_dst);
+            break;
+        case memory::data_type::u8:
+            uni_vcvtps2dq(xmm_dst, xmm_dst);
+            uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+            pextrb(ptr[reg_dst], xmm_dst, 0);
+            break;
+        case memory::data_type::s8:
+            uni_vcvtps2dq(xmm_dst, xmm_dst);
+            uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+            pextrb(ptr[reg_dst], xmm_dst, 0);
+            break;
+        default:
+            assert(!"unknown dst_dt");
         }
     }
 
@@ -1261,120 +1279,131 @@ private:
     }
 
     inline void load_embedded_horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt) {
-        movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
-        horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
-        horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2,3,4),...
+        movshdup(xmm_aux3, xmm_dst);  // dst:1,2,3,4; aux3:2,2,4,4
+        horiz_ps(xmm_dst, xmm_aux3);  // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        movhlps(xmm_aux3, xmm_dst);   // aux3:f(3,4),f(4,4),4,4
+        horiz_ps(xmm_dst, xmm_aux3);  // dst:f(1,2,3,4),...
         load_scalar(xmm_aux3, ptr[reg_dst], dst_dt);
 
         switch (dst_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::bf16:
-                horiz_ps(xmm_dst, xmm_aux3);
-                store_scalar(ptr[reg_dst], xmm_dst, dst_dt);
-                break;
-            case memory::data_type::s32:
-                horiz_ps(xmm_dst, xmm_aux3);
-                uni_vcvtps2dq(xmm_dst, xmm_dst);
-                movss(ptr[reg_dst], xmm_dst);
-                break;
-            case memory::data_type::u8:
-                horiz_ps(xmm_dst, xmm_aux3);
-                uni_vcvtps2dq(xmm_dst, xmm_dst);
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
-                break;
-            case memory::data_type::s8:
-                horiz_ps(xmm_dst, xmm_aux3);
-                uni_vcvtps2dq(xmm_dst, xmm_dst);
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
-                break;
-            default:
-                assert(!"unknown dst_dt");
+        case memory::data_type::f32:
+        case memory::data_type::bf16:
+            horiz_ps(xmm_dst, xmm_aux3);
+            store_scalar(ptr[reg_dst], xmm_dst, dst_dt);
+            break;
+        case memory::data_type::s32:
+            horiz_ps(xmm_dst, xmm_aux3);
+            uni_vcvtps2dq(xmm_dst, xmm_dst);
+            movss(ptr[reg_dst], xmm_dst);
+            break;
+        case memory::data_type::u8:
+            horiz_ps(xmm_dst, xmm_aux3);
+            uni_vcvtps2dq(xmm_dst, xmm_dst);
+            uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+            pextrb(ptr[reg_dst], xmm_dst, 0);
+            break;
+        case memory::data_type::s8:
+            horiz_ps(xmm_dst, xmm_aux3);
+            uni_vcvtps2dq(xmm_dst, xmm_dst);
+            uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+            pextrb(ptr[reg_dst], xmm_dst, 0);
+            break;
+        default:
+            assert(!"unknown dst_dt");
         }
     }
 
     inline void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
-            case ReduceAnd:
-                andps(xmm, op);
-                break;
-            case ReduceL1:
-            case ReduceL2:
-            case ReduceLogSum:
-            case ReduceMean:
-            case ReduceSum:
-            case ReduceSumSquare:
-            case ReduceLogSumExp:
-                addps(xmm, op);
-                break;
-            case ReduceMax:
-                maxps(xmm, op);
-                break;
-            case ReduceMin:
-                minps(xmm, op);
-                break;
-            case ReduceOr:
-                orps(xmm, op);
-                break;
-            case ReduceProd:
-                mulps(xmm, op);
-                break;
-            default:
-                assert(!"unsupported reduce mode");
+        case ReduceAnd:
+            andps(xmm, op);
+            break;
+        case ReduceL1:
+        case ReduceL2:
+        case ReduceLogSum:
+        case ReduceMean:
+        case ReduceSum:
+        case ReduceSumSquare:
+        case ReduceLogSumExp:
+            addps(xmm, op);
+            break;
+        case ReduceMax:
+            maxps(xmm, op);
+            break;
+        case ReduceMin:
+            minps(xmm, op);
+            break;
+        case ReduceOr:
+            orps(xmm, op);
+            break;
+        case ReduceProd:
+            mulps(xmm, op);
+            break;
+        default:
+            assert(!"unsupported reduce mode");
         }
     }
 };
 
-std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNReduceNode&)>> MKLDNNReduceNode::initializers = {
-    {ngraph::opset4::ReduceL1::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceL1;
-    }},
-    {ngraph::opset4::ReduceL2::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceL2;
-    }},
-    {ngraph::opset1::ReduceLogicalAnd::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceAnd;
-    }},
-    {ngraph::opset1::ReduceLogicalOr::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceOr;
-    }},
-    {ngraph::opset1::ReduceMax::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceMax;
-    }},
-    {ngraph::opset1::ReduceMean::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceMean;
-    }},
-    {ngraph::opset1::ReduceMin::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceMin;
-    }},
-    {ngraph::opset1::ReduceProd::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceProd;
-    }},
-    {ngraph::opset1::ReduceSum::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceSum;
-    }}
-};
+std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNReduceNode&)>>
+    MKLDNNReduceNode::initializers = {
+        {ngraph::opset4::ReduceL1::type_info,
+         [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+             node.algorithm = ReduceL1;
+         }},
+        {ngraph::opset4::ReduceL2::type_info,
+         [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+             node.algorithm = ReduceL2;
+         }},
+        {ngraph::opset1::ReduceLogicalAnd::type_info,
+         [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+             node.algorithm = ReduceAnd;
+         }},
+        {ngraph::opset1::ReduceLogicalOr::type_info,
+         [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+             node.algorithm = ReduceOr;
+         }},
+        {ngraph::opset1::ReduceMax::type_info,
+         [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+             node.algorithm = ReduceMax;
+         }},
+        {ngraph::opset1::ReduceMean::type_info,
+         [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+             node.algorithm = ReduceMean;
+         }},
+        {ngraph::opset1::ReduceMin::type_info,
+         [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+             node.algorithm = ReduceMin;
+         }},
+        {ngraph::opset1::ReduceProd::type_info,
+         [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+             node.algorithm = ReduceProd;
+         }},
+        {ngraph::opset1::ReduceSum::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+             node.algorithm = ReduceSum;
+         }}};
 
-bool MKLDNNReduceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNReduceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                            std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
         if (std::dynamic_pointer_cast<const ngraph::op::util::ArithmeticReductionKeepDims>(op) == nullptr &&
-                std::dynamic_pointer_cast<const ngraph::op::util::LogicalReductionKeepDims>(op) == nullptr) {
-            errorMessage = "Reduce node with name " + op->get_friendly_name() + " is not derived from ArithmeticReductionKeepDims or LogicalReductionKeepDims";
+            std::dynamic_pointer_cast<const ngraph::op::util::LogicalReductionKeepDims>(op) == nullptr) {
+            errorMessage = "Reduce node with name " + op->get_friendly_name() +
+                           " is not derived from ArithmeticReductionKeepDims or LogicalReductionKeepDims";
             return false;
         }
         if (initializers.find(op->get_type_info()) == initializers.end()) {
-            errorMessage = "Doesn't support Reduce algorithm: " +  std::string(op->get_type_info().name);
+            errorMessage = "Doesn't support Reduce algorithm: " + std::string(op->get_type_info().name);
             return false;
         }
-        if (std::dynamic_pointer_cast<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
+        if (std::dynamic_pointer_cast<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) ==
+            nullptr) {
             errorMessage = "Only const 'reduce_indexes' input is supported";
             return false;
         }
@@ -1384,8 +1413,10 @@ bool MKLDNNReduceNode::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-MKLDNNReduceNode::MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+MKLDNNReduceNode::MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op,
+                                   const mkldnn::engine& eng,
+                                   MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
@@ -1419,7 +1450,8 @@ void MKLDNNReduceNode::getSupportedDescriptors() {
     } else {
         // In fact, after the Reduce operation, the shape must be a scalar if the previous one was 1d.
         // But for now, 0d tensor (scalar) is emulated as 1d tensor. Skip checking in such cases.
-        bool is_emulated_0d_as_1d = getInputShapeAtPort(REDUCE_DATA).getRank() == 1 && getOutputShapeAtPort(0).getRank() == 1;
+        bool is_emulated_0d_as_1d =
+            getInputShapeAtPort(REDUCE_DATA).getRank() == 1 && getOutputShapeAtPort(0).getRank() == 1;
         if (getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank() && !is_emulated_0d_as_1d)
             IE_THROW() << errorPrefix << "gets incorrect number of input/output dimensions!";
     }
@@ -1429,30 +1461,31 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    static const Precision supportedPrecisions[] = {
-            Precision::FP32,
-            Precision::BF16,
-            Precision::I32,
-            Precision::I8,
-            Precision::U8
-    };
+    static const Precision supportedPrecisions[] = {Precision::FP32,
+                                                    Precision::BF16,
+                                                    Precision::I32,
+                                                    Precision::I8,
+                                                    Precision::U8};
 
     Precision inputPrecision = getOriginalInputPrecisionAtPort(REDUCE_DATA);
     Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
 
     jit_mode = (mayiuse(cpu::x64::sse41)) && getInputShapeAtPort(REDUCE_DATA).getRank() <= 5 &&
-               std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), inputPrecision) != std::end(supportedPrecisions) &&
-               std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), outputPrecision) != std::end(supportedPrecisions);
+               std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), inputPrecision) !=
+                   std::end(supportedPrecisions) &&
+               std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), outputPrecision) !=
+                   std::end(supportedPrecisions);
 
     if (jit_mode) {
-        // Since in jit mode we use the output memory as an intermediate accumulator for certain reduce modes, we can't use BF16 output precision due to
-        // the possible accuracy loss. Therefore, for such mods, we will change the output precision to FP32.
+        // Since in jit mode we use the output memory as an intermediate accumulator for certain reduce modes, we can't
+        // use BF16 output precision due to the possible accuracy loss. Therefore, for such mods, we will change the
+        // output precision to FP32.
         if (Precision::BF16 == outputPrecision) {
             if (!mayiuse(avx512_core)) {
-                    outputPrecision = Precision::FP32;
-            } else if (algorithm != ReduceAnd && algorithm != ReduceOr &&
-                       algorithm != ReduceMin && algorithm != ReduceMax) {
-                            outputPrecision = Precision::FP32;
+                outputPrecision = Precision::FP32;
+            } else if (algorithm != ReduceAnd && algorithm != ReduceOr && algorithm != ReduceMin &&
+                       algorithm != ReduceMax) {
+                outputPrecision = Precision::FP32;
             }
         }
     }
@@ -1475,11 +1508,16 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
-    auto pushDesc = [&](LayoutType inFormat, LayoutType outFormat, InferenceEngine::Precision inDataType,
-            InferenceEngine::Precision outDataType, impl_desc_type impl_type) {
-        config.inConfs[REDUCE_DATA].desc = creatorsMap.at(inFormat)->createSharedDesc(inDataType, getInputShapeAtPort(REDUCE_DATA));
-        config.inConfs[REDUCE_INDEXES].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32,
-                                                                                                 getInputShapeAtPort(REDUCE_INDEXES));
+    auto pushDesc = [&](LayoutType inFormat,
+                        LayoutType outFormat,
+                        InferenceEngine::Precision inDataType,
+                        InferenceEngine::Precision outDataType,
+                        impl_desc_type impl_type) {
+        config.inConfs[REDUCE_DATA].desc =
+            creatorsMap.at(inFormat)->createSharedDesc(inDataType, getInputShapeAtPort(REDUCE_DATA));
+        config.inConfs[REDUCE_INDEXES].desc =
+            creatorsMap.at(LayoutType::ncsp)
+                ->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(REDUCE_INDEXES));
         config.outConfs[0].desc = creatorsMap.at(outFormat)->createSharedDesc(outDataType, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
@@ -1495,7 +1533,7 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
         pushDesc(LayoutType::ncsp, LayoutType::ncsp, inputPrecision, outputPrecision, impl_type);
         if (keep_dims) {
             if ((getInputShapeAtPort(REDUCE_DATA).getRank() == 4 || getInputShapeAtPort(REDUCE_DATA).getRank() == 5) &&
-                    getInputShapeAtPort(REDUCE_DATA).getStaticDims()[1] > 1) {
+                getInputShapeAtPort(REDUCE_DATA).getStaticDims()[1] > 1) {
                 if (mayiuse(cpu::x64::avx512_common)) {
                     pushDesc(LayoutType::nCsp16c, LayoutType::nCsp16c, inputPrecision, outputPrecision, impl_type);
                 } else if (mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41)) {
@@ -1504,17 +1542,22 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
             }
         }
     } else {
-        pushDesc(LayoutType::ncsp, LayoutType::ncsp, InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP32, impl_desc_type::ref);
+        pushDesc(LayoutType::ncsp,
+                 LayoutType::ncsp,
+                 InferenceEngine::Precision::FP32,
+                 InferenceEngine::Precision::FP32,
+                 impl_desc_type::ref);
     }
 }
 
 void MKLDNNReduceNode::createPrimitive() {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcDataMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
-    auto &srcIndexesMemPtr = getParentEdgeAt(REDUCE_INDEXES)->getMemoryPtr();
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto& srcDataMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
+    auto& srcIndexesMemPtr = getParentEdgeAt(REDUCE_INDEXES)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
         IE_THROW() << errorPrefix << " has not allocated destination memory.";
-    if (!srcDataMemPtr || !srcDataMemPtr->GetPrimitivePtr() || !srcIndexesMemPtr || !srcIndexesMemPtr->GetPrimitivePtr())
+    if (!srcDataMemPtr || !srcDataMemPtr->GetPrimitivePtr() || !srcIndexesMemPtr ||
+        !srcIndexesMemPtr->GetPrimitivePtr())
         IE_THROW() << errorPrefix << " has not allocate input memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
@@ -1523,7 +1566,8 @@ void MKLDNNReduceNode::createPrimitive() {
     planar_layout = getParentEdgeAt(REDUCE_DATA)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp);
 
     auto jcp = jit_reduce_config_params();
-    jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].desc->getPrecision());
+    jcp.src_dt =
+        MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].desc->getPrecision());
     jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc->getPrecision());
     jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
     jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
@@ -1554,11 +1598,11 @@ void MKLDNNReduceNode::createPrimitive() {
 }
 
 void MKLDNNReduceNode::execute(mkldnn::stream strm) {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
-    auto &srcIndexesMemPtr = getParentEdgeAt(REDUCE_INDEXES)->getMemoryPtr();
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto& srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
+    auto& srcIndexesMemPtr = getParentEdgeAt(REDUCE_INDEXES)->getMemoryPtr();
 
-    const auto idx_data = reinterpret_cast<const int32_t *>(srcIndexesMemPtr->GetData());
+    const auto idx_data = reinterpret_cast<const int32_t*>(srcIndexesMemPtr->GetData());
     size_t dst_size = dstMemPtr->GetSize();
     src_dims = getParentEdgeAt(REDUCE_DATA)->getMemory().getStaticDims();
     src_strides = getParentEdgeAt(REDUCE_DATA)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -1568,7 +1612,11 @@ void MKLDNNReduceNode::execute(mkldnn::stream strm) {
     if (dims_size <= 5) {
         if (dims_size == 5) {
             SET_SRC_DIM_VALUE(src_dims[0], src_dims[1], src_dims[2], src_dims[3], src_dims[4]);
-            SET_DST_DIM_VALUE(process_dst_dims[0], process_dst_dims[1], process_dst_dims[2], process_dst_dims[3], process_dst_dims[4]);
+            SET_DST_DIM_VALUE(process_dst_dims[0],
+                              process_dst_dims[1],
+                              process_dst_dims[2],
+                              process_dst_dims[3],
+                              process_dst_dims[4]);
         } else if (dims_size == 4) {
             SET_SRC_DIM_VALUE(src_dims[0], src_dims[1], 1, src_dims[2], src_dims[3]);
             SET_DST_DIM_VALUE(process_dst_dims[0], process_dst_dims[1], 1, process_dst_dims[2], process_dst_dims[3]);
@@ -1590,14 +1638,14 @@ void MKLDNNReduceNode::execute(mkldnn::stream strm) {
         ReduceW = IW != OW && OW == 1;
     }
 
-    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetPtr());
-    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());
+    const uint8_t* src_data = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
+    uint8_t* dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
     if (jit_mode) {
         reduce_type(src_data, dst_data, dst_size);
     } else {
         if (planar_layout) {
-            auto in_ptr = reinterpret_cast<const float *>(src_data);
-            auto out_ptr = reinterpret_cast<float *>(dst_data);
+            auto in_ptr = reinterpret_cast<const float*>(src_data);
+            auto out_ptr = reinterpret_cast<float*>(dst_data);
             reduce_ref(in_ptr, out_ptr);
         } else {
             IE_THROW() << errorPrefix << " supports only plain layout on machine w/o sse42.";
@@ -1605,14 +1653,15 @@ void MKLDNNReduceNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNReduceNode::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size_t dst_size) {
+void MKLDNNReduceNode::reduce_type(const uint8_t* in_ptr, uint8_t* out_ptr, size_t dst_size) {
     init_dst_data(out_ptr, dst_size);
 
     if (planar_layout) {
         reduce_PLN(in_ptr, out_ptr);
     } else {
         if ((algorithm == ReduceAnd || algorithm == ReduceLogSumExp || algorithm == ReduceMax ||
-             algorithm == ReduceMin || algorithm == ReduceProd) && ReduceC) {
+             algorithm == ReduceMin || algorithm == ReduceProd) &&
+            ReduceC) {
             reduce_BLK_concern_padding(in_ptr, out_ptr);
         } else {
             reduce_BLK(in_ptr, out_ptr);
@@ -1620,58 +1669,76 @@ void MKLDNNReduceNode::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size
     }
 }
 
-void MKLDNNReduceNode::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
+void MKLDNNReduceNode::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
     for (size_t ib = 0; ib < IB; ib++) {
-        size_t ob = ReduceN ? 0 : ib; GET_PTR_N_PLN;
+        size_t ob = ReduceN ? 0 : ib;
+        GET_PTR_N_PLN;
         if (!ReduceC && !ReduceD && ReduceH && ReduceW) {
             parallel_for2d(IC, ID, [&](size_t ic, size_t id) {
-                size_t oc = ic, od = id; GET_PTR_NCD_BASE_PTR_N_PLN;
+                size_t oc = ic, od = id;
+                GET_PTR_NCD_BASE_PTR_N_PLN;
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW, 1);
             });
         } else if (ReduceH && ReduceW) {
             for (size_t ic = 0; ic < IC; ic++) {
-                size_t oc = ReduceC ? 0 : ic; GET_PTR_NC_PLN;
+                size_t oc = ReduceC ? 0 : ic;
+                GET_PTR_NC_PLN;
                 for (size_t id = 0; id < ID; id++) {
-                    size_t od = ReduceD ? 0 : id; GET_PTR_NCD_PLN;
+                    size_t od = ReduceD ? 0 : id;
+                    GET_PTR_NCD_PLN;
                     reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW, 1);
                 }
             }
         } else if (!ReduceH && ReduceW) {
             for (size_t ic = 0; ic < IC; ic++) {
-                size_t oc = ReduceC ? 0 : ic; GET_PTR_NC_PLN;
+                size_t oc = ReduceC ? 0 : ic;
+                GET_PTR_NC_PLN;
                 for (size_t id = 0; id < ID; id++) {
-                    size_t od = ReduceD ? 0 : id; GET_PTR_NCD_PLN;
-                    parallel_for(IH, [&](size_t ih){
-                        size_t oh = ih; GET_PTR_NCDH_PLN;
+                    size_t od = ReduceD ? 0 : id;
+                    GET_PTR_NCD_PLN;
+                    parallel_for(IH, [&](size_t ih) {
+                        size_t oh = ih;
+                        GET_PTR_NCDH_PLN;
                         reduce_kernel_process(in_ptr_ncdh, out_ptr_ncdh, IW, 1);
                     });
                 }
             }
         } else if (ReduceW) {
             for (size_t ic = 0; ic < IC; ic++) {
-                size_t oc = ReduceC ? 0 : ic; GET_PTR_NC_PLN;
+                size_t oc = ReduceC ? 0 : ic;
+                GET_PTR_NC_PLN;
                 for (size_t id = 0; id < ID; id++) {
-                    size_t od = ReduceD ? 0 : id; GET_PTR_NCD_PLN;
+                    size_t od = ReduceD ? 0 : id;
+                    GET_PTR_NCD_PLN;
                     for (size_t ih = 0; ih < IH; ih++) {
-                        size_t oh = ReduceH ? 0 : ih; GET_PTR_NCDH_PLN;
+                        size_t oh = ReduceH ? 0 : ih;
+                        GET_PTR_NCDH_PLN;
                         reduce_kernel_process(in_ptr_ncdh, out_ptr_ncdh, IW, 1);
                     }
                 }
             }
         } else {
             for (size_t ic = 0; ic < IC; ic++) {
-                size_t oc = ReduceC ? 0 : ic; GET_PTR_NC_PLN;
+                size_t oc = ReduceC ? 0 : ic;
+                GET_PTR_NC_PLN;
                 for (size_t id = 0; id < ID; id++) {
-                    size_t od = ReduceD ? 0 : id; GET_PTR_NCD_PLN;
+                    size_t od = ReduceD ? 0 : id;
+                    GET_PTR_NCD_PLN;
                     for (size_t ih = 0; ih < IH; ih++) {
-                        size_t oh = ReduceH ? 0 : ih; GET_PTR_NCDH_PLN;
+                        size_t oh = ReduceH ? 0 : ih;
+                        GET_PTR_NCDH_PLN;
                         for (size_t ibw = 0; ibw < IW / blk_size; ibw++) {
                             size_t obw = ibw;
                             reduce_kernel_process(in_ptr_ncdh + ibw * blk_size * src_data_size,
-                                                  out_ptr_ncdh + obw * blk_size * dst_data_size, blk_size, 0);
+                                                  out_ptr_ncdh + obw * blk_size * dst_data_size,
+                                                  blk_size,
+                                                  0);
                         }
                         size_t tail_start = IW / blk_size * blk_size;
-                        reduce_kernel_process(in_ptr_ncdh + tail_start * src_data_size, out_ptr_ncdh + tail_start * dst_data_size, IW - tail_start, 0);
+                        reduce_kernel_process(in_ptr_ncdh + tail_start * src_data_size,
+                                              out_ptr_ncdh + tail_start * dst_data_size,
+                                              IW - tail_start,
+                                              0);
                     }
                 }
             }
@@ -1681,45 +1748,56 @@ void MKLDNNReduceNode::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
     reduce_kernel_post_process(out_ptr);
 }
 
-void MKLDNNReduceNode::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
+void MKLDNNReduceNode::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
 
     for (size_t ib = 0; ib < IB; ib++) {
-        size_t ob = ReduceN ? 0 : ib; GET_PTR_N_BLK;
+        size_t ob = ReduceN ? 0 : ib;
+        GET_PTR_N_BLK;
         if (!ReduceC && !ReduceD && ReduceH && ReduceW) {
             parallel_for2d(ICB, ID, [&](size_t icb, size_t id) {
-                size_t ocb = icb, od = id; GET_PTR_NCD_BASE_PTR_N_BLK;
+                size_t ocb = icb, od = id;
+                GET_PTR_NCD_BASE_PTR_N_BLK;
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
             });
         } else if (ReduceH && ReduceW) {
             for (size_t icb = 0; icb < ICB; icb++) {
-                size_t ocb = ReduceC ? 0 : icb; GET_PTR_NC_BLK;
+                size_t ocb = ReduceC ? 0 : icb;
+                GET_PTR_NC_BLK;
                 for (size_t id = 0; id < ID; id++) {
-                    size_t od = ReduceD ? 0 : id; GET_PTR_NCD_BLK;
+                    size_t od = ReduceD ? 0 : id;
+                    GET_PTR_NCD_BLK;
                     reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
                 }
             }
         } else if (ReduceW) {
             for (size_t icb = 0; icb < ICB; icb++) {
-                size_t ocb = ReduceC ? 0 : icb; GET_PTR_NC_BLK;
+                size_t ocb = ReduceC ? 0 : icb;
+                GET_PTR_NC_BLK;
                 for (size_t id = 0; id < ID; id++) {
-                    size_t od = ReduceD ? 0 : id; GET_PTR_NCD_BLK;
+                    size_t od = ReduceD ? 0 : id;
+                    GET_PTR_NCD_BLK;
                     for (size_t ih = 0; ih < IH; ih++) {
-                        size_t oh = ReduceH ? 0 : ih; GET_PTR_NCDH_BLK;
+                        size_t oh = ReduceH ? 0 : ih;
+                        GET_PTR_NCDH_BLK;
                         reduce_kernel_process(in_ptr_ncdh, out_ptr_ncdh, IW * blk_size);
                     }
                 }
             }
         } else {
             for (size_t icb = 0; icb < ICB; icb++) {
-                size_t ocb = ReduceC ? 0 : icb; GET_PTR_NC_BLK;
+                size_t ocb = ReduceC ? 0 : icb;
+                GET_PTR_NC_BLK;
                 for (size_t id = 0; id < ID; id++) {
-                    size_t od = ReduceD ? 0 : id; GET_PTR_NCD_BLK;
+                    size_t od = ReduceD ? 0 : id;
+                    GET_PTR_NCD_BLK;
                     for (size_t ih = 0; ih < IH; ih++) {
-                        size_t oh = ReduceH ? 0 : ih; GET_PTR_NCDH_BLK;
+                        size_t oh = ReduceH ? 0 : ih;
+                        GET_PTR_NCDH_BLK;
                         parallel_for(IW, [&](size_t iw) {
-                            size_t ow = iw; GET_PTR_NCDHW_BLK;
+                            size_t ow = iw;
+                            GET_PTR_NCDHW_BLK;
                             reduce_kernel_process(in_ptr_ncdhw, out_ptr_ncdhw, blk_size);
                         });
                     }
@@ -1731,29 +1809,33 @@ void MKLDNNReduceNode::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
     reduce_kernel_post_process(out_ptr);
 }
 
-void MKLDNNReduceNode::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t *out_ptr) {
+void MKLDNNReduceNode::reduce_BLK_concern_padding(const uint8_t* in_ptr, uint8_t* out_ptr) {
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
 
-    auto reduceSkipPadding = [&](const uint8_t *in_ptr_ncd, uint8_t *out_ptr_ncd, size_t ic) {
+    auto reduceSkipPadding = [&](const uint8_t* in_ptr_ncd, uint8_t* out_ptr_ncd, size_t ic) {
         size_t blk_valid_size = IC - ic;
         for (size_t ih = 0; ih < IH; ih++) {
-            size_t oh = ReduceH ? 0 : ih; GET_PTR_NCDH_BLK;
+            size_t oh = ReduceH ? 0 : ih;
+            GET_PTR_NCDH_BLK;
             for (size_t iw = 0; iw < IW; iw++) {
-                size_t ow = ReduceW ? 0 : iw; GET_PTR_NCDHW_BLK;
+                size_t ow = ReduceW ? 0 : iw;
+                GET_PTR_NCDHW_BLK;
                 reduce_kernel_process(in_ptr_ncdhw, out_ptr_ncdhw, blk_valid_size);
             }
         }
     };
 
     for (size_t ib = 0; ib < IB; ib++) {
-        size_t ob = ReduceN ? 0 : ib; GET_PTR_N_BLK;
+        size_t ob = ReduceN ? 0 : ib;
+        GET_PTR_N_BLK;
         if (!ReduceD && ReduceH && ReduceW) {
             for (size_t icb = 0; icb < ICB; icb++) {
-                size_t ocb = 0;;
+                size_t ocb = 0;
                 size_t ic = icb * blk_size;
                 parallel_for(ID, [&](size_t id) {
-                    size_t od = id; GET_PTR_NCD_BASE_PTR_N_BLK;
+                    size_t od = id;
+                    GET_PTR_NCD_BASE_PTR_N_BLK;
                     if (ic + blk_size <= IC) {
                         reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
                     } else {
@@ -1763,26 +1845,31 @@ void MKLDNNReduceNode::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t
             }
         } else if (ReduceD && ReduceH && ReduceW) {
             for (size_t icb = 0; icb < ICB; icb++) {
-                size_t ocb = 0; GET_PTR_NC_BLK;
+                size_t ocb = 0;
+                GET_PTR_NC_BLK;
                 size_t ic = icb * blk_size;
                 if (ic + blk_size <= IC) {
                     reduce_kernel_process(in_ptr_nc, out_ptr_nc, ID * IH * IW * blk_size);
                 } else {
                     for (size_t id = 0; id < ID; id++) {
-                        size_t od = 0; GET_PTR_NCD_BLK;
+                        size_t od = 0;
+                        GET_PTR_NCD_BLK;
                         reduceSkipPadding(in_ptr_ncd, out_ptr_ncd, ic);
                     }
                 }
             }
         } else if (ReduceW) {
             for (size_t icb = 0; icb < ICB; icb++) {
-                size_t ocb = 0; GET_PTR_NC_BLK;
+                size_t ocb = 0;
+                GET_PTR_NC_BLK;
                 size_t ic = icb * blk_size;
                 for (size_t id = 0; id < ID; id++) {
-                    size_t od = ReduceD ? 0 : id; GET_PTR_NCD_BLK;
+                    size_t od = ReduceD ? 0 : id;
+                    GET_PTR_NCD_BLK;
                     if (ic + blk_size <= IC) {
                         for (size_t ih = 0; ih < IH; ih++) {
-                            size_t oh = ReduceH ? 0 : ih; GET_PTR_NCDH_BLK;
+                            size_t oh = ReduceH ? 0 : ih;
+                            GET_PTR_NCDH_BLK;
                             reduce_kernel_process(in_ptr_ncdh, out_ptr_ncdh, IW * blk_size);
                         }
                     } else {
@@ -1792,15 +1879,19 @@ void MKLDNNReduceNode::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t
             }
         } else {
             for (size_t icb = 0; icb < ICB; icb++) {
-                size_t ocb = 0; GET_PTR_NC_BLK;
+                size_t ocb = 0;
+                GET_PTR_NC_BLK;
                 size_t ic = icb * blk_size;
                 for (size_t id = 0; id < ID; id++) {
-                    size_t od = ReduceD ? 0 : id; GET_PTR_NCD_BLK;
+                    size_t od = ReduceD ? 0 : id;
+                    GET_PTR_NCD_BLK;
                     if (ic + blk_size <= IC) {
                         for (size_t ih = 0; ih < IH; ih++) {
-                            size_t oh = ReduceH ? 0 : ih; GET_PTR_NCDH_BLK;
+                            size_t oh = ReduceH ? 0 : ih;
+                            GET_PTR_NCDH_BLK;
                             parallel_for(IW, [&](size_t iw) {
-                                size_t ow = iw; GET_PTR_NCDHW_BLK;
+                                size_t ow = iw;
+                                GET_PTR_NCDHW_BLK;
                                 reduce_kernel_process(in_ptr_ncdhw, out_ptr_ncdhw, blk_size);
                             });
                         }
@@ -1815,23 +1906,26 @@ void MKLDNNReduceNode::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t
     reduce_kernel_post_process(out_ptr);
 }
 
-inline void MKLDNNReduceNode::reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, size_t work_amount, size_t reduce_w) {
+inline void MKLDNNReduceNode::reduce_kernel_process(const uint8_t* in_p,
+                                                    uint8_t* out_p,
+                                                    size_t work_amount,
+                                                    size_t reduce_w) {
     auto arg = jit_reduce_call_args();
-    arg.src = static_cast<const void *>(in_p);
-    arg.dst = static_cast<void *>(out_p);
+    arg.src = static_cast<const void*>(in_p);
+    arg.dst = static_cast<void*>(out_p);
     arg.work_amount = work_amount;
     arg.reduce_w = reduce_w;
     (*reduce_kernel)(&arg);
 }
 
-inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
+inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t* out_ptr) {
     const float divisor = static_cast<float>(IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW));
     if (planar_layout) {
         size_t parallel_amount = OB * OC * OD;
         parallel_for(parallel_amount, [&](size_t i) {
-            uint8_t *out_p = out_ptr + i * OH * OW * dst_data_size;
+            uint8_t* out_p = out_ptr + i * OH * OW * dst_data_size;
             auto arg = jit_reduce_call_args();
-            arg.dst = static_cast<void *>(out_p);
+            arg.dst = static_cast<void*>(out_p);
             arg.reduce_c = 2;
             arg.work_amount = OH * OW;
             arg.divisor = &divisor;
@@ -1841,9 +1935,9 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
         size_t OCB = div_up(OC, blk_size);
         size_t parallel_amount = OB * OCB * OD;
         parallel_for(parallel_amount, [&](size_t i) {
-            uint8_t *out_p = out_ptr + i * OH * OW * blk_size * dst_data_size;
+            uint8_t* out_p = out_ptr + i * OH * OW * blk_size * dst_data_size;
             auto arg = jit_reduce_call_args();
-            arg.dst = static_cast<void *>(out_p);
+            arg.dst = static_cast<void*>(out_p);
             arg.reduce_c = ReduceC ? 1 : 0;
             arg.work_amount = OH * OW * blk_size;
             arg.divisor = &divisor;
@@ -1852,79 +1946,109 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
     }
 }
 
-inline void MKLDNNReduceNode::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
+inline void MKLDNNReduceNode::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
     switch (algorithm) {
-        case ReduceL1:
-        case ReduceL2:
-        case ReduceLogSum:
-        case ReduceLogSumExp:
-        case ReduceMean:
-        case ReduceOr:
-        case ReduceSum:
-        case ReduceSumSquare:
-            memset(out_ptr, 0, dst_size);
-            break;
-        case ReduceAnd:
-        case ReduceProd:
-            if (output_prec == Precision::FP32) {
-                auto out_p = reinterpret_cast<float *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<float>(1); });
-            } else if (output_prec == Precision::I32) {
-                auto out_p = reinterpret_cast<int32_t *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<int32_t>(1); });
-            } else if (output_prec == Precision::BF16) {
-                auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<bfloat16_t>(1); });
-            } else if (output_prec == Precision::U8) {
-                auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<uint8_t>(1); });
-            } else if (output_prec == Precision::I8) {
-                auto out_p = reinterpret_cast<int8_t *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<int8_t>(1); });
-            }
-            break;
-        case ReduceMax:
-            if (output_prec == Precision::FP32) {
-                auto out_p = reinterpret_cast<float *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<float>::lowest(); });
-            } else if (output_prec == Precision::I32) {
-                auto out_p = reinterpret_cast<int32_t *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int32_t>::min(); });
-            } else if (output_prec == Precision::BF16) {
-                auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<bfloat16_t>::lowest(); });
-            } else if (output_prec == Precision::U8) {
-                auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<uint8_t>::min(); });
-            } else if (output_prec == Precision::I8) {
-                auto out_p = reinterpret_cast<int8_t *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int8_t>::min(); });
-            }
-            break;
-        case ReduceMin:
-            if (output_prec == Precision::FP32) {
-                auto out_p = reinterpret_cast<float *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<float>::max(); });
-            } else if (output_prec == Precision::I32) {
-                auto out_p = reinterpret_cast<int32_t *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int32_t>::max(); });
-            } else if (output_prec == Precision::BF16) {
-                auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<bfloat16_t>::max(); });
-            } else if (output_prec == Precision::U8) {
-                auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<uint8_t>::max(); });
-            } else if (output_prec == Precision::I8) {
-                auto out_p = reinterpret_cast<int8_t *>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int8_t>::max(); });
-            }
-            break;
-        default:
-            IE_THROW() << errorPrefix << " gets unsupported reduce mode.";
+    case ReduceL1:
+    case ReduceL2:
+    case ReduceLogSum:
+    case ReduceLogSumExp:
+    case ReduceMean:
+    case ReduceOr:
+    case ReduceSum:
+    case ReduceSumSquare:
+        memset(out_ptr, 0, dst_size);
+        break;
+    case ReduceAnd:
+    case ReduceProd:
+        if (output_prec == Precision::FP32) {
+            auto out_p = reinterpret_cast<float*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = static_cast<float>(1);
+            });
+        } else if (output_prec == Precision::I32) {
+            auto out_p = reinterpret_cast<int32_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = static_cast<int32_t>(1);
+            });
+        } else if (output_prec == Precision::BF16) {
+            auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = static_cast<bfloat16_t>(1);
+            });
+        } else if (output_prec == Precision::U8) {
+            auto out_p = reinterpret_cast<uint8_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = static_cast<uint8_t>(1);
+            });
+        } else if (output_prec == Precision::I8) {
+            auto out_p = reinterpret_cast<int8_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = static_cast<int8_t>(1);
+            });
+        }
+        break;
+    case ReduceMax:
+        if (output_prec == Precision::FP32) {
+            auto out_p = reinterpret_cast<float*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = std::numeric_limits<float>::lowest();
+            });
+        } else if (output_prec == Precision::I32) {
+            auto out_p = reinterpret_cast<int32_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = std::numeric_limits<int32_t>::min();
+            });
+        } else if (output_prec == Precision::BF16) {
+            auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = std::numeric_limits<bfloat16_t>::lowest();
+            });
+        } else if (output_prec == Precision::U8) {
+            auto out_p = reinterpret_cast<uint8_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = std::numeric_limits<uint8_t>::min();
+            });
+        } else if (output_prec == Precision::I8) {
+            auto out_p = reinterpret_cast<int8_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = std::numeric_limits<int8_t>::min();
+            });
+        }
+        break;
+    case ReduceMin:
+        if (output_prec == Precision::FP32) {
+            auto out_p = reinterpret_cast<float*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = std::numeric_limits<float>::max();
+            });
+        } else if (output_prec == Precision::I32) {
+            auto out_p = reinterpret_cast<int32_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = std::numeric_limits<int32_t>::max();
+            });
+        } else if (output_prec == Precision::BF16) {
+            auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = std::numeric_limits<bfloat16_t>::max();
+            });
+        } else if (output_prec == Precision::U8) {
+            auto out_p = reinterpret_cast<uint8_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = std::numeric_limits<uint8_t>::max();
+            });
+        } else if (output_prec == Precision::I8) {
+            auto out_p = reinterpret_cast<int8_t*>(out_ptr);
+            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+                out_p[i] = std::numeric_limits<int8_t>::max();
+            });
+        }
+        break;
+    default:
+        IE_THROW() << errorPrefix << " gets unsupported reduce mode.";
     }
 }
 
-inline void MKLDNNReduceNode::calc_process_dst_dims(const int32_t *idx_data) {
+inline void MKLDNNReduceNode::calc_process_dst_dims(const int32_t* idx_data) {
     SizeVector out_dims;
     SizeVector dst_dims = getOutputShapeAtPort(0).getStaticDims();
     std::set<size_t> axes;
@@ -1945,7 +2069,8 @@ inline void MKLDNNReduceNode::calc_process_dst_dims(const int32_t *idx_data) {
             }
         }
         if (found) {
-            if (keep_dims) out_dims.push_back(1);
+            if (keep_dims)
+                out_dims.push_back(1);
             process_dst_dims.push_back(1);
             axes_for_reduction.push_back(i);
         } else {
@@ -1959,52 +2084,77 @@ inline void MKLDNNReduceNode::calc_process_dst_dims(const int32_t *idx_data) {
     }
 }
 
-inline void MKLDNNReduceNode::reduce_ref(const float *in_ptr, float *out_ptr) {
+inline void MKLDNNReduceNode::reduce_ref(const float* in_ptr, float* out_ptr) {
     switch (algorithm) {
-        case ReduceAnd:
-            reduce_ref_process(in_ptr, out_ptr, 1, [](float x, float y)->float { return x && y; });
-            break;
-        case ReduceL1:
-            reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + (y >= 0 ? y : -y); });
-            break;
-        case ReduceL2:
-            reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + y * y; });
-            break;
-        case ReduceLogSum:
-            reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y)->float { return x + y; });
-            break;
-        case ReduceLogSumExp:
-            reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + expf(y); });
-            break;
-        case ReduceMax:
-            reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::lowest(),
-                                                    [](float x, float y)->float { return x > y ? x : y; });
-            break;
-        case ReduceMean:
-            reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y)->float { return x + y; });
-            break;
-        case ReduceMin:
-            reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::max(),
-                                                    [](float x, float y)->float { return x < y ? x : y; });
-            break;
-        case ReduceOr:
-            reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y)->float { return x || y; });
-            break;
-        case ReduceProd:
-            reduce_ref_process(in_ptr, out_ptr, 1, [](float x, float y)->float { return x * y; });
-            break;
-        case ReduceSum:
-            reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y)->float { return x + y; });
-            break;
-        case ReduceSumSquare:
-            reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + y * y; });
-            break;
+    case ReduceAnd:
+        reduce_ref_process(in_ptr, out_ptr, 1, [](float x, float y) -> float {
+            return x && y;
+        });
+        break;
+    case ReduceL1:
+        reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y) -> float {
+            return old + (y >= 0 ? y : -y);
+        });
+        break;
+    case ReduceL2:
+        reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y) -> float {
+            return old + y * y;
+        });
+        break;
+    case ReduceLogSum:
+        reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y) -> float {
+            return x + y;
+        });
+        break;
+    case ReduceLogSumExp:
+        reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y) -> float {
+            return old + expf(y);
+        });
+        break;
+    case ReduceMax:
+        reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::lowest(), [](float x, float y) -> float {
+            return x > y ? x : y;
+        });
+        break;
+    case ReduceMean:
+        reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y) -> float {
+            return x + y;
+        });
+        break;
+    case ReduceMin:
+        reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::max(), [](float x, float y) -> float {
+            return x < y ? x : y;
+        });
+        break;
+    case ReduceOr:
+        reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y) -> float {
+            return x || y;
+        });
+        break;
+    case ReduceProd:
+        reduce_ref_process(in_ptr, out_ptr, 1, [](float x, float y) -> float {
+            return x * y;
+        });
+        break;
+    case ReduceSum:
+        reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y) -> float {
+            return x + y;
+        });
+        break;
+    case ReduceSumSquare:
+        reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y) -> float {
+            return old + y * y;
+        });
+        break;
     default:
         IE_THROW() << errorPrefix << "gets unsupported reduce mode.";
     }
 }
 
-void MKLDNNReduceNode::reduce_ref_process(const float *in_ptr, float *out_ptr, float init_value, std::function<float(float, float)> func) {
+void MKLDNNReduceNode::reduce_ref_process(const float* in_ptr,
+                                          float* out_ptr,
+                                          float init_value,
+                                          std::function<float(float, float)> func) {
     size_t work_amount_dst = 1, reduced_dims_work_amount = 1;
     for (size_t i = 0; i < process_dst_dims.size(); i++)
         work_amount_dst *= process_dst_dims[i];
@@ -2058,35 +2208,35 @@ void MKLDNNReduceNode::reduce_ref_process(const float *in_ptr, float *out_ptr, f
     reduce_ref_map(out_ptr, work_amount_dst, reduced_dims_work_amount);
 }
 
-inline void MKLDNNReduceNode::reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount) {
+inline void MKLDNNReduceNode::reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount) {
     switch (algorithm) {
-        case ReduceAnd:
-        case ReduceL1:
-        case ReduceMax:
-        case ReduceMin:
-        case ReduceOr:
-        case ReduceProd:
-        case ReduceSum:
-        case ReduceSumSquare:
-            break;
-        case ReduceL2:
-            parallel_for(work_amount_dst, [&](size_t i) {
-                out_ptr[i] = std::sqrt(out_ptr[i]);
-            });
-            break;
-        case ReduceLogSum:
-        case ReduceLogSumExp:
-            parallel_for(work_amount_dst, [&](size_t i) {
-                out_ptr[i] = logf(out_ptr[i]);
-            });
-            break;
-        case ReduceMean:
-            parallel_for(work_amount_dst, [&](size_t i) {
-                out_ptr[i] /= reduced_dims_work_amount;
-            });
-            break;
-        default:
-            IE_THROW() << errorPrefix << "gets unsupported reduce mode.";
+    case ReduceAnd:
+    case ReduceL1:
+    case ReduceMax:
+    case ReduceMin:
+    case ReduceOr:
+    case ReduceProd:
+    case ReduceSum:
+    case ReduceSumSquare:
+        break;
+    case ReduceL2:
+        parallel_for(work_amount_dst, [&](size_t i) {
+            out_ptr[i] = std::sqrt(out_ptr[i]);
+        });
+        break;
+    case ReduceLogSum:
+    case ReduceLogSumExp:
+        parallel_for(work_amount_dst, [&](size_t i) {
+            out_ptr[i] = logf(out_ptr[i]);
+        });
+        break;
+    case ReduceMean:
+        parallel_for(work_amount_dst, [&](size_t i) {
+            out_ptr[i] /= reduced_dims_work_amount;
+        });
+        break;
+    default:
+        IE_THROW() << errorPrefix << "gets unsupported reduce mode.";
     }
 }
 

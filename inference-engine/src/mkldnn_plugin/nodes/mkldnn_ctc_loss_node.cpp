@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-
-#include <ngraph/op/ctc_loss.hpp>
-#include "ie_parallel.hpp"
 #include "mkldnn_ctc_loss_node.h"
+
+#include <cmath>
+#include <ngraph/op/ctc_loss.hpp>
+
+#include "ie_parallel.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNCTCLossNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNCTCLossNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                             std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -28,8 +30,10 @@ bool MKLDNNCTCLossNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNCTCLossNode::MKLDNNCTCLossNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                     MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNCTCLossNode::MKLDNNCTCLossNode(const std::shared_ptr<ngraph::Node>& op,
+                                     const mkldnn::engine& eng,
+                                     MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -56,28 +60,26 @@ void MKLDNNCTCLossNode::initSupportedPrimitiveDescriptors() {
     for (int i = 1; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
-    addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::FP32}},
-                         impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
 }
 
 void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
     StatusCode returnCode = OK;
 
-    const float* logits = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const int* logitsLength = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    const int* labels = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-    const int* labelsLength = reinterpret_cast<const int *>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr());
-    float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const float* logits = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const int* logitsLength = reinterpret_cast<const int*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    const int* labels = reinterpret_cast<const int*>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
+    const int* labelsLength = reinterpret_cast<const int*>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr());
+    float* dstData = reinterpret_cast<float*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    const auto &inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
+    const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const size_t batchNum = inDims[0];
     const size_t maxTime = inDims[1];
     const size_t classesNum = inDims[2];
 
     int blankIndex = classesNum - 1;
     if (inputShapes.size() > 4) {
-        blankIndex = reinterpret_cast<const int *>(getParentEdgeAt(4)->getMemoryPtr()->GetPtr())[0];
+        blankIndex = reinterpret_cast<const int*>(getParentEdgeAt(4)->getMemoryPtr()->GetPtr())[0];
     }
 
     std::vector<int> decodedTargetLenB(batchNum, 0);
@@ -92,12 +94,13 @@ void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
             return;
 
         for (size_t b = start; b < end; b++) {
-            if (logitsLength[b] < 0 || labelsLength[b] < 0 || logitsLength[b] > maxTime || labelsLength[b] > logitsLength[b]) {
-                errorMsgB[ithr] = errorPrefix + ". Logit length cannot be greater than max sequence length. "
-                                  + "Label length cannot be greater than a logit length"
-                                  + " and both cannot be negative.\nMaxSeqLen: "
-                                  + std::to_string(maxTime) + "; Logit len: " + std::to_string(logitsLength[b])
-                                  + "; Label len: " + std::to_string(labelsLength[b]);
+            if (logitsLength[b] < 0 || labelsLength[b] < 0 || logitsLength[b] > maxTime ||
+                labelsLength[b] > logitsLength[b]) {
+                errorMsgB[ithr] = errorPrefix + ". Logit length cannot be greater than max sequence length. " +
+                                  "Label length cannot be greater than a logit length" +
+                                  " and both cannot be negative.\nMaxSeqLen: " + std::to_string(maxTime) +
+                                  "; Logit len: " + std::to_string(logitsLength[b]) +
+                                  "; Label len: " + std::to_string(labelsLength[b]);
                 returnCode = GENERAL_ERROR;
                 return;
             }
@@ -148,8 +151,8 @@ void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
             for (size_t ll = 0; ll < actualLogitLen; ll++) {
                 logProbabilities[ll].resize(decodedTargetLen);
             }
-        } // for batch
-    }; // threadBody_1
+        }  // for batch
+    };     // threadBody_1
 
     parallel_nt(0, threadBody_1);
     if (returnCode != OK) {
@@ -208,7 +211,7 @@ void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
             }
             sT = 0lu;
         }  // for batch
-    }; // threadBody_2
+    };     // threadBody_2
 
     parallel_nt(0, threadBody_2);
 
@@ -233,8 +236,8 @@ void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
         if (start >= end)
             return;
 
-        // As per Connectionist Temporal Classification - Labeling Unsegmented Sequence Data with Recurrent Neural Networks:
-        // Graves et al., 2016, paragraph 4.1 (10)
+        // As per Connectionist Temporal Classification - Labeling Unsegmented Sequence Data with Recurrent Neural
+        // Networks: Graves et al., 2016, paragraph 4.1 (10)
         for (size_t b = start; b < end; b++) {
             auto& targetD = targetDB[b];
             auto& logProbabilities = logProbabilitiesB[b];
@@ -247,21 +250,19 @@ void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
             for (int t = actualLogitLen - 2; t >= 0; t--) {
                 const int t_1 = t + 1;
                 for (int s = std::max(0, decodedTargetLen - (2 * (actualLogitLen - t)));
-                     s < std::min(decodedTargetLen, 2 * (t_1)); s++) {
+                     s < std::min(decodedTargetLen, 2 * (t_1));
+                     s++) {
                     if (ctcMergeRepeated || targetD[s] == blankIndex) {
-                        logBwd[s][t] = sumLogs(logBwd[s][t],
-                                               logBwd[s][t_1] + logProbabilities[t_1][s]);
+                        logBwd[s][t] = sumLogs(logBwd[s][t], logBwd[s][t_1] + logProbabilities[t_1][s]);
                     }
 
                     if (s + 1 < decodedTargetLen) {
-                        logBwd[s][t] = sumLogs(logBwd[s][t],
-                                               logBwd[s + 1][t_1] + logProbabilities[t_1][s + 1]);
+                        logBwd[s][t] = sumLogs(logBwd[s][t], logBwd[s + 1][t_1] + logProbabilities[t_1][s + 1]);
                     }
 
                     if (s + 2 < decodedTargetLen) {
                         if (targetD[s] != blankIndex && (!ctcMergeRepeated || (targetD[s] != targetD[s + 2]))) {
-                            logBwd[s][t] = sumLogs(logBwd[s][t],
-                                                   logBwd[s + 2][t_1] + logProbabilities[t_1][s + 2]);
+                            logBwd[s][t] = sumLogs(logBwd[s][t], logBwd[s + 2][t_1] + logProbabilities[t_1][s + 2]);
                         }
                     }
                 }
@@ -271,8 +272,8 @@ void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
             logBwd[1][0] += logProbabilities[0][(decodedTargetLen > 1) ? 1 : 0];
 
             dstData[b] = -sumLogs(logBwd[0][0], logBwd[1][0]);
-        } // for batch
-    }; // threadBody_3
+        }  // for batch
+    };     // threadBody_3
 
     parallel_nt(0, threadBody_3);
 }

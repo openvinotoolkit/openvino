@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/fusing_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -11,11 +11,12 @@ using namespace CPUTestUtils;
 
 namespace SubgraphTestsDefinitions {
 
-using ReshapeFCTestParams = std::tuple<std::pair<SizeVector, SizeVector>, // IS fully connected
-                                       bool,                              // transpose B
+using ReshapeFCTestParams = std::tuple<std::pair<SizeVector, SizeVector>,  // IS fully connected
+                                       bool,                               // transpose B
                                        fusingSpecificParams>;
 
-class ReshapeFCTest : public testing::WithParamInterface<ReshapeFCTestParams>, public CpuTestWithFusing,
+class ReshapeFCTest : public testing::WithParamInterface<ReshapeFCTestParams>,
+                      public CpuTestWithFusing,
                       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ReshapeFCTestParams> obj) {
@@ -23,7 +24,8 @@ public:
         bool transpB;
         fusingSpecificParams fusingParams;
         std::tie(isFc, transpB, fusingParams) = obj.param;
-        SizeVector isA = isFc.first; SizeVector isB = isFc.second;
+        SizeVector isA = isFc.first;
+        SizeVector isB = isFc.second;
 
         std::ostringstream result;
         result << "IS_reshape=" << CommonTestUtils::vec2str(isA) << "_";
@@ -42,7 +44,8 @@ protected:
         fusingSpecificParams fusingParams;
         std::tie(isFc, transpB, fusingParams) = this->GetParam();
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
-        SizeVector isReshape = isFc.first; SizeVector isB = isFc.second;
+        SizeVector isReshape = isFc.first;
+        SizeVector isB = isFc.second;
         SizeVector isA(2);
         isA[0] = isReshape[0];
         isA[1] = std::accumulate(isReshape.begin() + 1, isReshape.end(), size_t{1}, std::multiplies<size_t>());
@@ -73,26 +76,17 @@ TEST_P(ReshapeFCTest, CompareWithRefs) {
 
 namespace {
 
-const std::vector<bool> transpose = {
-    true, false
-};
+const std::vector<bool> transpose = {true, false};
 
-const std::vector<std::pair<SizeVector, SizeVector>> isFC = {
-    {{71, 128, 1, 1}, {128, 20}},
-    {{1, 24, 2, 7}, {336, 16}}
-};
+const std::vector<std::pair<SizeVector, SizeVector>> isFC = {{{71, 128, 1, 1}, {128, 20}}, {{1, 24, 2, 7}, {336, 16}}};
 
-std::vector<fusingSpecificParams> fusingParamsSet {
-        emptyFusingSpec,
-        fusingAddPerChannel
-};
+std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec, fusingAddPerChannel};
 
-const auto reshapeFCParams = ::testing::Combine(::testing::ValuesIn(isFC),
-                                                ::testing::ValuesIn(transpose),
-                                                ::testing::ValuesIn(fusingParamsSet));
+const auto reshapeFCParams =
+    ::testing::Combine(::testing::ValuesIn(isFC), ::testing::ValuesIn(transpose), ::testing::ValuesIn(fusingParamsSet));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Check, ReshapeFCTest, reshapeFCParams, ReshapeFCTest::getTestCaseName);
 
-} // namespace
+}  // namespace
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

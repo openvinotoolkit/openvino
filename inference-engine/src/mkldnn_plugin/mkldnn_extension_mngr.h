@@ -4,10 +4,12 @@
 
 #pragma once
 
-#include <map>
-#include <vector>
-#include <memory>
 #include <ie_iextension.h>
+
+#include <map>
+#include <memory>
+#include <vector>
+
 #include "nodes/list.hpp"
 
 namespace MKLDNNPlugin {
@@ -19,7 +21,7 @@ public:
     InferenceEngine::ILayerImpl::Ptr CreateImplementation(const std::shared_ptr<ngraph::Node>& op);
     std::shared_ptr<InferenceEngine::ILayerImplFactory> CreateExtensionFactory(const std::shared_ptr<ngraph::Node>& op);
     void AddExtension(const InferenceEngine::IExtensionPtr& extension);
-    const std::vector<InferenceEngine::IExtensionPtr> & Extensions() const;
+    const std::vector<InferenceEngine::IExtensionPtr>& Extensions() const;
 
 private:
     std::vector<InferenceEngine::IExtensionPtr> _extensions;

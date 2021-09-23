@@ -2,38 +2,41 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_metric_helpers.hpp>
-#include <precision_utils.h>
 #include "mkldnn_exec_network.h"
 
+#include "ie_plugin_config.hpp"
+#include "ie_system_conf.h"
 #include "mkldnn_async_infer_request.h"
 #include "mkldnn_infer_request.h"
-#include "mkldnn_memory_state.h"
 #include "mkldnn_itt.h"
+#include "mkldnn_memory_state.h"
 #include "mkldnn_serialize.h"
+#include "ngraph/opsets/opset1.hpp"
 #include "nodes/mkldnn_memory_node.hpp"
-#include <threading/ie_executor_manager.hpp>
+#include "precision_utils.h"
+#include "threading/ie_cpu_streams_executor.hpp"
+#include "threading/ie_executor_manager.hpp"
+#include "transformations/utils/utils.hpp"
 #define FIX_62820 0
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-#include <threading/ie_tbb_streams_executor.hpp>
+#    include <threading/ie_tbb_streams_executor.hpp>
 #endif
-#include <threading/ie_cpu_streams_executor.hpp>
-#include <ie_system_conf.h>
+
 #include <algorithm>
+#include <cstring>
 #include <unordered_set>
 #include <utility>
-#include <cstring>
-#include <ngraph/opsets/opset1.hpp>
-#include <transformations/utils/utils.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-InferenceEngine::IInferRequestInternal::Ptr
-MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                          InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
+InferenceEngine::IInferRequestInternal::Ptr MKLDNNExecNetwork::CreateInferRequestImpl(
+    InferenceEngine::InputsDataMap networkInputs,
+    InferenceEngine::OutputsDataMap networkOutputs) {
+    return std::make_shared<MKLDNNInferRequest>(networkInputs,
+                                                networkOutputs,
+                                                std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
 }
 
 struct ImmediateSerialExecutor : public ITaskExecutor {
@@ -44,16 +47,16 @@ struct ImmediateSerialExecutor : public ITaskExecutor {
     std::mutex _mutex;
 };
 
-MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
-                                     const Config &cfg,
+MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork& network,
+                                     const Config& cfg,
                                      const MKLDNNExtensionManager::Ptr& extMgr,
-                                     NumaNodesWeights &numaNodesWeights) :
-    InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
-    extensionManager(extMgr),
-    _cfg{cfg},
-    _name{network.getName()},
-    _numaNodesWeights(numaNodesWeights),
-        _network(network) {
+                                     NumaNodesWeights& numaNodesWeights)
+    : InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
+      extensionManager(extMgr),
+      _cfg{cfg},
+      _name{network.getName()},
+      _numaNodesWeights(numaNodesWeights),
+      _network(network) {
     auto function = network.getFunction();
     if (function == nullptr) {
         IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
@@ -71,7 +74,9 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getExecutor("CPU");
     } else {
-        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
+        auto streamsExecutorConfig =
+            InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig,
+                                                                                isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
 #if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
@@ -85,7 +90,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         _callbackExecutor = std::make_shared<ImmediateSerialExecutor>();
 #else
         _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
-                                IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
 #endif
     } else {
         _callbackExecutor = _taskExecutor;
@@ -99,7 +104,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     }
 
     int streams = std::max(1, _cfg.streamExecutorConfig._streams);
-    std::vector<Task> tasks; tasks.resize(streams);
+    std::vector<Task> tasks;
+    tasks.resize(streams);
     _graphs.resize(streams);
     if (_cfg.streamExecutorConfig._streams != 0) {
         for (auto&& task : tasks) {
@@ -116,7 +122,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
     if (_graphs.size() == 1) {
-        for (auto &node : GetGraph()._graph.GetNodes()) {
+        for (auto& node : GetGraph()._graph.GetNodes()) {
             if (node->getType() == MemoryInput) {
                 auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
                 auto state_store = memoryNode->getStore();
@@ -151,7 +157,7 @@ MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() {
                     graphLock._graph.setConfig(_cfg);
                 }
                 graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId]);
-            } catch(...) {
+            } catch (...) {
                 exception = std::current_exception();
             }
         };
@@ -180,7 +186,7 @@ MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
     return graphLock;
 }
 
-void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
+void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string>& properties) {
     {
         std::lock_guard<std::mutex> lock{_cfgMutex};
         _cfg.readProperties(properties);
@@ -204,8 +210,9 @@ std::shared_ptr<ngraph::Function> MKLDNNExecNetwork::GetExecGraphInfo() {
     return GetGraph()._graph.dump();
 }
 
-Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
-    if (_graphs.size() == 0) IE_THROW() << "No graph was found";
+Parameter MKLDNNExecNetwork::GetConfig(const std::string& name) const {
+    if (_graphs.size() == 0)
+        IE_THROW() << "No graph was found";
     Config engConfig = GetGraph()._graph.getProperty();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
@@ -215,7 +222,7 @@ Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
     }
 }
 
-InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name) const {
+InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string& name) const {
     if (_graphs.size() == 0)
         IE_THROW() << "No graph was found";
 
@@ -230,7 +237,7 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && key : GetGraph()._graph.getProperty()._config) {
+        for (auto&& key : GetGraph()._graph.getProperty()._config) {
             configKeys.push_back(key.first);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
@@ -239,14 +246,13 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(
-            streams ? streams : 1));
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(streams ? streams : 1));
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
 }
 
-bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const {
+bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork& network) const {
     InputsDataMap inputs = network.getInputsInfo();
 
     if (inputs.empty())
@@ -262,7 +268,8 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
         auto type = TypeFromName(op->get_type_name());
         if (type == Tile) {
             const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
-            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(1));
+            const auto repeatsNode =
+                std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(1));
             if (!repeatsNode)
                 return false;
             if (tile && repeatsNode->cast_vector<int64_t>()[0] == 1)
@@ -274,18 +281,9 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
                 continue;
         }
 
-        if (type != Input &&
-            type != Output &&
-            type != Convolution &&
-            type != Deconvolution &&
-            type != Lrn &&
-            type != Pooling &&
-            type != FullyConnected &&
-            type != MatMul &&
-            type != Softmax &&
-            type != Split &&
-            type != Concatenation &&
-                type != Eltwise) {
+        if (type != Input && type != Output && type != Convolution && type != Deconvolution && type != Lrn &&
+            type != Pooling && type != FullyConnected && type != MatMul && type != Softmax && type != Split &&
+            type != Concatenation && type != Eltwise) {
             return false;
         }
     }
@@ -301,5 +299,5 @@ IE_SUPPRESS_DEPRECATED_END
 
 void MKLDNNExecNetwork::Export(std::ostream& modelStream) {
     CNNNetworkSerializer serializer(modelStream, extensionManager);
-    serializer <<_network;
+    serializer << _network;
 }

@@ -5,25 +5,21 @@
 #pragma once
 
 #include <cmath>
-#include <limits>
 #include <cstdint>
+#include <limits>
 
 /**
- * The bfloat16_t class can be used as an arithmetic type. All arithmetic operations goes through conversion to the float data type.
+ * The bfloat16_t class can be used as an arithmetic type. All arithmetic operations goes through conversion to the
+ * float data type.
  */
-
 
 #define BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN
 
 namespace MKLDNNPlugin {
 class bfloat16_t {
 public:
-    constexpr bfloat16_t()
-        : m_value{0}
-    {
-    }
-    bfloat16_t(float value) noexcept
-            : m_value{
+    constexpr bfloat16_t() : m_value{0} {}
+    bfloat16_t(float value) noexcept : m_value {
 #if defined BFLOAT16_ROUND_MODE_TO_NEAREST
         round_to_nearest(value)
 #elif defined BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN
@@ -31,18 +27,21 @@ public:
 #elif defined BFLOAT16_ROUND_MODE_TRUNCATE
         truncate(value)
 #else
-#error                                                                                             \
-    "ROUNDING_MODE must be one of BFLOAT16_ROUND_MODE_TO_NEAREST, BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN, or BFLOAT16_ROUND_MODE_TRUNCATE"
+#    error \
+        "ROUNDING_MODE must be one of BFLOAT16_ROUND_MODE_TO_NEAREST, BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN, or BFLOAT16_ROUND_MODE_TRUNCATE"
 #endif
     }
-    {
-    }
+    {}
 
     operator float() const {
         return F32{uint32_t(m_value) << 16}.vfloat;
     }
-    static constexpr bfloat16_t from_bits(uint16_t bits) { return bfloat16_t(bits, true); }
-    uint16_t to_bits() const { return m_value; }
+    static constexpr bfloat16_t from_bits(uint16_t bits) {
+        return bfloat16_t(bits, true);
+    }
+    uint16_t to_bits() const {
+        return m_value;
+    }
 
     static inline uint16_t round_to_nearest_even(float x) {
         return static_cast<uint16_t>((F32(x).vint + ((F32(x).vint & 0x00010000) >> 1)) >> 16);
@@ -52,28 +51,23 @@ public:
         return static_cast<uint16_t>((F32(x).vint + 0x8000) >> 16);
     }
 
-    static inline uint16_t truncate(float x) { return static_cast<uint16_t>((F32(x).vint) >> 16); }
+    static inline uint16_t truncate(float x) {
+        return static_cast<uint16_t>((F32(x).vint) >> 16);
+    }
 
 private:
-    constexpr bfloat16_t(uint16_t x, bool)
-            : m_value{x}
-    {
-    }
+    constexpr bfloat16_t(uint16_t x, bool) : m_value{x} {}
     union alignas(16) F32 {
-        F32(float val)
-                : vfloat{val} {
-        }
+        F32(float val) : vfloat{val} {}
 
-        F32(uint32_t val)
-                : vint{val} {
-        }
+        F32(uint32_t val) : vint{val} {}
         float vfloat;
         uint32_t vint;
     };
     uint16_t m_value;
 };
 
-} // namespace MKLDNNPlugin
+}  // namespace MKLDNNPlugin
 
 /**
  * std::numeric_limits overloaded for better compatibility with template metaprogramming.
@@ -140,5 +134,4 @@ public:
     static constexpr bool tinyness_before = false;
     static constexpr float_round_style round_style = round_to_nearest;
 };
-} // namespace std
-
+}  // namespace std

@@ -2,18 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
-#include <mkldnn_types.h>
-#include "ie_parallel.hpp"
 #include "mkldnn_region_yolo_node.h"
+
+#include <mkldnn_types.h>
 #include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset1.hpp>
-#include "common/cpu_convert.h"
+
+#include <cmath>
 #include <cpu/x64/jit_generator.hpp>
-#include <emitters/jit_bf16_emitters.hpp>
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <emitters/jit_bf16_emitters.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <string>
+#include <vector>
+
+#include "common/cpu_convert.h"
+#include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
 
 using namespace MKLDNNPlugin;
@@ -28,7 +31,10 @@ template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
 
-    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jcp_(jcp), jit_uni_logistic_kernel(), jit_generator() {}
+    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp)
+        : jcp_(jcp),
+          jit_uni_logistic_kernel(),
+          jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -36,7 +42,8 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     }
 
     void generate() override {
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
+        exp_injector.reset(
+            new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
             emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
@@ -53,7 +60,8 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
         Xbyak::Label exit_label;
 
         int step = vlen / sizeof(float);
-        L(main_loop_label); {
+        L(main_loop_label);
+        {
             cmp(reg_work_amount, step);
             jl(tail_loop_label, T_NEAR);
 
@@ -69,7 +77,8 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
         }
 
         step = 1;
-        L(tail_loop_label); {
+        L(tail_loop_label);
+        {
             cmp(reg_work_amount, step);
             jl(exit_label, T_NEAR);
 
@@ -100,7 +109,9 @@ private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
-    Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
+    Xbyak::Address table_val(int index) {
+        return ptr[reg_table + index * vlen];
+    }
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_dst = r9;
@@ -165,69 +176,71 @@ private:
 
     const struct vals_for_logistic_activate_type {
         int mask_sign = 0x80000000;  // 0 //  mask to extract sign
-        int float_1   = 0x3f800000;  // 1 //  1.0f
+        int float_1 = 0x3f800000;    // 1 //  1.0f
     } vals_for_logistic_activate;
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, InferenceEngine::Precision src_dt) {
+    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, InferenceEngine::Precision src_dt) {
         switch (src_dt) {
-            case InferenceEngine::Precision::FP32:
-                uni_vmovups(vmm_src, op);
-                break;
-            case InferenceEngine::Precision::BF16:
-                vpmovzxwd(vmm_src, op);
-                uni_vpslld(vmm_src, vmm_src, 16);
-                break;
-            default:
-                assert(!"unknown src_dt");
+        case InferenceEngine::Precision::FP32:
+            uni_vmovups(vmm_src, op);
+            break;
+        case InferenceEngine::Precision::BF16:
+            vpmovzxwd(vmm_src, op);
+            uni_vpslld(vmm_src, vmm_src, 16);
+            break;
+        default:
+            assert(!"unknown src_dt");
         }
     }
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, InferenceEngine::Precision dst_dt) {
+    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, InferenceEngine::Precision dst_dt) {
         Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
 
         switch (dst_dt) {
-            case InferenceEngine::Precision::FP32:
-                uni_vmovups(op, vmm_dst);
-                break;
-            case InferenceEngine::Precision::BF16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
-                vmovdqu16(op, ymm_dst);
-                break;
-            default:
-                assert(!"unknown dst_dt");
+        case InferenceEngine::Precision::FP32:
+            uni_vmovups(op, vmm_dst);
+            break;
+        case InferenceEngine::Precision::BF16:
+            if (mayiuse(avx512_core_bf16))
+                vcvtneps2bf16(ymm_dst, vmm_dst);
+            else
+                emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(ymm_dst.getIdx())});
+            vmovdqu16(op, ymm_dst);
+            break;
+        default:
+            assert(!"unknown dst_dt");
         }
     }
-    inline void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address &op, InferenceEngine::Precision src_dt) {
+    inline void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address& op, InferenceEngine::Precision src_dt) {
         switch (src_dt) {
-            case InferenceEngine::Precision::FP32:
-                movss(xmm_src, op);
-                break;
-            case InferenceEngine::Precision::BF16:
-                pinsrw(xmm_src, op, 0x0);
-                uni_vpslld(xmm_src, xmm_src, 16);
-                break;
-            default:
-                assert(!"unknown src_dt");
+        case InferenceEngine::Precision::FP32:
+            movss(xmm_src, op);
+            break;
+        case InferenceEngine::Precision::BF16:
+            pinsrw(xmm_src, op, 0x0);
+            uni_vpslld(xmm_src, xmm_src, 16);
+            break;
+        default:
+            assert(!"unknown src_dt");
         }
     }
-    inline void store_scalar(const Xbyak::Address &op, Xbyak::Xmm xmm_dst, InferenceEngine::Precision dst_dt) {
+    inline void store_scalar(const Xbyak::Address& op, Xbyak::Xmm xmm_dst, InferenceEngine::Precision dst_dt) {
         switch (dst_dt) {
-            case InferenceEngine::Precision::FP32:
-                movss(op, xmm_dst);
-                break;
-            case InferenceEngine::Precision::BF16:
-                uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(op, xmm_dst, 0x0);
-                break;
-           default:
-                assert(!"unknown dst_dt");
+        case InferenceEngine::Precision::FP32:
+            movss(op, xmm_dst);
+            break;
+        case InferenceEngine::Precision::BF16:
+            uni_vpsrld(xmm_dst, xmm_dst, 16);
+            pextrw(op, xmm_dst, 0x0);
+            break;
+        default:
+            assert(!"unknown dst_dt");
         }
     }
 };
 
-bool MKLDNNRegionYoloNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNRegionYoloNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -244,8 +257,10 @@ bool MKLDNNRegionYoloNode::isSupportedOperation(const std::shared_ptr<const ngra
     return true;
 }
 
-MKLDNNRegionYoloNode::MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNRegionYoloNode::MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& op,
+                                           const mkldnn::engine& eng,
+                                           MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -295,9 +310,7 @@ void MKLDNNRegionYoloNode::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, input_prec}},
-                         {{LayoutType::ncsp, output_prec}},
-                         impl_type);
+    addSupportedPrimDesc({{LayoutType::ncsp, input_prec}}, {{LayoutType::ncsp, output_prec}}, impl_type);
 }
 
 void MKLDNNRegionYoloNode::createPrimitive() {
@@ -339,7 +352,7 @@ inline float MKLDNNRegionYoloNode::logistic_scalar(float src) {
     return src;
 }
 
-inline void MKLDNNRegionYoloNode::calculate_logistic(size_t start_index, int count, uint8_t * dst_data) {
+inline void MKLDNNRegionYoloNode::calculate_logistic(size_t start_index, int count, uint8_t* dst_data) {
     auto dst_data_size = output_prec.size();
     if (logistic_kernel) {
         int blocks_num = div_up(count, block_size);
@@ -371,9 +384,9 @@ inline void MKLDNNRegionYoloNode::calculate_logistic(size_t start_index, int cou
 }
 
 void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
-    const auto &inShape = getParentEdgeAt(0)->getMemory().GetShape();
-    const auto &inDims = inShape.getStaticDims();
-    size_t B =  (inShape.getRank() > 0) ? inDims[0] : 1;
+    const auto& inShape = getParentEdgeAt(0)->getMemory().GetShape();
+    const auto& inDims = inShape.getStaticDims();
+    size_t B = (inShape.getRank() > 0) ? inDims[0] : 1;
     size_t IC = (inShape.getRank() > 1) ? inDims[1] : 1;
     size_t IH = (inShape.getRank() > 2) ? inDims[2] : 1;
     size_t IW = (inShape.getRank() > 3) ? inDims[3] : 1;
@@ -386,7 +399,7 @@ void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
         // Region layer (Yolo v2)
         end_index = IW * IH;
         num_ = num;
-        output_size = B * IH * IW * IC; // different shape combinations with the same overall size;
+        output_size = B * IH * IW * IC;  // different shape combinations with the same overall size;
     } else {
         // Yolo layer (Yolo v3)
         end_index = IW * IH * (classes + 1);
@@ -395,17 +408,20 @@ void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
     }
 
     if (output_size != getChildEdgeAt(0)->getMemoryPtr()->GetShape().getElementsCount())
-        IE_THROW() << "Incorrect layer configuration or output dimensions. " << output_size << " != "
-                   << getChildEdgeAt(0)->getMemoryPtr()->GetShape().getElementsCount();
+        IE_THROW() << "Incorrect layer configuration or output dimensions. " << output_size
+                   << " != " << getChildEdgeAt(0)->getMemoryPtr()->GetShape().getElementsCount();
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;
 
-    const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* src_data = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto* dst_data = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    cpu_convert(src_data, dst_data, getParentEdgeAt(0)->getMemory().getDesc().getPrecision(),
-                getChildEdgeAt(0)->getMemory().getDesc().getPrecision(), output_size);
+    cpu_convert(src_data,
+                dst_data,
+                getParentEdgeAt(0)->getMemory().getDesc().getPrecision(),
+                getChildEdgeAt(0)->getMemory().getDesc().getPrecision(),
+                output_size);
 
     for (int b = 0; b < B; b++) {
         for (int n = 0; n < num_; n++) {
@@ -422,7 +438,11 @@ void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
         int batch_offset = inputs_size / num;
         for (int b = 0; b < B * num; b++) {
             softmax_kernel->execute(src_data + input_prec.size() * (index + b * batch_offset),
-                                    dst_data + output_prec.size() * (index + b * batch_offset), 1, classes, IH, IW);
+                                    dst_data + output_prec.size() * (index + b * batch_offset),
+                                    1,
+                                    classes,
+                                    IH,
+                                    IW);
         }
     }
 }

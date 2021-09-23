@@ -2,19 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "mkldnn_gather_tree_node.h"
+
+#include <utils/general_utils.h>
+
+#include <cmath>
+#include <ngraph/op/gather_tree.hpp>
 #include <string>
 #include <vector>
-#include <cmath>
 
-#include <ngraph/op/gather_tree.hpp>
 #include "ie_parallel.hpp"
-#include "mkldnn_gather_tree_node.h"
-#include <utils/general_utils.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNGatherTreeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNGatherTreeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -31,8 +34,10 @@ bool MKLDNNGatherTreeNode::isSupportedOperation(const std::shared_ptr<const ngra
     return true;
 }
 
-MKLDNNGatherTreeNode::MKLDNNGatherTreeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNGatherTreeNode::MKLDNNGatherTreeNode(const std::shared_ptr<ngraph::Node>& op,
+                                           const mkldnn::engine& eng,
+                                           MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -62,11 +67,11 @@ void MKLDNNGatherTreeNode::initSupportedPrimitiveDescriptors() {
     if (!MKLDNNPlugin::one_of(precision, Precision::FP32, Precision::I32))
         precision = Precision::FP32;
 
-    if (getOriginalInputPrecisionAtPort(GATHER_TREE_PARENT_IDX)  != precision ||
+    if (getOriginalInputPrecisionAtPort(GATHER_TREE_PARENT_IDX) != precision ||
         getOriginalInputPrecisionAtPort(GATHER_TREE_MAX_SEQ_LEN) != precision ||
-        getOriginalInputPrecisionAtPort(GATHER_TREE_END_TOKEN)   != precision ||
-        getOriginalOutputPrecisionAtPort(0)                 != precision) {
-            IE_THROW() << errorPrefix << " has incorrect input/output data precision. Must be the same.";
+        getOriginalInputPrecisionAtPort(GATHER_TREE_END_TOKEN) != precision ||
+        getOriginalOutputPrecisionAtPort(0) != precision) {
+        IE_THROW() << errorPrefix << " has incorrect input/output data precision. Must be the same.";
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision},
@@ -84,15 +89,18 @@ void MKLDNNGatherTreeNode::execute(mkldnn::stream strm) {
         return gatherTreeKernel<int32_t>();
 }
 
-template<typename DATA_T>
+template <typename DATA_T>
 void MKLDNNGatherTreeNode::gatherTreeKernel() noexcept {
-    const auto *step_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr()->GetPtr());
-    const auto * const parent_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr()->GetPtr());
-    const size_t parent_idx_size = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetShape().getElementsCount()
-                                   - getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding();
-    const auto *max_seq_len = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr()->GetPtr());
-    auto end_token = (reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_END_TOKEN)->getMemoryPtr()->GetPtr()))[0];
-    auto * final_idx = reinterpret_cast<DATA_T *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const auto* step_idx = reinterpret_cast<DATA_T*>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr()->GetPtr());
+    const auto* const parent_idx =
+        reinterpret_cast<DATA_T*>(getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr()->GetPtr());
+    const size_t parent_idx_size =
+        getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetShape().getElementsCount() -
+        getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding();
+    const auto* max_seq_len =
+        reinterpret_cast<DATA_T*>(getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr()->GetPtr());
+    auto end_token = (reinterpret_cast<DATA_T*>(getParentEdgeAt(GATHER_TREE_END_TOKEN)->getMemoryPtr()->GetPtr()))[0];
+    auto* final_idx = reinterpret_cast<DATA_T*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     SizeVector step_idx_dims = getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemory().getStaticDims();
     SizeVector parent_idx_dims = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().getStaticDims();
@@ -129,7 +137,7 @@ void MKLDNNGatherTreeNode::gatherTreeKernel() noexcept {
             }
 
             bool finished = false;
-            auto *final = &final_idx[batch * beam_width + beam];
+            auto* final = &final_idx[batch * beam_width + beam];
             for (time = 0; time < max_sequence_in_beam; time++, final += bb_size) {
                 if (finished)
                     (*final) = end_token;

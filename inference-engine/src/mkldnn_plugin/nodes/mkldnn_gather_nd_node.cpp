@@ -2,21 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
-#include <mkldnn_types.h>
-#include "ie_parallel.hpp"
 #include "mkldnn_gather_nd_node.h"
-#include <ngraph/opsets/opset1.hpp>
+
+#include <mkldnn_types.h>
 #include <precision_utils.h>
 #include <utils/general_utils.h>
+
+#include <cmath>
+#include <ngraph/opsets/opset1.hpp>
+#include <string>
+#include <vector>
+
 #include "common/cpu_memcpy.h"
+#include "ie_parallel.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNGatherNDNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNGatherNDNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                              std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -34,8 +38,10 @@ bool MKLDNNGatherNDNode::isSupportedOperation(const std::shared_ptr<const ngraph
     return true;
 }
 
-MKLDNNGatherNDNode::MKLDNNGatherNDNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNGatherNDNode::MKLDNNGatherNDNode(const std::shared_ptr<ngraph::Node>& op,
+                                       const mkldnn::engine& eng,
+                                       MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -87,29 +93,34 @@ void MKLDNNGatherNDNode::initSupportedPrimitiveDescriptors() {
 
     Precision indicesPrecision = getOriginalInputPrecisionAtPort(_indicesIndex);
     if (!MKLDNNPlugin::one_of(indicesPrecision,
-                              Precision::I32, Precision::I64, Precision::I16, Precision::U16, Precision::I8, Precision::U8)) {
+                              Precision::I32,
+                              Precision::I64,
+                              Precision::I16,
+                              Precision::U16,
+                              Precision::I8,
+                              Precision::U8)) {
         IE_THROW() << _errorPrefix << " has unsupported 'indices' input precision: " << indicesPrecision;
     }
 
     _dataTypeSize = inDataPrecision.size();
 
-    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
-                          {LayoutType::ncsp, Precision::I32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, Precision::I32}},
                          {{LayoutType::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
 
 template <typename dataType>
 void MKLDNNGatherNDNode::gatherElementwise() {
-    const auto *srcData = reinterpret_cast<const dataType *>(getParentEdgeAt(_dataIndex)->getMemoryPtr()->GetPtr());
-    const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(_indicesIndex)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* srcData = reinterpret_cast<const dataType*>(getParentEdgeAt(_dataIndex)->getMemoryPtr()->GetPtr());
+    const auto* indices = reinterpret_cast<const int*>(getParentEdgeAt(_indicesIndex)->getMemoryPtr()->GetPtr());
+    auto* dstData = reinterpret_cast<dataType*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     auto strides = getParentEdgeAt(_dataIndex)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     const size_t* srcMultipliers = strides.data() + _batchDims;
 
     const size_t cycles = getChildEdgeAt(0)->getMemory().GetShape().getElementsCount() *
-                          getChildEdgeAt(0)->getMemory().getDesc().getPrecision().size() / (sizeof(dataType) * _batchNum);
+                          getChildEdgeAt(0)->getMemory().getDesc().getPrecision().size() /
+                          (sizeof(dataType) * _batchNum);
     const size_t CS = cycles * _sliceRank;
     const size_t CB = cycles * _blockSize;
     const size_t workAmount = _batchNum * cycles;
@@ -148,13 +159,15 @@ void MKLDNNGatherNDNode::gatherElementwise() {
 }
 
 void MKLDNNGatherNDNode::gatherBlocks() {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(_dataIndex)->getMemoryPtr()->GetPtr());
-    const int* indices = reinterpret_cast<const int *>(getParentEdgeAt(_indicesIndex)->getMemoryPtr()->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(_dataIndex)->getMemoryPtr()->GetPtr());
+    const int* indices = reinterpret_cast<const int*>(getParentEdgeAt(_indicesIndex)->getMemoryPtr()->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     std::vector<size_t> srcMultipliers(_sliceRank);
-    for (size_t i = 0; i < _sliceRank ; i++)
-        srcMultipliers[i] = _dataTypeSize * getParentEdgeAt(_dataIndex)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides()[i + _batchDims];
+    for (size_t i = 0; i < _sliceRank; i++)
+        srcMultipliers[i] =
+            _dataTypeSize *
+            getParentEdgeAt(_dataIndex)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides()[i + _batchDims];
 
     const size_t batchStep = _batchStep * _dataTypeSize;
     const size_t dataStep = _blockSize * _dataTypeSize;
@@ -179,7 +192,7 @@ void MKLDNNGatherNDNode::gatherBlocks() {
         for (size_t b = bStart; b < _batchNum; b++) {
             for (size_t j = cStart; j < cycles; j++) {
                 size_t dataIdx = 0lu;
-                for (size_t i = 0; i < _sliceRank ; i++)
+                for (size_t i = 0; i < _sliceRank; i++)
                     dataIdx += srcMultipliers[i] * shiftedIndices[i];
                 cpu_memcpy(shiftedDstData, &(shiftedSrcData[dataIdx]), dataStep);
                 shiftedDstData += dataStep;
@@ -201,17 +214,18 @@ void MKLDNNGatherNDNode::execute(mkldnn::stream strm) {
         gatherBlocks();
     } else {
         switch (_dataTypeSize) {
-            case sizeof(PrecisionTrait<Precision::I32>::value_type):
-                gatherElementwise<PrecisionTrait<Precision::I32>::value_type>();
-                break;
-            case sizeof(PrecisionTrait<Precision::I16>::value_type):
-                gatherElementwise<PrecisionTrait<Precision::I16>::value_type>();
-                break;
-            case sizeof(PrecisionTrait<Precision::I8>::value_type):
-                gatherElementwise<PrecisionTrait<Precision::I8>::value_type>();
-                break;
-            default:
-                IE_THROW() << _errorPrefix + " has data input with unsupported precision: " + getOriginalInputPrecisionAtPort(_dataIndex).name();
+        case sizeof(PrecisionTrait<Precision::I32>::value_type):
+            gatherElementwise<PrecisionTrait<Precision::I32>::value_type>();
+            break;
+        case sizeof(PrecisionTrait<Precision::I16>::value_type):
+            gatherElementwise<PrecisionTrait<Precision::I16>::value_type>();
+            break;
+        case sizeof(PrecisionTrait<Precision::I8>::value_type):
+            gatherElementwise<PrecisionTrait<Precision::I8>::value_type>();
+            break;
+        default:
+            IE_THROW() << _errorPrefix + " has data input with unsupported precision: " +
+                              getOriginalInputPrecisionAtPort(_dataIndex).name();
         }
     }
 }

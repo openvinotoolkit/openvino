@@ -6,8 +6,9 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
@@ -22,18 +23,20 @@ struct jit_reduce_config_params {
 };
 
 struct jit_reduce_call_args {
-    const void *src;
-    void *dst;
+    const void* src;
+    void* dst;
     size_t work_amount;
-    size_t reduce_w = 2;  // only used in planar layout  [1: reduce width dimension]   [0: reduce other dimension] [other value: N/A]
-    size_t reduce_c = 2;  // only used in blocked layout [1: reduce channel dimension] [0: reduce other dimension] [other value: N/A]
-    const float *divisor; // mean = sum / divisor
+    size_t reduce_w =
+        2;  // only used in planar layout  [1: reduce width dimension]   [0: reduce other dimension] [other value: N/A]
+    size_t reduce_c =
+        2;  // only used in blocked layout [1: reduce channel dimension] [0: reduce other dimension] [other value: N/A]
+    const float* divisor;  // mean = sum / divisor
 };
 
 struct jit_uni_reduce_kernel {
-    void (*ker_)(const jit_reduce_call_args *);
+    void (*ker_)(const jit_reduce_call_args*);
 
-    void operator()(const jit_reduce_call_args *args) {
+    void operator()(const jit_reduce_call_args* args) {
         assert(ker_);
         ker_(args);
     }
@@ -47,9 +50,9 @@ struct jit_uni_reduce_kernel {
 };
 
 struct jit_uni_reduce_post_kernel {
-    void (*ker_)(const jit_reduce_call_args *);
+    void (*ker_)(const jit_reduce_call_args*);
 
-    void operator()(const jit_reduce_call_args *args) {
+    void operator()(const jit_reduce_call_args* args) {
         assert(ker_);
         ker_(args);
     }
@@ -64,7 +67,9 @@ struct jit_uni_reduce_post_kernel {
 
 class MKLDNNReduceNode : public MKLDNNNode {
 public:
-    MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op,
+                     const mkldnn::engine& eng,
+                     MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -78,17 +83,20 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size_t dst_size);
-    void reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr);
-    void reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr);
-    void reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t *out_ptr);
-    inline void reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, size_t work_amount, size_t reduce_w = 2);
-    inline void reduce_kernel_post_process(uint8_t *out_ptr);
-    inline void init_dst_data(uint8_t *out_ptr, size_t dst_size);
-    inline void calc_process_dst_dims(const int32_t *idx_data);
-    inline void reduce_ref(const float *in_ptr, float *out_ptr);
-    void reduce_ref_process(const float *in_ptr, float *out_ptr, float init_value, std::function<float(float, float)> func);
-    inline void reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount);
+    void reduce_type(const uint8_t* in_ptr, uint8_t* out_ptr, size_t dst_size);
+    void reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr);
+    void reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr);
+    void reduce_BLK_concern_padding(const uint8_t* in_ptr, uint8_t* out_ptr);
+    inline void reduce_kernel_process(const uint8_t* in_p, uint8_t* out_p, size_t work_amount, size_t reduce_w = 2);
+    inline void reduce_kernel_post_process(uint8_t* out_ptr);
+    inline void init_dst_data(uint8_t* out_ptr, size_t dst_size);
+    inline void calc_process_dst_dims(const int32_t* idx_data);
+    inline void reduce_ref(const float* in_ptr, float* out_ptr);
+    void reduce_ref_process(const float* in_ptr,
+                            float* out_ptr,
+                            float init_value,
+                            std::function<float(float, float)> func);
+    inline void reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount);
 
     size_t blk_size;
     size_t dims_size;
@@ -110,10 +118,11 @@ private:
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
     std::shared_ptr<jit_uni_reduce_post_kernel> reduce_post_kernel;
 
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node)>> initializers;
+    static std::map<const ngraph::DiscreteTypeInfo,
+                    std::function<void(const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node)>>
+        initializers;
 
     std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin
-

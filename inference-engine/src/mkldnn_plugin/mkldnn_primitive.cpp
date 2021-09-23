@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <mkldnn_types.h>
 #include "mkldnn_primitive.h"
+
+#include <mkldnn_types.h>
 
 using namespace MKLDNNPlugin;
 
@@ -21,7 +22,7 @@ void MKLDNNPrimitive::reset(mkldnn::primitive* primitive) {
     prim.reset(primitive);
 }
 
-MKLDNNPrimitive &MKLDNNPrimitive::operator=(const std::shared_ptr<mkldnn::primitive>& primitive) {
+MKLDNNPrimitive& MKLDNNPrimitive::operator=(const std::shared_ptr<mkldnn::primitive>& primitive) {
     prim = primitive;
     return *this;
 }

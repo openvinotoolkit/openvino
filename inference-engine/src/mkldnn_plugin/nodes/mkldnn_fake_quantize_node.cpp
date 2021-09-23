@@ -4,23 +4,23 @@
 
 #include "mkldnn_fake_quantize_node.h"
 
-#include <string>
-#include <vector>
 #include <math.h>
-#include <mkldnn_types.h>
+#include <memory_desc/cpu_memory_desc_utils.h>
 #include <mkldnn_extension_utils.h>
-#include "utils/general_utils.h"
-#include "utils/cpu_utils.hpp"
+#include <mkldnn_types.h>
 
 #include <algorithm>
-#include <set>
 #include <cmath>
 #include <cpu/x64/jit_generator.hpp>
-#include "ie_parallel.hpp"
-
 #include <ngraph/opsets/opset1.hpp>
-#include <memory_desc/cpu_memory_desc_utils.h>
+#include <set>
+#include <string>
+#include <vector>
+
+#include "ie_parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/cpu_utils.hpp"
+#include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
@@ -70,7 +70,8 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
         Label tail_label;
         Label exit_label;
 
-        L(unrolled_loop_label); {
+        L(unrolled_loop_label);
+        {
             int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : 2 * nbits;
             const int ur_ch = isa == cpu::x64::sse41 ? nbits : isa == cpu::x64::avx2 ? nbits / 2 : nbits / 4;
             const int unrolled_loop_step = ur_ch * step;
@@ -80,9 +81,9 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
 
             xor_(reg_bin_32, reg_bin_32);
             for (int ch = 0; ch < ur_ch; ch++) {
-                uni_vmovups(vmm_src(0), ptr[reg_from + ch*step*sizeof(float)]);
-                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + ch*step*sizeof(float)]);
-                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + ch*step*sizeof(float)]);
+                uni_vmovups(vmm_src(0), ptr[reg_from + ch * step * sizeof(float)]);
+                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + ch * step * sizeof(float)]);
+                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + ch * step * sizeof(float)]);
                 if (isa == avx512_common) {
                     vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
                     vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
@@ -98,16 +99,17 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
             }
             mov(ptr[reg_to], reg_bin_32);
 
-            add(reg_from, unrolled_loop_step*sizeof(float));
-            add(reg_thresholds, unrolled_loop_step*sizeof(float));
-            add(reg_output_mask, unrolled_loop_step*sizeof(float));
+            add(reg_from, unrolled_loop_step * sizeof(float));
+            add(reg_thresholds, unrolled_loop_step * sizeof(float));
+            add(reg_output_mask, unrolled_loop_step * sizeof(float));
             add(reg_to, sizeof(uint32_t));
             sub(reg_work_amount, unrolled_loop_step);
 
             jmp(unrolled_loop_label, T_NEAR);
         }
 
-        L(main_loop_label); {
+        L(main_loop_label);
+        {
             int repeats = isa == cpu::x64::sse41 ? 2 : 1;
             int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : nbits * 2;
             const int main_loop_step = step * repeats;
@@ -117,9 +119,9 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
 
             xor_(reg_bin_32, reg_bin_32);
             for (int i = 0; i < repeats; i++) {
-                uni_vmovups(vmm_src(0), ptr[reg_from + i*step*sizeof(float)]);
-                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + i*step*sizeof(float)]);
-                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + i*step*sizeof(float)]);
+                uni_vmovups(vmm_src(0), ptr[reg_from + i * step * sizeof(float)]);
+                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + i * step * sizeof(float)]);
+                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + i * step * sizeof(float)]);
                 if (isa == avx512_common) {
                     vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
                     vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
@@ -138,16 +140,17 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
             else
                 mov(ptr[reg_to], reg_bin_8);
 
-            add(reg_from, main_loop_step*sizeof(float));
-            add(reg_thresholds, main_loop_step*sizeof(float));
-            add(reg_output_mask, main_loop_step*sizeof(float));
+            add(reg_from, main_loop_step * sizeof(float));
+            add(reg_thresholds, main_loop_step * sizeof(float));
+            add(reg_output_mask, main_loop_step * sizeof(float));
             add(reg_to, isa == avx512_common ? sizeof(uint16_t) : sizeof(uint8_t));
             sub(reg_work_amount, main_loop_step);
 
             jmp(main_loop_label, T_NEAR);
         }
 
-        L(tail_label); {
+        L(tail_label);
+        {
             if (tail_size != 0) {
                 xor_(reg_bin_32, reg_bin_32);
                 mov(reg_mask, 1);
@@ -181,15 +184,27 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    inline Vmm vmm_src(int idx) { return Vmm(idx); }
-    inline Xmm xmm_src(int idx) { return Xmm(idx); }
-    inline Vmm vmm_wei(int idx) { return Vmm(idx + 4); }
-    inline Vmm vmm_mask(int idx) { return Vmm(idx + 5); }
-    inline Xmm xmm_wei(int idx) { return Xmm(idx + 4); }
-    inline Xmm xmm_mask(int idx) { return Xmm(idx + 5); }
+    inline Vmm vmm_src(int idx) {
+        return Vmm(idx);
+    }
+    inline Xmm xmm_src(int idx) {
+        return Xmm(idx);
+    }
+    inline Vmm vmm_wei(int idx) {
+        return Vmm(idx + 4);
+    }
+    inline Vmm vmm_mask(int idx) {
+        return Vmm(idx + 5);
+    }
+    inline Xmm xmm_wei(int idx) {
+        return Xmm(idx + 4);
+    }
+    inline Xmm xmm_mask(int idx) {
+        return Xmm(idx + 5);
+    }
 
     Reg64 param = abi_param1;
     Reg64 reg_from = r8;
@@ -230,37 +245,78 @@ struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_
         else
             compute_generic();
 
-
         this->postamble();
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    inline Vmm vmm_val(int idx) { return Vmm(idx + 0); }
-    inline Vmm vmm_crop_low(int idx) { return Vmm(idx + 2); }
-    inline Vmm vmm_crop_high(int idx) { return Vmm(idx + 4); }
-    inline Vmm vmm_input_scale(int idx) { return Vmm(idx + 6); }
-    inline Vmm vmm_input_shift(int idx) { return Vmm(idx + 8); }
-    inline Vmm vmm_output_scale(int idx) { return Vmm(idx + 10); }
-    inline Vmm vmm_output_shift(int idx) { return Vmm(idx + 12); }
+    inline Vmm vmm_val(int idx) {
+        return Vmm(idx + 0);
+    }
+    inline Vmm vmm_crop_low(int idx) {
+        return Vmm(idx + 2);
+    }
+    inline Vmm vmm_crop_high(int idx) {
+        return Vmm(idx + 4);
+    }
+    inline Vmm vmm_input_scale(int idx) {
+        return Vmm(idx + 6);
+    }
+    inline Vmm vmm_input_shift(int idx) {
+        return Vmm(idx + 8);
+    }
+    inline Vmm vmm_output_scale(int idx) {
+        return Vmm(idx + 10);
+    }
+    inline Vmm vmm_output_shift(int idx) {
+        return Vmm(idx + 12);
+    }
 
-    inline Ymm ymm_val(int idx) { return Ymm(idx + 0); }
-    inline Ymm ymm_crop_low(int idx) { return Ymm(idx + 2); }
-    inline Ymm ymm_crop_high(int idx) { return Ymm(idx + 4); }
-    inline Ymm ymm_input_scale(int idx) { return Ymm(idx + 6); }
-    inline Ymm ymm_input_shift(int idx) { return Ymm(idx + 8); }
-    inline Ymm ymm_output_scale(int idx) { return Ymm(idx + 10); }
-    inline Ymm ymm_output_shift(int idx) { return Ymm(idx + 12); }
+    inline Ymm ymm_val(int idx) {
+        return Ymm(idx + 0);
+    }
+    inline Ymm ymm_crop_low(int idx) {
+        return Ymm(idx + 2);
+    }
+    inline Ymm ymm_crop_high(int idx) {
+        return Ymm(idx + 4);
+    }
+    inline Ymm ymm_input_scale(int idx) {
+        return Ymm(idx + 6);
+    }
+    inline Ymm ymm_input_shift(int idx) {
+        return Ymm(idx + 8);
+    }
+    inline Ymm ymm_output_scale(int idx) {
+        return Ymm(idx + 10);
+    }
+    inline Ymm ymm_output_shift(int idx) {
+        return Ymm(idx + 12);
+    }
 
-    inline Xmm xmm_val(int idx) { return Xmm(idx + 0); }
-    inline Xmm xmm_crop_low(int idx) { return Xmm(idx + 2); }
-    inline Xmm xmm_crop_high(int idx) { return Xmm(idx + 4); }
-    inline Xmm xmm_input_scale(int idx) { return Xmm(idx + 6); }
-    inline Xmm xmm_input_shift(int idx) { return Xmm(idx + 8); }
-    inline Xmm xmm_output_scale(int idx) { return Xmm(idx + 10); }
-    inline Xmm xmm_output_shift(int idx) { return Xmm(idx + 12); }
+    inline Xmm xmm_val(int idx) {
+        return Xmm(idx + 0);
+    }
+    inline Xmm xmm_crop_low(int idx) {
+        return Xmm(idx + 2);
+    }
+    inline Xmm xmm_crop_high(int idx) {
+        return Xmm(idx + 4);
+    }
+    inline Xmm xmm_input_scale(int idx) {
+        return Xmm(idx + 6);
+    }
+    inline Xmm xmm_input_shift(int idx) {
+        return Xmm(idx + 8);
+    }
+    inline Xmm xmm_output_scale(int idx) {
+        return Xmm(idx + 10);
+    }
+    inline Xmm xmm_output_shift(int idx) {
+        return Xmm(idx + 12);
+    }
 
     Vmm vmm_zero = Vmm(14);
 
@@ -327,7 +383,8 @@ private:
             uni_vbroadcastss(vmm_output_shift(0), ptr[reg_output_shift]);
         }
 
-        L(main_loop_label); {
+        L(main_loop_label);
+        {
             cmp(reg_work_amount, simd_w);
             jl(tail_blk4_label, T_NEAR);
 
@@ -337,8 +394,10 @@ private:
                 uni_vminps(vmm_val(i), vmm_val(i), vmm_crop_high(0));
                 uni_vmaxps(vmm_val(i), vmm_val(i), vmm_crop_low(0));
                 uni_vfmadd213ps(vmm_val(i), vmm_input_scale(0), vmm_input_shift(0));
-                if (do_rounding) uni_vroundps(vmm_val(i), vmm_val(i), 0);
-                if (do_dequantization) uni_vfmadd213ps(vmm_val(i), vmm_output_scale(0), vmm_output_shift(0));
+                if (do_rounding)
+                    uni_vroundps(vmm_val(i), vmm_val(i), 0);
+                if (do_dequantization)
+                    uni_vfmadd213ps(vmm_val(i), vmm_output_scale(0), vmm_output_shift(0));
 
                 store_vector(ptr[reg_to + i * (simd_w / 2) * dst_type_size], vmm_val(i), jqp_.dst_prc);
             }
@@ -350,7 +409,8 @@ private:
             jmp(main_loop_label, T_NEAR);
         }
 
-        L(tail_blk4_label); {
+        L(tail_blk4_label);
+        {
             cmp(reg_work_amount, tail_simd_w);
             jl(tail_blk4_exit_label, T_NEAR);
 
@@ -359,8 +419,10 @@ private:
             uni_vminps(xmm_val(0), xmm_val(0), xmm_crop_high(0));
             uni_vmaxps(xmm_val(0), xmm_val(0), xmm_crop_low(0));
             uni_vfmadd213ps(xmm_val(0), xmm_input_scale(0), xmm_input_shift(0));
-            if (do_rounding) uni_vroundps(xmm_val(0), xmm_val(0), 0);
-            if (do_dequantization) uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
+            if (do_rounding)
+                uni_vroundps(xmm_val(0), xmm_val(0), 0);
+            if (do_dequantization)
+                uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
 
             store_vector(ptr[reg_to], xmm_val(0), jqp_.dst_prc);
 
@@ -374,7 +436,8 @@ private:
         mov(aux_reg_from, reg_from);
         mov(aux_reg_to, reg_to);
 
-        L(tail_loop_label); {
+        L(tail_loop_label);
+        {
             cmp(reg_work_amount, 0);
             jle(exit_label, T_NEAR);
 
@@ -383,8 +446,10 @@ private:
             uni_vminps(xmm_val(0), xmm_val(0), xmm_crop_high(0));
             uni_vmaxps(xmm_val(0), xmm_val(0), xmm_crop_low(0));
             uni_vfmadd213ps(xmm_val(0), xmm_input_scale(0), xmm_input_shift(0));
-            if (do_rounding) uni_vroundps(xmm_val(0), xmm_val(0), 0);
-            if (do_dequantization) uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
+            if (do_rounding)
+                uni_vroundps(xmm_val(0), xmm_val(0), 0);
+            if (do_dequantization)
+                uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
 
             store_scalar(ptr[aux_reg_to], xmm_val(0), jqp_.dst_prc);
 
@@ -453,7 +518,8 @@ private:
             }
         }
 
-        L(main_loop_label); {
+        L(main_loop_label);
+        {
             cmp(reg_work_amount, 0);
             jle(exit_label, T_NEAR);
 
@@ -463,8 +529,10 @@ private:
                 uni_vminps(vmm_val(i), vmm_val(i), vmm_crop_high(i));
                 uni_vmaxps(vmm_val(i), vmm_val(i), vmm_crop_low(i));
                 uni_vfmadd213ps(vmm_val(i), vmm_input_scale(i), vmm_input_shift(i));
-                if (do_rounding) uni_vroundps(vmm_val(i), vmm_val(i), 0);
-                if (do_dequantization) uni_vfmadd213ps(vmm_val(i), vmm_output_scale(i), vmm_output_shift(i));
+                if (do_rounding)
+                    uni_vroundps(vmm_val(i), vmm_val(i), 0);
+                if (do_dequantization)
+                    uni_vfmadd213ps(vmm_val(i), vmm_output_scale(i), vmm_output_shift(i));
 
                 store_vector(ptr[reg_to + i * (simd_w / 2) * dst_type_size], vmm_val(i), jqp_.dst_prc);
             }
@@ -495,7 +563,8 @@ private:
                 uni_vmovups(ymm_output_shift(0), ptr[reg_output_shift]);
             }
 
-            L(tail_blk8_loop_label); {
+            L(tail_blk8_loop_label);
+            {
                 cmp(reg_work_amount, 0);
                 jle(tail_blk8_exit_label, T_NEAR);
 
@@ -504,8 +573,10 @@ private:
                 uni_vminps(ymm_val(0), ymm_val(0), ymm_crop_high(0));
                 uni_vmaxps(ymm_val(0), ymm_val(0), ymm_crop_low(0));
                 uni_vfmadd213ps(ymm_val(0), ymm_input_scale(0), ymm_input_shift(0));
-                if (do_rounding) uni_vroundps(ymm_val(0), ymm_val(0), 0);
-                if (do_dequantization) uni_vfmadd213ps(ymm_val(0), ymm_output_scale(0), ymm_output_shift(0));
+                if (do_rounding)
+                    uni_vroundps(ymm_val(0), ymm_val(0), 0);
+                if (do_dequantization)
+                    uni_vfmadd213ps(ymm_val(0), ymm_output_scale(0), ymm_output_shift(0));
 
                 store_vector(ptr[aux_reg_to], ymm_val(0), jqp_.dst_prc);
 
@@ -549,7 +620,8 @@ private:
             uni_vmovups(xmm_output_shift(0), ptr[reg_output_shift]);
         }
 
-        L(tail_blk4_loop_label); {
+        L(tail_blk4_loop_label);
+        {
             cmp(reg_work_amount, 0);
             jle(tail_blk4_exit_label, T_NEAR);
 
@@ -558,8 +630,10 @@ private:
             uni_vminps(xmm_val(0), xmm_val(0), xmm_crop_high(0));
             uni_vmaxps(xmm_val(0), xmm_val(0), xmm_crop_low(0));
             uni_vfmadd213ps(xmm_val(0), xmm_input_scale(0), xmm_input_shift(0));
-            if (do_rounding) uni_vroundps(xmm_val(0), xmm_val(0), 0);
-            if (do_dequantization) uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
+            if (do_rounding)
+                uni_vroundps(xmm_val(0), xmm_val(0), 0);
+            if (do_dequantization)
+                uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
 
             store_vector(ptr[aux_reg_to], xmm_val(0), jqp_.dst_prc);
 
@@ -592,7 +666,8 @@ private:
         mov(aux_reg_from, reg_from);
         mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
-        L(tail_loop_label); {
+        L(tail_loop_label);
+        {
             cmp(reg_work_amount, 0);
             jle(exit_label, T_NEAR);
 
@@ -611,8 +686,10 @@ private:
                 uni_vminps(xmm_val(0), xmm_val(0), xmm_crop_high(0));
                 uni_vmaxps(xmm_val(0), xmm_val(0), xmm_crop_low(0));
                 uni_vfmadd213ps(xmm_val(0), xmm_input_scale(0), xmm_input_shift(0));
-                if (do_rounding) uni_vroundps(xmm_val(0), xmm_val(0), 0);
-                if (do_dequantization) uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
+                if (do_rounding)
+                    uni_vroundps(xmm_val(0), xmm_val(0), 0);
+                if (do_dequantization)
+                    uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
 
                 store_scalar(ptr[aux_reg_to + i * dst_type_size], xmm_val(0), jqp_.dst_prc);
             }
@@ -627,20 +704,20 @@ private:
         L(exit_label);
     }
 
-    inline void load_vector(Zmm zmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Zmm zmm_src, const Xbyak::Address& op, Precision src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(zmm_src, op);
-                break;
-            case Precision::I8:
-                uni_vpmovsxbd(zmm_src, op);
-                break;
-            case Precision::U8:
-                uni_vpmovzxbd(zmm_src, op);
-                break;
-            default:
-                assert(!"unknown src_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(zmm_src, op);
+            break;
+        case Precision::I8:
+            uni_vpmovsxbd(zmm_src, op);
+            break;
+        case Precision::U8:
+            uni_vpmovzxbd(zmm_src, op);
+            break;
+        default:
+            assert(!"unknown src_prc");
         }
 
         if (src_prc != Precision::FP32) {
@@ -648,20 +725,20 @@ private:
         }
     }
 
-    inline void load_vector(Ymm ymm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Ymm ymm_src, const Xbyak::Address& op, Precision src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(ymm_src, op);
-                break;
-            case Precision::I8:
-                uni_vpmovsxbd(ymm_src, op);
-                break;
-            case Precision::U8:
-                uni_vpmovzxbd(ymm_src, op);
-                break;
-            default:
-                assert(!"unknown src_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(ymm_src, op);
+            break;
+        case Precision::I8:
+            uni_vpmovsxbd(ymm_src, op);
+            break;
+        case Precision::U8:
+            uni_vpmovzxbd(ymm_src, op);
+            break;
+        default:
+            assert(!"unknown src_prc");
         }
 
         if (src_prc != Precision::FP32) {
@@ -669,20 +746,20 @@ private:
         }
     }
 
-    inline void load_vector(Xmm xmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Xmm xmm_src, const Xbyak::Address& op, Precision src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(xmm_src, op);
-                break;
-            case Precision::I8:
-                uni_vpmovsxbd(xmm_src, op);
-                break;
-            case Precision::U8:
-                uni_vpmovzxbd(xmm_src, op);
-                break;
-            default:
-                assert(!"unknown src_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(xmm_src, op);
+            break;
+        case Precision::I8:
+            uni_vpmovsxbd(xmm_src, op);
+            break;
+        case Precision::U8:
+            uni_vpmovzxbd(xmm_src, op);
+            break;
+        default:
+            assert(!"unknown src_prc");
         }
 
         if (src_prc != Precision::FP32) {
@@ -690,22 +767,22 @@ private:
         }
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, Precision src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                movss(xmm_src, op);
-                break;
-            case Precision::I8:
-                movsx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
-                break;
-            case Precision::U8:
-                movzx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
-                break;
-            default:
-                assert(!"unknown src_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            movss(xmm_src, op);
+            break;
+        case Precision::I8:
+            movsx(reg_tmp_32, op);
+            movq(xmm_src, reg_tmp_64);
+            break;
+        case Precision::U8:
+            movzx(reg_tmp_32, op);
+            movq(xmm_src, reg_tmp_64);
+            break;
+        default:
+            assert(!"unknown src_prc");
         }
 
         if (src_prc != Precision::FP32) {
@@ -713,29 +790,29 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Zmm zmm_dst, Precision dst_prc) {
+    inline void store_vector(const Xbyak::Address& op, Zmm zmm_dst, Precision dst_prc) {
         if (dst_prc != Precision::FP32) {
             uni_vcvtps2dq(zmm_dst, zmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(op, zmm_dst);
-                break;
-            case Precision::I8:
-                vpmovsdb(op, zmm_dst);
-                break;
-            case Precision::U8:
-                vpmaxsd(zmm_dst, zmm_dst, vmm_zero);
-                vpmovusdb(op, zmm_dst);
-                break;
-            default:
-                assert(!"unknown dst_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(op, zmm_dst);
+            break;
+        case Precision::I8:
+            vpmovsdb(op, zmm_dst);
+            break;
+        case Precision::U8:
+            vpmaxsd(zmm_dst, zmm_dst, vmm_zero);
+            vpmovusdb(op, zmm_dst);
+            break;
+        default:
+            assert(!"unknown dst_prc");
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Ymm ymm_dst, Precision dst_prc) {
+    inline void store_vector(const Xbyak::Address& op, Ymm ymm_dst, Precision dst_prc) {
         Xmm xmm_dst = Xmm(ymm_dst.getIdx());
 
         if (dst_prc != Precision::FP32) {
@@ -743,87 +820,88 @@ private:
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(op, ymm_dst);
-                break;
-            case Precision::I8:
-                uni_vpackssdw(ymm_dst, ymm_dst, ymm_dst);
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(op, ymm_dst);
+            break;
+        case Precision::I8:
+            uni_vpackssdw(ymm_dst, ymm_dst, ymm_dst);
 
-                vpermq(ymm_dst, ymm_dst, 0x08);
+            vpermq(ymm_dst, ymm_dst, 0x08);
 
-                uni_vpacksswb(ymm_dst, ymm_dst, ymm_dst);
+            uni_vpacksswb(ymm_dst, ymm_dst, ymm_dst);
 
-                vmovq(op, xmm_dst);
-                break;
-            case Precision::U8:
-                uni_vpackusdw(ymm_dst, ymm_dst, ymm_dst);
+            vmovq(op, xmm_dst);
+            break;
+        case Precision::U8:
+            uni_vpackusdw(ymm_dst, ymm_dst, ymm_dst);
 
-                vpermq(ymm_dst, ymm_dst, 0x08);
+            vpermq(ymm_dst, ymm_dst, 0x08);
 
-                uni_vpackuswb(ymm_dst, ymm_dst, ymm_dst);
+            uni_vpackuswb(ymm_dst, ymm_dst, ymm_dst);
 
-                vmovq(op, xmm_dst);
-                break;
-            default:
-                assert(!"unknown dst_prc");
+            vmovq(op, xmm_dst);
+            break;
+        default:
+            assert(!"unknown dst_prc");
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Xmm xmm_dst, Precision dst_prc) {
+    inline void store_vector(const Xbyak::Address& op, Xmm xmm_dst, Precision dst_prc) {
         if (dst_prc != Precision::FP32) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(op, xmm_dst);
-                break;
-            case Precision::I8:
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                movd(op, xmm_dst);
-                break;
-            case Precision::U8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movd(op, xmm_dst);
-                break;
-            default:
-                assert(!"unknown dst_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(op, xmm_dst);
+            break;
+        case Precision::I8:
+            uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+            movd(op, xmm_dst);
+            break;
+        case Precision::U8:
+            uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+            movd(op, xmm_dst);
+            break;
+        default:
+            assert(!"unknown dst_prc");
         }
     }
 
-    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, Precision dst_prc) {
+    inline void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, Precision dst_prc) {
         if (dst_prc != Precision::FP32) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                movss(op, xmm_dst);
-                break;
-            case Precision::I8:
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            case Precision::U8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            default:
-                assert(!"unknown dst_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            movss(op, xmm_dst);
+            break;
+        case Precision::I8:
+            uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+            movq(reg_tmp_64, xmm_dst);
+            mov(op, reg_tmp_8);
+            break;
+        case Precision::U8:
+            uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+            movq(reg_tmp_64, xmm_dst);
+            mov(op, reg_tmp_8);
+            break;
+        default:
+            assert(!"unknown dst_prc");
         }
     }
 };
 
-bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                  std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -841,7 +919,8 @@ bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ng
         }
         for (size_t i = 1; i < fq->get_input_size(); i++) {
             if (fq->get_input_shape(i).size() > 5) {
-                errorMessage = "Doesn't support 'range' input with rank: " + std::to_string(fq->get_input_shape(i).size());
+                errorMessage =
+                    "Doesn't support 'range' input with rank: " + std::to_string(fq->get_input_shape(i).size());
                 return false;
             }
         }
@@ -880,8 +959,10 @@ bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Node>& op,
+                                               const mkldnn::engine& eng,
+                                               MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         algorithm = FQCommon;
@@ -955,16 +1036,20 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
         if (axisSize != -1 && axisSize != axisRealSize)
             IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
 
-        const auto inputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(1));
+        const auto inputLowNode =
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(1));
         auto inputLowData = inputLowNode->cast_vector<float>();
 
-        const auto inputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(2));
+        const auto inputHighNode =
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(2));
         auto inputHighData = inputHighNode->cast_vector<float>();
 
-        const auto outputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(3));
+        const auto outputLowNode =
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(3));
         auto outputLowData = outputLowNode->cast_vector<float>();
 
-        const auto outputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
+        const auto outputHighNode =
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
         auto outputHighData = outputHighNode->cast_vector<float>();
 
         binarization = levels == 2;
@@ -1000,10 +1085,11 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
 
             for (int i = 0; i < axisRealSize; i++) {
                 binarizationThresholds[i] = inputLowData[isInputLowBroadcasted ? 0 : i];
-                binarizationOutputMask[i] = outputHighData[isOutputHighBroadcasted ? 0 : i] == 1.f ? 0xffffffff : 0x00000000;
+                binarizationOutputMask[i] =
+                    outputHighData[isOutputHighBroadcasted ? 0 : i] == 1.f ? 0xffffffff : 0x00000000;
             }
         } else {
-            auto allElementsAreEqual = [&](const std::vector<float> &data, size_t size) {
+            auto allElementsAreEqual = [&](const std::vector<float>& data, size_t size) {
                 if (size == 0)
                     return true;
 
@@ -1058,10 +1144,11 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
-            if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
-                IE_THROW() << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
-                                   << "inputLow = " << il << ", inputHigh = " << ih;
-            }
+                if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) ||
+                    std::isinf(ih)) {
+                    IE_THROW() << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
+                               << "inputLow = " << il << ", inputHigh = " << ih;
+                }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
                 inputScale[i] = (levels - 1.0) / (static_cast<double>(ih) - il);
@@ -1079,7 +1166,7 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
 #if defined(VALIDATE_QUANTIZATION_RANGES)
                 if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
                     IE_THROW() << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
-                                       << "outputLow = " << ol << ", outputHigh = " << oh;
+                               << "outputLow = " << ol << ", outputHigh = " << oh;
                 }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
@@ -1111,20 +1198,20 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
 std::vector<LayoutType> MKLDNNFakeQuantizeNode::getDataFormats() const {
     // Special case for first FQ in the network
     if (getInputShapeAtPort(0).getStaticDims()[getAxis()] == 3) {
-        return { LayoutType::ncsp };
+        return {LayoutType::ncsp};
     } else {
         if (isBinarization()) {
-            return { LayoutType::nspc };
+            return {LayoutType::nspc};
         } else {
             if (one_of(getInputShapeAtPort(0).getRank(), 4, 5)) {
                 if (getAxis() == 1) {
                     auto blkFormat = mayiuse(cpu::x64::avx512_common) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
-                    return { blkFormat, LayoutType::nspc, LayoutType::ncsp };
+                    return {blkFormat, LayoutType::nspc, LayoutType::ncsp};
                 } else {
-                    return { LayoutType::ncsp };
+                    return {LayoutType::ncsp};
                 }
             } else {
-                return { LayoutType::ncsp };
+                return {LayoutType::ncsp};
             }
         }
     }
@@ -1276,7 +1363,9 @@ void MKLDNNFakeQuantizeNode::createPrimitive() {
     size_t axisSize = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims()[getAxis()];
     size_t axisPaddedSize = rnd_up(axisSize, 16);
 
-    DnnlBlockedMemoryDesc weightsDataDesc(Shape(InferenceEngine::SizeVector{axisPaddedSize}), memory::data_type::f32, memory::format_tag::x);
+    DnnlBlockedMemoryDesc weightsDataDesc(Shape(InferenceEngine::SizeVector{axisPaddedSize}),
+                                          memory::data_type::f32,
+                                          memory::format_tag::x);
 
     if (isBinarization()) {
         auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
@@ -1307,10 +1396,10 @@ void MKLDNNFakeQuantizeNode::createPrimitive() {
 }
 
 void MKLDNNFakeQuantizeNode::executeReference() {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto& srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto& dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const float *>(srcMemory->GetPtr());
+    auto src = reinterpret_cast<const float*>(srcMemory->GetPtr());
 
     auto srcDims = srcMemory->getStaticDims();
     auto dstDims = dstMemory->getStaticDims();
@@ -1337,7 +1426,7 @@ void MKLDNNFakeQuantizeNode::executeReference() {
         }
         d_str[1] = tmp;
 
-        auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+        auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
 
         const int nbits = 8;
         const int CB = impl::utils::div_up(C, nbits);
@@ -1348,11 +1437,10 @@ void MKLDNNFakeQuantizeNode::executeReference() {
         parallel_nd(N, CB, D, H, W, [&](int n, int cb, int d, int h, int w) {
             uint8_t bin_val = 0x00;
             for (int c = cb * nbits, shift = 0; c < std::min(C, (cb + 1) * nbits); c++, shift++) {
-                size_t src_off = srcDims.size() == 4 ?
-                                    n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3] :
-                                 srcDims.size() == 5 ?
-                                    n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4] :
-                                    n * s_str[0] + c * s_str[1];
+                size_t src_off = srcDims.size() == 4 ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3]
+                                 : srcDims.size() == 5
+                                     ? n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4]
+                                     : n * s_str[0] + c * s_str[1];
 
                 float val = src[src_off];
                 float thr = thresholds[c];
@@ -1364,16 +1452,15 @@ void MKLDNNFakeQuantizeNode::executeReference() {
                 bin_val |= (bit << shift);
             }
 
-            size_t dst_off = dstDims.size() == 4 ?
-                                n * d_str[0] + (cb * nbits) * d_str[1] + h * d_str[2] + w * d_str[3] :
-                             dstDims.size() == 5 ?
-                                 n * d_str[0] + (cb * nbits) * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4] :
-                                 n * d_str[0] + (cb * nbits) * d_str[1];
+            size_t dst_off = dstDims.size() == 4 ? n * d_str[0] + (cb * nbits) * d_str[1] + h * d_str[2] + w * d_str[3]
+                             : dstDims.size() == 5
+                                 ? n * d_str[0] + (cb * nbits) * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4]
+                                 : n * d_str[0] + (cb * nbits) * d_str[1];
 
             dst[dst_off / nbits] = bin_val;
         });
     } else {
-        auto dst = reinterpret_cast<float *>(dstMemory->GetPtr());
+        auto dst = reinterpret_cast<float*>(dstMemory->GetPtr());
 
         auto crop_low = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
         auto crop_high = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
@@ -1383,15 +1470,12 @@ void MKLDNNFakeQuantizeNode::executeReference() {
         auto output_shift = reinterpret_cast<const float*>(internalBlobMemory[5]->GetData());
 
         parallel_nd(N, C, D, H, W, [&](int n, int c, int d, int h, int w) {
-            size_t src_off = srcDims.size() == 5 ?
-                                n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4] :
-                             srcDims.size() == 4 ?
-                                n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3] :
-                             srcDims.size() == 3 ?
-                                n * s_str[0] + c * s_str[1] + h * s_str[2] :
-                             srcDims.size() == 2 ?
-                                n * s_str[0] + c * s_str[1] :
-                                n * s_str[0];
+            size_t src_off = srcDims.size() == 5
+                                 ? n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4]
+                             : srcDims.size() == 4 ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3]
+                             : srcDims.size() == 3 ? n * s_str[0] + c * s_str[1] + h * s_str[2]
+                             : srcDims.size() == 2 ? n * s_str[0] + c * s_str[1]
+                                                   : n * s_str[0];
 
             float src_val = src[src_off];
 
@@ -1408,15 +1492,12 @@ void MKLDNNFakeQuantizeNode::executeReference() {
             dst_val = roundf(dst_val);
             dst_val = dst_val * osc + osh;
 
-            size_t dst_off = dstDims.size() == 5 ?
-                             n * d_str[0] + c * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4] :
-                             dstDims.size() == 4 ?
-                             n * d_str[0] + c * d_str[1] + h * d_str[2] + w * d_str[3] :
-                             dstDims.size() == 3 ?
-                             n * d_str[0] + c * d_str[1] + h * d_str[2] :
-                             dstDims.size() == 2 ?
-                             n * d_str[0] + c * d_str[1] :
-                             n * d_str[0];
+            size_t dst_off = dstDims.size() == 5
+                                 ? n * d_str[0] + c * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4]
+                             : dstDims.size() == 4 ? n * d_str[0] + c * d_str[1] + h * d_str[2] + w * d_str[3]
+                             : dstDims.size() == 3 ? n * d_str[0] + c * d_str[1] + h * d_str[2]
+                             : dstDims.size() == 2 ? n * d_str[0] + c * d_str[1]
+                                                   : n * d_str[0];
 
             dst[dst_off] = dst_val;
         });
@@ -1424,11 +1505,11 @@ void MKLDNNFakeQuantizeNode::executeReference() {
 }
 
 void MKLDNNFakeQuantizeNode::executeBinarization() {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto& srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto& dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t*>(srcMemory->GetPtr());
+    auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
 
     auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
     auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
@@ -1452,8 +1533,8 @@ void MKLDNNFakeQuantizeNode::executeBinarization() {
     parallel_nd(N, H, W, [&](int n, int h, int w) {
         auto arg = jit_quantize_call_args();
 
-        arg.from    = &src[(n * s_str[0] + h * s_str[2] + w * s_str[3]) * sizeof(float)];
-        arg.to      = &dst[(n * s_str[0] + h * s_str[2] + w * s_str[3]) / nbits];
+        arg.from = &src[(n * s_str[0] + h * s_str[2] + w * s_str[3]) * sizeof(float)];
+        arg.to = &dst[(n * s_str[0] + h * s_str[2] + w * s_str[3]) / nbits];
         arg.thresholds = &thresholds[0];
         arg.output_mask = &output_mask[0];
         arg.work_amount = (size_t)C;
@@ -1463,11 +1544,11 @@ void MKLDNNFakeQuantizeNode::executeBinarization() {
 }
 
 void MKLDNNFakeQuantizeNode::executeQuantization() {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto& srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto& dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t*>(srcMemory->GetPtr());
+    auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
 
     auto crop_low = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
     auto crop_high = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
@@ -1480,8 +1561,9 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
     auto srcDims = srcDesc.getShape().getStaticDims();
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5);
-    int blk_size = (srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5))
-                    ? 1 : mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    int blk_size = (srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5)) ? 1
+                   : mayiuse(cpu::x64::avx512_common)                                                         ? 16
+                                                                                                              : 8;
 
     auto src_type_size = jqp.src_prc.size();
     auto dst_type_size = jqp.dst_prc.size();
@@ -1524,9 +1606,9 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
             arg.output_scale = &output_scale[c];
             arg.output_shift = &output_shift[c];
 
-            arg.src_step = (size_t) blk_size * src_type_size;
-            arg.dst_step = (size_t) blk_size * dst_type_size;
-            arg.block_size = (size_t) blk_size;
+            arg.src_step = (size_t)blk_size * src_type_size;
+            arg.dst_step = (size_t)blk_size * dst_type_size;
+            arg.block_size = (size_t)blk_size;
             arg.work_amount = (size_t)H;
 
             (*quantize_kernel)(&arg);
@@ -1537,11 +1619,10 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
 
             int c = cb * blk_size;
 
-            size_t data_off = srcDims.size() == 2 ?
-                                    n * s_str[0] + c * s_str[1] :
-                              srcDims.size() == 3 || srcDims.size() == 4 ?
-                                    n * s_str[0] + c * s_str[1] + h * s_str[2] :
-                                    n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3];
+            size_t data_off = srcDims.size() == 2 ? n * s_str[0] + c * s_str[1]
+                              : srcDims.size() == 3 || srcDims.size() == 4
+                                  ? n * s_str[0] + c * s_str[1] + h * s_str[2]
+                                  : n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3];
 
             arg.from = &src[data_off * src_type_size];
             arg.to = &dst[data_off * dst_type_size];
@@ -1552,10 +1633,10 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
             arg.output_scale = &output_scale[c];
             arg.output_shift = &output_shift[c];
 
-            arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
-            arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
-            arg.block_size = (is_blk_format && srcDims.size() != 2) ? (size_t) blk_size : nstl::min(blk_size, C - c);
-            arg.work_amount = (size_t) W;
+            arg.src_step = is_blk_format ? (size_t)blk_size * src_type_size : (size_t)C * src_type_size;
+            arg.dst_step = is_blk_format ? (size_t)blk_size * dst_type_size : (size_t)C * dst_type_size;
+            arg.block_size = (is_blk_format && srcDims.size() != 2) ? (size_t)blk_size : nstl::min(blk_size, C - c);
+            arg.work_amount = (size_t)W;
 
             (*quantize_kernel)(&arg);
         });
@@ -1590,7 +1671,9 @@ void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
             binarizationOutputMask.resize(paddedSize, 0);
         }
 
-        ops.append_binarization(mkldnn::algorithm::binarization_depthwise, (const float*)&binarizationThresholds[0], (const float*)&binarizationOutputMask[0]);
+        ops.append_binarization(mkldnn::algorithm::binarization_depthwise,
+                                (const float*)&binarizationThresholds[0],
+                                (const float*)&binarizationOutputMask[0]);
     } else {
         if (!isPostOpDataInitialized) {
             if (cropLow.size() > 1)
@@ -1614,10 +1697,16 @@ void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
             outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
         }
 
-        mkldnn::algorithm alg = getAlgorithm() == FQCommon ? mkldnn::algorithm::quantization_quantize_dequantize :
-                                                             mkldnn::algorithm::quantization_quantize;
+        mkldnn::algorithm alg = getAlgorithm() == FQCommon ? mkldnn::algorithm::quantization_quantize_dequantize
+                                                           : mkldnn::algorithm::quantization_quantize;
 
-        ops.append_quantization(alg, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
+        ops.append_quantization(alg,
+                                &cropLowData,
+                                &cropHighData,
+                                &inputScaleData,
+                                &inputShiftData,
+                                &outputScaleData,
+                                &outputShiftData);
     }
 
     if (!isPostOpDataInitialized)

@@ -11,11 +11,13 @@ namespace MKLDNNPlugin {
 
 class MKLDNNRangeNode : public MKLDNNNode {
 public:
-    MKLDNNRangeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNRangeNode(const std::shared_ptr<ngraph::Node>& op,
+                    const mkldnn::engine& eng,
+                    MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -23,6 +25,7 @@ public:
 
     template <typename data_t>
     InferenceEngine::StatusCode rangeKernel() noexcept;
+
 private:
     static const size_t RANGE_START = 0;
     static const size_t RANGE_LIMIT = 1;

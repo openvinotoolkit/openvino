@@ -3,17 +3,21 @@
 //
 
 #include "mkldnn_tile_node.h"
-#include <string>
-#include <mkldnn_types.h>
+
 #include <mkldnn_extension_utils.h>
-#include "common/cpu_memcpy.h"
+#include <mkldnn_types.h>
+
 #include <ngraph/opsets/opset1.hpp>
+#include <string>
+
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                          std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -28,13 +32,16 @@ bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<const ngraph::No
             errorMessage = "Doesn't support inputs with different ranks";
             return false;
         }
-        const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(TILE_REPEATS));
+        const auto repeatsNode =
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(TILE_REPEATS));
         if (repeatsNode == nullptr) {
             errorMessage = "Only const 'repeats' input is supported";
             return false;
         }
         const auto repeats = repeatsNode->cast_vector<int64_t>();
-        if (std::count_if(repeats.begin(), repeats.end(), [](int64_t x) { return x > 1; }) > 1) {
+        if (std::count_if(repeats.begin(), repeats.end(), [](int64_t x) {
+                return x > 1;
+            }) > 1) {
             errorMessage = "Doesn't support 'repeats' with more than one specified axis";
             return false;
         }
@@ -44,14 +51,17 @@ bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<const ngraph::No
     return true;
 }
 
-MKLDNNTileNode::MKLDNNTileNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+MKLDNNTileNode::MKLDNNTileNode(const std::shared_ptr<ngraph::Node>& op,
+                               const mkldnn::engine& eng,
+                               MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Tile node with name '" + getName() + "'";
 
         const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
-        const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(TILE_REPEATS));
+        const auto repeatsNode =
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(TILE_REPEATS));
         const auto repeats = repeatsNode->cast_vector<int64_t>();
         // At this moment CPU plug-in supports tiling only per single axis
         // This behavoiur is guaranteed by ConvertTileToSeqTiles
@@ -91,11 +101,10 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     }
 
     int inPlace = noTiling ? 0 : -1;
-    addSupportedPrimDesc({{LayoutType::ncsp, precision},
-                           {LayoutType::ncsp, Precision::I32}},
-                          {{LayoutType::ncsp, precision, false, inPlace}},
-                           impl_desc_type::unknown,
-                           true);
+    addSupportedPrimDesc({{LayoutType::ncsp, precision}, {LayoutType::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, precision, false, inPlace}},
+                         impl_desc_type::unknown,
+                         true);
 }
 
 void MKLDNNTileNode::createPrimitive() {
@@ -122,8 +131,10 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
     int m_inner_dim = 1;
     int m_outer_dim = 1;
     auto inDims = srcMemory.getStaticDims();
-    for (int i=0; i < axis; i++ ) m_outer_dim *= inDims[i];
-    for (int i=axis; i < inDims.size(); i++ ) m_inner_dim *= inDims[i];
+    for (int i = 0; i < axis; i++)
+        m_outer_dim *= inDims[i];
+    for (int i = axis; i < inDims.size(); i++)
+        m_inner_dim *= inDims[i];
     if (axis > 0) {
         m_outer_dim /= inDims[0];
         m_outer_dim *= batchToProcess();

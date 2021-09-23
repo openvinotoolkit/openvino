@@ -2,29 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
+#include "mkldnn_range_node.h"
+
+#include <utils/general_utils.h>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <string>
+
 #include "ie_parallel.hpp"
-#include "mkldnn_range_node.h"
-#include <utils/general_utils.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNRangeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNRangeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                           std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
-        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::Range::type_info, ngraph::op::v4::Range::type_info)) {
+        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+                                  ngraph::op::v0::Range::type_info,
+                                  ngraph::op::v4::Range::type_info)) {
             errorMessage = "Only opset1 and opset4 Range operation is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_START)) == nullptr ||
-            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_LIMIT)) == nullptr ||
-            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_DELTA)) == nullptr) {
+        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_START)) ==
+                nullptr ||
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_LIMIT)) ==
+                nullptr ||
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_DELTA)) ==
+                nullptr) {
             errorMessage = "Only const inputs for Range operation is supported";
             return false;
         }
@@ -34,8 +42,10 @@ bool MKLDNNRangeNode::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-MKLDNNRangeNode::MKLDNNRangeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNRangeNode::MKLDNNRangeNode(const std::shared_ptr<ngraph::Node>& op,
+                                 const mkldnn::engine& eng,
+                                 MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -71,13 +81,13 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> outDataConf;
 
     if (!(getOriginalInputPrecisionAtPort(RANGE_START) == Precision::I32 &&
-            getOriginalInputPrecisionAtPort(RANGE_LIMIT) == Precision::I32 &&
-            getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::I32 &&
-            getOriginalOutputPrecisionAtPort(0)     == Precision::I32) &&
+          getOriginalInputPrecisionAtPort(RANGE_LIMIT) == Precision::I32 &&
+          getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::I32 &&
+          getOriginalOutputPrecisionAtPort(0) == Precision::I32) &&
         !(getOriginalInputPrecisionAtPort(RANGE_START) == Precision::FP32 &&
-            getOriginalInputPrecisionAtPort(RANGE_LIMIT) == Precision::FP32 &&
-            getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::FP32 &&
-            getOriginalOutputPrecisionAtPort(0) == Precision::FP32)) {
+          getOriginalInputPrecisionAtPort(RANGE_LIMIT) == Precision::FP32 &&
+          getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::FP32 &&
+          getOriginalOutputPrecisionAtPort(0) == Precision::FP32)) {
         inDataConf.reserve(inputShapes.size());
         for (int i = 0; i < inputShapes.size(); ++i)
             inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
@@ -97,14 +107,14 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNRangeNode::execute(mkldnn::stream strm) {
     StatusCode retcode = OK;
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
-        case Precision::FP32:
-            retcode = rangeKernel<float>();
-            break;
-        case Precision::I32:
-            retcode = rangeKernel<int32_t>();
-            break;
-        default:
-            IE_THROW() << "Incorrect output precision. Only FP32 and I32 are supported!";
+    case Precision::FP32:
+        retcode = rangeKernel<float>();
+        break;
+    case Precision::I32:
+        retcode = rangeKernel<int32_t>();
+        break;
+    default:
+        IE_THROW() << "Incorrect output precision. Only FP32 and I32 are supported!";
     }
     if (retcode == PARAMETER_MISMATCH) {
         std::string errorMsg = "Range indexes exceeds data tensor dimension";
@@ -115,10 +125,10 @@ void MKLDNNRangeNode::execute(mkldnn::stream strm) {
 template <typename data_t>
 InferenceEngine::StatusCode MKLDNNRangeNode::rangeKernel() noexcept {
     size_t dst_size = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[0];
-    data_t* dst_data = reinterpret_cast<data_t *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
-    data_t start = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_START)->getMemoryPtr()->GetPtr())[0];
-    data_t limit = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_LIMIT)->getMemoryPtr()->GetPtr())[0];
-    data_t delta = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_DELTA)->getMemoryPtr()->GetPtr())[0];
+    data_t* dst_data = reinterpret_cast<data_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    data_t start = reinterpret_cast<const data_t*>(getParentEdgeAt(RANGE_START)->getMemoryPtr()->GetPtr())[0];
+    data_t limit = reinterpret_cast<const data_t*>(getParentEdgeAt(RANGE_LIMIT)->getMemoryPtr()->GetPtr())[0];
+    data_t delta = reinterpret_cast<const data_t*>(getParentEdgeAt(RANGE_DELTA)->getMemoryPtr()->GetPtr())[0];
     size_t work_amount_dst = static_cast<size_t>(std::floor(std::abs((limit - start) / delta)));
     if (work_amount_dst != dst_size)
         return PARAMETER_MISMATCH;

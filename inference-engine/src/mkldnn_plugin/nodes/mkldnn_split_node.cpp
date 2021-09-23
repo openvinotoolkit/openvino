@@ -3,30 +3,36 @@
 //
 
 #include "mkldnn_split_node.h"
-#include "common/cpu_memcpy.h"
-#include "common/blocked_desc_creator.h"
-#include <vector>
-#include <mkldnn_types.h>
-#include <mkldnn_extension_utils.h>
-#include <ie_parallel.hpp>
-#include "utils/general_utils.h"
+
 #include <memory_desc/cpu_memory_desc_utils.h>
+#include <mkldnn_extension_utils.h>
+#include <mkldnn_types.h>
+
+#include <ie_parallel.hpp>
+#include <vector>
+
+#include "common/blocked_desc_creator.h"
+#include "common/cpu_memcpy.h"
+#include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
-#define THROW_ERROR IE_THROW() << "Split layer with name '" << getName() <<"' "
+#define THROW_ERROR IE_THROW() << "Split layer with name '" << getName() << "' "
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNSplitNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNSplitNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                           std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
 
-        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v1::Split::type_info, ngraph::op::v1::VariadicSplit::type_info)) {
+        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+                                  ngraph::op::v1::Split::type_info,
+                                  ngraph::op::v1::VariadicSplit::type_info)) {
             errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
             return false;
         }
@@ -48,8 +54,10 @@ bool MKLDNNSplitNode::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-MKLDNNSplitNode::MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+MKLDNNSplitNode::MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op,
+                                 const mkldnn::engine& eng,
+                                 MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -67,13 +75,13 @@ MKLDNNSplitNode::MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const 
         axis += op->get_input_shape(0).size();
     }
     if (axis >= op->get_input_shape(0).size()) {
-        THROW_ERROR << "Split node with name '" << op->get_friendly_name() << "' has invalid value of axis parameter: " << axis;
+        THROW_ERROR << "Split node with name '" << op->get_friendly_name()
+                    << "' has invalid value of axis parameter: " << axis;
     }
     this->axis = axis;
 }
 
-void MKLDNNSplitNode::getSupportedDescriptors() {
-}
+void MKLDNNSplitNode::getSupportedDescriptors() {}
 
 void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     constexpr size_t channelsPos = 1lu;
@@ -99,24 +107,25 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         }
     }
     dstFirstDims[axis] = axis_size;
-    if (std::accumulate(dstFirstDims.begin(), dstFirstDims.end(), 1, std::multiplies<size_t>()) != srcShape.getElementsCount())
+    if (std::accumulate(dstFirstDims.begin(), dstFirstDims.end(), 1, std::multiplies<size_t>()) !=
+        srcShape.getElementsCount())
         THROW_ERROR << "sizes of input blob and sum of output blobs are not equal.";
 
     InferenceEngine::Precision inpPrecision = getOriginalInputPrecisionAtPort(0);
     const auto axisPrecision = getOriginalInputPrecisionAtPort(1);
-    auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
+    auto outPrecision = inpPrecision;  // the split layer doesn't convert precisions
 
     bool dynBatchSupport = true;
     if (axis < 1) {
         dynBatchSupport = false;
     }
 
-    //Set plain and tailC formats
-    std::vector<LayoutType> tdCreatorTypes{ LayoutType::ncsp, LayoutType::nspc };
+    // Set plain and tailC formats
+    std::vector<LayoutType> tdCreatorTypes{LayoutType::ncsp, LayoutType::nspc};
 
-    //Support channel blocked format
+    // Support channel blocked format
     if (srcShape.getRank() > 2) {
-        for (auto item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c) }) {
+        for (auto item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
             SizeVector blkDims = srcShape.getStaticDims();
             if (blkDims[channelsPos] % item.first)
                 continue;
@@ -137,7 +146,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     std::vector<size_t> pdIndexesToReuse;
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto itrRange = BlockedDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(srcShape.getRank()), tdCreatorTypes);
+    auto itrRange =
+        BlockedDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(srcShape.getRank()), tdCreatorTypes);
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
         NodeConfig config;
 
@@ -145,12 +155,14 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace = -1;
         config.inConfs[0].constant = false;
-        config.inConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, srcShape));
+        config.inConfs[0].desc =
+            std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, srcShape));
         config.inConfs[1].inPlace = -1;
         config.inConfs[1].constant = true;
-        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector {1}));
+        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{1}));
         if (INPUTS_NUM == 3) {
-            config.inConfs[2].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{outputShapes.size()}));
+            config.inConfs[2].desc =
+                std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{outputShapes.size()}));
             config.inConfs[2].constant = true;
         }
 
@@ -159,7 +171,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             config.outConfs[i].inPlace = -1;
             config.outConfs[i].constant = false;
-            config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, outputShapes[i]));
+            config.outConfs[i].desc =
+                std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, outputShapes[i]));
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
 
@@ -195,7 +208,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        config.inConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(inpPrecision, srcShape, blkDims, order, offset, offsets, strides);
+        config.inConfs[0].desc =
+            std::make_shared<CpuBlockedMemoryDesc>(inpPrecision, srcShape, blkDims, order, offset, offsets, strides);
 
         for (size_t i = 0; i < outputShapes.size(); i++) {
             auto outBlockingDesc = refConfig.outConfs[i].desc->as<CpuBlockedMemoryDesc>();
@@ -203,7 +217,13 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             const auto& dims = outBlockingDesc->getShape().getStaticDims();
 
             config.outConfs[i].inPlace = 0;
-            config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outPrecision, Shape(dims), outBlkDims, order, offset, offsets, strides);
+            config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outPrecision,
+                                                                             Shape(dims),
+                                                                             outBlkDims,
+                                                                             order,
+                                                                             offset,
+                                                                             offsets,
+                                                                             strides);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -221,7 +241,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[1].constant = true;
         config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{1}));
         if (INPUTS_NUM == 3) {
-            config.inConfs[2].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{outputShapes.size()}));
+            config.inConfs[2].desc =
+                std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{outputShapes.size()}));
             config.inConfs[2].constant = true;
         }
         config.outConfs.resize(outputShapes.size());
@@ -322,7 +343,8 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         int num = getParentEdgeAt(i)->getOutputNum();
         if (getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()) {
             if (num >= 0) {
-                const auto& parentConfig = getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
+                const auto& parentConfig =
+                    getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
                 if (!parentConfig.desc->isDefined() && parentConfig.inPlace >= 0)
                     getParentEdgeAt(i)->getParent()->initOptimalPrimitiveDescriptor();
                 if (parentConfig.desc->isDefined() && parentConfig.desc->isCompatible(*config.inConfs[i].desc)) {
@@ -343,13 +365,14 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     for (size_t i = 0; i < outputShapes.size(); i++) {
         auto oldDesc = config.outConfs[i].desc;
         auto outBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
-        config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outBlockingDesc->getPrecision(),
-                                                                 outBlockingDesc->getShape(),
-                                                                 outBlockingDesc->getBlockDims(),
-                                                                 outBlockingDesc->getOrder(),
-                                                                 firstInBlockingDesc->getOffsetPadding() + offset,
-                                                                 firstInBlockingDesc->getOffsetPaddingToData(),
-                                                                 firstInBlockingDesc->getStrides());
+        config.outConfs[i].desc =
+            std::make_shared<CpuBlockedMemoryDesc>(outBlockingDesc->getPrecision(),
+                                                   outBlockingDesc->getShape(),
+                                                   outBlockingDesc->getBlockDims(),
+                                                   outBlockingDesc->getOrder(),
+                                                   firstInBlockingDesc->getOffsetPadding() + offset,
+                                                   firstInBlockingDesc->getOffsetPaddingToData(),
+                                                   firstInBlockingDesc->getStrides());
 
         size_t axisSize = 1;
         for (size_t j = axis; j < outBlockingDesc->getBlockDims().size(); j++) {
@@ -362,20 +385,20 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
 
 void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
     // Enforce the reference implementation for the planar layout if the implementation is in the impl priorities list.
-    // This is needed mostly for the testing purposes, since for the planar layout Split works always in place, we need to enforce
-    // the reference implementation when it is selected in a test to test that piece of code.
+    // This is needed mostly for the testing purposes, since for the planar layout Split works always in place, we need
+    // to enforce the reference implementation when it is selected in a test to test that piece of code.
     if (!implPriorities.empty() && implPriorities[0] == impl_desc_type::ref) {
         for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
             auto& pd = supportedPrimitiveDescriptors[i];
             if (pd.getConfig().inConfs[0].desc->hasLayoutType(LayoutType::ncsp) &&
                 impl_desc_type::ref == pd.getImplementationType()) {
-                    selectPrimitiveDescriptorByIndex(static_cast<int>(i));
+                selectPrimitiveDescriptorByIndex(static_cast<int>(i));
                 return;
             }
         }
     }
 
-    //check the descriptors and select the ones that have the same data format as the input
+    // check the descriptors and select the ones that have the same data format as the input
 
     std::vector<size_t> canSelectPrimitive;
     for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
@@ -388,7 +411,8 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
             if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
                 inNum = 0;
             }
-            if (supportedPrimitiveDescriptors[i].getConfig().inConfs[0].desc->isCompatible(*parent_spd->getConfig().outConfs[inNum].desc)) {
+            if (supportedPrimitiveDescriptors[i].getConfig().inConfs[0].desc->isCompatible(
+                    *parent_spd->getConfig().outConfs[inNum].desc)) {
                 canSelectPrimitive.push_back(i);
             }
         }
@@ -412,7 +436,8 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
             auto childEdge = getChildEdgeAt(i);
             auto childPtr = childEdge->getChild();
             auto& vecChildSpd = childPtr->getSupportedPrimitiveDescriptors();
-            const auto& outputDesc = supportedPrimitiveDescriptors[indx].getConfig().outConfs[childEdge->getInputNum()].desc;
+            const auto& outputDesc =
+                supportedPrimitiveDescriptors[indx].getConfig().outConfs[childEdge->getInputNum()].desc;
 
             if (!vecChildSpd.empty()) {
                 int inNum = childEdge->getOutputNum();
@@ -470,7 +495,7 @@ void MKLDNNSplitNode::prepareOptimizedParams() {
     const auto inpTensorDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     const auto outputPortsCount = outputShapes.size();
 
-    //find axis order position
+    // find axis order position
     const auto& order = inpTensorDesc->getOrder();
     unsigned axisOrderPos = std::numeric_limits<unsigned>::max();
     for (size_t i = 0; i < order.size(); ++i) {
@@ -525,9 +550,9 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     auto srcData = reinterpret_cast<const uint8_t*>(srcMem.GetData());
     const auto dataSize = srcMem.getDesc().getPrecision().size();
 
-    const size_t DHW = D*H*W;
+    const size_t DHW = D * H * W;
     const size_t strideIB = DHW * IC * dataSize;
-    const size_t strideIW = IC*dataSize;
+    const size_t strideIW = IC * dataSize;
     const size_t strideOC = DHW * dataSize;
 
     for (size_t i = 0, sIdx = 0; i < outputShapes.size(); i++) {
@@ -545,8 +570,8 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
         const size_t strideOB = OC * strideOC;
 
         parallel_for2d(MB, DHW, [&](size_t b, size_t j) {
-            auto localSrcPtr = srcPtr + b*strideIB + j*strideIW;
-            auto localDstPtr = dstData + b*strideOB + j*dataSize;
+            auto localSrcPtr = srcPtr + b * strideIB + j * strideIW;
+            auto localDstPtr = dstData + b * strideOB + j * dataSize;
             for (size_t c = 0; c < OC; c++) {
                 cpu_memcpy(localDstPtr, localSrcPtr, dataSize);
                 localSrcPtr += dataSize;

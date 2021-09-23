@@ -5,7 +5,9 @@
 #pragma once
 
 #include <ie_common.h>
+
 #include <ie_precision.hpp>
+
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -36,10 +38,10 @@ enum MemoryDescType {
 };
 
 enum class LayoutType : unsigned {
-    nspc,      // general per channels format
-    ncsp,      // general planar
-    nCsp8c,    // general channels blocked by 8
-    nCsp16c    // general channels blocked by 16
+    nspc,    // general per channels format
+    ncsp,    // general planar
+    nCsp8c,  // general channels blocked by 8
+    nCsp16c  // general channels blocked by 16
 };
 
 class MemoryDesc {
@@ -58,11 +60,13 @@ public:
 
     virtual MemoryDescPtr clone() const = 0;
 
-    // clone descriptor with new dims. Throws an exception if some of the new dims conflicts with the internal shape (i.e. its defined dims ,rank, upper bounds)
+    // clone descriptor with new dims. Throws an exception if some of the new dims conflicts with the internal shape
+    // (i.e. its defined dims ,rank, upper bounds)
     MemoryDescPtr cloneWithNewDims(const VectorDims& dims) const {
         if (!getShape().isCompatible(dims)) {
-            IE_THROW(ParameterMismatch) << "Can not clone with new dims. Descriptor's shape: " << getShape().toString() <<
-                                           " is incompatible with provided dimensions: " << MemoryDescUtils::dims2str(dims) << ".";
+            IE_THROW(ParameterMismatch) << "Can not clone with new dims. Descriptor's shape: " << getShape().toString()
+                                        << " is incompatible with provided dimensions: "
+                                        << MemoryDescUtils::dims2str(dims) << ".";
         }
 
         return cloneWithNewDimsImp(dims);
@@ -102,8 +106,8 @@ public:
     }
 
     template <typename T,
-            typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-            typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
     T* as() {
         T* casted = dynamic_cast<T*>(this);
         if (!casted)
@@ -112,8 +116,8 @@ public:
     }
 
     template <typename T,
-            typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-            typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
     const T* as() const {
         const T* casted = dynamic_cast<const T*>(this);
         if (!casted)
@@ -125,17 +129,16 @@ public:
 
 protected:
     MemoryDesc() : type(MemoryDescType::Undef) {}
-    MemoryDesc(Shape shape, MemoryDescType type)
-            : shape(std::move(shape)), type(type) {}
+    MemoryDesc(Shape shape, MemoryDescType type) : shape(std::move(shape)), type(type) {}
 
-    MemoryDesc(const VectorDims& dims, MemoryDescType type)
-            : shape(dims), type(type) {}
+    MemoryDesc(const VectorDims& dims, MemoryDescType type) : shape(dims), type(type) {}
 
     virtual void setPrecision(InferenceEngine::Precision prc) = 0;
 
     virtual size_t getCurrentMemSizeImp() const = 0;
 
-    // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding, layout, blocking etc.
+    // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding,
+    // layout, blocking etc.
     virtual size_t getElementOffset(size_t elemNumber) const = 0;
 
     virtual bool isDefinedImp() const = 0;
@@ -154,7 +157,8 @@ protected:
     friend class BlobDumper;
     // WA: optimizedNspc2Ncsp used getElementOffset inside implementation
     friend class MKLDNNSplitNode;
-    friend MemoryDescPtr MemoryDescUtils::cloneWithNewPrecision(const MemoryDesc& desc, const InferenceEngine::Precision prec);
+    friend MemoryDescPtr MemoryDescUtils::cloneWithNewPrecision(const MemoryDesc& desc,
+                                                                const InferenceEngine::Precision prec);
 };
 
 }  // namespace MKLDNNPlugin

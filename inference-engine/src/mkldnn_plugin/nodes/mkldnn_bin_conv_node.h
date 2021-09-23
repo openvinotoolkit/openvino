@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -41,9 +42,9 @@ struct jit_dw_conv_params {
 };
 
 struct jit_bin_conv_call_args {
-    const void *src;
-    const void *dst;
-    const void *filt;
+    const void* src;
+    const void* dst;
+    const void* filt;
     size_t kh_padding;
     size_t kw_padding;
     size_t oc_work;
@@ -53,15 +54,20 @@ struct jit_bin_conv_call_args {
 };
 
 struct jit_uni_bin_conv_kernel {
-    void (*ker_)(const jit_bin_conv_call_args *);
+    void (*ker_)(const jit_bin_conv_call_args*);
 
-    void operator()(const jit_bin_conv_call_args *args) {
+    void operator()(const jit_bin_conv_call_args* args) {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_bin_conv_kernel(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const mkldnn_primitive_attr &attr) :
-        ker_(nullptr), jcp_(jcp), jcp_dw_conv_(jcp_dw_conv), attr_(attr) {}
+    explicit jit_uni_bin_conv_kernel(jit_bin_conv_params jcp,
+                                     jit_dw_conv_params jcp_dw_conv,
+                                     const mkldnn_primitive_attr& attr)
+        : ker_(nullptr),
+          jcp_(jcp),
+          jcp_dw_conv_(jcp_dw_conv),
+          attr_(attr) {}
     virtual ~jit_uni_bin_conv_kernel() {}
 
     virtual void create_ker() = 0;
@@ -69,12 +75,14 @@ struct jit_uni_bin_conv_kernel {
     jit_bin_conv_params jcp_;
     jit_dw_conv_params jcp_dw_conv_;
 
-    const mkldnn_primitive_attr &attr_;
+    const mkldnn_primitive_attr& attr_;
 };
 
 class MKLDNNBinaryConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNBinaryConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNBinaryConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
+                                const mkldnn::engine& eng,
+                                MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void createPrimitive() override;
@@ -84,12 +92,14 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
-    void setPostOps(mkldnn::primitive_attr &attr);
+    void setPostOps(mkldnn::primitive_attr& attr);
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    impl_desc_type getImplType() { return implType; }
+    impl_desc_type getImplType() {
+        return implType;
+    }
 
 private:
     bool withSum = false;
@@ -111,13 +121,20 @@ private:
 
     impl_desc_type implType = impl_desc_type::ref;
 
-    void executeOptimized(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
-                          const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str);
-    void executeReference(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
-                          const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str);
+    void executeOptimized(const uint8_t* src,
+                          const uint8_t* weights,
+                          uint8_t* dst,
+                          const std::vector<size_t>& s_str,
+                          const std::vector<size_t>& w_str,
+                          const std::vector<size_t>& d_str);
+    void executeReference(const uint8_t* src,
+                          const uint8_t* weights,
+                          uint8_t* dst,
+                          const std::vector<size_t>& s_str,
+                          const std::vector<size_t>& w_str,
+                          const std::vector<size_t>& d_str);
 
     std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin
-

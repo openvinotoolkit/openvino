@@ -6,15 +6,18 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNSoftMaxNode : public MKLDNNNode {
 public:
-    MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op,
+                      const mkldnn::engine& eng,
+                      MKLDNNWeightsSharing::Ptr& cache);
 
     void initOptimalPrimitiveDescriptor() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -30,4 +33,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-

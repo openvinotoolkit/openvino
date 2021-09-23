@@ -4,17 +4,18 @@
 
 #pragma once
 
-#include "cpp/ie_cnn_network.h"
-#include "config.h"
-#include "mkldnn_memory.h"
-#include "normalize_preprocess.h"
-#include "mkldnn_node.h"
-#include "mkldnn_edge.h"
+#include <atomic>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include <atomic>
+
+#include "config.h"
+#include "cpp/ie_cnn_network.h"
+#include "mkldnn_edge.h"
+#include "mkldnn_memory.h"
+#include "mkldnn_node.h"
+#include "normalize_preprocess.h"
 
 namespace MKLDNNPlugin {
 class MKLDNNInferRequest;
@@ -38,26 +39,24 @@ public:
         return (GetStatus() == Ready);
     }
 
-    void setConfig(const Config &cfg);
+    void setConfig(const Config& cfg);
     const Config& getConfig() const;
 
-    void setProperty(const std::map<std::string, std::string> &properties);
+    void setProperty(const std::map<std::string, std::string>& properties);
     Config getProperty() const;
 
     InferenceEngine::Blob::Ptr getInputBlob(const std::string& name);
     InferenceEngine::Blob::Ptr getOutputBlob(const std::string& name);
 
-    template<typename NET>
-    void CreateGraph(NET &network,
-                     const MKLDNNExtensionManager::Ptr& extMgr,
-                     MKLDNNWeightsSharing::Ptr &w_cache);
+    template <typename NET>
+    void CreateGraph(NET& network, const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr& w_cache);
 
     bool hasMeanImageFor(const std::string& name) {
         return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
     }
 
-    void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
-    void PullOutputData(InferenceEngine::BlobMap &out);
+    void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr& in);
+    void PullOutputData(InferenceEngine::BlobMap& out);
 
     void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
 
@@ -85,14 +84,14 @@ public:
         return outputNodesMap;
     }
 
-    MKLDNNNodePtr getInputNodeByName(const std::string &name) {
+    MKLDNNNodePtr getInputNodeByName(const std::string& name) {
         auto input = inputNodesMap.find(name);
         if (input == inputNodesMap.end())
             IE_THROW() << "CPU execution graph doesn't contain input node with name: " << name;
         return input->second;
     }
 
-    MKLDNNNodePtr getOutputNodeByName(const std::string &name) {
+    MKLDNNNodePtr getOutputNodeByName(const std::string& name) {
         auto output = outputNodesMap.find(name);
         if (output == outputNodesMap.end())
             IE_THROW() << "CPU execution graph doesn't contain output node with name: " << name;
@@ -111,7 +110,7 @@ public:
         return eng;
     }
 
-    void GetPerfData(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const;
+    void GetPerfData(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const;
 
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
@@ -121,9 +120,9 @@ public:
 
     /**
      * @brief Insert Reorder node at the edge-specified location.
-     * The Reorder node must be inserted in case when there are inplace conflicts or the input and output tensor descriptors do not match.
-     * The Reorder node rearranges the elements in memory according to inDesc and outDesc, or reinterprets memory descriptor without
-     * rearrangement of elements if isOptimized is true.
+     * The Reorder node must be inserted in case when there are inplace conflicts or the input and output tensor
+     * descriptors do not match. The Reorder node rearranges the elements in memory according to inDesc and outDesc, or
+     * reinterprets memory descriptor without rearrangement of elements if isOptimized is true.
      * @param edge
      * pointer to the edge in the graph where Reorder node will be inserted
      * @param layerName
@@ -138,14 +137,17 @@ public:
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
-    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const MemoryDesc& inDesc,
-            const MemoryDesc& outDesc, bool isOptimized = false);
+    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge,
+                                std::string layerName,
+                                const MemoryDesc& inDesc,
+                                const MemoryDesc& outDesc,
+                                bool isOptimized = false);
 
     /**
      * @brief Insert MKLDNNNode at the edge-specified location.
-     * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the InitEdges() completes. The second is just inserting the
-     * node without initialization.
+     * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors
+     * initialization, supported primitive descriptors selection, etc.), which can be useful after the InitEdges()
+     * completes. The second is just inserting the node without initialization.
      * @param edge
      * pointer to the edge in the graph where the node will be inserted
      * @param node
@@ -158,10 +160,10 @@ public:
 
     /**
      * @brief Insert MKLDNNNode between two specified nodes.
-     * This procedure creates two edges that link the parent and child nodes to the inserted one and adds all created objects to the graph.
-     * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the InitEdges() completes. The second is just inserting the
-     * node without initialization.
+     * This procedure creates two edges that link the parent and child nodes to the inserted one and adds all created
+     * objects to the graph. This method supports two regimes. First, the node is inserted without initialization (i.e.
+     * supported descriptors initialization, supported primitive descriptors selection, etc.), which can be useful after
+     * the InitEdges() completes. The second is just inserting the node without initialization.
      * @param parent
      * pointer to the parent node
      * @param child
@@ -174,11 +176,18 @@ public:
      * parameter that determines whether the node needs to be initialized
      * @return true in case of success, false otherwise.
      */
-    bool InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort, bool initNode = false);
+    bool InsertNode(MKLDNNNodePtr parent,
+                    MKLDNNNodePtr child,
+                    MKLDNNNodePtr node,
+                    int parentPort,
+                    int childPort,
+                    bool initNode = false);
 
     std::shared_ptr<ngraph::Function> dump() const;
 
-    void ResetInferCount() { infer_count = 0; }
+    void ResetInferCount() {
+        infer_count = 0;
+    }
 
     void SortTopologically();
 
@@ -203,7 +212,7 @@ protected:
         graphEdges.clear();
         _normalizePreprocMap.clear();
     }
-    Status status { NotReady };
+    Status status{NotReady};
     Config config;
 
     // For dumping purposes. -1 - no counting, all other positive
@@ -225,8 +234,8 @@ protected:
 
     static mkldnn::engine eng;
 
-    void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
-    void Replicate(const std::shared_ptr<const ngraph::Function> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::CNNNetwork& network, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const std::shared_ptr<const ngraph::Function>& subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
@@ -241,7 +250,7 @@ protected:
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
-    friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
+    friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph& graph);
 
 private:
     // TODO: change std::map to std::unordered_map

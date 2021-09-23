@@ -3,11 +3,13 @@
 //
 
 #include "fc_bias_fusion.hpp"
-#include "op/fully_connected.hpp"
-#include <numeric>
+
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <numeric>
+
+#include "op/fully_connected.hpp"
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::FullyConnectedBiasFusion, "FullyConnectedBiasFusion", 0);
 
@@ -18,12 +20,13 @@ MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto m_bias = ngraph::pattern::any_input();
     auto m_add = ngraph::pattern::wrap_type<ngraph::opset1::Add>({m_fc, m_bias});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto & pattern_to_output = m.get_pattern_value_map();
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto& pattern_to_output = m.get_pattern_value_map();
 
         auto add = pattern_to_output[m_add].get_node_shared_ptr();
         auto bias = pattern_to_output[m_bias].get_node_shared_ptr();
-        auto fc = std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode>(pattern_to_output[m_fc].get_node_shared_ptr());
+        auto fc =
+            std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode>(pattern_to_output[m_fc].get_node_shared_ptr());
         if (!fc) {
             return false;
         }
@@ -47,8 +50,10 @@ MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
 
         std::shared_ptr<ngraph::Node> final_bias = bias;
         if (bias->get_shape().size() >= 2) {
-            final_bias = std::make_shared<ngraph::opset1::Reshape>(final_bias, ngraph::opset1::Constant::create(ngraph::element::i64,
-                                                                                                                ngraph::Shape{1}, {-1}), true);
+            final_bias = std::make_shared<ngraph::opset1::Reshape>(
+                final_bias,
+                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {-1}),
+                true);
             new_ops.push_back(final_bias);
         }
 

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <functional>
+
 #include "cpu_shape.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 
@@ -21,15 +22,19 @@ public:
 
 public:
     static const CreatorsMap& getCommonCreators();
-    static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
-    makeFilteredRange(const CreatorsMap &map, unsigned rank);
+    static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> makeFilteredRange(
+        const CreatorsMap& map,
+        unsigned rank);
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
     makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<LayoutType>& supportedTypes);
-    static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
-    makeFilteredRange(const CreatorsMap& map, Predicate predicate);
-    virtual CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const = 0;
+    static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> makeFilteredRange(
+        const CreatorsMap& map,
+        Predicate predicate);
+    virtual CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision,
+                                            const Shape& srcShape) const = 0;
 
-    std::shared_ptr<CpuBlockedMemoryDesc> createSharedDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const {
+    std::shared_ptr<CpuBlockedMemoryDesc> createSharedDesc(const InferenceEngine::Precision& precision,
+                                                           const Shape& srcShape) const {
         return std::make_shared<CpuBlockedMemoryDesc>(createDesc(precision, srcShape));
     }
 
@@ -48,7 +53,10 @@ public:
     typedef std::function<bool(const value_type&)> predicate_type;
 
 public:
-    CreatorsMapFilterConstIterator(predicate_type filter, Iterator begin, Iterator end) : _filter(std::move(filter)), _iter(begin), _end(end)  {
+    CreatorsMapFilterConstIterator(predicate_type filter, Iterator begin, Iterator end)
+        : _filter(std::move(filter)),
+          _iter(begin),
+          _end(end) {
         while (_iter != _end && !_filter(*_iter)) {
             ++_iter;
         }
@@ -91,4 +99,4 @@ private:
     Iterator _end;
     predicate_type _filter;
 };
-} // namespace MKLDNNPlugin
+}  // namespace MKLDNNPlugin

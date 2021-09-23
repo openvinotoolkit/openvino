@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <ngraph/op/constant.hpp>
 #include <string>
 
@@ -13,9 +14,15 @@ namespace MKLDNNPlugin {
 
 class MKLDNNInputNode : public MKLDNNNode {
 public:
-    MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    MKLDNNInputNode(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
-                    const std::string &type, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op,
+                    const mkldnn::engine& eng,
+                    MKLDNNWeightsSharing::Ptr& cache);
+    MKLDNNInputNode(const Shape& shape,
+                    const InferenceEngine::Precision& prc,
+                    const std::string& name,
+                    const std::string& type,
+                    const mkldnn::engine& eng,
+                    MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

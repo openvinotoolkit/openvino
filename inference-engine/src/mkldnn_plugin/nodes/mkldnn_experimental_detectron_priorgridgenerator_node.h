@@ -11,11 +11,13 @@ namespace MKLDNNPlugin {
 
 class MKLDNNExperimentalDetectronPriorGridGeneratorNode : public MKLDNNNode {
 public:
-    MKLDNNExperimentalDetectronPriorGridGeneratorNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNExperimentalDetectronPriorGridGeneratorNode(const std::shared_ptr<ngraph::Node>& op,
+                                                      const mkldnn::engine& eng,
+                                                      MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -29,11 +31,11 @@ private:
     // Outputs:
     //      priors_grid, shape [m, 4]
 
-    const int INPUT_PRIORS {0};
-    const int INPUT_FEATUREMAP {1};
-    const int INPUT_IMAGE {2};
+    const int INPUT_PRIORS{0};
+    const int INPUT_FEATUREMAP{1};
+    const int INPUT_IMAGE{2};
 
-    const int OUTPUT_ROIS {0};
+    const int OUTPUT_ROIS{0};
 
     int grid_w_;
     int grid_h_;

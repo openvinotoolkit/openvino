@@ -3,16 +3,19 @@
 //
 
 #include "mkldnn_reshape_node.h"
-#include <string>
-#include <mkldnn_types.h>
+
 #include <mkldnn_extension_utils.h>
+#include <mkldnn_types.h>
+
 #include <ngraph/opsets/opset1.hpp>
+#include <string>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNReshapeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNReshapeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                             std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -20,7 +23,7 @@ bool MKLDNNReshapeNode::isSupportedOperation(const std::shared_ptr<const ngraph:
         }
         if (!std::dynamic_pointer_cast<const ngraph::opset1::Reshape>(op) &&
             !std::dynamic_pointer_cast<const ngraph::opset1::Squeeze>(op) &&
-                !std::dynamic_pointer_cast<const ngraph::opset1::Unsqueeze>(op)) {
+            !std::dynamic_pointer_cast<const ngraph::opset1::Unsqueeze>(op)) {
             errorMessage = "Only opset1 Reshape, Squeeze, Unsqueeze operations are supported";
             return false;
         }
@@ -30,17 +33,23 @@ bool MKLDNNReshapeNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op,
+                                     const mkldnn::engine& eng,
+                                     MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 }
 
-MKLDNNReshapeNode::MKLDNNReshapeNode(const std::string& name, const Shape& inDims, const Shape& outDims, Precision precision,
-        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &wCache)
-        : MKLDNNNode("Reshape", name, eng, wCache) {
+MKLDNNReshapeNode::MKLDNNReshapeNode(const std::string& name,
+                                     const Shape& inDims,
+                                     const Shape& outDims,
+                                     Precision precision,
+                                     const mkldnn::engine& eng,
+                                     MKLDNNWeightsSharing::Ptr& wCache)
+    : MKLDNNNode("Reshape", name, eng, wCache) {
     this->inputShapes.push_back(inDims);
     this->outputShapes.push_back(outDims);
     addOriginalInputPrecision(precision);

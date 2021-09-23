@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -14,9 +15,11 @@ namespace MKLDNNPlugin {
 
 class MKLDNNFullyConnectedNode : public MKLDNNNode {
 public:
-    MKLDNNFullyConnectedNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNFullyConnectedNode(const std::shared_ptr<ngraph::Node>& op,
+                             const mkldnn::engine& eng,
+                             MKLDNNWeightsSharing::Ptr& cache);
 
-    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
+    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
@@ -34,8 +37,8 @@ public:
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -47,14 +50,13 @@ protected:
     std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr();
 
 private:
-    void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
-                                  const mkldnn::memory::desc &outputDesc);
+    void createDescriptorInternal(const mkldnn::memory::desc& inputDesc, const mkldnn::memory::desc& outputDesc);
 
     InferenceEngine::SizeVector weightsDims;
     InferenceEngine::SizeVector biasesDims;
 
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
+    void setPostOps(mkldnn::primitive_attr& attr, bool initWeights);
 
     bool withBiases = false;
 

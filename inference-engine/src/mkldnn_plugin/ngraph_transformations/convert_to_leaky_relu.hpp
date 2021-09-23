@@ -8,7 +8,7 @@
 
 namespace MKLDNNPlugin {
 
-class ConvertToLeakyRelu: public ngraph::pass::MatcherPass {
+class ConvertToLeakyRelu : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertToLeakyRelu();

@@ -6,16 +6,20 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
+
 #include "common/permute_kernel.h"
 
 namespace MKLDNNPlugin {
 
 class MKLDNNShuffleChannelsNode : public MKLDNNNode {
 public:
-    MKLDNNShuffleChannelsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNShuffleChannelsNode(const std::shared_ptr<ngraph::Node>& op,
+                              const mkldnn::engine& eng,
+                              MKLDNNWeightsSharing::Ptr& cache);
     ~MKLDNNShuffleChannelsNode() override = default;
 
     void getSupportedDescriptors() override;

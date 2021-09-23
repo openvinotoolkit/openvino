@@ -4,16 +4,16 @@
 
 #include "mkldnn_shuffle_channels_node.h"
 
-#include <ie_parallel.hpp>
 #include <mkldnn_extension_utils.h>
-#include <cpu/x64/jit_generator.hpp>
-#include "common/blocked_desc_creator.h"
 
+#include <cmath>
+#include <cpu/x64/jit_generator.hpp>
+#include <ie_parallel.hpp>
+#include <string>
+
+#include "common/blocked_desc_creator.h"
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
-
-#include <string>
-#include <cmath>
 
 #define THROW_SHCH_ERROR IE_THROW() << "ShuffleChannels layer with name '" << getName() << "' "
 
@@ -23,7 +23,8 @@ using namespace InferenceEngine;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 
-bool MKLDNNShuffleChannelsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNShuffleChannelsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                     std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -56,8 +57,12 @@ bool MKLDNNShuffleChannelsNode::isSupportedOperation(const std::shared_ptr<const
     return true;
 }
 
-MKLDNNShuffleChannelsNode::MKLDNNShuffleChannelsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache), permuteKernel_(nullptr), supportDynamicBatch_(false) {
+MKLDNNShuffleChannelsNode::MKLDNNShuffleChannelsNode(const std::shared_ptr<ngraph::Node>& op,
+                                                     const mkldnn::engine& eng,
+                                                     MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache),
+      permuteKernel_(nullptr),
+      supportDynamicBatch_(false) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -75,8 +80,7 @@ MKLDNNShuffleChannelsNode::MKLDNNShuffleChannelsNode(const std::shared_ptr<ngrap
     supportDynamicBatch_ = (axis_ != 0);
 }
 
-void MKLDNNShuffleChannelsNode::getSupportedDescriptors() {
-}
+void MKLDNNShuffleChannelsNode::getSupportedDescriptors() {}
 
 void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
@@ -104,26 +108,30 @@ void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
 
     addSupportedPrimDesc({{firstCreatorType, precision}},
                          {{firstCreatorType, precision}},
-                         impl_type, supportDynamicBatch_);
+                         impl_type,
+                         supportDynamicBatch_);
     addSupportedPrimDesc({{secondCreatorType, precision}},
                          {{secondCreatorType, precision}},
-                         impl_type, supportDynamicBatch_);
+                         impl_type,
+                         supportDynamicBatch_);
     // canUseBlocked
     if (axis_ != 1) {
         addSupportedPrimDesc({{LayoutType::nCsp8c, precision}},
                              {{LayoutType::nCsp8c, precision}},
-                             impl_type, supportDynamicBatch_);
+                             impl_type,
+                             supportDynamicBatch_);
         addSupportedPrimDesc({{LayoutType::nCsp16c, precision}},
                              {{LayoutType::nCsp16c, precision}},
-                             impl_type, supportDynamicBatch_);
+                             impl_type,
+                             supportDynamicBatch_);
     }
 }
 
 void MKLDNNShuffleChannelsNode::createPrimitive() {
     if (prim)
         return;
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
         THROW_SHCH_ERROR << "has not allocated destination memory";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
@@ -138,7 +146,8 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
     int spatialRank = dataRank_ - axis_ - 1;
 
     // 2 for decomposed axis dim, 1 for composed spatial dim
-    int reshapedRank = batchRank + 2 + static_cast<int>(spatialRank != 0) + static_cast<int>(isBlocked && (spatialRank == 0));
+    int reshapedRank =
+        batchRank + 2 + static_cast<int>(spatialRank != 0) + static_cast<int>(isBlocked && (spatialRank == 0));
     PermuteParams params;
     params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
     params.order.resize(reshapedRank, 0);
@@ -176,7 +185,7 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
 
             params.order[batchRank + 2] = batchRank + 2;
             params.src_block_dims[batchRank + 2] = spatialShapeSize * blkSize;
-        } else { // axis on batch
+        } else {  // axis on batch
             decomposeAndTranpose(0);
             size_t spatialShapeSize = CB * blkSize;
             for (int i = 2; i < dataRank_; i++) {
@@ -211,7 +220,7 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
                 params.order[batchRank + 1] = batchRank + 1;
                 params.src_block_dims[batchRank + 1] = spatialShapeSize;
             }
-        } else { // axis on batch
+        } else {  // axis on batch
             decomposeAndTranpose(0);
             params.order[2] = 2;
             params.src_block_dims[2] = spatialShapeSize;

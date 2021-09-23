@@ -3,16 +3,20 @@
 //
 
 #include "mkldnn_lrn_node.h"
-#include <string>
-#include <mkldnn_extension_utils.h>
-#include <ngraph/opsets/opset1.hpp>
+
 #include <memory_desc/cpu_memory_desc_utils.h>
+#include <mkldnn_extension_utils.h>
+
+#include <ngraph/opsets/opset1.hpp>
+#include <string>
+
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNLrnNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNLrnNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                         std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -30,7 +34,8 @@ bool MKLDNNLrnNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(dataDims.size());
             return false;
         }
-        const auto axesNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(lrn->get_input_node_shared_ptr(1));
+        const auto axesNode =
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(lrn->get_input_node_shared_ptr(1));
         if (!axesNode) {
             errorMessage = "Only Constant operation on 'axis' input is supported";
             return false;
@@ -42,7 +47,7 @@ bool MKLDNNLrnNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
             return true;
         } else {
             std::vector<bool> norm(dataRank, false);
-            for (auto &axis : axes) {
+            for (auto& axis : axes) {
                 if (axis < 0 || axis >= dataRank) {
                     errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
                     return false;
@@ -63,14 +68,17 @@ bool MKLDNNLrnNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
     return true;
 }
 
-MKLDNNLrnNode::MKLDNNLrnNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+MKLDNNLrnNode::MKLDNNLrnNode(const std::shared_ptr<ngraph::Node>& op,
+                             const mkldnn::engine& eng,
+                             MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "LRN node with name '" + getName() + "'";
 
         const auto lrn = std::dynamic_pointer_cast<const ngraph::opset1::LRN>(op);
-        const auto axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
+        const auto axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(lrn->get_input_node_shared_ptr(1))
+                              ->cast_vector<int64_t>();
         isAcrossMaps = (axes.size() == 1 && axes[0] == 1);
         alpha = static_cast<float>(lrn->get_alpha());
         beta = static_cast<float>(lrn->get_beta());
@@ -95,7 +103,7 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
         precision = InferenceEngine::Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
-    const auto &parentShape = getInputShapeAtPort(0);
+    const auto& parentShape = getInputShapeAtPort(0);
 
     for (auto format : getAvailableFormatsForDims(parentShape)) {
         auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, format);
@@ -103,7 +111,8 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
     }
 }
 
-std::shared_ptr<MemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it,
+                                                         size_t idx) {
     if (idx > 0) {
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     } else {
@@ -128,12 +137,18 @@ bool MKLDNNLrnNode::created() const {
     return getType() == Lrn;
 }
 
-void MKLDNNLrnNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                     const std::vector<MemoryDescPtr> &outputDesc) {
-    mkldnn::algorithm alg = isAcrossMaps ? mkldnn::algorithm::lrn_across_channels : mkldnn::algorithm::lrn_within_channel;
+void MKLDNNLrnNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                                     const std::vector<MemoryDescPtr>& outputDesc) {
+    mkldnn::algorithm alg =
+        isAcrossMaps ? mkldnn::algorithm::lrn_across_channels : mkldnn::algorithm::lrn_within_channel;
     MKLDNNDescriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
-            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc(),
-                                          size, alpha, beta, k)));
+        new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring,
+                                      alg,
+                                      MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc(),
+                                      size,
+                                      alpha,
+                                      beta,
+                                      k)));
     descs.push_back(desc);
 }
 

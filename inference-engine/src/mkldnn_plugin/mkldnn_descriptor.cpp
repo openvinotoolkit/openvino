@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_common.h>
-
 #include "mkldnn_descriptor.h"
 
-mkldnn::primitive_desc_iterator MKLDNNDescriptor::createPrimitiveDescriptorIterator(const mkldnn::engine &engine,
-                                                                                    const mkldnn::primitive_attr &attr) const {
+#include <ie_common.h>
+
+mkldnn::primitive_desc_iterator MKLDNNDescriptor::createPrimitiveDescriptorIterator(
+    const mkldnn::engine& engine,
+    const mkldnn::primitive_attr& attr) const {
     return desc->createPrimitiveDescriptorIterator(attr, engine);
 }
 
@@ -50,12 +51,13 @@ MKLDNNDescriptor::operator std::shared_ptr<mkldnn::deconvolution_forward::desc>(
 MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc> desc,
                                    std::shared_ptr<mkldnn::convolution_forward::primitive_desc> prim) {
     this->desc.reset(
-            new DescBwdImpl<mkldnn::convolution_backward_data::desc,
-                    mkldnn::convolution_forward::primitive_desc>(desc, prim));
+        new DescBwdImpl<mkldnn::convolution_backward_data::desc, mkldnn::convolution_forward::primitive_desc>(desc,
+                                                                                                              prim));
 }
 
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::convolution_backward_data::desc>() {
-    auto typeDesc = std::dynamic_pointer_cast<DescBwdImpl<mkldnn::convolution_backward_data::desc, mkldnn::convolution_forward::primitive_desc>>(desc);
+    auto typeDesc = std::dynamic_pointer_cast<
+        DescBwdImpl<mkldnn::convolution_backward_data::desc, mkldnn::convolution_forward::primitive_desc>>(desc);
     if (typeDesc == nullptr) {
         IE_THROW() << "Cannot cast descriptor!";
     }
@@ -63,7 +65,8 @@ MKLDNNDescriptor::operator std::shared_ptr<mkldnn::convolution_backward_data::de
 }
 
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::convolution_forward::primitive_desc>() {
-    auto typeDesc = std::dynamic_pointer_cast<DescBwdImpl<mkldnn::convolution_backward_data::desc, mkldnn::convolution_forward::primitive_desc>>(desc);
+    auto typeDesc = std::dynamic_pointer_cast<
+        DescBwdImpl<mkldnn::convolution_backward_data::desc, mkldnn::convolution_forward::primitive_desc>>(desc);
     if (typeDesc == nullptr) {
         IE_THROW() << "Cannot cast descriptor!";
     }

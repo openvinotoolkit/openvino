@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "mkldnn_bucketize_node.h"
+
+#include <algorithm>
+#include <ngraph/opsets/opset3.hpp>
 #include <string>
 #include <vector>
-#include <algorithm>
 
-#include <ngraph/opsets/opset3.hpp>
 #include "ie_parallel.hpp"
-#include "mkldnn_bucketize_node.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNBucketizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNBucketizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                               std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -30,8 +32,10 @@ bool MKLDNNBucketizeNode::isSupportedOperation(const std::shared_ptr<const ngrap
     return true;
 }
 
-MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                     MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op,
+                                         const mkldnn::engine& eng,
+                                         MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -40,8 +44,8 @@ MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op
     errorPrefix = "Bucketize layer with name '" + op->get_friendly_name() + "' ";
     const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
     if (bucketsize == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of Bucketize from opset3.";
+        IE_THROW() << "Operation with name '" << op->get_friendly_name()
+                   << "' is not an instance of Bucketize from opset3.";
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
@@ -64,7 +68,8 @@ MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op
     }
     num_bin_values = input_bin_dims[0];
 
-    num_values = std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), size_t(1), std::multiplies<size_t>());
+    num_values =
+        std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), size_t(1), std::multiplies<size_t>());
 }
 
 void MKLDNNBucketizeNode::initSupportedPrimitiveDescriptors() {
@@ -73,8 +78,7 @@ void MKLDNNBucketizeNode::initSupportedPrimitiveDescriptors() {
 
     // check precisions for input and output tensors
     input_precision = getOriginalInputPrecisionAtPort(INPUT_TENSOR_PORT);
-    if (input_precision != Precision::FP32 && input_precision != Precision::I32 &&
-        input_precision != Precision::I64) {
+    if (input_precision != Precision::FP32 && input_precision != Precision::I32 && input_precision != Precision::I64) {
         input_precision = Precision::FP32;
     }
     boundaries_precision = getOriginalInputPrecisionAtPort(INPUT_BINS_PORT);
@@ -87,8 +91,7 @@ void MKLDNNBucketizeNode::initSupportedPrimitiveDescriptors() {
         output_precision = Precision::I32;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, input_precision},
-                          {LayoutType::ncsp, boundaries_precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, input_precision}, {LayoutType::ncsp, boundaries_precision}},
                          {{LayoutType::ncsp, output_precision}},
                          impl_desc_type::ref_any);
 }
@@ -97,106 +100,106 @@ void MKLDNNBucketizeNode::execute(mkldnn::stream strm) {
     auto precision_mask = getPrecisionMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {
-        case getPrecisionMask(Precision::FP32, Precision::FP32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
-            break;
-        case getPrecisionMask(Precision::FP32, Precision::FP32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
-            break;
-        case getPrecisionMask(Precision::FP32, Precision::I32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
-            break;
-        case getPrecisionMask(Precision::FP32, Precision::I32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
-            break;
-        case getPrecisionMask(Precision::FP32, Precision::I64, Precision::I32):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
-            break;
-        case getPrecisionMask(Precision::FP32, Precision::I64, Precision::I64):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I32, Precision::FP32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I32, Precision::FP32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I32, Precision::I32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I32, Precision::I32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I32, Precision::I64, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I32, Precision::I64, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I64, Precision::FP32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I64, Precision::FP32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I64, Precision::I32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I64, Precision::I32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I64, Precision::I64, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
-            break;
-        case getPrecisionMask(Precision::I64, Precision::I64, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
-            break;
-        default:
-            IE_THROW() << errorPrefix << " has unsupported precision: " << precision_mask;
+    case getPrecisionMask(Precision::FP32, Precision::FP32, Precision::I32):
+        bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type>();
+        break;
+    case getPrecisionMask(Precision::FP32, Precision::FP32, Precision::I64):
+        bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type>();
+        break;
+    case getPrecisionMask(Precision::FP32, Precision::I32, Precision::I32):
+        bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type>();
+        break;
+    case getPrecisionMask(Precision::FP32, Precision::I32, Precision::I64):
+        bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type>();
+        break;
+    case getPrecisionMask(Precision::FP32, Precision::I64, Precision::I32):
+        bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type>();
+        break;
+    case getPrecisionMask(Precision::FP32, Precision::I64, Precision::I64):
+        bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I32, Precision::FP32, Precision::I32):
+        bucketize<PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I32, Precision::FP32, Precision::I64):
+        bucketize<PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I32, Precision::I32, Precision::I32):
+        bucketize<PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I32, Precision::I32, Precision::I64):
+        bucketize<PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I32, Precision::I64, Precision::I32):
+        bucketize<PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I32, Precision::I64, Precision::I64):
+        bucketize<PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I64, Precision::FP32, Precision::I32):
+        bucketize<PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I64, Precision::FP32, Precision::I64):
+        bucketize<PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::FP32>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I64, Precision::I32, Precision::I32):
+        bucketize<PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I64, Precision::I32, Precision::I64):
+        bucketize<PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I64, Precision::I64, Precision::I32):
+        bucketize<PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::I32>::value_type>();
+        break;
+    case getPrecisionMask(Precision::I64, Precision::I64, Precision::I64):
+        bucketize<PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type,
+                  PrecisionTrait<Precision::I64>::value_type>();
+        break;
+    default:
+        IE_THROW() << errorPrefix << " has unsupported precision: " << precision_mask;
     }
 }
 
 template <typename T, typename T_BOUNDARIES, typename T_IND>
 void MKLDNNBucketizeNode::bucketize() {
-    const auto *input_data = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *boundaries_data = reinterpret_cast<const T_BOUNDARIES *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    auto *output_data = reinterpret_cast<T_IND *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const auto* input_data = reinterpret_cast<const T*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* boundaries_data = reinterpret_cast<const T_BOUNDARIES*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    auto* output_data = reinterpret_cast<T_IND*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     if (!with_bins) {
         memset(output_data, 0, num_values * sizeof(T_IND));

@@ -8,6 +8,7 @@ void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
     // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
     auto& configuration = test->GetConfiguration();
     if (!configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
-        configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
+        configuration.insert(
+            {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
     }
 }

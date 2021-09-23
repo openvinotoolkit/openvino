@@ -6,14 +6,15 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
+#include <caseless.hpp>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include <caseless.hpp>
 
 namespace MKLDNNPlugin {
 
-#define MAX_ELTWISE_INPUTS 7
+#define MAX_ELTWISE_INPUTS   7
 #define MAX_ELTWISE_DIM_RANK 12
 
 struct jit_eltwise_params {
@@ -36,8 +37,8 @@ struct jit_eltwise_params {
 };
 
 struct jit_eltwise_call_args_ptrs {
-    const void *src_ptr[MAX_ELTWISE_INPUTS];
-    void *dst_ptr;
+    const void* src_ptr[MAX_ELTWISE_INPUTS];
+    void* dst_ptr;
 };
 
 struct jit_eltwise_call_args_indexes {
@@ -54,7 +55,10 @@ struct jit_uni_eltwise_kernel {
         ker_(const_args, indexes);
     }
 
-    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(jep), eltwiseNode(node) {}
+    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep, MKLDNNEltwiseNode& node)
+        : ker_(nullptr),
+          jep_(jep),
+          eltwiseNode(node) {}
     virtual ~jit_uni_eltwise_kernel() {}
 
     virtual void create_ker() = 0;
@@ -65,7 +69,9 @@ struct jit_uni_eltwise_kernel {
 
 class MKLDNNEltwiseNode : public MKLDNNNode {
 public:
-    MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op,
+                      const mkldnn::engine& eng,
+                      MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -80,13 +86,23 @@ public:
     void fuseInto(MKLDNNNodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 
-    float getAlpha() const { return alpha; }
-    float getBeta() const { return beta; }
-    float getGamma() const { return gamma; }
-    mkldnn::algorithm getMKLDNNAlgorithm() const { return mkldnnAlgorithm; }
+    float getAlpha() const {
+        return alpha;
+    }
+    float getBeta() const {
+        return beta;
+    }
+    float getGamma() const {
+        return gamma;
+    }
+    mkldnn::algorithm getMKLDNNAlgorithm() const {
+        return mkldnnAlgorithm;
+    }
 
     bool isWithBroadcast();
-    bool isSpecialConvolutionAddFusing() const { return specialConvolutionAddFusing; }
+    bool isSpecialConvolutionAddFusing() const {
+        return specialConvolutionAddFusing;
+    }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -123,7 +139,9 @@ private:
 
     std::vector<MKLDNNMemoryPtr> memPtrs = {};
 
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> initializers;
+    static std::map<const ngraph::DiscreteTypeInfo,
+                    std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>>
+        initializers;
 
     inline void executeOptimized6D();
     inline void executeOptimizedGeneric();

@@ -7,7 +7,7 @@
 using namespace LayerTestsDefinitions;
 using namespace InferenceEngine;
 
-namespace CPULayerTestsDefinitions  {
+namespace CPULayerTestsDefinitions {
 
 class ConvertCPULayerTest : public ConversionLayerTest {};
 
@@ -30,34 +30,32 @@ const std::vector<ngraph::helpers::ConversionTypes> conversionOpTypes = {
 const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};
 
 // List of precisions natively supported by mkldnn.
-const std::vector<Precision> precisions = {
-        Precision::U8,
-        Precision::I8,
-        Precision::I32,
-        Precision::FP32,
-        Precision::BF16
-};
+const std::vector<Precision> precisions = {Precision::U8,
+                                           Precision::I8,
+                                           Precision::I32,
+                                           Precision::FP32,
+                                           Precision::BF16};
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest_From_BF16, ConvertCPULayerTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(conversionOpTypes),
-                                ::testing::Values(inShape),
-                                ::testing::Values(Precision::BF16),
-                                ::testing::ValuesIn(precisions),
-                                ::testing::Values(Layout::ANY),
-                                ::testing::Values(Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConversionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest_From_BF16,
+                         ConvertCPULayerTest,
+                         ::testing::Combine(::testing::ValuesIn(conversionOpTypes),
+                                            ::testing::Values(inShape),
+                                            ::testing::Values(Precision::BF16),
+                                            ::testing::ValuesIn(precisions),
+                                            ::testing::Values(Layout::ANY),
+                                            ::testing::Values(Layout::ANY),
+                                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ConversionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest_To_BF16, ConvertCPULayerTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(conversionOpTypes),
-                                ::testing::Values(inShape),
-                                ::testing::ValuesIn(precisions),
-                                ::testing::Values(Precision::BF16),
-                                ::testing::Values(Layout::ANY),
-                                ::testing::Values(Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConversionLayerTest::getTestCaseName);
-} // namespace
-} // namespace CPULayerTestsDefinitions
+INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest_To_BF16,
+                         ConvertCPULayerTest,
+                         ::testing::Combine(::testing::ValuesIn(conversionOpTypes),
+                                            ::testing::Values(inShape),
+                                            ::testing::ValuesIn(precisions),
+                                            ::testing::Values(Precision::BF16),
+                                            ::testing::Values(Layout::ANY),
+                                            ::testing::Values(Layout::ANY),
+                                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ConversionLayerTest::getTestCaseName);
+}  // namespace
+}  // namespace CPULayerTestsDefinitions

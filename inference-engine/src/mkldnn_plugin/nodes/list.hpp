@@ -4,15 +4,14 @@
 
 #pragma once
 
+#include <ie_iextension.h>
 #include <mkldnn_selective_build.h>
 
-#include <ie_iextension.h>
-
-#include <string>
+#include <algorithm>
 #include <map>
 #include <memory>
-#include <algorithm>
 #include <ngraph/node.hpp>
+#include <string>
 
 namespace InferenceEngine {
 
@@ -53,14 +52,14 @@ class MKLDNNExtensions : public IExtension {
 public:
     MKLDNNExtensions();
 
-    virtual StatusCode
-    getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
+    virtual StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
         collectTypes(types, size);
         return OK;
     }
 
-    virtual StatusCode
-    getFactoryFor(ILayerImplFactory*& factory, const std::shared_ptr<ngraph::Node>& op, ResponseDesc* resp) noexcept {
+    virtual StatusCode getFactoryFor(ILayerImplFactory*& factory,
+                                     const std::shared_ptr<ngraph::Node>& op,
+                                     ResponseDesc* resp) noexcept {
         using namespace MKLDNNPlugin;
         factory = layersFactory.createNodeIfRegistered(MKLDNNPlugin, op->get_type_name(), op);
         if (!factory) {
@@ -73,7 +72,7 @@ public:
 
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
         static Version ExtensionDescription = {
-            { 2, 1 },    // extension API version
+            {2, 1},  // extension API version
             "2.1",
             "ie-cpu-ext"  // extension description message
         };
@@ -83,20 +82,20 @@ public:
 
     void Unload() noexcept override {}
 
-    using LayersFactory = openvino::cc::Factory<
-                                std::string,
-                                InferenceEngine::ILayerImplFactory*(const std::shared_ptr<ngraph::Node>& op)>;
+    using LayersFactory =
+        openvino::cc::Factory<std::string,
+                              InferenceEngine::ILayerImplFactory*(const std::shared_ptr<ngraph::Node>& op)>;
 
     LayersFactory layersFactory;
 
 private:
     void collectTypes(char**& types, unsigned int& size) const {
-        types = new char *[layersFactory.size()];
+        types = new char*[layersFactory.size()];
         unsigned count = 0;
-        layersFactory.foreach([&](std::pair<std::string, LayersFactory::builder_t> const &builder) {
+        layersFactory.foreach([&](std::pair<std::string, LayersFactory::builder_t> const& builder) {
             types[count] = new char[builder.first.size() + 1];
             std::copy(builder.first.begin(), builder.first.end(), types[count]);
-            types[count][builder.first.size() ] = '\0';
+            types[count][builder.first.size()] = '\0';
         });
         size = count;
     }

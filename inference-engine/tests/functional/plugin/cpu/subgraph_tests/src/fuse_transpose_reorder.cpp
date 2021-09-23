@@ -26,9 +26,9 @@ void FuseTransposeAndReorderTest::CheckTransposeCount(size_t expectedTransposeCo
     auto function = execGraphInfo.getFunction();
     ASSERT_NE(nullptr, function);
     size_t actualTransposeCount = 0;
-    for (const auto &node : function->get_ops()) {
-        const auto & rtInfo = node->get_rt_info();
-        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+    for (const auto& node : function->get_ops()) {
+        const auto& rtInfo = node->get_rt_info();
+        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
             auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
@@ -50,10 +50,9 @@ void FuseTransposeAndReorderTest::SetUp() {
     CreateGraph();
 }
 
-const auto fuseTransposeAndReorderCommonParams = ::testing::Combine(
-        ::testing::Values(SizeVector{1, 2, 3, 4}, SizeVector{1, 2, 3, 4, 5}),
-        ::testing::Values(Precision::I8, Precision::U8)
-);
+const auto fuseTransposeAndReorderCommonParams =
+    ::testing::Combine(::testing::Values(SizeVector{1, 2, 3, 4}, SizeVector{1, 2, 3, 4, 5}),
+                       ::testing::Values(Precision::I8, Precision::U8));
 
 /*  FuseTransposeAndReorderTest graph
       ---------
@@ -97,8 +96,10 @@ TEST_P(FuseTransposeAndReorderTest, CompareWithRefs) {
     CheckTransposeCount(0);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseTransposeAndReorderTest,
+                         fuseTransposeAndReorderCommonParams,
+                         FuseTransposeAndReorderTest::getTestCaseName);
 
 /*  FuseTransposeAndReorderTest1 graph
              ---------
@@ -157,13 +158,15 @@ void FuseTransposeAndReorderTest1::CreateGraph() {
     auto memFmt3 = inputShape.size() == 5 ? ncdhw : nchw;
     transpose3->get_rt_info() = makeCPUInfo({memFmt3}, {memFmt3}, {});
 
-    auto shape = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, transpose3->get_output_shape(0));
+    auto shape =
+        ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, transpose3->get_output_shape(0));
     auto reshape = std::make_shared<ngraph::opset5::Reshape>(transpose1, shape, false);
 
     auto concat = ngraph::builder::makeConcat({transpose3, reshape}, 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(concat)};
-    function = std::make_shared<ngraph::Function>(results, params, "Transpose_TransposeReorderTranspose_Reshape_Concat");
+    function =
+        std::make_shared<ngraph::Function>(results, params, "Transpose_TransposeReorderTranspose_Reshape_Concat");
 }
 
 // Test disabled temporarily, it conflicts with TransposeFuse transformation in common optimizations step
@@ -174,8 +177,10 @@ TEST_P(FuseTransposeAndReorderTest1, DISABLED_CompareWithRefs) {
     CheckTransposeCount(2);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest1, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseTransposeAndReorderTest1,
+                         fuseTransposeAndReorderCommonParams,
+                         FuseTransposeAndReorderTest::getTestCaseName);
 
 /*  FuseTransposeAndReorderTest2 graph
     ---------         ---------
@@ -236,6 +241,9 @@ TEST_P(FuseTransposeAndReorderTest2, CompareWithRefs) {
     CheckTransposeCount(1);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest2, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseTransposeAndReorderTest2,
+                         fuseTransposeAndReorderCommonParams,
+                         FuseTransposeAndReorderTest::getTestCaseName);
 
 }  // namespace SubgraphTestsDefinitions

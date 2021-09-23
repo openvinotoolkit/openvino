@@ -3,18 +3,20 @@
 //
 
 #include "mkldnn_def_conv_node.h"
-#include "mkldnn_reorder_node.h"
-#include "mkldnn_input_node.h"
 
-#include "mkldnn_eltwise_node.h"
+#include <math.h>
+#include <mkldnn_extension_utils.h>
+#include <mkldnn_types.h>
+
+#include <cpu/x64/jit_generator.hpp>
 #include <string>
 #include <vector>
-#include <math.h>
-#include <mkldnn_types.h>
-#include <mkldnn_extension_utils.h>
-#include <cpu/x64/jit_generator.hpp>
+
 #include "ie_parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "mkldnn_eltwise_node.h"
+#include "mkldnn_input_node.h"
+#include "mkldnn_reorder_node.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -58,8 +60,8 @@ struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
     using Ymm = const Xbyak::Ymm;
@@ -95,14 +97,25 @@ private:
 
     Xbyak::Opmask ktail_mask = Xbyak::Opmask(2);
 
-    inline Xbyak::Address table_val(int index)
-    { return ptr[reg_table + index * vlen]; }
+    inline Xbyak::Address table_val(int index) {
+        return ptr[reg_table + index * vlen];
+    }
 
-    inline Vmm get_vmm_ker(int idx) { return Vmm(idx + 0); }
-    inline Vmm get_vmm_src(int idx) { return Vmm(idx + 1); }
-    inline Vmm get_vmm_acc(int idx) { return Vmm(idx + jcp_.ur_w + 1); }
-    inline Ymm get_ymm_acc(int idx) { return Ymm(idx + jcp_.ur_w + 1); }
-    inline Xmm get_xmm_acc(int idx) { return Xmm(idx + jcp_.ur_w + 1); }
+    inline Vmm get_vmm_ker(int idx) {
+        return Vmm(idx + 0);
+    }
+    inline Vmm get_vmm_src(int idx) {
+        return Vmm(idx + 1);
+    }
+    inline Vmm get_vmm_acc(int idx) {
+        return Vmm(idx + jcp_.ur_w + 1);
+    }
+    inline Ymm get_ymm_acc(int idx) {
+        return Ymm(idx + jcp_.ur_w + 1);
+    }
+    inline Xmm get_xmm_acc(int idx) {
+        return Xmm(idx + jcp_.ur_w + 1);
+    }
 
     Xbyak::Label l_table;
 
@@ -112,7 +125,8 @@ private:
 
         mov(reg_ow_pos, 0);
 
-        L(ow_loop_main); {
+        L(ow_loop_main);
+        {
             cmp(reg_ow_pos, jcp_.ow - jcp_.ur_w);
             jg(ow_tail, T_NEAR);
 
@@ -126,7 +140,8 @@ private:
             jmp(ow_loop_main, T_NEAR);
         }
 
-        L(ow_tail); {
+        L(ow_tail);
+        {
             if (jcp_.ow % jcp_.ur_w != 0)
                 oc_loop(jcp_.ow % jcp_.ur_w);
         }
@@ -168,7 +183,8 @@ private:
                 for (int ic = 0; ic < ic_step; ic++) {
                     for (int ow = 0; ow < ow_step; ow++) {
                         Vmm vmm_src = get_vmm_src(ow);
-                        size_t inp_off = (size_t) ow * jcp_.kh * jcp_.kw * jcp_.ic + kh * jcp_.kw * jcp_.ic + kw * jcp_.ic + ic;
+                        size_t inp_off =
+                            (size_t)ow * jcp_.kh * jcp_.kw * jcp_.ic + kh * jcp_.kw * jcp_.ic + kw * jcp_.ic + ic;
 
                         uni_vbroadcastss(vmm_src, ptr[aux2_reg_input_buffer + inp_off * jcp_.typesize_in]);
                     }
@@ -176,10 +192,10 @@ private:
                     for (int r = 0; r < repeats; r++) {
                         for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
                             Vmm vmm_ker = get_vmm_ker(0);
-                            size_t ker_off = (size_t) ocb * jcp_.nb_ic * jcp_.kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block +
-                                             kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block +
-                                             kw * jcp_.ic_block * jcp_.oc_block +
-                                             ic * jcp_.oc_block + r * jcp_.oc_block / 2;
+                            size_t ker_off =
+                                (size_t)ocb * jcp_.nb_ic * jcp_.kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block +
+                                kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block + kw * jcp_.ic_block * jcp_.oc_block +
+                                ic * jcp_.oc_block + r * jcp_.oc_block / 2;
 
                             uni_vmovups(vmm_ker, ptr[aux2_reg_kernel + ker_off * jcp_.typesize_in]);
                             for (int ow = 0; ow < ow_step; ow++) {
@@ -227,7 +243,8 @@ private:
 
         init_accums(ow_step, oc_blocks_step, oc_step);
 
-        L(ic_main_loop); {
+        L(ic_main_loop);
+        {
             cmp(reg_ic_iter, jcp_.ic_block);
             jl(ic_tail, T_NEAR);
 
@@ -239,7 +256,8 @@ private:
             jmp(ic_main_loop, T_NEAR);
         }
 
-        L(ic_tail); {
+        L(ic_tail);
+        {
             if (jcp_.ic % jcp_.ic_block != 0) {
                 apply_filter(ow_step, oc_blocks_step, oc_step, jcp_.ic % jcp_.ic_block);
             }
@@ -260,7 +278,8 @@ private:
         xor_(reg_dg_iter, reg_dg_iter);
 
         const int ic_per_def_group = jcp_.ic / jcp_.dg;
-        L(dg_loop); {
+        L(dg_loop);
+        {
             cmp(reg_dg_iter, jcp_.dg);
             jge(dg_loop_end, T_NEAR);
 
@@ -354,7 +373,6 @@ private:
                         cmp(reg_tmp_32, 0);
                         je(init_with_zeros, T_NEAR);
 
-
                         size_t def_off_w = ((2 * (kh * jcp_.kw + kw) + 1) * jcp_.oh * jcp_.ow) + ow;
                         mov(reg_tmp_32, ptr[aux_reg_def_off + def_off_w * jcp_.typesize_off]);
                         movq(xmm_tmp, reg_tmp_64);
@@ -380,7 +398,6 @@ private:
                         movq(reg_tmp_64, xmm_iw_im);
                         cmp(reg_tmp_32, 0);
                         je(init_with_zeros, T_NEAR);
-
 
                         movd(xmm_cur_height, table_val(3));
                         psubd(xmm_cur_height, xmm_ih_in);
@@ -412,7 +429,6 @@ private:
                         cvtdq2ps(xmm_hh, xmm_hh);
                         subss(xmm_hh, xmm_lh);
 
-
                         movd(xmm_cur_width, table_val(4));
                         psubd(xmm_cur_width, xmm_iw_in);
 
@@ -443,7 +459,6 @@ private:
                         cvtdq2ps(xmm_hw, xmm_hw);
                         subss(xmm_hw, xmm_lw);
 
-
                         movups(xmm_v1_off, table_val(2));
                         cvtps2dq(xmm_v1_off, xmm_v1_off);
                         movups(xmm_v3_off, xmm_v1_off);
@@ -457,7 +472,6 @@ private:
                         movups(xmm_v4_off, xmm_v3_off);
                         paddd(xmm_v3_off, xmm_w_low);
                         paddd(xmm_v4_off, xmm_w_high);
-
 
                         movss(xmm_w1, xmm_hh);
                         mulss(xmm_w1, xmm_hw);
@@ -482,7 +496,7 @@ private:
                             cmp(reg_ic_iter, simd_w);
                             jl(ic_loop_tail, T_NEAR);
 
-                            size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
+                            size_t input_buffer_off = (size_t)kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
 
                             pmovsxdq(xmm_v1_off, xmm_v1_off);
                             movq(reg_tmp_64, xmm_v1_off);
@@ -528,7 +542,7 @@ private:
                             cmp(reg_ic_iter, 1);
                             jl(loop_end, T_NEAR);
 
-                            size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
+                            size_t input_buffer_off = (size_t)kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
 
                             pmovsxdq(xmm_v1_off, xmm_v1_off);
                             movq(reg_tmp_64, xmm_v1_off);
@@ -579,7 +593,7 @@ private:
                             cmp(reg_ic_iter, ic_per_def_group);
                             je(loop_end, T_NEAR);
 
-                            size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
+                            size_t input_buffer_off = (size_t)kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
 
                             pxor(xmm_tmp, xmm_tmp);
                             movss(ptr[aux3_reg_input_buffer + input_buffer_off * jcp_.typesize_in], xmm_tmp);
@@ -609,7 +623,7 @@ private:
         if (jcp_.with_bias) {
             for (int r = 0; r < repeats; r++) {
                 for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
-                    size_t bias_off = (size_t) ocb * jcp_.oc_block + r * jcp_.oc_block / 2;
+                    size_t bias_off = (size_t)ocb * jcp_.oc_block + r * jcp_.oc_block / 2;
                     uni_vmovups(Vmm(0), ptr[aux_reg_bias + bias_off * jcp_.typesize_bia]);
 
                     for (int ow = 0; ow < ow_step; ow++) {
@@ -628,7 +642,8 @@ private:
         }
 
         for (int r = 0; r < repeats; r++) {
-            int tail_size = isa == cpu::x64::sse41 ? std::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
+            int tail_size =
+                isa == cpu::x64::sse41 ? std::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
             bool is_scalar_store = isa == cpu::x64::sse41 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
             if (is_scalar_store) {
                 for (int ow = 0; ow < ow_step; ow++) {
@@ -636,12 +651,12 @@ private:
                     Xmm xmm_dst = get_xmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ow);
 
                     if (isa == avx512_common) {
-                        size_t out_off = (size_t) ow * jcp_.oc;
+                        size_t out_off = (size_t)ow * jcp_.oc;
 
                         uni_vmovups(ptr[aux_reg_output + out_off * jcp_.typesize_out], vmm_dst | ktail_mask);
                     } else {
                         for (int oc = 0; oc < tail_size; oc++) {
-                            size_t out_off = (size_t) ow * jcp_.oc + oc + r * (jcp_.oc_block / 2);
+                            size_t out_off = (size_t)ow * jcp_.oc + oc + r * (jcp_.oc_block / 2);
 
                             movq(reg_tmp_64, xmm_dst);
                             mov(ptr[aux_reg_output + out_off * jcp_.typesize_out], reg_tmp_32);
@@ -663,7 +678,7 @@ private:
                 for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
                     for (int ow = 0; ow < ow_step; ow++) {
                         Vmm vmm_acc = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
-                        size_t out_off = (size_t) ow * jcp_.oc + ocb * jcp_.oc_block + r * (jcp_.oc_block / 2);
+                        size_t out_off = (size_t)ow * jcp_.oc + ocb * jcp_.oc_block + r * (jcp_.oc_block / 2);
 
                         uni_vmovups(ptr[aux_reg_output + out_off * jcp_.typesize_out], vmm_acc);
                     }
@@ -699,14 +714,17 @@ private:
 
         mov(reg_oc_work, jcp_.oc);
 
-        L(oc_unrolled_loop); {
+        L(oc_unrolled_loop);
+        {
             cmp(reg_oc_work, jcp_.nb_oc_blocking * jcp_.oc_block);
             jl(oc_main_loop, T_NEAR);
 
             ic_loop(ow_step, jcp_.nb_oc_blocking, jcp_.oc_block);
             store_output(ow_step, jcp_.nb_oc_blocking, jcp_.oc_block);
 
-            add(aux_reg_kernel, jcp_.nb_oc_blocking * jcp_.nb_ic * jcp_.kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block * jcp_.typesize_in);
+            add(aux_reg_kernel,
+                jcp_.nb_oc_blocking * jcp_.nb_ic * jcp_.kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block *
+                    jcp_.typesize_in);
             add(aux_reg_output, jcp_.nb_oc_blocking * jcp_.oc_block * jcp_.typesize_out);
             add(aux_reg_bias, jcp_.nb_oc_blocking * jcp_.oc_block * jcp_.typesize_bia);
             sub(reg_oc_work, jcp_.nb_oc_blocking * jcp_.oc_block);
@@ -714,7 +732,8 @@ private:
             jmp(oc_unrolled_loop, T_NEAR);
         }
 
-        L(oc_main_loop); {
+        L(oc_main_loop);
+        {
             cmp(reg_oc_work, jcp_.oc_block);
             jl(oc_tail, T_NEAR);
 
@@ -729,7 +748,8 @@ private:
             jmp(oc_main_loop, T_NEAR);
         }
 
-        L(oc_tail); {
+        L(oc_tail);
+        {
             if (jcp_.oc % jcp_.oc_block != 0) {
                 ic_loop(ow_step, 1, jcp_.oc % jcp_.oc_block);
                 store_output(ow_step, 1, jcp_.oc % jcp_.oc_block);
@@ -740,15 +760,16 @@ private:
     }
 };
 
-bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                           std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
         if (!one_of(op->get_type_info(),
-                ngraph::op::v1::DeformableConvolution::type_info,
-                ngraph::op::v8::DeformableConvolution::type_info)) {
+                    ngraph::op::v1::DeformableConvolution::type_info,
+                    ngraph::op::v8::DeformableConvolution::type_info)) {
             errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1 or v8.";
             return false;
         }
@@ -759,16 +780,17 @@ bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr
 }
 
 MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
-                                                                 const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+                                                                 const mkldnn::engine& eng,
+                                                                 MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
     auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(op);
     if (defConvNodeBase == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of DeformableConvolutionBase.";
+        IE_THROW() << "Operation with name '" << op->get_friendly_name()
+                   << "' is not an instance of DeformableConvolutionBase.";
 
     group = defConvNodeBase->get_group();
     deformable_group = defConvNodeBase->get_deformable_group();
@@ -787,8 +809,8 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
     if (op->get_type_info() == ngraph::op::v8::DeformableConvolution::type_info) {
         auto defConvNode = std::dynamic_pointer_cast<ngraph::op::v8::DeformableConvolution>(op);
         if (defConvNode == nullptr)
-            IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-                "' is not an instance of DeformableConvolution from opset8.";
+            IE_THROW() << "Operation with name '" << op->get_friendly_name()
+                       << "' is not an instance of DeformableConvolution from opset8.";
         with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();
     } else {
         with_bilinear_pad = false;
@@ -861,13 +883,15 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
         // optimized implementation
         auto dataFormat = memory::format_tag::nhwc;
         auto offFormat = memory::format_tag::nchw;
-        auto weiFormat = group > 1 ? mayiuse(avx512_common) ? memory::format_tag::gOIhw16i16o : memory::format_tag::gOIhw8i8o
-                                   : mayiuse(avx512_common) ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
+        auto weiFormat = group > 1
+                             ? mayiuse(avx512_common) ? memory::format_tag::gOIhw16i16o : memory::format_tag::gOIhw8i8o
+                         : mayiuse(avx512_common) ? memory::format_tag::OIhw16i16o
+                                                  : memory::format_tag::OIhw8i8o;
 
-        config.inConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0),
-                                                                              memory::data_type::f32, dataFormat);
-        config.inConfs[1].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(1),
-                                                                              memory::data_type::f32, offFormat);
+        config.inConfs[0].desc =
+            std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), memory::data_type::f32, dataFormat);
+        config.inConfs[1].desc =
+            std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(1), memory::data_type::f32, offFormat);
 
         auto& wDims = getInputShapeAtPort(2).getStaticDims();
         if (group > 1 && wDims.size() != 5) {
@@ -875,35 +899,40 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
             for (int i = 1; i < wDims.size(); i++) {
                 new_dims.push_back(wDims[i]);
             }
-            config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2),
-                                                                                 memory::data_type::f32, weiFormat);
+            config.inConfs[2].desc =
+                std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2), memory::data_type::f32, weiFormat);
         } else {
-            config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2),
-                                                                                 memory::data_type::f32, weiFormat);
+            config.inConfs[2].desc =
+                std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2), memory::data_type::f32, weiFormat);
         }
-
 
         if (inputsNumber > 3) {
             config.inConfs[3].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(3),
-                                                                                 memory::data_type::f32, memory::format_tag::nchw);
+                                                                             memory::data_type::f32,
+                                                                             memory::format_tag::nchw);
         }
-        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0),
-                                                                              memory::data_type::f32, dataFormat);
+        config.outConfs[0].desc =
+            std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), memory::data_type::f32, dataFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     } else {
         // reference implementation
-        config.inConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), memory::data_type::f32,
-                                                               memory::format_tag::nchw);
-        config.inConfs[1].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(1), memory::data_type::f32,
-                                                               memory::format_tag::nchw);
-        config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2), memory::data_type::f32,
-                                                               memory::format_tag::oihw);
+        config.inConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0),
+                                                                         memory::data_type::f32,
+                                                                         memory::format_tag::nchw);
+        config.inConfs[1].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(1),
+                                                                         memory::data_type::f32,
+                                                                         memory::format_tag::nchw);
+        config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2),
+                                                                         memory::data_type::f32,
+                                                                         memory::format_tag::oihw);
         if (inputsNumber > 3) {
-            config.inConfs[3].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(3), memory::data_type::f32,
-                                                                                 memory::format_tag::nchw);
+            config.inConfs[3].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(3),
+                                                                             memory::data_type::f32,
+                                                                             memory::format_tag::nchw);
         }
-        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), memory::data_type::f32,
-                                                                memory::format_tag::nchw);
+        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0),
+                                                                          memory::data_type::f32,
+                                                                          memory::format_tag::nchw);
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     }
 }
@@ -980,10 +1009,16 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
         def_conv_kernel->create_ker();
 }
 
-void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const float* offsets, const float* weights, float* dst,
-                                                       const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides,
-                                                       const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides,
-                                                       const float* modulation, const std::vector<size_t>& modulation_strides) {
+void MKLDNNDeformableConvolutionNode::executeReference(const float* src,
+                                                       const float* offsets,
+                                                       const float* weights,
+                                                       float* dst,
+                                                       const std::vector<size_t>& src_strides,
+                                                       const std::vector<size_t>& off_strides,
+                                                       const std::vector<size_t>& wei_strides,
+                                                       const std::vector<size_t>& dst_strides,
+                                                       const float* modulation,
+                                                       const std::vector<size_t>& modulation_strides) {
     const bool with_groups = jcp.ngroups > 1;
     const int G = jcp.ngroups;
     const int MB = jcp.mb;
@@ -1017,41 +1052,40 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
         const int w_in = ow * KSW - padL;
 
         for (int ic = 0; ic < IC; ic++) {
-            const float *data_im_ptr = src + mb * src_strides[0] + (g * IC + ic) * src_strides[1];
+            const float* data_im_ptr = src + mb * src_strides[0] + (g * IC + ic) * src_strides[1];
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
-            const float *data_offset_ptr = offsets + mb * off_strides[0] + (deformable_group_index * 2 * KH * KW) * off_strides[1];
-            const float *modulation_offset_ptr = nullptr;
+            const float* data_offset_ptr =
+                offsets + mb * off_strides[0] + (deformable_group_index * 2 * KH * KW) * off_strides[1];
+            const float* modulation_offset_ptr = nullptr;
             if (modulation != nullptr) {
-                modulation_offset_ptr = modulation + mb * modulation_strides[0] + (deformable_group_index * KH * KW) * modulation_strides[1];
+                modulation_offset_ptr = modulation + mb * modulation_strides[0] +
+                                        (deformable_group_index * KH * KW) * modulation_strides[1];
             }
 
             for (int kh = 0; kh < KH; kh++) {
                 for (int kw = 0; kw < KW; kw++) {
-                    const size_t data_offset_h_index = 2 * (kh * KW + kw) * off_strides[1] + oh * off_strides[2] + ow * off_strides[3];
-                    const size_t data_offset_w_index = (2 * (kh * KW + kw) + 1) * off_strides[1] + oh * off_strides[2] + ow * off_strides[3];
+                    const size_t data_offset_h_index =
+                        2 * (kh * KW + kw) * off_strides[1] + oh * off_strides[2] + ow * off_strides[3];
+                    const size_t data_offset_w_index =
+                        (2 * (kh * KW + kw) + 1) * off_strides[1] + oh * off_strides[2] + ow * off_strides[3];
                     const float offset_h = data_offset_ptr[data_offset_h_index];
                     const float offset_w = data_offset_ptr[data_offset_w_index];
                     float map_h = h_in + kh * (KDH + 1) + offset_h;
                     float map_w = w_in + kw * (KDW + 1) + offset_w;
                     bool skip_compute;
                     if (with_bilinear_pad) {
-                        skip_compute = !(static_cast<int>(map_w) > -1 &&
-                                static_cast<int>(map_w) < IW &&
-                                static_cast<int>(map_h) > -1 &&
-                                static_cast<int>(map_h) < IH);
+                        skip_compute = !(static_cast<int>(map_w) > -1 && static_cast<int>(map_w) < IW &&
+                                         static_cast<int>(map_h) > -1 && static_cast<int>(map_h) < IH);
                     } else {
-                        skip_compute = !(map_w >= 0 &&
-                                map_w < IW &&
-                                map_h >= 0 &&
-                                map_h < IH);
+                        skip_compute = !(map_w >= 0 && map_w < IW && map_h >= 0 && map_h < IH);
                     }
                     if (!skip_compute) {
                         const int cur_h_end = IH;
                         const int cur_w_end = IW;
-                        int h_low = with_bi_pad ? static_cast<int>(floorf(map_h)) :
-                                std::max(static_cast<int>(floorf(map_h)), 0);
-                        int w_low = with_bi_pad ? static_cast<int>(floorf(map_w)) :
-                                std::max(static_cast<int>(floorf(map_w)), 0);
+                        int h_low = with_bi_pad ? static_cast<int>(floorf(map_h))
+                                                : std::max(static_cast<int>(floorf(map_h)), 0);
+                        int w_low = with_bi_pad ? static_cast<int>(floorf(map_w))
+                                                : std::max(static_cast<int>(floorf(map_w)), 0);
                         const int cur_h_start = h_low;
                         const int cur_w_start = w_low;
                         int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
@@ -1061,10 +1095,18 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
                         float lw = map_w - w_low;
                         float hh = 1 - lh, hw = 1 - lw;
 
-                        float v1 = (cur_w_start >= 0 && cur_h_start >= 0) ? data_im_ptr[h_low * src_strides[2] + w_low * src_strides[3]] : 0.0f;
-                        float v2 = (w_high < cur_w_end && cur_h_start >= 0) ? data_im_ptr[h_low * src_strides[2] + w_high * src_strides[3]] : 0.0f;
-                        float v3 = (cur_w_start >= 0 && h_high < cur_h_end) ? data_im_ptr[h_high * src_strides[2] + w_low * src_strides[3]] : 0.0f;
-                        float v4 = (w_high < cur_w_end && h_high < cur_h_end) ? data_im_ptr[h_high * src_strides[2] + w_high * src_strides[3]] : 0.0f;
+                        float v1 = (cur_w_start >= 0 && cur_h_start >= 0)
+                                       ? data_im_ptr[h_low * src_strides[2] + w_low * src_strides[3]]
+                                       : 0.0f;
+                        float v2 = (w_high < cur_w_end && cur_h_start >= 0)
+                                       ? data_im_ptr[h_low * src_strides[2] + w_high * src_strides[3]]
+                                       : 0.0f;
+                        float v3 = (cur_w_start >= 0 && h_high < cur_h_end)
+                                       ? data_im_ptr[h_high * src_strides[2] + w_low * src_strides[3]]
+                                       : 0.0f;
+                        float v4 = (w_high < cur_w_end && h_high < cur_h_end)
+                                       ? data_im_ptr[h_high * src_strides[2] + w_high * src_strides[3]]
+                                       : 0.0f;
                         float w1 = hh * hw, w2 = hh * lw, w3 = lh * hw, w4 = lh * lw;
 
                         float val = (w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4);
@@ -1072,13 +1114,15 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
                         float modulation_scalar = 1.0f;
 
                         if (modulation_offset_ptr != nullptr) {
-                            size_t modulation_index = (kh * KW + kw) * modulation_strides[1] + oh * modulation_strides[2] + ow * modulation_strides[3];
+                            size_t modulation_index = (kh * KW + kw) * modulation_strides[1] +
+                                                      oh * modulation_strides[2] + ow * modulation_strides[3];
                             modulation_scalar = modulation_offset_ptr[modulation_index];
                         }
 
-                        const float weight = with_groups ? weights[(g + oc / G) * wei_strides[0] + ic * wei_strides[1] + kh * wei_strides[2] +
-                                                             kw * wei_strides[3]]
-                                                         : weights[oc * wei_strides[0] + ic * wei_strides[1] + kh * wei_strides[2] + kw * wei_strides[3]];
+                        const float weight = with_groups ? weights[(g + oc / G) * wei_strides[0] + ic * wei_strides[1] +
+                                                                   kh * wei_strides[2] + kw * wei_strides[3]]
+                                                         : weights[oc * wei_strides[0] + ic * wei_strides[1] +
+                                                                   kh * wei_strides[2] + kw * wei_strides[3]];
                         d += val * weight * modulation_scalar;
                     }
                 }
@@ -1088,14 +1132,18 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
         return d;
     };
 
-    parallel_nd(G, MB, OC, OH, OW,
-    [&](int g, int mb, int oc, int oh, int ow)  {
-        dst[mb * dst_strides[0] + (g * OC + oc) * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]] = ker(g, mb, oc, oh, ow);
+    parallel_nd(G, MB, OC, OH, OW, [&](int g, int mb, int oc, int oh, int ow) {
+        dst[mb * dst_strides[0] + (g * OC + oc) * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]] =
+            ker(g, mb, oc, oh, ow);
     });
 }
 
-void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src, const float* offsets, const float* weights, float* dst,
-                                                       const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides,
+void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src,
+                                                       const float* offsets,
+                                                       const float* weights,
+                                                       float* dst,
+                                                       const std::vector<size_t>& src_strides,
+                                                       const std::vector<size_t>& off_strides,
                                                        const std::vector<size_t>& dst_strides) {
     size_t buffer_size = (size_t)jcp.nthr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic * jcp.typesize_in;
     std::vector<float> input_buffer(buffer_size, 0);
@@ -1109,11 +1157,11 @@ void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src, const f
         const size_t _oc = g * jcp.nb_oc;
         const size_t _ic = g * jcp.nb_ic;
 
-        par_conv.src = &src[n * src_strides[0] + _ic*jcp.ic_block * src_strides[1] +
+        par_conv.src = &src[n * src_strides[0] + _ic * jcp.ic_block * src_strides[1] +
                             (oh * jcp.stride_h - jcp.t_pad) * src_strides[2] - jcp.l_pad * src_strides[3]];
         par_conv.off = &offsets[n * off_strides[0] + oh * off_strides[2]];
         par_conv.filt = weights;
-        par_conv.dst = &dst[n * dst_strides[0] + _oc*jcp.oc_block * dst_strides[1] + oh * dst_strides[2]];
+        par_conv.dst = &dst[n * dst_strides[0] + _oc * jcp.oc_block * dst_strides[1] + oh * dst_strides[2]];
 
         par_conv.buf = input_buffer_ptr + ithr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic;
 
@@ -1126,20 +1174,20 @@ void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src, const f
 void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
     const size_t inputsNumber = getOriginalInputsNumber();
 
-    auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto &srcMemory2 = getParentEdgeAt(2)->getMemory();
-    auto &dstMemory = getChildEdgeAt(0)->getMemory();
+    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    auto& srcMemory2 = getParentEdgeAt(2)->getMemory();
+    auto& dstMemory = getChildEdgeAt(0)->getMemory();
 
-    const auto *src = reinterpret_cast<const float *>(srcMemory0.GetPtr());
-    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.GetPtr());
-    const auto *weights = reinterpret_cast<const float *>(srcMemory2.GetPtr());
+    const auto* src = reinterpret_cast<const float*>(srcMemory0.GetPtr());
+    const auto* offsets = reinterpret_cast<const float*>(srcMemory1.GetPtr());
+    const auto* weights = reinterpret_cast<const float*>(srcMemory2.GetPtr());
     float* modulation = nullptr;
     if (inputsNumber > 3) {
-        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().GetPtr());
+        modulation = reinterpret_cast<float*>(getParentEdgeAt(3)->getMemory().GetPtr());
     }
 
-    float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
+    float* dst = reinterpret_cast<float*>(dstMemory.GetPtr());
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
@@ -1158,19 +1206,26 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
         dst_strides[dst_block_desc->getOrder()[i]] = dst_block_desc->getStrides()[i];
     }
 
-
-    auto off_strides =  getParentEdgeAt(1)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    auto wei_strides =  getParentEdgeAt(2)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto off_strides = getParentEdgeAt(1)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto wei_strides = getParentEdgeAt(2)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     InferenceEngine::SizeVector modulation_strides;
     if (inputsNumber > 3) {
         modulation_strides = getParentEdgeAt(3)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     }
 
-
     if (def_conv_kernel) {
         executeOptimized(src, offsets, weights, dst, src_strides, off_strides, dst_strides);
     } else {
-        executeReference(src, offsets, weights, dst, src_strides, off_strides, wei_strides, dst_strides, modulation, modulation_strides);
+        executeReference(src,
+                         offsets,
+                         weights,
+                         dst,
+                         src_strides,
+                         off_strides,
+                         wei_strides,
+                         dst_strides,
+                         modulation,
+                         modulation_strides);
     }
 }
 

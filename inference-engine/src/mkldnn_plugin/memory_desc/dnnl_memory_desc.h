@@ -40,11 +40,17 @@ public:
         return desc;
     }
 
-    bool hasLayoutType(LayoutType layoutType) const override { return false; }
+    bool hasLayoutType(LayoutType layoutType) const override {
+        return false;
+    }
 
-    virtual bool isSame(mkldnn::memory::format_tag fmt) const { return false; }
+    virtual bool isSame(mkldnn::memory::format_tag fmt) const {
+        return false;
+    }
 
-    bool hasEmptyExtraData() const { return desc.data.extra.flags == dnnl_memory_extra_flag_none; }
+    bool hasEmptyExtraData() const {
+        return desc.data.extra.flags == dnnl_memory_extra_flag_none;
+    }
 
 protected:
     DnnlMemoryDesc() {}
@@ -65,7 +71,7 @@ private:
     bool isDefinedImp() const override;
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
-    friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
+    friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc& desc);
 };
 
 }  // namespace MKLDNNPlugin

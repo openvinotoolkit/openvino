@@ -5,11 +5,11 @@
 
 #ifdef CPU_DEBUG_CAPS
 
-#include <map>
-#include <string>
-#include <vector>
+#    include <map>
+#    include <string>
+#    include <vector>
 
-#define ENABLE_CPU_DEBUG_CAP(_x) _x;
+#    define ENABLE_CPU_DEBUG_CAP(_x) _x;
 
 namespace MKLDNNPlugin {
 namespace DebugCaps {
@@ -41,9 +41,9 @@ private:
     }
 };
 
-} // namespace DebugCaps
-} // namespace MKLDNNPlugin
+}  // namespace DebugCaps
+}  // namespace MKLDNNPlugin
 
-#else // !CPU_DEBUG_CAPS
-#define ENABLE_CPU_DEBUG_CAP(_x)
-#endif // CPU_DEBUG_CAPS
+#else  // !CPU_DEBUG_CAPS
+#    define ENABLE_CPU_DEBUG_CAP(_x)
+#endif  // CPU_DEBUG_CAPS

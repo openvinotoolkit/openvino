@@ -24,7 +24,8 @@ using namespace InferenceEngine;
 using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
 using MulticlassNmsIEInternal = ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v8::MulticlassNms>;
 
-bool MKLDNNMultiClassNmsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNMultiClassNmsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                   std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -47,7 +48,9 @@ bool MKLDNNMultiClassNmsNode::isSupportedOperation(const std::shared_ptr<const n
     return true;
 }
 
-MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache)
+MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::Node>& op,
+                                                 const mkldnn::engine& eng,
+                                                 MKLDNNWeightsSharing::Ptr& cache)
     : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -97,7 +100,8 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
     if (valid_outputs_dims.size() != 1)
         IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output rank: " << valid_outputs_dims.size();
     if (valid_outputs_dims[0] != boxes_dims[0])  // valid_outputs_dims[0] != num_batches
-        IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output 1st dimension size: " << valid_outputs_dims[0];
+        IE_THROW() << errorPrefix
+                   << "has unsupported 'valid_outputs' output 1st dimension size: " << valid_outputs_dims[0];
 }
 
 void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
@@ -123,16 +127,23 @@ void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
 
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", inType);
 
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDINDICES), supportedIntOutputPrecision, "selected_indices", outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDOUTPUTS), supportedFloatPrecision, "selected_outputs", outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDNUM), supportedIntOutputPrecision, "selected_num", outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDINDICES),
+                   supportedIntOutputPrecision,
+                   "selected_indices",
+                   outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDOUTPUTS),
+                   supportedFloatPrecision,
+                   "selected_outputs",
+                   outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDNUM),
+                   supportedIntOutputPrecision,
+                   "selected_num",
+                   outType);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32}},
-                         impl_desc_type::ref_any);
+    addSupportedPrimDesc(
+        {{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::FP32}},
+        {{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::I32}, {LayoutType::ncsp, Precision::I32}},
+        impl_desc_type::ref_any);
 }
 
 void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
@@ -144,9 +155,11 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     if (max_output_boxes_per_class == 0)
         return;
 
-    int* selected_indices = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->GetPtr());
+    int* selected_indices =
+        reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->GetPtr());
 
-    float* selected_outputs = selected_outputs = reinterpret_cast<float*>(getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
+    float* selected_outputs = selected_outputs =
+        reinterpret_cast<float*>(getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
 
     int* selected_num = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDNUM)[0]->getMemoryPtr()->GetPtr());
 
@@ -177,11 +190,16 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
             numBoxOffset[b] += numFiltBox[0][0];
     }
     // sort element before go through keep_top_k
-    parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
-        return ((l.batch_index < r.batch_index) ||
-                ((l.batch_index == r.batch_index) && ((l.score > r.score) || ((std::fabs(l.score - r.score) < 1e-6) && l.class_index < r.class_index) ||
-                                                      ((std::fabs(l.score - r.score) < 1e-6) && l.class_index == r.class_index && l.box_index < r.box_index))));
-    });
+    parallel_sort(
+        filtBoxes.begin(),
+        filtBoxes.begin() + startOffset,
+        [](const filteredBoxes& l, const filteredBoxes& r) {
+            return ((l.batch_index < r.batch_index) ||
+                    ((l.batch_index == r.batch_index) &&
+                     ((l.score > r.score) || ((std::fabs(l.score - r.score) < 1e-6) && l.class_index < r.class_index) ||
+                      ((std::fabs(l.score - r.score) < 1e-6) && l.class_index == r.class_index &&
+                       l.box_index < r.box_index))));
+        });
 
     if (keep_top_k > -1) {
         startOffset = 0;
@@ -215,25 +233,38 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
 
     if (sort_result_across_batch) {
         if (sort_result_type == SCORE) {
-            parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
-                return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
-                       (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
-                       (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index && l.box_index < r.box_index);
-            });
+            parallel_sort(
+                filtBoxes.begin(),
+                filtBoxes.begin() + startOffset,
+                [](const filteredBoxes& l, const filteredBoxes& r) {
+                    return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
+                           (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
+                           (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index &&
+                            l.box_index < r.box_index);
+                });
         } else if (sort_result_type == CLASSID) {
-            parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
-                return (l.class_index < r.class_index) || (l.class_index == r.class_index && l.batch_index < r.batch_index) ||
-                       (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score > r.score) ||
-                       (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score == r.score && l.box_index < r.box_index);
-            });
+            parallel_sort(
+                filtBoxes.begin(),
+                filtBoxes.begin() + startOffset,
+                [](const filteredBoxes& l, const filteredBoxes& r) {
+                    return (l.class_index < r.class_index) ||
+                           (l.class_index == r.class_index && l.batch_index < r.batch_index) ||
+                           (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score > r.score) ||
+                           (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score == r.score &&
+                            l.box_index < r.box_index);
+                });
         }
     } else if (sort_result_type == CLASSID) {
-        parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
-            return ((l.batch_index < r.batch_index) ||
-                    ((l.batch_index == r.batch_index) &&
-                     ((l.class_index < r.class_index) || ((l.class_index == r.class_index) && l.score > r.score) ||
-                      ((std::fabs(l.score - r.score) <= 1e-6) && l.class_index == r.class_index && l.box_index < r.box_index))));
-        });
+        parallel_sort(
+            filtBoxes.begin(),
+            filtBoxes.begin() + startOffset,
+            [](const filteredBoxes& l, const filteredBoxes& r) {
+                return ((l.batch_index < r.batch_index) ||
+                        ((l.batch_index == r.batch_index) &&
+                         ((l.class_index < r.class_index) || ((l.class_index == r.class_index) && l.score > r.score) ||
+                          ((std::fabs(l.score - r.score) <= 1e-6) && l.class_index == r.class_index &&
+                           l.box_index < r.box_index))));
+            });
     }
 
     const size_t selectedBoxesNum = getChildEdgeAt(NMS_SELECTEDINDICES)->getMemory().getStaticDims()[0];
@@ -256,7 +287,8 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
 
         for (size_t j = 0; j < real_boxes; j++) {
             auto original_index = original_offset + j;
-            selected_indices[j + output_offset] = filtBoxes[original_index].batch_index * dims_boxes[1] + filtBoxes[original_index].box_index;
+            selected_indices[j + output_offset] =
+                filtBoxes[original_index].batch_index * dims_boxes[1] + filtBoxes[original_index].box_index;
             auto selected_base = selected_outputs + (output_offset + j) * 6;
             selected_base[0] = filtBoxes[original_index].class_index;
             selected_base[1] = filtBoxes[original_index].score;
@@ -265,7 +297,9 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
             selected_base[4] = boxes[selected_indices[j + output_offset] * 4 + 2];
             selected_base[5] = boxes[selected_indices[j + output_offset] * 4 + 3];
         }
-        std::fill_n(selected_outputs + (output_offset + real_boxes) * 6, (selectedBoxesNum_perBatch - real_boxes) * 6, -1);
+        std::fill_n(selected_outputs + (output_offset + real_boxes) * 6,
+                    (selectedBoxesNum_perBatch - real_boxes) * 6,
+                    -1);
         std::fill_n(selected_indices + (output_offset + real_boxes), selectedBoxesNum_perBatch - real_boxes, -1);
         output_offset += selectedBoxesNum_perBatch;
         original_offset += real_boxes;
@@ -300,7 +334,10 @@ float MKLDNNMultiClassNmsNode::intersectionOverUnion(const float* boxesI, const 
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
-void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides) {
+void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes,
+                                         const float* scores,
+                                         const SizeVector& boxesStrides,
+                                         const SizeVector& scoresStrides) {
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
     };
@@ -323,7 +360,8 @@ void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores
             fb.reserve(sorted_boxes.size());
             if (sorted_boxes.size() > 0) {
                 auto adaptive_threshold = iou_threshold;
-                int max_out_box = (max_output_boxes_per_class > sorted_boxes.size()) ? sorted_boxes.size() : max_output_boxes_per_class;
+                int max_out_box = (max_output_boxes_per_class > sorted_boxes.size()) ? sorted_boxes.size()
+                                                                                     : max_output_boxes_per_class;
                 while (max_out_box && !sorted_boxes.empty()) {
                     boxInfo currBox = sorted_boxes.top();
                     float origScore = currBox.score;
@@ -332,7 +370,9 @@ void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores
 
                     bool box_is_selected = true;
                     for (int idx = static_cast<int>(fb.size()) - 1; idx >= currBox.suppress_begin_index; idx--) {
-                        float iou = intersectionOverUnion(&boxesPtr[currBox.idx * 4], &boxesPtr[fb[idx].box_index * 4], normalized);
+                        float iou = intersectionOverUnion(&boxesPtr[currBox.idx * 4],
+                                                          &boxesPtr[fb[idx].box_index * 4],
+                                                          normalized);
                         currBox.score *= func(iou, adaptive_threshold);
                         if (iou >= adaptive_threshold) {
                             box_is_selected = false;
@@ -358,7 +398,8 @@ void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores
                 }
             }
             numFiltBox[batch_idx][class_idx] = fb.size();
-            size_t offset = batch_idx * num_classes * max_output_boxes_per_class + class_idx * max_output_boxes_per_class;
+            size_t offset =
+                batch_idx * num_classes * max_output_boxes_per_class + class_idx * max_output_boxes_per_class;
             for (size_t i = 0; i < fb.size(); i++) {
                 filtBoxes[offset + i] = fb[i];
             }
@@ -366,7 +407,10 @@ void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores
     });
 }
 
-void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides) {
+void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes,
+                                            const float* scores,
+                                            const SizeVector& boxesStrides,
+                                            const SizeVector& scoresStrides) {
     parallel_for2d(num_batches, num_classes, [&](int batch_idx, int class_idx) {
         if (class_idx != background_class) {
             const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
@@ -380,18 +424,24 @@ void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes, const float* sco
 
             int io_selection_size = 0;
             if (sorted_boxes.size() > 0) {
-                parallel_sort(sorted_boxes.begin(), sorted_boxes.end(), [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
-                    return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
-                });
-                int offset = batch_idx * num_classes * max_output_boxes_per_class + class_idx * max_output_boxes_per_class;
-                filtBoxes[offset + 0] = filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
+                parallel_sort(sorted_boxes.begin(),
+                              sorted_boxes.end(),
+                              [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
+                                  return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
+                              });
+                int offset =
+                    batch_idx * num_classes * max_output_boxes_per_class + class_idx * max_output_boxes_per_class;
+                filtBoxes[offset + 0] =
+                    filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
                 io_selection_size++;
-                int max_out_box = (max_output_boxes_per_class > sorted_boxes.size()) ? sorted_boxes.size() : max_output_boxes_per_class;
+                int max_out_box = (max_output_boxes_per_class > sorted_boxes.size()) ? sorted_boxes.size()
+                                                                                     : max_output_boxes_per_class;
                 for (size_t box_idx = 1; box_idx < max_out_box; box_idx++) {
                     bool box_is_selected = true;
                     for (int idx = io_selection_size - 1; idx >= 0; idx--) {
-                        float iou =
-                            intersectionOverUnion(&boxesPtr[sorted_boxes[box_idx].second * 4], &boxesPtr[filtBoxes[offset + idx].box_index * 4], normalized);
+                        float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[box_idx].second * 4],
+                                                          &boxesPtr[filtBoxes[offset + idx].box_index * 4],
+                                                          normalized);
                         if (iou >= iou_threshold) {
                             box_is_selected = false;
                             break;
@@ -399,7 +449,10 @@ void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes, const float* sco
                     }
 
                     if (box_is_selected) {
-                        filtBoxes[offset + io_selection_size] = filteredBoxes(sorted_boxes[box_idx].first, batch_idx, class_idx, sorted_boxes[box_idx].second);
+                        filtBoxes[offset + io_selection_size] = filteredBoxes(sorted_boxes[box_idx].first,
+                                                                              batch_idx,
+                                                                              class_idx,
+                                                                              sorted_boxes[box_idx].second);
                         io_selection_size++;
                     }
                 }
@@ -409,7 +462,10 @@ void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes, const float* sco
     });
 }
 
-void MKLDNNMultiClassNmsNode::checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type) {
+void MKLDNNMultiClassNmsNode::checkPrecision(const Precision prec,
+                                             const std::vector<Precision> precList,
+                                             const std::string name,
+                                             const std::string type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
         IE_THROW() << errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
 }

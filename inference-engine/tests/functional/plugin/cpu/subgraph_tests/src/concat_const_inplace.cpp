@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 using namespace InferenceEngine;
@@ -46,10 +46,10 @@ public:
 };
 
 namespace {
-    TEST_F(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_F(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-        Run();
-    }
-} // namespace
-} // namespace SubgraphTestsDefinitions
+    Run();
+}
+}  // namespace
+}  // namespace SubgraphTestsDefinitions

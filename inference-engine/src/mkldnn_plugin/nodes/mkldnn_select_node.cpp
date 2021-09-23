@@ -2,20 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
-#include "ie_parallel.hpp"
 #include "mkldnn_select_node.h"
+
 #include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset1.hpp>
 #include <utils/general_utils.h>
+
+#include <cmath>
+#include <ngraph/opsets/opset1.hpp>
+#include <string>
+#include <vector>
+
 #include "common/cpu_memcpy.h"
+#include "ie_parallel.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNSelectNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNSelectNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                            std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -27,7 +31,9 @@ bool MKLDNNSelectNode::isSupportedOperation(const std::shared_ptr<const ngraph::
             return false;
         }
         const auto broadcast = select->get_auto_broadcast();
-        if (!MKLDNNPlugin::one_of(broadcast, ngraph::op::AutoBroadcastSpec::NONE, ngraph::op::AutoBroadcastSpec::NUMPY)) {
+        if (!MKLDNNPlugin::one_of(broadcast,
+                                  ngraph::op::AutoBroadcastSpec::NONE,
+                                  ngraph::op::AutoBroadcastSpec::NUMPY)) {
             errorMessage = "Does not support broadcast type: " + ngraph::as_string(broadcast.m_type);
             return false;
         }
@@ -37,8 +43,10 @@ bool MKLDNNSelectNode::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-MKLDNNSelectNode::MKLDNNSelectNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNSelectNode::MKLDNNSelectNode(const std::shared_ptr<ngraph::Node>& op,
+                                   const mkldnn::engine& eng,
+                                   MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -72,34 +80,42 @@ MKLDNNSelectNode::MKLDNNSelectNode(const std::shared_ptr<ngraph::Node>& op, cons
     if (ngraph::is_scalar(outputShapes))
         outputShapes = ngraph::Shape{1};
 
-    if (broadcastType == SelectBroadcastType::NONE && ((conditionShapes != outputShapes) || (thenShapes != outputShapes) ||
-                                                       (elseShapes != outputShapes)))
+    if (broadcastType == SelectBroadcastType::NONE &&
+        ((conditionShapes != outputShapes) || (thenShapes != outputShapes) || (elseShapes != outputShapes)))
         IE_THROW() << errorPrefix << " and auto_broadcast='none' has input shapes mismatch";
 
     if (broadcastType == SelectBroadcastType::NUMPY) {
-        if (outputShapes.size() < conditionShapes.size() || outputShapes.size() < thenShapes.size() || outputShapes.size() < elseShapes.size())
+        if (outputShapes.size() < conditionShapes.size() || outputShapes.size() < thenShapes.size() ||
+            outputShapes.size() < elseShapes.size())
             IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible input and output shapes";
 
         for (int condIt = conditionShapes.size() - 1, outIt = outputShapes.size() - 1; condIt >= 0; condIt--, outIt--)
             if (conditionShapes[condIt] != outputShapes[outIt] && conditionShapes[condIt] != 1)
-                IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible 'Condition' input and output shapes";
+                IE_THROW() << errorPrefix
+                           << " and auto_broadcast='numpy' has incompatible 'Condition' input and output shapes";
 
         for (int thenIt = thenShapes.size() - 1, outIt = outputShapes.size() - 1; thenIt >= 0; thenIt--, outIt--)
             if (thenShapes[thenIt] != outputShapes[outIt] && thenShapes[thenIt] != 1)
-                IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible 'Then' input and output shapes";
+                IE_THROW() << errorPrefix
+                           << " and auto_broadcast='numpy' has incompatible 'Then' input and output shapes";
 
         for (int elseIt = elseShapes.size() - 1, outIt = outputShapes.size() - 1; elseIt >= 0; elseIt--, outIt--)
             if (elseShapes[elseIt] != outputShapes[outIt] && elseShapes[elseIt] != 1)
-                IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible 'Else' input and output shapes";
+                IE_THROW() << errorPrefix
+                           << " and auto_broadcast='numpy' has incompatible 'Else' input and output shapes";
     }
 
     resDims.resize(numOfDims, 1);
-    std::copy(std::begin(outputShapes), std::end(outputShapes), std::begin(resDims) + (numOfDims - outputShapes.size()));
+    std::copy(std::begin(outputShapes),
+              std::end(outputShapes),
+              std::begin(resDims) + (numOfDims - outputShapes.size()));
     if (broadcastType == SelectBroadcastType::NUMPY) {
         calcOutOffset(resOffset, resDims);
 
         std::vector<size_t> condDims(numOfDims, 1);
-        std::copy(std::begin(conditionShapes), std::end(conditionShapes), std::begin(condDims) + (numOfDims - conditionShapes.size()));
+        std::copy(std::begin(conditionShapes),
+                  std::end(conditionShapes),
+                  std::begin(condDims) + (numOfDims - conditionShapes.size()));
         calcInOffset(condOffset, condDims, resDims);
 
         std::vector<size_t> thenDims(numOfDims, 1);
@@ -126,7 +142,8 @@ void MKLDNNSelectNode::initSupportedPrimitiveDescriptors() {
     }
 
     const auto conditionPrecision = getOriginalInputPrecisionAtPort(CONDITION);
-    if (conditionPrecision != Precision::BOOL && conditionPrecision != Precision::I32  && conditionPrecision != Precision::U8)
+    if (conditionPrecision != Precision::BOOL && conditionPrecision != Precision::I32 &&
+        conditionPrecision != Precision::U8)
         IE_THROW() << errorPrefix << " has unsupported precision: " << conditionPrecision << " on 'Condition' input";
 
     const auto inputPrecisionSize = inputPrecision.size();
@@ -149,7 +166,9 @@ void MKLDNNSelectNode::calcOutOffset(std::vector<size_t>& offset, const std::vec
     }
 }
 
-void MKLDNNSelectNode::calcInOffset(std::vector<size_t>& offset, const std::vector<size_t>& inDims, const std::vector<size_t>& outDims) {
+void MKLDNNSelectNode::calcInOffset(std::vector<size_t>& offset,
+                                    const std::vector<size_t>& inDims,
+                                    const std::vector<size_t>& outDims) {
     offset.resize(numOfDims);
     int k = 1;
     for (int i = inDims.size() - 1; i >= 0; i--) {
@@ -160,10 +179,10 @@ void MKLDNNSelectNode::calcInOffset(std::vector<size_t>& offset, const std::vect
 
 template <typename COND_T, typename DATA_T>
 void MKLDNNSelectNode::execute_impl() {
-    const auto *conditionData = reinterpret_cast<const COND_T *>(getParentEdgeAt(CONDITION)->getMemoryPtr()->GetPtr());
-    const auto *thenData = reinterpret_cast<const DATA_T *>(getParentEdgeAt(THEN)->getMemoryPtr()->GetPtr());
-    const auto *elseData = reinterpret_cast<const DATA_T *>(getParentEdgeAt(ELSE)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<DATA_T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* conditionData = reinterpret_cast<const COND_T*>(getParentEdgeAt(CONDITION)->getMemoryPtr()->GetPtr());
+    const auto* thenData = reinterpret_cast<const DATA_T*>(getParentEdgeAt(THEN)->getMemoryPtr()->GetPtr());
+    const auto* elseData = reinterpret_cast<const DATA_T*>(getParentEdgeAt(ELSE)->getMemoryPtr()->GetPtr());
+    auto* dstData = reinterpret_cast<DATA_T*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     if (broadcastType == SelectBroadcastType::NONE) {
         size_t dstDataSize = std::accumulate(begin(resDims), end(resDims), 1, std::multiplies<size_t>());
@@ -173,10 +192,14 @@ void MKLDNNSelectNode::execute_impl() {
     } else {
         parallel_for4d(resDims[N], resDims[C], resDims[D], resDims[H], [&](int b, int c, int d, int h) {
             for (int w = 0; w < resDims[W]; w++) {
-                size_t indexOut = b * resOffset[N] + c * resOffset[C] + d * resOffset[D] + h * resOffset[H] + w * resOffset[W];
-                size_t indexCond = b * condOffset[N] + c * condOffset[C] + d * condOffset[D] + h * condOffset[H] + w * condOffset[W];
-                size_t indexThen = b * thenOffset[N] + c * thenOffset[C] + d * thenOffset[D] + h * thenOffset[H] + w * thenOffset[W];
-                size_t indexElse = b * elseOffset[N] + c * elseOffset[C] + d * elseOffset[D] + h * elseOffset[H] + w * elseOffset[W];
+                size_t indexOut =
+                    b * resOffset[N] + c * resOffset[C] + d * resOffset[D] + h * resOffset[H] + w * resOffset[W];
+                size_t indexCond =
+                    b * condOffset[N] + c * condOffset[C] + d * condOffset[D] + h * condOffset[H] + w * condOffset[W];
+                size_t indexThen =
+                    b * thenOffset[N] + c * thenOffset[C] + d * thenOffset[D] + h * thenOffset[H] + w * thenOffset[W];
+                size_t indexElse =
+                    b * elseOffset[N] + c * elseOffset[C] + d * elseOffset[D] + h * elseOffset[H] + w * elseOffset[W];
                 dstData[indexOut] = conditionData[indexCond] ? thenData[indexThen] : elseData[indexElse];
             }
         });
@@ -188,34 +211,58 @@ void MKLDNNSelectNode::execute(mkldnn::stream strm) {
     const size_t inputsPrecSize = getParentEdgeAt(THEN)->getMemory().getDesc().getPrecision().size();
 
     switch (condPrecSize) {
+    case 1: {
+        switch (inputsPrecSize) {
         case 1: {
-            switch (inputsPrecSize) {
-                case 1: { execute_impl<uint8_t, uint8_t>(); break; }
-                case 2: { execute_impl<uint8_t, uint16_t>(); break; }
-                case 4: { execute_impl<uint8_t, uint32_t>(); break; }
-                case 8: { execute_impl<uint8_t, uint64_t>(); break; }
-                default:
-                    IE_THROW() << "Select layer doesn't support 'Then' and 'Else' inputs' precision: "
-                                   + std::string(getParentEdgeAt(THEN)->getMemory().getDesc().getPrecision().name());
-            }
+            execute_impl<uint8_t, uint8_t>();
+            break;
+        }
+        case 2: {
+            execute_impl<uint8_t, uint16_t>();
             break;
         }
         case 4: {
-            switch (inputsPrecSize) {
-                case 1: { execute_impl<int32_t, uint8_t>(); break; }
-                case 2: { execute_impl<int32_t, uint16_t>(); break; }
-                case 4: { execute_impl<int32_t, uint32_t>(); break; }
-                case 8: { execute_impl<int32_t, uint64_t>(); break; }
-                default:
-                    IE_THROW() << "Select layer doesn't support 'Then' and 'Else' inputs' precision: "
-                                  + std::string(getParentEdgeAt(THEN)->getMemory().getDesc().getPrecision().name());
-            }
+            execute_impl<uint8_t, uint32_t>();
             break;
         }
-        default: {
-                IE_THROW() << "Select layer doesn't support 'Condition' inputs' precision: "
-                              + std::string(getParentEdgeAt(CONDITION)->getMemory().getDesc().getPrecision().name());
+        case 8: {
+            execute_impl<uint8_t, uint64_t>();
+            break;
         }
+        default:
+            IE_THROW() << "Select layer doesn't support 'Then' and 'Else' inputs' precision: " +
+                              std::string(getParentEdgeAt(THEN)->getMemory().getDesc().getPrecision().name());
+        }
+        break;
+    }
+    case 4: {
+        switch (inputsPrecSize) {
+        case 1: {
+            execute_impl<int32_t, uint8_t>();
+            break;
+        }
+        case 2: {
+            execute_impl<int32_t, uint16_t>();
+            break;
+        }
+        case 4: {
+            execute_impl<int32_t, uint32_t>();
+            break;
+        }
+        case 8: {
+            execute_impl<int32_t, uint64_t>();
+            break;
+        }
+        default:
+            IE_THROW() << "Select layer doesn't support 'Then' and 'Else' inputs' precision: " +
+                              std::string(getParentEdgeAt(THEN)->getMemory().getDesc().getPrecision().name());
+        }
+        break;
+    }
+    default: {
+        IE_THROW() << "Select layer doesn't support 'Condition' inputs' precision: " +
+                          std::string(getParentEdgeAt(CONDITION)->getMemory().getDesc().getPrecision().name());
+    }
     }
 }
 

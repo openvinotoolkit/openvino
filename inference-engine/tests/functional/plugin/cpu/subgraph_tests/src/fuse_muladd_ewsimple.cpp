@@ -3,12 +3,13 @@
 //
 
 #include "subgraph_tests/include/fuse_muladd_ewsimple.hpp"
+
 #include "ngraph_functions/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using ngraph::helpers::EltwiseTypes;
 using ngraph::helpers::ActivationTypes;
+using ngraph::helpers::EltwiseTypes;
 
 namespace SubgraphTestsDefinitions {
 
@@ -31,11 +32,8 @@ void FuseMulAddAndEwSimpleTest::SetUp() {
     CreateGraph();
 }
 
-const auto mulAddAndEwSimpleCommonParams = ::testing::Combine(
-        ::testing::Values(SizeVector{1, 20}),
-        ::testing::Values(Precision::FP32)
-);
-
+const auto mulAddAndEwSimpleCommonParams =
+    ::testing::Combine(::testing::Values(SizeVector{1, 20}), ::testing::Values(Precision::FP32));
 
 // Fused EltwiseAndSimple comes on the 3rd port into MulAdd
 void FuseMulAddAndEwSimpleTest1::CreateGraph() {
@@ -59,8 +57,10 @@ TEST_P(FuseMulAddAndEwSimpleTest1, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseMulAddAndEwSimpleTest1, mulAddAndEwSimpleCommonParams, FuseMulAddAndEwSimpleTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseMulAddAndEwSimpleTest1,
+                         mulAddAndEwSimpleCommonParams,
+                         FuseMulAddAndEwSimpleTest::getTestCaseName);
 
 // Fused EltwiseAndSimple comes on the 2nd input into MulAdd
 void FuseMulAddAndEwSimpleTest2::CreateGraph() {
@@ -84,8 +84,10 @@ TEST_P(FuseMulAddAndEwSimpleTest2, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseMulAddAndEwSimpleTest2, mulAddAndEwSimpleCommonParams, FuseMulAddAndEwSimpleTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseMulAddAndEwSimpleTest2,
+                         mulAddAndEwSimpleCommonParams,
+                         FuseMulAddAndEwSimpleTest::getTestCaseName);
 
 // Fused MulAdd with more than 3 inputs
 void FuseMulAddAndEwSimpleTest3::CreateGraph() {
@@ -108,5 +110,8 @@ TEST_P(FuseMulAddAndEwSimpleTest3, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseMulAddAndEwSimpleTest3, mulAddAndEwSimpleCommonParams, FuseMulAddAndEwSimpleTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseMulAddAndEwSimpleTest3,
+                         mulAddAndEwSimpleCommonParams,
+                         FuseMulAddAndEwSimpleTest::getTestCaseName);
 }  // namespace SubgraphTestsDefinitions

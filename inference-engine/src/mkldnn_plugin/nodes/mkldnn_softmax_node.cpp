@@ -4,18 +4,21 @@
 
 #include "mkldnn_softmax_node.h"
 
-#include <string>
-#include <mkldnn_types.h>
-#include <mkldnn_extension_utils.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
+#include <mkldnn_extension_utils.h>
+#include <mkldnn_types.h>
+
 #include <ngraph/opsets/opset1.hpp>
+#include <string>
+
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNSoftMaxNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNSoftMaxNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                             std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -31,8 +34,10 @@ bool MKLDNNSoftMaxNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNSoftMaxNode::MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+MKLDNNSoftMaxNode::MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op,
+                                     const mkldnn::engine& eng,
+                                     MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -54,7 +59,7 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
     if (!getChildEdges().size())
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
-    const auto &inShape = getInputShapeAtPort(0);
+    const auto& inShape = getInputShapeAtPort(0);
     if (inShape.getRank() == 3) {
         auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, inputDataType, memory::format_tag::abc);
         createDescriptor({in_candidate}, {});
@@ -76,11 +81,11 @@ void MKLDNNSoftMaxNode::createPrimitive() {
 
     auto in_candidate = getParentEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
     MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
-            new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
+        new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
     descs[0] = desc;
     std::shared_ptr<softmax_forward::desc> selected_desc_ptr = descs[0];
 
-    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
@@ -118,8 +123,8 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
         return;
 
     if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
-            (config.inConfs[0].desc->isDefined() &&
-                    config.outConfs[0].desc->isDefined() && !config.inConfs[0].desc->isCompatible(*config.outConfs[0].desc)))
+        (config.inConfs[0].desc->isDefined() && config.outConfs[0].desc->isDefined() &&
+         !config.inConfs[0].desc->isCompatible(*config.outConfs[0].desc)))
         IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
     if (config.inConfs[0].desc->isDefined()) {
@@ -134,12 +139,12 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
     initDescriptor(config);
 }
 
-void MKLDNNSoftMaxNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                         const std::vector<MemoryDescPtr> &outputDesc) {
+void MKLDNNSoftMaxNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                                         const std::vector<MemoryDescPtr>& outputDesc) {
     auto in_candidate = MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc();
 
     MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
-            new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
+        new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
     descs.push_back(desc);
 }
 REG_MKLDNN_PRIM_FOR(MKLDNNSoftMaxNode, Softmax);

@@ -19,11 +19,13 @@ enum MulticlassNmsSortResultType {
 
 class MKLDNNMultiClassNmsNode : public MKLDNNNode {
 public:
-    MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache);
+    MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::Node>& op,
+                            const mkldnn::engine& eng,
+                            MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -68,7 +70,10 @@ private:
         int box_index;
         filteredBoxes() = default;
         filteredBoxes(float _score, int _batch_index, int _class_index, int _box_index)
-            : score(_score), batch_index(_batch_index), class_index(_class_index), box_index(_box_index) {}
+            : score(_score),
+              batch_index(_batch_index),
+              class_index(_class_index),
+              box_index(_box_index) {}
     };
 
     struct boxInfo {
@@ -79,14 +84,21 @@ private:
 
     std::vector<filteredBoxes> filtBoxes;
 
-    void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
+    void checkPrecision(const InferenceEngine::Precision prec,
+                        const std::vector<InferenceEngine::Precision> precList,
+                        const std::string name,
                         const std::string type);
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
 
-    void nmsWithEta(const float* boxes, const float* scores, const InferenceEngine::SizeVector& boxesStrides, const InferenceEngine::SizeVector& scoresStrides);
+    void nmsWithEta(const float* boxes,
+                    const float* scores,
+                    const InferenceEngine::SizeVector& boxesStrides,
+                    const InferenceEngine::SizeVector& scoresStrides);
 
-    void nmsWithoutEta(const float* boxes, const float* scores, const InferenceEngine::SizeVector& boxesStrides,
+    void nmsWithoutEta(const float* boxes,
+                       const float* scores,
+                       const InferenceEngine::SizeVector& boxesStrides,
                        const InferenceEngine::SizeVector& scoresStrides);
 };
 

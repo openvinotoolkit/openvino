@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <string>
 #include <vector>
 
@@ -13,7 +14,9 @@ namespace MKLDNNPlugin {
 
 class MKLDNNMatMulNode : public MKLDNNNode {
 public:
-    MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op,
+                     const mkldnn::engine& eng,
+                     MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -42,7 +45,8 @@ private:
 
     InferenceEngine::Precision runtimePrecision;
 
-    template<typename T0, typename T1> inline void process_data();
+    template <typename T0, typename T1>
+    inline void process_data();
 
     std::string errorPrefix;
 
@@ -73,4 +77,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-

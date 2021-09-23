@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -14,7 +15,9 @@ namespace MKLDNNPlugin {
 
 class MKLDNNDeconvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::Node>& op,
+                            const mkldnn::engine& eng,
+                            MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -31,8 +34,8 @@ public:
         return static_cast<size_t>(getParentEdges().size());
     }
 
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -57,7 +60,7 @@ private:
     std::vector<std::shared_ptr<mkldnn::convolution_backward_data::desc>> descs_bwd;
 
     mkldnn::primitive_attr attr;
-    void setPostOps(mkldnn::primitive_attr &attr);
+    void setPostOps(mkldnn::primitive_attr& attr);
 
     std::string errorPrefix;
 
@@ -66,4 +69,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-

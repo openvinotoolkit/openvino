@@ -5,15 +5,17 @@
 #include "reshape_prelu.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+
 #include "transformations/utils/utils.hpp"
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ReshapePRelu, "ReshapePRelu", 0);
 
 MKLDNNPlugin::ReshapePRelu::ReshapePRelu() {
-    auto prelu = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-                                                                    ngraph::pattern::any_input(ngraph::pattern::has_static_shape())});
+    auto prelu = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>(
+        {ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
+         ngraph::pattern::any_input(ngraph::pattern::has_static_shape())});
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu>(m.get_match_root());

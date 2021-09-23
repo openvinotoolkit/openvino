@@ -4,26 +4,26 @@
 
 #pragma once
 
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "test_utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
 namespace SubgraphTestsDefinitions {
 
-using FuseTransposeAndReorderParams = std::tuple<
-        InferenceEngine::SizeVector,    // Input shape
-        InferenceEngine::Precision      // Input precision
->;
+using FuseTransposeAndReorderParams = std::tuple<InferenceEngine::SizeVector,  // Input shape
+                                                 InferenceEngine::Precision    // Input precision
+                                                 >;
 
-class FuseTransposeAndReorderTest : public testing::WithParamInterface<FuseTransposeAndReorderParams>, public CPUTestsBase,
-        virtual public LayerTestsUtils::LayerTestsCommon {
+class FuseTransposeAndReorderTest : public testing::WithParamInterface<FuseTransposeAndReorderParams>,
+                                    public CPUTestsBase,
+                                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<FuseTransposeAndReorderParams> obj);
 
@@ -46,4 +46,4 @@ protected:
     void CreateGraph() override;
 };
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

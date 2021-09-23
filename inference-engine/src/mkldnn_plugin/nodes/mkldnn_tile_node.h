@@ -6,13 +6,16 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
 #include <string>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNTileNode : public MKLDNNNode {
 public:
-    MKLDNNTileNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNTileNode(const std::shared_ptr<ngraph::Node>& op,
+                   const mkldnn::engine& eng,
+                   MKLDNNWeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -34,4 +37,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-

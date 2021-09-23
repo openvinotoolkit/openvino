@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
 #include "mkldnn_embedding_segments_sum_node.h"
+
+#include <cmath>
 #include <ngraph/opsets/opset3.hpp>
+#include <string>
+#include <vector>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNEmbeddingSegmentsSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNEmbeddingSegmentsSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                          std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -28,8 +30,11 @@ bool MKLDNNEmbeddingSegmentsSumNode::isSupportedOperation(const std::shared_ptr<
     return true;
 }
 
-MKLDNNEmbeddingSegmentsSumNode::MKLDNNEmbeddingSegmentsSumNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache), MKLDNNEmbeddingBagSumNode(op, 4lu, 1lu, 5lu, 4lu) {
+MKLDNNEmbeddingSegmentsSumNode::MKLDNNEmbeddingSegmentsSumNode(const std::shared_ptr<ngraph::Node>& op,
+                                                               const mkldnn::engine& eng,
+                                                               MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache),
+      MKLDNNEmbeddingBagSumNode(op, 4lu, 1lu, 5lu, 4lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -37,12 +42,10 @@ MKLDNNEmbeddingSegmentsSumNode::MKLDNNEmbeddingSegmentsSumNode(const std::shared
 
     std::string errPrefix = std::string("EmbeddingSegmentsSum layer with name '") + _layerName + "' ";
     if (op->get_input_shape(INDICES_IDX).size() != 1)
-        IE_THROW() << errPrefix << "has indices data with invalid shape: "
-                   << op->get_input_shape(INDICES_IDX).size();
+        IE_THROW() << errPrefix << "has indices data with invalid shape: " << op->get_input_shape(INDICES_IDX).size();
 
     if (op->get_input_shape(SEGMENT_ID_IDX).size() != 1)
-        IE_THROW() << errPrefix << "has invalid segmentID data shape: "
-                   << op->get_input_shape(SEGMENT_ID_IDX).size();
+        IE_THROW() << errPrefix << "has invalid segmentID data shape: " << op->get_input_shape(SEGMENT_ID_IDX).size();
 }
 
 void MKLDNNEmbeddingSegmentsSumNode::initSupportedPrimitiveDescriptors() {
@@ -50,8 +53,10 @@ void MKLDNNEmbeddingSegmentsSumNode::initSupportedPrimitiveDescriptors() {
         return;
 
     std::string logPrefix = std::string("Layer EmbeddingBagSum with name '") + _layerName + "' ";
-    static const std::set<Precision> supportedPrecisions =
-            {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
+    static const std::set<Precision> supportedPrecisions = {Precision::FP32,
+                                                            Precision::I8,
+                                                            Precision::U8,
+                                                            Precision::I32};
 
     auto inDataPrecision = getOriginalInputPrecisionAtPort(EMB_TABLE_IDX);
     if (inDataPrecision == Precision::BF16)
@@ -60,8 +65,10 @@ void MKLDNNEmbeddingSegmentsSumNode::initSupportedPrimitiveDescriptors() {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end())
             IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
     } else {
-        static const std::set<Precision> defaultSupportedPrecisions =
-                {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
+        static const std::set<Precision> defaultSupportedPrecisions = {Precision::FP32,
+                                                                       Precision::I8,
+                                                                       Precision::U8,
+                                                                       Precision::I32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end())
             IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
     }
@@ -79,21 +86,25 @@ void MKLDNNEmbeddingSegmentsSumNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNEmbeddingSegmentsSumNode::initFromInputs() {
-    indices_ = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->GetPtr());
+    indices_ = reinterpret_cast<const int*>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->GetPtr());
     indicesSize_ = getParentEdgeAt(INDICES_IDX)->getMemory().GetShape().getElementsCount();
 
-    segmentIds_ = reinterpret_cast<const int *>(getParentEdgeAt(SEGMENT_ID_IDX)->getMemoryPtr()->GetPtr());
+    segmentIds_ = reinterpret_cast<const int*>(getParentEdgeAt(SEGMENT_ID_IDX)->getMemoryPtr()->GetPtr());
 
     if (getParentEdges().size() > NUM_SEGMENTS_IDX) {
-        numSegments_ = reinterpret_cast<const int *>(getParentEdgeAt(NUM_SEGMENTS_IDX)->getMemoryPtr()->GetPtr())[0];
+        numSegments_ = reinterpret_cast<const int*>(getParentEdgeAt(NUM_SEGMENTS_IDX)->getMemoryPtr()->GetPtr())[0];
     }
 
     if (getParentEdges().size() > DEFAULT_INDEX_IDX) {
-        defaultIndices_ = reinterpret_cast<const int *>(getParentEdgeAt(DEFAULT_INDEX_IDX)->getMemoryPtr()->GetPtr());
+        defaultIndices_ = reinterpret_cast<const int*>(getParentEdgeAt(DEFAULT_INDEX_IDX)->getMemoryPtr()->GetPtr());
     }
 }
 
-void MKLDNNEmbeddingSegmentsSumNode::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
+void MKLDNNEmbeddingSegmentsSumNode::getIndices(int embIndex,
+                                                const int*& indices,
+                                                size_t& size,
+                                                int& weightsIdx,
+                                                bool& withWeight) {
     if (embIndex >= numSegments_)
         IE_THROW() << "Invalid embedding bag index.";
 
@@ -122,15 +133,20 @@ void MKLDNNEmbeddingSegmentsSumNode::getIndices(int embIndex, const int*& indice
 }
 
 void MKLDNNEmbeddingSegmentsSumNode::execute(mkldnn::stream strm) {
-    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
-        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
+        weightsData =
+            reinterpret_cast<const uint8_t*>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
 
-    const auto &inputMem  = getParentEdgeAt(0)->getMemory();
-    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
-                                       inputMem .getStaticDims(), getChildEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims());
+    const auto& inputMem = getParentEdgeAt(0)->getMemory();
+    MKLDNNEmbeddingBagSumNode::execute(srcData,
+                                       weightsData,
+                                       dstData,
+                                       inputMem.getDesc().getPrecision(),
+                                       inputMem.getStaticDims(),
+                                       getChildEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims());
 }
 
 bool MKLDNNEmbeddingSegmentsSumNode::created() const {

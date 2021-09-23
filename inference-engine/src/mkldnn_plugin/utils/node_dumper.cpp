@@ -3,26 +3,24 @@
 //
 #ifdef CPU_DEBUG_CAPS
 
-#include "node_dumper.h"
+#    include "node_dumper.h"
 
-#include "mkldnn_node.h"
-#include "ie_common.h"
-#include "utils/blob_dump.h"
-#include "utils/debug_capabilities.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
+#    include <array>
+#    include <regex>
+#    include <sstream>
+#    include <string>
 
-#include <array>
-#include <regex>
-#include <sstream>
-#include <string>
+#    include "ie_common.h"
+#    include "memory_desc/cpu_memory_desc_utils.h"
+#    include "mkldnn_node.h"
+#    include "utils/blob_dump.h"
+#    include "utils/debug_capabilities.h"
 
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-NodeDumper::NodeDumper(const DebugCaps::Config& config)
-    : dumpFormat(FORMAT::BIN)
-    , dumpDirName("mkldnn_dump") {
+NodeDumper::NodeDumper(const DebugCaps::Config& config) : dumpFormat(FORMAT::BIN), dumpDirName("mkldnn_dump") {
     if (!config.blobDumpDir.empty())
         dumpDirName = config.blobDumpDir;
 
@@ -146,19 +144,18 @@ bool NodeDumper::shouldBeDumped(const MKLDNNNodePtr& node, const std::string& po
     if (dumpFilters.empty())
         return false;
 
-    if (dumpFilters.count(FILTER::BY_PORTS)) { // filter by ports configured
-        if (dumpFilters.at(FILTER::BY_PORTS) != "ALL" &&
-            portsKind != dumpFilters.at(FILTER::BY_PORTS))
+    if (dumpFilters.count(FILTER::BY_PORTS)) {  // filter by ports configured
+        if (dumpFilters.at(FILTER::BY_PORTS) != "ALL" && portsKind != dumpFilters.at(FILTER::BY_PORTS))
             return false;
     }
 
-    if (dumpFilters.count(FILTER::BY_EXEC_ID)) { // filter by exec id configured
+    if (dumpFilters.count(FILTER::BY_EXEC_ID)) {  // filter by exec id configured
         std::stringstream ss(dumpFilters.at(FILTER::BY_EXEC_ID));
         int id;
         bool matched = false;
 
         while (ss >> id) {
-            if (node->getExecIndex() == id) {// exec id matches
+            if (node->getExecIndex() == id) {  // exec id matches
                 matched = true;
                 break;
             }
@@ -168,13 +165,13 @@ bool NodeDumper::shouldBeDumped(const MKLDNNNodePtr& node, const std::string& po
             return false;
     }
 
-    if (dumpFilters.count(FILTER::BY_TYPE)) { // filter by type configured
+    if (dumpFilters.count(FILTER::BY_TYPE)) {  // filter by type configured
         std::stringstream ss(dumpFilters.at(FILTER::BY_TYPE));
         std::string type;
         bool matched = false;
 
         while (ss >> type) {
-            if (NameFromType(node->getType()) == type) {// type does not match
+            if (NameFromType(node->getType()) == type) {  // type does not match
                 matched = true;
                 break;
             }
@@ -184,9 +181,9 @@ bool NodeDumper::shouldBeDumped(const MKLDNNNodePtr& node, const std::string& po
             return false;
     }
 
-    if (dumpFilters.count(FILTER::BY_NAME)) { // filter by name configured
-        if (dumpFilters.at(FILTER::BY_NAME) != "*" && // to have 'single char' option for matching all the names
-            !std::regex_match(node->getName(), std::regex(dumpFilters.at(FILTER::BY_NAME)))) // name does not match
+    if (dumpFilters.count(FILTER::BY_NAME)) {          // filter by name configured
+        if (dumpFilters.at(FILTER::BY_NAME) != "*" &&  // to have 'single char' option for matching all the names
+            !std::regex_match(node->getName(), std::regex(dumpFilters.at(FILTER::BY_NAME))))  // name does not match
             return false;
     }
 
@@ -220,5 +217,5 @@ const std::unique_ptr<NodeDumper>& getNodeDumper() {
     return nd;
 }
 
-} // namespace MKLDNNPlugin
-#endif // CPU_DEBUG_CAPS
+}  // namespace MKLDNNPlugin
+#endif  // CPU_DEBUG_CAPS

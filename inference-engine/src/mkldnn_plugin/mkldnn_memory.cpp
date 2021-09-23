@@ -2,53 +2,57 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
+#include "mkldnn_memory.h"
+
+#include <dnnl_types.h>
+#include <mkldnn_types.h>
+
 #include <algorithm>
+#include <common/memory_desc_wrapper.hpp>
 #include <numeric>
 #include <unordered_set>
+#include <vector>
 
-#include "utils/general_utils.h"
-
-#include <mkldnn_types.h>
-#include <dnnl_types.h>
-#include <common/memory_desc_wrapper.hpp>
-#include "mkldnn_memory.h"
-#include "mkldnn_extension_utils.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "nodes/common/cpu_convert.h"
-#include "mkldnn/ie_mkldnn.h"
 #include "cpu_shape.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/cpu_utils.hpp"
-#include "nodes/mkldnn_reorder_node.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "mkldnn/ie_mkldnn.h"
+#include "mkldnn_extension_utils.h"
+#include "nodes/common/cpu_convert.h"
+#include "nodes/common/cpu_memcpy.h"
+#include "nodes/mkldnn_reorder_node.h"
+#include "utils/cpu_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace InferenceEngine;
 using namespace mkldnn;
 
 namespace MKLDNNPlugin {
 namespace {
-    inline void setSubnormalsToZero(float *data, size_t size) {
-        uint32_t *u32data = reinterpret_cast<uint32_t *>(data);
-        for (size_t i = 0; i < size; ++i) {
-            if ((u32data[i] & (0xFF << 23)) == 0) {
-                u32data[i] = 0;
-            }
+inline void setSubnormalsToZero(float* data, size_t size) {
+    uint32_t* u32data = reinterpret_cast<uint32_t*>(data);
+    for (size_t i = 0; i < size; ++i) {
+        if ((u32data[i] & (0xFF << 23)) == 0) {
+            u32data[i] = 0;
         }
     }
-}   // namespace
+}
+}  // namespace
 
 MKLDNNMemory::MKLDNNMemory(const mkldnn::engine& eng) : eng(eng) {}
 
 size_t MKLDNNMemory::GetSize() const {
     auto size = getDesc().getCurrentMemSize();
-    if (size  == MemoryDesc::UNDEFINED_SIZE) {
+    if (size == MemoryDesc::UNDEFINED_SIZE) {
         IE_THROW() << "Can't get memory size for undefined shape";
     }
     return size;
 }
 
-void MKLDNNMemory::Create(const memory::dims& dims, memory::data_type data_type, memory::format_tag format, const void* data) {
+void MKLDNNMemory::Create(const memory::dims& dims,
+                          memory::data_type data_type,
+                          memory::format_tag format,
+                          const void* data) {
     if (format == memory::format_tag::undef) {
         format = memory::format_tag::any;
     }
@@ -58,7 +62,7 @@ void MKLDNNMemory::Create(const memory::dims& dims, memory::data_type data_type,
     Create(desc, data);
 }
 
-void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bool pads_zeroing) {
+void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void* data, bool pads_zeroing) {
     if (data == nullptr) {
         prim.reset(new memory(desc, eng));
 
@@ -88,7 +92,7 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
     }
 }
 
-void MKLDNNMemory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
+void MKLDNNMemory::Create(const MemoryDesc& desc, const void* data, bool pads_zeroing) {
     Create(desc.clone(), data, pads_zeroing);
 }
 
@@ -103,7 +107,7 @@ void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroin
     if (pMemDesc->isDefined()) {
         Create(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), data, pads_zeroing);
     } else {
-        //delayed dynamic allocation
+        // delayed dynamic allocation
         size_t maxMemSize = pMemDesc->getMaxMemSize();
         VectorDims dummySize{!pMemDesc->hasDefinedMaxSize() ? 0 : maxMemSize};
         DnnlBlockedMemoryDesc dummyDesc(InferenceEngine::Precision::U8, Shape(dummySize));
@@ -118,12 +122,10 @@ void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroin
 void MKLDNNMemory::SetData(const MKLDNNMemory& src, size_t size, bool ftz) const {
     MKLDNNReorderNode::reorderData(src, *this, size);
 
-    if (ftz
-        && src.GetDataType() == memory::data_type::f32
-        && prim->get_desc().data.format_kind != dnnl_format_kind_wino
-        && GetDataType() != memory::data_type::bf16) {
+    if (ftz && src.GetDataType() == memory::data_type::f32 &&
+        prim->get_desc().data.format_kind != dnnl_format_kind_wino && GetDataType() != memory::data_type::bf16) {
         // Internal blobs haven't strides yet.
-        auto *memData = static_cast<float *>(GetData());
+        auto* memData = static_cast<float*>(GetData());
         memData += prim->get_desc().data.offset0;
         setSubnormalsToZero(memData, GetSize() / sizeof(float));
     }
@@ -135,7 +137,7 @@ void MKLDNNMemory::FillZero() {
         memset(dataPtr, 0, getDesc().getMaxMemSize());
 }
 
-void *MKLDNNMemory::GetPtr() const  {
+void* MKLDNNMemory::GetPtr() const {
     auto ptr = static_cast<uint8_t*>(GetData());
     auto md = prim->get_desc().data;
     mkldnn::impl::memory_desc_wrapper wrapper(md);
@@ -143,11 +145,11 @@ void *MKLDNNMemory::GetPtr() const  {
     return ptr;
 }
 
-void MKLDNNMemory::redefineDesc(const MemoryDesc& desc, void *data) {
+void MKLDNNMemory::redefineDesc(const MemoryDesc& desc, void* data) {
     redefineDesc(desc.clone(), data);
 }
 
-void MKLDNNMemory::redefineDesc(MemoryDescPtr desc, void *data) {
+void MKLDNNMemory::redefineDesc(MemoryDescPtr desc, void* data) {
     if (data != nullptr) {
         this->Create(std::move(desc), data, false);
     } else if (useExternalStorage) {
@@ -166,12 +168,12 @@ void MKLDNNMemory::redefineDesc(MemoryDescPtr desc, void *data) {
     }
 }
 
-template<>
+template <>
 DnnlMemoryDescPtr MKLDNNMemory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc);
 }
 
-template<>
+template <>
 BlockedMemoryDescPtr MKLDNNMemory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToBlockedMemoryDesc(pMemDesc);
 }

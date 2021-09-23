@@ -14,8 +14,8 @@
 namespace MKLDNNPlugin {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(MKLDNNPlugin);
-    OV_ITT_DOMAIN(MKLDNN_LT);
-}
-}
-}
+OV_ITT_DOMAIN(MKLDNNPlugin);
+OV_ITT_DOMAIN(MKLDNN_LT);
+}  // namespace domains
+}  // namespace itt
+}  // namespace MKLDNNPlugin

@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "mkldnn_ctc_greedy_decoder_seq_len_node.h"
+
+#include <ngraph/op/ctc_greedy_decoder_seq_len.hpp>
 #include <string>
 #include <vector>
 
-#include <ngraph/op/ctc_greedy_decoder_seq_len.hpp>
 #include "ie_parallel.hpp"
-#include "mkldnn_ctc_greedy_decoder_seq_len_node.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNCTCGreedyDecoderSeqLenNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNCTCGreedyDecoderSeqLenNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                                            std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -29,8 +31,10 @@ bool MKLDNNCTCGreedyDecoderSeqLenNode::isSupportedOperation(const std::shared_pt
     return true;
 }
 
-MKLDNNCTCGreedyDecoderSeqLenNode::MKLDNNCTCGreedyDecoderSeqLenNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNCTCGreedyDecoderSeqLenNode::MKLDNNCTCGreedyDecoderSeqLenNode(const std::shared_ptr<ngraph::Node>& op,
+                                                                   const mkldnn::engine& eng,
+                                                                   MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -68,33 +72,35 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::initSupportedPrimitiveDescriptors() {
         inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, Precision::I32}, {LayoutType::ncsp, Precision::I32}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
-    const float* probabilities = reinterpret_cast<const float *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
-    const int* sequenceLengths = reinterpret_cast<const int *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
-    int* decodedClasses =  reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemoryPtr()->GetPtr());
-    int* decodedClassesLength = reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_LENGTH_INDEX)[0]->getMemoryPtr()->GetPtr());
+    const float* probabilities = reinterpret_cast<const float*>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
+    const int* sequenceLengths =
+        reinterpret_cast<const int*>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
+    int* decodedClasses =
+        reinterpret_cast<int*>(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemoryPtr()->GetPtr());
+    int* decodedClassesLength =
+        reinterpret_cast<int*>(getChildEdgesAtPort(DECODED_CLASSES_LENGTH_INDEX)[0]->getMemoryPtr()->GetPtr());
 
-    const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];;
-    const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];;
-    const int C = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[2];;
+    const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];
+    const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];
+    const int C = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[2];
     const size_t TC = T * C;
 
     int blankIndex = C - 1;
     if (inputShapes.size() > BLANK_INDEX)
-        blankIndex = (reinterpret_cast<const int  *>(getParentEdgeAt(BLANK_INDEX)->getMemoryPtr()->GetPtr()))[0];
+        blankIndex = (reinterpret_cast<const int*>(getParentEdgeAt(BLANK_INDEX)->getMemoryPtr()->GetPtr()))[0];
 
     size_t workAmount = 0;
     for (size_t b = 0; b < B; b++) {
         if (sequenceLengths[b] > T) {
-            std::string errorMsg = errorPrefix
-                                   + ". Sequence length " + std::to_string(sequenceLengths[b])
-                                   + " cannot be greater than according decoded classes dimension size "
-                                   + std::to_string(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemory().getStaticDims()[1]);
+            std::string errorMsg =
+                errorPrefix + ". Sequence length " + std::to_string(sequenceLengths[b]) +
+                " cannot be greater than according decoded classes dimension size " +
+                std::to_string(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemory().getStaticDims()[1]);
             IE_THROW() << errorMsg;
         }
         workAmount += sequenceLengths[b];
@@ -143,7 +149,7 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
             }
             tStart = 0lu;
         }
-    }; // thread body
+    };  // thread body
 
     parallel_nt(0, threadBody);
 
@@ -154,8 +160,7 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
         int* shiftedOut = decodedClasses + b * T;
 
         for (size_t t = 0; t < actualSeqLen; ++t) {
-            if (*shiftedOut != blankIndex &&
-                !(mergeRepeated && *shiftedOut == prevClassIdx)) {
+            if (*shiftedOut != blankIndex && !(mergeRepeated && *shiftedOut == prevClassIdx)) {
                 decodedClasses[outputIndex++] = *shiftedOut;
             }
             prevClassIdx = *shiftedOut;

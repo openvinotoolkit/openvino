@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -11,15 +11,15 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
-using ConvertToPluginSpecificNodeParams = std::tuple<SizeVector,            // non const input shape
-                                                     SizeVector,            // const input shape
-                                                     Precision,             // precision
-                                                     helpers::EltwiseTypes, // node type
-                                                     size_t,                // port for const input
-                                                     size_t>;               // expected number of constant node
+using ConvertToPluginSpecificNodeParams = std::tuple<SizeVector,             // non const input shape
+                                                     SizeVector,             // const input shape
+                                                     Precision,              // precision
+                                                     helpers::EltwiseTypes,  // node type
+                                                     size_t,                 // port for const input
+                                                     size_t>;                // expected number of constant node
 
 class ConvertToPluginSpecificNode : public testing::WithParamInterface<ConvertToPluginSpecificNodeParams>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                                    public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConvertToPluginSpecificNodeParams> obj) {
         SizeVector nonConstShape, constShape;
@@ -62,7 +62,8 @@ protected:
 
         auto powerStatic = ngraph::builder::makeEltwise(inputs[0], inputs[1], nodeType);
 
-        function = std::make_shared<ngraph::Function>(powerStatic, ParameterVector{param}, "ConvertToPluginSpecificNode");
+        function =
+            std::make_shared<ngraph::Function>(powerStatic, ParameterVector{param}, "ConvertToPluginSpecificNode");
     }
 };
 
@@ -75,9 +76,7 @@ TEST_P(ConvertToPluginSpecificNode, CompareWithRefs) {
 
 namespace {
 
-const std::vector<std::vector<size_t>> nonConstIS = {
-    {3, 4, 5, 6}
-};
+const std::vector<std::vector<size_t>> nonConstIS = {{3, 4, 5, 6}};
 
 const std::vector<std::vector<size_t>> constIS = {
     {},
@@ -87,15 +86,11 @@ const std::vector<std::vector<size_t>> constIS = {
     {1, 1, 1, 1},
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> nodeTypes = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::MULTIPLY
-};
+std::vector<ngraph::helpers::EltwiseTypes> nodeTypes = {ngraph::helpers::EltwiseTypes::ADD,
+                                                        ngraph::helpers::EltwiseTypes::SUBTRACT,
+                                                        ngraph::helpers::EltwiseTypes::MULTIPLY};
 
-const std::vector<size_t> port = {
-    0, 1
-};
+const std::vector<size_t> port = {0, 1};
 
 const auto testParamsEltwise = ::testing::Combine(::testing::ValuesIn(nonConstIS),
                                                   ::testing::ValuesIn(constIS),
@@ -104,7 +99,10 @@ const auto testParamsEltwise = ::testing::Combine(::testing::ValuesIn(nonConstIS
                                                   ::testing::ValuesIn(port),
                                                   ::testing::Values(0));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CheckEltwise, ConvertToPluginSpecificNode, testParamsEltwise, ConvertToPluginSpecificNode::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CheckEltwise,
+                         ConvertToPluginSpecificNode,
+                         testParamsEltwise,
+                         ConvertToPluginSpecificNode::getTestCaseName);
 
 const auto testParamsPower = ::testing::Combine(::testing::ValuesIn(nonConstIS),
                                                 ::testing::ValuesIn(constIS),
@@ -113,8 +111,11 @@ const auto testParamsPower = ::testing::Combine(::testing::ValuesIn(nonConstIS),
                                                 ::testing::Values(1),
                                                 ::testing::Values(0));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CheckPower, ConvertToPluginSpecificNode, testParamsPower, ConvertToPluginSpecificNode::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CheckPower,
+                         ConvertToPluginSpecificNode,
+                         testParamsPower,
+                         ConvertToPluginSpecificNode::getTestCaseName);
 
-} // namespace
+}  // namespace
 
-} // namespace CPULayerTestsDefinitions
+}  // namespace CPULayerTestsDefinitions

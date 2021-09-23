@@ -8,13 +8,13 @@
 
 namespace MKLDNNPlugin {
 
-class ConvertMatMulToFC: public ngraph::pass::MatcherPass {
+class ConvertMatMulToFC : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertMatMulToFC();
 };
 
-class ConvertMatMulToGemm: public ngraph::pass::MatcherPass {
+class ConvertMatMulToGemm : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertMatMulToGemm();

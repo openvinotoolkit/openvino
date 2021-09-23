@@ -11,11 +11,13 @@ namespace MKLDNNPlugin {
 
 class MKLDNNCumSumNode : public MKLDNNNode {
 public:
-    MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op,
+                     const mkldnn::engine& eng,
+                     MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -26,13 +28,13 @@ private:
     void exec();
 
     template <bool reverse, bool exclusive, typename dataType>
-    void cumSum(const dataType *input, dataType *output, const std::vector<size_t> &strides);
+    void cumSum(const dataType* input, dataType* output, const std::vector<size_t>& strides);
 
     void parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
 
     inline void parallelItStep(std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
 
-    inline size_t getStartOffset(const std::vector<size_t> &forStartOffset, const std::vector<size_t>& strides) const;
+    inline size_t getStartOffset(const std::vector<size_t>& forStartOffset, const std::vector<size_t>& strides) const;
 
     size_t getAxis(const MKLDNNMemory& _axis, const MKLDNNMemory& _data) const;
 

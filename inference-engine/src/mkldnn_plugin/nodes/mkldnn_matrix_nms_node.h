@@ -23,11 +23,13 @@ enum MatrixNmsDecayFunction { GAUSSIAN, LINEAR };
 
 class MKLDNNMatrixNmsNode : public MKLDNNNode {
 public:
-    MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache);
+    MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op,
+                        const mkldnn::engine& eng,
+                        MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -60,7 +62,11 @@ private:
     bool m_normalized;
 
     struct Rectangle {
-        Rectangle(float x_left, float y_left, float x_right, float y_right) : x1 {x_left}, y1 {y_left}, x2 {x_right}, y2 {y_right} {}
+        Rectangle(float x_left, float y_left, float x_right, float y_right)
+            : x1{x_left},
+              y1{y_left},
+              x2{x_right},
+              y2{y_right} {}
 
         Rectangle() = default;
 
@@ -72,7 +78,11 @@ private:
 
     struct BoxInfo {
         BoxInfo(const Rectangle& r, int64_t idx, float sc, int64_t batch_idx, int64_t class_idx)
-            : box {r}, index {idx}, batchIndex {batch_idx}, classIndex {class_idx}, score {sc} {}
+            : box{r},
+              index{idx},
+              batchIndex{batch_idx},
+              classIndex{class_idx},
+              score{sc} {}
 
         BoxInfo() = default;
 
@@ -91,10 +101,16 @@ private:
     size_t m_realNumClasses;
     size_t m_realNumBoxes;
     float (*m_decay_fn)(float, float, float);
-    void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
+    void checkPrecision(const InferenceEngine::Precision prec,
+                        const std::vector<InferenceEngine::Precision> precList,
+                        const std::string name,
                         const std::string type);
 
-    size_t nmsMatrix(const float* boxesData, const float* scoresData, BoxInfo* filterBoxes, const int64_t batchIdx, const int64_t classIdx);
+    size_t nmsMatrix(const float* boxesData,
+                     const float* scoresData,
+                     BoxInfo* filterBoxes,
+                     const int64_t batchIdx,
+                     const int64_t classIdx);
 };
 
 }  // namespace MKLDNNPlugin

@@ -3,9 +3,11 @@
 //
 
 #include "jit_eltwise_emitters.hpp"
+
+#include <nodes/mkldnn_eltwise_node.h>
+
 #include <cpu/x64/jit_uni_eltwise.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <nodes/mkldnn_eltwise_node.h>
 
 using namespace InferenceEngine;
 using namespace mkldnn::impl::utils;
@@ -16,16 +18,23 @@ using namespace Xbyak;
 namespace MKLDNNPlugin {
 
 /// ADD ///
-jit_add_emitter::jit_add_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_add_emitter::jit_add_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_add_emitter::jit_add_emitter(jit_generator* host,
+                                 cpu_isa_t host_isa,
+                                 const std::shared_ptr<ngraph::Node>& node,
+                                 Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_add_emitter::jit_add_emitter(jit_generator* host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_add_emitter::get_inputs_num() const { return 2; }
+size_t jit_add_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                const std::vector<size_t>& out_vec_idxs,
+                                const std::vector<size_t>& pool_vec_idxs,
+                                const std::vector<size_t>& pool_gpr_idxs,
+                                const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -38,7 +47,7 @@ void jit_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -53,16 +62,26 @@ void jit_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
 }
 
 /// MUL_ADD ///
-jit_mul_add_emitter::jit_mul_add_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_mul_add_emitter::jit_mul_add_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_mul_add_emitter::jit_mul_add_emitter(jit_generator* host,
+                                         cpu_isa_t host_isa,
+                                         const std::shared_ptr<ngraph::Node>& node,
+                                         Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_mul_add_emitter::jit_mul_add_emitter(jit_generator* host,
+                                         cpu_isa_t host_isa,
+                                         const MKLDNNNode* node,
+                                         Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_mul_add_emitter::get_inputs_num() const { return 3; }
+size_t jit_mul_add_emitter::get_inputs_num() const {
+    return 3;
+}
 
-void jit_mul_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                    const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                    const emitter_context *emit_context) const {
+void jit_mul_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs,
+                                    const std::vector<size_t>& pool_vec_idxs,
+                                    const std::vector<size_t>& pool_gpr_idxs,
+                                    const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -75,7 +94,8 @@ void jit_mul_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_mul_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -115,16 +135,26 @@ size_t jit_mul_add_emitter::aux_vecs_count() const {
 }
 
 /// SUB ///
-jit_subtract_emitter::jit_subtract_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_subtract_emitter::jit_subtract_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_subtract_emitter::jit_subtract_emitter(jit_generator* host,
+                                           cpu_isa_t host_isa,
+                                           const std::shared_ptr<ngraph::Node>& node,
+                                           Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_subtract_emitter::jit_subtract_emitter(jit_generator* host,
+                                           cpu_isa_t host_isa,
+                                           const MKLDNNNode* node,
+                                           Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_subtract_emitter::get_inputs_num() const { return 2; }
+size_t jit_subtract_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_subtract_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_subtract_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                     const std::vector<size_t>& out_vec_idxs,
+                                     const std::vector<size_t>& pool_vec_idxs,
+                                     const std::vector<size_t>& pool_gpr_idxs,
+                                     const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -137,7 +167,8 @@ void jit_subtract_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_subtract_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -151,18 +182,27 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
     }
 }
 
-
 /// MULTIPLY ///
-jit_multiply_emitter::jit_multiply_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_multiply_emitter::jit_multiply_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_multiply_emitter::jit_multiply_emitter(jit_generator* host,
+                                           cpu_isa_t host_isa,
+                                           const std::shared_ptr<ngraph::Node>& node,
+                                           Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_multiply_emitter::jit_multiply_emitter(jit_generator* host,
+                                           cpu_isa_t host_isa,
+                                           const MKLDNNNode* node,
+                                           Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_multiply_emitter::get_inputs_num() const { return 2; }
+size_t jit_multiply_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_multiply_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_multiply_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                     const std::vector<size_t>& out_vec_idxs,
+                                     const std::vector<size_t>& pool_vec_idxs,
+                                     const std::vector<size_t>& pool_gpr_idxs,
+                                     const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -175,7 +215,8 @@ void jit_multiply_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_multiply_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -189,18 +230,27 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
     }
 }
 
-
 /// DIVIDE ///
-jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_divide_emitter::jit_divide_emitter(jit_generator* host,
+                                       cpu_isa_t host_isa,
+                                       const std::shared_ptr<ngraph::Node>& node,
+                                       Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_divide_emitter::jit_divide_emitter(jit_generator* host,
+                                       cpu_isa_t host_isa,
+                                       const MKLDNNNode* node,
+                                       Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_divide_emitter::get_inputs_num() const { return 2; }
+size_t jit_divide_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_divide_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_divide_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs,
+                                   const std::vector<size_t>& pool_vec_idxs,
+                                   const std::vector<size_t>& pool_gpr_idxs,
+                                   const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -213,7 +263,8 @@ void jit_divide_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_divide_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -221,23 +272,24 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
 
     auto uni_vdiv = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
-            case Precision::FP32: {
-                h->uni_vdivps(vmm_dst, vmm_src0, vmm_src1);
-                break;
-            }
-            case Precision::I32: {
-                Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
+        case Precision::FP32: {
+            h->uni_vdivps(vmm_dst, vmm_src0, vmm_src1);
+            break;
+        }
+        case Precision::I32: {
+            Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
 
-                // The opset doesn't contain vector instruction for integer divide operation
-                // As WA we emulate its behavior via fp divide followed by rounding to zero
-                h->uni_vcvtdq2ps(vmm_dst, vmm_src0);
-                h->uni_vcvtdq2ps(vmm_aux0, vmm_src1);
-                h->uni_vdivps(vmm_dst, vmm_dst, vmm_aux0);
-                h->uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
-                h->uni_vcvtps2dq(vmm_dst, vmm_dst);
-                break;
-            }
-            default: assert(!"unsupported precision");
+            // The opset doesn't contain vector instruction for integer divide operation
+            // As WA we emulate its behavior via fp divide followed by rounding to zero
+            h->uni_vcvtdq2ps(vmm_dst, vmm_src0);
+            h->uni_vcvtdq2ps(vmm_aux0, vmm_src1);
+            h->uni_vdivps(vmm_dst, vmm_dst, vmm_aux0);
+            h->uni_vroundps(vmm_dst, vmm_dst, 3);  // rounding to zero
+            h->uni_vcvtps2dq(vmm_dst, vmm_dst);
+            break;
+        }
+        default:
+            assert(!"unsupported precision");
         }
     };
 
@@ -258,16 +310,26 @@ size_t jit_divide_emitter::aux_vecs_count() const {
 }
 
 /// FLOOR_MOD ///
-jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator* host,
+                                             cpu_isa_t host_isa,
+                                             const std::shared_ptr<ngraph::Node>& node,
+                                             Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator* host,
+                                             cpu_isa_t host_isa,
+                                             const MKLDNNNode* node,
+                                             Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_floor_mod_emitter::get_inputs_num() const { return 2; }
+size_t jit_floor_mod_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_floor_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_floor_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                      const std::vector<size_t>& out_vec_idxs,
+                                      const std::vector<size_t>& pool_vec_idxs,
+                                      const std::vector<size_t>& pool_gpr_idxs,
+                                      const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -280,7 +342,8 @@ void jit_floor_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, co
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_floor_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                     const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -292,14 +355,14 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, con
             h->uni_vmovups(vmm_dst, vmm_src0);
         h->uni_vmovups(vmm_aux0, vmm_src0);
         h->uni_vdivps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 1); // rounding down
+        h->uni_vroundps(vmm_aux0, vmm_aux0, 1);  // rounding down
         h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
         h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
     } else {
         if (vmm_dst.getIdx() != vmm_src0.getIdx())
             h->uni_vmovups(vmm_dst, vmm_src0);
         h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 1); // rounding down
+        h->uni_vroundps(vmm_aux0, vmm_aux0, 1);  // rounding down
         h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
         h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
     }
@@ -310,16 +373,23 @@ size_t jit_floor_mod_emitter::aux_vecs_count() const {
 }
 
 /// MOD ///
-jit_mod_emitter::jit_mod_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_mod_emitter::jit_mod_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_mod_emitter::jit_mod_emitter(jit_generator* host,
+                                 cpu_isa_t host_isa,
+                                 const std::shared_ptr<ngraph::Node>& node,
+                                 Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_mod_emitter::jit_mod_emitter(jit_generator* host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_mod_emitter::get_inputs_num() const { return 2; }
+size_t jit_mod_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                const std::vector<size_t>& out_vec_idxs,
+                                const std::vector<size_t>& pool_vec_idxs,
+                                const std::vector<size_t>& pool_gpr_idxs,
+                                const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -332,7 +402,7 @@ void jit_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -344,14 +414,14 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
             h->uni_vmovups(vmm_dst, vmm_src0);
         h->uni_vmovups(vmm_aux0, vmm_src0);
         h->uni_vdivps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 3); // truncate
+        h->uni_vroundps(vmm_aux0, vmm_aux0, 3);  // truncate
         h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
         h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
     } else {
         if (vmm_dst.getIdx() != vmm_src0.getIdx())
             h->uni_vmovups(vmm_dst, vmm_src0);
         h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 3); // truncate
+        h->uni_vroundps(vmm_aux0, vmm_aux0, 3);  // truncate
         h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
         h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
     }
@@ -362,16 +432,26 @@ size_t jit_mod_emitter::aux_vecs_count() const {
 }
 
 /// MAXIMUM ///
-jit_maximum_emitter::jit_maximum_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_maximum_emitter::jit_maximum_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_maximum_emitter::jit_maximum_emitter(jit_generator* host,
+                                         cpu_isa_t host_isa,
+                                         const std::shared_ptr<ngraph::Node>& node,
+                                         Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_maximum_emitter::jit_maximum_emitter(jit_generator* host,
+                                         cpu_isa_t host_isa,
+                                         const MKLDNNNode* node,
+                                         Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_maximum_emitter::get_inputs_num() const { return 2; }
+size_t jit_maximum_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_maximum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_maximum_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs,
+                                    const std::vector<size_t>& pool_vec_idxs,
+                                    const std::vector<size_t>& pool_gpr_idxs,
+                                    const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -384,7 +464,8 @@ void jit_maximum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_maximum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_maximum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -392,9 +473,14 @@ void jit_maximum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
 
     auto uni_vmax = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
-            case Precision::FP32: h->uni_vmaxps(vmm_dst, vmm_src0, vmm_src1); break;
-            case Precision::I32:  h->uni_vpmaxsd(vmm_dst, vmm_src0, vmm_src1); break;
-            default: assert(!"unsupported precision");
+        case Precision::FP32:
+            h->uni_vmaxps(vmm_dst, vmm_src0, vmm_src1);
+            break;
+        case Precision::I32:
+            h->uni_vpmaxsd(vmm_dst, vmm_src0, vmm_src1);
+            break;
+        default:
+            assert(!"unsupported precision");
         }
     };
 
@@ -412,16 +498,26 @@ std::set<InferenceEngine::Precision> jit_maximum_emitter::get_supported_precisio
 }
 
 /// MINIMUM ///
-jit_minimum_emitter::jit_minimum_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_minimum_emitter::jit_minimum_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_minimum_emitter::jit_minimum_emitter(jit_generator* host,
+                                         cpu_isa_t host_isa,
+                                         const std::shared_ptr<ngraph::Node>& node,
+                                         Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_minimum_emitter::jit_minimum_emitter(jit_generator* host,
+                                         cpu_isa_t host_isa,
+                                         const MKLDNNNode* node,
+                                         Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_minimum_emitter::get_inputs_num() const { return 2; }
+size_t jit_minimum_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_minimum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_minimum_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs,
+                                    const std::vector<size_t>& pool_vec_idxs,
+                                    const std::vector<size_t>& pool_gpr_idxs,
+                                    const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -434,7 +530,8 @@ void jit_minimum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_minimum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -442,9 +539,14 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
 
     auto uni_vmin = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
-            case Precision::FP32: h->uni_vminps(vmm_dst, vmm_src0, vmm_src1); break;
-            case Precision::I32:  h->uni_vpminsd(vmm_dst, vmm_src0, vmm_src1); break;
-            default: assert(!"unsupported precision");
+        case Precision::FP32:
+            h->uni_vminps(vmm_dst, vmm_src0, vmm_src1);
+            break;
+        case Precision::I32:
+            h->uni_vpminsd(vmm_dst, vmm_src0, vmm_src1);
+            break;
+        default:
+            assert(!"unsupported precision");
         }
     };
 
@@ -462,17 +564,26 @@ std::set<InferenceEngine::Precision> jit_minimum_emitter::get_supported_precisio
 }
 
 /// SQUARED_DIFFERENCE ///
-jit_squared_difference_emitter::jit_squared_difference_emitter(
-    jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_squared_difference_emitter::jit_squared_difference_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_squared_difference_emitter::jit_squared_difference_emitter(jit_generator* host,
+                                                               cpu_isa_t host_isa,
+                                                               const std::shared_ptr<ngraph::Node>& node,
+                                                               Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_squared_difference_emitter::jit_squared_difference_emitter(jit_generator* host,
+                                                               cpu_isa_t host_isa,
+                                                               const MKLDNNNode* node,
+                                                               Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_squared_difference_emitter::get_inputs_num() const { return 2; }
+size_t jit_squared_difference_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_squared_difference_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_squared_difference_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                               const std::vector<size_t>& out_vec_idxs,
+                                               const std::vector<size_t>& pool_vec_idxs,
+                                               const std::vector<size_t>& pool_gpr_idxs,
+                                               const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -485,7 +596,8 @@ void jit_squared_difference_emitter::emit_impl(const std::vector<size_t> &in_vec
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_squared_difference_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_squared_difference_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                              const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -502,18 +614,27 @@ void jit_squared_difference_emitter::emit_isa(const std::vector<size_t> &in_vec_
     }
 }
 
-
 /// POWER_DYNAMIC ///
-jit_power_dynamic_emitter::jit_power_dynamic_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_power_dynamic_emitter::jit_power_dynamic_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_power_dynamic_emitter::jit_power_dynamic_emitter(jit_generator* host,
+                                                     cpu_isa_t host_isa,
+                                                     const std::shared_ptr<ngraph::Node>& node,
+                                                     Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_power_dynamic_emitter::jit_power_dynamic_emitter(jit_generator* host,
+                                                     cpu_isa_t host_isa,
+                                                     const MKLDNNNode* node,
+                                                     Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_power_dynamic_emitter::get_inputs_num() const { return 2; }
+size_t jit_power_dynamic_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_power_dynamic_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_power_dynamic_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                          const std::vector<size_t>& out_vec_idxs,
+                                          const std::vector<size_t>& pool_vec_idxs,
+                                          const std::vector<size_t>& pool_gpr_idxs,
+                                          const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -526,7 +647,8 @@ void jit_power_dynamic_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                         const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -536,8 +658,8 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
 
     // caller obligation to save gprs as callee may use them
     size_t gpr_size = 8;
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
-                                     h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
+    Xbyak::Operand gprs_to_save[] =
+        {h->r8, h->r9, h->r10, h->r11, h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
     size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
     h->sub(h->rsp, n_gprs_to_save * gpr_size);
@@ -566,8 +688,8 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
     h->sub(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
     for (size_t i = 2; i < get_max_vecs_count() + 2; ++i)
         h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(i - 2));
-    h->uni_vmovups(h->ptr[h->rsp + 0 * get_vec_length()], vmm_src0); // src
-    h->uni_vmovups(h->ptr[h->rsp + 1 * get_vec_length()], vmm_src1); // beta
+    h->uni_vmovups(h->ptr[h->rsp + 0 * get_vec_length()], vmm_src0);  // src
+    h->uni_vmovups(h->ptr[h->rsp + 1 * get_vec_length()], vmm_src1);  // beta
 
     // save function address in gpr to pass in in call instruction
     h->mov(h->rbp, reinterpret_cast<uintptr_t>(powf));
@@ -579,7 +701,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
 
     // Take src, apply powf on it and replace value on a stack with dst.
     for (size_t i = 0; i < get_vec_length() / sizeof(float); ++i) {
-        const Address &source = h->ptr[h->rsp + h->rbx + i * sizeof(float)];
+        const Address& source = h->ptr[h->rsp + h->rbx + i * sizeof(float)];
         h->uni_vmovss(xmm0, source);
         h->uni_vmovss(xmm1, h->ptr[h->rsp + h->rbx + get_vec_length() + i * sizeof(float)]);
         h->call(h->rbp);
@@ -611,22 +733,31 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
     h->add(h->rsp, n_gprs_to_save * gpr_size);
 }
 
-
 /// EQUAL ///
-jit_equal_emitter::jit_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_equal_emitter::jit_equal_emitter(jit_generator* host,
+                                     cpu_isa_t host_isa,
+                                     const std::shared_ptr<ngraph::Node>& node,
+                                     Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_equal_emitter::jit_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_equal_emitter::jit_equal_emitter(jit_generator* host,
+                                     cpu_isa_t host_isa,
+                                     const MKLDNNNode* node,
+                                     Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
-size_t jit_equal_emitter::get_inputs_num() const { return 2; }
+size_t jit_equal_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs,
+                                  const std::vector<size_t>& pool_vec_idxs,
+                                  const std::vector<size_t>& pool_gpr_idxs,
+                                  const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -639,7 +770,8 @@ void jit_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const 
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                 const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -674,20 +806,30 @@ size_t jit_equal_emitter::aux_vecs_count() const {
 }
 
 /// NOT_EQUAL ///
-jit_not_equal_emitter::jit_not_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_not_equal_emitter::jit_not_equal_emitter(jit_generator* host,
+                                             cpu_isa_t host_isa,
+                                             const std::shared_ptr<ngraph::Node>& node,
+                                             Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_not_equal_emitter::jit_not_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_not_equal_emitter::jit_not_equal_emitter(jit_generator* host,
+                                             cpu_isa_t host_isa,
+                                             const MKLDNNNode* node,
+                                             Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
-size_t jit_not_equal_emitter::get_inputs_num() const { return 2; }
+size_t jit_not_equal_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_not_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_not_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                      const std::vector<size_t>& out_vec_idxs,
+                                      const std::vector<size_t>& pool_vec_idxs,
+                                      const std::vector<size_t>& pool_gpr_idxs,
+                                      const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -700,7 +842,8 @@ void jit_not_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, co
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_not_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_not_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                     const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -735,20 +878,30 @@ size_t jit_not_equal_emitter::aux_vecs_count() const {
 }
 
 /// GREATER ///
-jit_greater_emitter::jit_greater_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_greater_emitter::jit_greater_emitter(jit_generator* host,
+                                         cpu_isa_t host_isa,
+                                         const std::shared_ptr<ngraph::Node>& node,
+                                         Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_greater_emitter::jit_greater_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_greater_emitter::jit_greater_emitter(jit_generator* host,
+                                         cpu_isa_t host_isa,
+                                         const MKLDNNNode* node,
+                                         Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
-size_t jit_greater_emitter::get_inputs_num() const { return 2; }
+size_t jit_greater_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_greater_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs,
+                                    const std::vector<size_t>& pool_vec_idxs,
+                                    const std::vector<size_t>& pool_gpr_idxs,
+                                    const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -761,7 +914,8 @@ void jit_greater_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_greater_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -796,20 +950,30 @@ size_t jit_greater_emitter::aux_vecs_count() const {
 }
 
 /// GREATER_EQUAL ///
-jit_greater_equal_emitter::jit_greater_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_greater_equal_emitter::jit_greater_equal_emitter(jit_generator* host,
+                                                     cpu_isa_t host_isa,
+                                                     const std::shared_ptr<ngraph::Node>& node,
+                                                     Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_greater_equal_emitter::jit_greater_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_greater_equal_emitter::jit_greater_equal_emitter(jit_generator* host,
+                                                     cpu_isa_t host_isa,
+                                                     const MKLDNNNode* node,
+                                                     Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
-size_t jit_greater_equal_emitter::get_inputs_num() const { return 2; }
+size_t jit_greater_equal_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_greater_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_greater_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                          const std::vector<size_t>& out_vec_idxs,
+                                          const std::vector<size_t>& pool_vec_idxs,
+                                          const std::vector<size_t>& pool_gpr_idxs,
+                                          const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -822,7 +986,8 @@ void jit_greater_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_greater_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                         const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -857,20 +1022,27 @@ size_t jit_greater_equal_emitter::aux_vecs_count() const {
 }
 
 /// LESS ///
-jit_less_emitter::jit_less_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_less_emitter::jit_less_emitter(jit_generator* host,
+                                   cpu_isa_t host_isa,
+                                   const std::shared_ptr<ngraph::Node>& node,
+                                   Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_less_emitter::jit_less_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_less_emitter::jit_less_emitter(jit_generator* host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
-size_t jit_less_emitter::get_inputs_num() const { return 2; }
+size_t jit_less_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_less_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_less_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                 const std::vector<size_t>& out_vec_idxs,
+                                 const std::vector<size_t>& pool_vec_idxs,
+                                 const std::vector<size_t>& pool_gpr_idxs,
+                                 const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -883,7 +1055,7 @@ void jit_less_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const s
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_less_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -918,20 +1090,30 @@ size_t jit_less_emitter::aux_vecs_count() const {
 }
 
 /// LESS_EQUAL ///
-jit_less_equal_emitter::jit_less_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_less_equal_emitter::jit_less_equal_emitter(jit_generator* host,
+                                               cpu_isa_t host_isa,
+                                               const std::shared_ptr<ngraph::Node>& node,
+                                               Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_less_equal_emitter::jit_less_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_less_equal_emitter::jit_less_equal_emitter(jit_generator* host,
+                                               cpu_isa_t host_isa,
+                                               const MKLDNNNode* node,
+                                               Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
-size_t jit_less_equal_emitter::get_inputs_num() const { return 2; }
+size_t jit_less_equal_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_less_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_less_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                       const std::vector<size_t>& out_vec_idxs,
+                                       const std::vector<size_t>& pool_vec_idxs,
+                                       const std::vector<size_t>& pool_gpr_idxs,
+                                       const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -944,7 +1126,8 @@ void jit_less_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, c
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_less_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_less_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                      const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -980,20 +1163,30 @@ size_t jit_less_equal_emitter::aux_vecs_count() const {
 }
 
 /// LOGICAL_AND ///
-jit_logical_and_emitter::jit_logical_and_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_and_emitter::jit_logical_and_emitter(jit_generator* host,
+                                                 cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ngraph::Node>& node,
+                                                 Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_and_emitter::jit_logical_and_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_and_emitter::jit_logical_and_emitter(jit_generator* host,
+                                                 cpu_isa_t host_isa,
+                                                 const MKLDNNNode* node,
+                                                 Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
-size_t jit_logical_and_emitter::get_inputs_num() const { return 2; }
+size_t jit_logical_and_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_logical_and_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_logical_and_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                        const std::vector<size_t>& out_vec_idxs,
+                                        const std::vector<size_t>& pool_vec_idxs,
+                                        const std::vector<size_t>& pool_gpr_idxs,
+                                        const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1006,7 +1199,8 @@ void jit_logical_and_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_logical_and_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_logical_and_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                       const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -1060,22 +1254,31 @@ size_t jit_logical_and_emitter::aux_vecs_count() const {
     return 3;
 }
 
-
 /// LOGICAL_OR ///
-jit_logical_or_emitter::jit_logical_or_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_or_emitter::jit_logical_or_emitter(jit_generator* host,
+                                               cpu_isa_t host_isa,
+                                               const std::shared_ptr<ngraph::Node>& node,
+                                               Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_or_emitter::jit_logical_or_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_or_emitter::jit_logical_or_emitter(jit_generator* host,
+                                               cpu_isa_t host_isa,
+                                               const MKLDNNNode* node,
+                                               Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
-size_t jit_logical_or_emitter::get_inputs_num() const { return 2; }
+size_t jit_logical_or_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_logical_or_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_logical_or_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                       const std::vector<size_t>& out_vec_idxs,
+                                       const std::vector<size_t>& pool_vec_idxs,
+                                       const std::vector<size_t>& pool_gpr_idxs,
+                                       const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1088,7 +1291,8 @@ void jit_logical_or_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, c
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_logical_or_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_logical_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                      const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -1143,20 +1347,30 @@ size_t jit_logical_or_emitter::aux_vecs_count() const {
 }
 
 /// LOGICAL_XOR ///
-jit_logical_xor_emitter::jit_logical_xor_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_xor_emitter::jit_logical_xor_emitter(jit_generator* host,
+                                                 cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ngraph::Node>& node,
+                                                 Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_xor_emitter::jit_logical_xor_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_xor_emitter::jit_logical_xor_emitter(jit_generator* host,
+                                                 cpu_isa_t host_isa,
+                                                 const MKLDNNNode* node,
+                                                 Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
-size_t jit_logical_xor_emitter::get_inputs_num() const { return 2; }
+size_t jit_logical_xor_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_logical_xor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_logical_xor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                        const std::vector<size_t>& out_vec_idxs,
+                                        const std::vector<size_t>& pool_vec_idxs,
+                                        const std::vector<size_t>& pool_gpr_idxs,
+                                        const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1169,7 +1383,8 @@ void jit_logical_xor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_logical_xor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_logical_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                       const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -1224,20 +1439,30 @@ size_t jit_logical_xor_emitter::aux_vecs_count() const {
 }
 
 /// LOGICAL_NOT ///
-jit_logical_not_emitter::jit_logical_not_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_not_emitter::jit_logical_not_emitter(jit_generator* host,
+                                                 cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ngraph::Node>& node,
+                                                 Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_not_emitter::jit_logical_not_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_not_emitter::jit_logical_not_emitter(jit_generator* host,
+                                                 cpu_isa_t host_isa,
+                                                 const MKLDNNNode* node,
+                                                 Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
-size_t jit_logical_not_emitter::get_inputs_num() const { return 1; }
+size_t jit_logical_not_emitter::get_inputs_num() const {
+    return 1;
+}
 
-void jit_logical_not_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_logical_not_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                        const std::vector<size_t>& out_vec_idxs,
+                                        const std::vector<size_t>& pool_vec_idxs,
+                                        const std::vector<size_t>& pool_gpr_idxs,
+                                        const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1250,7 +1475,8 @@ void jit_logical_not_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_logical_not_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_logical_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                       const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
@@ -1284,8 +1510,11 @@ size_t jit_logical_not_emitter::aux_vecs_count() const {
 }
 
 /// POWER_STATIC ///
-jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_power_static_emitter::jit_power_static_emitter(jit_generator* host,
+                                                   cpu_isa_t host_isa,
+                                                   const std::shared_ptr<ngraph::Node>& node,
+                                                   Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     auto parent = node->input(1).get_source_output().get_node_shared_ptr();
     if (!std::dynamic_pointer_cast<ngraph::op::Constant>(parent)) {
         throw ngraph::ngraph_error("unsupported non constant power");
@@ -1300,14 +1529,17 @@ jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_
     push_arg_entry_of("power", float2int(power), true);
     push_arg_entry_of("scale", 0x3f800000, true);
     push_arg_entry_of("shift", 0x00000000, true);
-    push_arg_entry_of("one",   0x3f800000, true);
+    push_arg_entry_of("one", 0x3f800000, true);
 
     prepare_table();
 }
 
-jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
-    const MKLDNNEltwiseNode *powerNode = dynamic_cast<const MKLDNNEltwiseNode *>(node);
+jit_power_static_emitter::jit_power_static_emitter(jit_generator* host,
+                                                   cpu_isa_t host_isa,
+                                                   const MKLDNNNode* node,
+                                                   Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
+    const MKLDNNEltwiseNode* powerNode = dynamic_cast<const MKLDNNEltwiseNode*>(node);
     if (powerNode == nullptr) {
         IE_THROW() << "Can't cast to MKLDNNEltwiseNode";
     }
@@ -1318,11 +1550,15 @@ jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_
     prepare_table();
 }
 
-size_t jit_power_static_emitter::get_inputs_num() const { return 1; }
+size_t jit_power_static_emitter::get_inputs_num() const {
+    return 1;
+}
 
-void jit_power_static_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_power_static_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                         const std::vector<size_t>& out_vec_idxs,
+                                         const std::vector<size_t>& pool_vec_idxs,
+                                         const std::vector<size_t>& pool_gpr_idxs,
+                                         const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1335,7 +1571,8 @@ void jit_power_static_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs,
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                        const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
@@ -1398,8 +1635,8 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
 
         // caller obligation to save gprs as callee may use them
         size_t gpr_size = 8;
-        Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
-                                         h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
+        Xbyak::Operand gprs_to_save[] =
+            {h->r8, h->r9, h->r10, h->r11, h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
         size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
         h->sub(h->rsp, n_gprs_to_save * gpr_size);
@@ -1428,8 +1665,8 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
         h->sub(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
         for (size_t i = 2; i < get_max_vecs_count() + 2; ++i)
             h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(i - 2));
-        h->uni_vmovups(h->ptr[h->rsp + 0 * get_vec_length()], vmm_dst); // src
-        h->uni_vmovups(h->ptr[h->rsp + 1 * get_vec_length()], vmm_aux0); // beta
+        h->uni_vmovups(h->ptr[h->rsp + 0 * get_vec_length()], vmm_dst);   // src
+        h->uni_vmovups(h->ptr[h->rsp + 1 * get_vec_length()], vmm_aux0);  // beta
 
         // save function address in gpr to pass in in call instruction
         h->mov(h->rbp, reinterpret_cast<uintptr_t>(powf));
@@ -1441,7 +1678,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
 
         // Take src, apply powf on it and replace value on a stack with dst.
         for (size_t i = 0; i < get_vec_length() / sizeof(float); ++i) {
-            const Address &source = h->ptr[h->rsp + h->rbx + i * sizeof(float)];
+            const Address& source = h->ptr[h->rsp + h->rbx + i * sizeof(float)];
             h->uni_vmovss(xmm0, source);
             h->uni_vmovss(xmm1, h->ptr[h->rsp + h->rbx + get_vec_length() + i * sizeof(float)]);
             h->call(h->rbp);
@@ -1478,7 +1715,7 @@ void jit_power_static_emitter::register_table_entries() {
     push_arg_entry_of("power", float2int(power), true);
     push_arg_entry_of("scale", float2int(scale), true);
     push_arg_entry_of("shift", float2int(shift), true);
-    push_arg_entry_of("one",   float2int(1.f), true);
+    push_arg_entry_of("one", float2int(1.f), true);
 }
 
 size_t jit_power_static_emitter::aux_vecs_count() const {
@@ -1486,19 +1723,29 @@ size_t jit_power_static_emitter::aux_vecs_count() const {
 }
 
 /// PRELU ///
-jit_prelu_emitter::jit_prelu_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_prelu_emitter::jit_prelu_emitter(jit_generator* host,
+                                     cpu_isa_t host_isa,
+                                     const std::shared_ptr<ngraph::Node>& node,
+                                     Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_prelu_emitter::jit_prelu_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_prelu_emitter::jit_prelu_emitter(jit_generator* host,
+                                     cpu_isa_t host_isa,
+                                     const MKLDNNNode* node,
+                                     Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-size_t jit_prelu_emitter::get_inputs_num() const { return 2; }
+size_t jit_prelu_emitter::get_inputs_num() const {
+    return 2;
+}
 
-void jit_prelu_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_prelu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs,
+                                  const std::vector<size_t>& pool_vec_idxs,
+                                  const std::vector<size_t>& pool_gpr_idxs,
+                                  const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1511,7 +1758,8 @@ void jit_prelu_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const 
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_prelu_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_prelu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                 const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
@@ -1546,16 +1794,23 @@ size_t jit_prelu_emitter::aux_vecs_count() const {
 }
 
 /// SQRT ///
-jit_sqrt_emitter::jit_sqrt_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_sqrt_emitter::jit_sqrt_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_sqrt_emitter::jit_sqrt_emitter(jit_generator* host,
+                                   cpu_isa_t host_isa,
+                                   const std::shared_ptr<ngraph::Node>& node,
+                                   Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_sqrt_emitter::jit_sqrt_emitter(jit_generator* host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_sqrt_emitter::get_inputs_num() const { return 1; }
+size_t jit_sqrt_emitter::get_inputs_num() const {
+    return 1;
+}
 
-void jit_sqrt_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                const emitter_context *emit_context) const {
+void jit_sqrt_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                 const std::vector<size_t>& out_vec_idxs,
+                                 const std::vector<size_t>& pool_vec_idxs,
+                                 const std::vector<size_t>& pool_gpr_idxs,
+                                 const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1568,23 +1823,30 @@ void jit_sqrt_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const s
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_sqrt_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_sqrt_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
-     h->uni_vsqrtps(vmm_dst, vmm_src0);
+    h->uni_vsqrtps(vmm_dst, vmm_src0);
 }
 
 /// Negate ///
-jit_negative_emitter::jit_negative_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_negative_emitter::jit_negative_emitter(jit_generator* host,
+                                           cpu_isa_t host_isa,
+                                           const std::shared_ptr<ngraph::Node>& node,
+                                           Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 
-size_t jit_negative_emitter::get_inputs_num() const { return 1; }
+size_t jit_negative_emitter::get_inputs_num() const {
+    return 1;
+}
 
-void jit_negative_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                     const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                     const emitter_context *emit_context) const {
+void jit_negative_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                     const std::vector<size_t>& out_vec_idxs,
+                                     const std::vector<size_t>& pool_vec_idxs,
+                                     const std::vector<size_t>& pool_gpr_idxs,
+                                     const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1597,28 +1859,30 @@ void jit_negative_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
 }
 
 template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-void jit_negative_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
-    Vmm vmm_dst  = Vmm(out_vec_idxs[0]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
     h->uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
     h->uni_vsubps(vmm_dst, vmm_dst, vmm_src);
 }
 
 /// ERF ///
-jit_erf_emitter::jit_erf_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_erf_emitter::jit_erf_emitter(jit_generator* host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
 
-size_t jit_erf_emitter::get_inputs_num() const { return 1; }
+size_t jit_erf_emitter::get_inputs_num() const {
+    return 1;
+}
 
-void jit_erf_emitter::emit_impl(
-    const std::vector<size_t> &in_vec_idxs,
-    const std::vector<size_t> &out_vec_idxs,
-    const std::vector<size_t> &pool_vec_idxs,
-    const std::vector<size_t> &pool_gpr_idxs,
-    const emitter_context *emit_context) const {
+void jit_erf_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                const std::vector<size_t>& out_vec_idxs,
+                                const std::vector<size_t>& pool_vec_idxs,
+                                const std::vector<size_t>& pool_gpr_idxs,
+                                const emitter_context* emit_context) const {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1631,7 +1895,7 @@ void jit_erf_emitter::emit_impl(
 }
 
 template <cpu::x64::cpu_isa_t isa>
-void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
@@ -1643,8 +1907,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     Vmm vmm_aux3 = Vmm(aux_vec_idxs[3]);
     Vmm vmm_aux4 = Vmm(aux_vec_idxs[4]);
 
-    auto compute_cmp_mask = [&](const Vmm &vmm_src,
-        const Xbyak::Operand &compare_operand, int cmp_predicate) {
+    auto compute_cmp_mask = [&](const Vmm& vmm_src, const Xbyak::Operand& compare_operand, int cmp_predicate) {
         if (host_isa_ == cpu::x64::avx512_common) {
             h->vcmpps(k_mask, vmm_src, compare_operand, cmp_predicate);
         } else {
@@ -1652,7 +1915,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
         }
     };
 
-    auto blend_with_mask = [&](const Vmm &vmm_dst, const Xbyak::Operand &src) {
+    auto blend_with_mask = [&](const Vmm& vmm_dst, const Xbyak::Operand& src) {
         if (host_isa_ == cpu::x64::avx512_common) {
             h->vblendmps(vmm_dst | k_mask, vmm_dst, src);
         } else {
@@ -1660,7 +1923,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
         }
     };
 
-    auto exp_compute_vector_fwd = [&](const Vmm &vmm_src) {
+    auto exp_compute_vector_fwd = [&](const Vmm& vmm_src) {
         // get mask of values lower than log(FLT_MIN) to zero them in the output
         compute_cmp_mask(vmm_src, table_val("exp_ln_flt_min_f"), _cmp_lt_os);
 
@@ -1687,9 +1950,9 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
         h->uni_vcvtps2dq(vmm_aux2, vmm_src);
         h->uni_vpaddd(vmm_aux2, vmm_aux2, table_val("exponent_bias"));
         const int n_mantissa_bits = 23;
-        h->uni_vpslld(vmm_aux2, vmm_aux2, n_mantissa_bits); //Vmm(6) = 2^-fx
+        h->uni_vpslld(vmm_aux2, vmm_aux2, n_mantissa_bits);  // Vmm(6) = 2^-fx
 
-                                                            // use vmm_src as tmp vmm_zero when applying mask
+        // use vmm_src as tmp vmm_zero when applying mask
         h->uni_vpxor(vmm_src, vmm_src, vmm_src);
         // set zeroes at those points which were < log(FLT_MIN)
         blend_with_mask(vmm_aux2, vmm_src);
@@ -1705,7 +1968,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
         h->uni_vmulps(vmm_src, vmm_src, vmm_aux2);
     };
 
-    auto abs_compute_vector_fwd = [&](const Vmm &vmm_src) {
+    auto abs_compute_vector_fwd = [&](const Vmm& vmm_src) {
         // compute abs(x) = _mm_and_ps(x, 01111..111));
         h->uni_vandps(vmm_src, vmm_src, table_val("positive_mask"));
     };
@@ -1752,21 +2015,21 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
 }
 
 void jit_erf_emitter::register_table_entries() {
-    push_arg_entry_of("approx_const", 0x3ea7ba05, true); // 0.3275911
+    push_arg_entry_of("approx_const", 0x3ea7ba05, true);  // 0.3275911
     push_arg_entry_of("one_over_sqrt_two", 0x3f3504f3, true);
     push_arg_entry_of("sign_mask", 0x80000000, true);
 
-    push_arg_entry_of("ex_pol1", 0x3f7ffffb, true); // p1 = 0.999999701f
-    push_arg_entry_of("ex_pol2", 0x3efffee3, true); // p2 = 0.499991506f
-    push_arg_entry_of("ex_pol3", 0x3e2aad40, true); // p3 = 0.166676521f
-    push_arg_entry_of("ex_pol4", 0x3d2b9d0d, true); // p4 = 0.0418978221f
-    push_arg_entry_of("ex_pol5", 0x3c07cfce, true); // p5 = 0.00828929059f
+    push_arg_entry_of("ex_pol1", 0x3f7ffffb, true);  // p1 = 0.999999701f
+    push_arg_entry_of("ex_pol2", 0x3efffee3, true);  // p2 = 0.499991506f
+    push_arg_entry_of("ex_pol3", 0x3e2aad40, true);  // p3 = 0.166676521f
+    push_arg_entry_of("ex_pol4", 0x3d2b9d0d, true);  // p4 = 0.0418978221f
+    push_arg_entry_of("ex_pol5", 0x3c07cfce, true);  // p5 = 0.00828929059f
 
-    push_arg_entry_of("erf_pol1", 0x3e827906, true); // p1 = 0.254829592f
-    push_arg_entry_of("erf_pol2", 0xbe91a98e, true); // p2 = -0.284496736f
-    push_arg_entry_of("erf_pol3", 0x3fb5f0e3, true); // p3 = 1.421413741f
-    push_arg_entry_of("erf_pol4", 0xbfba00e3, true); // p4 = -1.453152027f
-    push_arg_entry_of("erf_pol5", 0x3f87dc22, true); // p5 = 1.061405429f
+    push_arg_entry_of("erf_pol1", 0x3e827906, true);  // p1 = 0.254829592f
+    push_arg_entry_of("erf_pol2", 0xbe91a98e, true);  // p2 = -0.284496736f
+    push_arg_entry_of("erf_pol3", 0x3fb5f0e3, true);  // p3 = 1.421413741f
+    push_arg_entry_of("erf_pol4", 0xbfba00e3, true);  // p4 = -1.453152027f
+    push_arg_entry_of("erf_pol5", 0x3f87dc22, true);  // p5 = 1.061405429f
 
     push_arg_entry_of("one", 0x3f800000, true);
     push_arg_entry_of("half", 0x3f000000, true);
@@ -1784,4 +2047,4 @@ size_t jit_erf_emitter::aux_vecs_count() const {
     return 5ul;
 }
 
-} // namespace MKLDNNPlugin
+}  // namespace MKLDNNPlugin

@@ -6,20 +6,24 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include "mkldnn_embedding_bag_sum_node.h"
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
+
+#include "mkldnn_embedding_bag_sum_node.h"
 
 namespace MKLDNNPlugin {
 
 class MKLDNNEmbeddingBagPackedSumNode : public MKLDNNNode, public MKLDNNEmbeddingBagSumNode {
 public:
-    MKLDNNEmbeddingBagPackedSumNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNEmbeddingBagPackedSumNode(const std::shared_ptr<ngraph::Node>& op,
+                                    const mkldnn::engine& eng,
+                                    MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 

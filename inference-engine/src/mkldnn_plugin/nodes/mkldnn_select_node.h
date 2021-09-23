@@ -6,19 +6,22 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNSelectNode : public MKLDNNNode {
 public:
-    MKLDNNSelectNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNSelectNode(const std::shared_ptr<ngraph::Node>& op,
+                     const mkldnn::engine& eng,
+                     MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override{};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -27,10 +30,7 @@ public:
 private:
     enum { CONDITION, THEN, ELSE, numOfInputs };
     enum { N, C, D, H, W, numOfDims };
-    enum class SelectBroadcastType {
-        NONE,
-        NUMPY
-    };
+    enum class SelectBroadcastType { NONE, NUMPY };
 
     SelectBroadcastType broadcastType;
     std::vector<size_t> resDims;
@@ -42,7 +42,9 @@ private:
     std::string errorPrefix;
 
     void calcOutOffset(std::vector<size_t>& offset, const std::vector<size_t>& dims);
-    void calcInOffset(std::vector<size_t>& offset, const std::vector<size_t>& inDims, const std::vector<size_t>& outDims);
+    void calcInOffset(std::vector<size_t>& offset,
+                      const std::vector<size_t>& inDims,
+                      const std::vector<size_t>& outDims);
     template <typename COND_T, typename DATA_T>
     void execute_impl();
 };

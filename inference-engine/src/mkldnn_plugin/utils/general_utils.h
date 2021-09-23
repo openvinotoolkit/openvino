@@ -6,23 +6,26 @@
 
 #include <cassert>
 #include <inference_engine.hpp>
+
 #include "cpu_shape.h"
 
 namespace MKLDNNPlugin {
 
-template<typename T, typename U>
+template <typename T, typename U>
 inline T div_up(const T a, const U b) {
     assert(b);
     return (a + b - 1) / b;
 }
 
-template<typename T, typename U>
+template <typename T, typename U>
 inline T rnd_up(const T a, const U b) {
     return div_up(a, b) * b;
 }
 
 template <typename T, typename P>
-constexpr bool one_of(T val, P item) { return val == item; }
+constexpr bool one_of(T val, P item) {
+    return val == item;
+}
 
 template <typename T, typename P, typename... Args>
 constexpr bool one_of(T val, P item, Args... item_others) {
@@ -30,7 +33,9 @@ constexpr bool one_of(T val, P item, Args... item_others) {
 }
 
 template <typename T, typename P>
-constexpr bool everyone_is(T val, P item) { return val == item; }
+constexpr bool everyone_is(T val, P item) {
+    return val == item;
+}
 
 template <typename T, typename P, typename... Args>
 constexpr bool everyone_is(T val, P item, Args... item_others) {
@@ -41,8 +46,8 @@ constexpr inline bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
-template<typename T>
-std::string vec2str(const std::vector<T> &vec) {
+template <typename T>
+std::string vec2str(const std::vector<T>& vec) {
     if (!vec.empty()) {
         std::ostringstream result;
         result << "(";
@@ -87,7 +92,9 @@ inline bool dimsEqualWeak(size_t lhs, size_t rhs) {
  * marks shape axis which shouldn't be validated
  * @return order
  */
-inline bool dimsEqualWeak(const std::vector<size_t>& lhs, const std::vector<size_t>& rhs, size_t skipAxis = Shape::UNDEFINED_DIM) {
+inline bool dimsEqualWeak(const std::vector<size_t>& lhs,
+                          const std::vector<size_t>& rhs,
+                          size_t skipAxis = Shape::UNDEFINED_DIM) {
     if (lhs.size() != rhs.size())
         return false;
 
@@ -101,8 +108,9 @@ inline bool dimsEqualWeak(const std::vector<size_t>& lhs, const std::vector<size
 
 inline InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::Precision> precisions) {
     if (!precisions.empty()) {
-        std::sort(precisions.begin(), precisions.end(),
-                  [](const InferenceEngine::Precision &lhs, const InferenceEngine::Precision &rhs) {
+        std::sort(precisions.begin(),
+                  precisions.end(),
+                  [](const InferenceEngine::Precision& lhs, const InferenceEngine::Precision& rhs) {
                       return lhs.size() > rhs.size();
                   });
         return precisions[0];

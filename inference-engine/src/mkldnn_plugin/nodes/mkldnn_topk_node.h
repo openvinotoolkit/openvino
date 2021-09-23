@@ -4,28 +4,30 @@
 
 #pragma once
 
-#include "ie_common.h"
 #include <ie_common.h>
 #include <mkldnn_node.h>
+
+#include "ie_common.h"
 
 namespace MKLDNNPlugin {
 
 class MKLDNNTopKNode : public MKLDNNNode {
 public:
-    MKLDNNTopKNode(const std::shared_ptr<ngraph::Node> &op, const mkldnn::engine &eng,
-                   MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op,
+                   const mkldnn::engine& eng,
+                   MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
 
     void initSupportedPrimitiveDescriptors() override;
 
-    void createPrimitive() override {};
+    void createPrimitive() override{};
 
     void execute(mkldnn::stream strm) override;
 
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node> &op, std::string &errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 #if defined(HAVE_AVX512F)
     const int block_size = 16;
@@ -67,17 +69,17 @@ public:
         }
     };
 
-    template<class Compare1, template<typename> class Compare2>
-    void top1_axis(const float *src_data, float *dst_data, int *dst_idx, InferenceEngine::SizeVector in_dims);
+    template <class Compare1, template <typename> class Compare2>
+    void top1_axis(const float* src_data, float* dst_data, int* dst_idx, InferenceEngine::SizeVector in_dims);
 
-    template<template<typename> class Compare>
-    void top1(const float *src_data, float *dst_data, int *dst_idx, InferenceEngine::SizeVector in_dims);
+    template <template <typename> class Compare>
+    void top1(const float* src_data, float* dst_data, int* dst_idx, InferenceEngine::SizeVector in_dims);
 
-    template<class Compare1, template<typename> class Compare2>
-    void topk_axis(const float *src_data, float *dst_data, int *dst_idx, InferenceEngine::SizeVector in_dims);
+    template <class Compare1, template <typename> class Compare2>
+    void topk_axis(const float* src_data, float* dst_data, int* dst_idx, InferenceEngine::SizeVector in_dims);
 
-    template<template<typename> class Compare>
-    void topk(const float *src_data, float *dst_data, int *dst_idx, InferenceEngine::SizeVector in_dims);
+    template <template <typename> class Compare>
+    void topk(const float* src_data, float* dst_data, int* dst_idx, InferenceEngine::SizeVector in_dims);
 
 private:
     const size_t TOPK_DATA = 0;

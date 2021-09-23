@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -25,11 +25,11 @@ public:
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
         ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size())
-                                    << "Indices vector size and provided indices shape doesn't fit each other";
+            << "Indices vector size and provided indices shape doesn't fit each other";
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        auto paramOuts =
+            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto indicesNode = ngraph::opset3::Constant::create(secondConstantType, ngraph::Shape(indicesShape), indices);
         auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
         auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
@@ -39,9 +39,11 @@ public:
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {
         // Convert the second input constant precision to i64 to run the reference function
         if (ngraph::element::Type_t::i8 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_function(function);
+            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_function(
+                function);
         } else if (ngraph::element::Type_t::bf16 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>().run_on_function(function);
+            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>()
+                .run_on_function(function);
         }
         return LayerTestsUtils::LayerTestsCommon::CalculateRefs();
     }
@@ -50,7 +52,7 @@ private:
     ngraph::element::Type secondConstantType;
 };
 
-namespace  {
+namespace {
 
 /* Test insertion of the Reorder layer if there is one.
 
@@ -72,5 +74,5 @@ TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU) {
     CheckNodeOfTypeCount(executableNetwork, "Convert", 0);
     CheckNodeOfTypeCount(executableNetwork, "Reorder", 1);
 }
-} // namespace
-} // namespace LayerTestsDefinitions
+}  // namespace
+}  // namespace LayerTestsDefinitions

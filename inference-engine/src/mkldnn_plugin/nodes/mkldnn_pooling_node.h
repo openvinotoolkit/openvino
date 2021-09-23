@@ -6,19 +6,22 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op,
+                      const mkldnn::engine& eng,
+                      MKLDNNWeightsSharing::Ptr& cache);
 
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
-    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
+    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initDescriptor(const NodeConfig& config) override;
@@ -31,7 +34,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
+    void setPostOps(mkldnn::primitive_attr& attr, bool initWeights = false);
 
     bool exclude_pad = false;
     std::vector<ptrdiff_t> stride;
@@ -55,4 +58,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-

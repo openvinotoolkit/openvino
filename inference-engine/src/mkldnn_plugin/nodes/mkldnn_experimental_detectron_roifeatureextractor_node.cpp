@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "mkldnn_experimental_detectron_roifeatureextractor_node.h"
+
+#include <algorithm>
+#include <ngraph/opsets/opset6.hpp>
 #include <string>
 #include <vector>
-#include <algorithm>
 
-#include <ngraph/opsets/opset6.hpp>
-#include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
-#include "mkldnn_experimental_detectron_roifeatureextractor_node.h"
+#include "ie_parallel.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -28,31 +29,28 @@ struct PreCalc {
 };
 
 template <typename T>
-void pre_calc_for_bilinear_interpolate(
-        const int height,
-        const int width,
-        const int pooled_height,
-        const int pooled_width,
-        const int iy_upper,
-        const int ix_upper,
-        T roi_start_h,
-        T roi_start_w,
-        T bin_size_h,
-        T bin_size_w,
-        int roi_bin_grid_h,
-        int roi_bin_grid_w,
-        std::vector<PreCalc<T>>& pre_calc) {
+void pre_calc_for_bilinear_interpolate(const int height,
+                                       const int width,
+                                       const int pooled_height,
+                                       const int pooled_width,
+                                       const int iy_upper,
+                                       const int ix_upper,
+                                       T roi_start_h,
+                                       T roi_start_w,
+                                       T bin_size_h,
+                                       T bin_size_w,
+                                       int roi_bin_grid_h,
+                                       int roi_bin_grid_w,
+                                       std::vector<PreCalc<T>>& pre_calc) {
     int pre_calc_index = 0;
     for (int ph = 0; ph < pooled_height; ph++) {
         for (int pw = 0; pw < pooled_width; pw++) {
             for (int iy = 0; iy < iy_upper; iy++) {
                 const T yy = roi_start_h + ph * bin_size_h +
-                             static_cast<T>(iy + .5f) * bin_size_h /
-                             static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
+                             static_cast<T>(iy + .5f) * bin_size_h / static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
                 for (int ix = 0; ix < ix_upper; ix++) {
                     const T xx = roi_start_w + pw * bin_size_w +
-                                 static_cast<T>(ix + .5f) * bin_size_w /
-                                 static_cast<T>(roi_bin_grid_w);
+                                 static_cast<T>(ix + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
 
                     T x = xx;
                     T y = yy;
@@ -124,19 +122,18 @@ void pre_calc_for_bilinear_interpolate(
 }
 
 template <typename T>
-void ROIAlignForward_cpu_kernel(
-        const int nthreads,
-        const T* bottom_data,
-        const T& spatial_scale,
-        const int channels,
-        const int height,
-        const int width,
-        const int pooled_height,
-        const int pooled_width,
-        const int sampling_ratio,
-        const T* bottom_rois,
-        const bool aligned,
-        T* top_data) {
+void ROIAlignForward_cpu_kernel(const int nthreads,
+                                const T* bottom_data,
+                                const T& spatial_scale,
+                                const int channels,
+                                const int height,
+                                const int width,
+                                const int pooled_height,
+                                const int pooled_width,
+                                const int sampling_ratio,
+                                const T* bottom_rois,
+                                const bool aligned,
+                                T* top_data) {
     int roi_cols = 4;
 
     int n_rois = nthreads / channels / pooled_width / pooled_height;
@@ -166,38 +163,33 @@ void ROIAlignForward_cpu_kernel(
         T bin_size_w = static_cast<T>(roi_width) / static_cast<T>(pooled_width);
 
         // We use roi_bin_grid to sample the grid and mimic integral
-        int roi_bin_grid_h = (sampling_ratio > 0)
-                             ? sampling_ratio
-                             : static_cast<int>(ceil(roi_height / pooled_height));  // e.g., = 2
-        int roi_bin_grid_w =
-                (sampling_ratio > 0) ? sampling_ratio : static_cast<int>(ceil(roi_width / pooled_width));
+        int roi_bin_grid_h =
+            (sampling_ratio > 0) ? sampling_ratio : static_cast<int>(ceil(roi_height / pooled_height));  // e.g., = 2
+        int roi_bin_grid_w = (sampling_ratio > 0) ? sampling_ratio : static_cast<int>(ceil(roi_width / pooled_width));
 
         // We do average (integral) pooling inside a bin
         const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w);  // e.g. = 4
 
         // we want to precalculate indices and weights shared by all chanels,
         // this is the key point of optimiation
-        std::vector<PreCalc<T>> pre_calc(
-                roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
-        pre_calc_for_bilinear_interpolate(
-                height,
-                width,
-                pooled_height,
-                pooled_width,
-                roi_bin_grid_h,
-                roi_bin_grid_w,
-                roi_start_h,
-                roi_start_w,
-                bin_size_h,
-                bin_size_w,
-                roi_bin_grid_h,
-                roi_bin_grid_w,
-                pre_calc);
+        std::vector<PreCalc<T>> pre_calc(roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
+        pre_calc_for_bilinear_interpolate(height,
+                                          width,
+                                          pooled_height,
+                                          pooled_width,
+                                          roi_bin_grid_h,
+                                          roi_bin_grid_w,
+                                          roi_start_h,
+                                          roi_start_w,
+                                          bin_size_h,
+                                          bin_size_w,
+                                          roi_bin_grid_h,
+                                          roi_bin_grid_w,
+                                          pre_calc);
 
         for (int c = 0; c < channels; c++) {
             int index_n_c = index_n + c * pooled_width * pooled_height;
-            const T* offset_bottom_data =
-                    bottom_data + (roi_batch_ind * channels + c) * height * width;
+            const T* offset_bottom_data = bottom_data + (roi_batch_ind * channels + c) * height * width;
             int pre_calc_index = 0;
 
             for (int ph = 0; ph < pooled_height; ph++) {
@@ -208,10 +200,8 @@ void ROIAlignForward_cpu_kernel(
                     for (int iy = 0; iy < roi_bin_grid_h; iy++) {
                         for (int ix = 0; ix < roi_bin_grid_w; ix++) {
                             PreCalc<T> pc = pre_calc[pre_calc_index];
-                            output_val += pc.w1 * offset_bottom_data[pc.pos1] +
-                                          pc.w2 * offset_bottom_data[pc.pos2] +
-                                          pc.w3 * offset_bottom_data[pc.pos3] +
-                                          pc.w4 * offset_bottom_data[pc.pos4];
+                            output_val += pc.w1 * offset_bottom_data[pc.pos1] + pc.w2 * offset_bottom_data[pc.pos2] +
+                                          pc.w3 * offset_bottom_data[pc.pos3] + pc.w4 * offset_bottom_data[pc.pos4];
 
                             pre_calc_index += 1;
                         }
@@ -220,14 +210,12 @@ void ROIAlignForward_cpu_kernel(
 
                     top_data[index] = output_val;
                 }  // for pw
-            }  // for ph
-        }  // for c
+            }      // for ph
+        }          // for c
     });
 }
 
-
-void redistribute_rois(const float* rois, int* level_ids,
-                       const int num_rois, const int levels_num) {
+void redistribute_rois(const float* rois, int* level_ids, const int num_rois, const int levels_num) {
     const float canonical_scale = 224.0f;
     const int canonical_level = 2;
 
@@ -250,11 +238,11 @@ void redistribute_rois(const float* rois, int* level_ids,
     }
 }
 
-
-void reord(const float* src_data, const int* ranks, const int n, const int step, float* dst_data,
-             int* dst_mapping) {
+void reord(const float* src_data, const int* ranks, const int n, const int step, float* dst_data, int* dst_mapping) {
     std::iota(dst_mapping, dst_mapping + n, 0);
-    std::sort(dst_mapping, dst_mapping + n, [&ranks](size_t i1, size_t i2) {return ranks[i1] < ranks[i2];});
+    std::sort(dst_mapping, dst_mapping + n, [&ranks](size_t i1, size_t i2) {
+        return ranks[i1] < ranks[i2];
+    });
     for (int i = 0; i < n; ++i) {
         const int j = dst_mapping[i];
         assert(0 <= j && j < n);
@@ -275,9 +263,13 @@ void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level,
     rois_per_level.insert(rois_per_level.begin(), 0);
 }
 
-
-void reorder_rois(const float *rois, const int* ids, int* mapping, const int rois_num,
-                  float * reordered_rois, std::vector<int>& rois_per_level, const int levels_num) {
+void reorder_rois(const float* rois,
+                  const int* ids,
+                  int* mapping,
+                  const int rois_num,
+                  float* reordered_rois,
+                  std::vector<int>& rois_per_level,
+                  const int levels_num) {
     rois_per_level.clear();
     rois_per_level.resize(levels_num, 0);
     for (int i = 0; i < rois_num; ++i) {
@@ -304,14 +296,16 @@ void reorder_rois(const float *rois, const int* ids, int* mapping, const int roi
     }
 }
 
-bool MKLDNNExperimentalDetectronROIFeatureExtractorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
-                                                                              std::string& errorMessage) noexcept {
+bool MKLDNNExperimentalDetectronROIFeatureExtractorNode::isSupportedOperation(
+    const std::shared_ptr<const ngraph::Node>& op,
+    std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
-        const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+        const auto roiFeatureExtractor =
+            std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
         if (!roiFeatureExtractor) {
             errorMessage = "Only opset6 ExperimentalDetectronROIFeatureExtractor operation is supported";
             return false;
@@ -322,16 +316,19 @@ bool MKLDNNExperimentalDetectronROIFeatureExtractorNode::isSupportedOperation(co
     return true;
 }
 
-MKLDNNExperimentalDetectronROIFeatureExtractorNode::MKLDNNExperimentalDetectronROIFeatureExtractorNode
-        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNExperimentalDetectronROIFeatureExtractorNode::MKLDNNExperimentalDetectronROIFeatureExtractorNode(
+    const std::shared_ptr<ngraph::Node>& op,
+    const mkldnn::engine& eng,
+    MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
-    const auto &attr = roiFeatureExtractor->get_attrs();
+    const auto roiFeatureExtractor =
+        std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+    const auto& attr = roiFeatureExtractor->get_attrs();
     output_dim_ = attr.output_size;
     pyramid_scales_ = attr.pyramid_scales;
     sampling_ratio_ = attr.sampling_ratio;
@@ -350,8 +347,7 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::initSupportedPrimitiveD
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
@@ -361,15 +357,16 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::execute(mkldnn::stream 
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
     const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
-    auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
-    auto *output_rois_features = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROI_FEATURES)[0]->getMemoryPtr()->GetPtr());
-    float *output_rois = nullptr;
+    auto* input_rois = reinterpret_cast<const float*>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
+    auto* output_rois_features =
+        reinterpret_cast<float*>(getChildEdgesAtPort(OUTPUT_ROI_FEATURES)[0]->getMemoryPtr()->GetPtr());
+    float* output_rois = nullptr;
     if (OUTPUT_ROIS < outputShapes.size()) {
-        output_rois = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
+        output_rois = reinterpret_cast<float*>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
     }
 
     std::vector<int> level_ids(num_rois, 0);
-    redistribute_rois(input_rois, reinterpret_cast<int *>(&level_ids[0]), num_rois, levels_num);
+    redistribute_rois(input_rois, reinterpret_cast<int*>(&level_ids[0]), num_rois, levels_num);
 
     std::vector<float> reordered_rois(4 * num_rois, 0);
     std::vector<int> original_rois_mapping(num_rois, 0);
@@ -383,7 +380,8 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::execute(mkldnn::stream 
         const int level_rois_offset = rois_per_level[i];
         const int level_rois_num = rois_per_level[i + 1] - level_rois_offset;
         if (level_rois_num > 0) {
-            auto *featuremap = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemoryPtr()->GetPtr());
+            auto* featuremap =
+                reinterpret_cast<const float*>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemoryPtr()->GetPtr());
             const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2];
             const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3];
             ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,
@@ -402,8 +400,12 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::execute(mkldnn::stream 
     }
 
     std::vector<int> dummy_mapping(num_rois, 0);
-    reord(&output_rois_features_temp[0], &original_rois_mapping[0], num_rois, feaxels_per_roi,
-            output_rois_features, &dummy_mapping[0]);
+    reord(&output_rois_features_temp[0],
+          &original_rois_mapping[0],
+          num_rois,
+          feaxels_per_roi,
+          output_rois_features,
+          &dummy_mapping[0]);
     if (output_rois != nullptr) {
         cpu_memcpy(output_rois, input_rois, 4 * num_rois * sizeof(float));
     }

@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include "mkldnn_exec_network.h"
-
-#include <string>
-#include <map>
-#include <unordered_map>
-#include <memory>
-#include <functional>
-#include <vector>
 #include <cfloat>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <functional>
+#include <map>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "mkldnn_exec_network.h"
 
 namespace MKLDNNPlugin {
 
@@ -22,23 +22,28 @@ public:
     Engine();
     ~Engine();
 
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                       const std::map<std::string, std::string> &config) override;
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> LoadExeNetworkImpl(
+        const InferenceEngine::CNNNetwork& network,
+        const std::map<std::string, std::string>& config) override;
 
     void AddExtension(const InferenceEngine::IExtensionPtr& extension) override;
 
-    void SetConfig(const std::map<std::string, std::string> &config) override;
+    void SetConfig(const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+    InferenceEngine::Parameter GetConfig(
+        const std::string& name,
+        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
-    InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+    InferenceEngine::Parameter GetMetric(
+        const std::string& name,
+        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
-                                                     const std::map<std::string, std::string>& config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
+        std::istream& networkModel,
+        const std::map<std::string, std::string>& config) override;
 
 private:
     Config engConfig;

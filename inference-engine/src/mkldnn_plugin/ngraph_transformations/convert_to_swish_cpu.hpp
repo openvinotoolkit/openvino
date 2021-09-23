@@ -8,7 +8,7 @@
 
 namespace MKLDNNPlugin {
 
-class ConvertToSwishCPU: public ngraph::pass::MatcherPass {
+class ConvertToSwishCPU : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertToSwishCPU();

@@ -22,7 +22,8 @@ using MatrixNmsIEInternal = ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v
 using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
 using ngNmseDcayFunction = ngraph::op::v8::MatrixNms::DecayFunction;
 
-bool MKLDNNMatrixNmsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNMatrixNmsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                               std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -50,7 +51,9 @@ bool MKLDNNMatrixNmsNode::isSupportedOperation(const std::shared_ptr<const ngrap
     return true;
 }
 
-MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache)
+MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op,
+                                         const mkldnn::engine& eng,
+                                         MKLDNNWeightsSharing::Ptr& cache)
     : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -155,16 +158,23 @@ void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
 
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", inType);
 
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_INDICES), supportedIntOutputPrecision, "selected_indices", outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS), supportedFloatPrecision, "selected_outputs", outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS), supportedIntOutputPrecision, "valid_outputs", outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_INDICES),
+                   supportedIntOutputPrecision,
+                   "selected_indices",
+                   outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS),
+                   supportedFloatPrecision,
+                   "selected_outputs",
+                   outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS),
+                   supportedIntOutputPrecision,
+                   "valid_outputs",
+                   outType);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32}},
-                         impl_desc_type::ref_any);
+    addSupportedPrimDesc(
+        {{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::FP32}},
+        {{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::I32}, {LayoutType::ncsp, Precision::I32}},
+        impl_desc_type::ref_any);
 }
 
 bool MKLDNNMatrixNmsNode::created() const {
@@ -206,7 +216,11 @@ static inline float intersectionOverUnion(const float* bbox1, const float* bbox2
 }
 }  // namespace
 
-size_t MKLDNNMatrixNmsNode::nmsMatrix(const float* boxesData, const float* scoresData, BoxInfo* filterBoxes, const int64_t batchIdx, const int64_t classIdx) {
+size_t MKLDNNMatrixNmsNode::nmsMatrix(const float* boxesData,
+                                      const float* scoresData,
+                                      BoxInfo* filterBoxes,
+                                      const int64_t batchIdx,
+                                      const int64_t classIdx) {
     std::vector<int32_t> candidateIndex(m_numBoxes);
     std::iota(candidateIndex.begin(), candidateIndex.end(), 0);
     auto end = std::remove_if(candidateIndex.begin(), candidateIndex.end(), [&scoresData, this](int32_t idx) {
@@ -221,9 +235,12 @@ size_t MKLDNNMatrixNmsNode::nmsMatrix(const float* boxesData, const float* score
         originalSize = m_nmsTopk;
     }
 
-    std::partial_sort(candidateIndex.begin(), candidateIndex.begin() + originalSize, end, [&scoresData](int32_t a, int32_t b) {
-        return scoresData[a] > scoresData[b];
-    });
+    std::partial_sort(candidateIndex.begin(),
+                      candidateIndex.begin() + originalSize,
+                      end,
+                      [&scoresData](int32_t a, int32_t b) {
+                          return scoresData[a] > scoresData[b];
+                      });
 
     std::vector<float> iouMatrix((originalSize * (originalSize - 1)) >> 1);
     std::vector<float> iouMax(originalSize);
@@ -295,7 +312,11 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
         const float* scoresPtr = scores + batchIdx * (m_numClasses * m_numBoxes) + classIdx * m_numBoxes;
         size_t classNumDet = 0;
         size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
-        classNumDet = nmsMatrix(boxesPtr, scoresPtr, m_filteredBoxes.data() + batchOffset + m_classOffset[classIdx], batchIdx, classIdx);
+        classNumDet = nmsMatrix(boxesPtr,
+                                scoresPtr,
+                                m_filteredBoxes.data() + batchOffset + m_classOffset[classIdx],
+                                batchIdx,
+                                classIdx);
         m_numPerBatchClass[batchIdx][classIdx] = classNumDet;
     });
 
@@ -320,10 +341,14 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
                 keepNum = k;
         }
 
-        std::partial_sort(batchFilteredBox, batchFilteredBox + keepNum, batchFilteredBox + numDet, [](const BoxInfo& lhs, const BoxInfo rhs) {
-            return lhs.score > rhs.score || (lhs.score == rhs.score && lhs.classIndex < rhs.classIndex) ||
-                   (lhs.score == rhs.score && lhs.classIndex == rhs.classIndex && lhs.index < rhs.index);
-        });
+        std::partial_sort(
+            batchFilteredBox,
+            batchFilteredBox + keepNum,
+            batchFilteredBox + numDet,
+            [](const BoxInfo& lhs, const BoxInfo rhs) {
+                return lhs.score > rhs.score || (lhs.score == rhs.score && lhs.classIndex < rhs.classIndex) ||
+                       (lhs.score == rhs.score && lhs.classIndex == rhs.classIndex && lhs.index < rhs.index);
+            });
         m_numPerBatch[batchIdx] = keepNum;
     });
 
@@ -338,22 +363,33 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
 
     if (m_sortResultAcrossBatch) { /* sort across batch */
         if (m_sortResultType == MatrixNmsSortResultType::SCORE) {
-            parallel_sort(m_filteredBoxes.begin(), m_filteredBoxes.begin() + startOffset, [](const BoxInfo& l, const BoxInfo& r) {
-                return (l.score > r.score) || (l.score == r.score && l.batchIndex < r.batchIndex) ||
-                       (l.score == r.score && l.batchIndex == r.batchIndex && l.classIndex < r.classIndex) ||
-                       (l.score == r.score && l.batchIndex == r.batchIndex && l.classIndex == r.classIndex && l.index < r.index);
-            });
+            parallel_sort(
+                m_filteredBoxes.begin(),
+                m_filteredBoxes.begin() + startOffset,
+                [](const BoxInfo& l, const BoxInfo& r) {
+                    return (l.score > r.score) || (l.score == r.score && l.batchIndex < r.batchIndex) ||
+                           (l.score == r.score && l.batchIndex == r.batchIndex && l.classIndex < r.classIndex) ||
+                           (l.score == r.score && l.batchIndex == r.batchIndex && l.classIndex == r.classIndex &&
+                            l.index < r.index);
+                });
         } else if (m_sortResultType == MatrixNmsSortResultType::CLASSID) {
-            parallel_sort(m_filteredBoxes.begin(), m_filteredBoxes.begin() + startOffset, [](const BoxInfo& l, const BoxInfo& r) {
-                return (l.classIndex < r.classIndex) || (l.classIndex == r.classIndex && l.batchIndex < r.batchIndex) ||
-                       (l.classIndex == r.classIndex && l.batchIndex == r.batchIndex && l.score > r.score) ||
-                       (l.classIndex == r.classIndex && l.batchIndex == r.batchIndex && l.score == r.score && l.index < r.index);
-            });
+            parallel_sort(
+                m_filteredBoxes.begin(),
+                m_filteredBoxes.begin() + startOffset,
+                [](const BoxInfo& l, const BoxInfo& r) {
+                    return (l.classIndex < r.classIndex) ||
+                           (l.classIndex == r.classIndex && l.batchIndex < r.batchIndex) ||
+                           (l.classIndex == r.classIndex && l.batchIndex == r.batchIndex && l.score > r.score) ||
+                           (l.classIndex == r.classIndex && l.batchIndex == r.batchIndex && l.score == r.score &&
+                            l.index < r.index);
+                });
         }
     }
 
-    float* selectedOutputs = reinterpret_cast<float*>(getChildEdgesAtPort(NMS_SELECTED_OUTPUTS)[0]->getMemoryPtr()->GetPtr());
-    int* selectedIndices = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr()->GetPtr());
+    float* selectedOutputs =
+        reinterpret_cast<float*>(getChildEdgesAtPort(NMS_SELECTED_OUTPUTS)[0]->getMemoryPtr()->GetPtr());
+    int* selectedIndices =
+        reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr()->GetPtr());
     int* validOutputs = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr()->GetPtr());
     std::copy(m_numPerBatch.begin(), m_numPerBatch.end(), validOutputs);
 
@@ -379,7 +415,10 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNMatrixNmsNode::checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type) {
+void MKLDNNMatrixNmsNode::checkPrecision(const Precision prec,
+                                         const std::vector<Precision> precList,
+                                         const std::string name,
+                                         const std::string type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
         IE_THROW() << errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
 }

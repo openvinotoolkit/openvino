@@ -3,26 +3,33 @@
 //
 
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+
 #include <dnnl_types.h>
+
 #include <common/memory_desc_wrapper.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape) : MemoryDesc(shape, DnnlBlocked) {
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape)
+    : MemoryDesc(shape, DnnlBlocked) {
     const auto ndims = shape.getRank();
-    const auto &dims = shape.getDims();
+    const auto& dims = shape.getDims();
     mkldnn::memory::dims plain_strides;
-    if (std::any_of(dims.begin(), dims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+    if (std::any_of(dims.begin(), dims.end(), [](size_t val) {
+            return val == Shape::UNDEFINED_DIM;
+        })) {
         plain_strides.resize(ndims, DNNL_RUNTIME_DIM_VAL);
     } else {
         plain_strides.resize(ndims, 1);
         for (size_t i = 1; i < ndims; i++) {
-            plain_strides[ndims - i -1] = plain_strides[ndims - i] * dims[ndims - i];
+            plain_strides[ndims - i - 1] = plain_strides[ndims - i] * dims[ndims - i];
         }
     }
 
-    desc = {MKLDNNExtensionUtils::convertToDnnlDims(dims), MKLDNNExtensionUtils::IEPrecisionToDataType(prc), plain_strides};
+    desc = {MKLDNNExtensionUtils::convertToDnnlDims(dims),
+            MKLDNNExtensionUtils::IEPrecisionToDataType(prc),
+            plain_strides};
 
     order.resize(ndims);
     std::iota(order.begin(), order.end(), 0);
@@ -34,11 +41,12 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
  * Construct from blocked parameters
  *
  * IE  IOhw_4i16o4i   dims(N) = {32, 64, 128, 128}
- *   blockedDims  {4, 2, 128, 128, 4, 16, 4}                      // total dims(inner, outermost, auto blocked/padded). Generally sorted by strides.
- *   strides      {8388608, 4194304,  32768, 256, 64,  4, 1}      // strides for blockedDims, growing sequence
- *   order        {1, 0,   2,   3, 1,  0, 1}                      // matching to original dims
+ *   blockedDims  {4, 2, 128, 128, 4, 16, 4}                      // total dims(inner, outermost, auto blocked/padded).
+ * Generally sorted by strides. strides      {8388608, 4194304,  32768, 256, 64,  4, 1}      // strides for blockedDims,
+ * growing sequence order        {1, 0,   2,   3, 1,  0, 1}                      // matching to original dims
  *
- *   All vectors blockedDims/strides/order have same size equals total num of internal blocked dims(inner_dims + outer_dims)
+ *   All vectors blockedDims/strides/order have same size equals total num of internal blocked dims(inner_dims +
+ * outer_dims)
  *
  *   Tensor descriptor filing is not deterministic. It allows any permutation of index which keeps order of
  *   real dims spliting.
@@ -49,9 +57,14 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
  *
  *   Limitation of conversion first N elements of order should be permutation of [0,1,2 ... N]
  */
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
-                                                 const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,
-                                                 const VectorDims& strides) : MemoryDesc(shape, DnnlBlocked) {
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc,
+                                             const Shape& shape,
+                                             const VectorDims& blockedDims,
+                                             const VectorDims& order,
+                                             size_t offsetPadding,
+                                             const VectorDims& offsetPaddingToData,
+                                             const VectorDims& strides)
+    : MemoryDesc(shape, DnnlBlocked) {
     using namespace mkldnn;
     // scalar case
     if (shape.getRank() == 0) {
@@ -71,18 +84,24 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     }
 
     if (!offsetPaddingToData.empty() && offsetPaddingToData.size() != order.size()) {
-        IE_THROW() << "Can not construct DnnlBlockedMemoryDesc, offsetPaddingToData must have equal size with order and blocked dims";
+        IE_THROW() << "Can not construct DnnlBlockedMemoryDesc, offsetPaddingToData must have equal size with order "
+                      "and blocked dims";
     }
 
     if (!strides.empty() && strides.size() != order.size()) {
-        IE_THROW() << "Can not construct DnnlBlockedMemoryDesc, strides must have equal size with order and blocked dims";
+        IE_THROW()
+            << "Can not construct DnnlBlockedMemoryDesc, strides must have equal size with order and blocked dims";
     }
 
-    if (std::any_of(order.begin(), order.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+    if (std::any_of(order.begin(), order.end(), [](size_t val) {
+            return val == Shape::UNDEFINED_DIM;
+        })) {
         IE_THROW() << "DnnlBlockedMemoryDesc doesn't support undefined order.";
     }
 
-    if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+    if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) {
+            return val == Shape::UNDEFINED_DIM;
+        })) {
         IE_THROW() << "DnnlBlockedMemoryDesc doesn't support undefined blockedDims.";
     }
 
@@ -103,24 +122,27 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
             IE_THROW() << "Can not construct DnnlBlockedMemoryDesc from strides: " << vec2str(strides);
     }
 
-    VectorDims outer_order(outer_ndims, outer_ndims + 1); // outer_order[i] is index of stride for i-th dimension
+    VectorDims outer_order(outer_ndims, outer_ndims + 1);  // outer_order[i] is index of stride for i-th dimension
     for (size_t i = 0; i < outer_ndims; i++) {
         outer_order[order[i]] = i;
     }
     bool outer_is_correct_permutation_of_n =
-            std::find(outer_order.begin(), outer_order.end(), outer_ndims + 1) == outer_order.end();
+        std::find(outer_order.begin(), outer_order.end(), outer_ndims + 1) == outer_order.end();
 
     if (!outer_is_correct_permutation_of_n)
         IE_THROW() << "Can not construct DnnlBlockedMemoryDesc because of incorrect order: " << vec2str(order);
 
-    if (!strides.empty() && std::none_of(strides.begin(), strides.end(), [](size_t x) { return Shape::UNDEFINED_DIM == x; })) {
+    if (!strides.empty() && std::none_of(strides.begin(), strides.end(), [](size_t x) {
+            return Shape::UNDEFINED_DIM == x;
+        })) {
         bool inner_block_are_dense = one_of(strides.back(), 0, 1);  // stride 1 - is dense case, 0 - broad casted
         for (int i = outer_ndims; i < strides.size() - 1; i++) {
             inner_block_are_dense &= (strides[i] == strides[i + 1] * blockedDims[i + 1]);
         }
 
         if (!inner_block_are_dense)
-            IE_THROW() << "Can not construct DnnlBlockedMemoryDesc from strides: " << vec2str(strides) << " inner blocks are not dense.";
+            IE_THROW() << "Can not construct DnnlBlockedMemoryDesc from strides: " << vec2str(strides)
+                       << " inner blocks are not dense.";
     }
 
     // Fill general memory desc fields
@@ -132,11 +154,14 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     std::copy(dims.begin(), dims.end(), desc.data.dims);
 
     if (!offsetPaddingToData.empty()) {
-        bool inner_pad_offsets_is_zero = std::all_of(offsetPaddingToData.begin() + outer_ndims, offsetPaddingToData.end(),
-                                                     [](size_t pad) { return pad == 0; });
+        bool inner_pad_offsets_is_zero =
+            std::all_of(offsetPaddingToData.begin() + outer_ndims, offsetPaddingToData.end(), [](size_t pad) {
+                return pad == 0;
+            });
 
         if (!inner_pad_offsets_is_zero)
-            IE_THROW() << "Can not construct DnnlBlockedMemoryDesc, inner pad offsets is not zero: " << vec2str(offsetPaddingToData);
+            IE_THROW() << "Can not construct DnnlBlockedMemoryDesc, inner pad offsets is not zero: "
+                       << vec2str(offsetPaddingToData);
         auto dnnlPaddedOffsets = MKLDNNExtensionUtils::convertToDnnlDims(offsetPaddingToData);
         std::copy(dnnlPaddedOffsets.begin(), dnnlPaddedOffsets.begin() + outer_ndims, desc.data.padded_offsets);
     } else {
@@ -156,20 +181,25 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     }
 
     // Fill blocking desc
-    auto &dnn_blk_desc = desc.data.format_desc.blocking;
+    auto& dnn_blk_desc = desc.data.format_desc.blocking;
     dnn_blk_desc.inner_nblks = inner_ndims;
     std::copy(dnnlBlkDims.end() - inner_ndims, dnnlBlkDims.end(), dnn_blk_desc.inner_blks);
     std::copy(order.end() - inner_ndims, order.end(), dnn_blk_desc.inner_idxs);
 
     if (strides.empty()) {
-        if (std::any_of(dnnlBlkDims.begin(), dnnlBlkDims.end(), [](memory::dim val) { return val == DNNL_RUNTIME_DIM_VAL; })) {
-            std::fill(std::begin(dnn_blk_desc.strides), std::begin(dnn_blk_desc.strides) + outer_ndims, DNNL_RUNTIME_DIM_VAL);
+        if (std::any_of(dnnlBlkDims.begin(), dnnlBlkDims.end(), [](memory::dim val) {
+                return val == DNNL_RUNTIME_DIM_VAL;
+            })) {
+            std::fill(std::begin(dnn_blk_desc.strides),
+                      std::begin(dnn_blk_desc.strides) + outer_ndims,
+                      DNNL_RUNTIME_DIM_VAL);
         } else {
-            //TODO [DS]: phase 2: refactor
+            // TODO [DS]: phase 2: refactor
             std::vector<memory::dim> tmpStrides(order.size());
             tmpStrides[order.size() - 1] = 1;
             for (size_t i = 2; i <= order.size(); i++) {
-                tmpStrides[order.size() - i] = tmpStrides[order.size() - (i - 1)] * dnnlBlkDims[blockedDims.size() - (i - 1)];
+                tmpStrides[order.size() - i] =
+                    tmpStrides[order.size() - (i - 1)] * dnnlBlkDims[blockedDims.size() - (i - 1)];
             }
             for (size_t i = 0; i < outer_ndims; i++) {
                 dnn_blk_desc.strides[i] = tmpStrides[outer_order[i]];
@@ -187,8 +217,10 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     initBlockedParams();
 }
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format) :
-        MemoryDesc(shape, DnnlBlocked) {
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
+                                             mkldnn::memory::data_type dataType,
+                                             mkldnn::memory::format_tag format)
+    : MemoryDesc(shape, DnnlBlocked) {
     using namespace mkldnn;
     if (format == memory::format_tag::any || format == memory::format_tag::undef)
         IE_THROW(Unexpected) << "Can't create mkldnn::desc with any or undef format";
@@ -204,7 +236,10 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape, mkldnn::memory:
     VectorDims inner_blks;
     VectorDims inner_idxs;
 
-    mkldnn::impl::memory_desc_wrapper::compute_blocking(mkldnn::memory::convert_to_c(format), perm, inner_blks, inner_idxs);
+    mkldnn::impl::memory_desc_wrapper::compute_blocking(mkldnn::memory::convert_to_c(format),
+                                                        perm,
+                                                        inner_blks,
+                                                        inner_idxs);
 
     order.swap(perm);
     order.insert(order.end(), inner_idxs.begin(), inner_idxs.end());
@@ -242,16 +277,19 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const
     if (one_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any))
         return false;
 
-    int stride_start = wrappedThis.ndims() > 0 && wrappedThis.dims()[0] == 1 ? 1 : 0;  // ignore batch axis stride if batch size == 1
+    int stride_start =
+        wrappedThis.ndims() > 0 && wrappedThis.dims()[0] == 1 ? 1 : 0;  // ignore batch axis stride if batch size == 1
 
     const auto thisExtra = this->desc.data.extra;
     const auto rhsExtra = rhs.desc.data.extra;
-    return this->getOrder() == rhs.getOrder() && (thisExtra.flags == rhsExtra.flags && thisExtra.compensation_mask == rhsExtra.compensation_mask &&
-           thisExtra.scale_adjust == rhsExtra.scale_adjust) && wrappedThis.similar_to(wrappedRhs, true, true, 0, stride_start, true, true);
+    return this->getOrder() == rhs.getOrder() &&
+           (thisExtra.flags == rhsExtra.flags && thisExtra.compensation_mask == rhsExtra.compensation_mask &&
+            thisExtra.scale_adjust == rhsExtra.scale_adjust) &&
+           wrappedThis.similar_to(wrappedRhs, true, true, 0, stride_start, true, true);
 }
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc) :
-                MemoryDesc(MKLDNNExtensionUtils::convertToVectorDims(mdesc.dims()), DnnlBlocked) {
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc)
+    : MemoryDesc(MKLDNNExtensionUtils::convertToVectorDims(mdesc.dims()), DnnlBlocked) {
     desc = mdesc;
     if (desc.data.format_kind == dnnl::impl::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
@@ -266,7 +304,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc) 
 
     const auto dims = desc.dims();
 
-    const auto &blk_desc = descWrapped.blocking_desc();
+    const auto& blk_desc = descWrapped.blocking_desc();
 
     const size_t outer_ndims = dims.size();
     const size_t inner_ndims = blk_desc.inner_nblks;
@@ -275,7 +313,8 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc) 
     // strides of inner dims. In case of 4i16o4i will be {64, 4, 1}
     VectorDims inner_strides(inner_ndims, 1);
     for (size_t i = 1; i < blk_desc.inner_nblks; i++) {
-        inner_strides[blk_desc.inner_nblks - 1 - i] = inner_strides[blk_desc.inner_nblks - i] * blk_desc.inner_blks[blk_desc.inner_nblks - i];
+        inner_strides[blk_desc.inner_nblks - 1 - i] =
+            inner_strides[blk_desc.inner_nblks - i] * blk_desc.inner_blks[blk_desc.inner_nblks - i];
     }
 
     // total inner block size. in case of 4i16o4i will be {16, 16, 1, 1}
@@ -291,12 +330,11 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc) 
     // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
     VectorDims outer_order(outer_ndims);
     std::iota(outer_order.begin(), outer_order.end(), 0);
-    std::sort(outer_order.begin(), outer_order.end(),
-              [&blk_desc, &outer_block_dims](size_t ind_l, size_t ind_r) {
-                  return (blk_desc.strides[ind_l] > blk_desc.strides[ind_r]) ||
-                         (blk_desc.strides[ind_l] == blk_desc.strides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
-              });
-
+    std::sort(outer_order.begin(), outer_order.end(), [&blk_desc, &outer_block_dims](size_t ind_l, size_t ind_r) {
+        return (blk_desc.strides[ind_l] > blk_desc.strides[ind_r]) ||
+               (blk_desc.strides[ind_l] == blk_desc.strides[ind_r] &&
+                outer_block_dims[ind_l] > outer_block_dims[ind_r]);
+    });
 
     // blocked order
     // [new_outer_order] U [inner_idxs]
@@ -310,16 +348,16 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc) 
 
 bool DnnlBlockedMemoryDesc::hasLayoutType(LayoutType layoutType) const {
     switch (layoutType) {
-        case LayoutType::ncsp:
-            return isPlainFormat();
-        case LayoutType::nspc:
-            return isTailCFormat();
-        case LayoutType::nCsp8c:
-            return isBlockedCFormat(8);
-        case LayoutType::nCsp16c:
-            return isBlockedCFormat(16);
-        default:
-            return false;
+    case LayoutType::ncsp:
+        return isPlainFormat();
+    case LayoutType::nspc:
+        return isTailCFormat();
+    case LayoutType::nCsp8c:
+        return isBlockedCFormat(8);
+    case LayoutType::nCsp16c:
+        return isBlockedCFormat(16);
+    default:
+        return false;
     }
 }
 
@@ -336,11 +374,9 @@ bool DnnlBlockedMemoryDesc::isPlainFormat() const {
 }
 
 bool DnnlBlockedMemoryDesc::isBlockedCFormat(size_t blk_size) const {
-    const auto &blocking = desc.data.format_desc.blocking;
+    const auto& blocking = desc.data.format_desc.blocking;
 
-    if (desc.data.format_kind !=dnnl_blocked ||
-        blocking.inner_nblks != 1 ||
-        blocking.inner_idxs[0] != 1)
+    if (desc.data.format_kind != dnnl_blocked || blocking.inner_nblks != 1 || blocking.inner_idxs[0] != 1)
         return false;
 
     if ((order.size() - shape.getRank()) != 1) {
@@ -352,7 +388,7 @@ bool DnnlBlockedMemoryDesc::isBlockedCFormat(size_t blk_size) const {
         }
     }
     if (blk_size != UNREACHABLE_DIM && blk_size != blocking.inner_blks[0]) {
-            return false;
+        return false;
     }
 
     return true;
@@ -374,15 +410,17 @@ bool DnnlBlockedMemoryDesc::isTailCFormat() const {
     return true;
 }
 
-MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {
-    if (std::any_of(dims.begin(), dims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
+MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) const {
+    if (std::any_of(dims.begin(), dims.end(), [](size_t x) {
+            return Shape::UNDEFINED_DIM == x;
+        })) {
         IE_THROW() << "Can't clone desc if new dims are undefined";
     }
 
     // TODO [DS]: add stride recalculation for strided blobs
     getStrides();
     getBlockDims();
-    for (int i = strides.size() - 2; i >= 0 ; i--) {
+    for (int i = strides.size() - 2; i >= 0; i--) {
         if (strides[i] == Shape::UNDEFINED_DIM)
             break;
 
@@ -406,206 +444,136 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
     return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(newMklDesc));
 }
 
-static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by_ndims {
-    {0, {
-        mkldnn::memory::format_tag::a   // TODO :: really 1d layout for scalar??
-     }}, {1, {
-        mkldnn::memory::format_tag::a
-     }}, {2, {
-        mkldnn::memory::format_tag::ab,
-        mkldnn::memory::format_tag::ba
-     }}, {3, {
-        mkldnn::memory::format_tag::abc,
-        mkldnn::memory::format_tag::acb,
-        mkldnn::memory::format_tag::bac,
-        mkldnn::memory::format_tag::bca,
-        mkldnn::memory::format_tag::cba,
+static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by_ndims{
+    {0,
+     {
+         mkldnn::memory::format_tag::a  // TODO :: really 1d layout for scalar??
+     }},
+    {1, {mkldnn::memory::format_tag::a}},
+    {2, {mkldnn::memory::format_tag::ab, mkldnn::memory::format_tag::ba}},
+    {3,
+     {
+         mkldnn::memory::format_tag::abc,         mkldnn::memory::format_tag::acb,
+         mkldnn::memory::format_tag::bac,         mkldnn::memory::format_tag::bca,
+         mkldnn::memory::format_tag::cba,
 
-        mkldnn::memory::format_tag::Abc16a,
-        mkldnn::memory::format_tag::ABc16a16b,
-        mkldnn::memory::format_tag::ABc4a4b,
-        mkldnn::memory::format_tag::aBc16b,
-        mkldnn::memory::format_tag::aBc32b,
-        mkldnn::memory::format_tag::ABc16b16a,
-        mkldnn::memory::format_tag::Abc4a,
-        mkldnn::memory::format_tag::aBc4b,
-        mkldnn::memory::format_tag::ABc4b16a4b,
-        mkldnn::memory::format_tag::ABc2b8a4b,
-        mkldnn::memory::format_tag::ABc16b16a4b,
-        mkldnn::memory::format_tag::ABc16b16a2b,
-        mkldnn::memory::format_tag::ABc4b4a,
-        mkldnn::memory::format_tag::ABc8a16b2a,
-        mkldnn::memory::format_tag::ABc8a8b,
-        mkldnn::memory::format_tag::ABc8a4b,
-        mkldnn::memory::format_tag::aBc8b,
-        mkldnn::memory::format_tag::ABc8b16a2b,
-        mkldnn::memory::format_tag::ABc8b8a,
-        mkldnn::memory::format_tag::Acb16a,
-        mkldnn::memory::format_tag::Acb4a,
-        mkldnn::memory::format_tag::Acb8a,
-        mkldnn::memory::format_tag::BAc16a16b,
-        mkldnn::memory::format_tag::BAc16b16a,
-     }}, {4, {                                 // Popular
-        mkldnn::memory::format_tag::abcd,      // plain
-        mkldnn::memory::format_tag::acdb,      // tail_c
-        mkldnn::memory::format_tag::aBcd8b,    // blocked 8c
-        mkldnn::memory::format_tag::aBcd16b,   // blocked 16c
+         mkldnn::memory::format_tag::Abc16a,      mkldnn::memory::format_tag::ABc16a16b,
+         mkldnn::memory::format_tag::ABc4a4b,     mkldnn::memory::format_tag::aBc16b,
+         mkldnn::memory::format_tag::aBc32b,      mkldnn::memory::format_tag::ABc16b16a,
+         mkldnn::memory::format_tag::Abc4a,       mkldnn::memory::format_tag::aBc4b,
+         mkldnn::memory::format_tag::ABc4b16a4b,  mkldnn::memory::format_tag::ABc2b8a4b,
+         mkldnn::memory::format_tag::ABc16b16a4b, mkldnn::memory::format_tag::ABc16b16a2b,
+         mkldnn::memory::format_tag::ABc4b4a,     mkldnn::memory::format_tag::ABc8a16b2a,
+         mkldnn::memory::format_tag::ABc8a8b,     mkldnn::memory::format_tag::ABc8a4b,
+         mkldnn::memory::format_tag::aBc8b,       mkldnn::memory::format_tag::ABc8b16a2b,
+         mkldnn::memory::format_tag::ABc8b8a,     mkldnn::memory::format_tag::Acb16a,
+         mkldnn::memory::format_tag::Acb4a,       mkldnn::memory::format_tag::Acb8a,
+         mkldnn::memory::format_tag::BAc16a16b,   mkldnn::memory::format_tag::BAc16b16a,
+     }},
+    {4,
+     {
+         // Popular
+         mkldnn::memory::format_tag::abcd,     // plain
+         mkldnn::memory::format_tag::acdb,     // tail_c
+         mkldnn::memory::format_tag::aBcd8b,   // blocked 8c
+         mkldnn::memory::format_tag::aBcd16b,  // blocked 16c
 
-        mkldnn::memory::format_tag::abdc,
+         mkldnn::memory::format_tag::abdc,
 
-        mkldnn::memory::format_tag::bacd,
-        mkldnn::memory::format_tag::bcda,
-        mkldnn::memory::format_tag::cdba,
-        mkldnn::memory::format_tag::dcab,
+         mkldnn::memory::format_tag::bacd,         mkldnn::memory::format_tag::bcda,
+         mkldnn::memory::format_tag::cdba,         mkldnn::memory::format_tag::dcab,
 
-        mkldnn::memory::format_tag::Abcd8a,
-        mkldnn::memory::format_tag::Abcd16a,
-        mkldnn::memory::format_tag::Abcd32a,
-        mkldnn::memory::format_tag::ABcd16a16b,
-        mkldnn::memory::format_tag::aBcd32b,
-        mkldnn::memory::format_tag::ABcd16b16a,
-        mkldnn::memory::format_tag::aBCd16b16c,
-        mkldnn::memory::format_tag::aBCd16c16b,
-        mkldnn::memory::format_tag::Abcd4a,
-        mkldnn::memory::format_tag::aBcd4b,
-        mkldnn::memory::format_tag::ABcd4b16a4b,
-        mkldnn::memory::format_tag::ABcd2b8a4b,
-        mkldnn::memory::format_tag::ABcd4b4a,
-        mkldnn::memory::format_tag::ABcd4a4b,
-        mkldnn::memory::format_tag::aBCd4c16b4c,
-        mkldnn::memory::format_tag::aBCd2c8b4c,
-        mkldnn::memory::format_tag::ABcd16b16a4b,
-        mkldnn::memory::format_tag::ABcd16b16a2b,
-        mkldnn::memory::format_tag::aBCd16c16b4c,
-        mkldnn::memory::format_tag::aBCd16c16b2c,
-        mkldnn::memory::format_tag::aBCd4c4b,
-        mkldnn::memory::format_tag::aBCd4b4c,
-        mkldnn::memory::format_tag::ABcd8a16b2a,
-        mkldnn::memory::format_tag::ABcd8a8b,
-        mkldnn::memory::format_tag::ABcd8a32b,
-        mkldnn::memory::format_tag::ABcd32a32b,
-        mkldnn::memory::format_tag::ABcd8a4b,
+         mkldnn::memory::format_tag::Abcd8a,       mkldnn::memory::format_tag::Abcd16a,
+         mkldnn::memory::format_tag::Abcd32a,      mkldnn::memory::format_tag::ABcd16a16b,
+         mkldnn::memory::format_tag::aBcd32b,      mkldnn::memory::format_tag::ABcd16b16a,
+         mkldnn::memory::format_tag::aBCd16b16c,   mkldnn::memory::format_tag::aBCd16c16b,
+         mkldnn::memory::format_tag::Abcd4a,       mkldnn::memory::format_tag::aBcd4b,
+         mkldnn::memory::format_tag::ABcd4b16a4b,  mkldnn::memory::format_tag::ABcd2b8a4b,
+         mkldnn::memory::format_tag::ABcd4b4a,     mkldnn::memory::format_tag::ABcd4a4b,
+         mkldnn::memory::format_tag::aBCd4c16b4c,  mkldnn::memory::format_tag::aBCd2c8b4c,
+         mkldnn::memory::format_tag::ABcd16b16a4b, mkldnn::memory::format_tag::ABcd16b16a2b,
+         mkldnn::memory::format_tag::aBCd16c16b4c, mkldnn::memory::format_tag::aBCd16c16b2c,
+         mkldnn::memory::format_tag::aBCd4c4b,     mkldnn::memory::format_tag::aBCd4b4c,
+         mkldnn::memory::format_tag::ABcd8a16b2a,  mkldnn::memory::format_tag::ABcd8a8b,
+         mkldnn::memory::format_tag::ABcd8a32b,    mkldnn::memory::format_tag::ABcd32a32b,
+         mkldnn::memory::format_tag::ABcd8a4b,
 
-        mkldnn::memory::format_tag::ABcd8b16a2b,
-        mkldnn::memory::format_tag::aBCd8b16c2b,
-        mkldnn::memory::format_tag::ABcd8b8a,
-        mkldnn::memory::format_tag::aBCd8b8c,
-        mkldnn::memory::format_tag::aBCd8b4c,
-        mkldnn::memory::format_tag::aBCd8c16b2c,
-        mkldnn::memory::format_tag::aBCd8c8b,
+         mkldnn::memory::format_tag::ABcd8b16a2b,  mkldnn::memory::format_tag::aBCd8b16c2b,
+         mkldnn::memory::format_tag::ABcd8b8a,     mkldnn::memory::format_tag::aBCd8b8c,
+         mkldnn::memory::format_tag::aBCd8b4c,     mkldnn::memory::format_tag::aBCd8c16b2c,
+         mkldnn::memory::format_tag::aBCd8c8b,
 
-        mkldnn::memory::format_tag::ABcd4a8b8a4b,
-        mkldnn::memory::format_tag::ABcd2a8b8a2b,
+         mkldnn::memory::format_tag::ABcd4a8b8a4b, mkldnn::memory::format_tag::ABcd2a8b8a2b,
 
-        mkldnn::memory::format_tag::aBdc16b,
-        mkldnn::memory::format_tag::aBdc4b,
-        mkldnn::memory::format_tag::aBdc8b,
-        mkldnn::memory::format_tag::aCBd16b16c,
-        mkldnn::memory::format_tag::aCBd16c16b,
-        mkldnn::memory::format_tag::Acdb16a,
-        mkldnn::memory::format_tag::Acdb4a,
-        mkldnn::memory::format_tag::Acdb8a,
-        mkldnn::memory::format_tag::BAcd16a16b,
-        mkldnn::memory::format_tag::BAcd16b16a,
-        mkldnn::memory::format_tag::ABcd32a32b,
-        mkldnn::memory::format_tag::Acdb32a,
-        mkldnn::memory::format_tag::aBCd2b4c2b,
-        mkldnn::memory::format_tag::aBCd2c4b2c,
-        mkldnn::memory::format_tag::aBCd4b8c2b,
-        mkldnn::memory::format_tag::aBCd4c8b2c,
-    }}, {5, {                                   // Popular
-        mkldnn::memory::format_tag::abcde,      // plain
-        mkldnn::memory::format_tag::acdeb,      // tail_c
-        mkldnn::memory::format_tag::aBcde8b,    // blocked 8c
-        mkldnn::memory::format_tag::aBcde16b,   // blocked 16c
+         mkldnn::memory::format_tag::aBdc16b,      mkldnn::memory::format_tag::aBdc4b,
+         mkldnn::memory::format_tag::aBdc8b,       mkldnn::memory::format_tag::aCBd16b16c,
+         mkldnn::memory::format_tag::aCBd16c16b,   mkldnn::memory::format_tag::Acdb16a,
+         mkldnn::memory::format_tag::Acdb4a,       mkldnn::memory::format_tag::Acdb8a,
+         mkldnn::memory::format_tag::BAcd16a16b,   mkldnn::memory::format_tag::BAcd16b16a,
+         mkldnn::memory::format_tag::ABcd32a32b,   mkldnn::memory::format_tag::Acdb32a,
+         mkldnn::memory::format_tag::aBCd2b4c2b,   mkldnn::memory::format_tag::aBCd2c4b2c,
+         mkldnn::memory::format_tag::aBCd4b8c2b,   mkldnn::memory::format_tag::aBCd4c8b2c,
+     }},
+    {5,
+     {
+         // Popular
+         mkldnn::memory::format_tag::abcde,     // plain
+         mkldnn::memory::format_tag::acdeb,     // tail_c
+         mkldnn::memory::format_tag::aBcde8b,   // blocked 8c
+         mkldnn::memory::format_tag::aBcde16b,  // blocked 16c
 
-        mkldnn::memory::format_tag::abdec,
-        mkldnn::memory::format_tag::acbde,
-        mkldnn::memory::format_tag::bacde,
-        mkldnn::memory::format_tag::bcdea,
-        mkldnn::memory::format_tag::cdeba,
-        mkldnn::memory::format_tag::decab,
+         mkldnn::memory::format_tag::abdec,         mkldnn::memory::format_tag::acbde,
+         mkldnn::memory::format_tag::bacde,         mkldnn::memory::format_tag::bcdea,
+         mkldnn::memory::format_tag::cdeba,         mkldnn::memory::format_tag::decab,
 
-        mkldnn::memory::format_tag::Abcde16a,
-        mkldnn::memory::format_tag::Abcde32a,
-        mkldnn::memory::format_tag::ABcde16a16b,
-        mkldnn::memory::format_tag::aBcde32b,
-        mkldnn::memory::format_tag::ABcde16b16a,
-        mkldnn::memory::format_tag::aBCde16b16c,
-        mkldnn::memory::format_tag::aBCde16c16b,
-        mkldnn::memory::format_tag::aBCde2c8b4c,
-        mkldnn::memory::format_tag::Abcde4a,
-        mkldnn::memory::format_tag::aBcde4b,
-        mkldnn::memory::format_tag::ABcde4b4a,
-        mkldnn::memory::format_tag::ABcde4a4b,
-        mkldnn::memory::format_tag::aBCde4b4c,
-        mkldnn::memory::format_tag::aBCde4c16b4c,
-        mkldnn::memory::format_tag::aBCde16c16b4c,
-        mkldnn::memory::format_tag::aBCde16c16b2c,
-        mkldnn::memory::format_tag::aBCde4c4b,
-        mkldnn::memory::format_tag::Abcde8a,
-        mkldnn::memory::format_tag::ABcde8a8b,
-        mkldnn::memory::format_tag::ABcde8a4b,
-        mkldnn::memory::format_tag::ABcde8b16a2b,
-        mkldnn::memory::format_tag::ABcde4b16a4b,
-        mkldnn::memory::format_tag::ABcde2b8a4b,
-        mkldnn::memory::format_tag::aBCde8b16c2b,
-        mkldnn::memory::format_tag::ABcde8b8a,
-        mkldnn::memory::format_tag::aBCde8b8c,
-        mkldnn::memory::format_tag::aBCde8b4c,
-        mkldnn::memory::format_tag::aBCde4b8c8b4c,
-        mkldnn::memory::format_tag::aBCde2b8c8b2c,
-        mkldnn::memory::format_tag::aBCde8c16b2c,
-        mkldnn::memory::format_tag::aBCde8c8b,
-        mkldnn::memory::format_tag::aBdec16b,
-        mkldnn::memory::format_tag::aBdec4b,
-        mkldnn::memory::format_tag::aBdec8b,
-        mkldnn::memory::format_tag::aCBde16b16c,
-        mkldnn::memory::format_tag::aCBde16c16b,
-        mkldnn::memory::format_tag::Acdeb16a,
-        mkldnn::memory::format_tag::Acdeb4a,
-        mkldnn::memory::format_tag::Acdeb8a,
-        mkldnn::memory::format_tag::BAcde16b16a,
-        mkldnn::memory::format_tag::BAcde16a16b,
-        mkldnn::memory::format_tag::aBdec32b,
-        mkldnn::memory::format_tag::aBCde2b4c2b,
-        mkldnn::memory::format_tag::aBCde2c4b2c,
-        mkldnn::memory::format_tag::aBCde4b8c2b,
-        mkldnn::memory::format_tag::aBCde4c8b2c,
-    }}, {6, {                                    // Popular
-        mkldnn::memory::format_tag::abcdef,      // plain
-        mkldnn::memory::format_tag::acbdef,      // permute
-        mkldnn::memory::format_tag::defcab,      // permute
-        mkldnn::memory::format_tag::aBcdef16b,   // blocked 16c
+         mkldnn::memory::format_tag::Abcde16a,      mkldnn::memory::format_tag::Abcde32a,
+         mkldnn::memory::format_tag::ABcde16a16b,   mkldnn::memory::format_tag::aBcde32b,
+         mkldnn::memory::format_tag::ABcde16b16a,   mkldnn::memory::format_tag::aBCde16b16c,
+         mkldnn::memory::format_tag::aBCde16c16b,   mkldnn::memory::format_tag::aBCde2c8b4c,
+         mkldnn::memory::format_tag::Abcde4a,       mkldnn::memory::format_tag::aBcde4b,
+         mkldnn::memory::format_tag::ABcde4b4a,     mkldnn::memory::format_tag::ABcde4a4b,
+         mkldnn::memory::format_tag::aBCde4b4c,     mkldnn::memory::format_tag::aBCde4c16b4c,
+         mkldnn::memory::format_tag::aBCde16c16b4c, mkldnn::memory::format_tag::aBCde16c16b2c,
+         mkldnn::memory::format_tag::aBCde4c4b,     mkldnn::memory::format_tag::Abcde8a,
+         mkldnn::memory::format_tag::ABcde8a8b,     mkldnn::memory::format_tag::ABcde8a4b,
+         mkldnn::memory::format_tag::ABcde8b16a2b,  mkldnn::memory::format_tag::ABcde4b16a4b,
+         mkldnn::memory::format_tag::ABcde2b8a4b,   mkldnn::memory::format_tag::aBCde8b16c2b,
+         mkldnn::memory::format_tag::ABcde8b8a,     mkldnn::memory::format_tag::aBCde8b8c,
+         mkldnn::memory::format_tag::aBCde8b4c,     mkldnn::memory::format_tag::aBCde4b8c8b4c,
+         mkldnn::memory::format_tag::aBCde2b8c8b2c, mkldnn::memory::format_tag::aBCde8c16b2c,
+         mkldnn::memory::format_tag::aBCde8c8b,     mkldnn::memory::format_tag::aBdec16b,
+         mkldnn::memory::format_tag::aBdec4b,       mkldnn::memory::format_tag::aBdec8b,
+         mkldnn::memory::format_tag::aCBde16b16c,   mkldnn::memory::format_tag::aCBde16c16b,
+         mkldnn::memory::format_tag::Acdeb16a,      mkldnn::memory::format_tag::Acdeb4a,
+         mkldnn::memory::format_tag::Acdeb8a,       mkldnn::memory::format_tag::BAcde16b16a,
+         mkldnn::memory::format_tag::BAcde16a16b,   mkldnn::memory::format_tag::aBdec32b,
+         mkldnn::memory::format_tag::aBCde2b4c2b,   mkldnn::memory::format_tag::aBCde2c4b2c,
+         mkldnn::memory::format_tag::aBCde4b8c2b,   mkldnn::memory::format_tag::aBCde4c8b2c,
+     }},
+    {6,
+     {
+         // Popular
+         mkldnn::memory::format_tag::abcdef,     // plain
+         mkldnn::memory::format_tag::acbdef,     // permute
+         mkldnn::memory::format_tag::defcab,     // permute
+         mkldnn::memory::format_tag::aBcdef16b,  // blocked 16c
 
-        mkldnn::memory::format_tag::aBCdef16b16c,
-        mkldnn::memory::format_tag::aBCdef16c16b,
-        mkldnn::memory::format_tag::aBcdef4b,
-        mkldnn::memory::format_tag::aBCdef2c8b4c,
-        mkldnn::memory::format_tag::aBCdef4c4b,
-        mkldnn::memory::format_tag::aBCdef4b4c,
-        mkldnn::memory::format_tag::aBCdef8b8c,
-        mkldnn::memory::format_tag::aBCdef8b4c,
-        mkldnn::memory::format_tag::aBCdef8c16b2c,
-        mkldnn::memory::format_tag::aBCdef4c16b4c,
-        mkldnn::memory::format_tag::aBCdef8c8b,
+         mkldnn::memory::format_tag::aBCdef16b16c,  mkldnn::memory::format_tag::aBCdef16c16b,
+         mkldnn::memory::format_tag::aBcdef4b,      mkldnn::memory::format_tag::aBCdef2c8b4c,
+         mkldnn::memory::format_tag::aBCdef4c4b,    mkldnn::memory::format_tag::aBCdef4b4c,
+         mkldnn::memory::format_tag::aBCdef8b8c,    mkldnn::memory::format_tag::aBCdef8b4c,
+         mkldnn::memory::format_tag::aBCdef8c16b2c, mkldnn::memory::format_tag::aBCdef4c16b4c,
+         mkldnn::memory::format_tag::aBCdef8c8b,
 
-        mkldnn::memory::format_tag::aBdefc16b,
-        mkldnn::memory::format_tag::aCBdef16c16b,
-        mkldnn::memory::format_tag::aCBdef16b16c,
-        mkldnn::memory::format_tag::aBdefc4b,
-        mkldnn::memory::format_tag::aBdefc8b,
+         mkldnn::memory::format_tag::aBdefc16b,     mkldnn::memory::format_tag::aCBdef16c16b,
+         mkldnn::memory::format_tag::aCBdef16b16c,  mkldnn::memory::format_tag::aBdefc4b,
+         mkldnn::memory::format_tag::aBdefc8b,
 
-        mkldnn::memory::format_tag::Abcdef4a,
-        mkldnn::memory::format_tag::Abcdef8a,
-        mkldnn::memory::format_tag::Abcdef16a,
-        mkldnn::memory::format_tag::Abcdef32a,
-        mkldnn::memory::format_tag::aBCdef2b4c2b,
-        mkldnn::memory::format_tag::aBCdef2c4b2c,
-        mkldnn::memory::format_tag::aBCdef4b8c2b,
-        mkldnn::memory::format_tag::aBCdef4c8b2c,
-        }}
-};
+         mkldnn::memory::format_tag::Abcdef4a,      mkldnn::memory::format_tag::Abcdef8a,
+         mkldnn::memory::format_tag::Abcdef16a,     mkldnn::memory::format_tag::Abcdef32a,
+         mkldnn::memory::format_tag::aBCdef2b4c2b,  mkldnn::memory::format_tag::aBCdef2c4b2c,
+         mkldnn::memory::format_tag::aBCdef4b8c2b,  mkldnn::memory::format_tag::aBCdef4c8b2c,
+     }}};
 
 bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
     mkldnn::memory::desc refDesc(desc.dims(), desc.data_type(), fmt);
@@ -636,7 +604,7 @@ bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
     {
         const auto dims = desc.dims();
         VectorDims total_block_per_dim(dims.size(), 1);
-        const auto &blk_desc = desc.data.format_desc.blocking;
+        const auto& blk_desc = desc.data.format_desc.blocking;
         for (int i = 0; i < blk_desc.inner_nblks; i++) {
             total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
         }
@@ -646,10 +614,12 @@ bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
         }
 
         std::iota(actualOrder.begin(), actualOrder.end(), 0);
-        std::sort(actualOrder.begin(), actualOrder.end(),
-                  [&actualStrides, &outer_block_dims] (size_t ind_l, size_t ind_r) {
+        std::sort(actualOrder.begin(),
+                  actualOrder.end(),
+                  [&actualStrides, &outer_block_dims](size_t ind_l, size_t ind_r) {
                       return (actualStrides[ind_l] > actualStrides[ind_r]) ||
-                             (actualStrides[ind_l] == actualStrides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
+                             (actualStrides[ind_l] == actualStrides[ind_r] &&
+                              outer_block_dims[ind_l] > outer_block_dims[ind_r]);
                   });
     }
 
@@ -657,7 +627,7 @@ bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
     {
         const auto dims = refDesc.dims();
         VectorDims total_block_per_dim(dims.size(), 1);
-        const auto &blk_desc = refDesc.data.format_desc.blocking;
+        const auto& blk_desc = refDesc.data.format_desc.blocking;
         for (int i = 0; i < blk_desc.inner_nblks; i++) {
             total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
         }
@@ -667,11 +637,10 @@ bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
         }
 
         std::iota(refOrder.begin(), refOrder.end(), 0);
-        std::sort(refOrder.begin(), refOrder.end(),
-                  [&refStrides, &outer_block_dims] (size_t ind_l, size_t ind_r) {
-                      return (refStrides[ind_l] > refStrides[ind_r]) ||
-                             (refStrides[ind_l] == refStrides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
-                  });
+        std::sort(refOrder.begin(), refOrder.end(), [&refStrides, &outer_block_dims](size_t ind_l, size_t ind_r) {
+            return (refStrides[ind_l] > refStrides[ind_r]) ||
+                   (refStrides[ind_l] == refStrides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
+        });
     }
 
     if (actualOrder != refOrder) {
@@ -709,7 +678,9 @@ size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
     }
 
     auto& maxDims = shape.getMaxDims();
-    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
+    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x) {
+            return Shape::UNDEFINED_DIM == x;
+        })) {
         return UNDEFINED_SIZE;
     }
 
@@ -718,7 +689,9 @@ size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
 }
 
 size_t DnnlBlockedMemoryDesc::getPaddedElementsCount() const {
-    return std::accumulate(std::begin(desc.data.padded_dims), std::begin(desc.data.padded_dims) + desc.data.ndims, size_t{1},
+    return std::accumulate(std::begin(desc.data.padded_dims),
+                           std::begin(desc.data.padded_dims) + desc.data.ndims,
+                           size_t{1},
                            std::multiplies<int64_t>());
 }
 
@@ -733,7 +706,7 @@ bool DnnlBlockedMemoryDesc::blocksExtended() const {
 void DnnlBlockedMemoryDesc::initBlockDims() {
     const auto dims = desc.dims();
 
-    const auto &blk_desc = desc.data.format_desc.blocking;
+    const auto& blk_desc = desc.data.format_desc.blocking;
 
     const size_t outer_ndims = dims.size();
     const size_t inner_ndims = blk_desc.inner_nblks;
@@ -758,16 +731,18 @@ void DnnlBlockedMemoryDesc::initBlockDims() {
     std::copy(order.begin(), order.begin() + outer_ndims, outer_order.begin());
 
     blockedDims.resize(total_ndims, 0);
-    std::copy(blk_desc.inner_blks, blk_desc.inner_blks + blk_desc.inner_nblks,
+    std::copy(blk_desc.inner_blks,
+              blk_desc.inner_blks + blk_desc.inner_nblks,
               blockedDims.end() - blk_desc.inner_nblks);
-    std::transform(outer_order.begin(), outer_order.end(), blockedDims.begin(),
-                   [&] (size_t i) { return outer_block_dims[i]; });
+    std::transform(outer_order.begin(), outer_order.end(), blockedDims.begin(), [&](size_t i) {
+        return outer_block_dims[i];
+    });
 }
 
 void DnnlBlockedMemoryDesc::initStrides() {
     const auto dims = desc.dims();
 
-    const auto &blk_desc = desc.data.format_desc.blocking;
+    const auto& blk_desc = desc.data.format_desc.blocking;
 
     const size_t outer_ndims = dims.size();
     const size_t inner_ndims = blk_desc.inner_nblks;
@@ -776,7 +751,8 @@ void DnnlBlockedMemoryDesc::initStrides() {
     // strides of inner dims. In case of 4i16o4i will be {64, 4, 1}
     VectorDims inner_strides(inner_ndims, 1);
     for (size_t i = 1; i < blk_desc.inner_nblks; i++) {
-        inner_strides[blk_desc.inner_nblks - 1 - i] = inner_strides[blk_desc.inner_nblks - i] * blk_desc.inner_blks[blk_desc.inner_nblks - i];
+        inner_strides[blk_desc.inner_nblks - 1 - i] =
+            inner_strides[blk_desc.inner_nblks - i] * blk_desc.inner_blks[blk_desc.inner_nblks - i];
     }
 
     // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
@@ -787,10 +763,12 @@ void DnnlBlockedMemoryDesc::initStrides() {
     // [outer_strides via new_outer_order] U [inner_strides]
     strides.resize(total_ndims, 0);
     std::copy(inner_strides.rbegin(), inner_strides.rend(), strides.rbegin());
-    std::transform(outer_order.begin(), outer_order.end(), strides.begin(),
-                   [&](size_t i) { return blk_desc.strides[i] == DNNL_RUNTIME_DIM_VAL ? Shape::UNDEFINED_DIM : blk_desc.strides[i]; });
+    std::transform(outer_order.begin(), outer_order.end(), strides.begin(), [&](size_t i) {
+        return blk_desc.strides[i] == DNNL_RUNTIME_DIM_VAL ? Shape::UNDEFINED_DIM : blk_desc.strides[i];
+    });
 }
 
 void DnnlBlockedMemoryDesc::initOffsetPadding() {
-    offsetPaddingToData = VectorDims(std::begin(desc.data.padded_offsets), std::begin(desc.data.padded_offsets) + getOrder().size());
+    offsetPaddingToData =
+        VectorDims(std::begin(desc.data.padded_offsets), std::begin(desc.data.padded_offsets) + getOrder().size());
 }

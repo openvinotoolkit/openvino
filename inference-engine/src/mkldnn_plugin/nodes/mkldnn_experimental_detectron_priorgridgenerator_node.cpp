@@ -2,23 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
+#include "mkldnn_experimental_detectron_priorgridgenerator_node.h"
 
 #include <ngraph/opsets/opset6.hpp>
+#include <string>
+
 #include "ie_parallel.hpp"
-#include "mkldnn_experimental_detectron_priorgridgenerator_node.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
-                                                                             std::string& errorMessage) noexcept {
+bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::isSupportedOperation(
+    const std::shared_ptr<const ngraph::Node>& op,
+    std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
-        const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+        const auto priorGridGen =
+            std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
         if (!priorGridGen) {
             errorMessage = "Only opset6 ExperimentalDetectronPriorGridGenerator operation is supported";
             return false;
@@ -29,25 +32,27 @@ bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::isSupportedOperation(con
     return true;
 }
 
-MKLDNNExperimentalDetectronPriorGridGeneratorNode::MKLDNNExperimentalDetectronPriorGridGeneratorNode
-        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+MKLDNNExperimentalDetectronPriorGridGeneratorNode::MKLDNNExperimentalDetectronPriorGridGeneratorNode(
+    const std::shared_ptr<ngraph::Node>& op,
+    const mkldnn::engine& eng,
+    MKLDNNWeightsSharing::Ptr& cache)
+    : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
     errorPrefix = "ExperimentalDetectronPriorGridGenerator layer with name '" + op->get_friendly_name() + "'";
-    const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+    const auto priorGridGen =
+        std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
     if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    if (op->get_input_shape(INPUT_PRIORS).size() != 2 ||
-        op->get_input_shape(INPUT_FEATUREMAP).size() != 4 ||
+    if (op->get_input_shape(INPUT_PRIORS).size() != 2 || op->get_input_shape(INPUT_FEATUREMAP).size() != 4 ||
         op->get_input_shape(INPUT_IMAGE).size() != 4)
         IE_THROW() << errorPrefix << " has unsupported input shape";
 
-    const auto &attr = priorGridGen->get_attrs();
+    const auto& attr = priorGridGen->get_attrs();
     grid_w_ = attr.w;
     grid_h_ = attr.h;
     stride_h_ = attr.stride_y;
@@ -58,11 +63,10 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::initSupportedPrimitiveDe
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32}},
-                         impl_desc_type::ref_any);
+    addSupportedPrimDesc(
+        {{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::FP32}},
+        {{LayoutType::ncsp, Precision::FP32}},
+        impl_desc_type::ref_any);
 }
 
 void MKLDNNExperimentalDetectronPriorGridGeneratorNode::execute(mkldnn::stream strm) {
@@ -72,11 +76,15 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::execute(mkldnn::stream s
     // Execute
     const int layer_width = grid_w_ ? grid_w_ : getParentEdgeAt(INPUT_FEATUREMAP)->getMemory().getStaticDims()[3];
     const int layer_height = grid_h_ ? grid_h_ : getParentEdgeAt(INPUT_FEATUREMAP)->getMemory().getStaticDims()[2];
-    const float step_w = stride_w_ ? stride_w_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[3]) / layer_width;
-    const float step_h = stride_h_ ? stride_h_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[2]) / layer_height;
+    const float step_w =
+        stride_w_ ? stride_w_
+                  : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[3]) / layer_width;
+    const float step_h =
+        stride_h_ ? stride_h_
+                  : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[2]) / layer_height;
 
-    const auto *bottom_data_0 = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *top_data_0 = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
+    const auto* bottom_data_0 = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto* top_data_0 = reinterpret_cast<float*>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
 
     for (int h = 0; h < layer_height; ++h) {
         for (int w = 0; w < layer_width; ++w) {

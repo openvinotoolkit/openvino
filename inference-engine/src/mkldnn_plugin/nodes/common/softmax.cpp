@@ -4,16 +4,16 @@
 
 #include "softmax.h"
 
-#include <ie_parallel.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/jit_uni_eltwise_injector.hpp>
-#include <mkldnn.hpp>  // TODO: just to replace mkldnn->dnnl via macros
-#include "utils/bfloat16.hpp"
-#include "emitters/jit_bf16_emitters.hpp"
-
 #include <algorithm>
 #include <cassert>
+#include <cpu/x64/jit_generator.hpp>
+#include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <ie_parallel.hpp>
+#include <mkldnn.hpp>  // TODO: just to replace mkldnn->dnnl via macros
 #include <vector>
+
+#include "emitters/jit_bf16_emitters.hpp"
+#include "utils/bfloat16.hpp"
 
 using namespace InferenceEngine;
 using namespace MKLDNNPlugin;
@@ -37,11 +37,13 @@ struct jit_softmax_config_params {
     Precision dst_dt;
 };
 
-
 struct jit_uni_softmax_kernel {
-    void (*ker_)(const jit_args_softmax *);
+    void (*ker_)(const jit_args_softmax*);
 
-    void operator()(const jit_args_softmax *args) { assert(ker_); ker_(args); }
+    void operator()(const jit_args_softmax* args) {
+        assert(ker_);
+        ker_(args);
+    }
 
     jit_uni_softmax_kernel() : ker_(nullptr) {}
     virtual ~jit_uni_softmax_kernel() {}
@@ -61,13 +63,13 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
     }
 
     void generate() override {
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
+        exp_injector.reset(
+            new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
             emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
 
         this->preamble();
-
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
@@ -85,7 +87,8 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
         mov(aux_reg_work_amount, reg_work_amount);
         mov(aux_reg_src, reg_src);
         load_vector(vmm_max, ptr[aux_reg_src], jcp_.src_dt);
-        L(max_loop_label); {
+        L(max_loop_label);
+        {
             cmp(aux_reg_work_amount, 0);
             jle(max_loop_end_label, T_NEAR);
 
@@ -119,7 +122,8 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
         mov(aux_reg_src, reg_src);
         mov(aux_reg_dst, reg_dst);
         uni_vpxor(vmm_exp_sum, vmm_exp_sum, vmm_exp_sum);
-        L(exp_loop_label); {
+        L(exp_loop_label);
+        {
             cmp(aux_reg_work_amount, 0);
             jle(exp_loop_end_label, T_NEAR);
 
@@ -142,7 +146,8 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
 
         mov(aux_reg_work_amount, reg_work_amount);
         mov(aux_reg_dst, reg_dst);
-        L(div_loop_label); {
+        L(div_loop_label);
+        {
             cmp(aux_reg_work_amount, 0);
             jle(div_loop_end_label, T_NEAR);
 
@@ -195,41 +200,41 @@ private:
 
     jit_softmax_config_params jcp_;
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, Precision src_dt) {
+    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, Precision src_dt) {
         switch (src_dt) {
-            case Precision::FP32:
-                uni_vmovups(vmm_src, op);
-                break;
-            case Precision::BF16:
-                vpmovzxwd(vmm_src, op);
-                uni_vpslld(vmm_src, vmm_src, 16);
-                break;
-            default:
-                assert(!"unknown src_dt");
+        case Precision::FP32:
+            uni_vmovups(vmm_src, op);
+            break;
+        case Precision::BF16:
+            vpmovzxwd(vmm_src, op);
+            uni_vpslld(vmm_src, vmm_src, 16);
+            break;
+        default:
+            assert(!"unknown src_dt");
         }
     }
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, Precision dst_dt) {
+    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, Precision dst_dt) {
         Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
 
         switch (dst_dt) {
-            case Precision::FP32:
-                uni_vmovups(op, vmm_dst);
-                break;
-            case Precision::BF16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
-                vmovdqu16(op, ymm_dst);
-                break;
-            default:
-                assert(!"unknown dst_dt");
+        case Precision::FP32:
+            uni_vmovups(op, vmm_dst);
+            break;
+        case Precision::BF16:
+            if (mayiuse(avx512_core_bf16))
+                vcvtneps2bf16(ymm_dst, vmm_dst);
+            else
+                emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(ymm_dst.getIdx())});
+            vmovdqu16(op, ymm_dst);
+            break;
+        default:
+            assert(!"unknown dst_dt");
         }
     }
 };
 
-SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
-    : input_prec(inpPrc), output_prec(outPrc) {
+SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc) : input_prec(inpPrc), output_prec(outPrc) {
     if (Precision::BF16 == output_prec) {
         if (!mayiuse(avx512_core)) {
             IE_THROW() << "SoftmaxGeneric doesn't support BF16 precision on this target.";
@@ -255,26 +260,26 @@ SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
         softmax_kernel->create_ker();
 }
 
-template<typename in_data_t, typename out_data_t>
-void SoftmaxGeneric::calculate(const in_data_t *src_data, out_data_t *dst_data, int B, int C, int H, int W) {
+template <typename in_data_t, typename out_data_t>
+void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, int B, int C, int H, int W) {
     for (int b = 0; b < B; b++) {
         int tail_start = 0;
         if (softmax_kernel) {
-            int blocks_num = H*W / block_size;
+            int blocks_num = H * W / block_size;
 
             parallel_for(blocks_num, [&](int ib) {
                 auto arg = jit_args_softmax();
 
                 arg.src = src_data + b * C * H * W + ib * block_size;
                 arg.dst = dst_data + b * C * H * W + ib * block_size;
-                arg.src_stride = static_cast<size_t>((size_t)(H) * W * sizeof(in_data_t));
-                arg.dst_stride = static_cast<size_t>((size_t)(H) * W * sizeof(out_data_t));
+                arg.src_stride = static_cast<size_t>((size_t)(H)*W * sizeof(in_data_t));
+                arg.dst_stride = static_cast<size_t>((size_t)(H)*W * sizeof(out_data_t));
                 arg.work_amount = static_cast<size_t>(C);
 
                 (*softmax_kernel)(&arg);
             });
 
-            tail_start = (H*W / block_size) * block_size;
+            tail_start = (H * W / block_size) * block_size;
         }
 
         parallel_for(H * W - tail_start, [&](int i) {
@@ -282,7 +287,8 @@ void SoftmaxGeneric::calculate(const in_data_t *src_data, out_data_t *dst_data, 
             float max = src_data[b * C * H * W + offset];
             for (int c = 0; c < C; c++) {
                 float val = src_data[b * C * H * W + c * H * W + offset];
-                if (val > max) max = val;
+                if (val > max)
+                    max = val;
             }
 
             float expSum = 0;
@@ -298,7 +304,7 @@ void SoftmaxGeneric::calculate(const in_data_t *src_data, out_data_t *dst_data, 
     }
 }
 
-void SoftmaxGeneric::execute(const uint8_t *src_data, uint8_t *dst_data, int B, int C, int H, int W) {
+void SoftmaxGeneric::execute(const uint8_t* src_data, uint8_t* dst_data, int B, int C, int H, int W) {
     if (Precision::FP32 == input_prec) {
         auto float_src_data = reinterpret_cast<const float*>(src_data);
         if (Precision::FP32 == output_prec) {

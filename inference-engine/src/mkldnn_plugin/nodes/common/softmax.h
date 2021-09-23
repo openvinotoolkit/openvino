@@ -4,24 +4,25 @@
 
 #pragma once
 
-#include <memory>
 #include <cmath>
 #include <ie_precision.hpp>
+#include <memory>
+
 #include "defs.h"
 #include "ie_parallel.hpp"
 
 struct jit_uni_softmax_kernel;
 
-static inline
-void softmax_many_batches(const float *src_data, float *dst_data, int B, int C, int H, int W) {
+static inline void softmax_many_batches(const float* src_data, float* dst_data, int B, int C, int H, int W) {
     InferenceEngine::parallel_for(B * H * W, [&](size_t i) {
-        const float *psrc = src_data + (i / (H * W)) * C * H * W - (i / (H * W)) * H * W;
-        float *pdst = dst_data + (i / (H * W)) * C * H * W - (i / (H * W)) * H * W;
+        const float* psrc = src_data + (i / (H * W)) * C * H * W - (i / (H * W)) * H * W;
+        float* pdst = dst_data + (i / (H * W)) * C * H * W - (i / (H * W)) * H * W;
 
         float max = psrc[i];
         for (int c = 0; c < C; c++) {
             float val = psrc[c * H * W + i];
-            if (val > max) max = val;
+            if (val > max)
+                max = val;
         }
 
         float expSum = 0;
@@ -40,9 +41,10 @@ class SoftmaxGeneric {
 public:
     SoftmaxGeneric(InferenceEngine::Precision inpPrc, InferenceEngine::Precision outPrc);
 
-    void execute(const uint8_t *src_data, uint8_t *dst_data, int B, int C, int H, int W);
+    void execute(const uint8_t* src_data, uint8_t* dst_data, int B, int C, int H, int W);
+
 private:
-    template<typename in_data_t, typename out_data_t>
+    template <typename in_data_t, typename out_data_t>
     void calculate(const in_data_t* src_data, out_data_t* dst_data, int B, int C, int H, int W);
 
 private:
@@ -50,4 +52,3 @@ private:
     InferenceEngine::Precision input_prec, output_prec;
     std::shared_ptr<jit_uni_softmax_kernel> softmax_kernel;
 };
-

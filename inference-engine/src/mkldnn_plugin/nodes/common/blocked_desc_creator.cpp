@@ -3,6 +3,7 @@
 //
 
 #include "blocked_desc_creator.h"
+
 #include <numeric>
 
 using namespace InferenceEngine;
@@ -18,12 +19,14 @@ public:
         std::iota(order.begin(), order.end(), 0);
         return CpuBlockedMemoryDesc(precision, srcShape, srcShape.getDims(), order);
     }
-    size_t getMinimalRank() const override { return 0lu; }
+    size_t getMinimalRank() const override {
+        return 0lu;
+    }
 };
 
 class PerChannelCreator : public BlockedDescCreator {
 public:
-    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision &precision, const Shape& srcShape) const override {
+    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
         SizeVector order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
         SizeVector blkDims = srcShape.getDims();
@@ -39,7 +42,9 @@ public:
 
         return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
     }
-    size_t getMinimalRank() const override { return 3lu; }
+    size_t getMinimalRank() const override {
+        return 3lu;
+    }
 };
 
 class ChannelBlockedCreator : public BlockedDescCreator {
@@ -62,23 +67,26 @@ public:
 
         return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
     }
-    size_t getMinimalRank() const override { return 3lu; }
+    size_t getMinimalRank() const override {
+        return 3lu;
+    }
 
 private:
     size_t _blockSize;
 };
-} // namespace
+}  // namespace
 
 const BlockedDescCreator::CreatorsMap& BlockedDescCreator::getCommonCreators() {
-    static const CreatorsMap map{ { LayoutType::nspc, CreatorConstPtr(new PerChannelCreator) },
-                                { LayoutType::nCsp8c, CreatorConstPtr(new ChannelBlockedCreator(8)) },
-                                { LayoutType::nCsp16c, CreatorConstPtr(new ChannelBlockedCreator(16)) },
-                                { LayoutType::ncsp, CreatorConstPtr(new PlainFormatCreator) } };
+    static const CreatorsMap map{{LayoutType::nspc, CreatorConstPtr(new PerChannelCreator)},
+                                 {LayoutType::nCsp8c, CreatorConstPtr(new ChannelBlockedCreator(8))},
+                                 {LayoutType::nCsp16c, CreatorConstPtr(new ChannelBlockedCreator(16))},
+                                 {LayoutType::ncsp, CreatorConstPtr(new PlainFormatCreator)}};
     return map;
 }
 
-std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
-BlockedDescCreator::makeFilteredRange(const CreatorsMap &map, unsigned int rank) {
+std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> BlockedDescCreator::makeFilteredRange(
+    const CreatorsMap& map,
+    unsigned int rank) {
     auto rankFilter = [rank](const CreatorsMap::value_type& item) {
         if (item.second->getMinimalRank() > rank) {
             return false;
@@ -91,8 +99,10 @@ BlockedDescCreator::makeFilteredRange(const CreatorsMap &map, unsigned int rank)
     return std::make_pair(first, last);
 }
 
-std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
-BlockedDescCreator::makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<LayoutType>& supportedTypes) {
+std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> BlockedDescCreator::makeFilteredRange(
+    const CreatorsMap& map,
+    unsigned rank,
+    const std::vector<LayoutType>& supportedTypes) {
     unsigned bitMask = 0ul;
     for (auto& item : supportedTypes) {
         bitMask |= 1 << static_cast<unsigned>(item);
@@ -113,8 +123,9 @@ BlockedDescCreator::makeFilteredRange(const CreatorsMap& map, unsigned rank, con
     return std::make_pair(first, last);
 }
 
-std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
-BlockedDescCreator::makeFilteredRange(const CreatorsMap &map, BlockedDescCreator::Predicate predicate) {
+std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> BlockedDescCreator::makeFilteredRange(
+    const CreatorsMap& map,
+    BlockedDescCreator::Predicate predicate) {
     auto first = CreatorsMapFilterConstIterator(std::move(predicate), map.begin(), map.end());
     auto last = first.end();
     return std::make_pair(first, last);

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-#include <algorithm>
-
 #include "mkldnn_extension_mngr.h"
+
+#include <algorithm>
+#include <string>
+#include <vector>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -31,7 +31,8 @@ InferenceEngine::ILayerImpl::Ptr MKLDNNExtensionManager::CreateImplementation(co
     return nullptr;
 }
 
-std::shared_ptr<InferenceEngine::ILayerImplFactory> MKLDNNExtensionManager::CreateExtensionFactory(const std::shared_ptr<ngraph::Node>& op) {
+std::shared_ptr<InferenceEngine::ILayerImplFactory> MKLDNNExtensionManager::CreateExtensionFactory(
+    const std::shared_ptr<ngraph::Node>& op) {
     std::shared_ptr<ILayerImplFactory> factory;
     for (auto& ext : _extensions) {
         ResponseDesc responseDesc;
@@ -52,6 +53,6 @@ std::shared_ptr<InferenceEngine::ILayerImplFactory> MKLDNNExtensionManager::Crea
     return factory;
 }
 
-const std::vector<InferenceEngine::IExtensionPtr> & MKLDNNExtensionManager::Extensions() const {
+const std::vector<InferenceEngine::IExtensionPtr>& MKLDNNExtensionManager::Extensions() const {
     return _extensions;
 }
