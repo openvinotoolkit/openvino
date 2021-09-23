@@ -31,13 +31,12 @@
 /**
  * @def OPENVINO_PLUGIN_API(type)
  * @brief Defines OpenVINO Runtime Plugin API method
- * @param type A plugin type
  */
 
 #ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#    define OPENVINO_PLUGIN_API(type) OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS type
+#    define OPENVINO_PLUGIN_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 #else
-#    define OPENVINO_PLUGIN_API(type) OPENVINO_EXTERN_C type
+#    define OPENVINO_PLUGIN_API OPENVINO_EXTERN_C
 #endif
 
 namespace InferenceEngine {}

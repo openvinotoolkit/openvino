@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "ie_plugin_config.hpp"
-#include "ie_version.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/runtime/remote_context.hpp"
@@ -59,7 +59,7 @@ public:
      * @param deviceName Device name to identify plugin
      * @return A vector of versions
      */
-    std::map<std::string, ie::Version> get_versions(const std::string& deviceName) const;
+    std::map<std::string, Version> get_versions(const std::string& deviceName) const;
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**

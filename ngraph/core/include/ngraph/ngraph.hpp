@@ -11,6 +11,7 @@
 #include <string>
 
 #include "ngraph/deprecated.hpp"
+#include "ngraph/version.hpp"
 
 #ifdef IN_NGRAPH_LIBRARY
 #    error("ngraph.hpp is for external use only")

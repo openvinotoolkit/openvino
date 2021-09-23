@@ -133,17 +133,17 @@ std::string MockPlugin::GetName() const noexcept {
 
 InferenceEngine::IInferencePlugin *__target = nullptr;
 
-OPENVINO_PLUGIN_API(void) CreatePluginEngine(std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
+OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
     IInferencePlugin *p = nullptr;
     std::swap(__target, p);
     plugin = std::make_shared<MockPlugin>(p);
 }
 
-OPENVINO_PLUGIN_API(InferenceEngine::IInferencePlugin*)
+OPENVINO_PLUGIN_API InferenceEngine::IInferencePlugin*
 CreatePluginEngineProxy(InferenceEngine::IInferencePlugin *target) {
     return new MockPlugin(target);
 }
 
-OPENVINO_PLUGIN_API(void) InjectProxyEngine(InferenceEngine::IInferencePlugin *target) {
+OPENVINO_PLUGIN_API void InjectProxyEngine(InferenceEngine::IInferencePlugin *target) {
     __target = target;
 }
