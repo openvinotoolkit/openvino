@@ -122,7 +122,7 @@ std::shared_ptr<void> load_shared_object(const char* path) {
             }};
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<void> load_shared_object(const wchar_t* path) {
     void* shared_object = nullptr;
     using GetDllDirectoryW_Fnc = DWORD(*)(DWORD, LPWSTR);
@@ -193,9 +193,9 @@ struct SharedObjectLoader::Impl {
 
     explicit Impl(const char* pluginName) : shared_object{ov::runtime::load_shared_object(pluginName)} {}
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     explicit Impl(const wchar_t* pluginName) : shared_object{ov::runtime::load_shared_object(pluginName)} {}
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
     void* get_symbol(const char* symbolName) const {
         return ov::runtime::get_symbol(shared_object, symbolName);
@@ -211,7 +211,7 @@ SharedObjectLoader::~SharedObjectLoader() {}
 SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
     _impl = std::make_shared<Impl>(pluginName);
 }
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
     _impl = std::make_shared<Impl>(pluginName);
 }

@@ -64,7 +64,7 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
     if (ov::is_type<ov::VariantWrapper<std::string>>(model_variant)) {
         const auto& path = ov::as_type_ptr<ov::VariantWrapper<std::string>>(model_variant)->get();
         local_model_stream.open(path, std::ios::in | std::ifstream::binary);
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     } else if (ov::is_type<ov::VariantWrapper<std::wstring>>(model_variant)) {
         const auto& path = ov::as_type_ptr<ov::VariantWrapper<std::wstring>>(model_variant)->get();
         local_model_stream.open(path, std::ios::in | std::ifstream::binary);
@@ -109,7 +109,7 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
         return nullptr;
     };
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring weights_path, model_path;
 #else
     std::string weights_path, model_path;
@@ -119,13 +119,13 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
     const auto& model_variant = variants.at(0);
     if (ov::is_type<ov::VariantWrapper<std::string>>(model_variant)) {
         const auto& tmp_path = ov::as_type_ptr<ov::VariantWrapper<std::string>>(model_variant)->get();
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         model_path = ov::util::string_to_wstring(tmp_path.c_str());
 #else
         model_path = tmp_path;
 #endif
         local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     } else if (ov::is_type<ov::VariantWrapper<std::wstring>>(model_variant)) {
         model_path = ov::as_type_ptr<ov::VariantWrapper<std::wstring>>(model_variant)->get();
         local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
@@ -141,12 +141,12 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
         const auto& variant = variants.at(variant_id);
         if (ov::is_type<ov::VariantWrapper<std::string>>(variant)) {
             const auto& tmp_path = ov::as_type_ptr<ov::VariantWrapper<std::string>>(variant)->get();
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
             weights_path = ov::util::string_to_wstring(tmp_path.c_str());
 #else
             weights_path = tmp_path;
 #endif
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         } else if (ov::is_type<ov::VariantWrapper<std::wstring>>(variant)) {
             weights_path = ov::as_type_ptr<ov::VariantWrapper<std::wstring>>(variant)->get();
 #endif
@@ -163,7 +163,7 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
         if (pos != model_path.npos)
             weights_path = model_path.substr(0, pos);
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         weights_path += L".bin";
 #else
         weights_path += ".bin";
@@ -177,7 +177,7 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
         std::ifstream bin_stream;
         bin_stream.open(weights_path, std::ios::binary);
         if (!bin_stream.is_open())
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
             IR_THROW("Weights file " + ov::util::wstring_to_string(weights_path) + " cannot be opened!");
 #else
             IR_THROW("Weights file " + weights_path + " cannot be opened!");
