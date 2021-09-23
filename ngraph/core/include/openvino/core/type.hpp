@@ -55,6 +55,9 @@ struct OPENVINO_API DiscreteTypeInfo {
     }
 
     operator std::string() const {
+        if (version_id) {
+            return std::string(name) + ":" + std::string(version_id);
+        }
         return std::string(name) + ":" + std::to_string(version);
     }
 

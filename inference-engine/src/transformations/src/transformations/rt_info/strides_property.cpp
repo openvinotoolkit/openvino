@@ -4,19 +4,19 @@
 
 #include "transformations/rt_info/strides_property.hpp"
 
-bool has_strides_prop(const ngraph::Input<ngraph::Node>& node) {
+bool ov::has_strides_prop(const ngraph::Input<ngraph::Node>& node) {
     const auto& rt_map = node.get_rt_info();
     auto it = rt_map.find(ngraph::VariantWrapper<ngraph::Strides>::get_type_info_static());
     return it != rt_map.end();
 }
 
-ngraph::Strides get_strides_prop(const ngraph::Input<ngraph::Node>& node) {
+ngraph::Strides ov::get_strides_prop(const ngraph::Input<ngraph::Node>& node) {
     const auto& rt_map = node.get_rt_info();
     const auto& var = rt_map.at(ngraph::VariantWrapper<ngraph::Strides>::get_type_info_static());
     return ngraph::as_type_ptr<ngraph::VariantWrapper<ngraph::Strides>>(var)->get();
 }
 
-void insert_strides_prop(ngraph::Input<ngraph::Node>& node, const ngraph::Strides& strides) {
+void ov::insert_strides_prop(ngraph::Input<ngraph::Node>& node, const ngraph::Strides& strides) {
     auto& rt_map = node.get_rt_info();
     rt_map[ngraph::VariantWrapper<ngraph::Strides>::get_type_info_static()] = std::make_shared<ngraph::VariantWrapper<ngraph::Strides>>(strides);
 }

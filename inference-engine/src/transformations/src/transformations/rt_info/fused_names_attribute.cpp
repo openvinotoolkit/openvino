@@ -78,3 +78,8 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<FusedNames>::merge(const ngraph:
 std::shared_ptr<ngraph::Variant> VariantWrapper<FusedNames>::init(const std::shared_ptr<ngraph::Node> & node) {
     return std::make_shared<VariantWrapper<FusedNames> > (FusedNames(node->get_friendly_name()));
 }
+
+bool VariantWrapper<FusedNames>::visit_attributes(AttributeVisitor &visitor) {
+    visitor.on_attribute("value", m_value.fused_names);
+    return true;
+}

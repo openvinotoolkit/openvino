@@ -31,6 +31,7 @@ private:
     std::string primitives_priority;
 
 public:
+    friend class VariantWrapper<PrimitivesPriority>;
     /**
      * A default constructor
      */
@@ -68,6 +69,8 @@ public:
     std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector & nodes) override;
 
     std::shared_ptr<ov::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
+
+    bool visit_attributes(AttributeVisitor & visitor) override;
 };
 
 }  // namespace ov

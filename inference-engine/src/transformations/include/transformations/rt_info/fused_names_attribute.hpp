@@ -95,10 +95,7 @@ public:
 
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
 
-    bool visit_attributes(AttributeVisitor & visitor) override {
-        visitor.on_attribute("value", m_value.fused_names);
-        return true;
-    }
+    bool visit_attributes(AttributeVisitor & visitor) override;
 };
 
 template <>

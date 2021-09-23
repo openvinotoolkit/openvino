@@ -687,18 +687,16 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
     }
 
     auto parse_type_info = [](const std::string& value) {
-        std::string name;
-        uint64_t version;
+        std::string name, version;
         auto pos = value.rfind(":");
         if (pos == value.npos) {
             IE_THROW() << "Can not parse attribute version from: " << value;
         }
         name = value.substr(0, pos);
 
-        auto string_version = value.substr(pos + 1, std::string::npos);
-        version = std::atoi(string_version.c_str());
+        version = value.substr(pos + 1, std::string::npos);
 
-        return std::tuple<std::string, uint64_t>(name, version);
+        return std::tuple<std::string, std::string>(name, version);
     };
 
     ov::pass::Attributes attrs_factory;
@@ -706,10 +704,10 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
         if (!rt_attrs)
             return;
         for (const auto& item : rt_attrs) {
-            std::string attribute_name;
-            uint64_t attribute_version;
+            std::string attribute_name, attribute_version;
             std::tie(attribute_name, attribute_version) = parse_type_info(item.name());
-            if (auto attr = attrs_factory.create(attribute_name, attribute_version)) {
+            const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), 0, attribute_version.c_str());
+            if (auto attr = attrs_factory.create_by_type_info(type_info)) {
                 RTInfoDeserializer attribute_visitor(item);
                 if (attr->visit_attributes(attribute_visitor)) {
                     rt_info[item.name()] = std::shared_ptr<Variant>(attr);

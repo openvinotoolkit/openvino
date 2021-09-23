@@ -62,8 +62,8 @@ ngraph::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize()
         ngraph::copy_runtime_info(nodes_to_copy_RT_info_from, fq);
         multiply_node->output(0).replace(fq->output(0));
 
-        if (convert_node->get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
-            convert_node->get_rt_info().erase("DISABLED_CONSTANT_FOLDING");
+        if (convert_node->get_rt_info().count("disabled_constant_folding:0"))
+            convert_node->get_rt_info().erase("disabled_constant_folding:0");
         return true;
     };
 

@@ -34,9 +34,8 @@ public:
         register_factory<VariantWrapper<Strides>>();
     }
 
-    Variant * create(const std::string & name, const uint64_t version) {
-        ov::DiscreteTypeInfo info(name.c_str(), version);
-        return m_factory_registry.create(info);
+    Variant * create_by_type_info(const ov::DiscreteTypeInfo & type_info) {
+        return m_factory_registry.create(type_info);
     }
 private:
     template <class T>

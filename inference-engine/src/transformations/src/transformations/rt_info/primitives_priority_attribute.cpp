@@ -72,3 +72,8 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::merge(const
 std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::init(const std::shared_ptr<ngraph::Node> & node) {
     throw ngraph_error(std::string(get_type_info()) + " has no default initialization.");
 }
+
+bool VariantWrapper<PrimitivesPriority>::visit_attributes(AttributeVisitor &visitor) {
+    visitor.on_attribute("value", m_value.primitives_priority);
+    return true;
+}

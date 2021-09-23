@@ -140,7 +140,7 @@ TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
         if (node->get_friendly_name() == "reshape") {
             reshape_is_missing = false;
             ASSERT_TRUE(std::dynamic_pointer_cast<opset4::Reshape>(node));
-            auto original_names = getFusedNamesVector(node);
+            auto original_names = ov::getFusedNamesVector(node);
             sort(original_names.begin(), original_names.end());
             ASSERT_EQ(original_names, std::vector<std::string>({"reshape", "squeeze"}));
         }

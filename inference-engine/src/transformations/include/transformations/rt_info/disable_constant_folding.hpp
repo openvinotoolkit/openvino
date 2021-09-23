@@ -31,7 +31,7 @@ extern template class TRANSFORMATIONS_API VariantImpl<DisableConstantFolding>;
 template<>
 class TRANSFORMATIONS_API VariantWrapper<DisableConstantFolding> : public VariantImpl<DisableConstantFolding> {
 public:
-    OPENVINO_RTTI("DISABLED_CONSTANT_FOLDING");
+    OPENVINO_RTTI("disabled_constant_folding", "0");
 
     VariantWrapper() = default;
 

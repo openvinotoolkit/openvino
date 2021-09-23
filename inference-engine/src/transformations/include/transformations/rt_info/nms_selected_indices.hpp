@@ -28,11 +28,7 @@ extern template class TRANSFORMATIONS_API VariantImpl<NmsSelectedIndices>;
 template<>
 class TRANSFORMATIONS_API VariantWrapper<NmsSelectedIndices> : public VariantImpl<NmsSelectedIndices> {
 public:
-    static constexpr VariantTypeInfo type_info{"NMS_SELECTED_INDICES", 0};
-
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("nms_selected_indices", "0");
 
     VariantWrapper() = default;
 
