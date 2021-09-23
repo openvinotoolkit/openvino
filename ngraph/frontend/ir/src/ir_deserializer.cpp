@@ -686,16 +686,33 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
             ngraphNode->get_output_tensor(i).set_names(params.outputPorts[i].names);
     }
 
+    auto parse_type_info = [](const std::string& value) {
+        std::string name;
+        uint64_t version;
+        auto pos = value.rfind(":");
+        if (pos == value.npos) {
+            IE_THROW() << "Can not parse attribute version from: " << value;
+        }
+        name = value.substr(0, pos);
+
+        auto string_version = value.substr(pos + 1, std::string::npos);
+        version = std::atoi(string_version.c_str());
+
+        return std::tuple<std::string, uint64_t>(name, version);
+    };
+
     ov::pass::Attributes attrs_factory;
-    auto set_runtime_info = [&attrs_factory](RTMap& rt_info, const pugi::xml_node& rt_attrs) {
+    auto set_runtime_info = [&attrs_factory, &parse_type_info](RTMap& rt_info, const pugi::xml_node& rt_attrs) {
         if (!rt_attrs)
             return;
-        for (const auto& item : rt_attrs.attributes()) {
-            // TODO: use or no attribute version??? 0 - by default
-            if (auto attr = attrs_factory.create(item.name(), 0)) {
-                RTInfoDeserializer attribute_visitor(item.value());
+        for (const auto& item : rt_attrs) {
+            std::string attribute_name;
+            uint64_t attribute_version;
+            std::tie(attribute_name, attribute_version) = parse_type_info(item.name());
+            if (auto attr = attrs_factory.create(attribute_name, attribute_version)) {
+                RTInfoDeserializer attribute_visitor(item);
                 if (attr->visit_attributes(attribute_visitor)) {
-                    rt_info[attr->get_type_info().name] = std::shared_ptr<Variant>(attr);
+                    rt_info[item.name()] = std::shared_ptr<Variant>(attr);
                 } else {
                     IE_THROW() << "VisitAttributes is not supported for: " << item.name() << " attribute";
                 }

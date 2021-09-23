@@ -30,7 +30,7 @@ protected:
 
 TEST_F(RTInfoSerializationTest, all_attributes) {
     auto init_info = [](RTMap & info) {
-        info["fused_names"] = std::make_shared<VariantWrapper<ngraph::FusedNames>>(FusedNames("add"));
+        info[VariantWrapper<ov::FusedNames>::get_type_info_static()] = std::make_shared<VariantWrapper<ov::FusedNames>>(ov::FusedNames("add"));
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -53,8 +53,9 @@ TEST_F(RTInfoSerializationTest, all_attributes) {
     auto f = net.getFunction();
 
     auto check_info = [](const RTMap & info) {
-        ASSERT_TRUE(info.count("fused_names"));
-        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at("fused_names"));
+        const std::string & key = VariantWrapper<ov::FusedNames>::get_type_info_static();
+        ASSERT_TRUE(info.count(key));
+        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ov::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), "add");
     };

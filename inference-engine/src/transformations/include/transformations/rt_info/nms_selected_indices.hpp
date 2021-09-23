@@ -34,6 +34,8 @@ public:
         return type_info;
     }
 
+    VariantWrapper() = default;
+
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 
     bool is_copyable() const override { return false; }

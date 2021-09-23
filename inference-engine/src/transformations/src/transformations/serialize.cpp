@@ -177,55 +177,59 @@ private:
 };
 
 class RTInfoSerializer : public ngraph::AttributeVisitor {
-    std::string m_value;
+    pugi::xml_node m_node;
 
 public:
-    RTInfoSerializer() = default;
-
-    const std::string get_value() const { return m_value; }
+    RTInfoSerializer(const pugi::xml_node node) : m_node(node) {}
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<void> &adapter) override {
         if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::set<std::string>>>(&adapter)) {
-            m_value = join(a->get());
+            const auto & value = join(a->get());
+            m_node.append_attribute(name.c_str()).set_value(value.c_str());
         } else {
             throw ngraph_error("Unsupported attribute type for serialization: " + name);
         }
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<bool> &adapter) override {
-        m_value = std::to_string(adapter.get());
+        m_node.append_attribute(name.c_str()).set_value(adapter.get());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::string> &adapter) override {
-        m_value = adapter.get();
+        m_node.append_attribute(name.c_str()).set_value(adapter.get().c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<int64_t> &adapter) override {
-        m_value = std::to_string(adapter.get());
+        m_node.append_attribute(name.c_str()).set_value(adapter.get());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<double> &adapter) override {
-        m_value = std::to_string(adapter.get());
+        m_node.append_attribute(name.c_str()).set_value(adapter.get());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<int>> &adapter) override {
-        m_value = join(adapter.get());
+        const auto & value = join(adapter.get());
+        m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<int64_t>> &adapter) override {
-        m_value = join(adapter.get());
+        const auto & value = join(adapter.get());
+        m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<uint64_t>> &adapter) override {
-        m_value = join(adapter.get());
+        const auto & value = join(adapter.get());
+        m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<float>> &adapter) override {
-        m_value = join(adapter.get());
+        const auto & value = join(adapter.get());
+        m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<std::string>> &adapter) override {
-        m_value = join(adapter.get());
+        const auto & value = join(adapter.get());
+        m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::shared_ptr<Function>> &adapter) override {
@@ -781,25 +785,17 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
 
-        auto get_attributes_for_serialization = [](const RTMap & attributes) {
-            std::vector<std::pair<std::string, std::string>> attributes_to_serialize;
+        auto append_runtime_info = [](pugi::xml_node & node, const RTMap& attributes) {
+            pugi::xml_node rt_node = node.append_child("rt_info");
             for (const auto &item : attributes) {
-                rt_info::RTInfoSerializer serializer;
-                if (item.second->visit_attributes(serializer)) {
-                    attributes_to_serialize.emplace_back(item.first, serializer.get_value());
+                auto attribute_node = rt_node.append_child(item.first.c_str());
+                rt_info::RTInfoSerializer serializer(attribute_node);
+                if (!item.second->visit_attributes(serializer)) {
+                    rt_node.remove_child(item.first.c_str());
                 }
             }
-            return attributes_to_serialize;
-        };
-
-        auto append_runtime_info = [&get_attributes_for_serialization](pugi::xml_node & node, const RTMap& attributes) {
-            const auto & attrs = get_attributes_for_serialization(attributes);
-            if (attrs.empty()) {
-                return;
-            }
-            pugi::xml_node rt_node = node.append_child("rt_info");
-            for (const auto & item : attrs) {
-                rt_node.append_attribute(item.first.c_str()).set_value(item.second.c_str());
+            if (rt_node.empty()) {
+                node.remove_child("rt_info");
             }
         };
 

@@ -13,14 +13,19 @@
 namespace ov {
 class RTInfoDeserializer : public ngraph::AttributeVisitor {
 public:
-    explicit RTInfoDeserializer(const std::string& value) : m_value(value) {}
+    explicit RTInfoDeserializer(const pugi::xml_node& node) : m_node(node) {}
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
-        value.set(m_value);
+        std::string val;
+        if (!getStrAttribute(m_node, name, val))
+            return;
+        value.set(val);
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& value) override {
-        std::string val = m_value;
+        std::string val;
+        if (!getStrAttribute(m_node, name, val))
+            return;
         std::transform(val.begin(), val.end(), val.begin(), [](char ch) {
             return std::tolower(static_cast<unsigned char>(ch));
         });
@@ -38,10 +43,16 @@ public:
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override;
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
-        adapter.set(stringToType<double>(m_value));
+        std::string val;
+        if (!getStrAttribute(m_node, name, val))
+            return;
+        adapter.set(stringToType<double>(val));
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
-        adapter.set(stringToType<int64_t>(m_value));
+        std::string val;
+        if (!getStrAttribute(m_node, name, val))
+            return;
+        adapter.set(stringToType<int64_t>(val));
     }
 
     void on_adapter(const std::string& name,
@@ -50,30 +61,42 @@ public:
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
+        std::string val;
+        if (!getStrAttribute(m_node, name, val))
+            return;
         std::vector<int32_t> value;
-        str_to_container(m_value, value);
+        str_to_container(val, value);
         adapter.set(value);
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+        std::string val;
+        if (!getStrAttribute(m_node, name, val))
+            return;
         std::vector<int64_t> value;
-        str_to_container(m_value, value);
+        str_to_container(val, value);
         adapter.set(value);
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+        std::string val;
+        if (!getStrAttribute(m_node, name, val))
+            return;
         std::vector<float> value;
-        str_to_container(m_value, value);
+        str_to_container(val, value);
         adapter.set(value);
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+        std::string val;
+        if (!getStrAttribute(m_node, name, val))
+            return;
         std::vector<std::string> value;
-        str_to_container(m_value, value);
+        str_to_container(val, value);
         adapter.set(value);
     }
 
 private:
-    std::string m_value;
+    pugi::xml_node m_node;
 };
 }  // namespace ov

@@ -14,10 +14,9 @@ namespace ov {
 template <>
 class TRANSFORMATIONS_API VariantWrapper<ngraph::Strides> : public VariantImpl<ngraph::Strides> {
 public:
-    OPENVINO_RTTI("VariantWrapper<Strides>");
-    VariantWrapper(const value_type& value)
-        : VariantImpl<value_type>(value) {
-    }
+    OPENVINO_RTTI("strides", "0");
+    VariantWrapper() = default;
+    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
 } // namespace ov

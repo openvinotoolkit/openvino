@@ -7,6 +7,7 @@
 #include <xml_parse_utils.h>
 
 #include <ie_ngraph_utils.hpp>
+#include <ir_frontend/model.hpp>
 #include <istream>
 #include <memory>
 #include <ngraph/ngraph.hpp>

@@ -13,7 +13,7 @@
 #include <transformations_visibility.hpp>
 
 
-namespace ngraph {
+namespace ov {
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -25,17 +25,15 @@ public:
 };
 
 TRANSFORMATIONS_API void disable_constant_folding(const std::shared_ptr<Node>& node);
-}  // namespace ngraph
 
-namespace ov {
-extern template class TRANSFORMATIONS_API VariantImpl<ngraph::DisableConstantFolding>;
+extern template class TRANSFORMATIONS_API VariantImpl<DisableConstantFolding>;
 
 template<>
-class TRANSFORMATIONS_API VariantWrapper<ngraph::DisableConstantFolding> : public VariantImpl<ngraph::DisableConstantFolding> {
+class TRANSFORMATIONS_API VariantWrapper<DisableConstantFolding> : public VariantImpl<DisableConstantFolding> {
 public:
     OPENVINO_RTTI("DISABLED_CONSTANT_FOLDING");
 
-    VariantWrapper() : VariantImpl<value_type>() {}
+    VariantWrapper() = default;
 
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 

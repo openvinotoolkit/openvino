@@ -19,7 +19,7 @@
 #include <ngraph/variant.hpp>
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -54,16 +54,14 @@ public:
  */
 TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 
-}  // namespace ngraph
-
-namespace ov {
-
-extern template class TRANSFORMATIONS_API VariantImpl<ngraph::PrimitivesPriority>;
+extern template class TRANSFORMATIONS_API VariantImpl<PrimitivesPriority>;
 
 template<>
-class TRANSFORMATIONS_API VariantWrapper<ngraph::PrimitivesPriority> : public VariantImpl<ngraph::PrimitivesPriority> {
+class TRANSFORMATIONS_API VariantWrapper<PrimitivesPriority> : public VariantImpl<PrimitivesPriority> {
 public:
-    OPENVINO_RTTI("VariantWrapper<PrimitivesPriority>");
+    OPENVINO_RTTI("primitives_priority", "0");
+
+    VariantWrapper() = default;
 
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 

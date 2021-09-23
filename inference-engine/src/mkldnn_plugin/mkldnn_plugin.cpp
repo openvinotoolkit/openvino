@@ -677,7 +677,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 }
                 return true;
             } ();
-            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
+            for (auto&& fusedLayerName : ov::getFusedNamesVector(op)) {
                 if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                     if (layerIsSupported) {
                         supported.emplace(fusedLayerName);

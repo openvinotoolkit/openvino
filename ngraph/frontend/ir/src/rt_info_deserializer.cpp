@@ -10,9 +10,12 @@
 using namespace ov;
 
 void RTInfoDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
+    std::string val;
+    if (!getStrAttribute(m_node, name, val))
+        return;
     if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::set<std::string>>>(&adapter)) {
         std::set<std::string> ss;
-        str_to_container(m_value, ss);
+        str_to_container(val, ss);
         a->set(ss);
     } else {
         IR_THROW("Not implemented");

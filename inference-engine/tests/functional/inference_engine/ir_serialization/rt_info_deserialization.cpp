@@ -18,7 +18,9 @@ TEST(RTInfoDeserialization, Node) {
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset8">
             <data element_type="f32" shape="1,3,22,22"/>
-            <rt_info fused_names="in1"/>
+            <rt_info>
+                <fused_names:0 value="in1"/>
+            </rt_info>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -30,7 +32,9 @@ TEST(RTInfoDeserialization, Node) {
         </layer>
 		<layer name="Round" id="1" type="Round" version="opset8">
 			<data mode="half_to_even"/>
-            <rt_info fused_names="Round1,Round2"/>
+            <rt_info>
+                <fused_names:0 value="Round1,Round2"/>
+            </rt_info>
             <input>
                 <port id="1" precision="FP32">
                     <dim>1</dim>
@@ -70,8 +74,9 @@ TEST(RTInfoDeserialization, Node) {
     auto f = net.getFunction();
 
     auto check_fused_names = [](const RTMap & info, const std::string & names) {
-        ASSERT_TRUE(info.count("fused_names"));
-        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at("fused_names"));
+        const std::string & key = VariantWrapper<ov::FusedNames>::get_type_info_static();
+        ASSERT_TRUE(info.count(key));
+        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ov::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };
@@ -92,7 +97,9 @@ TEST(RTInfoDeserialization, InputAndOutput) {
             <data element_type="f32" shape="1,3,22,22"/>
             <output>
                 <port id="0" precision="FP32">
-                    <rt_info fused_names="test1,test2"/>
+                    <rt_info>
+                        <fused_names:0 value="test1,test2"/>
+                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -103,14 +110,18 @@ TEST(RTInfoDeserialization, InputAndOutput) {
 		<layer id="1" name="sum" type="Add" version="opset1">
 			<input>
 				<port id="0">
-                    <rt_info fused_names="test2,test3"/>
+                    <rt_info>
+                        <fused_names:0 value="test2,test3"/>
+                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
                     <dim>22</dim>
 				</port>
 				<port id="1">
-                    <rt_info fused_names="test3,test4"/>
+                    <rt_info>
+                        <fused_names:0 value="test3,test4"/>
+                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -119,7 +130,9 @@ TEST(RTInfoDeserialization, InputAndOutput) {
 			</input>
 			<output>
 				<port id="2" precision="FP32">
-                    <rt_info fused_names="test4,test5"/>
+                    <rt_info>
+                        <fused_names:0 value="test4,test5"/>
+                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -130,7 +143,9 @@ TEST(RTInfoDeserialization, InputAndOutput) {
         <layer name="output" type="Result" id="2" version="opset8">
             <input>
                 <port id="0" precision="FP32">
-                    <rt_info fused_names="test5,test6"/>
+                    <rt_info>
+                        <fused_names:0 value="test5,test6"/>
+                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -151,8 +166,9 @@ TEST(RTInfoDeserialization, InputAndOutput) {
     auto f = net.getFunction();
 
     auto check_fused_names = [](const RTMap & info, const std::string & names) {
-        ASSERT_TRUE(info.count("fused_names"));
-        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at("fused_names"));
+        const std::string & key = VariantWrapper<ov::FusedNames>::get_type_info_static();
+        ASSERT_TRUE(info.count(key));
+        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ov::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };

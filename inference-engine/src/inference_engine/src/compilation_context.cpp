@@ -121,9 +121,9 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
                            std::dynamic_pointer_cast<ngraph::VariantWrapper<std::int64_t>>(rtMapData.second)) {
                 seed = hash_combine(seed, intData->get());
             } else if (auto fNames =
-                           std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::FusedNames>>(rtMapData.second)) {
+                           std::dynamic_pointer_cast<ngraph::VariantWrapper<ov::FusedNames>>(rtMapData.second)) {
                 seed = hash_combine(seed, fNames->get().getNames());
-            } else if (auto prim = std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::PrimitivesPriority>>(
+            } else if (auto prim = std::dynamic_pointer_cast<ngraph::VariantWrapper<ov::PrimitivesPriority>>(
                            rtMapData.second)) {
                 seed = hash_combine(seed, prim->get().getPrimitivesPriority());
             }
