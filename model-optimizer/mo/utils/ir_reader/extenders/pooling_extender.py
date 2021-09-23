@@ -35,9 +35,12 @@ def common_pool_extender(op: Node):
     op['kernel_spatial'] = op.kernel
     op['output_spatial_shape'] = None
 
-    op['dilation'] = int64_array([1, 1] + op.dilations)
-    op['index_element_type'] = destination_type_to_np_data_type(op.index_element_type)
-    op['axis'] = op.axis
+    if op.has_valid('dilations'):
+        op['dilation'] = int64_array([1, 1] + op.dilations)
+    if op.has_valid('index_element_type'):
+        op['index_element_type'] = destination_type_to_np_data_type(op.index_element_type)
+    if op.has_valid('axis'):
+        op['axis'] = op.axis
 
     op['batch_dims'] = int64_array([0]),
     op['channel_dims'] = int64_array([1]),
