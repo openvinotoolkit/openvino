@@ -95,7 +95,7 @@ enum Layout : uint8_t {
 
     // 2D
     HW = 192,  //!< HW 2D layout
-    NC = 193,  //!< HC 2D layout
+    NC = 193,  //!< NC 2D layout
     CN = 194,  //!< CN 2D layout
 
     BLOCKED = 200,  //!< A blocked layout
