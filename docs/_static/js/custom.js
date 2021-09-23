@@ -43,8 +43,14 @@ function showSwitcherPanel() {
 
 function init_col_sections() {
     var collapsible_sections = $('div.collapsible-section');
-    $(collapsible_sections).wrap('<details class="col-sect-details"></details>');
-    $('.col-sect-details').prepend('<summary>Click to expand</summary>');
+    collapsible_sections.each(function() {
+        var title = $(this).data('title') || 'Click to expand';
+        var summary = $('<summary>' + title + '</summary>');
+        // summary.html(title);
+        var details = $('<details class="col-sect-details"></details>');
+        $(this).wrap(details);
+        summary.insertBefore($(this));
+    });
 }
 
 function handleSwitcherParam() {

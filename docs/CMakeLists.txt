@@ -95,10 +95,6 @@ function(build_docs)
     set(SPHINX_OUTPUT "${DOCS_BUILD_DIR}/_build")
 
     # Sphinx folders, doxyrest templates and config
-    set(IE_PYTHON_API_IN "${DOCS_SOURCE_DIR}/ie_python_api")
-    set(IE_PYTHON_API_OUT "${RST_OUTPUT}/ie_python_api")
-    set(NGRAPH_PYTHON_API_IN "${DOCS_SOURCE_DIR}/ngraph_python_api")
-    set(NGRAPH_PYTHON_API_OUT "${RST_OUTPUT}/ngraph_python_api")
     set(SPHINX_CONF_IN "${DOCS_SOURCE_DIR}/conf.py")
     set(SPHINX_CONF_OUT "${RST_OUTPUT}/conf.py")
     set(SPHINX_STATIC_IN "${DOCS_SOURCE_DIR}/_static")
@@ -109,8 +105,8 @@ function(build_docs)
     set(SPHINX_THEMES_OUT "${RST_OUTPUT}/_themes")
     set(SPHINX_INDEX_IN "${DOCS_SOURCE_DIR}/index.rst")
     set(SPHINX_INDEX_OUT "${RST_OUTPUT}/index.rst")
-    set(RST_FILES_IN "${DOCS_SOURCE_DIR}/rst_files")
-    set(RST_FILES_OUT "${RST_OUTPUT}/api")
+    set(API_DOCS_IN "${DOCS_SOURCE_DIR}/api")
+    set(API_DOCS_OUT "${RST_OUTPUT}/api")
     set(DOXYREST_IN "${DOCS_SOURCE_DIR}/doxyrest")
     set(DOXYREST_OUT "${DOCS_BUILD_DIR}/doxyrest")
     set(DOXYREST_SPHINX_IN "${DOCS_SOURCE_DIR}/doxyrest-sphinx")
@@ -215,9 +211,7 @@ function(build_docs)
                        COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_MAIN_SOURCE_DIR}/../
                        COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${IE_PYTHON_API_IN} ${IE_PYTHON_API_OUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${NGRAPH_PYTHON_API_IN} ${NGRAPH_PYTHON_API_OUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${RST_FILES_IN} ${RST_FILES_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN} ${API_DOCS_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_SPHINX_IN} ${DOXYREST_SPHINX_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_STATIC_IN} ${SPHINX_STATIC_OUT}

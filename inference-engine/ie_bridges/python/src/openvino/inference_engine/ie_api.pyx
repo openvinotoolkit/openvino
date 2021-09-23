@@ -118,6 +118,7 @@ cdef class TensorDesc:
 
     def __cinit__(self, precision : str, dims : [list, tuple], layout : str):
         """Class constructor
+
         :param precision: target memory precision
         :param dims: target memory dimensions
         :param layout: target memory layout
@@ -131,7 +132,7 @@ cdef class TensorDesc:
     @property
     def dims(self):
         """
-        Shape (dimensions) of the TensorDesc object
+        Shape (dimensions) of the :class:`TensorDesc` object
         """
         return self.impl.getDims()
 
@@ -143,7 +144,7 @@ cdef class TensorDesc:
     @property
     def precision(self):
         """
-        Precision of the TensorDesc object
+        Precision of the :class:`TensorDesc` object
         """
         return self.impl.getPrecision().name().decode()
 
@@ -157,7 +158,7 @@ cdef class TensorDesc:
     @property
     def layout(self):
         """
-        Layout of the TensorDesc object
+        Layout of the :class:`TensorDesc` object
         """
         return layout_int_to_str_map[self.impl.getLayout()]
 
@@ -176,7 +177,8 @@ cdef class Blob:
 
     def __cinit__(self, TensorDesc tensor_desc = None, array : np.ndarray = None):
         """Class constructor
-        :param tensor_desc: TensorDesc object describing creating Blob object.
+
+        :param tensor_desc: :class:`TensorDesc` object describing creating Blob object.
         :param array: numpy.ndarray with data to fill blob memory, The array have to have same elements count
         as specified in tensor_desc.dims attribute and same elements precision corresponding to
         tensor_desc.precision. If array isn't provided empty numpy.ndarray will be created accorsing
@@ -290,7 +292,7 @@ cdef class Blob:
     @property
     def buffer(self):
         """
-        Blob's memory as numpy.ndarray representation
+        Blob's memory as :class:`numpy.ndarray` representation
         """
         representation_shape = self._initial_shape if self._initial_shape is not None else []
         cdef BlobBuffer buffer = BlobBuffer()
@@ -301,7 +303,7 @@ cdef class Blob:
     @property
     def tensor_desc(self):
         """
-        TensorDesc of created Blob
+        :class:`TensorDesc` of created Blob
         """
         cdef CTensorDesc c_tensor_desc = deref(self._ptr).getTensorDesc()
         precision = c_tensor_desc.getPrecision().name().decode()
@@ -318,6 +320,7 @@ cdef class IECore:
 
     def __cinit__(self, xml_config_file: str = ""):
         """Class constructor
+
         :param xml_config_file:  A full path to `.xml` file containing plugins configuration.
         If the parameter is not specified, the default configuration is handled automatically.
         :return: Instance of IECore class
@@ -326,9 +329,11 @@ cdef class IECore:
 
 
     def get_versions(self, device_name: str):
-        """Get a `namedtuple` object with versions of the plugin specified
+        """Get a :class:`collections.namedtuple` object with versions of the plugin specified
+        
         :param device_name: Name of the the registered plugin
-        :return: Dictionary mapping a plugin name and `Versions` `namedtuple` object with the following fields:
+        :return: Dictionary mapping a plugin name and `Versions` :class:`collections.namedtuple` object with the following fields:
+        
         * `major` - major plugin integer version
         * `minor` - minor plugin integer version
         * `build_number` - plugin build number string
@@ -349,18 +354,20 @@ cdef class IECore:
 
 
     cpdef IENetwork read_network(self, model: [str, bytes, os.PathLike], weights: [str, bytes, os.PathLike] = "", init_from_buffer: bool = False):
-        """Reads a network from Intermediate Representation (IR) or ONNX formats and creates an `IENetwork`.
+        """Reads a network from Intermediate Representation (IR) or ONNX formats and creates an :class:`IENetwork`.
+        
         :param model: A `.xml`, `.onnx`or `.prototxt` model file or string with IR.
         :param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
-        bytes with file content.
+                        bytes with file content.
         :param init_from_buffer: Defines the way of how `model` and `weights` attributes are interpreted.
-        If  `False`, attributes are interpreted as strings with paths to .xml and .bin files
-        of IR. If `True`, they are  interpreted as Python `bytes` object with .xml and .bin files content.
-        :return: An `IENetwork` object
+        If  `False`, attributes are interpreted as strings with paths to `.xml` and `.bin` files
+        of IR. If `True`, they are  interpreted as Python `bytes` object with `.xml` and `.bin` files content.
+        
+        :return: An :class:`IENetwork` object
         
         Usage example:
-
-        ..code-block:: python
+        
+        .. code-block:: python
         
             ie = IECore()
             net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
@@ -392,17 +399,20 @@ cdef class IECore:
 
     cpdef ExecutableNetwork load_network(self, network: [IENetwork, str], str device_name, config=None, int num_requests=1):
         """Loads a network that was read from the Intermediate Representation (IR) to the plugin with specified device name
-        and creates an `ExecutableNetwork` object of the `IENetwork` class.
+        and creates an :class:`ExecutableNetwork` object of the :class:`IENetwork` class.
         You can create as many networks as you need and use them simultaneously (up to the limitation of the hardware
         resources).
-        :param network: A valid `IENetwork` instance. Model file name .xml, .onnx can also be passed as argument
+        
+        :param network: A valid :class:`IENetwork` instance. Model file name .xml, .onnx can also be passed as argument
         :param device_name: A device name of a target plugin
         :param config: A dictionary of plugin configuration keys and their values
-        :param num_requests: A positive integer value of infer requests to be created. Number of infer requests is limited
-        by device capabilities.
-        Value `0` indicates that optimal number of infer requests will be created.
-        :return: An `ExecutableNetwork` object
+        :param num_requests: A positive integer value of infer requests to be created.
+        Number of infer requests is limited by device capabilities. Value `0` indicates that optimal number of infer requests will be created.
+        
+        :return: An :class:`ExecutableNetwork` object
+        
         Usage example:
+        
         .. code-block:: python
 
             ie = IECore()
@@ -426,13 +436,15 @@ cdef class IECore:
 
     cpdef ExecutableNetwork import_network(self, str model_file, str device_name, config=None, int num_requests=1):
         """Creates an executable network from a previously exported network
+        
         :param device_name: Name of device load executable network on
         :param model_file: Full path to the location of the exported file
         :param config: A dictionary of plugin configuration keys and their values
         :param num_requests: A positive integer value of infer requests to be created. Number of infer requests is limited
-        by device capabilities.
-        Value `0` indicates that optimal number of infer requests will be created.
-        :return: An `ExecutableNetwork` object
+                             by device capabilities.
+                             Value `0` indicates that optimal number of infer requests will be created.
+        
+        :return: An :class:`ExecutableNetwork` object
         
         Usage example:
         
@@ -461,7 +473,8 @@ cdef class IECore:
     def query_network(self, IENetwork network, str device_name, config=None):
         """Queries the plugin with specified device name what network layers are supported in the current configuration.
         Please note that layers support depends on plugin configuration and loaded extensions.
-        :param network: A valid `IENetwork` instance
+        
+        :param network: A valid :class:`IENetwork` instance
         :param device_name: A device name of a target plugin
         :param config: A dictionary of plugin configuration keys and their values
         :return: A dictionary mapping layers and device names on which they are supported
@@ -504,10 +517,12 @@ cdef class IECore:
 
     def register_plugin(self, plugin_name: str, device_name: str = ""):
         """Registers plugins specified in an `.xml` configuration file
+        
         :param plugin_name: A name of a plugin. Depending on a platform, plugin_name is wrapped with a shared
-        library suffix and a prefix to identify a full name of the library
+                            library suffix and a prefix to identify a full name of the library
         :param device_name: A target device name for the plugin. If not specified, the method registers
-        a plugin with the default name.
+                            a plugin with the default name.
+        
         :return: None
     
         Usage example:
@@ -522,6 +537,7 @@ cdef class IECore:
 
     def register_plugins(self, xml_config_file: str):
         """Registers plugins specified in an `.xml` configuration file
+        
         :param xml_config_file: A full path to `.xml` file containing plugins configuration
         :return: None
 
@@ -537,6 +553,7 @@ cdef class IECore:
    
     def unregister_plugin(self, device_name: str):
         """Unregisters a plugin with a specified device name
+        
         :param device_name: A device name of the plugin to unregister
         :return: None
         
@@ -552,6 +569,7 @@ cdef class IECore:
     
     def add_extension(self, extension_path: str, device_name: str):
         """Loads extension library to the plugin with a specified device name
+        
         :param extension_path: Path to the extensions library file to load to a plugin
         :param device_name: A device name of a plugin to load the extensions to
         :return: None
@@ -568,7 +586,8 @@ cdef class IECore:
     def get_metric(self, device_name: str, metric_name: str):
         """
         Gets a general runtime metric for dedicated hardware. Enables to request common device properties,
-        which are `ExecutableNetwork` agnostic, such as device name, temperature, and other devices-specific values.
+        which are :class:`ExecutableNetwork` agnostic, such as device name, temperature, and other devices-specific values.
+        
         :param device_name: A name of a device to get a metric value.
         :param metric_name: A metric name to request.
         :return: A metric value corresponding to a metric key.
@@ -984,17 +1003,18 @@ cdef class ExecutableNetwork:
 
     def __init__(self):
         """
-        There is no explicit class constructor. To make a valid instance of `ExecutableNetwork`,
-        use `load_network()` method of the `IECore` class.
+        There is no explicit class constructor. To make a valid instance of :class:`ExecutableNetwork`,
+        use :func:`IECore.load_network` method of the :class:`IECore` class.
         """
         self._infer_requests = []
 
     def infer(self, inputs=None):
         """Starts synchronous inference for the first infer request of the executable network and returns output data.
-        Wraps `infer()` method of the `InferRequest` class
-        :param inputs:  A dictionary that maps input layer names to `numpy.ndarray` objects of proper shape with
-        input data for the layer
-        :return: A dictionary that maps output layer names to `numpy.ndarray` objects with output data of the layer
+        Wraps :func:`InferRequest.infer` method of the :class:`InferRequest` class
+        
+        :param inputs:  A dictionary that maps input layer names to :class:`numpy.ndarray` objects of proper shape with
+                        input data for the layer
+        :return: A dictionary that maps output layer names to :class:`numpy.ndarray` objects with output data of the layer
         
         Usage example:
 
@@ -1022,11 +1042,12 @@ cdef class ExecutableNetwork:
     def start_async(self, request_id, inputs=None):
         """
         Starts asynchronous inference for specified infer request.
-        Wraps `async_infer()` method of the `InferRequest` class.
+        Wraps :func:`InferRequest.async_infer` method of the :class:`InferRequest` class.
+        
         :param request_id: Index of infer request to start inference
-        :param inputs: A dictionary that maps input layer names to `numpy.ndarray` objects of proper
-        shape with input data for the layer
-        :return: A handler of specified infer request, which is an instance of the `InferRequest` class.
+        :param inputs: A dictionary that maps input layer names to :class:`numpy.ndarray` objects of proper
+                       shape with input data for the layer
+        :return: A handler of specified infer request, which is an instance of the :class:`InferRequest` class.
 
         Usage example:
         
@@ -1046,7 +1067,7 @@ cdef class ExecutableNetwork:
     @property
     def requests(self):
         """
-        A tuple of `InferRequest` instances
+        A tuple of :class:`InferRequest` instances
         """
         if len(self._infer_requests) == 0:
             for i in range(deref(self.impl).infer_requests.size()):
@@ -1079,9 +1100,12 @@ cdef class ExecutableNetwork:
     
     @property
     def inputs(self):
-        """ A dictionary that maps input layer names to DataPtr objects
-        .. note:: The property is deprecated. Please use the input_info property
-        to get the map of inputs
+        """ A dictionary that maps input layer names to DataPtr objects 
+        
+        .. note::
+        
+           The property is deprecated. Please use the input_info property
+           to get the map of inputs
         """
         warnings.warn("'inputs' property of ExecutableNetwork class is deprecated. "
                       "To access DataPtrs user need to use 'input_data' property "
@@ -1115,7 +1139,8 @@ cdef class ExecutableNetwork:
 
     def get_exec_graph_info(self):
         """Gets executable graph information from a device
-        :return: An instance of `IENetwork`
+        
+        :return: An instance of :class:`IENetwork`
         
         Usage example:
 
@@ -1135,6 +1160,7 @@ cdef class ExecutableNetwork:
     def get_metric(self, metric_name: str):
         """Gets general runtime metric for an executable network. It can be network name, actual device ID on
         which executable network is running or all other properties which cannot be changed dynamically.
+        
         :param metric_name: A metric name to request.
         :return: A metric value corresponding to a metric key.
        
@@ -1153,6 +1179,7 @@ cdef class ExecutableNetwork:
     def get_config(self, config_name: str):
         """Gets configuration for current executable network. The method is responsible to extract information
         which affects executable network execution
+        
         :param config_name: A configuration parameter name to request.
         :return: A configuration value corresponding to a configuration key.
         
@@ -1169,7 +1196,8 @@ cdef class ExecutableNetwork:
 
     def export(self, model_file: str):
         """Exports the current executable network.
-        :param model_file Full path to the target exported file location
+        
+        :param model_file: Full path to the target exported file location
         :return: None
 
         .. code-block:: python
@@ -1183,11 +1211,12 @@ cdef class ExecutableNetwork:
 
     cpdef wait(self, num_requests=None, timeout=None):
         """Waits when the result from any request becomes available. Blocks until specified timeout elapses or the result.
+        
         :param num_requests: Number of idle requests for which wait.
-        If not specified, `num_requests` value is set to number of requests by default.
+                             If not specified, `num_requests` value is set to number of requests by default.
         :param timeout: Time to wait in milliseconds or special (0, -1) cases described above.
-        If not specified, `timeout` value is set to -1 by default.
-        :return: Request status code: OK or RESULT_NOT_READY
+                        If not specified, `timeout` value is set to -1 by default.
+        :return: Request status code: `OK` or `RESULT_NOT_READY`
         """
         if num_requests is None:
             num_requests = len(self.requests)
@@ -1199,6 +1228,7 @@ cdef class ExecutableNetwork:
     cpdef get_idle_request_id(self):
         """
         Get idle request ID
+        
         :return: Request index
         """
         return deref(self.impl).getIdleRequestId()
@@ -1208,14 +1238,14 @@ ctypedef extern void (*cb_type)(void*, int) with gil
 
 cdef class InferRequest:
     """
-    This class provides an interface to infer requests of `ExecutableNetwork` and serves to handle infer requests execution
-    and to set and get output data.
+    This class provides an interface to infer requests of :class:`ExecutableNetwork` and serves
+    to handle infer requests execution and to set and get output data.
     """
     
     def __init__(self):
         """
-        There is no explicit class constructor. To make a valid `InferRequest` instance, use `load_network()`
-        method of the `IECore` class with specified number of requests to get `ExecutableNetwork` instance
+        There is no explicit class constructor. To make a valid :class:`InferRequest` instance, use :func:`IECore.load_network`
+        method of the :class:`IECore` class with specified number of requests to get :class:`ExecutableNetwork` instance
         which stores infer requests.
         """
         self._user_blobs = {}
@@ -1234,8 +1264,9 @@ cdef class InferRequest:
 
     def set_completion_callback(self, py_callback, py_data = None):
         """Description: Sets a callback function that is called on success or failure of an asynchronous request
-        :param py_callback - Any defined or lambda function
-        :param py_data - Data that is passed to the callback function
+        
+        :param py_callback: Any defined or lambda function
+        :param py_data: Data that is passed to the callback function
         :return: None
         
         Usage example:
@@ -1323,6 +1354,7 @@ cdef class InferRequest:
 
     def set_blob(self, blob_name : str, blob : Blob, preprocess_info: PreProcessInfo = None):
         """Sets user defined Blob for the infer request
+        
         :param blob_name: A name of input blob
         :param blob: Blob object to set for the infer request
         :param preprocess_info: PreProcessInfo object to set for the infer request.
@@ -1348,8 +1380,9 @@ cdef class InferRequest:
 
     cpdef infer(self, inputs=None):
         """Starts synchronous inference of the infer request and fill outputs array
-        :param inputs: A dictionary that maps input layer names to `numpy.ndarray` objects of proper shape with
-        input data for the layer
+        
+        :param inputs: A dictionary that maps input layer names to :class:`numpy.ndarray` objects of proper shape with
+                       input data for the layer
         :return: None
 
         Usage example:
@@ -1372,7 +1405,9 @@ cdef class InferRequest:
 
     cpdef async_infer(self, inputs=None):
         """Starts asynchronous inference of the infer request and fill outputs array
-        :param inputs: A dictionary that maps input layer names to `numpy.ndarray` objects of proper shape with input data for the layer
+        
+        :param inputs: A dictionary that maps input layer names to :class:`numpy.ndarray` objects
+                       of proper shape with input data for the layer
         :return: None
         
         Usage example:
@@ -1394,19 +1429,20 @@ cdef class InferRequest:
     cpdef wait(self, timeout=None):
         """Waits for the result to become available. Blocks until specified timeout elapses or the result
         becomes available, whichever comes first.
-        
-        
+
+        :param timeout: Time to wait in milliseconds or special (0, -1) cases described above.
+                        If not specified, `timeout` value is set to -1 by default.
+        :return: Request status code.
+
         .. note::
         
             There are special values of the timeout parameter:
+            
             * 0 - Immediately returns the inference status. It does not block or interrupt execution.
-            To find statuses meaning, please refer to InferenceEngine::StatusCode in Inference Engine C++ documentation
+              To find statuses meaning, please refer to :ref:`enum_InferenceEngine_StatusCode` in Inference Engine C++ documentation
             * -1 - Waits until inference result becomes available (default value)
-
-        :param timeout: Time to wait in milliseconds or special (0, -1) cases described above.
-        If not specified, `timeout` value is set to -1 by default.
-        :return: Request status code.
-        Usage example: See `async_infer()` method of the the `InferRequest` class.
+    
+        Usage example: See :func:`InferRequest.async_infer` method of the the :class:`InferRequest` class.
         """
         if self._py_callback_used:
             # check request status to avoid blocking for idle requests
@@ -1469,7 +1505,7 @@ cdef class InferRequest:
     
     @property
     def inputs(self):
-        """A dictionary that maps input layer names to `numpy.ndarray`
+        """A dictionary that maps input layer names to :class:`numpy.ndarray`
         objects of proper shape with input data for the layer
         """
         warnings.warn("'inputs' property of InferRequest is deprecated. Please instead use 'input_blobs' property.",
@@ -1482,7 +1518,7 @@ cdef class InferRequest:
     @property
     def outputs(self):
         """
-        A dictionary that maps output layer names to `numpy.ndarray` objects with output data of the layer
+        A dictionary that maps output layer names to :class:`numpy.ndarray` objects with output data of the layer
         """
         warnings.warn("'outputs' property of InferRequest is deprecated. Please instead use 'output_blobs' property.",
                       DeprecationWarning)
@@ -1548,31 +1584,31 @@ cdef class IENetwork:
             Please, use IECore.read_network() method instead.
     
         :param model: A `.xml` file of the IR or PyCapsule containing smart pointer to nGraph function.
-        In case of passing a `.xml` file  attribute value can be a string path or bytes with file content
-        depending on `init_from_buffer` attribute value.
+                      In case of passing a `.xml` file  attribute value can be a string path or bytes with file content
+                      depending on `init_from_buffer` attribute value.
         :param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
-        bytes with file content.
+                        bytes with file content.
         :param init_from_buffer: Defines the way of how `model` and `weights` attributes are interpreted.
-        If  `False`, attributes are interpreted as strings with paths to .xml and .bin files
-        of IR. If `True`, they are  interpreted as Python `bytes` object with .xml and .bin files content.
-        Ignored in case of `IENetwork` object  initialization from nGraph function.
+                                 If `False`, attributes are interpreted as strings with paths to .xml and .bin files
+                                 of IR. If `True`, they are  interpreted as Python `bytes` object with .xml and .bin files content.
+                                 Ignored in case of :class:`IENetwork` object  initialization from nGraph function.
         :return: Instance of IENetwork class
 
         Usage example:
     
-        * Initializing `IENetwork` object from IR files:
+        * Initializing :class:`IENetwork` object from IR files:
           .. code-block:: python
           
               net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
 
-        * Initializing `IENetwork` object bytes with content of IR files:
+        * Initializing :class:`IENetwork` object bytes with content of IR files:
           .. code-block:: python
 
              with open(path_to_bin_file, 'rb') as f:
                  bin = f.read()
-            with open(path_to_xml_file, 'rb') as f:
-                xml = f.read()
-            net = IENetwork(model=xml, weights=bin, init_from_buffer=True)
+             with open(path_to_xml_file, 'rb') as f:
+                 xml = f.read()
+             net = IENetwork(model=xml, weights=bin, init_from_buffer=True)
         """
         # Try to create Inference Engine network from capsule
         if model.__class__.__name__ == 'PyCapsule' and weights == '' and init_from_buffer is False:
@@ -1631,10 +1667,10 @@ cdef class IENetwork:
 
     @property
     def inputs(self):
-        """A dictionary that maps input layer names to DataPtr objects
+        """A dictionary that maps input layer names to :class:`DataPtr` objects
         
         .. note:: The property is deprecated. Please use the input_info property
-        to get the map of inputs 
+                  to get the map of inputs 
         """
         warnings.warn("'inputs' property of IENetwork class is deprecated. "
                       "To access DataPtrs user need to use 'input_data' property "
@@ -1690,9 +1726,11 @@ cdef class IENetwork:
 
     def add_outputs(self, outputs):
         """Marks any intermediate layer as output layer to retrieve the inference results from the specified layers.
+        
         :param outputs: List of layers to be set as model outputs. The list can contain strings with layer names to be set
-        as outputs or tuples with layer name as first element and output port id as second element.
-        In case of setting one layer as output, string or tuple with one layer can be provided.
+                        as outputs or tuples with layer name as first element and output port id as second element.
+                        In case of setting one layer as output, string or tuple with one layer can be provided.
+        
         :return: None
 
         Usage example:
@@ -1717,32 +1755,35 @@ cdef class IENetwork:
 
     def serialize(self, path_to_xml, path_to_bin: str = ""):
         """Serializes the network and stores it in files.
-       :param path_to_xml: Path to a file, where a serialized model will be stored
-       :param path_to_bin: Path to a file, where serialized weights will be stored
-       :return: None
+       
+        :param path_to_xml: Path to a file, where a serialized model will be stored
+        :param path_to_bin: Path to a file, where serialized weights will be stored
+        :return: None
     
-    Usage example:
+        Usage example:
     
-    .. code-block:: python
+        .. code-block:: python
 
-        ie = IECore()
-        net = ie.read_network(model=path_to_xml, weights=path_to_bin)
-        net.serialize(path_to_xml, path_to_bin)
+            ie = IECore()
+            net = ie.read_network(model=path_to_xml, weights=path_to_bin)
+            net.serialize(path_to_xml, path_to_bin)
         """
         self.impl.serialize(path_to_xml.encode(), path_to_bin.encode())
 
     def reshape(self, input_shapes: dict):
         """Reshapes the network to change spatial dimensions, batch size, or any dimension.
         
-        .. note:: Before using this method, make sure that the target shape is applicable for the network.
-        Changing the network shape to an arbitrary value may lead to unpredictable behaviour.
-       
-       :param input_shapes: A dictionary that maps input layer names to tuples with the target shape
-       :return: None
+        :param input_shapes: A dictionary that maps input layer names to tuples with the target shape
+        :return: None
 
-       Usage example:
+        .. note::
+        
+           Before using this method, make sure that the target shape is applicable for the network.
+           Changing the network shape to an arbitrary value may lead to unpredictable behaviour.
+
+        Usage example:
        
-       .. code-block:: python
+        .. code-block:: python
     
            ie = IECore()
            net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)

@@ -276,8 +276,16 @@ Parameter | Explanation
 
 * `task_type`: a string identifying the type of task that the model performs. 
   are:
-<details>
-    <summary>Current possible values</summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="Current possible values">
+
+@endsphinxdirective
+
+
 
   * `action_recognition`
   * `classification`
@@ -307,7 +315,16 @@ Parameter | Explanation
   * `text_to_speech`
   * `time_series`
   * `token_recognition`
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
   Additional possible values might be added in the future.
 
 ## Shared options
