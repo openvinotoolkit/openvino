@@ -48,6 +48,7 @@ set(SRC
     main.cpp
     matcher_pass.cpp
     misc.cpp
+    rtti.cpp
     node_input_output.cpp
     rtti.cpp
     op.cpp
@@ -87,6 +88,7 @@ set(SRC
     span.cpp
     specialize_function.cpp
     tensor.cpp
+    threading.cpp
     type_info.cpp
     type_prop/abs.cpp
     type_prop/acos.cpp

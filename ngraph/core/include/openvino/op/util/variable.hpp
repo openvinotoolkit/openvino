@@ -51,9 +51,7 @@ public:
     explicit AttributeAdapter(std::shared_ptr<op::util::Variable>& value)
         : DirectValueAccessor<std::shared_ptr<op::util::Variable>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Variable>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

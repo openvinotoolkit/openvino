@@ -14,6 +14,7 @@
 #include <limits>
 #include <string>
 #include <functional>
+#include <set>
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -121,6 +122,8 @@ struct data_type_traits {
                 return alignof(data_type_to_type<data_types::bin>::type);
             case data_types::i8:
                 return alignof(data_type_to_type<data_types::i8>::type);
+            case data_types::u8:
+                return alignof(data_type_to_type<data_types::u8>::type);
             case data_types::i32:
                 return alignof(data_type_to_type<data_types::i32>::type);
             case data_types::i64:
@@ -395,20 +398,33 @@ struct layout {
     size_t get_linear_size() const {
         auto sizes = get_buffer_size().sizes();
 
-        for (const auto& block : this->format.block_sizes()) {
-            auto block_axis = block.first;
-            auto block_size = block.second;
+        std::set<size_t> processed_dims;
+        const auto& blocks = format.block_sizes();
+        for (size_t i = 0; i < blocks.size(); i++) {
+            if (processed_dims.count(blocks[i].first))
+                continue;
+
+            auto block_axis = blocks[i].first;
+            auto block_size = blocks[i].second;
+
+            for (size_t j = i + 1; j < blocks.size(); j++) {
+                if (blocks[j].first != block_axis)
+                    continue;
+
+                block_size *= blocks[j].second;
+            }
 
             sizes[block_axis] = align_to(sizes[block_axis], block_size);
+            processed_dims.insert(block_axis);
         }
 
-        if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && !(is_aligned_to(sizes[0], 8)) && !(is_aligned_to(sizes[1], 32))) {
+        if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && (!(is_aligned_to(sizes[0], 8)) || !(is_aligned_to(sizes[1], 32)))) {
             sizes[0] = align_to(sizes[0], 8);
             sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::os_is_yx_isa8_osv16_isv4 && !(is_aligned_to(sizes[0], 16)) && !(is_aligned_to(sizes[1], 32))) {
+        } else if (this->format == cldnn::format::os_is_yx_isa8_osv16_isv4 && (!(is_aligned_to(sizes[0], 16)) || !(is_aligned_to(sizes[1], 32)))) {
             sizes[0] = align_to(sizes[0], 16);
             sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && !(is_aligned_to(sizes[0], 32)) && !(is_aligned_to(sizes[1], 32))) {
+        } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && (!(is_aligned_to(sizes[0], 32)) || !(is_aligned_to(sizes[1], 32)))) {
             sizes[0] = align_to(sizes[0], 32);
             sizes[1] = align_to(sizes[1], 32);
         } else if (this->format == cldnn::format::is_o32_yx_isv32_swizzled_by_4 && (!is_aligned_to(sizes[1], 32) || !(is_aligned_to(sizes[0], 32)))) {

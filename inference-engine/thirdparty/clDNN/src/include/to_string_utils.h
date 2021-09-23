@@ -91,6 +91,14 @@ inline std::string fmt_to_str(format fmt) {
             return "fs_b_yx_fsv32";
         case format::bs_fs_yx_bsv16_fsv16:
             return "bs_fs_yx_bsv16_fsv16";
+        case format::bs_fs_yx_bsv32_fsv16:
+            return "bs_fs_yx_bsv32_fsv16";
+        case format::bs_fs_yx_bsv4_fsv2:
+            return "bs_fs_yx_bsv4_fsv2";
+        case format::bs_fs_yx_bsv4_fsv4:
+            return "bs_fs_yx_bsv4_fsv4";
+        case format::bs_fs_yx_bsv32_fsv32:
+            return "bs_fs_yx_bsv32_fsv32";
         case format::b_fs_zyx_fsv16:
             return "b_fs_zyx_fsv16";
         case format::bs_fs_zyx_bsv16_fsv16:
@@ -122,6 +130,10 @@ inline std::string fmt_to_str(format fmt) {
             return "image_2d_weights_winograd_6x3_s1_fbxyb";
         case format::image_2d_weights_winograd_6x3_s1_xfbyb:
             return "image_2d_weights_winograd_6x3_s1_xfbyb";
+        case format::os_yxi_osv16:
+            return "os_yxi_osv16";
+        case format::o_is_yx_isv16:
+            return "o_is_yx_isv16";
         case format::os_iyx_osv16:
             return "os_iyx_osv16";
         case format::os_is_yx_osv16_isv16:
@@ -142,6 +154,14 @@ inline std::string fmt_to_str(format fmt) {
             return "os_is_zyx_isa8_osv8_isv4";
         case format::os_is_zyx_isa8_osv16_isv4:
             return "os_is_zyx_isa8_osv16_isv4";
+        case format::os_is_yx_osa4_isa8_osv8_isv2:
+            return "os_is_yx_osa4_isa8_osv8_isv2";
+        case format::g_os_is_yx_osa4_isa8_osv8_isv2:
+            return "g_os_is_yx_osa4_isa8_osv8_isv2";
+        case format::g_os_is_yx_osa4_isa8_osv8_isv4:
+            return "g_os_is_yx_osa4_isa8_osv8_isv4";
+        case format::os_is_yx_osa4_isa8_osv8_isv4:
+            return "os_is_yx_osa4_isa8_osv8_isv4";
         case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return "os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4";
         case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
@@ -150,6 +170,10 @@ inline std::string fmt_to_str(format fmt) {
             return "os_is_yx_isa8_osv8_isv4_swizzled_by_4";
         case format::is_o32_yx_isv32_swizzled_by_4:
             return "is_o32_yx_isv32_swizzled_by_4";
+        case format::os_is_yx_osv8_isv2:
+            return "os_is_yx_osv8_isv2";
+        case format::os_is_yx_osv8_isv4:
+            return "os_is_yx_osv8_isv4";
         case format::os_is_yx_osv16_isv4:
             return "os_is_yx_osv16_isv4";
         case format::os_is_yx_osv32_isv4_swizzled_by_2:
