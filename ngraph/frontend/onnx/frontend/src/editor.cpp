@@ -444,6 +444,11 @@ bool onnx_editor::ONNXModelEditor::is_correct_and_unambiguous_node(const EditorN
     return m_pimpl->m_edge_mapper.is_correct_and_unambiguous_node(node);
 }
 
+int onnx_editor::ONNXModelEditor::get_node_index(const EditorNode& node) const {
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.get_node_index(node);
+}
+
 bool onnx_editor::ONNXModelEditor::is_correct_tensor_name(const std::string& name) const {
     update_mapper_if_needed();
     return m_pimpl->m_edge_mapper.is_correct_tensor_name(name);
