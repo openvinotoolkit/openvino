@@ -105,8 +105,8 @@ template <typename BaseNmsOp>
 const ::ngraph::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info = NmsStaticShapeIE<BaseNmsOp>::get_type_info_static();
 
 #ifdef __clang__
-extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<op::v8::MulticlassNms>;
-extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<op::v8::MatrixNms>;
+extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MulticlassNms>;
+extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>;
 #endif  // __clang__
 
 }  // namespace internal

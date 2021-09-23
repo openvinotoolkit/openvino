@@ -13,7 +13,8 @@ namespace op {
 namespace v0 {
 class OPENVINO_API BatchNormInference : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("BatchNormInference", "opset1");
+    BWDCMP_RTTI_DECLARATION;
     BatchNormInference() = default;
     /// \param input [., C, ...]
     /// \param gamma gamma scaling for normalized value. [C]
@@ -53,7 +54,8 @@ private:
 namespace v5 {
 class OPENVINO_API BatchNormInference : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("BatchNormInference", "opset5", op::Op, 5);
+    BWDCMP_RTTI_DECLARATION;
     BatchNormInference() = default;
     /// \param input [., C, ...]
     /// \param gamma gamma scaling for normalized value. [C]
