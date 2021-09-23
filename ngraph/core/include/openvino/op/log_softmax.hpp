@@ -11,7 +11,8 @@ namespace op {
 namespace v5 {
 class OPENVINO_API LogSoftmax : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("LogSoftmax", "opset5", op::Op, 5);
+    BWDCMP_RTTI_DECLARATION;
     LogSoftmax() = default;
     /// \brief Constructs a LogSoftmax operation.
     ///
