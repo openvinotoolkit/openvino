@@ -54,7 +54,9 @@ public:
     const MKLDNNMemory& getMemory();
     MKLDNNMemoryPtr& getMemoryPtr();
 
+    bool isInPlaceConflicts();
     bool needReorder();
+    bool isOptimizedReorder();
     bool isDropped() const;
     bool isUseExternalMemory() const;
 
