@@ -33,7 +33,7 @@ struct EmbeddingSegmentsSumParams {
                                const ConstantPtr& segment_ids,
                                const ConstantPtr& num_segments,
                                const ConstantPtr& default_index = nullptr,
-                               const std::vector<float>& per_sample_weights = std::vector<float>())
+                               const ConstantPtr& per_sample_weights = nullptr)
         : _iShape(iShape),
           _iType(iType),
           _iData(CreateBlob(iType, iValues)),
@@ -58,8 +58,8 @@ struct EmbeddingSegmentsSumParams {
     ConstantPtr _indices;
     ConstantPtr _segmentIds;
     ConstantPtr _numSegments;
-    ConstantPtr _defaultIndex;             // Optional, default filled zero.
-    std::vector<float> _perSampleWeights;  // Optional, default is tensor of ones.
+    ConstantPtr _defaultIndex;      // Optional, default filled zero.
+    ConstantPtr _perSampleWeights;  // Optional, default is tensor of ones.
 };
 
 class ReferenceEmbeddingSegmentsSumLayerTest : public testing::TestWithParam<EmbeddingSegmentsSumParams>,
@@ -94,29 +94,21 @@ private:
                                                     const ConstantPtr segment_ids,
                                                     const ConstantPtr num_segments,
                                                     const ConstantPtr default_index,
-                                                    const std::vector<float>& per_sample_weights) {
+                                                    const ConstantPtr per_sample_weights) {
         const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
 
-        std::vector<size_t> i_shape = {per_sample_weights.size()};
-        // auto indicesNode = std::make_shared<ngraph::opset1::Constant>(element::i32, i_shape, indices);
-        // std::vector<size_t> o_shape = {segment_ids.size()};
-        // auto segmentIdNode = std::make_shared<ngraph::opset1::Constant>(element::i32, o_shape, segment_ids);
-        std::vector<size_t> shape_0 = {};
-        // auto segmentNumNode = std::make_shared<ngraph::opset1::Constant>(element::i32, shape_0, num_segments);
-
         if (default_index) {
-            // auto defIdxNode = std::make_shared<ngraph::opset1::Constant>(element::i32, shape_0, default_index);
-
-            if (per_sample_weights.size() > 0) {
-                auto weightsNode =
-                    std::make_shared<ngraph::opset1::Constant>(element::f32, i_shape, per_sample_weights);
+            if (per_sample_weights) {
+                // std::vector<size_t> i_shape = {per_sample_weights.size()};
+                // auto weightsNode =
+                //     std::make_shared<ngraph::opset1::Constant>(element::f32, i_shape, per_sample_weights);
 
                 const auto ess = std::make_shared<op::v3::EmbeddingSegmentsSum>(in,
                                                                                 indices,
                                                                                 segment_ids,
                                                                                 num_segments,
                                                                                 default_index,
-                                                                                weightsNode);
+                                                                                per_sample_weights);
                 return std::make_shared<Function>(NodeVector{ess}, ParameterVector{in});
             } else {
                 const auto ess = std::make_shared<op::v3::EmbeddingSegmentsSum>(in,
@@ -137,12 +129,9 @@ TEST_P(ReferenceEmbeddingSegmentsSumLayerTest, CompareWithRefs) {
     Exec();
 }
 
-inline ConstantPtr GetConstantVec_i32(const std::vector<int32_t>& val) {
-    return MakeConstantPtr(element::i32, std::vector<size_t>{val.size()}, val);
-}
-
-inline ConstantPtr GetConstantVec_i64(const std::vector<int64_t>& val) {
-    return MakeConstantPtr(element::i64, std::vector<size_t>{val.size()}, val);
+template <class T>
+inline ConstantPtr GetConstantVec(const std::vector<T>& val, const ngraph::element::Type& element_type) {
+    return MakeConstantPtr(element_type, std::vector<size_t>{val.size()}, val);
 }
 
 inline ConstantPtr GetConstantVal_i32(const int32_t& val) {
@@ -163,19 +152,19 @@ INSTANTIATE_TEST_SUITE_P(
                                    ngraph::PartialShape{3, 2},
                                    ngraph::element::f32,
                                    {-1.05f, -1.2f, -0.2f, -0.6f, -0.1f, 0.4f},
-                                   GetConstantVec_i32({0, 2, 3, 4}),
-                                   GetConstantVec_i32({0, 0, 2, 2}),
+                                   GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
+                                   GetConstantVec<int32_t>({0, 0, 2, 2}, element::i32),
                                    GetConstantVal_i32(3),
                                    GetConstantVal_i32(0),
-                                   {0.5, 0.5, 0.5, 0.5}),
+                                   GetConstantVec<float>({0.5, 0.5, 0.5, 0.5}, element::f32)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
                                    ngraph::element::f64,
                                    std::vector<double>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
                                    ngraph::PartialShape{3, 2},
                                    ngraph::element::f64,
                                    std::vector<double>{-2.1, -2.4, -0.2, -0.6, -0.2, 0.8},
-                                   GetConstantVec_i32({0, 2, 3, 4}),
-                                   GetConstantVec_i32({0, 0, 2, 2}),
+                                   GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
+                                   GetConstantVec<int32_t>({0, 0, 2, 2}, element::i32),
                                    GetConstantVal_i32(3),
                                    GetConstantVal_i32(0)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
@@ -184,8 +173,8 @@ INSTANTIATE_TEST_SUITE_P(
                                    ngraph::PartialShape{3, 2},
                                    ngraph::element::i32,
                                    std::vector<int32_t>{-6, -4, 0, 0, 2, 18},
-                                   GetConstantVec_i32({0, 2, 3, 4}),
-                                   GetConstantVec_i32({0, 0, 2, 2}),
+                                   GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
+                                   GetConstantVec<int32_t>({0, 0, 2, 2}, element::i32),
                                    GetConstantVal_i32(3)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
                                    ngraph::element::u32,
@@ -193,8 +182,8 @@ INSTANTIATE_TEST_SUITE_P(
                                    ngraph::PartialShape{3, 2},
                                    ngraph::element::u32,
                                    std::vector<uint32_t>{6, 8, 3, 4, 16, 18},
-                                   GetConstantVec_i32({0, 2, 3, 4}),
-                                   GetConstantVec_i32({0, 0, 2, 2}),
+                                   GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
+                                   GetConstantVec<int32_t>({0, 0, 2, 2}, element::i32),
                                    GetConstantVal_i32(3),
                                    GetConstantVal_i32(1)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
@@ -203,8 +192,8 @@ INSTANTIATE_TEST_SUITE_P(
                                    ngraph::PartialShape{3, 2},
                                    ngraph::element::f16,
                                    std::vector<float16>{-2.1, -2.4, 0, 0, -0.2, 0.8},
-                                   GetConstantVec_i64({0, 2, 3, 4}),
-                                   GetConstantVec_i64({0, 0, 2, 2}),
+                                   GetConstantVec<int64_t>({0, 2, 3, 4}, element::i64),
+                                   GetConstantVec<int64_t>({0, 0, 2, 2}, element::i64),
                                    GetConstantVal_i64(3)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
                                    ngraph::element::i64,
@@ -212,8 +201,8 @@ INSTANTIATE_TEST_SUITE_P(
                                    ngraph::PartialShape{3, 2},
                                    ngraph::element::i64,
                                    std::vector<int64_t>{-6, -4, -1, 2, 2, 18},
-                                   GetConstantVec_i64({0, 2, 3, 4}),
-                                   GetConstantVec_i64({0, 0, 2, 2}),
+                                   GetConstantVec<int64_t>({0, 2, 3, 4}, element::i64),
+                                   GetConstantVec<int64_t>({0, 0, 2, 2}, element::i64),
                                    GetConstantVal_i64(3),
                                    GetConstantVal_i64(0)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
@@ -221,19 +210,20 @@ INSTANTIATE_TEST_SUITE_P(
                                    std::vector<int8_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
                                    ngraph::PartialShape{3, 2},
                                    ngraph::element::i8,
-                                   std::vector<int8_t>{-6, -4, -1, 2, 2, 18},
-                                   GetConstantVec_i64({0, 2, 3, 4}),
-                                   GetConstantVec_i64({0, 0, 2, 2}),
+                                   std::vector<int8_t>{-12, -8, -1, 2, 4, 36},
+                                   GetConstantVec<int64_t>({0, 2, 3, 4}, element::i64),
+                                   GetConstantVec<int64_t>({0, 0, 2, 2}, element::i64),
                                    GetConstantVal_i64(3),
-                                   GetConstantVal_i64(0)),
+                                   GetConstantVal_i64(0),
+                                   GetConstantVec<int8_t>({2, 2, 2, 2}, element::i8)),
         EmbeddingSegmentsSumParams(ngraph::PartialShape{5, 2},
                                    ngraph::element::u8,
                                    std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
                                    ngraph::PartialShape{3, 2},
                                    ngraph::element::u8,
                                    std::vector<uint8_t>{6, 8, 1, 2, 16, 18},
-                                   GetConstantVec_i32({0, 2, 3, 4}),
-                                   GetConstantVec_i32({0, 0, 2, 2}),
+                                   GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
+                                   GetConstantVec<int32_t>({0, 0, 2, 2}, element::i32),
                                    GetConstantVal_i32(3),
                                    GetConstantVal_i32(0))),
     ReferenceEmbeddingSegmentsSumLayerTest::getTestCaseName);
