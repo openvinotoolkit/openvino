@@ -761,7 +761,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
     // Transformations might lead to the situation when single node is merged to multiple operations,
     // so we mark original op as supported only if all nodes that it was merged into are supported
     for (auto&& op : ops) {
-        for (auto&& fusedLayerName : ov::getFusedNamesVector(op)) {
+        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
             if (InferenceEngine::details::contains(originalOpNames, fusedLayerName)) {
                 if (layerIsSupported(op)) {
                     supported.emplace(fusedLayerName);

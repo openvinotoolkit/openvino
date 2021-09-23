@@ -34,7 +34,7 @@ void FusedNames::fuseWith(const FusedNames &names) {
     }
 }
 
-std::string ov::getFusedNames(const std::shared_ptr<ngraph::Node> &node) {
+std::string ngraph::getFusedNames(const std::shared_ptr<ngraph::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
     using FusedNamesWrapper = VariantWrapper<FusedNames>;
 
@@ -45,7 +45,7 @@ std::string ov::getFusedNames(const std::shared_ptr<ngraph::Node> &node) {
     return fusedNames.getNames();
 }
 
-std::vector<std::string> ov::getFusedNamesVector(const std::shared_ptr<ngraph::Node> &node) {
+std::vector<std::string> ngraph::getFusedNamesVector(const std::shared_ptr<ngraph::Node> &node) {
     if (!node) return {};
 
     const auto &rtInfo = node->get_rt_info();

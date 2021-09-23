@@ -74,9 +74,9 @@ TEST(RTInfoDeserialization, Node) {
     auto f = net.getFunction();
 
     auto check_fused_names = [](const RTMap & info, const std::string & names) {
-        const std::string & key = VariantWrapper<ov::FusedNames>::get_type_info_static();
+        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_TRUE(info.count(key));
-        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ov::FusedNames>>(info.at(key));
+        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };
@@ -166,9 +166,9 @@ TEST(RTInfoDeserialization, InputAndOutput) {
     auto f = net.getFunction();
 
     auto check_fused_names = [](const RTMap & info, const std::string & names) {
-        const std::string & key = VariantWrapper<ov::FusedNames>::get_type_info_static();
+        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_TRUE(info.count(key));
-        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ov::FusedNames>>(info.at(key));
+        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };

@@ -55,7 +55,7 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNe
             continue;
         }
 
-        for (auto& fusedLayerName : ov::getFusedNamesVector(fusedNode)) {
+        for (auto& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                 if (isLayerSupported(itLayer)) {
                     supported.emplace(fusedLayerName);

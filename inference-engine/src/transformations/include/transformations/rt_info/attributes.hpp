@@ -27,7 +27,7 @@ namespace pass {
 class TRANSFORMATIONS_API Attributes {
 public:
     Attributes() {
-        register_factory<VariantWrapper<FusedNames>>();
+        register_factory<VariantWrapper<ngraph::FusedNames>>();
         register_factory<VariantWrapper<PrimitivesPriority>>();
         register_factory<VariantWrapper<DisableConstantFolding>>();
         register_factory<VariantWrapper<NmsSelectedIndices>>();

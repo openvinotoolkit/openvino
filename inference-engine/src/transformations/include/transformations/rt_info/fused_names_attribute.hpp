@@ -22,7 +22,7 @@
 #include <transformations_visibility.hpp>
 
 
-namespace ov {
+namespace ngraph {
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -82,10 +82,14 @@ TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ngraph::Node
  */
 TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
 
-extern template class TRANSFORMATIONS_API VariantImpl<FusedNames>;
+}  // namespace ngraph
+
+namespace ov {
+
+extern template class TRANSFORMATIONS_API VariantImpl<ngraph::FusedNames>;
 
 template<>
-class TRANSFORMATIONS_API VariantWrapper<FusedNames> : public VariantImpl<FusedNames> {
+class TRANSFORMATIONS_API VariantWrapper<ngraph::FusedNames> : public VariantImpl<ngraph::FusedNames> {
 public:
     OPENVINO_RTTI("fused_names", "0");
 
@@ -101,7 +105,7 @@ public:
 };
 
 template <>
-class OPENVINO_API AttributeAdapter<std::set<std::string>> : public DirectValueAccessor<std::set<std::string>> {
+class TRANSFORMATIONS_API AttributeAdapter<std::set<std::string>> : public DirectValueAccessor<std::set<std::string>> {
 public:
     OPENVINO_RTTI("AttributeAdapter<set<string>>");
     AttributeAdapter(std::set<std::string>& value) : DirectValueAccessor<std::set<std::string>>(value) {}

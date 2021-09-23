@@ -225,12 +225,12 @@ TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriority) {
 
 TEST(NetworkContext_CNNNetwork, HashWithFusedNames) {
     auto setFusedEmpty = [&](Node::RTMap& rtInfo) {
-        rtInfo[VariantWrapper<ov::FusedNames>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ov::FusedNames>>(ov::FusedNames());
+        rtInfo[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
+                std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames());
     };
     auto setFused = [&](Node::RTMap& rtInfo, const std::string& name) {
-        rtInfo[VariantWrapper<ov::FusedNames>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ov::FusedNames>>(ov::FusedNames(name));
+        rtInfo[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
+                std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames(name));
     };
     checkCustomRt(setFusedEmpty, setFused);
 }
