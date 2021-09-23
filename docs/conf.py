@@ -12,6 +12,8 @@
 #
 import os
 import sys
+from sphinx.ext.autodoc import ClassDocumenter
+
 sys.path.insert(0, os.path.abspath('_themes'))
 sys.path.insert(0, os.path.abspath('doxyrest-sphinx'))
 # sys.path.insert(0, os.path.abspath('.'))
@@ -41,8 +43,13 @@ extensions = [
     'sphinx_copybutton',
     'doxyrest',
     'cpplexer',
-    'sphinx.ext.autodoc'
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary'
 ]
+
+autodoc_default_flags = ['members']
+autosummary_generate = True
+autosummary_imported_members = True
 
 html_logo = '_static/logo.svg'
 
@@ -105,10 +112,21 @@ doxygen_mapping_file = '@DOXYGEN_MAPPING_FILE@'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+# monkeypatch sphinx api doc to prevent showing inheritance from object and enum.Enum
+add_line = ClassDocumenter.add_line
+
+def add_line_no_base_object(self, line, *args, **kwargs):
+    if line.strip() in ['Bases: :class:`object`', 'Bases: :class:`enum.Enum`']:
+        return
+    else:
+        add_line(self, line, *args, **kwargs)
+
+
+ClassDocumenter.add_line = add_line_no_base_object
+
 
 def setup(app):
     app.add_css_file('css/viewer.min.css')
     app.add_css_file('css/custom.css')
     app.add_js_file('js/viewer.min.js')
     app.add_js_file('js/custom.js')
-    
