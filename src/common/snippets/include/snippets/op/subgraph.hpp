@@ -92,9 +92,6 @@ public:
 
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
                                 ngraph::pass::Manager opt = ngraph::pass::Manager());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /// Set a new body for the op; body needs to satisfy requirements on inputs/outputs
     void set_body(std::shared_ptr<Function> body);
