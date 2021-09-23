@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ov;
 
-NGRAPH_RTTI_DEFINITION(op::util::LogicalReduction, "LogicalReduction", 1);
+BWDCMP_RTTI_DEFINITION(op::util::LogicalReduction);
 
 op::util::LogicalReduction::LogicalReduction() = default;
 

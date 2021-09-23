@@ -12,7 +12,8 @@ namespace v0 {
 /// \brief Elementwise hyperbolic cosine (cosh) operation.
 class OPENVINO_API Cosh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Cosh", "opset1", util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a hyperbolic cosine operation.
     Cosh() = default;

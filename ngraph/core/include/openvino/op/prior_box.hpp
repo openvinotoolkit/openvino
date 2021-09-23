@@ -13,7 +13,8 @@ namespace v0 {
 /// normalized to input image size
 class OPENVINO_API PriorBox : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("PriorBox", "opset1");
+    BWDCMP_RTTI_DECLARATION;
     struct Attributes {
         // min_size         Desired min_size of prior boxes
         // max_size         Desired max_size of prior boxes
