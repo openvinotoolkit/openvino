@@ -271,9 +271,9 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
     EXPECT_NO_THROW(f = PrePostProcessor()
-            .input(InputInfo()
-                       .tensor(InputTensorInfo().set_layout("NCHW"))
-                       .preprocess(PreProcessSteps().mean({0.1f, 0.2f, 0.3f})))
-            .build(f));
+                            .input(InputInfo()
+                                       .tensor(InputTensorInfo().set_layout("NCHW"))
+                                       .preprocess(PreProcessSteps().mean({0.1f, 0.2f, 0.3f})))
+                            .build(f));
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
 }
