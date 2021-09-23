@@ -95,37 +95,41 @@ std::vector<int> onnx_editor::EdgeMapper::get_node_input_indexes(int node_index,
 }
 
 InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const EditorInput& in) const {
-    // identification can be both based on node name and output name
-    const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
-    int node_index = -1;
-    if (node_indexes.size() == 1) {
-        node_index = node_indexes[0];
-    } else if (node_indexes.empty()) {
-        throw ngraph_error("Node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
-                           " and output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
-                           " was not found");
-    } else if (!in.m_input_name.empty())  // input indexes are not deterministic if a node name is ambiguous
-    {
-        // many nodes with the same name
-        // check if some of found index matches input name
-        int matched_inputs_number = 0;
-        for (const auto& index : node_indexes) {
-            if (std::count(std::begin(m_node_inputs[index]), std::end(m_node_inputs[index]), in.m_input_name) > 0) {
-                node_index = index;
-                ++matched_inputs_number;
-            }
-        }
-        if (matched_inputs_number == 0) {
-            throw ngraph_error("Input edge described by: " + node.m_node_name + " and input name: " + in.m_input_name +
+    int node_index = node.m_node_index;
+    if (node_index == -1) {  // the node index is not provided
+        // identification can be both based on node name and output name (if the node index is not provided)
+        const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
+        if (node_indexes.size() == 1) {
+            node_index = node_indexes[0];
+        } else if (node_indexes.empty()) {
+            throw ngraph_error("Node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
+                               " and output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
                                " was not found");
+        } else if (!in.m_input_name.empty())  // input indexes are not deterministic if a node name is ambiguous
+        {
+            // many nodes with the same name
+            // check if some of found index matches input name
+            int matched_inputs_number = 0;
+            for (const auto& index : node_indexes) {
+                if (std::count(std::begin(m_node_inputs[index]), std::end(m_node_inputs[index]), in.m_input_name) > 0) {
+                    node_index = index;
+                    ++matched_inputs_number;
+                }
+            }
+            if (matched_inputs_number == 0) {
+                throw ngraph_error("Input edge described by: " + node.m_node_name +
+                                   " and input name: " + in.m_input_name + " was not found");
+            }
+            if (matched_inputs_number > 1) {
+                throw ngraph_error("Given node name: " + node.m_node_name + " and input name: " + in.m_input_name +
+                                   " are ambiguous to determine input edge");
+            }
+        } else {
+            throw ngraph_error("Given node name: " + node.m_node_name + " and input index: " +
+                               std::to_string(in.m_input_index) + " are ambiguous to determine input edge");
         }
-        if (matched_inputs_number > 1) {
-            throw ngraph_error("Given node name: " + node.m_node_name + " and input name: " + in.m_input_name +
-                               " are ambiguous to determine input edge");
-        }
-    } else {
-        throw ngraph_error("Given node name: " + node.m_node_name + " and input index: " +
-                           std::to_string(in.m_input_index) + " are ambiguous to determine input edge");
+    } else {  // the node index is provided
+        check_node_index(node_index);
     }
     if (in.m_input_index != -1)  // input index is set
     {
@@ -146,33 +150,38 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const
 }
 
 OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node, const EditorOutput& out) const {
-    // identification can be both based on node name and output name
-    const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
-    int node_index = -1;
-    if (node_indexes.size() == 1) {
-        node_index = node_indexes[0];
-    } else if (node_indexes.empty()) {
-        throw ngraph_error("Node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
-                           " and output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
-                           " was not found");
-    } else if (!out.m_output_name.empty())  // output indexes are not deterministic if a node name is ambiguous
-    {
-        // many nodes with the same name
-        // check if some of found index matches output name
-        int matched_outputs_number = 0;
-        for (const auto& index : node_indexes) {
-            if (std::count(std::begin(m_node_outputs[index]), std::end(m_node_outputs[index]), out.m_output_name) > 0) {
-                node_index = index;
-                ++matched_outputs_number;
+    int node_index = node_index = node.m_node_index;
+    if (node_index == -1) {  // the node index is not provided
+        // identification can be both based on node name and output name (if the node index is not provided)
+        const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
+        if (node_indexes.size() == 1) {
+            node_index = node_indexes[0];
+        } else if (node_indexes.empty()) {
+            throw ngraph_error("Node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
+                               " and output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
+                               " was not found");
+        } else if (!out.m_output_name.empty())  // output indexes are not deterministic if a node name is ambiguous
+        {
+            // many nodes with the same name
+            // check if some of found index matches output name
+            int matched_outputs_number = 0;
+            for (const auto& index : node_indexes) {
+                if (std::count(std::begin(m_node_outputs[index]), std::end(m_node_outputs[index]), out.m_output_name) >
+                    0) {
+                    node_index = index;
+                    ++matched_outputs_number;
+                }
             }
+            if (matched_outputs_number == 0) {
+                throw ngraph_error("Output edge described by: " + node.m_node_name +
+                                   " and output name: " + out.m_output_name + " was not found");
+            }
+        } else {
+            throw ngraph_error("Given node name: " + node.m_node_name + " and output index: " +
+                               std::to_string(out.m_output_index) + " are ambiguous to determine output edge");
         }
-        if (matched_outputs_number == 0) {
-            throw ngraph_error("Output edge described by: " + node.m_node_name +
-                               " and output name: " + out.m_output_name + " was not found");
-        }
-    } else {
-        throw ngraph_error("Given node name: " + node.m_node_name + " and output index: " +
-                           std::to_string(out.m_output_index) + " are ambiguous to determine output edge");
+    } else {  // the node index is provided
+        check_node_index(node_index);
     }
     if (out.m_output_index != -1)  // output index is set
     {
@@ -197,14 +206,43 @@ std::vector<InputEdge> onnx_editor::EdgeMapper::find_output_consumers(const std:
         const auto node_idx = it->second;
         const auto port_indexes = get_node_input_indexes(node_idx, output_name);
         for (const auto& idx : port_indexes) {
-            input_edges.push_back(InputEdge{node_idx, idx});
+            const auto consumer_edge = InputEdge{node_idx, idx};
+            if (std::find_if(std::begin(input_edges), std::end(input_edges), [&consumer_edge](const InputEdge& edge) {
+                    return edge.m_node_idx == consumer_edge.m_node_idx && edge.m_port_idx == consumer_edge.m_port_idx;
+                }) == std::end(input_edges)) {
+                // only unique
+                input_edges.push_back(consumer_edge);
+            }
         }
     }
     return input_edges;
 }
 
 bool onnx_editor::EdgeMapper::is_correct_and_unambiguous_node(const EditorNode& node) const {
+    if (node.m_node_index >= 0 && node.m_node_index < static_cast<int>(m_node_inputs.size())) {
+        return true;
+    }
     return find_node_indexes(node.m_node_name, node.m_output_name).size() == 1;
+}
+
+namespace {
+void check_node(bool condition, const EditorNode& node) {
+    NGRAPH_CHECK(condition,
+                 "The node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
+                     ", output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
+                     ", node_index: " + (node.m_node_index == -1 ? "not_given" : std::to_string(node.m_node_index)) +
+                     " is ambiguous");
+}
+}  // namespace
+
+int onnx_editor::EdgeMapper::get_node_index(const EditorNode& node) const {
+    if (node.m_node_index != -1) {  // the node index provided
+        check_node_index(node.m_node_index);
+        return node.m_node_index;
+    }
+    const auto indexes = find_node_indexes(node.m_node_name, node.m_output_name);
+    check_node(indexes.size() == 1, node);
+    return indexes[0];
 }
 
 bool onnx_editor::EdgeMapper::is_correct_tensor_name(const std::string& name) const {
@@ -218,20 +256,25 @@ bool onnx_editor::EdgeMapper::is_correct_tensor_name(const std::string& name) co
 }
 
 std::vector<std::string> onnx_editor::EdgeMapper::get_input_ports(const EditorNode& node) const {
-    NGRAPH_CHECK(is_correct_and_unambiguous_node(node),
-                 "The node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
-                     ", output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
-                     " is ambiguous");
-    const auto node_index = find_node_indexes(node.m_node_name, node.m_output_name)[0];
+    check_node(is_correct_and_unambiguous_node(node), node);
+    auto node_index = node.m_node_index;
+    if (node_index == -1) {  // the node index is provided
+        node_index = find_node_indexes(node.m_node_name, node.m_output_name)[0];
+    } else {
+        check_node_index(node_index);
+    }
     return m_node_inputs[node_index];
 }
 
 std::vector<std::string> onnx_editor::EdgeMapper::get_output_ports(const EditorNode& node) const {
-    NGRAPH_CHECK(is_correct_and_unambiguous_node(node),
-                 "The node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
-                     ", output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
-                     " is ambiguous");
-    const auto node_index = find_node_indexes(node.m_node_name, node.m_output_name)[0];
+    check_node(is_correct_and_unambiguous_node(node), node);
+    auto node_index = node.m_node_index;
+    if (node_index == -1)  // the node index is provided
+    {
+        node_index = find_node_indexes(node.m_node_name, node.m_output_name)[0];
+    } else {
+        check_node_index(node_index);
+    }
     return m_node_outputs[node_index];
 }
 
@@ -249,4 +292,9 @@ std::string onnx_editor::EdgeMapper::get_target_tensor_name(const OutputEdge& ed
         return m_node_outputs[edge.m_node_idx][edge.m_port_idx];
     }
     return "";
+}
+
+void onnx_editor::EdgeMapper::check_node_index(int node_index) const {
+    NGRAPH_CHECK(node_index >= 0 && node_index < static_cast<int>(m_node_inputs.size()),
+                 "Provided node index: " + std::to_string(node_index) + " is out of scope");
 }

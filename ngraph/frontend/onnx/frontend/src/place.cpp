@@ -47,6 +47,18 @@ Place::Ptr PlaceInputEdgeONNX::get_source_tensor() const {
     return std::make_shared<PlaceTensorONNX>(m_editor->get_source_tensor_name(m_edge), m_editor);
 }
 
+std::vector<Place::Ptr> PlaceInputEdgeONNX::get_consuming_operations() const {
+    return {std::make_shared<PlaceOpONNX>(onnx_editor::EditorNode{m_edge.m_node_idx}, m_editor)};
+}
+
+Place::Ptr PlaceInputEdgeONNX::get_producing_operation() const {
+    return get_source_tensor()->get_producing_operation();
+}
+
+Place::Ptr PlaceInputEdgeONNX::get_producing_port() const {
+    return get_source_tensor()->get_producing_port();
+}
+
 PlaceOutputEdgeONNX::PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge,
                                          std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{edge},
@@ -85,6 +97,18 @@ Place::Ptr PlaceOutputEdgeONNX::get_target_tensor() const {
     return std::make_shared<PlaceTensorONNX>(m_editor->get_target_tensor_name(m_edge), m_editor);
 }
 
+std::vector<Place::Ptr> PlaceOutputEdgeONNX::get_consuming_ports() const {
+    return get_target_tensor()->get_consuming_ports();
+}
+
+Place::Ptr PlaceOutputEdgeONNX::get_producing_operation() const {
+    return std::make_shared<PlaceOpONNX>(onnx_editor::EditorNode{m_edge.m_node_idx}, m_editor);
+}
+
+std::vector<Place::Ptr> PlaceOutputEdgeONNX::get_consuming_operations() const {
+    return get_target_tensor()->get_consuming_operations();
+}
+
 PlaceTensorONNX::PlaceTensorONNX(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_name{name},
       m_editor{std::move(editor)} {}
@@ -112,10 +136,8 @@ std::vector<Place::Ptr> PlaceTensorONNX::get_consuming_ports() const {
     return ret;
 }
 
-Place::Ptr PlaceTensorONNX::get_input_port(int input_port_index) const {
-    return std::make_shared<PlaceInputEdgeONNX>(
-        m_editor->find_input_edge(onnx_editor::EditorOutput(m_name), onnx_editor::EditorInput(input_port_index)),
-        m_editor);
+Place::Ptr PlaceTensorONNX::get_producing_operation() const {
+    return get_producing_port()->get_producing_operation();
 }
 
 bool PlaceTensorONNX::is_input() const {
@@ -146,6 +168,19 @@ bool PlaceTensorONNX::is_equal_data(Place::Ptr another) const {
            eq_to_consuming_port(another);
 }
 
+std::vector<Place::Ptr> PlaceTensorONNX::get_consuming_operations() const {
+    std::vector<Place::Ptr> consuming_ports = get_consuming_ports();
+    std::vector<Place::Ptr> consuming_ops;
+    std::transform(std::begin(consuming_ports),
+                   std::end(consuming_ports),
+                   std::back_inserter(consuming_ops),
+                   [](const Place::Ptr& place) {
+                       return place->get_consuming_operations().at(0);
+                   });
+
+    return consuming_ops;
+}
+
 PlaceOpONNX::PlaceOpONNX(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_node{node},
       m_editor{std::move(editor)} {}
@@ -156,6 +191,10 @@ PlaceOpONNX::PlaceOpONNX(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_ed
 
 std::vector<std::string> PlaceOpONNX::get_names() const {
     return {m_node.m_node_name};
+}
+
+onnx_editor::EditorNode PlaceOpONNX::get_editor_node() const {
+    return m_node;
 }
 
 Place::Ptr PlaceOpONNX::get_output_port() const {
@@ -208,4 +247,134 @@ Place::Ptr PlaceOpONNX::get_input_port(const std::string& input_name) const {
             m_editor);
     }
     return nullptr;
+}
+
+std::vector<Place::Ptr> PlaceOpONNX::get_consuming_ports() const {
+    std::vector<Place::Ptr> consuming_ports;
+    const auto out_ports_size = m_editor->get_output_ports(m_node).size();
+    for (int out_idx = 0; out_idx < out_ports_size; ++out_idx) {
+        auto consuming_ops_out = get_output_port(out_idx)->get_consuming_ports();
+        consuming_ports.insert(consuming_ports.end(), consuming_ops_out.begin(), consuming_ops_out.end());
+    }
+    return consuming_ports;
+}
+
+namespace {
+std::vector<Place::Ptr> get_consuming_ops(std::vector<Place::Ptr> input_ports) {
+    std::vector<Place::Ptr> consuming_ops;
+    std::transform(std::begin(input_ports),
+                   std::end(input_ports),
+                   std::back_inserter(consuming_ops),
+                   [](const Place::Ptr place) {
+                       return place->get_consuming_operations().at(0);
+                   });
+
+    return consuming_ops;
+}
+}  // namespace
+
+std::vector<Place::Ptr> PlaceOpONNX::get_consuming_operations() const {
+    std::vector<Place::Ptr> consuming_ports = get_consuming_ports();
+    return get_consuming_ops(consuming_ports);
+}
+
+std::vector<Place::Ptr> PlaceOpONNX::get_consuming_operations(int output_port_index) const {
+    std::vector<Place::Ptr> consuming_ports = get_output_port(output_port_index)->get_consuming_ports();
+    return get_consuming_ops(consuming_ports);
+}
+
+std::vector<Place::Ptr> PlaceOpONNX::get_consuming_operations(const std::string& output_port_name) const {
+    std::vector<Place::Ptr> consuming_ports = get_output_port(output_port_name)->get_consuming_ports();
+    return get_consuming_ops(consuming_ports);
+}
+
+Place::Ptr PlaceOpONNX::get_producing_operation() const {
+    const auto input_port = get_input_port();
+    if (input_port != nullptr) {
+        return input_port->get_producing_operation();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_producing_operation(int input_port_index) const {
+    const auto input_port = get_input_port(input_port_index);
+    if (input_port != nullptr) {
+        return input_port->get_producing_operation();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_producing_operation(const std::string& input_port_name) const {
+    const auto input_port = get_input_port(input_port_name);
+    if (input_port != nullptr) {
+        return input_port->get_producing_operation();
+    }
+    return nullptr;
+}
+
+bool PlaceOpONNX::is_equal(Place::Ptr another) const {
+    if (const auto place_op = std::dynamic_pointer_cast<PlaceOpONNX>(another)) {
+        const auto& another_node = place_op->get_editor_node();
+        if (m_editor->is_correct_and_unambiguous_node(m_node) ||
+            m_editor->is_correct_and_unambiguous_node(another_node)) {
+            return m_editor->get_node_index(m_node) == m_editor->get_node_index(another_node);
+        }
+    }
+    return false;
+}
+
+Place::Ptr PlaceOpONNX::get_target_tensor() const {
+    const auto output_port = get_output_port();
+    if (output_port != nullptr) {
+        return output_port->get_target_tensor();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_target_tensor(int output_port_index) const {
+    const auto output_port = get_output_port(output_port_index);
+    if (output_port != nullptr) {
+        return output_port->get_target_tensor();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_target_tensor(const std::string& output_name) const {
+    const auto output_port = get_output_port(output_name);
+    if (output_port != nullptr) {
+        return output_port->get_target_tensor();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_source_tensor() const {
+    const auto input_port = get_input_port();
+    if (input_port != nullptr) {
+        return input_port->get_source_tensor();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_source_tensor(int input_port_index) const {
+    const auto input_port = get_input_port(input_port_index);
+    if (input_port != nullptr) {
+        return input_port->get_source_tensor();
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_source_tensor(const std::string& input_name) const {
+    const auto input_port = get_input_port(input_name);
+    if (input_port != nullptr) {
+        return input_port->get_source_tensor();
+    }
+    return nullptr;
+}
+
+bool PlaceOpONNX::is_input() const {
+    return false;
+}
+
+bool PlaceOpONNX::is_output() const {
+    return false;
 }
