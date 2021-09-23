@@ -76,6 +76,8 @@ set(SRC
     op_eval/transpose.cpp
     op_eval/variadic_split.cpp
     opset1.cpp
+    ov_default_allocator_test.cpp
+    ov_tensor_test.cpp
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
@@ -364,6 +366,11 @@ set(SRC
     uint4.cpp
     util.cpp
 )
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set_source_files_properties(ov_tensor_test.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+endif()
 
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
