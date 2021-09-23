@@ -1,0 +1,73 @@
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.graph.graph import Graph, Node
+from mo.ops.result import Result
+from mo.utils.error import Error
+
+
+class AddOutputRecursive(FrontReplacementSubgraph):
+    """
+    """
+    enabled = True
+    run_not_recursively = True
+
+    def run_after(self):
+        from extensions.front.restore_ports import RestorePorts
+        return [RestorePorts]
+
+    def run_before(self):
+        return []
+
+    def find_and_replace_pattern(self, graph: Graph):
+        """
+        If graph have 'additional_outputs' attribute, read list of nodes and add it to real result
+        List structure: [node_loop_1, loop_2_in_loop_1,..,node_in_last_loop]
+        ]
+        """
+        if 'additional_outputs' not in graph.graph:
+            return
+
+        path = graph.graph['additional_outputs']
+        cur_graph = graph
+        last_node = False
+        step_node = None
+        path_nodes = []
+        for step in path:
+            if last_node:
+                raise Error("Not last node in list of nodes is not Loop/If/TI")
+            step_node = Node(cur_graph, step)
+            path_nodes.append(step_node)
+            if step_node.has_and_set('body'):
+                cur_graph = step_node['body']
+            else:
+                last_node = True
+
+        ports_to_add_nodes = []
+        for o_p in step_node.out_ports():
+            ports_to_add_nodes.append(step_node.out_port(o_p))
+
+        # update internal_layer_id for new Results
+        for i in range(len(path)-1, 0, -1):
+            cur_max_layer_id = len(cur_graph.nodes) + 1 # fix by finding real maximal internal_layer_id
+            cur_loop_node = path_nodes[i-1]
+            new_out_ports = []
+            for p in ports_to_add_nodes:
+                out_name = p.node.soft_get('name', step_node.id) + ":" + str(o_p)
+                res_node = Result(cur_graph, {'name': out_name}).create_node()
+                p.connect(res_node.in_port(0))
+                res_node['internal_layer_id'] = cur_max_layer_id + 1
+                cur_max_layer_id += 1
+                new_port_id = len(cur_loop_node.in_ports()) + len(cur_loop_node.out_ports())
+                cur_loop_node.output_port_map.append({'axis': 0, 'stride': 1, 'part_size': 1, 'start': 0,
+                                                      'end': -1, 'external_port_id': new_port_id,
+                                                      'internal_layer_id': res_node['internal_layer_id']})
+                cur_loop_node.add_output_port(new_port_id)
+                new_out_ports.append(cur_loop_node.out_port(new_port_id))
+            ports_to_add_nodes = new_out_ports
+
+        for p in ports_to_add_nodes:
+            out_name = p.node.soft_get('name', step_node.id) + ":" + str(o_p)
+            res_node = Result(graph, {'name': out_name}).create_node()
+            p.connect(res_node.in_port(0))
