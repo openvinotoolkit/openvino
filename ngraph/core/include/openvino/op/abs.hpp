@@ -15,7 +15,8 @@ namespace v0 {
 ///
 class OPENVINO_API Abs : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Abs", "opset1", util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an absolute value operation.
     Abs() = default;
     bool visit_attributes(AttributeVisitor&) override {

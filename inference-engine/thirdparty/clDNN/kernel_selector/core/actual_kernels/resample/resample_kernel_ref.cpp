@@ -50,6 +50,7 @@ static size_t packing_factor(const resample_params& params) {
     auto get_layout_packing_factor = [](const DataLayout& layout) -> size_t {
         switch (layout) {
         case DataLayout::b_fs_yx_fsv16:
+        case DataLayout::bs_fs_yx_bsv32_fsv16:
             return 16;
         case DataLayout::b_fs_yx_fsv4:
             return 4;
