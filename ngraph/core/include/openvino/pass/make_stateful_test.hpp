@@ -23,9 +23,8 @@ public:
     using ParamResPairs =
         std::vector<std::pair<std::shared_ptr<ngraph::opset8::Parameter>, std::shared_ptr<ngraph::opset8::Result>>>;
 
-    static ParamResPairs find_param_results_by_names(
-        const std::shared_ptr<ngraph::Function>& func,
-        const std::map<std::string, std::string>& param_res_names);
+    static ParamResPairs find_param_results_by_names(const std::shared_ptr<ngraph::Function>& func,
+                                                     const std::map<std::string, std::string>& param_res_names);
     explicit MakeStateful(const ParamResPairs& pairs_to_replace) : m_pairs_to_replace(pairs_to_replace) {}
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 

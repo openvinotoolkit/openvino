@@ -12,7 +12,7 @@ from ngraph.impl import Function, Shape, Type
 from conftest import model_path
 
 
-#test_net_xml, test_net_bin = model_path()
+test_net_xml, test_net_bin = model_path()
 
 def get_test_cnnnetwork():
     param = ng.parameter(Shape([1, 3, 22, 22]), name="parameter")
