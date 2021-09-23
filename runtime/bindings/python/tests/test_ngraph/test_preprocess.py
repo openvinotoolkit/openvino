@@ -62,12 +62,13 @@ def test_ngraph_preprocess_mean_scale_convert():
 
     input_data1 = np.array([[0, 1], [2, -2]]).astype(np.int32)
     input_data2 = np.array([[1, 3], [5, 7]]).astype(np.int32)
-    expected_output1 = np.array([[1, 0], [1, 3]]).astype(np.float32)
-    expected_output2 = np.array([[0, 1], [2, 3]]).astype(np.float32)
+    expected_output1 = np.array([[0, 2], [4, 6]]).astype(np.float32)
+    expected_output2 = np.array([[-0.5, 0], [0.5, -1.5]]).astype(np.float32)
 
     runtime = get_runtime()
     computation = runtime.computation(function)
     [output1, output2] = computation(input_data1, input_data2)
+
     assert np.equal(output1, expected_output1).all()
     assert np.equal(output2, expected_output2).all()
 
