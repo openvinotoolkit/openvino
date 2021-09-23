@@ -6,7 +6,7 @@
 
 #include "itt.hpp"
 
-OPENVINO_RTTI_DEFINITION(ov::op::v8::NV12toBGR, "NV12toBGR", 8, op::util::ConvertColorNV12Base);
+BWDCMP_RTTI_DEFINITION(ov::op::v8::NV12toBGR);
 
 ov::op::v8::NV12toBGR::NV12toBGR(const Output<Node>& arg)
     : util::ConvertColorNV12Base(arg, util::ConvertColorNV12Base::ColorConversion::NV12_TO_BGR) {

@@ -16,7 +16,7 @@ static const size_t H_DIM = 1;
 static const size_t W_DIM = 2;
 static const size_t C_DIM = 3;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::ConvertColorNV12Base, "ConvertColorNV12Base", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::util::ConvertColorNV12Base);
 
 ov::op::util::ConvertColorNV12Base::ConvertColorNV12Base(const Output<Node>& arg, ColorConversion format)
     : Op({arg}),

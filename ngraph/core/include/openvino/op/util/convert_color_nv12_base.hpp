@@ -61,7 +61,8 @@ protected:
     ConvertColorNV12Base(const Output<Node>& arg_y, const Output<Node>& arg_uv, ColorConversion format);
 
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ConvertColorNV12Base", "util");
+    BWDCMP_RTTI_DECLARATION;
 
     void validate_and_infer_types() override;
 
