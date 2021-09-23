@@ -33,6 +33,9 @@ public:
         return order;
     }
 
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+
 private:
     template<typename T> void optimizedExecute(const int MB, const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
 
@@ -46,6 +49,7 @@ private:
             std::vector<size_t>{0, 5, 1, 2, 3, 4},
     };
 
+    PermuteParams params;
     std::unique_ptr<PermuteKernel> permuteKernel;
 
     struct TransposeContext {

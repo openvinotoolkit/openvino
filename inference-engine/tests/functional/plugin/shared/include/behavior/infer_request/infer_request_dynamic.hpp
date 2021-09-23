@@ -357,18 +357,21 @@ inline std::string vec2str(const std::vector<vecElementType> &vec) {
 TEST_P(InferRequestDynamicTests, CPU_ONLY) {
     const std::string param_name = "Param_1";
 
-    InferenceEngine::SizeVector inputShapes{2, 19, 5, 10};
     InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32;
-    ngraph::AxisSet axes;
-    bool acrossChanels = true, normalizeVariance = true;
-    double eps = 0.000000001;
-    auto netPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto param = ngraph::builder::makeParams(netPrc, {inputShapes});
-    param[0]->set_friendly_name(param_name);
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
-    auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
+    std::vector<size_t> inputShapes{2, 32, 10, 20}, inputOrder{0, 3, 1, 2};
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
+    params[0]->set_friendly_name(param_name);
+    auto paramOuts = ngraph::helpers::convert2OutputVector(
+            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    function = std::make_shared<ngraph::Function>(mvn, param, "MVN");
+    const auto inOrderShape = ngraph::Shape({inputShapes.size()});
+    const auto inputOrderOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64,
+                                                                         inOrderShape,
+                                                                         inputOrder);
+    const auto transpose = std::make_shared<ngraph::opset3::Transpose>(paramOuts.at(0), inputOrderOp);
+    const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(transpose)};
+    function = std::make_shared<ngraph::Function>(results, params, "Transpose");
 
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
@@ -392,7 +395,7 @@ TEST_P(InferRequestDynamicTests, CPU_ONLY) {
     std::cout << vec2str(blob->getTensorDesc().getDims()) << std::endl;
     // ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
 
-    std::vector<size_t> inputShape2{1, 16, 5, 8};
+    std::vector<size_t> inputShape2{1, 5, 100, 24};
     blob = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShape2, InferenceEngine::Layout::NCHW});
     req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob);
     ASSERT_EQ(blob->getTensorDesc().getDims(), inputShape2);
