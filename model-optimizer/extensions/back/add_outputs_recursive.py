@@ -1,24 +1,17 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph, Node
 from mo.ops.result import Result
 from mo.utils.error import Error
 
 
-class AddOutputRecursive(FrontReplacementSubgraph):
+class AddOutputRecursive(BackReplacementPattern):
     """
     """
     enabled = True
     run_not_recursively = True
-
-    def run_after(self):
-        from extensions.front.restore_ports import RestorePorts
-        return [RestorePorts]
-
-    def run_before(self):
-        return []
 
     def find_and_replace_pattern(self, graph: Graph):
         """
@@ -46,17 +39,18 @@ class AddOutputRecursive(FrontReplacementSubgraph):
 
         ports_to_add_nodes = []
         for o_p in step_node.out_ports():
-            ports_to_add_nodes.append(step_node.out_port(o_p))
+            ports_to_add_nodes.append(o_p)
 
         # update internal_layer_id for new Results
         for i in range(len(path)-1, 0, -1):
-            cur_max_layer_id = len(cur_graph.nodes) + 1 # fix by finding real maximal internal_layer_id
+            cur_max_layer_id = len(cur_graph.nodes) + 1  # fix by finding real maximal internal_layer_id
             cur_loop_node = path_nodes[i-1]
             new_out_ports = []
-            for p in ports_to_add_nodes:
-                out_name = p.node.soft_get('name', step_node.id) + ":" + str(o_p)
+            for p_num in ports_to_add_nodes:
+                port = step_node.out_port(p_num)
+                out_name = port.node.soft_get('name', port.node.id) + ":" + str(p_num)
                 res_node = Result(cur_graph, {'name': out_name}).create_node()
-                p.connect(res_node.in_port(0))
+                port.connect(res_node.in_port(0))
                 res_node['internal_layer_id'] = cur_max_layer_id + 1
                 cur_max_layer_id += 1
                 new_port_id = len(cur_loop_node.in_ports()) + len(cur_loop_node.out_ports())
@@ -64,10 +58,12 @@ class AddOutputRecursive(FrontReplacementSubgraph):
                                                       'end': -1, 'external_port_id': new_port_id,
                                                       'internal_layer_id': res_node['internal_layer_id']})
                 cur_loop_node.add_output_port(new_port_id)
-                new_out_ports.append(cur_loop_node.out_port(new_port_id))
+                step_node = cur_loop_node
+                new_out_ports.append(new_port_id)
             ports_to_add_nodes = new_out_ports
 
-        for p in ports_to_add_nodes:
-            out_name = p.node.soft_get('name', step_node.id) + ":" + str(o_p)
+        for p_num in ports_to_add_nodes:
+            port = step_node.out_port(p_num)
+            out_name = port.node.soft_get('name', step_node.id) + ":" + str(p_num)
             res_node = Result(graph, {'name': out_name}).create_node()
-            p.connect(res_node.in_port(0))
+            port.connect(res_node.in_port(0))
