@@ -8,7 +8,7 @@
 
 #include <base/behavior_test_utils.hpp>
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <iostream>
 #    define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #    include <codecvt>

@@ -12,7 +12,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
 #define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #include <codecvt>
@@ -116,7 +116,7 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
 
 #endif
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     std::string pluginXML{"mock_engine_valid.xml"};
@@ -162,7 +162,7 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     CommonTestUtils::removeFile(pluginXML);
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 //
 // GetVersions()
