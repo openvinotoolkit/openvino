@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 #include <numeric>
 
-#include "blob_allocator.hpp"
-#include "blob_factory.hpp"
-#include "ie_ngraph_utils.hpp"
+#include "runtime/blob_allocator.hpp"
+#include "blob_factory.hpp" // IE private header
+#include "ie_ngraph_utils.hpp" // IE private header
 #include "openvino/core/except.hpp"
 
 namespace ov {

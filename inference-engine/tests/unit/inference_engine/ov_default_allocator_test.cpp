@@ -7,7 +7,7 @@
 
 #include "common_test_utils/test_common.hpp"
 
-#include "openvino/core/allocator.hpp"
+#include "openvino/runtime/allocator.hpp"
 #include "openvino/core/except.hpp"
 
 class OVDefaultAllocatorTest : public CommonTestUtils::TestsCommon {};

@@ -14,7 +14,7 @@
 #include <string>
 
 #include "ie_remote_context.hpp"
-#include "openvino/core/remote_tensor.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"

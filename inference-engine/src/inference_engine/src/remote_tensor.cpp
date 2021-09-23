@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/remote_tensor.hpp"
-
-#include "ie_ngraph_utils.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
 
 namespace ov {
+namespace runtime {
 ie::ParamMap RemoteTensor::get_params() const {
     OPENVINO_ASSERT(_impl != nullptr, "Remote tensor was not initialized.");
     auto remote_impl = InferenceEngine::as<InferenceEngine::RemoteBlob>(_impl);
@@ -32,4 +31,5 @@ std::string RemoteTensor::get_device_name() const {
         OPENVINO_ASSERT(false, "Unexpected exception");
     }
 }
+}  // namespace runtime
 }  // namespace ov

@@ -7,7 +7,7 @@
 #include <cpp/ie_infer_request.hpp>
 #include <openvino/core/except.hpp>
 #include <openvino/runtime/infer_request.hpp>
-#include <openvino/core/remote_tensor.hpp>
+#include <openvino/runtime/remote_tensor.hpp>
 
 using namespace ::testing;
 using namespace std;
@@ -63,6 +63,6 @@ TEST(InferRequestOVTests, throwsOnUninitializedQueryState) {
 
 TEST(InferRequestOVTests, throwsOnUninitializedSetRemoteTensor) {
     ov::runtime::InferRequest req;
-    ov::RemoteTensor remote_tensor;
+    ov::runtime::RemoteTensor remote_tensor;
     ASSERT_THROW(req.set_tensor({}, remote_tensor), ov::Exception);
 }

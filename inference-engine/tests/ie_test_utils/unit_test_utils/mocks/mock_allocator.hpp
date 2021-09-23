@@ -11,7 +11,7 @@
 #include <gmock/gmock.h>
 
 #include "ie_allocator.hpp"
-#include "openvino/core/allocator.hpp"
+#include "openvino/runtime/allocator.hpp"
 
 class MockAllocator : public InferenceEngine::IAllocator {
 public:

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/allocator.hpp"
+#include "openvino/runtime/allocator.hpp"
 
 #include "blob_allocator.hpp"
 #include "ie_allocator.hpp"

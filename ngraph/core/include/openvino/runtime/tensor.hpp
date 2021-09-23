@@ -5,15 +5,14 @@
 /**
  * @brief This is a header file for the OpenVINO Runtime tensor API
  *
- * @file openvino/core/tensor.hpp
+ * @file openvino/runtime/tensor.hpp
  */
 #pragma once
 
-#include "openvino/core/allocator.hpp"
+#include "openvino/runtime/allocator.hpp"
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/common.hpp"
 
 namespace InferenceEngine {
 class Blob;
@@ -31,10 +30,10 @@ class VariableState;
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class OPENVINO_RUNTIME_API Tensor {
+class OPENVINO_API Tensor {
 protected:
     std::shared_ptr<void> _so;        //!< Reference to dynamicly loaded library
-    std::shared_ptr<ie::Blob> _impl;  //!< Shared pointer to internal tensor representation
+    std::shared_ptr<InferenceEngine::Blob> _impl;  //!< Shared pointer to internal tensor representation
 
     /**
      * @brief Constructs Tensor from the initialized std::shared_ptr
@@ -42,7 +41,7 @@ protected:
      * destroyed.
      * @param impl Initialized shared pointer
      */
-    Tensor(const std::shared_ptr<void>& so, const std::shared_ptr<ie::Blob>& impl);
+    Tensor(const std::shared_ptr<void>& so, const std::shared_ptr<InferenceEngine::Blob>& impl);
 
     friend class ov::runtime::InferRequest;
     friend class ov::runtime::RemoteContext;

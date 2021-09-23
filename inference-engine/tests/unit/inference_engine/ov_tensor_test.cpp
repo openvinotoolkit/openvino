@@ -10,7 +10,7 @@
 #include <openvino/core/type/element_type.hpp>
 
 #include "unit_test_utils/mocks/mock_allocator.hpp"
-#include "openvino/core/tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 using OVTensorTest = ::testing::Test;
 

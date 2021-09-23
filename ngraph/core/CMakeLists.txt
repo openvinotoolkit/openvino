@@ -11,6 +11,26 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 add_subdirectory(builder)
 add_subdirectory(reference)
 
+# WA for Tensor implementation via ie::Blob::Ptr
+set(IE_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/inference_engine/src")
+set(IE_SHARED_SRCS
+    "${IE_SRC_ROOT}/system_allocator.cpp"
+    "${IE_SRC_ROOT}/blob_factory.cpp"
+    "${IE_SRC_ROOT}/ie_blob_common.cpp"
+    "${IE_SRC_ROOT}/ie_layouts.cpp")
+set(MIXED_SRC ${IE_SHARED_SRCS}
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
+
+set_property(SOURCE ${MIXED_SRC}
+    APPEND PROPERTY INCLUDE_DIRECTORIES
+        ${IE_SRC_ROOT}
+        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+
+set_source_files_properties(${MIXED_SRC}
+    PROPERTIES COMPILE_DEFINITIONS IMPLEMENT_INFERENCE_ENGINE_API)
+
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
@@ -18,7 +38,7 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create static or shared library depending on BUILD_SHARED_LIBS
-add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${IE_SHARED_SRCS})
 
 
 if(COMMAND ie_faster_build)
@@ -68,15 +88,6 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
-
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/ie/blob_factory.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/ie/ie_common.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/ie/ie_compound_blob.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/ie/ie_layouts.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/tensor.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/remote_tensor.cpp"
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
-                   INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES> )
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>

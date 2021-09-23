@@ -5,18 +5,17 @@
 /**
  * @brief This is a header file for the OpenVINO Runtime tensor API
  *
- * @file openvino/core/remote_tensor.hpp
+ * @file openvino/runtime/remote_tensor.hpp
  */
 #pragma once
 
 #include "ie_remote_blob.hpp"
 #include "openvino/runtime/parameter.hpp"
-#include "openvino/core/tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace runtime {
 class RemoteContext;
-}  // namespace runtime
 
 /**
  * @brief Remote memory access and interpretation API
@@ -101,4 +100,5 @@ public:
         return dynamic_cast<const T*>(_impl.get());
     }
 };
+}  // namespace runtime
 }  // namespace ov

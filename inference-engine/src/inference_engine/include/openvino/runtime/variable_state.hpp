@@ -13,7 +13,7 @@
 #include <memory>
 #include <string>
 
-#include "openvino/core/tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/common.hpp"
 
 namespace InferenceEngine {

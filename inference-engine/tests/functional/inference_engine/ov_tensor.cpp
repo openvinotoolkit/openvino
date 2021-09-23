@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <cpp/ie_infer_request.hpp>
-#include <openvino/core/tensor.hpp>
+#include <openvino/runtime/tensor.hpp>
 
 using namespace ::testing;
 using namespace std;

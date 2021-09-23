@@ -5,14 +5,14 @@
 /**
  * @brief A header file that provides Allocator interface
  *
- * @file openvino/core/allocator.hpp
+ * @file openvino/runtime/allocator.hpp
  */
 #pragma once
 
 #include <cstddef>
 #include <memory>
 
-#include "openvino/runtime/common.hpp"
+#include "openvino/core/core_visibility.hpp"
 
 namespace ov {
 
@@ -20,7 +20,7 @@ namespace ov {
  * @interface AllocatorImpl
  * @brief Tries to act like [std::pmr::memory_resource](https://en.cppreference.com/w/cpp/memory/memory_resource)
  */
-struct OPENVINO_RUNTIME_API AllocatorImpl : public std::enable_shared_from_this<AllocatorImpl> {
+struct AllocatorImpl : public std::enable_shared_from_this<AllocatorImpl> {
     /**
      * @brief A smart pointer containing AllocatorImpl object
      */
@@ -62,7 +62,7 @@ class Tensor;
  * @brief Wraps allocator implementation to provide safe way to store allocater loaded from shared library
  *        And constructs default based on `new` `delete` c++ calls allocator if created without parameters
  */
-class OPENVINO_RUNTIME_API Allocator {
+class OPENVINO_API Allocator {
     std::shared_ptr<void> _so;
     AllocatorImpl::Ptr _impl;
 
