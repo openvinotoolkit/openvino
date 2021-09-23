@@ -69,6 +69,15 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/ie/blob_factory.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/ie/ie_common.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/ie/ie_compound_blob.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/ie/ie_layouts.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/tensor.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/remote_tensor.cpp"
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+                   INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES> )
+
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
                                   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
