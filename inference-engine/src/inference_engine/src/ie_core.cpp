@@ -981,7 +981,7 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
     return _impl->GetVersions(deviceName);
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 CNNNetwork Core::ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath) const {
     return ReadNetwork(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath));
@@ -1245,7 +1245,7 @@ std::map<std::string, ie::Version> Core::get_versions(const std::string& deviceN
     OV_CORE_CALL_STATEMENT(return _impl->GetVersions(deviceName))
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ngraph::Function> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
     OV_CORE_CALL_STATEMENT(
         return _impl->ReadNetwork(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath))
@@ -1358,7 +1358,7 @@ void Core::set_config(const ConfigMap& config, const std::string& deviceName) {
         });
 }
 
-ie::Parameter Core::get_config(const std::string& deviceName, const std::string& name) const {
+Parameter Core::get_config(const std::string& deviceName, const std::string& name) const {
     OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
                     "You can only get_config of the HETERO itself (without devices). "
                     "get_config is also possible for the individual devices before creating the HETERO on top.");
@@ -1378,7 +1378,7 @@ ie::Parameter Core::get_config(const std::string& deviceName, const std::string&
         return copyParameterValue(_impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config)););
 }
 
-ie::Parameter Core::get_metric(const std::string& deviceName, const std::string& name) const {
+Parameter Core::get_metric(const std::string& deviceName, const std::string& name) const {
     OV_CORE_CALL_STATEMENT(return _impl->GetMetric(deviceName, name););
 }
 
@@ -1400,7 +1400,7 @@ void Core::register_plugins(const std::string& xmlConfigFile) {
     OV_CORE_CALL_STATEMENT(_impl->RegisterPluginsInRegistry(xmlConfigFile););
 }
 
-RemoteContext Core::create_context(const std::string& deviceName, const ie::ParamMap& params) {
+RemoteContext Core::create_context(const std::string& deviceName, const ParamMap& params) {
     OPENVINO_ASSERT(deviceName.find("HETERO") != 0, "HETERO device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
@@ -1416,7 +1416,7 @@ RemoteContext Core::get_default_context(const std::string& deviceName) {
     OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
 
-    OV_CORE_CALL_STATEMENT(auto parsed = parseDeviceNameIntoConfig(deviceName, ie::ParamMap());
+    OV_CORE_CALL_STATEMENT(auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
                            auto remoteContext =
                                _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
                            return {remoteContext._so, remoteContext._ptr};);
