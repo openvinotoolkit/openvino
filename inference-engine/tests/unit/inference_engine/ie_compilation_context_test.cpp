@@ -225,11 +225,11 @@ TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriority) {
 
 TEST(NetworkContext_CNNNetwork, HashWithFusedNames) {
     auto setFusedEmpty = [&](Node::RTMap& rtInfo) {
-        rtInfo[VariantWrapper<FusedNames>::type_info.name] =
+        rtInfo[VariantWrapper<FusedNames>::get_type_info_static().name] =
                 std::make_shared<VariantWrapper<FusedNames>>(FusedNames());
     };
     auto setFused = [&](Node::RTMap& rtInfo, const std::string& name) {
-        rtInfo[VariantWrapper<FusedNames>::type_info.name] =
+        rtInfo[VariantWrapper<FusedNames>::get_type_info_static().name] =
                 std::make_shared<VariantWrapper<FusedNames>>(FusedNames(name));
     };
     checkCustomRt(setFusedEmpty, setFused);
@@ -237,11 +237,11 @@ TEST(NetworkContext_CNNNetwork, HashWithFusedNames) {
 
 TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriorityType) {
     auto setPrimEmpty = [&](Node::RTMap& rtInfo) {
-        rtInfo[VariantWrapper<PrimitivesPriority>::type_info.name] =
+        rtInfo[VariantWrapper<PrimitivesPriority>::get_type_info_static().name] =
                 std::make_shared<VariantWrapper<PrimitivesPriority>>(PrimitivesPriority());
     };
     auto setPrim = [&](Node::RTMap& rtInfo, const std::string& name) {
-        rtInfo[VariantWrapper<PrimitivesPriority>::type_info.name] =
+        rtInfo[VariantWrapper<PrimitivesPriority>::get_type_info_static().name] =
                 std::make_shared<VariantWrapper<PrimitivesPriority>>(PrimitivesPriority(name));
     };
     checkCustomRt(setPrimEmpty, setPrim);

@@ -19,6 +19,7 @@
 #include "ngraph/op/util/variable.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
 
 namespace ov {
 /// A user-defined function.
@@ -296,9 +297,7 @@ public:
     AttributeAdapter(std::shared_ptr<ov::Function>& value)
         : DirectValueAccessor<std::shared_ptr<ov::Function>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Function>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Function>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

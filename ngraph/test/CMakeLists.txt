@@ -49,6 +49,7 @@ set(SRC
     main.cpp
     matcher_pass.cpp
     misc.cpp
+    rtti.cpp
     node_input_output.cpp
     rtti.cpp
     op.cpp
