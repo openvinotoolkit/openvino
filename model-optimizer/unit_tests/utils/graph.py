@@ -190,14 +190,16 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
 
     for node in graph.get_op_nodes():
         # Add in_ports attribute
-        in_edges = node.in_edges()
+        in_edges = node.in_edges(control_flow=True)
         for attr in in_edges.values():
-            node.add_input_port(idx=attr['in'])
+            control_flow = True if 'control_flow_edge' in attr and attr['control_flow_edge'] is True else False
+            node.add_input_port(idx=attr['in'], control_flow=control_flow)
 
         # Add out_ports attribute
-        out_edges = node.out_edges()
+        out_edges = node.out_edges(control_flow=True)
         for attr in out_edges.values():
-            node.add_output_port(idx=attr['out'])
+            control_flow = True if 'control_flow_edge' in attr and attr['control_flow_edge'] is True else False
+            node.add_output_port(idx=attr['out'], control_flow=control_flow)
 
     graph.graph['cmd_params'] = cli
     return graph

@@ -34,9 +34,14 @@ public:
     }
 
     /// \brief Insert OP_TYPE into the opset with the default name and factory
-    template <typename OP_TYPE>
+    template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert() {
         ov::OpSet::insert<OP_TYPE>(OP_TYPE::type_info.name);
+    }
+
+    template <typename OP_TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
+    void insert() {
+        ov::OpSet::insert<OP_TYPE>(OP_TYPE::get_type_info_static().name);
     }
 
     ngraph::FactoryRegistry<ngraph::Node>& get_factory_registry() {
