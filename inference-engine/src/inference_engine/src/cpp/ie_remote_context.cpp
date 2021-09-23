@@ -6,6 +6,7 @@
 
 #include <exception>
 
+#include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/remote_context.hpp"
@@ -31,8 +32,12 @@ std::string RemoteContext::get_device_name() const {
     OV_REMOTE_CONTEXT_STATEMENT(return _impl->getDeviceName());
 }
 
-std::shared_ptr<ie::RemoteBlob> RemoteContext::create_blob(const ie::TensorDesc& tensorDesc,
+std::shared_ptr<ie::RemoteBlob> RemoteContext::create_blob(element::Type type,
+                                                           const Shape& shape,
                                                            const ie::ParamMap& params) {
+    ie::TensorDesc tensorDesc(ie::details::convertPrecision(type),
+                              shape,
+                              ie::TensorDesc::getLayoutByRank(shape.size()));
     OV_REMOTE_CONTEXT_STATEMENT(return _impl->CreateBlob(tensorDesc, params));
 }
 

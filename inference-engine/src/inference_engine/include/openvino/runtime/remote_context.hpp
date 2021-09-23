@@ -3,9 +3,9 @@
 //
 
 /**
- * @brief This is a header file for the IE RemoteContext and RemoteBlob classes
+ * @brief This is a header file for the OpenVINO Runtime RemoteContext class
  *
- * @file ie_remote_context.hpp
+ * @file openvino/runtime/remote_context.hpp
  */
 #pragma once
 
@@ -14,6 +14,8 @@
 #include <string>
 
 #include "ie_remote_context.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/parameter.hpp"
 
@@ -111,15 +113,18 @@ public:
     std::string get_device_name() const;
 
     /**
-     * @brief Allocates memory blob in device memory or wraps user-supplied memory handle
+     * @brief Allocates memory tensor in device memory or wraps user-supplied memory handle
      * using the specified tensor description and low-level device-specific parameters.
-     * Returns a pointer to the object which implements RemoteBlob interface.
-     * @param tensorDesc Defines the layout and dims of the blob
-     * @param params Map of the low-level blob object parameters.
+     * Returns a pointer to the object which implements RemoteTensor interface.
+     * @param element_type Defines the element type of the tensor
+     * @param shape Defines the shape of the tensor
+     * @param params Map of the low-level tensor object parameters.
      * Abstract method.
-     * @return A pointer to plugin object that implements RemoteBlob interface.
+     * @return A pointer to plugin object that implements RemoteTensor interface.
      */
-    std::shared_ptr<ie::RemoteBlob> create_blob(const ie::TensorDesc& tensorDesc, const ParamMap& params = {});
+    std::shared_ptr<ie::RemoteBlob> create_blob(element::Type element_type,
+                                                const Shape& shape,
+                                                const ParamMap& params = {});
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
