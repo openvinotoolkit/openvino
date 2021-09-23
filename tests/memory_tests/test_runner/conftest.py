@@ -210,7 +210,7 @@ def omz_models_conversion(instance, request):
             model_precision = instance["instance"]["model"]["precision"]
 
             # get full model info
-            cmd = [f'{sys.executable}', f'{info_dumper_path}', f'--name {model_name}']
+            cmd = [f'"{sys.executable}"', f'"{info_dumper_path}"', f'--name {model_name}']
             return_code, info = cmd_exec(cmd, log=logging)
             assert return_code == 0, "Getting information about OMZ models has failed!"
 
@@ -225,14 +225,14 @@ def omz_models_conversion(instance, request):
             model_full_path = omz_irs_out_dir / model_info["subdirectory"] / model_precision / (model_name + ".xml")
 
             # prepare models and convert models to IRs
-            cmd = [f'{sys.executable}', f'{downloader_path}', f'--name {model_name}',
+            cmd = [f'"{sys.executable}"', f'"{downloader_path}"', f'--name {model_name}',
                    f'--precisions {model_precision}', f'--num_attempts {OMZ_NUM_ATTEMPTS}',
                    f'--output_dir {omz_models_out_dir}', f'--cache_dir {cache_dir}']
 
             return_code, _ = cmd_exec(cmd, log=logging)
             assert return_code == 0, "Downloading OMZ models has failed!"
 
-            cmd = [f'{sys.executable}', f'{converter_path}', f'--name {model_name}',
+            cmd = [f'"{sys.executable}"', f'"{converter_path}"', f'--name {model_name}',
                    f'-p {sys.executable}', f'--precisions {model_precision}',
                    f'--output_dir {omz_irs_out_dir}', f'--download_dir {omz_models_out_dir}', f'--mo {mo_path}']
 
