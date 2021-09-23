@@ -34,7 +34,7 @@ TEST(attributes, convert_color_nv12_bgr) {
 TEST(attributes, convert_color_nv12_rgb_2planes) {
     NodeBuilder::get_ops().register_factory<op::v8::NV12toRGB>();
     auto data1 = make_shared<op::v0::Parameter>(element::u8, Shape{3, 480, 640, 1});
-    auto data2 = make_shared<op::v0::Parameter>(element::u8, Shape{3, 240, 320, 1});
+    auto data2 = make_shared<op::v0::Parameter>(element::u8, Shape{3, 240, 320, 2});
     auto convert_color = make_shared<op::v8::NV12toRGB>(data1, data2);
     NodeBuilder builder(convert_color);
     const auto expected_attr_count = 0;
@@ -44,7 +44,7 @@ TEST(attributes, convert_color_nv12_rgb_2planes) {
 TEST(attributes, convert_color_nv12_bgr_2planes) {
     NodeBuilder::get_ops().register_factory<op::v8::NV12toBGR>();
     auto data1 = make_shared<op::v0::Parameter>(element::u8, Shape{3, 480, 640, 1});
-    auto data2 = make_shared<op::v0::Parameter>(element::u8, Shape{3, 240, 320, 1});
+    auto data2 = make_shared<op::v0::Parameter>(element::u8, Shape{3, 240, 320, 2});
     auto convert_color = make_shared<op::v8::NV12toBGR>(data1, data2);
     NodeBuilder builder(convert_color);
     const auto expected_attr_count = 0;

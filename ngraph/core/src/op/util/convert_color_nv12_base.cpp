@@ -40,8 +40,8 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
     auto single_plane = get_input_size() == 1;
     auto y_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          y_type == element::u8 || y_type == element::f32,
-                          "Y input shall have u8 or f32 precision, got ",
+                          is_type_supported(y_type),
+                          "Y input shall have u8 or floating-point precision, got ",
                           y_type);
     const auto& shape_y = get_input_partial_shape(0);
     if (shape_y.rank().is_static()) {
@@ -55,6 +55,7 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
                               shape_y[C_DIM].get_length());
     }
     auto out_shape = shape_y;
+    auto out_type = y_type;
     if (out_shape.rank().is_dynamic()) {
         out_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 3};
     }
@@ -70,12 +71,20 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
         }
     } else {
         auto uv_type = get_input_element_type(1);
-        NODE_VALIDATION_CHECK(this,
-                              uv_type == y_type,
-                              "UV input ",
-                              uv_type,
-                              " shall have same precision as Y input ",
-                              y_type);
+        if (y_type.is_dynamic()) {
+            NODE_VALIDATION_CHECK(this,
+                                  is_type_supported(uv_type),
+                                  "UV input shall have u8 or floating-point precision, got ",
+                                  uv_type);
+            out_type = uv_type;
+        } else {
+            NODE_VALIDATION_CHECK(this,
+                                  uv_type.is_dynamic() || uv_type == y_type,
+                                  "UV input ",
+                                  uv_type,
+                                  " shall have same precision as Y input ",
+                                  y_type);
+        }
         const auto& shape_uv = get_input_partial_shape(1);
         NODE_VALIDATION_CHECK(this,
                               shape_uv.rank().is_dynamic() || shape_uv.rank().get_length() == 4,
@@ -131,7 +140,7 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
                           out_shape[W_DIM].is_dynamic() || out_shape[W_DIM].get_length() % 2 == 0,
                           "Image width must be even, but it is ",
                           out_shape[W_DIM].get_length());
-    set_output_type(0, get_input_element_type(0), out_shape);
+    set_output_type(0, out_type, out_shape);
 }
 
 namespace color_convert_nv12_op {
@@ -185,7 +194,10 @@ bool evaluate_nv12_convert(const ov::HostTensorVector& input_values,
     bool rc = false;
     switch (input_values[0]->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_nv12_convert, u8, input_values, output_value, single_tensor, conv_format);
+        NGRAPH_TYPE_CASE(evaluate_nv12_convert, f16, input_values, output_value, single_tensor, conv_format);
+        NGRAPH_TYPE_CASE(evaluate_nv12_convert, bf16, input_values, output_value, single_tensor, conv_format);
         NGRAPH_TYPE_CASE(evaluate_nv12_convert, f32, input_values, output_value, single_tensor, conv_format);
+        NGRAPH_TYPE_CASE(evaluate_nv12_convert, f64, input_values, output_value, single_tensor, conv_format);
     default:
         break;
     }
@@ -213,12 +225,9 @@ bool ov::op::util::ConvertColorNV12Base::evaluate(const HostTensorVector& output
 bool ov::op::util::ConvertColorNV12Base::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_ConvertColorNV12Base_has_evaluate);
 
-    switch (get_input_element_type(0)) {
-    case ngraph::element::u8:
-    case ngraph::element::f32:
-        break;
-    default:
-        return false;
-    }
-    return true;
+    return is_type_supported(get_input_element_type(0));
+}
+
+bool ov::op::util::ConvertColorNV12Base::is_type_supported(const ov::element::Type& type) const {
+    return type.is_dynamic() || type.is_real() || type == ov::element::u8;
 }

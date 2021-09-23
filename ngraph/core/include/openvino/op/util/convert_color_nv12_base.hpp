@@ -18,7 +18,7 @@ namespace util {
 ///            b) Two separate planes: Y and UV. In this case
 ///               b1) Y plane has height same as image height. 'C' dimension equals to 1
 ///               b2) UV plane has dimensions: 'H' = image_h / 2; 'W' = image_w / 2; 'C' = 2.
-///        - Supported element types: u8, f32.
+///        - Supported element types: u8 or any supported floating-point type.
 ///    Output:
 ///        - Output node will have NHWC layout and shape HxW same as image spatial dimensions.
 ///        - Number of output channels 'C' will be 3
@@ -72,6 +72,8 @@ public:
     bool has_evaluate() const override;
 
 protected:
+    bool is_type_supported(const ov::element::Type& type) const;
+
     ColorConversion m_format = ColorConversion::NV12_TO_RGB;
 };
 }  // namespace util

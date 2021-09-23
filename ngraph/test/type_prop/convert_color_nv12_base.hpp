@@ -55,6 +55,16 @@ TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_single_tensor_dynamic_height)
     ASSERT_EQ(op->output(0).get_element_type(), element::u8);
 }
 
+TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_single_tensor_dynamic_type)
+{
+    auto param_shape = PartialShape{1, 6, 8, 1};
+    auto out_shape = PartialShape{1, 4, 8, 3};
+    auto param = std::make_shared<op::v0::Parameter>(element::dynamic, param_shape);
+    auto op = std::make_shared<TypeParam>(param);
+    ASSERT_EQ(op->output(0).get_partial_shape(), out_shape);
+    ASSERT_EQ(op->output(0).get_element_type(), element::dynamic);
+}
+
 TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_single_tensor_error_channels)
 {
     auto param_shape = PartialShape{1, 3, 4, 2}; // shall be 1 channel, not 2
@@ -126,11 +136,11 @@ TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_2_plane_y_dynamic)
     auto param_shape_y = PartialShape::dynamic();
     auto param_shape_uv = PartialShape{1, 3, 2, 2};
     auto out_shape = PartialShape{1, 6, 4, 3};
-    auto param_y = std::make_shared<op::v0::Parameter>(element::f32, param_shape_y);
-    auto param_uv = std::make_shared<op::v0::Parameter>(element::f32, param_shape_uv);
+    auto param_y = std::make_shared<op::v0::Parameter>(element::bf16, param_shape_y);
+    auto param_uv = std::make_shared<op::v0::Parameter>(element::bf16, param_shape_uv);
     auto op = std::make_shared<TypeParam>(param_y, param_uv);
     ASSERT_EQ(op->output(0).get_partial_shape(), out_shape);
-    ASSERT_EQ(op->output(0).get_element_type(), element::f32);
+    ASSERT_EQ(op->output(0).get_element_type(), element::bf16);
 }
 
 TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_2_plane_uv_dynamic)
@@ -138,19 +148,54 @@ TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_2_plane_uv_dynamic)
     auto param_shape_y = PartialShape{1, 4, 4, 1};
     auto param_shape_uv = PartialShape::dynamic();
     auto out_shape = PartialShape{1, 4, 4, 3};
-    auto param_y = std::make_shared<op::v0::Parameter>(element::f32, param_shape_y);
-    auto param_uv = std::make_shared<op::v0::Parameter>(element::f32, param_shape_uv);
+    auto param_y = std::make_shared<op::v0::Parameter>(element::f16, param_shape_y);
+    auto param_uv = std::make_shared<op::v0::Parameter>(element::f16, param_shape_uv);
     auto op = std::make_shared<TypeParam>(param_y, param_uv);
     ASSERT_EQ(op->output(0).get_partial_shape(), out_shape);
-    ASSERT_EQ(op->output(0).get_element_type(), element::f32);
+    ASSERT_EQ(op->output(0).get_element_type(), element::f16);
 }
 
-TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_2_plane_error_type)
+TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_2_plane_dynamic_types)
 {
-    auto param_shape_y = PartialShape::dynamic();
-    auto param_shape_uv = PartialShape::dynamic();
-    auto param_y = std::make_shared<op::v0::Parameter>(element::u8, param_shape_y);
-    auto param_uv = std::make_shared<op::v0::Parameter>(element::f32, param_shape_uv);
+    auto param_shape_y = PartialShape{1, 4, 4, 1};
+    auto param_shape_uv = PartialShape{1, 2, 2, 2};
+    auto out_shape = PartialShape{1, 4, 4, 3};
+    auto y_type = element::dynamic;
+    auto uv_type = element::dynamic;
+    auto out_type = element::dynamic;
+    auto param_y = std::make_shared<op::v0::Parameter>(y_type, param_shape_y);
+    auto param_uv = std::make_shared<op::v0::Parameter>(uv_type, param_shape_uv);
+    auto op = std::make_shared<TypeParam>(param_y, param_uv);
+    ASSERT_EQ(op->output(0).get_partial_shape(), out_shape);
+    ASSERT_EQ(op->output(0).get_element_type(), out_type);
+}
+
+TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_2_plane_uv_type)
+{
+    auto param_shape_y = PartialShape{1, 4, 4, 1};
+    auto param_shape_uv = PartialShape{1, 2, 2, 2};
+    auto out_shape = PartialShape{1, 4, 4, 3};
+    auto y_type = element::dynamic;
+    auto uv_type = element::f64;
+    auto out_type = element::f64;
+    auto param_y = std::make_shared<op::v0::Parameter>(y_type, param_shape_y);
+    auto param_uv = std::make_shared<op::v0::Parameter>(uv_type, param_shape_uv);
+    auto op = std::make_shared<TypeParam>(param_y, param_uv);
+    ASSERT_EQ(op->output(0).get_partial_shape(), out_shape);
+    ASSERT_EQ(op->output(0).get_element_type(), out_type);
+}
+
+TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_2_plane_error_type_mismatch)
+{
+    auto param_y = std::make_shared<op::v0::Parameter>(element::u8, PartialShape::dynamic());
+    auto param_uv = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    EXPECT_THROW(std::make_shared<TypeParam>(param_y, param_uv), ov::AssertFailure);
+}
+
+TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_2_plane_error_uv_type)
+{
+    auto param_y = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param_uv = std::make_shared<op::v0::Parameter>(element::i8, PartialShape::dynamic());
     EXPECT_THROW(std::make_shared<TypeParam>(param_y, param_uv), ov::AssertFailure);
 }
 
@@ -226,11 +271,24 @@ TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_2_plane_error_channels)
     EXPECT_THROW(std::make_shared<TypeParam>(param_y, param_uv), ov::AssertFailure);
 }
 
+TYPED_TEST_P(ConvertNV12BaseTest, shape_inference_error_many_types)
+{
+    auto param_y = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param_u = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param_v = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto empty = std::make_shared<TypeParam>();
+    empty->set_arguments(NodeVector{param_y, param_u, param_v});
+
+    EXPECT_THROW(empty->constructor_validate_and_infer_types(), ov::AssertFailure);
+}
+
+
 REGISTER_TYPED_TEST_SUITE_P(ConvertNV12BaseTest,
         shape_inference_single_tensor,
                             shape_inference_single_tensor_dynamic,
                             shape_inference_single_tensor_dynamic_dims,
                             shape_inference_single_tensor_dynamic_height,
+                            shape_inference_single_tensor_dynamic_type,
                             shape_inference_single_tensor_error_channels,
                             shape_inference_single_tensor_error_dims_5,
                             shape_inference_single_tensor_error_dims_3,
@@ -241,7 +299,10 @@ REGISTER_TYPED_TEST_SUITE_P(ConvertNV12BaseTest,
                             shape_inference_2_plane_dynamic,
                             shape_inference_2_plane_y_dynamic,
                             shape_inference_2_plane_uv_dynamic,
-                            shape_inference_2_plane_error_type,
+                            shape_inference_2_plane_dynamic_types,
+                            shape_inference_2_plane_uv_type,
+                            shape_inference_2_plane_error_type_mismatch,
+                            shape_inference_2_plane_error_uv_type,
                             shape_inference_2_plane_error_5dims,
                             shape_inference_2_plane_error_3dims,
                             shape_inference_2_plane_error_batch,
@@ -249,5 +310,6 @@ REGISTER_TYPED_TEST_SUITE_P(ConvertNV12BaseTest,
                             shape_inference_2_plane_error_height_odd,
                             shape_inference_2_plane_error_width,
                             shape_inference_2_plane_error_width_odd,
-                            shape_inference_2_plane_error_channels
+                            shape_inference_2_plane_error_channels,
+                            shape_inference_error_many_types
 );
