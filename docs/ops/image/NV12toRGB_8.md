@@ -4,11 +4,11 @@
 
 **Category**: *Image processing*
 
-**Short description**: *NV12toRGB* performs image conversion from NV12 format to RGB format.
+**Short description**: *NV12toRGB* performs image conversion from NV12 to RGB format.
 
 **Detailed description:**
 
-Conversion of each pixel from NV12 (YUV) to RGB space is represented by following formulas:
+Conversion of each pixel from NV12 (YUV) to RGB space is represented by the following formulas:
 
 \f[
 \begin{aligned}
@@ -18,36 +18,36 @@ Conversion of each pixel from NV12 (YUV) to RGB space is represented by followin
 \end{aligned}
 \f]
 
-Then R, G, B values are clipped to range (0, 255)
+Then R, G, B values are clipped to range (0, 255).
 
 **Inputs:**
 
-Input NV12 image tensor shall have `NHWC (a.k.a NYXC)` layout and can be represented in two ways:
+Input NV12 image tensor shall have `NHWC (also known as NYXC)` layout and can be represented in two ways:
 * *Single plane*:
   * **1**: Tensor of type *T*. **Required.** Dimensions:
     * `N` - batch dimension
-    * `H` - height dimension is 1.5x bigger than image height
-    * `W` - width dimension is same as image width
-    * `C` - channels dimension equals to 1 (one plane)
-* *Two separate planes: Y and UV*: In this way
+    * `H` - height dimension is 1.5x bigger than the image height
+    * `W` - width dimension is the same as the image width
+    * `C` - channels dimension is equal to 1 (one plane)
+* *Two separate planes - Y and UV*:
   * **1**: Tensor of type *T* representing Y plane. **Required.** Dimensions:
     * `N` - batch dimension
-    * `H` - height dimension is same as image height
-    * `W` - width dimension is same as image width
-    * `C` - channels dimension equals to 1 (only Y channel)
+    * `H` - height dimension is the same as the image height
+    * `W` - width dimension is the same as the image width
+    * `C` - channels dimension is equal to 1 (only Y channel)
   * **2**: Tensor of type *T* representing UV plane. **Required.** Dimensions:
-    * `N` - batch dimension. Shall be same as batch dimension for Y plane
-    * `H` - height dimension shall be half of image height (i.e. `image_height / 2`)
-    * `W` - width dimension shall be half of image width (i.e. `image_width / 2`)
+    * `N` - batch dimension. Shall be the same as the batch dimension for Y plane
+    * `H` - height dimension shall be half of the image height (for example, `image_height / 2`)
+    * `W` - width dimension shall be half of the image width (for example, `image_width / 2`)
     * `C` - channels dimension shall be equal to 2 (U channel and V channel)
 
 **Outputs:**
 
-* **1**: A tensor of type *T* representing converted image in RGB format. Dimensions:
+* **1**: A tensor of type *T* representing an image converted in RGB format. Dimensions:
   * `N` - batch dimension
-  * `H` - height dimension is same as image height
-  * `W` - width dimension is same as image width
-  * `C` - channels dimension equals to 3. First channel is Red, second one is Green, last one is Blue
+  * `H` - height dimension is the same as the image height
+  * `W` - width dimension is the same as the image width
+  * `C` - channels dimension is equal to 3. The first channel is Red, the second one is Green, the last one is Blue
 
 **Types:**
 

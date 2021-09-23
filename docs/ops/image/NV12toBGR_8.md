@@ -4,11 +4,11 @@
 
 **Category**: *Image processing*
 
-**Short description**: *NV12toBGR* performs image conversion from NV12 format to BGR.
+**Short description**: *NV12toBGR* performs image conversion from NV12 to BGR format.
 
 **Detailed description**:
 
-Similar to *NV12toRGB* but output channels for each pixel are reversed so that: first channel is `blue`, second one is `green`, last one is `red`.  See detailed conversion formulas at [NV12toRGB](NV12toRGB_8.md)
+Similar to *NV12toRGB* but output channels for each pixel are reversed so that the first channel is `blue`, the second one is `green`, the last one is `red`.  See detailed conversion formulas in the [NV12toRGB description](NV12toRGB_8.md).
 
 **Inputs:**
 
@@ -16,11 +16,11 @@ Same as specified for [NV12toRGB](NV12toRGB_8.md) operation.
 
 **Outputs:**
 
-* **1**: A tensor of type *T* representing converted image in BGR format. Dimensions:
+* **1**: A tensor of type *T* representing an image converted in BGR format. Dimensions:
   * `N` - batch dimension
-  * `H` - height dimension is same as image height
-  * `W` - width dimension is same as image width
-  * `C` - channels dimension equals to 3. First channel is Blue, second one is Green, last one is Red
+  * `H` - height dimension is the same as the image height
+  * `W` - width dimension is the same as the image width
+  * `C` - channels dimension is equal to 3. The first channel is Blue, the second one is Green, the last one is Red
 
 **Types:**
 
