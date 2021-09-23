@@ -27,10 +27,13 @@ class ChangePlaceholderTypes(FrontReplacementPattern):
         for op in graph.get_op_nodes(type='Parameter'):
             consumer_nodes = [p.node for p in op.out_port(0).get_destinations()]
             if all([ChangePlaceholderTypes.is_node_casts_to_float_or_shapeof(consumer) for consumer in consumer_nodes]):
+                print("Changing floating types in Parameter node.")
                 self.update_type(op, np.float32)
 
             if op.soft_get('data_type') == np.int64:
+                print("Data type int64 of Parameter node.")
                 self.update_type(op, np.int32)
 
             if op.soft_get('data_type') == np.uint8:
+                print("Data type uint8 of Parameter node.")
                 self.update_type(op, np.float32)
