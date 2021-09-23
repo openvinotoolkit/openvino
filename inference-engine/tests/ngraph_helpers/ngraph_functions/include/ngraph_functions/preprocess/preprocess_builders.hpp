@@ -10,7 +10,7 @@ namespace ov {
 namespace builder {
 namespace preprocess {
 
-using preprocess_func = std::tuple<std::function<std::shared_ptr<Function>()>, std::string>;
+using preprocess_func = std::tuple<std::function<std::shared_ptr<Function>()>, std::string, float>;
 
 inline std::vector<preprocess_func> generic_preprocess_functions();
 
@@ -194,19 +194,19 @@ inline std::shared_ptr<Function> tensor_layout() {
 
 inline std::vector<preprocess_func> generic_preprocess_functions() {
     return std::vector<preprocess_func> {
-            preprocess_func(mean_only, "mean_only"),
-            preprocess_func(scale_only, "scale_only"),
-            preprocess_func(mean_scale, "mean_scale"),
-            preprocess_func(scale_mean, "scale_mean"),
-            preprocess_func(mean_vector, "mean_vector"),
-            preprocess_func(scale_vector, "scale_vector"),
-            preprocess_func(convert_element_type_and_mean, "convert_element_type_and_mean"),
-            preprocess_func(tensor_element_type_and_mean, "tensor_element_type_and_mean"),
-            preprocess_func(custom_preprocessing, "custom_preprocessing"),
-            preprocess_func(lvalues_multiple_ops, "lvalues_multiple_ops"),
-            preprocess_func(two_inputs_basic, "two_inputs_basic"),
-            preprocess_func(reuse_network_layout, "reuse_network_layout"),
-            preprocess_func(tensor_layout, "tensor_layout"),
+            preprocess_func(mean_only, "mean_only", 0.01f),
+            preprocess_func(scale_only, "scale_only", 0.01f),
+            preprocess_func(mean_scale, "mean_scale", 0.01f),
+            preprocess_func(scale_mean, "scale_mean", 0.01f),
+            preprocess_func(mean_vector, "mean_vector", 0.01f),
+            preprocess_func(scale_vector, "scale_vector", 0.01f),
+            preprocess_func(convert_element_type_and_mean, "convert_element_type_and_mean", 1.f),
+            preprocess_func(tensor_element_type_and_mean, "tensor_element_type_and_mean", 1.f),
+            preprocess_func(custom_preprocessing, "custom_preprocessing", 0.01f),
+            preprocess_func(lvalues_multiple_ops, "lvalues_multiple_ops", 1.f),
+            preprocess_func(two_inputs_basic, "two_inputs_basic", 0.01f),
+            preprocess_func(reuse_network_layout, "reuse_network_layout", 0.01f),
+            preprocess_func(tensor_layout, "tensor_layout", 0.01f),
     };
 }
 

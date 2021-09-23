@@ -30,11 +30,7 @@ void PrePostProcessTest::SetUp() {
     std::tie(func, targetDevice) = GetParam();
     function = (std::get<0>(func))();
     outPrc = InferenceEngine::details::convertPrecision(function->get_output_element_type(0));
-    if (function->get_output_element_type(0).is_integral_number()) {
-        threshold = 1; // rounding mismatch is allowed
-    } else {
-        threshold = 0.01f;
-    }
+    threshold = std::get<2>(func);
 }
 
 TEST_P(PrePostProcessTest, CompareWithRefs) {
