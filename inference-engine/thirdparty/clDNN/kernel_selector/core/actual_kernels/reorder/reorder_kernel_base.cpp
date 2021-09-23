@@ -177,7 +177,11 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
         }
     }
 
-    if (params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 && params.inputs[0].Feature().v % 16 == 0) {
+    if ((params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+         params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16) &&
+        params.inputs[0].Feature().v % 16 == 0) {
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 16;
         dispatchData.lws[2] = 1;

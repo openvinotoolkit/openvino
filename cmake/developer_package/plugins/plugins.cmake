@@ -89,8 +89,8 @@ function(ie_add_plugin)
 
         # fake dependencies to build in the following order:
         # IE -> IE readers -> IE inference plugins -> IE-based apps
-        if(TARGET inference_engine_ir_reader)
-            add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_reader)
+        if(TARGET ir_ngraph_frontend)
+            add_dependencies(${IE_PLUGIN_NAME} ir_ngraph_frontend)
         endif()
         if(TARGET inference_engine_ir_v7_reader)
             add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
