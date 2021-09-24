@@ -44,7 +44,8 @@ if(UNIX)
     ie_cpack_add_component(install_dependencies REQUIRED)
     install(DIRECTORY install_dependencies/
             DESTINATION install_dependencies
-            COMPONENT install_dependencies)
+            COMPONENT install_dependencies
+            USE_SOURCE_PERMISSIONS)
 endif()
 
 # install files for demo
