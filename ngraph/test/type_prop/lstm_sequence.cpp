@@ -325,8 +325,7 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank) {
     }
 }
 
-TEST(type_prop, lstm_sequence_invalid_input_direction)
-{
+TEST(type_prop, lstm_sequence_invalid_input_direction) {
     recurrent_sequence_parameters param;
 
     param.batch_size = 24;
@@ -340,6 +339,7 @@ TEST(type_prop, lstm_sequence_invalid_input_direction)
     try {
         lstm_sequence->validate_and_infer_types();
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter direction must be Forward or Reverse or Bidirectional"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter direction must be Forward or Reverse or Bidirectional"));
     }
 }

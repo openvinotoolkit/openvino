@@ -540,14 +540,19 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
 
     auto check_direction_valid = [](const ov::PartialShape& pshape, size_t index) -> bool {
         if (pshape[index].is_static())
-            return (direction)pshape[index].get_length() == direction::FORWARD ||  (direction)pshape[index].get_length() == direction::REVERSE ||  (direction)pshape[index].get_length() == direction::BIDIRECTIONAL;
+            return (direction)pshape[index].get_length() == direction::FORWARD ||
+                   (direction)pshape[index].get_length() == direction::REVERSE ||
+                   (direction)pshape[index].get_length() == direction::BIDIRECTIONAL;
         return true;
     };
 
-    NODE_VALIDATION_CHECK(this, check_direction_valid(ht_pshape, 1),
+    NODE_VALIDATION_CHECK(this,
+                          check_direction_valid(ht_pshape, 1),
                           "Parameter direction must be Forward or Reverse or Bidirectional.");
 
-    NODE_VALIDATION_CHECK(this, m_direction == direction::FORWARD || m_direction == direction::REVERSE || m_direction == direction::BIDIRECTIONAL,
+    NODE_VALIDATION_CHECK(this,
+                          m_direction == direction::FORWARD || m_direction == direction::REVERSE ||
+                              m_direction == direction::BIDIRECTIONAL,
                           "Parameter direction must be Forward or Reverse or Bidirectional.");
 
     // Validate hidden_size value for W, R, B inputs
