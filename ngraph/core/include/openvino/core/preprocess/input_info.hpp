@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/preprocess/input_network_info.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/preprocess/preprocess_steps.hpp"
 
@@ -12,9 +13,14 @@ namespace ov {
 namespace preprocess {
 
 /// \brief Class holding preprocessing information for one input
+/// From preprocessing pipeline perspective, each input can be represented as:
+///    - User's input parameter info (InputInfo::tensor)
+///    - Preprocessing steps applied to user's input (InputInfo::preprocess)
+///    - Network's input info, which is a final info after preprocessing (InputInfo::network)
+///
 /// API has Builder-like style to allow chaining calls in client's code, like
 /// \code{.cpp}
-/// auto proc = PrePostProcessor().input(InputInfo().tensor(...).preprocess(...);
+/// auto proc = PrePostProcessor().input(InputInfo().tensor(...).preprocess(...).network(...);
 /// \endcode
 class OPENVINO_API InputInfo final {
     class InputInfoImpl;
@@ -65,7 +71,23 @@ public:
     /// \param builder Preprocessing operations.
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
+
     InputInfo&& preprocess(PreProcessSteps&& builder) &&;
+
+    /// \brief Set network's tensor information for input - Lvalue version
+    ///
+    /// \param builder Input network tensor information.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    InputInfo& network(InputNetworkInfo&& builder) &;
+
+    /// \brief Set input tensor information for input - Rvalue version
+    ///
+    /// \param builder Input network tensor information.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
+    InputInfo&& network(InputNetworkInfo&& builder) &&;
+
 };
 
 }  // namespace preprocess

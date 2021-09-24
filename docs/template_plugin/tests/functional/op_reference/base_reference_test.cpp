@@ -48,7 +48,12 @@ void CommonReferenceTest::FillInputs() {
         GTEST_ASSERT_NE(infoIt, inputInfo.cend());
 
         const auto& info = infoIt->second;
-        auto blob = make_blob_with_precision(info->getTensorDesc());
+        InferenceEngine::Blob::Ptr blob;
+        if (!info->getTensorDesc().getDims().empty() && info->getTensorDesc().getDims()[0] != 0) {
+            blob = make_blob_with_precision(info->getTensorDesc());
+        } else {
+            blob = make_plain_blob(info->getTensorDesc().getPrecision(), inputData[i]->getTensorDesc().getDims());
+        }
         blob->allocate();
 
         ASSERT_EQ(blob->byteSize(), inputData[i]->byteSize());

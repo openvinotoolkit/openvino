@@ -250,6 +250,72 @@ static RefPreprocessParams mean_scale_dynamic_layout() {
     return res;
 }
 
+static RefPreprocessParams resize_to_network_height() {
+    RefPreprocessParams res("resize_to_network_height");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 1, 2, 1});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo().set_spacial_dynamic_shape())
+                               .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
+                               .network(InputNetworkInfo().set_layout("??HW"))
+                )
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(element::f32, Shape{1, 1, 4, 1}, std::vector<float>{0., 2., 4., 6.});
+    res.expected.emplace_back(Shape{1, 1, 2, 1}, element::f32, std::vector<float>{1., 5.});
+    return res;
+}
+
+static RefPreprocessParams resize_to_network_width() {
+    RefPreprocessParams res("resize_to_network_width");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 1, 1, 2});
+        f->get_parameters().front()->set_layout("NCHW");
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo().set_spacial_dynamic_shape())
+                               .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
+                               .network(InputNetworkInfo().set_layout("NCHW")))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(element::f32, Shape{1, 1, 1, 6}, std::vector<float>{0., 1., 2., 3., 4., 5.});
+    res.expected.emplace_back(Shape{1, 1, 2, 1}, element::f32, std::vector<float>{1., 4.});
+    return res;
+}
+
+static RefPreprocessParams resize_to_network_width_height() {
+    RefPreprocessParams res("resize_to_network_width_height");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 1, 4, 4});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo().set_spacial_dynamic_shape())
+                               .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_NEAREST))
+                               .network(InputNetworkInfo().set_layout("...HW")))
+                .build(f);
+        return f;
+    };
+
+    auto result = std::make_shared<HostTensor>();
+    // clang-format off
+    std::vector<float> input = {0., 1., 2., 3., 4.,
+                                1., 2., 3., 4., 5.,
+                                2., 3., 4., 5., 6.,
+                                3., 4., 5., 6., 7.,
+                                2., 3., 4., 5., 6.};
+    std::vector<float> expected = {0., 1., 3., 4.,
+                                   1., 2., 4., 5.,
+                                   3., 4., 6., 7.,
+                                   2., 3., 5., 6.};
+    // clang-format on
+    res.inputs.emplace_back(element::f32, Shape{1, 1, 5, 5}, input);
+    res.expected.emplace_back(Shape{1, 1, 4, 4}, element::f32, expected);
+    return res;
+}
+
 std::vector<RefPreprocessParams> allPreprocessTests() {
     return std::vector<RefPreprocessParams> {
         simple_mean_scale(),
@@ -260,7 +326,10 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         test_lvalue(),
         test_2_inputs_basic(),
         mean_scale_vector_tensor_layout(),
-        mean_scale_dynamic_layout()
+        mean_scale_dynamic_layout(),
+        resize_to_network_height(),
+        resize_to_network_width(),
+        resize_to_network_width_height(),
              };
 }
 

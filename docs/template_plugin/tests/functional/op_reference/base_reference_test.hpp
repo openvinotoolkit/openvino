@@ -55,6 +55,24 @@ InferenceEngine::Blob::Ptr CreateBlob(const ngraph::element::Type& element_type,
     return blob;
 }
 
+template <class T>
+InferenceEngine::Blob::Ptr CreateBlob(const ov::PartialShape& partial_shape,
+                                      const ngraph::element::Type& element_type,
+                                      const std::vector<T>& values) {
+    auto shape = partial_shape.get_shape();
+    auto blob = make_blob_with_precision(
+            InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(element_type), shape,
+                                        InferenceEngine::Layout::ANY));
+    blob->allocate();
+    InferenceEngine::MemoryBlob::Ptr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+    IE_ASSERT(minput);
+    auto minputHolder = minput->wmap();
+
+    std::memcpy(minputHolder.as<void*>(), values.data(), sizeof(T) * values.size());
+
+    return blob;
+}
+
 ///
 /// Class which should help to build data for single input
 ///
@@ -66,6 +84,11 @@ struct Tensor {
     template <typename T>
     Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const std::vector<T>& data_elements)
         : Tensor {shape, type, CreateBlob(type, data_elements)} {}
+
+    // Use this constructor of dynamic network inputs
+    template <typename T>
+    Tensor(ngraph::element::Type type, const ngraph::Shape& shape, const std::vector<T>& data_elements)
+            : Tensor {shape, type, CreateBlob(shape, type, data_elements)} {}
 
     ngraph::Shape shape;
     ngraph::element::Type type;

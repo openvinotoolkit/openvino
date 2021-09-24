@@ -78,6 +78,27 @@ private:
     bool m_spacial_shape_set = false;
 };
 
+/// \brief InputNetworkInfoImpl - internal data structure
+class InputNetworkInfo::InputNetworkInfoImpl {
+public:
+    InputNetworkInfoImpl() = default;
+
+    void set_layout(const Layout& layout) {
+        m_layout = layout;
+        m_layout_set = true;
+    }
+    bool is_layout_set() const {
+        return m_layout_set;
+    }
+    const Layout& get_layout() const {
+        return m_layout;
+    }
+
+private:
+    Layout m_layout = Layout();
+    bool m_layout_set = false;
+};
+
 /// \brief InputInfoImpl - internal data structure
 struct InputInfo::InputInfoImpl {
     InputInfoImpl() = default;
@@ -98,6 +119,7 @@ struct InputInfo::InputInfoImpl {
     size_t m_index = 0;
     std::unique_ptr<InputTensorInfo::InputTensorInfoImpl> m_tensor_data;
     std::unique_ptr<PreProcessSteps::PreProcessStepsImpl> m_preprocess;
+    std::unique_ptr<InputNetworkInfo::InputNetworkInfoImpl> m_network_data;
 };
 
 //-------------- InputInfo ------------------
@@ -125,6 +147,16 @@ InputInfo&& InputInfo::preprocess(PreProcessSteps&& builder) && {
 InputInfo& InputInfo::preprocess(PreProcessSteps&& builder) & {
     m_impl->m_preprocess = std::move(builder.m_impl);
     return *this;
+}
+
+InputInfo& InputInfo::network(InputNetworkInfo&& builder) & {
+    m_impl->m_network_data = std::move(builder.m_impl);
+    return *this;
+}
+
+InputInfo&& InputInfo::network(InputNetworkInfo&& builder) && {
+    m_impl->m_network_data = std::move(builder.m_impl);
+    return std::move(*this);
 }
 
 // ------------------------ PrePostProcessor --------------------
@@ -163,6 +195,10 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
                                 " inputs. Please use ov::preprocess::InputInfo constructor specifying "
                                 "particular input instead of default one");
             param = function->get_parameters().front();
+        }
+        // Set parameter layout from 'network' information
+        if (input->m_network_data && input->m_network_data->is_layout_set() && param->get_layout() == Layout()) {
+            param->set_layout(input->m_network_data->get_layout());
         }
         auto consumers = param->output(0).get_target_inputs();
         if (!input->m_tensor_data) {
@@ -268,6 +304,22 @@ InputTensorInfo& InputTensorInfo::set_spacial_static_shape(size_t height, size_t
 
 InputTensorInfo&& InputTensorInfo::set_spacial_static_shape(size_t height, size_t width) && {
     m_impl->set_spacial_static_shape(height, width);
+    return std::move(*this);
+}
+
+// --------------------- InputNetworkInfo ------------------
+InputNetworkInfo::InputNetworkInfo() : m_impl(std::unique_ptr<InputNetworkInfoImpl>(new InputNetworkInfoImpl())) {}
+InputNetworkInfo::InputNetworkInfo(InputNetworkInfo&&) noexcept = default;
+InputNetworkInfo& InputNetworkInfo::operator=(InputNetworkInfo&&) noexcept = default;
+InputNetworkInfo::~InputNetworkInfo() = default;
+
+InputNetworkInfo& InputNetworkInfo::set_layout(const Layout& layout) & {
+    m_impl->set_layout(layout);
+    return *this;
+}
+
+InputNetworkInfo&& InputNetworkInfo::set_layout(const Layout& layout) && {
+    m_impl->set_layout(layout);
     return std::move(*this);
 }
 
