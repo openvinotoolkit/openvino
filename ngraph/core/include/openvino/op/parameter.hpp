@@ -17,7 +17,8 @@ namespace v0 {
 /// Basic graph operations do not need parameters attached to a function.
 class OPENVINO_API Parameter : public op::Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Parameter", "opset1");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructions a tensor-typed parameter node.
     Parameter() = default;
     /// \brief Constructions a tensor-typed parameter node.
@@ -73,10 +74,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<ParameterVector>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ParameterVector>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ParameterVector& m_ref;
