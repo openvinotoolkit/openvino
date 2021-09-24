@@ -52,6 +52,8 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
 
             elif op_type == 'Result' and len(op_shape) > 3 and op.in_ports():
                 prev_node_out_port = op.in_port(0).get_connection().get_source()
+                if prev_node_out_port is None:
+                    continue
                 in_node = prev_node_out_port.node
                 in_data_node = in_node.out_node(prev_node_out_port.idx)
                 if in_data_node.has_and_set('permutation'):
