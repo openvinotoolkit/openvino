@@ -30,7 +30,7 @@ jobs:
     BUILD_DIR: D:\build
     BUILD_SAMPLES_DIR: D:\build_samples
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
-    MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
+    MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.29.30133\bin\Hostx64\x64\cl.exe
     INSTALL_DIR: $(WORK_DIR)\install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)\tests
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
