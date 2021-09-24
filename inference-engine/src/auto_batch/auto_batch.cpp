@@ -420,6 +420,9 @@ IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(con
     auto & deviceName = metaDevice.deviceName;
     auto & deviceConfig = metaDevice.config;
     // network.serialize("out_orig.xml", "out_orig.bin");
+    auto executableNetworkForDeviceBatch1 = GetCore()->LoadNetwork(CNNNetwork{network}, deviceName, deviceConfig);
+    uint64_t footprint = executableNetworkForDeviceBatch1->GetMetric(GPU_METRIC_KEY(NETWORK_MEM_FOOTPRINT));
+    std::cout << "!!!!!!!!!!!!!! Original (batch1):" << footprint << std::endl;
 
     CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
     const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
@@ -445,6 +448,8 @@ IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(con
     if (executableNetworkForDevice == nullptr)
         IE_THROW(NotFound) << "Failed to load Executable network the device "
                                             <<  "that the BATCH device is initialized to work with";
+    footprint = executableNetworkForDevice->GetMetric(GPU_METRIC_KEY(NETWORK_MEM_FOOTPRINT));
+    std::cout << "!!!!!!!!!!!!!! (BATCHED):" << footprint << std::endl;
 
     auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
     bool enablePerfCounters = (fullConfig.end() != perfConfig) && (perfConfig->second == PluginConfigParams::YES);
