@@ -15,11 +15,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNConvertNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-
         const auto convert = std::dynamic_pointer_cast<const ngraph::opset1::Convert>(op);
         if (!convert) {
             errorMessage = "Only opset1 Convert operation is supported";
@@ -41,12 +36,16 @@ MKLDNNConvertNode::MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, co
     }
 }
 
-MKLDNNConvertNode::MKLDNNConvertNode(const InferenceEngine::SizeVector &dims, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
+std::vector<VectorDims> MKLDNNConvertNode::shapeInfer() const {
+    return std::vector<VectorDims>{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
+}
+
+MKLDNNConvertNode::MKLDNNConvertNode(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
                                      const std::string &nodeName, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode("Convert", nodeName, eng, cache) {
-    inputShapes.emplace_back(dims);
+    inputShapes.push_back(shape);
     addOriginalInputPrecision(inPrc);
-    outputShapes.emplace_back(dims);
+    outputShapes.push_back(shape);
     addOriginalOutputPrecision(outPrc);
 
     errorPrefix = "Convert node with name '" + getName() + "'";
