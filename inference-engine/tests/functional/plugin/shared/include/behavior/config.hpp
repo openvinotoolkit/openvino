@@ -181,6 +181,29 @@ namespace BehaviorTestsDefinitions {
 
     using CorrectConfigAPITests = BehaviorTestsUtils::BehaviorTestsBasic;
 
+    TEST_P(CorrectConfigAPITests, canLoadCorrectNetworkAndCheckConfig) {
+        InferenceEngine::CNNNetwork cnnNet(function);
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+        for (const auto& configItem : configuration) {
+            InferenceEngine::Parameter param;
+            ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
+            ASSERT_FALSE(param.empty());
+            ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+        }
+    }
+
+    TEST_P(CorrectConfigAPITests, canSetCorrectConfigLoadNetworkAndCheckConfig) {
+        InferenceEngine::CNNNetwork cnnNet(function);
+        ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
+        for (const auto& configItem : configuration) {
+            InferenceEngine::Parameter param;
+            ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
+            ASSERT_FALSE(param.empty());
+            ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+        }
+    }
+
     TEST_P(CorrectConfigAPITests, CanSetExclusiveAsyncRequests) {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
