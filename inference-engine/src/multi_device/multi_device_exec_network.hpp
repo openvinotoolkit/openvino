@@ -170,7 +170,7 @@ private:
     NetworkPromise                                                      _cpuPromise;
     mutable NetworkFuture                                               _acceleratorFuture;
     mutable NetworkPromise                                              _acceleratorPromise;
-    mutable bool                                                        _alreadyActualNetwork = {false};
+    mutable std::atomic<bool>                                           _alreadyActualNetwork = {false};
     bool                                                                _workModeIsAUTO = {false};
     DeviceInformation                                                   _cpuDevice;
     DeviceInformation                                                   _acceleratorDevice;
