@@ -8,6 +8,7 @@ import numpy as np
 import ngraph as ng
 from ngraph.impl import AxisSet, Function, Shape, Type
 from ngraph.impl.op import Constant, Parameter
+from tests import xfail_issue_54663
 from tests.runtime import get_runtime
 
 
@@ -540,7 +541,7 @@ def test_select():
     expected = np.array([[5, 8]])
     assert np.allclose(result, expected)
 
-
+@xfail_issue_54663
 def test_max_pool():
     # test 1d
     element_type = Type.f32
