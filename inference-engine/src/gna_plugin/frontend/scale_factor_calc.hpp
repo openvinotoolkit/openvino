@@ -1350,9 +1350,9 @@ class ScaleFactorCalculator {
             auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*ptr);
             if (quantData->_weights_quant.IsStatsSet()) {
                 if (quantData->_weights_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
-                    return FakeQuantI8::mandatory().getWeightsPrecision().size();
+                    return frontend::FakeQuantI8().getWeightsPrecision().size();
                 } else {
-                    return FakeQuantI16::mandatory().getWeightsPrecision().size();
+                    return frontend::FakeQuantI16().getWeightsPrecision().size();
                 }
             }
         }
@@ -1369,7 +1369,7 @@ class ScaleFactorCalculator {
     }
 
     static bool IsFakeQuantize() {
-        return std::is_same<QUANT_DESC, FakeQuantI8>();
+        return std::is_same<QUANT_DESC, FakeQuant>();
     }
 }; // class ScaleFactorCalculator
 

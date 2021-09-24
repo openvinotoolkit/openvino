@@ -810,8 +810,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         run_passes(newNet, true, gnaFlags->input_low_precision);
         run_passes(newNet, false, gnaFlags->input_low_precision);
     } else if (fake_quantized) {
-        ModelQuantizer<FakeQuantI8> q8;
-        newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+        ModelQuantizer<FakeQuant> modelQuantizer;
+        newNet = modelQuantizer.quantize(network, run_passes, inputsDesc->inputScaleFactors);
     } else {
         switch (config.gnaPrecision) {
             case Precision::I16:

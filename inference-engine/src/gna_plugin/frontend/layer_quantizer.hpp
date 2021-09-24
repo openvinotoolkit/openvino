@@ -91,6 +91,11 @@ struct QuantI8_I8 : public QuantDescTmpl<PRECISION_TYPE(I8, I32, I8, I8, MIXED)>
 };
 
 // for support proper trait instantiation for quantization function callback
+struct FakeQuant : public QuantDescTmpl<P_TYPE(I16), P_TYPE(I32), P_TYPE(MIXED), P_TYPE(MIXED), P_TYPE(MIXED)> {
+    FakeQuant() {
+        _Np = InferenceEngine::Precision::MIXED;
+    }
+};
 struct FakeQuantI16 : public QuantI16 {};
 struct FakeQuantI8 : public QuantI8 {};
 
@@ -654,33 +659,23 @@ class DataQuantizer<Desc, InferenceEngine::WeightableLayer *> : public DataQuant
  public:
     explicit DataQuantizer(float scaleFactor) : DataQuantizerBase(scaleFactor) {}
     bool operator()(InferenceEngine::WeightableLayer *wl) const {
-        auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
-        if (quantData->_weights_quant.IsStatsSet()) {
-            if (quantData->_weights_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
-                typedef typename std::conditional<
-                    std::is_same<Desc, QuantI8>::value,
-                    QuantI8,
-                    typename std::conditional<
-                        std::is_same<Desc, QuantI16>::value,
-                        QuantI8,
-                        FakeQuantI8>::type
-                >::type Type;
-                quantizeWeightsBiases<Type>(Type(), wl, Quant<Type>());
-            } else {
-                typedef typename std::conditional<
-                    std::is_same<Desc, QuantI16>::value,
-                    QuantI16,
-                    typename std::conditional<
-                        std::is_same<Desc, QuantI8>::value,
-                        QuantI16,
-                        FakeQuantI16>::type
-                >::type Type;
-                quantizeWeightsBiases<Type>(Type(), wl, Quant<Type>());
-            }
-        } else {
-            quantizeWeightsBiases<typename Desc::MandatoryType>(Desc::mandatory(), wl, Quant<typename Desc::MandatoryType>());
-        }
+        (*this)(wl, typename Desc::MandatoryType());
         return true;
+    }
+
+    template<typename T>
+    void operator()(InferenceEngine::WeightableLayer *wl, const T&) const {
+        quantizeWeightsBiases<T>(T(), wl, Quant<T>());
+    }
+
+    void operator()(InferenceEngine::WeightableLayer *wl, const FakeQuant&) const {
+        auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
+        IE_ASSERT(quantData->_weights_quant.IsStatsSet());
+        if (quantData->_weights_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
+            quantizeWeightsBiases<FakeQuantI8>(FakeQuantI8(), wl, Quant<FakeQuantI8>());
+        } else {
+            quantizeWeightsBiases<FakeQuantI16>(FakeQuantI16(), wl, Quant<FakeQuantI16>());
+        }
     }
 };
 
@@ -720,9 +715,7 @@ using QuantI16 = frontend::QuantPair<frontend::QuantI16, frontend::QuantI16>;
 using QuantI8 = frontend::QuantPair<frontend::QuantI8, frontend::QuantI16>;
 using QuantI8_I8 = frontend::QuantPair<frontend::QuantI8_I8, frontend::QuantI8_I8>;
 
-
-using FakeQuantI16 = frontend::QuantPair<frontend::FakeQuantI16, frontend::FakeQuantI16>;
-using FakeQuantI8 = frontend::QuantPair<frontend::FakeQuantI8, frontend::FakeQuantI16>;
+using FakeQuant = frontend::QuantPair<frontend::FakeQuant, frontend::FakeQuantI16>;
 
 enum class QuantizedDataType {
     input,
