@@ -157,7 +157,7 @@ void ov::Node::set_arguments(const NodeVector& arguments) {
 
 void ov::Node::set_arguments(const OutputVector& arguments) {
     // Remove existing inputs of this node
-    //m_inputs.clear();
+    m_inputs.clear();
 
     // Add this node as a user of each argument.
     size_t i = 0;
