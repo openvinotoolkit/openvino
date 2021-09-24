@@ -12,7 +12,8 @@ namespace v1 {
 /// \brief Elementwise maximum operation.
 class OPENVINO_API Maximum : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Maximum", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a maximum operation.
     Maximum() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
