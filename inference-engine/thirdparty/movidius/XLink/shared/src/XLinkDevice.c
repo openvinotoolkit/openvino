@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <errno.h>
 #include "stdio.h"
 #include "stdint.h"
 #include "string.h"
@@ -130,7 +131,9 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     temp.protocol = X_LINK_ANY_PROTOCOL;
     XLINK_RET_IF_FAIL(DispatcherStart(&temp)); //myriad has one
 
-    sem_wait(&pingSem);
+    while(((sem_wait(&pingSem) == -1) && errno == EINTR)
+        continue;
+
 #endif
 
     return X_LINK_SUCCESS;
