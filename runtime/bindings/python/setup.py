@@ -17,39 +17,41 @@ from setuptools.command.develop import develop as _develop
 from distutils.command.build import build as _build
 
 __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
-PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
-OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../../.."))
+PYTHON_API_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
+PYNGRAPH_ROOT_DIR = os.path.normpath(os.path.join(PYTHON_API_ROOT_DIR, "src", "compatibility"))
+OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYTHON_API_ROOT_DIR, "../../.."))
 # Change current working directory to runtime/bindings/python
-os.chdir(PYNGRAPH_ROOT_DIR)
+os.chdir(PYTHON_API_ROOT_DIR)
 
-NGRAPH_LIBS = ["ngraph", "onnx_ngraph_frontend"]
+NGRAPH_LIBS = ["ngraph", "onnx_ngraph_frontend", "inference_engine", "openvino"]
 
 packages = [
-    "ngraph",
-    "ngraph.opset1",
-    "ngraph.opset2",
-    "ngraph.opset3",
-    "ngraph.opset4",
-    "ngraph.opset5",
-    "ngraph.opset6",
-    "ngraph.opset7",
-    "ngraph.opset8",
-    "ngraph.utils",
-    "ngraph.impl",
-    "ngraph.impl.op",
-    "ngraph.impl.op.util",
-    "ngraph.impl.passes",
-    "ngraph.frontend",
+    "src/openvino",
+    # "openvino.inference_engine",
+    "src/compatibility/ngraph",
+    "src/compatibility/ngraph.opset1",
+    "src/compatibility/ngraph.opset2",
+    "src/compatibility/ngraph.opset3",
+    "src/compatibility/ngraph.opset4",
+    "src/compatibility/ngraph.opset5",
+    "src/compatibility/ngraph.opset6",
+    "src/compatibility/ngraph.opset7",
+    "src/compatibility/ngraph.opset8",
+    "src/compatibility/ngraph.utils",
+    "src/compatibility/ngraph.impl",
+    "src/compatibility/ngraph.impl.op",
+    "src/compatibility/ngraph.impl.op.util",
+    "src/compatibility/ngraph.impl.passes",
+    "src/compatibility/ngraph.frontend",
 ]
 
 data_files = []
 
-with open(os.path.join(PYNGRAPH_ROOT_DIR, "requirements.txt")) as req:
+with open(os.path.join(PYTHON_API_ROOT_DIR, "requirements.txt")) as req:
     requirements = req.read().splitlines()
 
 cmdclass = {}
 for super_class in [_build, _install, _develop]:
-
     class command(super_class):
         """Add user options for build, install and develop commands."""
 
@@ -59,7 +61,6 @@ for super_class in [_build, _install, _develop]:
             ("jobs=", None, "Specifies the number of jobs to use with make."),
             ("cmake-args=", None, "Additional options to be passed to CMake.")
         ]
-
         def initialize_options(self):
             """Set default values for all the options that this command supports."""
             super().initialize_options()
@@ -129,6 +130,8 @@ class BuildCMakeExt(build_ext):
     def run(self):
         """Run CMake build for modules."""
         for extension in self.extensions:
+            if extension.name == "pyopenvino":
+                self.build_cmake(extension)
             if extension.name == "_pyngraph":
                 self.build_cmake(extension)
 
@@ -140,6 +143,8 @@ class BuildCMakeExt(build_ext):
         build_dir = pathlib.Path(self.build_temp)
 
         extension_path = pathlib.Path(self.get_ext_fullpath(extension.name))
+        if extension.name == "pyopenvino":
+            extension_path = pathlib.Path(os.path.join(extension_path.parent.absolute(), "openvino"))
 
         os.makedirs(build_dir, exist_ok=True)
         os.makedirs(extension_path.parent.absolute(), exist_ok=True)
@@ -156,7 +161,8 @@ class BuildCMakeExt(build_ext):
         ext_args = self.cmake_args.split() if self.cmake_args else []
         self.spawn(["cmake", "-S" + root_dir, "-B" + self.build_temp,
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
-                    "-DENABLE_PYTHON=ON",
+                    "-DPYTHON_EXECUTABLE={}".format(sys.executable),
+                    # "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
                     "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)
@@ -210,14 +216,13 @@ cmdclass["build_ext"] = BuildCMakeExt
 cmdclass["install_lib"] = InstallCMakeLibs
 
 setup(
-    name="ngraph-core",
+    name="openvino",
     description="nGraph - Intel's graph compiler and runtime for Neural Networks",
     version=__version__,
     author="Intel Corporation",
     url="https://github.com/openvinotoolkit/openvino",
     license="License :: OSI Approved :: Apache Software License",
-    ext_modules=[CMakeExtension(name="_pyngraph")],
-    package_dir={"": "src/compatibility"},
+    ext_modules=[CMakeExtension(name="src/compatibility/_pyngraph"), CMakeExtension(name="src/pyopenvino")],
     packages=packages,
     install_requires=requirements,
     data_files=data_files,
