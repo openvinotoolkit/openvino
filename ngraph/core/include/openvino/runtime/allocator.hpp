@@ -15,6 +15,7 @@
 #include "openvino/core/core_visibility.hpp"
 
 namespace ov {
+namespace runtime {
 
 /**
  * @interface AllocatorImpl
@@ -74,7 +75,7 @@ class OPENVINO_API Allocator {
      */
     Allocator(const std::shared_ptr<void>& so, const AllocatorImpl::Ptr& impl);
 
-    friend class ov::Tensor;
+    friend class ov::runtime::Tensor;
 
 public:
     /**
@@ -126,4 +127,5 @@ public:
      */
     explicit operator bool() const noexcept;
 };
+}  // namespace runtime
 }  // namespace ov

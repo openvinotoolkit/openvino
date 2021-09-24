@@ -12,7 +12,7 @@
 
 namespace InferenceEngine {
 struct BlobAllocator : public IAllocator {
-    BlobAllocator(const std::shared_ptr<ov::AllocatorImpl>& impl) : _impl{impl} {}
+    BlobAllocator(const std::shared_ptr<ov::runtime::AllocatorImpl>& impl) : _impl{impl} {}
 
     void* lock(void* handle, LockOp) noexcept override {
         return handle;
@@ -39,13 +39,13 @@ struct BlobAllocator : public IAllocator {
         }
     }
 
-    std::shared_ptr<ov::AllocatorImpl> _impl;
+    std::shared_ptr<ov::runtime::AllocatorImpl> _impl;
     std::unordered_map<void*, size_t> size_map;
 };
 }  // namespace InferenceEngine
 
 namespace ov {
-struct BlobAllocator : public AllocatorImpl {
+struct BlobAllocator : public runtime::AllocatorImpl {
     BlobAllocator(const std::shared_ptr<ie::IAllocator>& impl = std::make_shared<ie::SystemMemoryAllocator>())
         : _impl{impl} {}
 

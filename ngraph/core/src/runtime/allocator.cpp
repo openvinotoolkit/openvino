@@ -10,6 +10,7 @@
 #include "openvino/core/except.hpp"
 
 namespace ov {
+namespace runtime {
 
 Allocator::Allocator() : _impl{std::make_shared<BlobAllocator>()} {}
 
@@ -56,4 +57,5 @@ Allocator::operator bool() const noexcept {
     return (!!_impl);
 }
 
+}  // namespace runtime
 }  // namespace ov

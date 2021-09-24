@@ -20,10 +20,10 @@ class Blob;
 
 namespace ov {
 namespace runtime {
+
 class InferRequest;
 class RemoteContext;
 class VariableState;
-}  // namespace runtime
 
 /**
  * @brief Tensor API holding host memory
@@ -153,4 +153,5 @@ public:
      */
     explicit operator bool() const noexcept;
 };
+}  // namespace runtime
 }  // namespace ov

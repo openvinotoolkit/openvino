@@ -18,7 +18,7 @@ using OVTensorTest = ::testing::Test;
 
 TEST_F(OVTensorTest, canCreateTensor) {
     ov::Shape shape = {4, 3, 2};
-    ov::Tensor t{ov::element::f32, shape};
+    ov::runtime::Tensor t{ov::element::f32, shape};
     const std::size_t totalSize = ov::shape_size(shape);
     ASSERT_EQ(totalSize, t.get_size());
     ASSERT_NE(nullptr, t.data());
@@ -32,16 +32,16 @@ TEST_F(OVTensorTest, canCreateTensor) {
 }
 
 TEST_F(OVTensorTest, operators) {
-    ov::Tensor t;
+    ov::runtime::Tensor t;
     ASSERT_FALSE(t);
     ASSERT_TRUE(!t);
 }
 
-class OVMockAllocator : public ov::AllocatorImpl {
+class OVMockAllocator : public ov::runtime::AllocatorImpl {
 public:
     MOCK_METHOD(void*, allocate, (size_t, size_t), ());
     MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());                  // NOLINT(readability/casting)
-    MOCK_METHOD(bool, is_equal, (const ov::AllocatorImpl&), (const, noexcept));  // NOLINT(readability/casting)
+    MOCK_METHOD(bool, is_equal, (const ov::runtime::AllocatorImpl&), (const, noexcept));  // NOLINT(readability/casting)
 };
 
 TEST_F(OVTensorTest, canCreateTensorUsingMockAllocator) {
@@ -52,13 +52,13 @@ TEST_F(OVTensorTest, canCreateTensorUsingMockAllocator) {
         .WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
     EXPECT_CALL(*allocator, deallocate(::testing::_, ::testing::_, ::testing::_)).Times(1);
 
-    { ov::Tensor t{ov::element::f32, shape, ov::Allocator{allocator}}; }
+    { ov::runtime::Tensor t{ov::element::f32, shape, ov::Allocator{allocator}}; }
 }
 
 TEST_F(OVTensorTest, canAccessExternalData) {
     ov::Shape shape = {1, 1, 3};
     float data[] = {5.f, 6.f, 7.f};
-    ov::Tensor t{ov::element::f32, shape, data, 3};
+    ov::runtime::Tensor t{ov::element::f32, shape, data, 3};
     {
         float* ptr = t.data<float>();
         ASSERT_EQ(ptr[2], 7);
@@ -74,7 +74,7 @@ TEST_F(OVTensorTest, canAccessExternalData) {
 TEST_F(OVTensorTest, canAccessExternalDataWithStrides) {
     ov::Shape shape = {2, 3};
     float data[] = {5.f, 6.f, 7.f, 0.f, 1.f, 42.f, 3.f, 0.f};
-    ov::Tensor t{ov::element::f32, shape, data, 8, {4, 1}};
+    ov::runtime::Tensor t{ov::element::f32, shape, data, 8, {4, 1}};
     {
         ASSERT_EQ((ov::Shape{2, 3}), t.get_shape());
         float* ptr = t.data<float>();
@@ -84,20 +84,20 @@ TEST_F(OVTensorTest, canAccessExternalDataWithStrides) {
 
 TEST_F(OVTensorTest, cannotCreateTensorWithExternalNullptr) {
     ov::Shape shape = {2, 3};
-    ASSERT_THROW(ov::Tensor(ov::element::f32, shape, nullptr), ov::Exception);
+    ASSERT_THROW(ov::runtime::Tensor(ov::element::f32, shape, nullptr), ov::Exception);
 }
 
 TEST_F(OVTensorTest, cannotCreateTensorWithWrongStrides) {
     ov::Shape shape = {2, 3};
     float data[] = {5.f, 6.f, 7.f, 0.f, 1.f, 42.f, 3.f, 0.f};
-    ASSERT_THROW(ov::Tensor(ov::element::f32, shape, data, 8, {4, 1, 2}), ov::Exception);
+    ASSERT_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, 8, {4, 1, 2}), ov::Exception);
 }
 
 TEST_F(OVTensorTest, saveDimsAndSizeAfterMove) {
     ov::Shape shape = {1, 2, 3};
-    ov::Tensor t{ov::element::f32, shape};
+    ov::runtime::Tensor t{ov::element::f32, shape};
 
-    ov::Tensor new_tensor(std::move(t));
+    ov::runtime::Tensor new_tensor(std::move(t));
 
     ASSERT_EQ(shape, new_tensor.get_shape());
     ASSERT_EQ(ov::element::f32, new_tensor.get_element_type());
@@ -115,7 +115,7 @@ TEST_F(OVTensorTest, saveDimsAndSizeAfterMove) {
 
 // SetShape
 TEST_F(OVTensorTest, canSetShape) {
-    ov::Tensor t{ov::element::f32, {1, 2, 3}};
+    ov::runtime::Tensor t{ov::element::f32, {1, 2, 3}};
     const ov::Shape newShape({4, 5, 6});
     ASSERT_EQ(t.get_shape(), (ov::Shape{1, 2, 3}));
     ASSERT_NO_THROW(t.set_shape({4, 5, 6}));
@@ -124,7 +124,7 @@ TEST_F(OVTensorTest, canSetShape) {
 
     // check that setShape for copy changes original Tensor
     {
-        ov::Tensor t2 = t;
+        ov::runtime::Tensor t2 = t;
         t2.set_shape(newShape);
         ASSERT_EQ(newShape, t.get_shape());
         ASSERT_EQ(t2.get_shape(), t.get_shape());
@@ -132,8 +132,8 @@ TEST_F(OVTensorTest, canSetShape) {
 }
 
 TEST_F(OVTensorTest, makeRangeRoiTensor) {
-    ov::Tensor t{ov::element::i8, {1, 3, 6, 5}};  // RGBp picture of size (WxH) = 5x6
-    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 3, 5, 4}};
+    ov::runtime::Tensor t{ov::element::i8, {1, 3, 6, 5}};  // RGBp picture of size (WxH) = 5x6
+    ov::runtime::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 3, 5, 4}};
     ov::Shape ref_shape = {1, 3, 4, 2};
     ptrdiff_t ref_offset = 7;
     ov::Strides ref_strides = {90, 30, 5, 1};
@@ -146,8 +146,8 @@ TEST_F(OVTensorTest, makeRangeRoiTensor) {
 }
 
 TEST_F(OVTensorTest, makeRangeRoiTensorInt4) {
-    ov::Tensor t{ov::element::i4, {1, 6, 5, 3}};  // RGB picture of size (WxH) = 5x6
-    ov::Tensor roi_tensor{t, {0, 1, 2, 0}, {1, 5, 4, 3}};
+    ov::runtime::Tensor t{ov::element::i4, {1, 6, 5, 3}};  // RGB picture of size (WxH) = 5x6
+    ov::runtime::Tensor roi_tensor{t, {0, 1, 2, 0}, {1, 5, 4, 3}};
     ov::Shape ref_shape = {1, 4, 2, 3};
     ptrdiff_t ref_offset = 21;
     ov::Strides ref_strides = {90, 15, 3, 1};
@@ -160,13 +160,13 @@ TEST_F(OVTensorTest, makeRangeRoiTensorInt4) {
 }
 
 TEST_F(OVTensorTest, makeRangeRoiBlobWrongSize) {
-    ov::Tensor t{ov::element::f32, {1, 3, 4, 4}};
-    ASSERT_THROW((ov::Tensor{t, {0, 0, 1, 1}, {1, 3, 5, 5}}), ov::Exception);
-    ASSERT_THROW((ov::Tensor{t, {0, 0, 1, 1, 3}, {1, 3, 4, 4}}), ov::Exception);
+    ov::runtime::Tensor t{ov::element::f32, {1, 3, 4, 4}};
+    ASSERT_THROW((ov::runtime::Tensor{t, {0, 0, 1, 1}, {1, 3, 5, 5}}), ov::Exception);
+    ASSERT_THROW((ov::runtime::Tensor{t, {0, 0, 1, 1, 3}, {1, 3, 4, 4}}), ov::Exception);
 }
 
 TEST_F(OVTensorTest, readRangeRoiBlob) {
-    ov::Tensor t{ov::element::i32, {1, 3, 4, 8}};
+    ov::runtime::Tensor t{ov::element::i32, {1, 3, 4, 8}};
     {
         const auto origPtr = t.data<int32_t>();
         ASSERT_NE(nullptr, origPtr);
@@ -174,7 +174,7 @@ TEST_F(OVTensorTest, readRangeRoiBlob) {
             origPtr[i] = i;
         }
     }
-    ov::Tensor roi_tensor{t, {0, 0, 2, 4}, {1, 3, 4, 8}};
+    ov::runtime::Tensor roi_tensor{t, {0, 0, 2, 4}, {1, 3, 4, 8}};
     ASSERT_NE(false, static_cast<bool>(roi_tensor));
     {
         auto roi = roi_tensor.data<int32_t>();

@@ -29,6 +29,6 @@ TEST(VariableStateOVTests, throwsOnUninitializedGetState) {
 
 TEST(VariableStateOVTests, throwsOnUninitializedSetState) {
     ov::runtime::VariableState state;
-    ov::Tensor tensor;
+    ov::runtime::Tensor tensor;
     ASSERT_THROW(state.set_state(tensor), ov::Exception);
 }

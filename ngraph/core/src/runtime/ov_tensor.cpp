@@ -11,6 +11,7 @@
 #include "runtime/blob_allocator.hpp"
 
 namespace ov {
+namespace runtime {
 
 #define OV_TENSOR_STATEMENT(...)                                      \
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized."); \
@@ -132,4 +133,5 @@ Tensor::operator bool() const noexcept {
     return (!!_impl);
 }
 
+}  // namespace runtime
 }  // namespace ov
