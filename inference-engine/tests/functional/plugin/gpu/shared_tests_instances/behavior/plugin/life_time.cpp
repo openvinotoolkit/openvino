@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/cpp_holders.hpp"
+#include "behavior/plugin/life_time.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {

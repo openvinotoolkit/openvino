@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/executable_network/core_integration.hpp"
+#include "behavior/executable_network/get_metric.hpp"
 
 #ifdef _WIN32
 # include "gpu/gpu_context_api_dx.hpp"
