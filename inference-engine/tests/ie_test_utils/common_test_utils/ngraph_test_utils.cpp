@@ -786,7 +786,7 @@ FunctionsComparator::Result FunctionsComparator::compare(
 }
 
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
-    static const std::vector<std::string> attrs_to_check{"fused_names:0"};
+    static const std::vector<std::string> attrs_to_check{"fused_names_0"};
 
     std::ostringstream err_log;
     for (auto& op : f->get_ops()) {

@@ -145,12 +145,12 @@ const std::vector<DisableConvertOnConstPathTransformationValues> testValues = {
             ngraph::element::u8,
             {
                 {ngraph::element::f32},
-                { {128.f}, element::f32, {}, false, 1ul, element::u8, true, {}, { "disabled_constant_folding:0" } },
+                { {128.f}, element::f32, {}, false, 1ul, element::u8, true, {}, { "disabled_constant_folding_0" } },
                 { {0.02f}, element::f32, {}, false }
             },
             {
                 { ngraph::element::f32, false },
-                { {128.f}, element::f32, {}, false, 1ul, element::i8, true, {}, { "disabled_constant_folding:0" } },
+                { {128.f}, element::f32, {}, false, 1ul, element::i8, true, {}, { "disabled_constant_folding_0" } },
                 { {0.03f}, element::f32, {}, false }
             },
             { std::vector<float>{ 1.f }, ngraph::element::f32},

@@ -87,7 +87,7 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
             if (status) {
                 for (const auto& node : order) {
                     const auto& rt_info = node->get_rt_info();
-                    if (rt_info.count("disabled_constant_folding:0")) {
+                    if (rt_info.count("disabled_constant_folding_0")) {
                         status = false;
                         break;
                     }
