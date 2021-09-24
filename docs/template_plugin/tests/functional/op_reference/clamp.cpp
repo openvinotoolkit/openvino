@@ -72,34 +72,137 @@ TEST_P(ReferenceClampLayerTest, CompareWithRefs) {
     Exec();
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Clamp_With_Hardcoded_Refs, ReferenceClampLayerTest,
-    ::testing::Values(ClampParams(ngraph::PartialShape {5, 2}, ngraph::element::f32,
-                                std::vector<float> {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                                std::vector<float> {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6},
-                                0.2,
-                                0.6),
-                      ClampParams(ngraph::PartialShape {5, 2}, ngraph::element::f32,
-                                std::vector<float> {std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-                                                   -INFINITY, INFINITY,
-                                                   9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001},
-                                std::vector<float> {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0},
-                                10.0,
-                                20.0),
-                      ClampParams(ngraph::PartialShape {5, 2}, ngraph::element::f32,
-                                std::vector<float> {std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-                                                   -INFINITY, INFINITY,
-                                                   9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001},
-                                std::vector<float> {10.0, std::numeric_limits<float>::max(), 10.0, INFINITY, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0},
-                                10.0,
-                                INFINITY),
-                      ClampParams(ngraph::PartialShape {5, 2}, ngraph::element::f32,
-                                std::vector<float> {std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-                                                   -INFINITY, INFINITY,
-                                                   9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001},
-                                std::vector<float> {std::numeric_limits<float>::min(), 20.0, -INFINITY, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0},
-                                -INFINITY,
-                                20.0)),
-    ReferenceClampLayerTest::getTestCaseName);
+template <element::Type_t IN_ET>
+std::vector<ClampParams> generateClampFloatParams() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    auto min = std::numeric_limits<T>::min();
+    auto max = std::numeric_limits<T>::max();
+    auto pinf = std::numeric_limits<float>::infinity();
+    auto ninf = -std::numeric_limits<float>::infinity();
+    std::vector<ClampParams> clampParams {
+        ClampParams(ngraph::PartialShape {5, 2},
+                    IN_ET,
+                    std::vector<T>{-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
+                    std::vector<T>{0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6},
+                    0.2,
+                    0.6),
+        ClampParams(ngraph::PartialShape {5, 2},
+                    IN_ET,
+                    std::vector<T>{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001},
+                    std::vector<T>{10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0},
+                    10.0,
+                    20.0),
+        ClampParams(ngraph::PartialShape {5, 2},
+                    IN_ET,
+                    std::vector<T>{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001},
+                    std::vector<T>{10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001},
+                    10.0,
+                    pinf),
+        ClampParams(ngraph::PartialShape {5, 2},
+                    IN_ET,
+                    std::vector<T>{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001},
+                    std::vector<T>{min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0},
+                    ninf,
+                    20.0)
+    };
+    return clampParams;
+}
+
+template <element::Type_t IN_ET>
+std::vector<ClampParams> generateClampIntParams() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    auto min = std::numeric_limits<T>::min();
+    auto max = std::numeric_limits<T>::max();
+    auto pinf = std::numeric_limits<float>::infinity();
+    auto ninf = -std::numeric_limits<float>::infinity();
+    std::vector<ClampParams> clampParams {
+        ClampParams(ngraph::PartialShape {6},
+                    IN_ET,
+                    std::vector<T>{-1, 3, -10, 20, 6, 2},
+                    std::vector<T>{1, 3, 1, 5, 5, 2},
+                    0.4,
+                    5.6),
+        ClampParams(ngraph::PartialShape {6},
+                    IN_ET,
+                    std::vector<T>{-6, 1, -2, 0, -1, 2},
+                    std::vector<T>{-5, -1, -2, -1, -1, -1},
+                    -5.6,
+                    -0.4),
+        ClampParams(ngraph::PartialShape {4, 2},
+                    IN_ET,
+                    std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
+                    std::vector<T>{10, 20, 10, 10, 11, 19, 20, 20},
+                    10.0,
+                    20.0),
+        ClampParams(ngraph::PartialShape {4, 2},
+                    IN_ET,
+                    std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
+                    std::vector<T>{10, max, 10, 10, 11, 19, 20, 21},
+                    10.0,
+                    pinf),
+        ClampParams(ngraph::PartialShape {4, 2},
+                    IN_ET,
+                    std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
+                    std::vector<T>{min, 20, 9, 10, 11, 19, 20, 20},
+                    ninf,
+                    20.0)
+    };
+    return clampParams;
+}
+
+template <element::Type_t IN_ET>
+std::vector<ClampParams> generateClampUintParams() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    auto min = std::numeric_limits<T>::min();
+    T max = (static_cast<T>(1) << (std::numeric_limits<T>::digits - 1)) - 1;
+    auto pinf = static_cast<double>(max);
+    auto ninf = -std::numeric_limits<float>::infinity();
+    std::vector<ClampParams> clampParams {
+        ClampParams(ngraph::PartialShape {4, 2},
+                    IN_ET,
+                    std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
+                    std::vector<T>{10, 20, 10, 10, 11, 19, 20, 20},
+                    10.0,
+                    20.0),
+        ClampParams(ngraph::PartialShape {4, 2},
+                    IN_ET,
+                    std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
+                    std::vector<T>{10, max, 10, 10, 11, 19, 20, 21},
+                    10.0,
+                    pinf),
+        ClampParams(ngraph::PartialShape {4, 2},
+                    IN_ET,
+                    std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
+                    std::vector<T>{min, 20, 9, 10, 11, 19, 20, 20},
+                    ninf,
+                    20.0)
+    };
+    return clampParams;
+}
+
+std::vector<ClampParams> generateClampCombinedParams() {
+    const std::vector<std::vector<ClampParams>> clampTypeParams {
+        generateClampFloatParams<element::Type_t::f32>(),
+        generateClampFloatParams<element::Type_t::f16>(),
+        generateClampFloatParams<element::Type_t::bf16>(),
+        generateClampIntParams<element::Type_t::i8>(),
+        generateClampIntParams<element::Type_t::i16>(),
+        generateClampIntParams<element::Type_t::i32>(),
+        generateClampIntParams<element::Type_t::i64>(),
+        generateClampUintParams<element::Type_t::u8>(),
+        generateClampUintParams<element::Type_t::u16>(),
+        generateClampUintParams<element::Type_t::u32>(),
+        generateClampUintParams<element::Type_t::u64>()
+        };
+    std::vector<ClampParams> combinedParams;
+
+    for (const auto& params : clampTypeParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+    return combinedParams;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Clamp_With_Hardcoded_Refs, ReferenceClampLayerTest,
+    testing::ValuesIn(generateClampCombinedParams()), ReferenceClampLayerTest::getTestCaseName);
 
 } // namespace
