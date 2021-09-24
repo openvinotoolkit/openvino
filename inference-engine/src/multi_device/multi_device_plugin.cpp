@@ -266,7 +266,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                  }
              }
              iter->config = deviceConfig;
-             strDevices = iter->deviceName;
+             strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
         }
 
