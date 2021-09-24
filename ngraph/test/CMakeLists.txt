@@ -39,6 +39,7 @@ set(SRC
     eval.cpp
     file_util.cpp
     float16.cpp
+    function.cpp
     graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
@@ -589,6 +590,9 @@ add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+
+get_target_property(NGRAPH_SRC_DIR openvino::core SOURCE_DIR)
+target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
 
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")

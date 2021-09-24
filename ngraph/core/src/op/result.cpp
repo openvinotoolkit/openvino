@@ -32,7 +32,10 @@ void op::Result::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Result_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
 
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    // Result doesn't change change in/out tensors
+    auto& output = get_output_descriptor(0);
+    auto& input = get_input_descriptor(0);
+    output.set_tensor_ptr(input.get_tensor_ptr());
 }
 
 shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args) const {

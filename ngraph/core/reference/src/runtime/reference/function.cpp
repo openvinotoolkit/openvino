@@ -27,11 +27,11 @@ static bool call(const HostTensorVector& func_outputs,
         }
     }
 
+    std::unordered_map<std::shared_ptr<ngraph::Node>, size_t> results_map;
     // map function outputs -> HostTensor
     for (size_t output_count = 0; output_count < function->get_results().size(); ++output_count) {
         auto output = function->get_results()[output_count];
-        descriptor::Tensor* tensor = &output->get_output_tensor(0);
-        tensor_map.insert({tensor, func_outputs[output_count]});
+        results_map[output] = output_count;
     }
 
     // for each ordered op in the graph
@@ -53,7 +53,9 @@ static bool call(const HostTensorVector& func_outputs,
             descriptor::Tensor* tensor = &op->output(i).get_tensor();
             std::shared_ptr<HostTensor> host_tensor;
             auto it = tensor_map.find(tensor);
-            if (it == tensor_map.end()) {
+            if (op::is_output(op)) {
+                host_tensor = func_outputs[results_map[op]];
+            } else if (it == tensor_map.end()) {
                 host_tensor = std::make_shared<HostTensor>(op->output(i));
                 tensor_map.insert({tensor, host_tensor});
             } else {

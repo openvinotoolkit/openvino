@@ -120,7 +120,7 @@ public:
     /// \brief Constructs a Output, referencing the zeroth output of the node.
     /// \param node A `shared_ptr` to the node for the output handle.
     template <typename T>
-    Output(const std::shared_ptr<T>& node) : Output(node ? node->get_default_output() : Output<const Node>()) {}
+    Output(const std::shared_ptr<const T>& node) : Output(node ? node->get_default_output() : Output<const Node>()) {}
 
     /// A null output
     Output() = default;

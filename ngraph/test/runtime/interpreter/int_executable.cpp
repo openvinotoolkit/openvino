@@ -93,16 +93,12 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         }
     }
 
+    std::unordered_map<std::shared_ptr<ngraph::Node>, size_t> results_map;
     // map function outputs -> HostTensor
     for (size_t output_count = 0; output_count < get_results().size(); ++output_count)
     {
         auto output = get_results()[output_count];
-        if (!ov::is_type<op::Result>(output))
-        {
-            throw ngraph_error("One of function's outputs isn't op::Result");
-        }
-        descriptor::Tensor* tensor = &output->get_output_tensor(0);
-        tensor_map.insert({tensor, func_outputs[output_count]});
+        results_map[output] = output_count;
     }
 
     // for each ordered op in the graph
@@ -136,8 +132,9 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             descriptor::Tensor* tensor = &op->output(i).get_tensor();
             shared_ptr<HostTensor> host_tensor;
             auto it = tensor_map.find(tensor);
-            if (it == tensor_map.end())
-            {
+            if (op::is_output(op)) {
+                host_tensor = func_outputs[results_map[op]];
+            } else if (it == tensor_map.end()) {
                 // Use cloned_node to create HostTensor with static dimensions
                 host_tensor = make_shared<HostTensor>(cloned_node->output(i));
                 tensor_map.insert({tensor, host_tensor});
