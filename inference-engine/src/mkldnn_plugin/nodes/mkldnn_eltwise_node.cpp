@@ -1442,9 +1442,9 @@ void MKLDNNEltwiseNode::prepareParams() {
                    [](size_t& offset) { return offset * sizeof(float);});
 
     if (canUseOptimizedImpl) {
-        pPrim = std::make_shared<EltwiseJitExecutor>(jep, *this, schedulerWorkAmount, batchDimIdx);
+        execPtr = std::make_shared<EltwiseJitExecutor>(jep, *this, schedulerWorkAmount, batchDimIdx);
     } else {
-        pPrim = std::make_shared<EltwiseRefExecutor>(jep, fullWorkAmount, batchDimIdx);
+        execPtr = std::make_shared<EltwiseRefExecutor>(jep, fullWorkAmount, batchDimIdx);
     }
 }
 
@@ -1619,10 +1619,10 @@ void MKLDNNEltwiseNode::executeReference(const jit_eltwise_params &jep, const ji
 }
 
 void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
-    if (pPrim) {
+    if (execPtr) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
-        const auto &jep = pPrim->getJep();
-        const auto &batchDimIdx = pPrim->batchDimIdx;
+        const auto &jep = execPtr->getJep();
+        const auto &batchDimIdx = execPtr->batchDimIdx;
         VectorDims dims_out = jep.dims;
         for (int i = 0; i < memPtrs.size() - 1; i++)
             args_ptrs.src_ptr[i] = reinterpret_cast<const uint8_t*>(memPtrs[i]->GetData()) + start_offset_in[i];
@@ -1635,7 +1635,7 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
             dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
         }
 
-        pPrim->exec(*this, args_ptrs, dims_out);
+        execPtr->exec(*this, args_ptrs, dims_out);
     } else {
         IE_THROW() << "Can't execute eltwise node. Primitive didn't created";
     }

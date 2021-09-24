@@ -105,8 +105,8 @@ private:
 
         size_t batchDimIdx = 0;
     };
-    using primPtr = std::shared_ptr<EltwiseExecutor>;
-    primPtr pPrim = nullptr;
+    using executorPtr = std::shared_ptr<EltwiseExecutor>;
+    executorPtr execPtr = nullptr;
 
     struct EltwiseJitExecutor : public EltwiseExecutor {
         EltwiseJitExecutor(const jit_eltwise_params &_jep, MKLDNNEltwiseNode& node, const size_t schedWA, const size_t batch);
