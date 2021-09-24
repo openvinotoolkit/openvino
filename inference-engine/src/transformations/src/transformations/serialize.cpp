@@ -787,15 +787,18 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
 
         auto append_runtime_info = [](pugi::xml_node & node, const RTMap& attributes) {
             pugi::xml_node rt_node = node.append_child("rt_info");
+            bool has_attrs = false;
             for (const auto &item : attributes) {
                 auto attribute_node = rt_node.append_child(item.first.c_str());
                 rt_info::RTInfoSerializer serializer(attribute_node);
                 if (!item.second->visit_attributes(serializer)) {
-                    rt_node.remove_child(item.first.c_str());
+                    rt_node.remove_child(attribute_node);
+                } else {
+                    has_attrs = true;
                 }
             }
-            if (rt_node.empty()) {
-                node.remove_child("rt_info");
+            if (!has_attrs) {
+                node.remove_child(rt_node);
             }
         };
 
