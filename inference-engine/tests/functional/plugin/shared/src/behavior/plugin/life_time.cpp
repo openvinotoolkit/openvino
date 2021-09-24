@@ -6,7 +6,7 @@
 
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <base/behavior_test_utils.hpp>
-#include "behavior/cpp_holders.hpp"
+#include "behavior/plugin/life_time.hpp"
 
 namespace BehaviorTestsDefinitions {
     std::string HoldersTest::getTestCaseName(testing::TestParamInfo<HoldersParams> obj) {

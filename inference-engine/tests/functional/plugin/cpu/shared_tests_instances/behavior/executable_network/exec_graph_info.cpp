@@ -2,77 +2,58 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <common_test_utils/test_constants.hpp>
+#include <exec_graph_info.hpp>
 #include "behavior/executable_network/exec_graph_info.hpp"
-#include "ie_plugin_config.hpp"
 
-using namespace BehaviorTestsDefinitions;
 namespace {
 
-    const std::vector<std::map<std::string, std::string>> configs = {
-            {},
-    };
-    const std::vector<std::map<std::string, std::string>> multiConfigs = {
-            {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
-    };
+using namespace ExecutionGraphTests;
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecutableNetworkBaseTest,
-                            ::testing::Combine(
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                    ::testing::ValuesIn(configs)),
-                            ExecutableNetworkBaseTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_serialization, ExecGraphSerializationTest,
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ExecGraphSerializationTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, ExecutableNetworkBaseTest,
-                            ::testing::Combine(
-                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(multiConfigs)),
-                            ExecutableNetworkBaseTest::getTestCaseName);
+TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
+InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecutableNetworkBaseTest,
-                            ::testing::Combine(
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(multiConfigs)),
-                            ExecutableNetworkBaseTest::getTestCaseName);
+auto ie = PluginCache::get().ie();
+auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
 
-    const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::U8,
-            InferenceEngine::Precision::I16,
-            InferenceEngine::Precision::U16
-    };
+InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
 
-    const std::vector<std::map<std::string, std::string>> configSetPrc = {
-            {},
-            {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
-    };
+int numReorders = 0;
+int expectedReorders = 2;
+std::unordered_set<std::string> names;
 
-    const std::vector<std::map<std::string, std::string>> AutoConfigsSetPrc = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}},
-    };
+auto function = execGraphInfo.getFunction();
+ASSERT_NE(function, nullptr);
 
-    const std::vector<std::map<std::string, std::string>> MultiConfigsSetPrc = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
-    };
+for (const auto & op : function->get_ops()) {
+const auto & rtInfo = op->get_rt_info();
+auto it = rtInfo.find(ExecGraphInfoSerialization::LAYER_TYPE);
+ASSERT_NE(rtInfo.end(), it);
+auto opType = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
+ASSERT_NE(nullptr, opType);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                    ::testing::ValuesIn(configSetPrc)),
-                            ExecNetSetPrecision::getTestCaseName);
+if (opType->get() == "Reorder") {
+numReorders++;
+}
+}
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, ExecNetSetPrecision,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(MultiConfigsSetPrc)),
-                            ExecNetSetPrecision::getTestCaseName);
+ASSERT_EQ(numReorders, expectedReorders) << "Expected reorders: " << expectedReorders << ", actual reorders: " << numReorders;
+};
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetSetPrecision,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(AutoConfigsSetPrc)),
-                            ExecNetSetPrecision::getTestCaseName);
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::FP32
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ExecGraphUniqueNodeNames,
+        ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::SizeVector({1, 2, 5, 5})),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ExecGraphUniqueNodeNames::getTestCaseName);
+
 }  // namespace
+

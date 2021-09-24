@@ -2,288 +2,60 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <exec_graph_info.hpp>
-#include "base/behavior_test_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "common_test_utils/file_utils.hpp"
+#pragma once
 
-namespace BehaviorTestsDefinitions {
+#include <tuple>
+#include <vector>
+#include <string>
+#include <memory>
 
-using ExecutableNetworkBaseTest = BehaviorTestsUtils::InferRequestTests;
+#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "ngraph_functions/builders.hpp"
 
-TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
-    ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
-}
+#include "pugixml.hpp"
 
-TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
-    std::map<std::string, std::string> incorrectConfig = {{ "abc", "def" }};
-    ASSERT_ANY_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, incorrectConfig));
-}
+namespace ExecutionGraphTests {
 
-TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCreateInferRequest) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    ASSERT_NO_THROW(auto req = execNet.CreateInferRequest());
-}
+class ExecGraphUniqueNodeNames : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
+                                 public CommonTestUtils::TestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj);
+    std::string targetDevice;
+    std::shared_ptr<ngraph::Function> fnPtr;
+protected:
+    void SetUp() override;
 
-TEST_P(ExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    InferenceEngine::CNNNetwork execGraph = execNet.GetExecGraphInfo();
-    ASSERT_NE(execGraph.getFunction(), nullptr);
-}
+    void TearDown() override;
+};
 
-TEST_P(ExecutableNetworkBaseTest, checkGetMetric) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    ASSERT_NO_THROW(execNet.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-}
+class ExecGraphSerializationTest : public ::testing::Test, public testing::WithParamInterface<std::string> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
+    void SetUp() override;
+    void TearDown() override;
 
-TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    for (const auto& configItem : configuration) {
-        InferenceEngine::Parameter param;
-        ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
-        ASSERT_FALSE(param.empty());
-        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
-    }
-}
+private:
+    // walker traverse (DFS) xml document and store layer & data nodes in
+    // vector which is later used for comparison
+    struct exec_graph_walker : pugi::xml_tree_walker {
+        std::vector<pugi::xml_node> nodes;
+        bool for_each(pugi::xml_node &node) override;
+    };
 
-TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNet) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice);
-    std::map<std::string, InferenceEngine::Parameter> config;
-    for (const auto& confItem : configuration) {
-        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
-    }
-    ASSERT_NO_THROW(execNet.SetConfig(config));
-}
+    // compare_docs() helper
+    std::pair<bool, std::string> compare_nodes(const pugi::xml_node &node1,
+                                               const pugi::xml_node &node2);
 
-TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNetWithIncorrectConfig) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice);
-    std::map<std::string, std::string> incorrectConfig = {{ "abc", "def" }};
-    std::map<std::string, InferenceEngine::Parameter> config;
-    for (const auto& confItem : incorrectConfig) {
-        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
-    }
-    ASSERT_ANY_THROW(execNet.SetConfig(config));
-}
+protected:
+    // checks if two exec graph xml's are equivalent:
+    // - the same count of <layer> and <data> nodes
+    // - the same count of attributes of each node
+    // - the same name of each attribute (value is not checked, since it can differ
+    // beetween different devices)
+    std::pair<bool, std::string> compare_docs(const pugi::xml_document &doc1,
+                                              const pugi::xml_document &doc2);
 
-TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNetAndCheckConfigAndCheck) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice);
-    std::map<std::string, InferenceEngine::Parameter> config;
-    for (const auto& confItem : configuration) {
-        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
-    }
-    execNet.SetConfig(config);
-    for (const auto& configItem : configuration) {
-        InferenceEngine::Parameter param;
-        ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
-        ASSERT_FALSE(param.empty());
-        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
-    }
-}
-
-TEST_P(ExecutableNetworkBaseTest,  CanCreateTwoExeNetworks) {
-    std::vector<InferenceEngine::ExecutableNetwork> vec;
-    for (auto i = 0; i < 2; i++) {
-        ASSERT_NO_THROW(vec.push_back(ie->LoadNetwork(cnnNet, targetDevice, configuration)));
-        ASSERT_NE(nullptr, cnnNet.getFunction());
-    }
-}
-
-TEST_P(ExecutableNetworkBaseTest,  CanCreateTwoExeNetworksAndCheckFunction) {
-    std::vector<InferenceEngine::ExecutableNetwork> vec;
-    for (auto i = 0; i < 2; i++) {
-        ASSERT_NO_THROW(vec.push_back(ie->LoadNetwork(cnnNet, targetDevice, configuration)));
-        ASSERT_NE(nullptr, vec[i].GetExecGraphInfo().getFunction());
-        ASSERT_NE(vec.begin()->GetExecGraphInfo().getFunction(), vec[i].GetExecGraphInfo().getFunction());
-    }
-}
-
-TEST_P(ExecutableNetworkBaseTest,  CanGetInputsInfo) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    ASSERT_NO_THROW(auto inInfo = execNet.GetInputsInfo());
-}
-
-TEST_P(ExecutableNetworkBaseTest,  CanGetOutputsInfo) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    ASSERT_NO_THROW(auto outInfo = execNet.GetOutputsInfo());
-}
-
-TEST_P(ExecutableNetworkBaseTest,  CanGetInputsInfoAndCheck) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    auto inInfo = execNet.GetInputsInfo();
-    auto inCnnInfo = cnnNet.getInputsInfo();
-    for (const auto& itemInInfo : inCnnInfo) {
-        ASSERT_NE(inInfo.find(itemInInfo.first), inInfo.end());
-    }
-}
-
-TEST_P(ExecutableNetworkBaseTest,  CanGetOutputsInfoAndCheck) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    auto outInfo = execNet.GetOutputsInfo();
-    auto outCnnInfo = cnnNet.getOutputsInfo();
-    for (const auto& itemOutInfo : outCnnInfo) {
-        ASSERT_NE(outInfo.find(itemOutInfo.first), outInfo.end());
-    }
-}
-
-TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
-    InferenceEngine::CNNNetwork execGraph;
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
-    std::map<std::string, int> originalLayersMap;
-    for (const auto &layer : function->get_ops()) {
-        originalLayersMap[layer->get_friendly_name()] = 0;
-    }
-    int constCnt = 0;
-
-    auto getFunction = execGraph.getFunction();
-    ASSERT_NE(getFunction, nullptr);
-
-    for (const auto & op : getFunction->get_ops()) {
-        const ov::RTMap& rtInfo = op->get_rt_info();
-
-        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
-            auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-
-            return value->get();
-        };
-
-        // Each layer from the execGraphInfo network must have PM data option set
-        ASSERT_EQ("not_executed", getExecValue(ExecGraphInfoSerialization::PERF_COUNTER));
-        // Parse origin layer names (fused/merged layers) from the executable graph
-        // and compare with layers from the original model
-        auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
-        if (origFromExecLayer.empty()) {
-            constCnt++;
-        } else {
-            auto origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
-            std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string &op) {
-                auto origLayer = originalLayersMap.find(op);
-                ASSERT_NE(originalLayersMap.end(), origLayer) << op;
-                origLayer->second++;
-            });
-        }
-    }
-
-    // All layers from the original IR must be present with in ExecGraphInfo
-    for (auto &layer : originalLayersMap) {
-        if ((layer.second == 0) && (constCnt > 0)) {
-            constCnt--;
-        } else {
-            ASSERT_GE(layer.second, 0);
-        }
-    }
-}
-
-TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
-    InferenceEngine::CNNNetwork execGraph;
-    // Load CNNNetwork to target plugins
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
-    std::map<std::string, int> originalLayersMap;
-    for (const auto &layer : function->get_ops()) {
-        originalLayersMap[layer->get_friendly_name()] = 0;
-    }
-    int constCnt = 0;
-    // Store all the layers from the executable graph information represented as CNNNetwork
-    bool hasOpWithValidTime = false;
-    auto getFunction = execGraph.getFunction();
-    ASSERT_NE(nullptr, getFunction);
-
-    for (const auto & op : getFunction->get_ops()) {
-        const auto & rtInfo = op->get_rt_info();
-
-        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
-            auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-
-            return value->get();
-        };
-
-        // At least one layer in the topology should be executed and have valid perf counter value
-        try {
-            float x = static_cast<float>(std::atof(getExecValue(ExecGraphInfoSerialization::PERF_COUNTER).c_str()));
-            std::cout << "TIME: " << x << std::endl;
-            ASSERT_GE(x, 0.0f);
-            hasOpWithValidTime = true;
-        } catch (std::exception &) {}
-
-        // Parse origin layer names (fused/merged layers) from the executable graph
-        // and compare with layers from the original model
-        auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
-        std::vector<std::string> origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
-        if (origFromExecLayer.empty()) {
-            constCnt++;
-        } else {
-            std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string &layer) {
-                auto origLayer = originalLayersMap.find(layer);
-                ASSERT_NE(originalLayersMap.end(), origLayer) << layer;
-                origLayer->second++;
-            });
-        }
-    }
-
-    ASSERT_TRUE(hasOpWithValidTime);
-
-    // All layers from the original IR must be present within ExecGraphInfo
-    for (auto &layer : originalLayersMap) {
-        if ((layer.second == 0) && (constCnt > 0)) {
-            constCnt--;
-        } else {
-            ASSERT_GE(layer.second, 0);
-        }
-    }
-}
-
-TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoSerialization) {
-    auto ts = CommonTestUtils::GetTimestamp();
-    std::string out_xml_path = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts + ".xml";
-    std::string out_bin_path = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts + ".bin";
-
-    InferenceEngine::CNNNetwork execGraph;
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
-    ASSERT_NO_THROW(execGraph.serialize(out_xml_path, out_bin_path));
-    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
-}
-
-TEST_P(ExecutableNetworkBaseTest, canExport) {
-    auto ts = CommonTestUtils::GetTimestamp();
-    std::string modelName = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts;
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    ASSERT_NO_THROW(execNet.Export(modelName));
-    ASSERT_TRUE(CommonTestUtils::fileExists(modelName + ".xml"));
-    ASSERT_TRUE(CommonTestUtils::fileExists(modelName + ".bin"));
-    CommonTestUtils::removeIRFiles(modelName + ".xml", modelName + ".bin");
-}
-
-TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
-    // compare 2 networks
-    auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
-    compare_functions(referenceNetwork, cnnNet.getFunction());
-}
-
-using ExecNetSetPrecision = BehaviorTestsUtils::BehaviorTestsBasic;
-
-TEST_P(ExecNetSetPrecision, canSetInputPrecisionForNetwork) {
-    InferenceEngine::CNNNetwork cnnNet(function);
-    InferenceEngine::InputsDataMap inputs_info = cnnNet.getInputsInfo();
-    ASSERT_EQ(1u, inputs_info.size());
-    inputs_info.begin()->second->setPrecision(netPrecision);
-    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
-}
-
-TEST_P(ExecNetSetPrecision, canSetOutputPrecisionForNetwork) {
-    InferenceEngine::CNNNetwork cnnNet(function);
-    InferenceEngine::OutputsDataMap outputs_info = cnnNet.getOutputsInfo();
-    ASSERT_EQ(outputs_info.size(), 1u);
-    outputs_info.begin()->second->setPrecision(netPrecision);
-    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
-}
-}  // namespace BehaviorTestsDefinitions
+    std::string deviceName;
+    std::string m_out_xml_path, m_out_bin_path;
+};
+}  // namespace ExecutionGraphTests

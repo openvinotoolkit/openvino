@@ -3,7 +3,7 @@
 //
 
 #include <exec_graph_info.hpp>
-#include "behavior/executable_network/unique_node_names.hpp"
+#include "behavior/executable_network/exec_graph_info.hpp"
 
 namespace ExecutionGraphTests {
 
