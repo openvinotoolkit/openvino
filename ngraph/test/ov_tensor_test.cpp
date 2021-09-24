@@ -52,7 +52,7 @@ TEST_F(OVTensorTest, canCreateTensorUsingMockAllocator) {
         .WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
     EXPECT_CALL(*allocator, deallocate(::testing::_, ::testing::_, ::testing::_)).Times(1);
 
-    { ov::runtime::Tensor t{ov::element::f32, shape, ov::Allocator{allocator}}; }
+    { ov::runtime::Tensor t{ov::element::f32, shape, ov::runtime::Allocator{allocator}}; }
 }
 
 TEST_F(OVTensorTest, canAccessExternalData) {
