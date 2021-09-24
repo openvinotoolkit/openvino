@@ -713,9 +713,9 @@ protected:
 
     std::vector<VectorDims> lastInputDims = {};
 
-private:
-    std::shared_ptr<ngraph::Node> opToShapeInfer;
+    mutable std::shared_ptr<ngraph::Node> opToShapeInfer;
 
+private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;
 
