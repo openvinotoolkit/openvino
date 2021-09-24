@@ -16,17 +16,16 @@ std::string ConvertColorNV12LayerTest::getTestCaseName(const testing::TestParamI
     result << "netPRC=" << type.c_type_string() << "_";
     result << "convRGB=" << conversion << "_";
     result << "singlePlane=" << singlePlane << "_";
-    result << "targetDevice=" << targetName << "_";
+    result << "targetDevice=" << targetName;
     return result.str();
 }
 
 void ConvertColorNV12LayerTest::SetUp() {
     ngraph::Shape inputShape;
     ngraph::element::Type ngPrc;
-    std::string targetName;
     bool conversionToRGB, singlePlane;
     threshold = 2.0f; // NV12 color conversion can use various of algorithms, thus some deviation is allowed
-    std::tie(inputShape, ngPrc, conversionToRGB, singlePlane, targetName) = GetParam();
+    std::tie(inputShape, ngPrc, conversionToRGB, singlePlane, targetDevice) = GetParam();
     if (singlePlane) {
         inputShape[1] = inputShape[1] * 3 / 2;
         auto param = std::make_shared<ngraph::op::Parameter>(ngPrc, inputShape);

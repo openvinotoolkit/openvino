@@ -10,7 +10,7 @@
 using namespace LayerTestsDefinitions;
 
 const std::vector<ngraph::Shape> inShapes_nhwc = {
-    {1, 224, 224, 1}
+    {1, 10, 10, 1}
 };
 
 const std::vector<ngraph::element::Type> inTypes = {
