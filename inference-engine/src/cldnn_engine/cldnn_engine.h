@@ -21,6 +21,7 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
     struct impl;
     std::shared_ptr<impl> _impl;
     bool streamsSet = false;
+    bool throttlingSet = false;
 
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;
