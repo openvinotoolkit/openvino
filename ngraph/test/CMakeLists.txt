@@ -245,6 +245,7 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/acos.cpp
     visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
@@ -411,7 +412,6 @@ add_subdirectory(util)
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
     backend/abs.in.cpp
-    backend/acos.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
