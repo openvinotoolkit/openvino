@@ -106,6 +106,8 @@ declared in `namespace opset8`.
 * [NonZero](condition/NonZero_3.md)
 * [NormalizeL2](normalization/NormalizeL2_1.md)
 * [NotEqual](comparison/NotEqual_1.md)
+* [NV12toBGR](image/NV12toBGR_8.md)
+* [NV12toRGB](image/NV12toRGB_8.md)
 * [OneHot](sequence/OneHot_1.md)
 * [Pad](movement/Pad_1.md)
 * [Parameter](infrastructure/Parameter_1.md)

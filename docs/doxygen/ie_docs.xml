@@ -211,6 +211,8 @@ limitations under the License.
                 <tab type="user" title="NonZero-3" url="@ref openvino_docs_ops_condition_NonZero_3"/>
                 <tab type="user" title="NormalizeL2-1" url="@ref openvino_docs_ops_normalization_NormalizeL2_1"/>
                 <tab type="user" title="NotEqual-1" url="@ref openvino_docs_ops_comparison_NotEqual_1"/>
+                <tab type="user" title="NV12toBGR-8" url="@ref openvino_docs_ops_image_NV12toBGR_8"/>
+                <tab type="user" title="NV12toRGB-8" url="@ref openvino_docs_ops_image_NV12toRGB_8"/>
                 <tab type="user" title="OneHot-1" url="@ref openvino_docs_ops_sequence_OneHot_1"/>
                 <tab type="user" title="PReLU-1" url="@ref openvino_docs_ops_activation_PReLU_1"/>
                 <tab type="user" title="PSROIPooling-1" url="@ref openvino_docs_ops_detection_PSROIPooling_1"/>
