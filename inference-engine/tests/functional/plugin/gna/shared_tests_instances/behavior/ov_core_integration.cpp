@@ -1,0 +1,189 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "behavior/ov_core_integration.hpp"
+
+#include <gna/gna_config.hpp>
+
+using namespace ov::test;
+
+namespace {
+
+//
+// IE Class Common tests with <pluginName, deviceName params>
+//
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassBasicTestP,
+                         OVClassBasicTestP,
+                         ::testing::Values(std::make_pair("GNAPlugin", "GNA")));
+
+// TODO
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassNetworkTestP, OVClassNetworkTestP, ::testing::Values("GNA"));
+
+//
+// IE Class GetMetric
+//
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+                         OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
+                         ::testing::Values("GNA", "MULTI", "HETERO"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+                         OVClassGetMetricTest_SUPPORTED_METRICS,
+                         ::testing::Values("GNA", "MULTI", "HETERO"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+                         OVClassGetMetricTest_AVAILABLE_DEVICES,
+                         ::testing::Values("GNA"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+                         OVClassGetMetricTest_FULL_DEVICE_NAME,
+                         ::testing::Values("GNA", "MULTI", "HETERO"));
+
+// TODO: Issue: 30198
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassGetMetricTest,
+                         OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
+                         ::testing::Values("GNA"));
+
+// TODO: Issue: 30199
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassGetMetricTest,
+                         OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+                         ::testing::Values("GNA"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+                         OVClassGetMetricTest_ThrowUnsupported,
+                         ::testing::Values("GNA", "MULTI", "HETERO"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest,
+                         OVClassGetConfigTest_ThrowUnsupported,
+                         ::testing::Values("GNA", "MULTI", "HETERO"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailableDevices, ::testing::Values("GNA"));
+
+//
+// IE Class GetConfig
+//
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest, OVClassGetConfigTest, ::testing::Values("GNA"));
+
+//
+// Executable Network GetMetric
+//
+
+// TODO: Convolution with 3D input is not supported on GNA
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
+                         OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+                         ::testing::Values("GNA" /*, "MULTI:GNA", "HETERO:GNA" */));
+
+// TODO: Convolution with 3D input is not supported on GNA
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
+                         OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+                         ::testing::Values("GNA" /*, "MULTI:GNA",  "HETERO:GNA" */));
+
+// TODO: this metric is not supported by the plugin
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
+                         OVClassExecutableNetworkGetMetricTest_NETWORK_NAME,
+                         ::testing::Values("GNA", "MULTI:GNA", "HETERO:GNA"));
+
+// TODO: Convolution with 3D input is not supported on GNA
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
+                         OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+                         ::testing::Values("GNA" /*, "MULTI:GNA", "HETERO:GNA" */));
+
+// TODO: Convolution with 3D input is not supported on GNA
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
+                         OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+                         ::testing::Values("GNA", /* "MULTI:GNA", */ "HETERO:GNA"));
+
+//
+// Executable Network GetConfig / SetConfig
+//
+
+// TODO: Convolution with 3D input is not supported on GNA
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetConfigTest,
+                         OVClassExecutableNetworkGetConfigTest,
+                         ::testing::Values("GNA"));
+
+// TODO: Convolution with 3D input is not supported on GNA
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkSetConfigTest,
+                         OVClassExecutableNetworkSetConfigTest,
+                         ::testing::Values("GNA"));
+
+// TODO: Convolution with 3D input is not supported on GNA
+INSTANTIATE_TEST_SUITE_P(
+    DISABLED_smoke_OVClassExecutableNetworkSupportedConfigTest,
+    OVClassExecutableNetworkSupportedConfigTest,
+    ::testing::Combine(
+        ::testing::Values("GNA"),
+        ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_HW),
+                          std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_SW),
+                          std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_SW_EXACT),
+                          std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_AUTO))));
+
+// TODO: Convolution with 3D input is not supported on GNA
+INSTANTIATE_TEST_SUITE_P(
+    DISABLED_smoke_OVClassExecutableNetworkUnsupportedConfigTest,
+    OVClassExecutableNetworkUnsupportedConfigTest,
+    ::testing::Combine(::testing::Values("GNA"),
+                       ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE),
+                                                        InferenceEngine::GNAConfigParams::GNA_SW_FP32),
+                                         std::make_pair(GNA_CONFIG_KEY(SCALE_FACTOR), "5"),
+                                         std::make_pair(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)),
+                                         std::make_pair(GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(NO)))));
+
+using OVClassExecutableNetworkSetConfigFromFp32Test = OVClassExecutableNetworkGetMetricTestForSpecificConfig;
+
+TEST_P(OVClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
+    ov::runtime::Core ie;
+
+    std::map<std::string, std::string> initialConfig;
+    initialConfig[GNA_CONFIG_KEY(DEVICE_MODE)] = InferenceEngine::GNAConfigParams::GNA_SW_FP32;
+    ov::runtime::ExecutableNetwork exeNetwork = ie.compile_model(simpleNetwork, deviceName, initialConfig);
+
+    ASSERT_THROW(exeNetwork.set_config({{configKey, configValue}}), ov::Exception);
+}
+
+// TODO: Convolution with 3D input is not supported on GNA
+INSTANTIATE_TEST_SUITE_P(
+    DISABLED_smoke_OVClassExecutableNetworkSetConfigFromFp32Test,
+    OVClassExecutableNetworkSetConfigFromFp32Test,
+    ::testing::Combine(
+        ::testing::Values("GNA"),
+        ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_HW),
+                          std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_SW),
+                          std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_SW_EXACT),
+                          std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_SW_FP32),
+                          std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_AUTO))));
+
+// IE Class Query network
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest, ::testing::Values("GNA"));
+
+// IE Class Load network
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest, ::testing::Values("GNA"));
+
+//
+// Hetero Executable Network GetMetric
+//
+
+// TODO: verify hetero interop
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassHeteroExecutableNetworlGetMetricTest,
+                         OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+                         ::testing::Values("GNA"));
+
+// TODO: verify hetero interop
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassHeteroExecutableNetworlGetMetricTest,
+                         OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+                         ::testing::Values("GNA"));
+
+// TODO: verify hetero interop
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassHeteroExecutableNetworlGetMetricTest,
+                         OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
+                         ::testing::Values("GNA"));
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworlGetMetricTest,
+                         OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
+                         ::testing::Values("GNA"));
+}  // namespace

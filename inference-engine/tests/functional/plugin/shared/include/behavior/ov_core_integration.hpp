@@ -6,19 +6,15 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/common_utils.hpp>
-#include <common_test_utils/test_assertions.hpp>
-#include <fstream>
-#include <functional_test_utils/plugin_cache.hpp>
-#include <functional_test_utils/skip_tests_config.hpp>
 #include <ie_plugin_config.hpp>
 #include <memory>
-#include <ngraph/op/util/op_types.hpp>
-#include <ngraph/variant.hpp>
 #include <openvino/runtime/core.hpp>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/unicode_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -29,25 +25,21 @@
 
 #endif
 
-using namespace testing;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
-using namespace InferenceEngine::PluginConfigParams;
+namespace ov {
+namespace test {
 
-namespace BehaviorTestsDefinitions {
-
-#define ASSERT_EXEC_METRIC_SUPPORTED(metricName)                                                \
-    {                                                                                           \
-        std::vector<std::string> metrics = exeNetwork.get_metric(METRIC_KEY(SUPPORTED_METRICS));\
-        auto it = std::find(metrics.begin(), metrics.end(), metricName);                        \
-        ASSERT_NE(metrics.end(), it);                                                           \
+#define ASSERT_EXEC_METRIC_SUPPORTED(metricName)                                                 \
+    {                                                                                            \
+        std::vector<std::string> metrics = exeNetwork.get_metric(METRIC_KEY(SUPPORTED_METRICS)); \
+        auto it = std::find(metrics.begin(), metrics.end(), metricName);                         \
+        ASSERT_NE(metrics.end(), it);                                                            \
     }
 
-#define ASSERT_METRIC_SUPPORTED(metricName)                                                         \
-    {                                                                                               \
+#define ASSERT_METRIC_SUPPORTED(metricName)                                                          \
+    {                                                                                                \
         std::vector<std::string> metrics = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_METRICS)); \
-        auto it = std::find(metrics.begin(), metrics.end(), metricName);                            \
-        ASSERT_NE(metrics.end(), it);                                                               \
+        auto it = std::find(metrics.begin(), metrics.end(), metricName);                             \
+        ASSERT_NE(metrics.end(), it);                                                                \
     }
 
 #define SKIP_IF_NOT_IMPLEMENTED(...)                       \
@@ -67,7 +59,8 @@ inline ov::runtime::Core createCoreWithTemplate() {
     return ie;
 }
 
-class OVClassBasicTestP : public ::testing::Test, public WithParamInterface<std::pair<std::string, std::string>> {
+class OVClassBasicTestP : public ::testing::Test,
+                          public testing::WithParamInterface<std::pair<std::string, std::string>> {
 protected:
     std::string deviceName;
     std::string pluginName;
@@ -85,21 +78,13 @@ public:
 
     void SetUp() override {
         // Generic network
-        {
-            actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
-        }
+        { actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat(); }
         // Quite simple network
-        {
-            simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
-        }
+        { simpleNetwork = ngraph::builder::subgraph::makeSingleConv(); }
         // Multinput to substruct network
-        {
-            multinputNetwork = ngraph::builder::subgraph::make2InputSubtract();
-        }
+        { multinputNetwork = ngraph::builder::subgraph::make2InputSubtract(); }
         // Network with KSO
-        {
-            ksoNetwork = ngraph::builder::subgraph::makeKSOFunction();
-        }
+        { ksoNetwork = ngraph::builder::subgraph::makeKSOFunction(); }
     }
     void setHeteroNetworkAffinity(const std::string& targetDevice) {
         const std::map<std::string, std::string> deviceMapping = {{"Split_2", targetDevice},
@@ -119,7 +104,7 @@ public:
     }
 };
 
-class OVClassBaseTestP : public OVClassNetworkTest, public WithParamInterface<std::string> {
+class OVClassBaseTestP : public OVClassNetworkTest, public testing::WithParamInterface<std::string> {
 public:
     std::string deviceName;
     void SetUp() override {
@@ -162,7 +147,7 @@ using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 
 class OVClassExecutableNetworkGetMetricTestForSpecificConfig
     : public OVClassNetworkTest,
-      public WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>> {
+      public testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>> {
 protected:
     std::string deviceName;
     std::string configKey;
@@ -171,8 +156,8 @@ protected:
 public:
     void SetUp() override {
         OVClassNetworkTest::SetUp();
-        deviceName = get<0>(GetParam());
-        std::tie(configKey, configValue) = get<1>(GetParam());
+        deviceName = testing::get<0>(GetParam());
+        std::tie(configKey, configValue) = testing::get<1>(GetParam());
     }
 };
 
@@ -182,7 +167,8 @@ using OVClassExecutableNetworkUnsupportedConfigTest = OVClassExecutableNetworkGe
 //
 // Hetero Executable network case
 //
-class OVClassHeteroExecutableNetworkGetMetricTest : public OVClassNetworkTest, public WithParamInterface<std::string> {
+class OVClassHeteroExecutableNetworkGetMetricTest : public OVClassNetworkTest,
+                                                    public testing::WithParamInterface<std::string> {
 protected:
     std::string deviceName;
     std::string heteroDeviceName;
@@ -263,7 +249,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
 TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::string pluginXML{"mock_engine_valid.xml"};
-    std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
+    std::string content{R"(<ie><plugins><plugin name="mock" location="libmock_engine.so"></plugin></plugins></ie>)"};
     CommonTestUtils::createFile(pluginXML, content);
 
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
@@ -275,8 +261,8 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             bool is_copy_successfully;
             is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
             if (!is_copy_successfully) {
-                FAIL() << "Unable to copy from '" << pluginXML << "' to '"
-                       << ::ov::util::wstring_to_string(pluginsXmlW) << "'";
+                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << ::ov::util::wstring_to_string(pluginsXmlW)
+                       << "'";
             }
 
             GTEST_COUT << "Test " << testIndex << std::endl;
@@ -382,20 +368,25 @@ TEST_P(OVClassBasicTestP, SetConfigForUnRegisteredDeviceThrows) {
 TEST_P(OVClassBasicTestP, SetConfigNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    ASSERT_NO_THROW(ie.set_config({{KEY_PERF_COUNT, YES}}, deviceName));
+    ASSERT_NO_THROW(
+        ie.set_config({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}},
+                      deviceName));
 }
 
 TEST_P(OVClassBasicTestP, SetConfigAllNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    ASSERT_NO_THROW(ie.set_config({{KEY_PERF_COUNT, YES}}));
+    ASSERT_NO_THROW(ie.set_config(
+        {{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}}));
     ASSERT_NO_THROW(ie.get_versions(deviceName));
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigHeteroThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    ASSERT_NO_THROW(ie.set_config({{KEY_PERF_COUNT, YES}}, CommonTestUtils::DEVICE_HETERO));
+    ASSERT_NO_THROW(
+        ie.set_config({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}},
+                      CommonTestUtils::DEVICE_HETERO));
 }
 
 TEST_P(OVClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
@@ -409,11 +400,13 @@ TEST(OVClassBasicTest, smoke_SetConfigHeteroNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
     bool value = false;
 
-    ASSERT_NO_THROW(ie.set_config({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), YES}}, CommonTestUtils::DEVICE_HETERO));
+    ASSERT_NO_THROW(ie.set_config({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), InferenceEngine::PluginConfigParams::YES}},
+                                  CommonTestUtils::DEVICE_HETERO));
     ASSERT_NO_THROW(value = ie.get_config("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)).as<bool>());
     ASSERT_TRUE(value);
 
-    ASSERT_NO_THROW(ie.set_config({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), NO}}, CommonTestUtils::DEVICE_HETERO));
+    ASSERT_NO_THROW(ie.set_config({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), InferenceEngine::PluginConfigParams::NO}},
+                                  CommonTestUtils::DEVICE_HETERO));
     ASSERT_NO_THROW(value = ie.get_config("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)).as<bool>());
     ASSERT_FALSE(value);
 }
@@ -566,7 +559,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
             op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
         }
         auto exeNetwork = ie.compile_model(ksoNetwork, deviceName);
-    } catch (const NotImplemented& ex) {
+    } catch (const InferenceEngine::NotImplemented& ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
     }
@@ -613,7 +606,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
 TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
     std::string deviceName = CommonTestUtils::DEVICE_HETERO;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_METRICS)));
@@ -630,7 +623,7 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 TEST(OVClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
     std::string deviceName = CommonTestUtils::DEVICE_HETERO;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -655,7 +648,7 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
 TEST_P(OVClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_METRICS)));
     std::vector<std::string> t = p;
@@ -671,7 +664,7 @@ TEST_P(OVClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
 TEST_P(OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> t = p;
@@ -687,7 +680,7 @@ TEST_P(OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
 TEST_P(OVClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)));
     std::vector<std::string> t = p;
@@ -703,7 +696,7 @@ TEST_P(OVClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
 TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)));
     std::string t = p;
@@ -715,7 +708,7 @@ TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
 TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
     std::vector<std::string> t = p;
@@ -731,7 +724,7 @@ TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
 TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(DEVICE_GOPS)));
     std::map<InferenceEngine::Precision, float> t = p;
@@ -747,7 +740,7 @@ TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
 TEST_P(OVClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(DEVICE_TYPE)));
     InferenceEngine::Metrics::DeviceType t = p;
@@ -760,7 +753,7 @@ TEST_P(OVClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
 TEST_P(OVClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS)));
     unsigned int t = p;
@@ -773,7 +766,7 @@ TEST_P(OVClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintN
 TEST_P(OVClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS)));
     unsigned int t = p;
@@ -786,7 +779,7 @@ TEST_P(OVClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoTh
 TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)));
     std::tuple<unsigned int, unsigned int, unsigned int> t = p;
@@ -809,7 +802,7 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
 TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(RANGE_FOR_STREAMS)));
     std::tuple<unsigned int, unsigned int> t = p;
@@ -829,7 +822,7 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
 TEST_P(OVClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_THROW(p = ie.get_metric(deviceName, "unsupported_metric"), ov::Exception);
 }
@@ -837,13 +830,13 @@ TEST_P(OVClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
 TEST_P(OVClassGetConfigTest, GetConfigNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
 
     for (auto&& confKey : configValues) {
-        Parameter defaultValue;
+        ov::runtime::Parameter defaultValue;
         ASSERT_NO_THROW(defaultValue = ie.get_config(deviceName, confKey));
         ASSERT_FALSE(defaultValue.empty());
     }
@@ -852,7 +845,7 @@ TEST_P(OVClassGetConfigTest, GetConfigNoThrow) {
 TEST_P(OVClassGetConfigTest, GetConfigHeteroNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
@@ -865,7 +858,7 @@ TEST_P(OVClassGetConfigTest, GetConfigHeteroNoThrow) {
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_THROW(p = ie.get_config(CommonTestUtils::DEVICE_HETERO, "unsupported_config"), ov::Exception);
 }
@@ -873,17 +866,17 @@ TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_THROW(p = ie.get_config(CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName,
-                                  HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
+                                   HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
                  ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_THROW(p = ie.get_config(deviceName, "unsupported_config"), ov::Exception);
 }
@@ -915,7 +908,7 @@ TEST_P(OVClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
 TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
@@ -934,7 +927,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoT
 TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
@@ -953,7 +946,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow
 TEST_P(OVClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
@@ -968,7 +961,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
 TEST_P(OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
@@ -983,7 +976,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, G
 TEST_P(OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
@@ -993,7 +986,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) 
 TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
@@ -1001,7 +994,7 @@ TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
     std::vector<std::string> configValues = p;
 
     for (auto&& confKey : configValues) {
-        Parameter defaultValue;
+        ov::runtime::Parameter defaultValue;
         ASSERT_NO_THROW(defaultValue = ie.get_config(deviceName, confKey));
         ASSERT_FALSE(defaultValue.empty());
     }
@@ -1010,7 +1003,7 @@ TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
 TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
@@ -1020,7 +1013,7 @@ TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigThrows) {
 TEST_P(OVClassExecutableNetworkSetConfigTest, SetConfigThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
@@ -1030,7 +1023,7 @@ TEST_P(OVClassExecutableNetworkSetConfigTest, SetConfigThrows) {
 TEST_P(OVClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     auto exeNetwork = ie.compile_model(simpleNetwork, deviceName);
 
@@ -1051,7 +1044,7 @@ TEST_P(OVClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
 TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> devConfigValues = p;
@@ -1074,7 +1067,7 @@ TEST_P(OVClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
 TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter pHetero, pDevice;
+    ov::runtime::Parameter pHetero, pDevice;
 
     auto heteroExeNetwork = ie.compile_model(actualNetwork, heteroDeviceName);
     auto deviceExeNetwork = ie.compile_model(actualNetwork, deviceName);
@@ -1095,8 +1088,8 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
         auto it = std::find(heteroConfigValues.begin(), heteroConfigValues.end(), deviceConf);
         ASSERT_TRUE(it != heteroConfigValues.end());
 
-        Parameter heteroConfigValue = heteroExeNetwork.get_config(deviceConf);
-        Parameter deviceConfigValue = deviceExeNetwork.get_config(deviceConf);
+        ov::runtime::Parameter heteroConfigValue = heteroExeNetwork.get_config(deviceConf);
+        ov::runtime::Parameter deviceConfigValue = deviceExeNetwork.get_config(deviceConf);
 
         // HETERO returns EXCLUSIVE_ASYNC_REQUESTS as a boolean value
         if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf) {
@@ -1108,7 +1101,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
 TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter pHetero, pDevice;
+    ov::runtime::Parameter pHetero, pDevice;
 
     auto heteroExeNetwork = ie.compile_model(actualNetwork, heteroDeviceName);
     auto deviceExeNetwork = ie.compile_model(actualNetwork, deviceName);
@@ -1132,8 +1125,8 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
         auto it = std::find(heteroMetricValues.begin(), heteroMetricValues.end(), deviceMetricName);
         ASSERT_TRUE(it != heteroMetricValues.end());
 
-        Parameter heteroMetricValue = heteroExeNetwork.get_metric(deviceMetricName);
-        Parameter deviceMetricValue = deviceExeNetwork.get_metric(deviceMetricName);
+        ov::runtime::Parameter heteroMetricValue = heteroExeNetwork.get_metric(deviceMetricName);
+        ov::runtime::Parameter deviceMetricValue = deviceExeNetwork.get_metric(deviceMetricName);
 
         if (std::find(heteroSpecificMetrics.begin(), heteroSpecificMetrics.end(), deviceMetricName) ==
             heteroSpecificMetrics.end()) {
@@ -1145,7 +1138,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
 TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     auto exeNetwork = ie.compile_model(actualNetwork, heteroDeviceName);
 
@@ -1158,7 +1151,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThro
 TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::runtime::Core ie = createCoreWithTemplate();
-    Parameter p;
+    ov::runtime::Parameter p;
 
     setHeteroNetworkAffinity(deviceName);
 
@@ -1191,8 +1184,8 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
         if (deviceIDs.empty())
             GTEST_SKIP();
         ASSERT_NO_THROW(ie.query_model(actualNetwork,
-                                        CommonTestUtils::DEVICE_HETERO,
-                                        {{"TARGET_FALLBACK", deviceName + "." + deviceIDs[0] + "," + deviceName}}));
+                                       CommonTestUtils::DEVICE_HETERO,
+                                       {{"TARGET_FALLBACK", deviceName + "." + deviceIDs[0] + "," + deviceName}}));
     } else {
         GTEST_SKIP();
     }
@@ -1242,8 +1235,8 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.query_model(actualNetwork,
-                                     CommonTestUtils::DEVICE_HETERO,
-                                     {{"TARGET_FALLBACK", deviceName + ".100," + deviceName}}),
+                                    CommonTestUtils::DEVICE_HETERO,
+                                    {{"TARGET_FALLBACK", deviceName + ".100," + deviceName}}),
                      ov::Exception);
     } else {
         GTEST_SKIP();
@@ -1311,8 +1304,8 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.compile_model(actualNetwork,
-                                    "HETERO",
-                                    {{"TARGET_FALLBACK", deviceName + ".100," + CommonTestUtils::DEVICE_CPU}}),
+                                      "HETERO",
+                                      {{"TARGET_FALLBACK", deviceName + ".100," + CommonTestUtils::DEVICE_CPU}}),
                      ov::Exception);
     } else {
         GTEST_SKIP();
@@ -1325,9 +1318,9 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.compile_model(actualNetwork,
-                                    CommonTestUtils::DEVICE_HETERO,
-                                    {{"TARGET_FALLBACK", deviceName + "," + CommonTestUtils::DEVICE_CPU},
-                                     {CONFIG_KEY(DEVICE_ID), "110"}}),
+                                      CommonTestUtils::DEVICE_HETERO,
+                                      {{"TARGET_FALLBACK", deviceName + "," + CommonTestUtils::DEVICE_CPU},
+                                       {CONFIG_KEY(DEVICE_ID), "110"}}),
                      ov::Exception);
     } else {
         GTEST_SKIP();
@@ -1353,8 +1346,8 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
         std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + deviceName);
         ASSERT_NO_THROW(
             ie.compile_model(actualNetwork,
-                           CommonTestUtils::DEVICE_HETERO,
-                           {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices}, {"TARGET_FALLBACK", targetFallback}}));
+                             CommonTestUtils::DEVICE_HETERO,
+                             {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices}, {"TARGET_FALLBACK", targetFallback}}));
     } else {
         GTEST_SKIP();
     }
@@ -1443,9 +1436,9 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         }
         ov::runtime::SupportedOpsMap result;
         ASSERT_NO_THROW(result = ie.query_model(multinputNetwork,
-                                                 CommonTestUtils::DEVICE_MULTI,
-                                                 {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-                                                  {"TARGET_FALLBACK", deviceName + "," + deviceName}}));
+                                                CommonTestUtils::DEVICE_MULTI,
+                                                {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
+                                                 {"TARGET_FALLBACK", deviceName + "," + deviceName}}));
 
         std::unordered_set<std::string> actualLayers;
         for (auto&& layer : result) {
@@ -1463,7 +1456,7 @@ TEST_P(OVClassLoadNetworkAfterCoreRecreateTest, DISABLED_LoadAfterRecreateCoresA
     ov::runtime::Core ie = createCoreWithTemplate();
     {
         auto versions = ie.get_versions(std::string(CommonTestUtils::DEVICE_MULTI) + ":" + deviceName + "," +
-                                       CommonTestUtils::DEVICE_CPU);
+                                        CommonTestUtils::DEVICE_CPU);
         ASSERT_EQ(3, versions.size());
     }
     std::map<std::string, std::string> config;
@@ -1477,4 +1470,5 @@ TEST_P(OVClassLoadNetworkAfterCoreRecreateTest, DISABLED_LoadAfterRecreateCoresA
     //     auto executableNetwork = ie.compile_model(actualNetwork, deviceName, config);
     // });
 };
-}  // namespace BehaviorTestsDefinitions
+}  // namespace test
+}  // namespace ov
