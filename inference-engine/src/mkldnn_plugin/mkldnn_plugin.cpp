@@ -517,8 +517,12 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                     num_streams = std::max(default_num_streams, num_streams_less_aggressive);
                 }
                 auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
-                if (num_requests != config.end())
-                    num_streams = std::min(num_streams, PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
+                if (engConfig.perfHintsConfig.ovPerfHintNumRequests)  // set thru SetConfig to the plugin
+                    num_streams = std::min(engConfig.perfHintsConfig.ovPerfHintNumRequests,
+                            engConfig.perfHintsConfig.ovPerfHintNumRequests);
+                if (num_requests != config.end())   // arrived with config to the LoadNetwork (and thus higher pri)
+                    num_streams = std::min(num_streams,
+                            PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
            }
         }
@@ -656,11 +660,11 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         }
 
         auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-        auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
         Transformation(clonedNetwork, enableLPT);
+        auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
         for (auto op : ops) {
