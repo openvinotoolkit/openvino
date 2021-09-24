@@ -490,8 +490,8 @@ void MKLDNNGraph::InitEdges() {
 
                 std::string convertName = edge->getParent()->getName() + "_" +
                                           inDesc.getPrecision().name() + "_" + outDesc.getPrecision().name();
-                std::cout << edge->name() << std::endl;
-                auto convertNode = std::make_shared<MKLDNNConvertNode>(inDesc.getShape().getStaticDims(), inDesc.getPrecision(), outDesc.getPrecision(),
+
+                auto convertNode = std::make_shared<MKLDNNConvertNode>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
                                                                        convertName, this->getEngine(), this->weightsCache);
                 convertNode->setDescs(inDesc, outDesc);
                 InsertNode(edge, convertNode, true);
