@@ -133,6 +133,27 @@ namespace BehaviorTestsDefinitions {
         ASSERT_EQ(std::find(supportedOptions.cbegin(), supportedOptions.cend(), key), supportedOptions.cend());
     }
 
+    using DefaultValuesConfigTests = BehaviorTestsUtils::BehaviorTestsBasic;
+
+    TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        InferenceEngine::CNNNetwork cnnNet(function);
+        InferenceEngine::Parameter metric;
+        ASSERT_NO_THROW(metric = ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+        std::vector<std::string> keys = metric;
+
+        for (auto& key : keys) {
+            InferenceEngine::Parameter configValue;
+            ASSERT_NO_THROW(configValue = ie->GetConfig(targetDevice, key));
+
+            ASSERT_NO_THROW(ie->SetConfig({{ key, configValue.as<std::string>()}}, targetDevice))
+                << "device=" << targetDevice << " "
+                << "config key=" << key << " "
+                << "value=" << configValue.as<std::string>();
+        }
+    }
+
     using IncorrectConfigTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
     TEST_P(IncorrectConfigTests, SetConfigWithIncorrectKey) {
@@ -180,6 +201,29 @@ namespace BehaviorTestsDefinitions {
     }
 
     using CorrectConfigAPITests = BehaviorTestsUtils::BehaviorTestsBasic;
+
+    TEST_P(CorrectConfigAPITests, canLoadCorrectNetworkAndCheckConfig) {
+        InferenceEngine::CNNNetwork cnnNet(function);
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+        for (const auto& configItem : configuration) {
+            InferenceEngine::Parameter param;
+            ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
+            ASSERT_FALSE(param.empty());
+            ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+        }
+    }
+
+    TEST_P(CorrectConfigAPITests, canSetCorrectConfigLoadNetworkAndCheckConfig) {
+        InferenceEngine::CNNNetwork cnnNet(function);
+        ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
+        for (const auto& configItem : configuration) {
+            InferenceEngine::Parameter param;
+            ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
+            ASSERT_FALSE(param.empty());
+            ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+        }
+    }
 
     TEST_P(CorrectConfigAPITests, CanSetExclusiveAsyncRequests) {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
