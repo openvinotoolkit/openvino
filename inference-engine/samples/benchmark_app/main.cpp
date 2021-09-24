@@ -391,6 +391,12 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
+            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
+                                                             FLAGS_layout,
+                                                             FLAGS_b,
+                                                             FLAGS_iscale,
+                                                             FLAGS_imean,
+                                                             exeNetwork.GetInputsInfo());
             if (batchSize == 0) {
                 batchSize = 1;
             }
