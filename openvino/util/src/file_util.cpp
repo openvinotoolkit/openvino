@@ -37,7 +37,7 @@
 #    include <sys/time.h>
 #    include <unistd.h>
 
-#    ifdef ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #        include <codecvt>
 #        include <locale>
 #    endif
@@ -229,7 +229,7 @@ void ov::util::convert_path_win_style(std::string& path) {
     std::replace(path.begin(), path.end(), '/', '\\');
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::string ov::util::wstring_to_string(const std::wstring& wstr) {
 #    ifdef _WIN32
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
@@ -340,14 +340,14 @@ static std::string get_ov_library_path_a() {
 }  // namespace
 
 std::string ov::util::get_ov_lib_path() {
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     return ov::util::wstring_to_string(ov::util::get_ov_lib_path_w());
 #else
     return get_ov_library_path_a();
 #endif
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::wstring ov::util::get_ov_lib_path_w() {
 #    ifdef _WIN32
@@ -369,4 +369,4 @@ std::wstring ov::util::get_ov_lib_path_w() {
 #    endif
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

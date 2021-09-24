@@ -32,7 +32,7 @@ class ExecutableNetwork;
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(InferRequest) {
+class OPENVINO_RUNTIME_API InferRequest {
     std::shared_ptr<void> _so;
     std::shared_ptr<ie::IInferRequestInternal> _impl;
 

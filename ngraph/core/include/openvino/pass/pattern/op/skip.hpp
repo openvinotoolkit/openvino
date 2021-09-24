@@ -16,8 +16,8 @@ namespace op {
 /// if the pattern input matches the graph value.
 class OPENVINO_API Skip : public Pattern {
 public:
-    static constexpr NodeTypeInfo type_info{"patternSkip", 0};
-    const NodeTypeInfo& get_type_info() const override;
+    OPENVINO_RTTI("patternSkip");
+    BWDCMP_RTTI_DECLARATION;
     Skip(const Output<Node>& arg, ValuePredicate pred) : Pattern({arg}, pred) {
         set_output_type(0, arg.get_element_type(), arg.get_partial_shape());
     }

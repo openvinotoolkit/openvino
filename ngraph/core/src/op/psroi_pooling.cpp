@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::PSROIPooling, "PSROIPooling", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::PSROIPooling);
 
 ov::op::v0::PSROIPooling::PSROIPooling(const Output<Node>& input,
                                        const Output<Node>& coords,

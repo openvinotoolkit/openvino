@@ -89,7 +89,7 @@ private:
 
 class OPENVINO_API FunctionPass : public PassBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ov::pass::FunctionPass");
     ~FunctionPass() override;
     virtual bool run_on_function(std::shared_ptr<ngraph::Function>) = 0;
 };
