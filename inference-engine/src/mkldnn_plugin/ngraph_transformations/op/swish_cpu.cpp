@@ -8,7 +8,7 @@ constexpr ngraph::NodeTypeInfo MKLDNNPlugin::SwishNode::type_info;
 
 MKLDNNPlugin::SwishNode::SwishNode(const ngraph::Output<ngraph::Node> & input, const float alpha)
         : Op({input}), m_alpha(alpha) {
-    constructor_validate_and_infer_types();
+    validate_and_infer_types();
 }
 
 std::shared_ptr<ngraph::Node> MKLDNNPlugin::SwishNode::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
