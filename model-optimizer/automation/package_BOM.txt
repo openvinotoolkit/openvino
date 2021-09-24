@@ -170,8 +170,6 @@ extensions/front/mxnet/activation.py
 extensions/front/mxnet/adaptive_avg_pooling_ext.py
 extensions/front/mxnet/add_input_data_to_prior_boxes.py
 extensions/front/mxnet/arange_ext.py
-extensions/front/mxnet/arange_like_ext.py
-extensions/front/mxnet/arange_like_replacer.py
 extensions/front/mxnet/arange_replacer.py
 extensions/front/mxnet/batch_dot_ext.py
 extensions/front/mxnet/block_grad_ext.py
@@ -661,7 +659,6 @@ extensions/middle/UselessSplitEraser.py
 extensions/ops/__init__.py
 extensions/ops/activation_ops.py
 extensions/ops/adaptive_avg_pooling.py
-extensions/ops/arange_like.py
 extensions/ops/argmax.py
 extensions/ops/argmin.py
 extensions/ops/assert_op.py
