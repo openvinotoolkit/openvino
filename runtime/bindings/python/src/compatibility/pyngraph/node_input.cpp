@@ -14,7 +14,8 @@ namespace py = pybind11;
 void regclass_pyngraph_Input(py::module m) {
     py::class_<ngraph::Input<ngraph::Node>, std::shared_ptr<ngraph::Input<ngraph::Node>>> input(m,
                                                                                                 "Input",
-                                                                                                py::dynamic_attr(),py::module_local());
+                                                                                                py::dynamic_attr(),
+                                                                                                py::module_local());
     input.doc() = "ngraph.impl.Input wraps ngraph::Input<Node>";
 
     input.def("get_node",

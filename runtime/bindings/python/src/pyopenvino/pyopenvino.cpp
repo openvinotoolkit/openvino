@@ -61,7 +61,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_AxisSet(m);
     regclass_graph_AxisVector(m);
     regclass_graph_Coordinate(m);
-    py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ngraph::op"); // TODO(!)
+    py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ngraph::op");  // TODO(!)
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);

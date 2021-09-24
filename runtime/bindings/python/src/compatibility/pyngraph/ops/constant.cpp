@@ -61,7 +61,8 @@ void regclass_pyngraph_op_Constant(py::module m) {
     py::class_<ngraph::op::Constant, std::shared_ptr<ngraph::op::Constant>, ngraph::Node> constant(
         m,
         "Constant",
-        py::buffer_protocol(), py::module_local());
+        py::buffer_protocol(),
+        py::module_local());
     constant.doc() = "ngraph.impl.op.Constant wraps ngraph::op::Constant";
     constant.def(py::init<const ngraph::element::Type&, const ngraph::Shape&, const std::vector<char>&>());
     constant.def(py::init<const ngraph::element::Type&, const ngraph::Shape&, const std::vector<ngraph::float16>&>());

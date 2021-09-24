@@ -20,7 +20,9 @@ namespace py = pybind11;
 static const char* CAPSULE_NAME = "ngraph_partial_shape";
 
 void regclass_graph_PartialShape(py::module m) {
-    py::class_<ngraph::PartialShape, std::shared_ptr<ngraph::PartialShape>> shape(m, "PartialShape", py::module_local());
+    py::class_<ngraph::PartialShape, std::shared_ptr<ngraph::PartialShape>> shape(m,
+                                                                                  "PartialShape",
+                                                                                  py::module_local());
     shape.doc() = "ngraph.impl.PartialShape wraps ngraph::PartialShape";
 
     shape.def(py::init([](const std::vector<int64_t>& dimensions) {
