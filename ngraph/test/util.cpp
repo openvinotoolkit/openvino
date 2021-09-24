@@ -18,12 +18,23 @@
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
+#include "openvino/core/version.hpp"
 #include "util/all_close.hpp"
 #include "util/ndarray.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
+
+TEST(openvino_version, version) {
+    auto version = ov::get_openvino_version();
+    ASSERT_EQ(std::string("OpenVINO Runtime"), version->description);
+    ASSERT_FALSE(std::string(version->buildNumber).empty());
+}
+
+TEST(ngraph_version_variable, version) {
+    ASSERT_FALSE(std::string(NGRAPH_VERSION_NUMBER).empty());
+}
 
 TEST(util, split) {
     {

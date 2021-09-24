@@ -18,8 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ngraph::op::v8::If, "If", 8, MultiSubGraphOp);
-
+BWDCMP_RTTI_DEFINITION(op::v8::If);
 op::v8::If::If() : MultiSubGraphOp(2) {}
 
 op::v8::If::If(const Output<Node>& execution_condition) : If() {

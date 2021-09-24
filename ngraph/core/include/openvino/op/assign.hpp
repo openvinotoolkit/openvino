@@ -13,7 +13,8 @@ namespace v3 {
 /// \brief Assign operation sets an input value to the variable with `variable_id`
 class OPENVINO_API Assign : public util::AssignBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Assign", "opset3", op::Sink, 3);
+    BWDCMP_RTTI_DECLARATION;
     Assign() = default;
 
     /// \brief Constructs an Assign operation.
@@ -40,7 +41,8 @@ namespace v6 {
 /// \brief Assign operation sets an input value to the variable with `variable_id`
 class OPENVINO_API Assign : public util::AssignBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Assign", "opset6", op::Sink, 6);
+    BWDCMP_RTTI_DECLARATION;
     Assign() = default;
 
     /// \brief Constructs an Assign operation.
