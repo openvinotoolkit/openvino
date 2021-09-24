@@ -19,7 +19,7 @@ TEST(RTInfoDeserialization, Node) {
         <layer name="in1" type="Parameter" id="0" version="opset8">
             <data element_type="f32" shape="1,3,22,22"/>
             <rt_info>
-                <fused_names:0 value="in1"/>
+                <fused_names_0 value="in1"/>
             </rt_info>
             <output>
                 <port id="0" precision="FP32">
@@ -33,7 +33,7 @@ TEST(RTInfoDeserialization, Node) {
 		<layer name="Round" id="1" type="Round" version="opset8">
 			<data mode="half_to_even"/>
             <rt_info>
-                <fused_names:0 value="Round1,Round2"/>
+                <fused_names_0 value="Round1,Round2"/>
             </rt_info>
             <input>
                 <port id="1" precision="FP32">
@@ -98,7 +98,7 @@ TEST(RTInfoDeserialization, InputAndOutput) {
             <output>
                 <port id="0" precision="FP32">
                     <rt_info>
-                        <fused_names:0 value="test1,test2"/>
+                        <fused_names_0 value="test1,test2"/>
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -111,7 +111,7 @@ TEST(RTInfoDeserialization, InputAndOutput) {
 			<input>
 				<port id="0">
                     <rt_info>
-                        <fused_names:0 value="test2,test3"/>
+                        <fused_names_0 value="test2,test3"/>
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -120,7 +120,7 @@ TEST(RTInfoDeserialization, InputAndOutput) {
 				</port>
 				<port id="1">
                     <rt_info>
-                        <fused_names:0 value="test3,test4"/>
+                        <fused_names_0 value="test3,test4"/>
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -131,7 +131,7 @@ TEST(RTInfoDeserialization, InputAndOutput) {
 			<output>
 				<port id="2" precision="FP32">
                     <rt_info>
-                        <fused_names:0 value="test4,test5"/>
+                        <fused_names_0 value="test4,test5"/>
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -144,7 +144,7 @@ TEST(RTInfoDeserialization, InputAndOutput) {
             <input>
                 <port id="0" precision="FP32">
                     <rt_info>
-                        <fused_names:0 value="test5,test6"/>
+                        <fused_names_0 value="test5,test6"/>
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
