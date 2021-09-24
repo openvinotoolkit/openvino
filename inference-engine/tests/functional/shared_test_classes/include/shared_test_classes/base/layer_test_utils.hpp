@@ -59,19 +59,11 @@ public:
 
     static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
-                        float threshold, float absThreshold);
+                        float threshold, float absThreshold = -1.0f);
 
     static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                         const InferenceEngine::Blob::Ptr &actual,
-                        float threshold, float absThreshold);
-
-    static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
-                        const std::vector<InferenceEngine::Blob::Ptr> &actual,
-                        float threshold);
-
-    static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
-                        const InferenceEngine::Blob::Ptr &actual,
-                        float threshold);
+                        float threshold, float absThreshold = -1.0f);
 
     virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
