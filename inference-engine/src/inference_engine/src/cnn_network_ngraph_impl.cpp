@@ -420,13 +420,12 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
             std::stringstream shape_representation;
             for (const auto& input : op->input_values()) {
                 bool first = true;
+                shape_representation << "{";
                 for (const auto& dimension : input.get_partial_shape()) {
-                    if (!first) {
+                    if (!first)
                         shape_representation << ",";
-                    } else {
-                        shape_representation << "{";
-                        first = false;
-                    }
+                    first = false;
+
                     if (obfuscate)
                         shape_representation << (dimension.is_dynamic() ? "D" : "S");
                     else
@@ -437,13 +436,12 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
             shape_representation << "-> ";
             for (const auto& output: op->outputs())  {
                 bool first = true;
+                shape_representation << "{";
                 for (const auto& dimension : output.get_partial_shape()) {
-                    if (!first) {
+                    if (!first)
                         shape_representation << ",";
-                    } else {
-                        shape_representation << "{";
-                        first = false;
-                    }
+                    first = false;
+
                     if (obfuscate)
                         shape_representation << (dimension.is_dynamic() ? "D" : "S");
                     else
