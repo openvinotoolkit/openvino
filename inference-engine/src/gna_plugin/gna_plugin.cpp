@@ -426,43 +426,7 @@ void GNAPlugin::InitGNADevice() {
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
-void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::CNNNetwork & network) {
-    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateGnaQuantModeFromNetwork");
-    // fp32 emulation mode dont need any modifications to configuration
-    if (config.gnaFlags.sw_fp32) return;
-
-    // search for FQ layers
-    // only supports cases of int16 or int8
-    auto it = details::CNNNetworkIterator(network), end = details::CNNNetworkIterator();
-    for (; it != end; it++) {
-        if (!LayerInfo(*it).isFakeQuantize()) {
-            continue;
-        }
-
-        GNAFakeQuantizeLayer fqLayer(*it);
-        auto inputLayer = fqLayer.getInputLayer();
-
-        // this fake quantize represents data quantization - not weights
-        if (!LayerInfo(inputLayer).isConst()) {
-            continue;
-        }
-        // also in mixed mode i8 should be stated as target precision
-        if (fqLayer.getLevels() <= std::numeric_limits<uint8_t>::max()) {
-            config.gnaPrecision = InferenceEngine::Precision::I8;
-        } else if (fqLayer.getLevels() <= std::numeric_limits<uint16_t>::max()) {
-            config.gnaPrecision = InferenceEngine::Precision::I16;
-        } else {
-            THROW_GNA_LAYER_EXCEPTION(*it)
-                << "unsupported quantisation scheme: number of levels is " << fqLayer.getLevels() << " while only up to "
-                << std::numeric_limits<uint16_t>::max() << " is supported";
-        }
-
-        gnaFlags->fake_quantized = true;
-        config.gnaFlags.fake_quantized = true;
-    }
-}
-
-void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & network) {
+void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network, bool& fake_quantized) {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputScaleFromNetwork");
     // fp32 emulation mode dont need any modifications to configuration
     if (config.gnaFlags.sw_fp32) return;
@@ -477,6 +441,9 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
             if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
                 continue;
             }
+
+            fake_quantized = true;
+
             // replacing scale factor from this fq layer
             GNAFakeQuantizeLayer fqLayer(nextToInputLayer.second);
             auto inputRange = fqLayer.getInputRange();
@@ -777,9 +744,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
-    // FQ networks now replaces certain flags in the plugin - flags will'be owerritten
-    UpdateGnaQuantModeFromNetwork(network);
-    UpdateInputScaleFromNetwork(network);
+    bool fake_quantized = false;
+    UpdateInputScaleFromNetwork(network, fake_quantized);
 
     // Set input and output information from orginal network
     UpdateInputsAndOutputsInfoFromNetwork(network);
@@ -843,19 +809,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // to run all passes need to have two calls to pass manager
         run_passes(newNet, true, gnaFlags->input_low_precision);
         run_passes(newNet, false, gnaFlags->input_low_precision);
-    } else if (gnaFlags->fake_quantized) {
-        switch (config.gnaPrecision) {
-            case Precision::I16:
-                ModelQuantizer<FakeQuantI16> q16;
-                newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
-                break;
-            case Precision::I8:
-                ModelQuantizer<FakeQuantI8> q8;
-                newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
-                break;
-            default:
-                THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
-        }
+    } else if (fake_quantized) {
+        ModelQuantizer<FakeQuantI8> q8;
+        newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
     } else {
         switch (config.gnaPrecision) {
             case Precision::I16:
