@@ -15,8 +15,6 @@
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::NmsBase, "NmsBase", 0);
-
 ov::op::util::NmsBase::NmsBase(ngraph::element::Type& output_type, int& nms_top_k, int& keep_top_k)
     : m_output_type(output_type),
       m_nms_top_k(nms_top_k),
@@ -158,5 +156,5 @@ NGRAPH_API EnumNames<op::util::NmsBase::SortResultType>& EnumNames<op::util::Nms
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::util::NmsBase::SortResultType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::util::NmsBase::SortResultType>);
 }  // namespace ov

@@ -16,7 +16,8 @@ namespace v3 {
 ///        input as needed along the new axes.
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Broadcast", "opset3", op::util::BroadcastBase, 3);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;
@@ -77,7 +78,8 @@ namespace v1 {
 ///        input as needed along the new axes.
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Broadcast", "opset1", op::util::BroadcastBase, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;
