@@ -1085,10 +1085,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         auto parent1 = graphNode->getParentEdgesAtPort(0)[0]->getParent();
         auto parent2 = graphNode->getParentEdgesAtPort(1)[0]->getParent();
 
-        if ((parent1->getChildEdges().size() != 1ul) && (parent2->getChildEdges().size() != 1ul)) {
-            continue;
-        }
-
         bool isSuitableParent1 = parent1->getType() == Convolution || parent1->getType() == BinaryConvolution;
         bool isSuitableParent2 = parent2->getType() == Convolution || parent2->getType() == BinaryConvolution;
 
