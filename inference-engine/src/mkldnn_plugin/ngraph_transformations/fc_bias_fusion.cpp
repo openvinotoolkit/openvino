@@ -32,10 +32,6 @@ MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
             return false;
         }
 
-        if (auto bcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast>(bias)) {
-            bias = bcast->get_input_node_shared_ptr(0);
-        }
-
         if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(bias)) {
             return false;
         }
