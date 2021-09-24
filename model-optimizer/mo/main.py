@@ -97,7 +97,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('\n'.join(lines), flush=True)
 
 
-def load_moc_frontends(argv: argparse.Namespace) -> (Optional[FrontEnd], List[str]):
+def get_moc_frontends(argv: argparse.Namespace):
     fem = argv.feManager
     moc_front_end = None
 
@@ -129,8 +129,8 @@ def load_moc_frontends(argv: argparse.Namespace) -> (Optional[FrontEnd], List[st
     return moc_front_end, available_moc_front_ends
 
 
-def prepare_ir(argv: argparse.Namespace):
-    moc_front_end, available_moc_front_ends = load_moc_frontends(argv)
+def arguments_post_parsing(argv: argparse.Namespace):
+    moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
         deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
@@ -296,8 +296,15 @@ def prepare_ir(argv: argparse.Namespace):
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
 
+    return argv
+
+
+def prepare_ir(argv):
+    argv = arguments_post_parsing(argv)
+
     graph = None
     ngraph_function = None
+    moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
     if moc_front_end:
         ngraph_function = moc_pipeline(argv, moc_front_end)
