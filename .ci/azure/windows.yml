@@ -59,11 +59,11 @@ jobs:
       rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
     displayName: 'Make dir'
 
-  - script: |
-      certutil -urlcache -split -f https://openvinoweb.z5.web.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
-      call install_ib_console.bat
-    workingDirectory: $(WORK_DIR)
-    displayName: 'Install IncrediBuild'
+#   - script: |
+#       certutil -urlcache -split -f https://openvinoweb.z5.web.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
+#       call install_ib_console.bat
+#     workingDirectory: $(WORK_DIR)
+#     displayName: 'Install IncrediBuild'
 
   - checkout: self
     clean: true
@@ -214,7 +214,7 @@ jobs:
       buildConfiguration: 'Windows' # Optional
       #publishRunAttachments: true # Optional
 
-  - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
-    displayName: Stop IncrediBuild
-    continueOnError: true
-    enabled: false
+#   - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
+#     displayName: Stop IncrediBuild
+#     continueOnError: true
+#     enabled: false
