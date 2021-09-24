@@ -29,8 +29,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
-        // TODO: Issue: 63469
-        R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
