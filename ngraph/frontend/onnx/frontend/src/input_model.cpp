@@ -149,3 +149,56 @@ void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs, con
     }
     m_editor->cut_graph_fragment(onnx_inputs, onnx_outputs);
 }
+
+Place::Ptr InputModelONNX::add_output(Place::Ptr place) {
+    //std::vector<onnx_editor::OutputEdge> onnx_outputs;
+    std::string name = place->get_names().at(0);
+    const auto output_port = place->get_producing_port();
+
+    std::cout << "Place name: " << name << std::endl;
+
+    const auto& outputs = m_editor->model_outputs();
+    const auto& inputs = m_editor->model_inputs();
+
+    for (const auto& output : outputs)
+    {
+        std::cout << "Out name: " << output << std::endl;
+    }
+    auto find_output = std::find(std::begin(outputs), std::end(outputs), name);
+    auto find_input = std::find(std::begin(inputs), std::end(inputs), name);
+
+    if (find_input == inputs.end()) {
+    //if (place->is_input()) {
+        return nullptr;
+    }
+
+    if (find_output == outputs.end()) {
+    //if (place->is_output()) {
+        return place;
+    }
+    else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
+        auto tensor_name = tensor->get_names()[0];
+        auto output_edge = m_editor->find_output_edge(tensor_name);
+        m_editor->add_output(output_edge);
+    }
+    else if (const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(output_port)){
+        NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed.");
+        m_editor->add_output(onnx_output_edge->get_output_edge());
+    }
+    else {
+        return nullptr;
+    }
+
+    return std::make_shared<PlaceTensorONNX>(name, m_editor);
+}
+
+void InputModelONNX::remove_output(Place::Ptr place) {
+    std::string name = place->get_names().at(0);
+    const auto& outputs = m_editor->model_outputs();
+
+    auto find_output = std::find(std::begin(outputs), std::end(outputs), name);
+
+    if (find_output != outputs.end()) {
+        
+    }
+}

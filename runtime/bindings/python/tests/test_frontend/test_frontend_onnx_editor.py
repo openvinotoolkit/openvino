@@ -648,3 +648,55 @@ def test_get_input_port():
 
     assert not split_op.get_input_port(inputPortIndex=1)
     assert not split_op.get_input_port(inputName="not_existed")
+
+
+def test_add_output_place_is_not_output():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    place = model.get_place_by_tensor_name(tensorName="add_out")
+
+    model.add_output(place)
+    print("test2")
+
+    out_names = [place.get_names()[0] for place in model.get_outputs()]
+    assert out_names == ["out1", "out2", "out3", "out4", "out_add"]
+
+
+def test_add_output_place_is_output():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    place = model.get_place_by_tensor_name(tensorName="out1")
+
+    new_place = model.add_output(place)
+
+    assert place.is_equal(new_place)
+
+
+def test_add_output_place_is_input():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    place = model.get_place_by_tensor_name(tensorName="in1")
+
+    model.add_output(place)
+    result_func = fe.convert(model)
+
+    orig_model = fe.load("input_model.onnx")
+    orig_func = fe.convert(orig_model)
+
+    res = compare_functions(orig_func, result_func)
+    assert res

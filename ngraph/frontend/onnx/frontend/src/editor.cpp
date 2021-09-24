@@ -462,3 +462,11 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::get_output_ports(const Ed
 std::shared_ptr<Function> onnx_editor::ONNXModelEditor::decode() {
     return onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path);
 }
+
+void onnx_editor::ONNXModelEditor::add_output(const OutputEdge& output_edge) const {
+    auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
+    std::vector<onnx_editor::OutputEdge> onnx_output;
+    onnx_output.push_back(output_edge);
+    SubgraphExtractor editor{*(onnx_graph)};
+    editor.add_new_outputs(onnx_output);
+}

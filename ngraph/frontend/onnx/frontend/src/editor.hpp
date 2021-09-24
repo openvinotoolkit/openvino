@@ -223,6 +223,8 @@ public:
     ///
     std::shared_ptr<Function> decode();
 
+    void add_output(const OutputEdge& output_edge) const;
+
 private:
     void update_mapper_if_needed() const;
 

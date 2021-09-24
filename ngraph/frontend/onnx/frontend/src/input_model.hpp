@@ -31,6 +31,8 @@ public:
     void set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) override;
     ngraph::PartialShape get_partial_shape(Place::Ptr place) const override;
     void set_element_type(Place::Ptr place, const ngraph::element::Type& type) override;
+    Place::Ptr add_output(Place::Ptr place) override;
+    void remove_output(Place::Ptr place) override;
 
     std::shared_ptr<Function> decode();
     std::shared_ptr<Function> convert();
