@@ -13,7 +13,8 @@ namespace op {
 namespace v1 {
 class OPENVINO_API BinaryConvolution : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("BinaryConvolution", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     enum class BinaryConvolutionMode {
         // Interpret input data and kernel values: 0 as -1, 1 as 1
@@ -133,11 +134,8 @@ public:
     AttributeAdapter(op::v1::BinaryConvolution::BinaryConvolutionMode& value)
         : EnumAttributeAdapterBase<op::v1::BinaryConvolution::BinaryConvolutionMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v1::BinaryConvolution::BinaryConvolutionMode>",
-                                                0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v1::BinaryConvolution::BinaryConvolutionMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov
