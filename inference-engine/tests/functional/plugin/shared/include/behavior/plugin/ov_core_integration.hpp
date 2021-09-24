@@ -306,6 +306,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkWithKSO) {
 }
 
 TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
 
     try {
@@ -334,7 +335,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
             func = std::make_shared<ngraph::Function>(results, params);
         }
 
-        auto rl_map = ie.query_model(ksoNetwork, deviceName);
+        auto rl_map = ie.query_model(func, deviceName);
         for (const auto& op : func->get_ops()) {
             if (!rl_map.count(op->get_friendly_name())) {
                 FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << deviceName;

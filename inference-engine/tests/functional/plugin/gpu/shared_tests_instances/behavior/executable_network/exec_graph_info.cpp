@@ -48,6 +48,10 @@ const std::vector<std::map<std::string, std::string>> multiConfig = {
                 {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
 };
 
+const std::vector<std::map<std::string, std::string>> autoConfig = {
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU}},
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
@@ -66,6 +70,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetSetPrecision,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(multiConfig)),
+                                 ::testing::ValuesIn(autoConfig)),
                          ExecNetSetPrecision::getTestCaseName);
 }  // namespace

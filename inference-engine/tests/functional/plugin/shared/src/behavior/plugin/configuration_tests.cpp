@@ -107,7 +107,7 @@ TEST_P(CorrectConfigTests, CanUseCache) {
     CommonTestUtils::removeDir("./test_cache");
 }
 
-TEST_P(CorrectConfigTests, canSetConfigAndCheckGetConfig) {
+TEST_P(CorrectConfigCheck, canSetConfigAndCheckGetConfig) {
     ie->SetConfig(configuration, targetDevice);
     for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
@@ -117,13 +117,12 @@ TEST_P(CorrectConfigTests, canSetConfigAndCheckGetConfig) {
     }
 }
 
-TEST_P(CorrectConfigSetTwice, canSetConfigTwiceAndCheckGetConfig) {
+TEST_P(CorrectConfigCheck, canSetConfigTwiceAndCheckGetConfig) {
     ie->SetConfig({}, targetDevice);
     ie->SetConfig(configuration, targetDevice);
     for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
-//        ASSERT_NO_THROW(param = ie->GetConfig(targetDevice, configItem.first));
-        param = ie->GetConfig(targetDevice, configItem.first);
+        ASSERT_NO_THROW(param = ie->GetConfig(targetDevice, configItem.first));
         ASSERT_FALSE(param.empty());
         ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
     }

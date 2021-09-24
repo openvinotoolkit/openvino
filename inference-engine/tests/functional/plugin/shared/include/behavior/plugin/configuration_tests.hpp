@@ -199,6 +199,6 @@ using CorrectConfigPrivateOptionsTests = BehaviorTestsSingleOption;
 using IncorrectConfigTests = CorrectConfigTests;
 using IncorrectConfigSingleOptionTests = BehaviorTestsSingleOption;
 using IncorrectConfigAPITests = CorrectConfigTests;
-using CorrectConfigSetTwice = CorrectConfigTests;
+using CorrectConfigCheck = CorrectConfigTests;
 
 } // namespace BehaviorTestsDefinitions

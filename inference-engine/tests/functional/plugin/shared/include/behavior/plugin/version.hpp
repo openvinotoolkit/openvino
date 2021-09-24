@@ -18,7 +18,6 @@ class VersionTest : public testing::WithParamInterface<std::string>,
                     public CommonTestUtils::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
-        InferenceEngine::Precision  netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> config;
         targetDevice = obj.param;
