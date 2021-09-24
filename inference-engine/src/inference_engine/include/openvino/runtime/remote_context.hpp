@@ -14,6 +14,7 @@
 #include <string>
 
 #include "ie_remote_context.hpp"
+#include "openvino/core/remote_tensor.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
@@ -122,9 +123,7 @@ public:
      * Abstract method.
      * @return A pointer to plugin object that implements RemoteTensor interface.
      */
-    std::shared_ptr<ie::RemoteBlob> create_blob(element::Type element_type,
-                                                const Shape& shape,
-                                                const ParamMap& params = {});
+    RemoteTensor create_tensor(const element::Type& element_type, const Shape& shape, const ParamMap& params = {});
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level

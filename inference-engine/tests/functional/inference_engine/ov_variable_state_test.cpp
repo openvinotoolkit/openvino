@@ -29,6 +29,6 @@ TEST(VariableStateOVTests, throwsOnUninitializedGetState) {
 
 TEST(VariableStateOVTests, throwsOnUninitializedSetState) {
     ov::runtime::VariableState state;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_THROW(state.set_state(blob), ov::Exception);
+    ov::Tensor tensor;
+    ASSERT_THROW(state.set_state(tensor), ov::Exception);
 }

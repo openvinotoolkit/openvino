@@ -17,14 +17,16 @@
         __VA_ARGS__;                                                         \
     } catch (const std::exception& ex) {                                     \
         throw ov::Exception(ex.what());                                      \
+    } catch (...) {                                                          \
+        OPENVINO_ASSERT(false, "Unexpected exception");                      \
     }
 
 namespace ov {
 namespace runtime {
 
 RemoteContext::RemoteContext(const std::shared_ptr<void>& so, const ie::RemoteContext::Ptr& impl)
-    : _so(so),
-      _impl(impl) {
+    : _so{so},
+      _impl{impl} {
     OPENVINO_ASSERT(_impl != nullptr, "RemoteContext was not initialized.");
 }
 
@@ -32,13 +34,16 @@ std::string RemoteContext::get_device_name() const {
     OV_REMOTE_CONTEXT_STATEMENT(return _impl->getDeviceName());
 }
 
-std::shared_ptr<ie::RemoteBlob> RemoteContext::create_blob(element::Type type,
-                                                           const Shape& shape,
-                                                           const ie::ParamMap& params) {
-    ie::TensorDesc tensorDesc(ie::details::convertPrecision(type),
-                              shape,
-                              ie::TensorDesc::getLayoutByRank(shape.size()));
-    OV_REMOTE_CONTEXT_STATEMENT(return _impl->CreateBlob(tensorDesc, params));
+RemoteTensor RemoteContext::create_tensor(const element::Type& element_type,
+                                          const Shape& shape,
+                                          const ie::ParamMap& params) {
+    OV_REMOTE_CONTEXT_STATEMENT({
+        return {_so,
+                _impl->CreateBlob({ie::details::convertPrecision(element_type),
+                                   {shape.begin(), shape.end()},
+                                   ie::TensorDesc::getLayoutByRank(shape.size())},
+                                  params)};
+    });
 }
 
 ie::ParamMap RemoteContext::get_params() const {

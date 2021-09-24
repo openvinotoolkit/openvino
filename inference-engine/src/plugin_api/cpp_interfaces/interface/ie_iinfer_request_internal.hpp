@@ -189,6 +189,12 @@ public:
     INFERENCE_ENGINE_DEPRECATED("The method will be removed")
     void SetUserData(void* userData) noexcept;
 
+    /**
+     * @brief Gets internal executable network implementation.
+     * @return A reference to executable network
+     */
+    std::shared_ptr<IExecutableNetworkInternal> GetExecutableNetwork() const noexcept;
+
 protected:
     /**
      * @brief Destroys the object.
