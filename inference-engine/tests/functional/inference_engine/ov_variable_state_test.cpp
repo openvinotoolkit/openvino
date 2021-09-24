@@ -4,6 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include "ie_blob.h"
+
+#include <openvino/core/except.hpp>
 #include <openvino/runtime/variable_state.hpp>
 
 using namespace ::testing;
@@ -11,21 +14,21 @@ using namespace std;
 
 TEST(VariableStateOVTests, throwsOnUninitializedReset) {
     ov::runtime::VariableState state;
-    ASSERT_THROW(state.reset(), InferenceEngine::NotAllocated);
+    ASSERT_THROW(state.reset(), ov::Exception);
 }
 
 TEST(VariableStateOVTests, throwsOnUninitializedGetname) {
     ov::runtime::VariableState state;
-    ASSERT_THROW(state.get_name(), InferenceEngine::NotAllocated);
+    ASSERT_THROW(state.get_name(), ov::Exception);
 }
 
 TEST(VariableStateOVTests, throwsOnUninitializedGetState) {
     ov::runtime::VariableState state;
-    ASSERT_THROW(state.get_state(), InferenceEngine::NotAllocated);
+    ASSERT_THROW(state.get_state(), ov::Exception);
 }
 
 TEST(VariableStateOVTests, throwsOnUninitializedSetState) {
     ov::runtime::VariableState state;
     InferenceEngine::Blob::Ptr blob;
-    ASSERT_THROW(state.set_state(blob), InferenceEngine::NotAllocated);
+    ASSERT_THROW(state.set_state(blob), ov::Exception);
 }

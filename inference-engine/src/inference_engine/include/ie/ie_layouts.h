@@ -374,4 +374,21 @@ struct ROI {
  */
 INFERENCE_ENGINE_API_CPP(TensorDesc) make_roi_desc(const TensorDesc& origDesc, const ROI& roi, bool useOrigMemDesc);
 
+/**
+ * @brief Creates a TensorDesc object for ROI.
+ *
+ * @param origDesc original TensorDesc object.
+ * @param begin start coordinate of ROI object inside of the original object.
+ * @param end end coordinate of ROI object inside of the original object.
+ * @param useOrigMemDesc Flag to use original memory description (strides/offset).
+ *     Should be set if the new TensorDesc describes shared memory.
+ *
+ * @return A newly created TensorDesc object representing ROI.
+ */
+INFERENCE_ENGINE_API_CPP(TensorDesc)
+make_roi_desc(const TensorDesc& origDesc,
+              const std::vector<size_t>& begin,
+              const std::vector<size_t>& end,
+              bool useOrigMemDesc);
+
 }  // namespace InferenceEngine

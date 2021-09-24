@@ -16,7 +16,7 @@
 #include "network_utils.hpp"
 
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 # define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 # include <codecvt>
 #endif
@@ -71,7 +71,7 @@ TEST_P(NetReaderTest, ReadNetworkTwiceSeparately) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
     GTEST_COUT << "params.modelPath: '" << _modelPath << "'" << std::endl;
@@ -85,12 +85,12 @@ TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
             is_copy_successfully = CommonTestUtils::copyFile(_modelPath, modelPath);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << _modelPath << "' to '"
-                       << FileUtils::wStringtoMBCSstringChar(modelPath) << "'";
+                       << ov::util::wstring_to_string(modelPath) << "'";
             }
             is_copy_successfully = CommonTestUtils::copyFile(_weightsPath, weightsPath);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << _weightsPath << "' to '"
-                       << FileUtils::wStringtoMBCSstringChar(weightsPath) << "'";
+                       << ov::util::wstring_to_string(weightsPath) << "'";
             }
             GTEST_COUT << "Test " << testIndex << std::endl;
             InferenceEngine::Core ie;

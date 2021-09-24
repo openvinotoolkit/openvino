@@ -5,18 +5,15 @@
 /**
  * @brief A header file that provides VariableState
  *
- * @file variable_state.hpp
+ * @file openvino/runtime/variable_state.hpp
  */
 
 #pragma once
 
-#include <ie_api.h>
-#include <ie_blob.h>
-
 #include <memory>
 #include <string>
 
-#include "common.hpp"
+#include "openvino/runtime/common.hpp"
 
 namespace InferenceEngine {
 class IVariableStateInternal;
@@ -31,7 +28,7 @@ class InferRequest;
 /**
  * @brief VariableState class
  */
-class INFERENCE_ENGINE_API_CLASS(VariableState) {
+class OPENVINO_RUNTIME_API VariableState {
     std::shared_ptr<void> _so;
     std::shared_ptr<ie::IVariableStateInternal> _impl;
 
