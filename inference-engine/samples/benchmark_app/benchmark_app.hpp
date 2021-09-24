@@ -4,6 +4,10 @@
 
 #pragma once
 
+#if defined(HAVE_GPU_DEVICE_MEM_SUPPORT)
+#    define HAVE_DEVICE_MEM_SUPPORT
+#endif
+
 #include <gflags/gflags.h>
 
 #include <iostream>
@@ -19,11 +23,18 @@ static const char input_message[] =
 
 /// @brief message for model argument
 static const char model_message[] =
-    "Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with "
+    "Required. Path to an .xml/.onnx file with a trained model or to a .blob files with "
     "a trained compiled model.";
 
+/// @brief message for performance hint
+static const char hint_message[] =
+    "Optional. Performance hint (optimize for latency or throughput). "
+    "The hint allows the OpenVINO device to select the right network-specific settings,"
+    "as opposite to just accepting specific values from the sample command line."
+    "So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options";
+
 /// @brief message for execution mode
-static const char api_message[] = "Optional. Enable Sync/Async API. Default value is \"async\".";
+static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
 
 /// @brief message for assigning cnn calculation to device
 static const char target_device_message[] =
@@ -125,6 +136,12 @@ static const char progress_message[] =
 // @brief message for performance counters option
 static const char pc_message[] = "Optional. Report performance counters.";
 
+#ifdef HAVE_DEVICE_MEM_SUPPORT
+// @brief message for switching memory allocation type option
+static const char use_device_mem_message[] =
+    "Optional. Switch between host and device memory allocation for input and output buffers.";
+#endif
+
 #ifdef USE_OPENCV
 // @brief message for load config option
 static const char load_config_message[] =
@@ -194,6 +211,9 @@ DEFINE_string(i, "", input_message);
 DEFINE_string(m, "", model_message);
 
 /// @brief Define execution mode
+DEFINE_string(hint, "", hint_message);
+
+/// @brief Define execution mode
 DEFINE_string(api, "async", api_message);
 
 /// @brief device the target device to infer on <br>
@@ -255,6 +275,11 @@ DEFINE_bool(progress, false, progress_message);
 
 /// @brief Define flag for showing performance counters <br>
 DEFINE_bool(pc, false, pc_message);
+
+#ifdef HAVE_DEVICE_MEM_SUPPORT
+/// @brief Define flag for switching beetwen host and device memory allocation for input and output buffers
+DEFINE_bool(use_device_mem, false, use_device_mem_message);
+#endif
 
 #ifdef USE_OPENCV
 /// @brief Define flag for loading configuration file <br>
@@ -329,6 +354,9 @@ static void showUsage() {
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
     std::cout << "    -enforcebf16=<true/false>     " << enforce_bf16_message << std::endl;
     std::cout << "    -pin \"YES\"/\"HYBRID_AWARE\"/\"NO\"/\"NUMA\"   " << infer_threads_pinning_message << std::endl;
+#ifdef HAVE_DEVICE_MEM_SUPPORT
+    std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
+#endif
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;

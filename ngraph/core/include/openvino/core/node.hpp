@@ -10,6 +10,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
 #include <tuple>
@@ -18,23 +19,24 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/check.hpp"
-#include "ngraph/deprecated.hpp"
-#include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
-#include "ngraph/op/util/variable.hpp"
-#include "ngraph/op/util/variable_value.hpp"
-#include "ngraph/strides.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/variant.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/op/util/variable_value.hpp"
 
 namespace ngraph {
 
@@ -42,20 +44,20 @@ namespace runtime {
 class HostTensor;
 }  // namespace runtime
 
-namespace op {
-struct AutoBroadcastSpec;
-
-namespace v0 {
-class Result;
-}  // namespace v0
-}  // namespace op
-
-namespace pattern {
-class Matcher;
-}  // namespace pattern
 }  // namespace ngraph
 
 namespace ov {
+namespace op {
+namespace v0 {
+class Result;
+}  // namespace v0
+struct AutoBroadcastSpec;
+}  // namespace op
+namespace pass {
+namespace pattern {
+class Matcher;
+}  // namespace pattern
+}  // namespace pass
 using HostTensor = ngraph::runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
@@ -72,7 +74,7 @@ class Node;
 /// environment) for evaluating ngraph::function.
 using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 
-using ResultVector = std::vector<std::shared_ptr<ngraph::op::v0::Result>>;
+using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
 
 OPENVINO_API
 std::string node_validation_failure_loc_string(const Node* node);
@@ -130,20 +132,10 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     template <typename NodeType>
     friend class Output;
 
-public:
-    /// \brief Verifies that attributes and inputs are consistent and computes output shapes
-    /// and element types. Must be implemented by concrete child classes so that it
-    /// can be run any number of times.
-    ///
-    /// Throws if the node is invalid.
-    virtual void validate_and_infer_types();
-
-    // Called in constructors during transition
-    void constructor_validate_and_infer_types();
-
-    using type_info_t = DiscreteTypeInfo;
-
 protected:
+    descriptor::Input& get_input_descriptor(size_t position);
+    descriptor::Output& get_output_descriptor(size_t position);
+
     /// \brief Construct an unitialized Node
     Node() = default;
     /// \brief Copying a node
@@ -188,13 +180,25 @@ protected:
     void set_input_is_relevant_to_value(size_t i, bool relevant = true);
 
 public:
+    /// \brief Verifies that attributes and inputs are consistent and computes output shapes
+    /// and element types. Must be implemented by concrete child classes so that it
+    /// can be run any number of times.
+    ///
+    /// Throws if the node is invalid.
+    virtual void validate_and_infer_types();
+
+    // Called in constructors during transition
+    void constructor_validate_and_infer_types();
+
+    using type_info_t = DiscreteTypeInfo;
+
     virtual ~Node();
 
     virtual bool visit_attributes(AttributeVisitor&) {
         return false;
     }
     /// \returns the autobroadcasr spec
-    virtual const ngraph::op::AutoBroadcastSpec& get_autob() const;
+    virtual const ov::op::AutoBroadcastSpec& get_autob() const;
 
     /// \brief Allows to get information about availability of evaluate method for the current
     /// operation
@@ -318,7 +322,7 @@ public:
     const element::Type& get_element_type() const;
 
     /// Returns the shape for output i
-    const ngraph::Shape& get_output_shape(size_t i) const;
+    const Shape& get_output_shape(size_t i) const;
 
     /// Returns the partial shape for output i
     const PartialShape& get_output_partial_shape(size_t i) const;
@@ -337,7 +341,7 @@ public:
     // TODO: deprecate in favor of node->get_output_shape(0) with a suitable check in the
     // calling code, or updates to the calling code if it is making an invalid assumption of
     // only one output.
-    const ngraph::Shape& get_shape() const;
+    const Shape& get_shape() const;
 
     /// Returns the tensor for output or input i
     descriptor::Tensor& get_output_tensor(size_t i) const;
@@ -358,7 +362,7 @@ public:
 
     /// Returns the shape of input i
     // TODO: deprecate in favor of node->get_input_shape(i)
-    const ngraph::Shape& get_input_shape(size_t i) const;
+    const Shape& get_input_shape(size_t i) const;
 
     /// Returns the partial shape of input i
     // TODO: deprecate in favor of node->get_input_partial_shape(i)
@@ -375,7 +379,6 @@ public:
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
     Output<Node> get_input_source_output(size_t i) const;
 
-public:
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const = 0;
 
     std::shared_ptr<Node> copy_with_new_inputs(const OutputVector& new_args) const;
@@ -487,22 +490,20 @@ public:
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    virtual bool match_value(ngraph::pattern::Matcher* matcher,
+    virtual bool match_value(ov::pass::pattern::Matcher* matcher,
                              const Output<Node>& pattern_value,
                              const Output<Node>& graph_value);
 
-    virtual bool match_node(ngraph::pattern::Matcher* matcher, const Output<Node>& graph_value);
+    virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
 
 private:
-    descriptor::Input& get_input_descriptor(size_t position);
-    descriptor::Output& get_output_descriptor(size_t position);
-
     std::vector<Node*> m_control_dependents;
     std::vector<std::shared_ptr<Node>> m_control_dependencies;
     std::string m_node_type;
     size_t m_instance_id{m_next_instance_id.fetch_add(1)};
     std::string m_friendly_name;
-    std::string m_unique_name;
+    mutable std::string m_unique_name;
+    mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;
     std::unordered_set<std::string> m_provenance_tags;
     std::set<std::shared_ptr<Node>> m_provenance_group;
@@ -518,105 +519,6 @@ using NodeTypeInfo = Node::type_info_t;
 
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node&);
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
-
-#define _OPENVINO_RTTI_EXPAND(X) X
-
-/// Helper macro that puts necessary declarations of RTTI block inside a class definition.
-/// Should be used in the scope of class that requires type identification besides one provided by
-/// C++ RTTI.
-/// Recommended to be used for all classes that are inherited from class ov::Node to enable
-/// pattern
-/// matching for them. Accepts necessary type identification details like type of the operation,
-/// version and optional parent class.
-///
-/// Applying this macro within a class definition provides declaration of type_info static
-/// constant for backward compatibility with old RTTI definition for Node,
-/// static function get_type_info_static which returns a reference to an object that is equal to
-/// type_info but not necessary to the same object, and get_type_info virtual function that
-/// overrides Node::get_type_info and returns a reference to the same object that
-/// get_type_info_static gives.
-///
-/// Use this macro as a public part of the class definition:
-///
-///     class MyOp : public Node
-///     {
-///         public:
-///             // Don't use Node as a parent for type_info, it doesn't have any value and
-///             prohibited
-///             OPENVINO_RTTI_DECLARATION;
-///
-///             ...
-///     };
-///
-///     class MyInheritedOp : public MyOp
-///     {
-///         public:
-///             OPENVINO_RTTI_DECLARATION;
-///
-///             ...
-///     };
-///
-/// To complete type identification for a class, use OPENVINO_RTTI_DEFINITION.
-///
-#define OPENVINO_RTTI_DECLARATION                                  \
-    static const ::ov::Node::type_info_t type_info;                \
-    const ::ov::Node::type_info_t& get_type_info() const override; \
-    static const ::ov::Node::type_info_t& get_type_info_static()
-
-#define _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)                   \
-    const ::ov::Node::type_info_t& CLASS::get_type_info() const { \
-        return get_type_info_static();                            \
-    }                                                             \
-    const ::ov::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
-#define _OPENVINO_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)         \
-    const ::ov::Node::type_info_t& CLASS::get_type_info_static() {                                    \
-        static const ::ov::Node::type_info_t type_info_static{TYPE_NAME,                              \
-                                                              _VERSION_INDEX,                         \
-                                                              &PARENT_CLASS::get_type_info_static()}; \
-        return type_info_static;                                                                      \
-    }                                                                                                 \
-    _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)
-
-#define _OPENVINO_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)             \
-    const ::ov::Node::type_info_t& CLASS::get_type_info_static() {                        \
-        static const ::ov::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX}; \
-        return type_info_static;                                                          \
-    }                                                                                     \
-    _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)
-
-#define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
-
-/// Complementary to OPENVINO_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
-/// OPENVINO_RTTI_DECLARATION.
-/// Should be used outside the class definition scope in place where ODR is ensured.
-///
-/// \param CLASS is a C++ name of the class where corresponding OPENVINO_RTTI_DECLARATION was applied.
-/// \param TYPE_NAME a string literal of type const char* that names your class in type
-/// identification namespace;
-///        It is your choice how to name it, but it should be unique among all
-///        OPENVINO_RTTI_DECLARATION-enabled classes that can be
-///        used in conjunction with each other in one transformation flow.
-/// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
-///        operations that shares the same TYPE_NAME
-/// \param PARENT_CLASS is an optional direct or indirect parent class for this class; define
-///        it only in case if there is a need to capture any operation from some group of operations
-///        that all derived from some common base class. Don't use Node as a parent, it is a base
-///        class
-///        for all operations and doesn't provide ability to define some perfect subset of
-///        operations. PARENT_CLASS should define RTTI with OPENVINO_RTTI_{DECLARATION/DEFINITION}
-///        macros.
-///
-/// Examples (see corresponding declarations in OPENVINO_RTTI_DECLARATION description):
-///
-///     OPENVINO_RTTI_DEFINITION(MyOp,"MyOp", 1);
-///     OPENVINO_RTTI_DEFINITION(MyInheritedOp, "MyInheritedOp", 1, MyOp)
-///
-/// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
-///
-#define OPENVINO_RTTI_DEFINITION(...)                                                               \
-    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                           \
-                                                             _OPENVINO_RTTI_DEFINITION_WITH_PARENT, \
-                                                             _OPENVINO_RTTI_DEFINITION_NO_PARENT)(__VA_ARGS__))
 
 // Like an Output but with a Node* instead of a shared_ptr<Node>
 struct RawNodeOutput {
@@ -654,10 +556,10 @@ struct RawNodeOutput {
 
 using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
-class OPENVINO_API NodeValidationFailure : public ngraph::CheckFailure {
+class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
     NodeValidationFailure(const ngraph::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
-        : CheckFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
+        : AssertFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
 };
 }  // namespace ov
 #define NODE_VALIDATION_CHECK(node, ...) NGRAPH_CHECK_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
@@ -685,10 +587,8 @@ public:
     AttributeAdapter(std::shared_ptr<ov::Node>& value);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Node>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     std::shared_ptr<ov::Node>& m_ref;
@@ -701,10 +601,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<NodeVector>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<NodeVector>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::NodeVector& m_ref;

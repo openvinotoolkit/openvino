@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::ScatterUpdate::type_info;
+BWDCMP_RTTI_DEFINITION(op::v3::ScatterUpdate);
 
 op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
                                      const Output<Node>& indices,

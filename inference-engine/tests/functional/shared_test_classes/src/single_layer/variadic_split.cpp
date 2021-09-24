@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string VariadicSplitLayerTest::getTestCaseName(testing::TestParamInfo<VariadicSplitParams> obj) {
+    std::string VariadicSplitLayerTest::getTestCaseName(const testing::TestParamInfo<VariadicSplitParams>& obj) {
         size_t axis;
         std::vector<size_t> numSplits;
         InferenceEngine::Precision netPrecision;

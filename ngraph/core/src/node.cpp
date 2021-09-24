@@ -10,6 +10,7 @@
 #include <typeindex>
 #include <typeinfo>
 
+#include "atomic_guard.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
@@ -146,7 +147,7 @@ void ov::Node::safe_delete(NodeVector& nodes, bool recurse) {
 
 void ov::Node::set_arguments(const NodeVector& arguments) {
     OutputVector outputs;
-    for (auto arg : arguments) {
+    for (const auto& arg : arguments) {
         for (auto& output : arg->outputs()) {
             outputs.push_back(output);
         }
@@ -155,12 +156,13 @@ void ov::Node::set_arguments(const NodeVector& arguments) {
 }
 
 void ov::Node::set_arguments(const OutputVector& arguments) {
+    // Remove existing inputs of this node
+    m_inputs.clear();
+
     // Add this node as a user of each argument.
     size_t i = 0;
     for (auto& output : arguments) {
-        auto output_node = output.get_node();
-        auto& output_descriptor = output_node->m_outputs.at(output.get_index());
-        m_inputs.emplace_back(this, i++, output_descriptor);
+        set_argument(i++, output);
     }
 }
 
@@ -237,9 +239,9 @@ const std::string& ov::Node::get_friendly_name() const {
 }
 
 const std::string& ov::Node::get_name() const {
-    if (m_unique_name.empty()) {
-        const_cast<Node*>(this)->m_unique_name = description() + "_" + to_string(m_instance_id);
-    }
+    AtomicGuard lock(m_name_changing);
+    if (m_unique_name.empty())
+        m_unique_name = description() + "_" + to_string(m_instance_id);
     return m_unique_name;
 }
 
@@ -282,7 +284,7 @@ shared_ptr<ov::Node> ov::Node::add_provenance_group_members_above(const OutputVe
         base_set.insert(node);
     }
     vector<Node*> todo;
-    for (auto value : input_values()) {
+    for (const auto& value : input_values()) {
         todo.push_back(value.get_node());
     }
     while (!todo.empty()) {
@@ -292,7 +294,7 @@ shared_ptr<ov::Node> ov::Node::add_provenance_group_members_above(const OutputVe
             continue;
         }
         add_provenance_group_member(node->shared_from_this());
-        for (auto value : node->input_values()) {
+        for (const auto& value : node->input_values()) {
             if (m_provenance_group.count(value.get_node_shared_ptr()) == 0) {
                 todo.push_back(value.get_node());
             }
@@ -315,7 +317,7 @@ void ov::Node::add_provenance_tags_above(const OutputVector& base, const std::un
             continue;
         }
         node->add_provenance_tags(tag_set);
-        for (auto value : node->input_values()) {
+        for (const auto& value : node->input_values()) {
             todo.push_back(value.get_node());
         }
         base_set.insert(node);
@@ -328,7 +330,7 @@ const std::unordered_set<std::string>& ov::Node::get_provenance_tags() const {
 
 void ov::Node::add_provenance_tag(const std::string& tag) {
     m_provenance_tags.insert(tag);
-    for (auto node : m_provenance_group) {
+    for (const auto& node : m_provenance_group) {
         node->add_provenance_tag(tag);
     }
 }
@@ -497,7 +499,7 @@ const ov::element::Type& ov::Node::get_element_type() const {
     return get_output_element_type(0);
 }
 
-const ngraph::Shape& ov::Node::get_output_shape(size_t i) const {
+const ov::Shape& ov::Node::get_output_shape(size_t i) const {
     NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_shape(size_t i)");
     return m_outputs[i].get_shape();
 }
@@ -507,12 +509,8 @@ const ov::PartialShape& ov::Node::get_output_partial_shape(size_t i) const {
     return m_outputs[i].get_partial_shape();
 }
 
-const ngraph::Shape& ov::Node::get_shape() const {
-    if (get_output_size() != 1) {
-        stringstream es;
-        es << "get_shape() must be called on a node with exactly one output (" << description() << ")";
-        throw ngraph::ngraph_error(es);
-    }
+const ov::Shape& ov::Node::get_shape() const {
+    NODE_VALIDATION_CHECK(this, get_output_size() == 1, "get_shape() must be called on a node with exactly one output");
     return get_output_shape(0);
 }
 
@@ -546,7 +544,7 @@ const ov::element::Type& ov::Node::get_input_element_type(size_t i) const {
     return m_inputs[i].get_element_type();
 }
 
-const ngraph::Shape& ov::Node::get_input_shape(size_t i) const {
+const ov::Shape& ov::Node::get_input_shape(size_t i) const {
     NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_shape(size_t i)");
     return m_inputs[i].get_shape();
 }
@@ -583,7 +581,7 @@ bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
 
 ov::NodeVector ov::Node::get_users(bool check_is_used) const {
     NodeVector result;
-    for (auto output : outputs()) {
+    for (const auto& output : outputs()) {
         for (auto input : output.get_target_inputs()) {
             Node* input_node = input.get_node();
             if (!check_is_used || ngraph::is_used(input_node)) {
@@ -614,7 +612,7 @@ const ov::NodeVector& ov::check_single_output_args(const NodeVector& args) {
 
 ov::OutputVector ov::as_output_vector(const NodeVector& args) {
     OutputVector output_vector;
-    for (auto arg : args) {
+    for (const auto& arg : args) {
         output_vector.push_back(arg);
     }
     return output_vector;
@@ -685,7 +683,7 @@ ov::Input<ov::Node> ov::Node::input(size_t input_index) {
         throw out_of_range("node input index is out of range");
     }
 
-    return Input<Node>(this, input_index);
+    return {this, input_index};
 }
 
 ov::Output<ov::Node> ov::Node::input_value(size_t input_index) const {
@@ -697,7 +695,7 @@ ov::Input<const ov::Node> ov::Node::input(size_t input_index) const {
         throw out_of_range("node input index is out of range");
     }
 
-    return Input<const Node>(this, input_index);
+    return {this, input_index};
 }
 
 ov::Output<ov::Node> ov::Node::output(size_t output_index) {
@@ -838,7 +836,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
 }
 
 namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Node>>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<shared_ptr<Node>>);
 
 AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>& value) : m_ref(value) {}
 
@@ -852,7 +850,7 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     return true;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<NodeVector>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<NodeVector>);
 
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 

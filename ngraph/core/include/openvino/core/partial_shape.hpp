@@ -6,20 +6,16 @@
 
 #include <cstddef>
 
-#include "ngraph/attribute_adapter.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rank.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 struct AutoBroadcastSpec;
 }
-
-}  // namespace ngraph
-
-namespace ov {
 
 /// \brief Class representing a shape that may be partially or totally dynamic.
 ///
@@ -63,9 +59,9 @@ public:
     /// \brief Constructs a static PartialShape with zero rank (the shape of a scalar).
     PartialShape();
 
-    /// \brief Constructs a static PartialShape from a Shape.
-    /// \param shape The Shape to convert into PartialShape.
-    PartialShape(const ngraph::Shape& shape);
+    /// \brief Constructs a static PartialShape from a PartialShape.
+    /// \param shape The PartialShape to convert into PartialShape.
+    PartialShape(const Shape& shape);
 
     /// \brief Check if this shape is static.
     /// \return `true` if this shape is static, else `false`.
@@ -157,10 +153,10 @@ public:
     /// \return `true` if this shape's rank is compatible with `r`, else `false`.
     bool merge_rank(Rank r);
 
-    /// \brief Convert a static PartialShape to a Shape.
-    /// \return A new Shape `s` where `s[i] = size_t((*this)[i])`.
+    /// \brief Convert a static PartialShape to a PartialShape.
+    /// \return A new PartialShape `s` where `s[i] = size_t((*this)[i])`.
     /// \throws std::invalid_argument If this PartialShape is dynamic.
-    ngraph::Shape to_shape() const;
+    Shape to_shape() const;
 
     /// \brief Returns `true` if all static dimensions of the tensor are non-negative, else
     ///        `false`.
@@ -183,11 +179,11 @@ public:
     bool operator==(const PartialShape& partial_shape) const;
     bool operator!=(const PartialShape& partial_shape) const;
     /// Get the max bounding shape
-    ngraph::Shape get_max_shape() const;
+    Shape get_max_shape() const;
     /// Get the min bounding shape
-    ngraph::Shape get_min_shape() const;
+    Shape get_min_shape() const;
     /// Get the unique shape
-    ngraph::Shape get_shape() const;
+    Shape get_shape() const;
 
     /// \brief Try to merge one shape into another.
     /// \param[in,out] dst The shape that `src` will be merged into.
@@ -222,7 +218,7 @@ public:
     /// \brief Try to merge one shape into another along with implicit broadcasting
     static bool broadcast_merge_into(PartialShape& dst,
                                      const PartialShape& src,
-                                     const ngraph::op::AutoBroadcastSpec& autob);
+                                     const ov::op::AutoBroadcastSpec& autob);
 
     /// \brief Returns a read/write iterator that points to the first
     ///        element in the shape. Iteration is done in ordinary
@@ -304,7 +300,7 @@ private:
     // True if the shape's rank is static.
     bool m_rank_is_static;
 
-    /// \brief Shape types. The shape type is lazily evaluated by calling the is_static()
+    /// \brief PartialShape types. The shape type is lazily evaluated by calling the is_static()
     /// method.
     ///
     /// \details It is highly recommended to avoid using the Dimension& operator[](size_t)
@@ -323,7 +319,7 @@ private:
                            // by non-constant reference.
     } m_shape_type{ShapeType::SHAPE_IS_UNKNOWN};
 
-    // Shape dimensions. This has no meaning if m_rank_is_static is false.
+    // PartialShape dimensions. This has no meaning if m_rank_is_static is false.
     Dimensions m_dimensions;
 };
 

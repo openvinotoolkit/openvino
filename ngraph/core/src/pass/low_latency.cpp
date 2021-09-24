@@ -12,13 +12,10 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency2, "LowLatency2", 0);
-
 NGRAPH_SUPPRESS_DEPRECATED_START
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
 
 using namespace std;
-using namespace ngraph;
 
 namespace {
 string generate_variable_name(const string& op_name, const string& param_name, int variable_idx) {
@@ -27,8 +24,8 @@ string generate_variable_name(const string& op_name, const string& param_name, i
 
 }  // namespace
 ngraph::pass::LowLatency::LowLatency() {
-    auto tensor_iterator = ngraph::pattern::wrap_type<opset6::TensorIterator, opset6::Loop>();
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
+    auto tensor_iterator = ov::pass::pattern::wrap_type<opset6::TensorIterator, opset6::Loop>();
+    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         const auto& sub_graph_op = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(m.get_match_root());
         if (!sub_graph_op) {
             return false;
@@ -38,7 +35,7 @@ ngraph::pass::LowLatency::LowLatency() {
             const auto& trip_count = std::dynamic_pointer_cast<opset6::Constant>(loop->get_input_node_shared_ptr(0));
             const auto& num_iter = loop->get_num_iterations();
             if (trip_count && num_iter > 0 && trip_count->get_output_target_inputs(0).size() == 1) {
-                auto single_iter = std::make_shared<opset6::Constant>(ngraph::element::i64, Shape{}, 1);
+                auto single_iter = std::make_shared<opset6::Constant>(ov::element::i64, Shape{}, 1);
                 replace_node(trip_count, single_iter);
             } else {
                 // count of iterations is dynamic;
@@ -47,7 +44,7 @@ ngraph::pass::LowLatency::LowLatency() {
         }
         // Mark the TI layer to be unrolled. Enable unconditional ti unrolling for all plugins.
         auto& rt_info = sub_graph_op->get_rt_info();
-        rt_info["UNROLL_TI"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(1);
+        rt_info["UNROLL_TI"] = std::make_shared<ov::VariantWrapper<int64_t>>(1);
 
         int64_t variable_id = 0;
         std::vector<std::shared_ptr<ngraph::op::Sink>> assigns;
@@ -63,8 +60,8 @@ ngraph::pass::LowLatency::LowLatency() {
                     sub_graph_op->get_friendly_name(),
                     func->get_parameters().at(merged_in->m_body_parameter_index)->get_friendly_name(),
                     variable_id));
-                auto variable =
-                    std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name});
+                auto variable = std::make_shared<Variable>(
+                    VariableInfo{ov::PartialShape::dynamic(), element::dynamic, variable_name});
                 auto read_value =
                     std::make_shared<opset6::ReadValue>(func->get_parameters().at(merged_in->m_body_parameter_index),
                                                         variable);
@@ -87,13 +84,14 @@ ngraph::pass::LowLatency::LowLatency() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "LowLatency");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(tensor_iterator, "LowLatency");
     register_matcher(m, callback);
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
-void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op, const shared_ptr<Function>& outer_f) {
-    using namespace opset7;
+void UnrollSingleIteration(const shared_ptr<ngraph::op::util::SubGraphOp>& sub_graph_op,
+                           const shared_ptr<ov::Function>& outer_f) {
+    using namespace ngraph::opset7;
 
     const auto& params = sub_graph_op->get_function()->get_parameters();
     const auto& results = sub_graph_op->get_function()->get_results();
@@ -109,7 +107,7 @@ void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
 
     // before: TI [...-> Layer1 -> Result -> output] -> Layer2 -> ...
     // after:  ...-> Layer1 -> Layer2 -> ...
-    NodeVector new_ops;
+    ov::NodeVector new_ops;
     for (const auto& out : sub_graph_op->get_output_descriptions()) {
         const auto& connect_to = results.at(out->m_body_value_index)->get_input_source_output(0);
         for (auto& input_to : sub_graph_op->output(out->m_output_index).get_target_inputs()) {
@@ -120,7 +118,7 @@ void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
 
             // IECompatibility: insert identity (Unsqueeze + Squeeze) to store the TensorIterator
             // output names
-            auto axis_1 = Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+            auto axis_1 = Constant::create(ov::element::i64, ov::Shape{1}, {1});
             auto identity_1 = std::make_shared<Unsqueeze>(connect_to, axis_1);
             auto identity_2 = std::make_shared<Squeeze>(identity_1, axis_1);
             identity_2->set_friendly_name(out_name);
@@ -135,36 +133,38 @@ void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
     ngraph::copy_runtime_info(sub_graph_op, new_ops);
 }
 
-Output<Node> create_init_subgraph(const shared_ptr<op::util::SubGraphOp>& sub_graph_op, const Output<Node>& in_node) {
-    using namespace opset7;
+ngraph::Output<ngraph::Node> create_init_subgraph(const shared_ptr<ngraph::op::util::SubGraphOp>& sub_graph_op,
+                                                  const ngraph::Output<ngraph::Node>& in_node) {
+    using namespace ngraph::opset7;
 
-    auto const_zero = make_shared<Constant>(in_node.get_element_type(), Shape{1}, 0);
+    auto const_zero = make_shared<Constant>(in_node.get_element_type(), ov::Shape{1}, 0);
     auto shape_of = make_shared<ShapeOf>(in_node);
     auto broadcast = make_shared<Broadcast>(const_zero, shape_of);
     copy_runtime_info(sub_graph_op, {const_zero, shape_of, broadcast});
     return broadcast->output(0);
 }
 
-bool pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
-    using namespace opset7;
+bool ov::pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
+    using namespace ngraph::opset7;
 
-    SinkVector assigns;
+    ngraph::SinkVector assigns;
     for (const auto& op : f->get_ordered_ops()) {
-        if (const auto& sub_graph_op = dynamic_pointer_cast<op::util::SubGraphOp>(op)) {
+        if (const auto& sub_graph_op = dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {
             int64_t variable_id = 0;
             const auto& func = sub_graph_op->get_function();
             const auto& params = func->get_parameters();
             for (const auto& in : sub_graph_op->get_input_descriptions()) {
                 // Process all back edges
-                if (const auto& merged_in = dynamic_pointer_cast<op::util::SubGraphOp::MergedInputDescription>(in)) {
+                if (const auto& merged_in =
+                        dynamic_pointer_cast<ngraph::op::util::SubGraphOp::MergedInputDescription>(in)) {
                     // create new Variable
                     const string& param_name = params.at(merged_in->m_body_parameter_index)->get_friendly_name();
                     const string& var_name =
                         generate_variable_name(sub_graph_op->get_friendly_name(), param_name, variable_id);
 
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
-                    if (std::dynamic_pointer_cast<op::ReadValueBase>(input.get_source_output().get_node_shared_ptr()) !=
-                        nullptr) {
+                    if (std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(
+                            input.get_source_output().get_node_shared_ptr()) != nullptr) {
                         NGRAPH_DEBUG << "LowLatency2 transformation cannot be applied because the "
                                      << "ReadValue node is already an input to the TensorIterator."
                                      << "LowLatency2 transformation may have already been applied, please "
@@ -175,7 +175,7 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
                     const auto& param =
                         sub_graph_op->get_function()->get_parameters().at(merged_in->m_body_parameter_index);
                     for (const auto& in_to : param->output(0).get_target_inputs()) {
-                        if (dynamic_cast<op::ReadValueBase*>(in_to.get_node()) != nullptr) {
+                        if (dynamic_cast<ngraph::op::ReadValueBase*>(in_to.get_node()) != nullptr) {
                             NGRAPH_DEBUG << "LowLatency2 transformation cannot be applied because the "
                                          << "ReadValue node is already inside the TensorIterator. "
                                          << "LowLatency transformation may have been applied, please do "
@@ -184,8 +184,8 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
                         }
                     }
 
-                    VariableInfo var_info{PartialShape::dynamic(), element::dynamic, var_name};
-                    auto variable = make_shared<Variable>(var_info);
+                    ngraph::VariableInfo var_info{PartialShape::dynamic(), element::dynamic, var_name};
+                    auto variable = make_shared<ngraph::Variable>(var_info);
 
                     // insert ReadValue
                     // Layers -> [new op: ReadValue] -> Subgraph operation
@@ -204,12 +204,12 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
                     //                      ---> Layers -> ...
                     */
                     const auto& out_desc = sub_graph_op->get_output_descriptions();
-                    bool is_output_exist =
-                        std::any_of(out_desc.begin(),
-                                    out_desc.end(),
-                                    [&merged_in](const std::shared_ptr<op::util::SubGraphOp::OutputDescription>& out) {
-                                        return out->m_body_value_index == merged_in->m_body_value_index;
-                                    });
+                    bool is_output_exist = std::any_of(
+                        out_desc.begin(),
+                        out_desc.end(),
+                        [&merged_in](const std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>& out) {
+                            return out->m_body_value_index == merged_in->m_body_value_index;
+                        });
                     // Create new output if it doesn't exist.
                     if (!is_output_exist) {
                         sub_graph_op->get_iter_value(func->get_results().at(merged_in->m_body_value_index));
@@ -217,7 +217,7 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
                     for (const auto& out : sub_graph_op->get_output_descriptions()) {
                         if (out->m_body_value_index == merged_in->m_body_value_index) {
                             auto assign = make_shared<Assign>(sub_graph_op->output(out->m_output_index), variable);
-                            ngraph::copy_runtime_info(sub_graph_op, assign);
+                            copy_runtime_info(sub_graph_op, assign);
                             // control dependency so that ReadValue is processed before Assign
                             assign->add_control_dependency(read_value);
                             assigns.emplace_back(assign);

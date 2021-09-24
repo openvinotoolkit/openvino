@@ -7,6 +7,9 @@
 #include "ngraph/log.hpp"
 #include "ngraph/type.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+using namespace ngraph;
+
 namespace ov {
 template <>
 EnumNames<ngraph::reduction::Type>& EnumNames<ngraph::reduction::Type>::get() {
@@ -17,7 +20,7 @@ EnumNames<ngraph::reduction::Type>& EnumNames<ngraph::reduction::Type>::get() {
                                                                      {"MAX", ngraph::reduction::Type::MAX}});
     return enum_names;
 }
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::reduction::Type>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ngraph::reduction::Type>);
 }  // namespace ov
 
 std::ostream& ngraph::reduction::operator<<(std::ostream& out, const ngraph::reduction::Type& obj) {

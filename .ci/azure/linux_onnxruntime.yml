@@ -93,9 +93,8 @@ jobs:
         -DENABLE_CLDNN=OFF
         -DENABLE_PROFILING_ITT=OFF
         -DENABLE_SAMPLES=OFF
-        -DENABLE_SPEECH_DEMO=OFF
         -DNGRAPH_ONNX_FRONTEND_ENABLE=ON
-        -DNGRAPH_DEBUG_ENABLE=OFF
+        -DOPENVINO_DEBUG_ENABLE=OFF
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
@@ -111,44 +110,44 @@ jobs:
     displayName: 'Install'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       CXXFLAGS="-Wno-error=deprecated-declarations" ./build.sh --config RelWithDebInfo --use_openvino CPU_FP32 --build_shared_lib --parallel --skip_tests --build_dir $(ONNXRUNTIME_BUILD_DIR)
     workingDirectory: $(ONNXRUNTIME_REPO_DIR)
     displayName: 'Build Lin ONNX Runtime'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       skip_tests=`tr -s '\n ' ':' < $(ONNXRUNTIME_UTILS)/skip_tests`
       ./onnxruntime_test_all --gtest_filter=-$skip_tests
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_test_all'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_shared_lib_test
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_shared_lib_test'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_global_thread_pools_test
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_global_thread_pools_test'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_api_tests_without_env
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_api_tests_without_env'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run pytorch-converted tests'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
+      source $(INSTALL_DIR)/setupvars.sh
       ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run pytorch-operator tests'

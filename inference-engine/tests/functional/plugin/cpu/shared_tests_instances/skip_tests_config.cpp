@@ -29,8 +29,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
-        // TODO: Issue: 25533
-        R"(.*ConvertLikeLayerTest.*)",
+        // TODO: Issue: 63469
+        R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
@@ -87,9 +87,16 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Auto_Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // azure is failing after #6199
         R"(.*/NmsLayerTest.*)",
+        // TODO: 56520 Accuracy mismatch
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
+
+        // Issue: 62746
+        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
     };
 
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#define FIX_62820 0
+#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
     retVector.emplace_back(R"(.*ReusableCPUStreamsExecutor.*)");
 #endif
 

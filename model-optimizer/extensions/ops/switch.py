@@ -1,8 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from mo.front.common.partial_infer.utils import shape_array, is_fully_defined
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -12,9 +11,9 @@ class Switch(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': __class__.op,
-            'infer': __class__.infer,
-            'cf_infer': __class__.control_flow_infer
+            'op': self.op,
+            'infer': self.infer,
+            'cf_infer': self.control_flow_infer
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -24,17 +23,17 @@ class Switch(Op):
         tensor = node.in_node(0)
         port_id = node.in_node(1)
 
-        output_shape = tensor.shape
-        # Case with variable predicate
-        if not port_id.has_valid('value'):
-            # infer only shapes
-            for _, out_node in node.graph.out_edges(node.id):
-                node.graph.node[out_node]['shape'] = np.array(output_shape)
-            return
-        output_value = tensor.value
-        for _, out_node in node.graph.out_edges(node.id):
-            node.graph.node[out_node]['shape'] = np.array(output_shape)
-            node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)
+        output_shape = shape_array(tensor.shape)
+        for out_port_id in range(2):
+            if node.is_out_port_connected(out_port_id):
+                node.out_port(out_port_id).data.set_shape(output_shape)
+
+        if port_id.has_valid('value'):
+            output_value = tensor.value
+            if output_value is not None:
+                for out_port_id in range(2):
+                    if node.is_out_port_connected(out_port_id):
+                        node.out_port(out_port_id).data.set_value(output_value.copy())
 
     @staticmethod
     def control_flow_infer(node: Node, is_executable: bool, mark_executability: callable):
@@ -52,7 +51,7 @@ class Switch(Op):
         switch_data_1_port_node_id = [out_data_nodes[1].id] if 1 in out_data_nodes else []
         assert 1 <= len(switch_data_0_port_node_id) + len(switch_data_1_port_node_id) <= 2
 
-        if not node_with_switch_value.has_valid('value'):
+        if not node_with_switch_value.has_valid('value') or not is_fully_defined(node_with_switch_value.value):
             # Mark both ports as executable
             resulting_switch_data_node_ids = switch_data_0_port_node_id + switch_data_1_port_node_id
             for n in resulting_switch_data_node_ids:

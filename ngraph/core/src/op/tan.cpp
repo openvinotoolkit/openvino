@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Tan, "Tan", 0, util::UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v0::Tan);
 
 op::Tan::Tan(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

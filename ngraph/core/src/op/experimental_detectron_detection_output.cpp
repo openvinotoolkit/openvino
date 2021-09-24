@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronDetectionOutput, "ExperimentalDetectronDetectionOutput", 6);
+BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronDetectionOutput);
 
 op::v6::ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const Output<Node>& input_rois,
                                                                                    const Output<Node>& input_deltas,
@@ -49,9 +49,9 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types() {
     auto im_info_shape = get_input_partial_shape(3);
 
     set_output_size(3);
-    set_output_type(0, input_et, Shape{rois_num, 4});
-    set_output_type(1, element::Type_t::i32, Shape{rois_num});
-    set_output_type(2, input_et, Shape{rois_num});
+    set_output_type(0, input_et, ov::Shape{rois_num, 4});
+    set_output_type(1, element::Type_t::i32, ov::Shape{rois_num});
+    set_output_type(2, input_et, ov::Shape{rois_num});
 
     if (rois_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this, rois_shape.rank().get_length() == 2, "Input rois rank must be equal to 2.");

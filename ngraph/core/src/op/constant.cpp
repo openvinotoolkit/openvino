@@ -15,7 +15,6 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/util.hpp"
 
-using namespace ngraph;
 using namespace std;
 
 template <typename T>
@@ -33,15 +32,15 @@ static inline string to_cpp_string(T value) {
     return rc;
 }
 
-NGRAPH_RTTI_DEFINITION(op::Constant, "Constant", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::Constant);
 
-op::Constant::Constant(const shared_ptr<runtime::Tensor>& tensor) {
+ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor) {
     m_element_type = tensor->get_element_type();
     m_shape = tensor->get_shape();
     // Share data from HostTensor if we work with it
     // And copy data in other cas
-    if (auto hostTensor = std::dynamic_pointer_cast<runtime::HostTensor>(tensor)) {
-        m_data = make_shared<runtime::SharedBuffer<std::shared_ptr<runtime::Tensor>>>(
+    if (auto hostTensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(tensor)) {
+        m_data = make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::Tensor>>>(
             static_cast<char*>(hostTensor->get_data_ptr()),
             tensor->get_size_in_bytes(),
             tensor);
@@ -54,8 +53,11 @@ op::Constant::Constant(const shared_ptr<runtime::Tensor>& tensor) {
     constructor_validate_and_infer_types();
 }
 
-op::Constant::Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values)
+ov::op::v0::Constant::Constant(const element::Type& type,
+                               const ov::Shape& shape,
+                               const std::vector<std::string>& values)
     : Constant(type, shape) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(this,
                           values.size() == shape_size(m_shape) || values.size() == 1,
                           "Did not get the expected number of literals for a constant of shape ",
@@ -75,49 +77,49 @@ op::Constant::Constant(const element::Type& type, const Shape& shape, const std:
             fill_data<Type_t::boolean>(stoi(values[0]));
             break;
         case Type_t::bf16:
-            fill_data<Type_t::bf16>(parse_string<float>(values[0]));
+            fill_data<Type_t::bf16>(ngraph::parse_string<float>(values[0]));
             break;
         case Type_t::f16:
-            fill_data<Type_t::f16>(parse_string<float>(values[0]));
+            fill_data<Type_t::f16>(ngraph::parse_string<float>(values[0]));
             break;
         case Type_t::f32:
-            fill_data<Type_t::f32>(parse_string<float>(values[0]));
+            fill_data<Type_t::f32>(ngraph::parse_string<float>(values[0]));
             break;
         case Type_t::f64:
-            fill_data<Type_t::f64>(parse_string<double>(values[0]));
+            fill_data<Type_t::f64>(ngraph::parse_string<double>(values[0]));
             break;
         case Type_t::i4:
-            fill_data<Type_t::i4>(parse_string<int64_t>(values[0]));
+            fill_data<Type_t::i4>(ngraph::parse_string<int64_t>(values[0]));
             break;
         case Type_t::i8:
-            fill_data<Type_t::i8>(parse_string<int64_t>(values[0]));
+            fill_data<Type_t::i8>(ngraph::parse_string<int64_t>(values[0]));
             break;
         case Type_t::i16:
-            fill_data<Type_t::i16>(parse_string<int64_t>(values[0]));
+            fill_data<Type_t::i16>(ngraph::parse_string<int64_t>(values[0]));
             break;
         case Type_t::i32:
-            fill_data<Type_t::i32>(parse_string<int64_t>(values[0]));
+            fill_data<Type_t::i32>(ngraph::parse_string<int64_t>(values[0]));
             break;
         case Type_t::i64:
-            fill_data<Type_t::i64>(parse_string<int64_t>(values[0]));
+            fill_data<Type_t::i64>(ngraph::parse_string<int64_t>(values[0]));
             break;
         case Type_t::u1:
             fill_data<Type_t::u1>(stoi(values[0]));
             break;
         case Type_t::u4:
-            fill_data<Type_t::u4>(parse_string<uint64_t>(values[0]));
+            fill_data<Type_t::u4>(ngraph::parse_string<uint64_t>(values[0]));
             break;
         case Type_t::u8:
-            fill_data<Type_t::u8>(parse_string<uint64_t>(values[0]));
+            fill_data<Type_t::u8>(ngraph::parse_string<uint64_t>(values[0]));
             break;
         case Type_t::u16:
-            fill_data<Type_t::u16>(parse_string<uint64_t>(values[0]));
+            fill_data<Type_t::u16>(ngraph::parse_string<uint64_t>(values[0]));
             break;
         case Type_t::u32:
-            fill_data<Type_t::u32>(parse_string<uint64_t>(values[0]));
+            fill_data<Type_t::u32>(ngraph::parse_string<uint64_t>(values[0]));
             break;
         case Type_t::u64:
-            fill_data<Type_t::u64>(parse_string<uint64_t>(values[0]));
+            fill_data<Type_t::u64>(ngraph::parse_string<uint64_t>(values[0]));
             break;
         case Type_t::undefined:
             throw std::runtime_error("deserialize unsupported type undefined");
@@ -128,52 +130,52 @@ op::Constant::Constant(const element::Type& type, const Shape& shape, const std:
     } else {
         switch (m_element_type) {
         case Type_t::boolean:
-            write_buffer<Type_t::boolean>(parse_string<uint8_t>(values));
+            write_buffer<Type_t::boolean>(ngraph::parse_string<uint8_t>(values));
             break;
         case Type_t::bf16:
-            write_buffer<Type_t::bf16>(parse_string<float>(values));
+            write_buffer<Type_t::bf16>(ngraph::parse_string<float>(values));
             break;
         case Type_t::f16:
-            write_buffer<Type_t::f16>(parse_string<float>(values));
+            write_buffer<Type_t::f16>(ngraph::parse_string<float>(values));
             break;
         case Type_t::f32:
-            write_buffer<Type_t::f32>(parse_string<float>(values));
+            write_buffer<Type_t::f32>(ngraph::parse_string<float>(values));
             break;
         case Type_t::f64:
-            write_buffer<Type_t::f64>(parse_string<double>(values));
+            write_buffer<Type_t::f64>(ngraph::parse_string<double>(values));
             break;
         case Type_t::i4:
-            write_buffer<Type_t::i4>(parse_string<int8_t>(values));
+            write_buffer<Type_t::i4>(ngraph::parse_string<int8_t>(values));
             break;
         case Type_t::i8:
-            write_buffer<Type_t::i8>(parse_string<int8_t>(values));
+            write_buffer<Type_t::i8>(ngraph::parse_string<int8_t>(values));
             break;
         case Type_t::i16:
-            write_buffer<Type_t::i16>(parse_string<int16_t>(values));
+            write_buffer<Type_t::i16>(ngraph::parse_string<int16_t>(values));
             break;
         case Type_t::i32:
-            write_buffer<Type_t::i32>(parse_string<int32_t>(values));
+            write_buffer<Type_t::i32>(ngraph::parse_string<int32_t>(values));
             break;
         case Type_t::i64:
-            write_buffer<Type_t::i64>(parse_string<int64_t>(values));
+            write_buffer<Type_t::i64>(ngraph::parse_string<int64_t>(values));
             break;
         case Type_t::u1:
-            write_buffer<Type_t::u1>(parse_string<uint8_t>(values));
+            write_buffer<Type_t::u1>(ngraph::parse_string<uint8_t>(values));
             break;
         case Type_t::u4:
-            write_buffer<Type_t::u4>(parse_string<uint8_t>(values));
+            write_buffer<Type_t::u4>(ngraph::parse_string<uint8_t>(values));
             break;
         case Type_t::u8:
-            write_buffer<Type_t::u8>(parse_string<uint8_t>(values));
+            write_buffer<Type_t::u8>(ngraph::parse_string<uint8_t>(values));
             break;
         case Type_t::u16:
-            write_buffer<Type_t::u16>(parse_string<uint16_t>(values));
+            write_buffer<Type_t::u16>(ngraph::parse_string<uint16_t>(values));
             break;
         case Type_t::u32:
-            write_buffer<Type_t::u32>(parse_string<uint32_t>(values));
+            write_buffer<Type_t::u32>(ngraph::parse_string<uint32_t>(values));
             break;
         case Type_t::u64:
-            write_buffer<Type_t::u64>(parse_string<uint64_t>(values));
+            write_buffer<Type_t::u64>(ngraph::parse_string<uint64_t>(values));
             break;
         case Type_t::undefined:
             throw std::runtime_error("deserialize unsupported type undefined");
@@ -182,25 +184,29 @@ op::Constant::Constant(const element::Type& type, const Shape& shape, const std:
         }
         m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-op::Constant::Constant(const element::Type& type, const Shape& shape) : m_element_type(type), m_shape(shape) {
+ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape)
+    : m_element_type(type),
+      m_shape(shape) {
     allocate_buffer();
     constructor_validate_and_infer_types();
 }
 
-void op::Constant::allocate_buffer() {
-    m_data = make_shared<runtime::AlignedBuffer>(mem_size(), host_alignment());
+void ov::op::v0::Constant::allocate_buffer() {
+    m_data = make_shared<ngraph::runtime::AlignedBuffer>(mem_size(), host_alignment());
     std::memset(m_data->get_ptr(), 0, m_data->size());
 }
 
-op::Constant::Constant(const element::Type& type, const Shape& shape, const void* data) : Constant(type, shape) {
+ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape, const void* data)
+    : Constant(type, shape) {
     size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
     std::memcpy(get_data_ptr_nc(), data, size);
     m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
 }
 
-op::Constant::Constant(const Constant& other) {
+ov::op::v0::Constant::Constant(const Constant& other) {
     m_element_type = other.m_element_type;
     m_shape = other.m_shape;
     m_data = other.m_data;
@@ -208,9 +214,9 @@ op::Constant::Constant(const Constant& other) {
     constructor_validate_and_infer_types();
 }
 
-op::Constant::Constant(const Constant& other, const Shape& new_shape) {
+ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape) {
     NGRAPH_CHECK(shape_size(other.m_shape) == shape_size(new_shape),
-                 "Shape size " + std::to_string(shape_size(new_shape)) + " is not equal to " +
+                 "ov::Shape size " + std::to_string(shape_size(new_shape)) + " is not equal to " +
                      std::to_string(shape_size(other.m_shape)));
     m_element_type = other.m_element_type;
     m_shape = new_shape;
@@ -219,9 +225,9 @@ op::Constant::Constant(const Constant& other, const Shape& new_shape) {
     constructor_validate_and_infer_types();
 }
 
-op::Constant::~Constant() {}
+ov::op::v0::Constant::~Constant() = default;
 
-string op::Constant::convert_value_to_string(size_t index) const {
+string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
     string rc;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic push
@@ -289,7 +295,7 @@ string op::Constant::convert_value_to_string(size_t index) const {
     return rc;
 }
 
-vector<string> op::Constant::get_value_strings() const {
+vector<string> ov::op::v0::Constant::get_value_strings() const {
     vector<string> rc;
 
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -385,17 +391,17 @@ vector<string> op::Constant::get_value_strings() const {
     return rc;
 }
 
-Shape op::Constant::get_shape_val() const {
+ov::Shape ov::op::v0::Constant::get_shape_val() const {
     NGRAPH_CHECK(m_element_type.is_integral_number());
     std::vector<int64_t> out_shape = cast_vector<int64_t>();
-    Shape output_shape(shape_size(m_shape));
+    ov::Shape output_shape(shape_size(m_shape));
     std::transform(out_shape.begin(), out_shape.end(), output_shape.begin(), [&](const int64_t& v) {
         return (v > 0) ? v : 0;
     });
     return output_shape;
 }
 
-Strides op::Constant::get_strides_val() const {
+ov::Strides ov::op::v0::Constant::get_strides_val() const {
     NGRAPH_CHECK(m_element_type == element::i64);
     std::vector<int64_t> out_strides = cast_vector<int64_t>();
     Strides output_strides(shape_size(m_shape));
@@ -405,7 +411,7 @@ Strides op::Constant::get_strides_val() const {
     return output_strides;
 }
 
-Coordinate op::Constant::get_coordinate_val() const {
+ov::Coordinate ov::op::v0::Constant::get_coordinate_val() const {
     NGRAPH_CHECK(m_element_type == element::i64);
     std::vector<int64_t> out_coordinate = cast_vector<int64_t>();
     Coordinate output_coordinate(shape_size(m_shape));
@@ -415,7 +421,7 @@ Coordinate op::Constant::get_coordinate_val() const {
     return output_coordinate;
 }
 
-CoordinateDiff op::Constant::get_coordinate_diff_val() const {
+ov::CoordinateDiff ov::op::v0::Constant::get_coordinate_diff_val() const {
     NGRAPH_CHECK(m_element_type == element::i64);
     std::vector<int64_t> out_coordinate_diff = cast_vector<int64_t>();
     CoordinateDiff output_coordinate_diff(shape_size(m_shape));
@@ -428,7 +434,7 @@ CoordinateDiff op::Constant::get_coordinate_diff_val() const {
     return output_coordinate_diff;
 }
 
-AxisVector op::Constant::get_axis_vector_val() const {
+ov::AxisVector ov::op::v0::Constant::get_axis_vector_val() const {
     NGRAPH_CHECK(m_element_type.is_integral_number());
     std::vector<int64_t> out_axis_vector = cast_vector<int64_t>();
     AxisVector output_axis_vector(shape_size(m_shape));
@@ -438,7 +444,7 @@ AxisVector op::Constant::get_axis_vector_val() const {
     return output_axis_vector;
 }
 
-AxisSet op::Constant::get_axis_set_val() const {
+ov::AxisSet ov::op::v0::Constant::get_axis_set_val() const {
     NGRAPH_CHECK(m_element_type.is_integral_number());
     std::vector<int64_t> out_axis_set = cast_vector<int64_t>();
     AxisSet output_axis_set;
@@ -448,12 +454,12 @@ AxisSet op::Constant::get_axis_set_val() const {
     return output_axis_set;
 }
 
-void op::Constant::set_data_shape(const Shape& shape) {
+void ov::op::v0::Constant::set_data_shape(const ov::Shape& shape) {
     NGRAPH_CHECK(shape_size(shape) == shape_size(m_shape));
     m_shape = shape;
 }
 
-shared_ptr<Node> op::Constant::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v0::Constant::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_Constant_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Constant>(*this);
@@ -474,7 +480,7 @@ static bool test_bitwise_identical(const T* data, const size_t size) {
     return data_is_constant;
 }
 
-bool op::Constant::are_all_data_elements_bitwise_identical() const {
+bool ov::op::v0::Constant::are_all_data_elements_bitwise_identical() const {
     bool rc = false;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic push
@@ -520,9 +526,9 @@ bool op::Constant::are_all_data_elements_bitwise_identical() const {
     return rc;
 }
 
-bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_Constant_visit_attributes);
-    Shape prev_shape = m_shape;
+    ov::Shape prev_shape = m_shape;
     element::Type prev_type = m_element_type;
     visitor.on_attribute("element_type", m_element_type);
     visitor.on_attribute("shape", m_shape);
@@ -537,21 +543,21 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-bool op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Constant_evaluate);
     auto output = outputs[0];
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;
 }
 
-bool op::v0::Constant::has_evaluate() const {
+bool ov::op::v0::Constant::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Constant_has_evaluate);
     return true;
 }
 
-bool op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const {
+bool ov::op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const {
     return evaluate(outputs, {});
 }
-bool op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const {
+bool ov::op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const {
     return evaluate(outputs, {});
 }

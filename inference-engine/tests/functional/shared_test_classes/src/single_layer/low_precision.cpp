@@ -7,7 +7,7 @@
 
 namespace LowPrecisionTestDefinitions {
 
-std::string LowPrecisionTest::getTestCaseName(testing::TestParamInfo<lowPrecisionTestParamsSet> obj) {
+std::string LowPrecisionTest::getTestCaseName(const testing::TestParamInfo<lowPrecisionTestParamsSet>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::pair<std::string, std::map<std::string, std::string>> config;

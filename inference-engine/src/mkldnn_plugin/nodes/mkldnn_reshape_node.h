@@ -26,6 +26,11 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
+    bool isExecutable() const override {
+        return false;
+    }
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 };
 
 }  // namespace MKLDNNPlugin

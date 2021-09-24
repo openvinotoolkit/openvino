@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from extensions.ops.split import AttributedSplit, AttributedVariadicSplit, VariadicSplit
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
@@ -70,6 +70,45 @@ class TestSplitOp(unittest.TestCase):
         # check
         (flag, resp) = compare_graphs(graph, graph_ref, 'split_input_data')
         self.assertTrue(flag, resp)
+
+    def test_split_dynamic_shape_infer(self):
+        #  test configuration
+        input_shape = [2, dynamic_dimension_value]
+        input_value = None
+        axis = 1
+        num_splits = 2
+        output_shape = [2, dynamic_dimension_value]
+        output_value = [None, None]
+
+        # action
+        graph = build_graph(self.nodes, self.edges,
+                            {
+                                'split_input_data': {'shape': shape_array(input_shape),
+                                                     'value': input_value},
+                                'split_op': {'axis': np.array(axis), 'num_splits': np.array(num_splits)},
+                            }
+                            )
+
+        split_op = Node(graph, 'split_op')
+        AttributedSplit.infer(split_op)
+
+        # reference
+        graph_ref = build_graph(self.nodes, self.edges,
+                                {
+                                    'split_input_data': {'shape': shape_array(input_shape),
+                                                         'value': input_value},
+                                    'split_op': {'axis': np.array(axis), 'num_splits': np.array(num_splits)},
+                                    'split_output_0_data': {'shape': shape_array(output_shape),
+                                                            'value': output_value[0]},
+                                    'split_output_1_data': {'shape': shape_array(output_shape),
+                                                            'value': output_value[1]},
+                                }
+                                )
+
+        # check
+        (flag, resp) = compare_graphs(graph, graph_ref, 'split_input_data')
+        self.assertTrue(flag, resp)
+        self.assertTrue(strict_compare_tensors(Node(graph, 'split_output_0_data').shape, shape_array(output_shape)))
 
     def test_split_value_infer(self):
         #  test configuration
@@ -138,6 +177,23 @@ class TestAttributedVariadicSplitOp(unittest.TestCase):
                             {
                                 'split_input_data': {'shape': int64_array([2, 12, 25, 30])},
                                 'split_op': {'axis': np.array(2), 'split_lengths': np.array([2, 13, 10, 0]),
+                                             'out_ports_count': 4},
+                            }
+                            )
+        node = Node(graph, 'split_op')
+        for p in range(len(node.out_edges()), node.out_ports_count):
+            node.add_output_port(p)
+
+        AttributedVariadicSplit.infer(node)
+
+        self.assertTrue(len(node.out_edges()) == 3)
+        self.assertTrue(np.all(node.split_lengths == np.array([2, 13, 10])))
+
+    def test_splitv_dynamic_input(self):
+        graph = build_graph(self.nodes, self.edges,
+                            {
+                                'split_input_data': {'shape': shape_array([2, 12, dynamic_dimension_value, 30])},
+                                'split_op': {'axis': np.array(2), 'split_lengths': np.array([2, 13, 10]),
                                              'out_ports_count': 4},
                             }
                             )

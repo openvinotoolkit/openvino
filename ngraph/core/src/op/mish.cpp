@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v4::Mish, "Mish", 4);
+BWDCMP_RTTI_DEFINITION(op::v4::Mish);
 
 op::v4::Mish::Mish(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();

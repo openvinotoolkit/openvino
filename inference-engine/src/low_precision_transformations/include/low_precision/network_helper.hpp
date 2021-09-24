@@ -86,8 +86,6 @@ public:
 
     static void copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target);
 
-    static void cleanRunTimeInfo(const std::shared_ptr<Node>& layer);
-
     static bool isScalarLike(std::shared_ptr<opset1::Constant> constant);
 
     static bool isZero(std::shared_ptr<opset1::Constant> constant);

@@ -34,8 +34,6 @@ using ov::Node;
 class stopwatch;
 
 namespace runtime {
-class Backend;
-class Value;
 class Tensor;
 }  // namespace runtime
 
@@ -60,8 +58,10 @@ std::string vector_to_string(const T& v) {
 }
 
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 size_t hash_combine(const std::vector<size_t>& list);
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void dump(std::ostream& out, const void*, size_t);
 NGRAPH_API
 std::string to_lower(const std::string& s);
@@ -73,6 +73,7 @@ NGRAPH_API
 std::vector<std::string> split(const std::string& s, char delimiter, bool trim = false);
 
 template <typename T>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 std::string locale_string(T x) {
     std::stringstream ss;
     ss.imbue(std::locale(""));
@@ -80,7 +81,7 @@ std::string locale_string(T x) {
     return ss.str();
 }
 
-class NGRAPH_API stopwatch {
+class NGRAPH_API NGRAPH_DEPRECATED("It is obsolete structure and will be removed soon") stopwatch {
 public:
     void start() {
         if (m_active == false) {
@@ -122,6 +123,7 @@ private:
 
 /// Parses a string containing a literal of the underlying type.
 template <typename T>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 T parse_string(const std::string& s) {
     T result;
     std::stringstream ss;
@@ -140,26 +142,33 @@ T parse_string(const std::string& s) {
 /// template specializations for float and double to handle INFINITY, -INFINITY
 /// and NaN values.
 template <>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API float parse_string<float>(const std::string& s);
 template <>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API double parse_string<double>(const std::string& s);
 
 /// template specializations for int8_t and uint8_t to handle the fact that default
 /// implementation ends up treating values as characters so that the number "0" turns into
 /// the parsed value 48, which is it's ASCII value
 template <>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API int8_t parse_string<int8_t>(const std::string& s);
 template <>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API uint8_t parse_string<uint8_t>(const std::string& s);
 
 /// Parses a list of strings containing literals of the underlying type.
 template <typename T>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 std::vector<T> parse_string(const std::vector<std::string>& ss) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<T> result(ss.size());
     std::transform(ss.begin(), ss.end(), result.begin(), [](const std::string& s) {
         return parse_string<T>(s);
     });
     return result;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 template <typename T>
@@ -168,30 +177,42 @@ T ceil_div(const T& x, const T& y) {
 }
 
 template <typename T>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 T subtract_or_zero(T x, T y) {
     return y > x ? 0 : x - y;
 }
 
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void* ngraph_malloc(size_t size);
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void ngraph_free(void*);
 
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 size_t round_up(size_t size, size_t alignment);
+
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 bool is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank rank = Rank::dynamic());
 template <typename T>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 T apply_permutation(T input, ngraph::AxisVector order);
 
-extern template NGRAPH_API AxisVector apply_permutation<AxisVector>(AxisVector input, AxisVector order);
+extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
+    AxisVector apply_permutation<AxisVector>(AxisVector input, AxisVector order);
 
-extern template NGRAPH_API Coordinate apply_permutation<Coordinate>(Coordinate input, AxisVector order);
+extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
+    Coordinate apply_permutation<Coordinate>(Coordinate input, AxisVector order);
 
-extern template NGRAPH_API Strides apply_permutation<Strides>(Strides input, AxisVector order);
+extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon") Strides
+    apply_permutation<Strides>(Strides input, AxisVector order);
 
-extern template NGRAPH_API Shape apply_permutation<Shape>(Shape input, AxisVector order);
+extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon") Shape
+    apply_permutation<Shape>(Shape input, AxisVector order);
 
 template <>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API PartialShape apply_permutation(PartialShape input, AxisVector order);
 
 NGRAPH_API
@@ -317,6 +338,7 @@ private:
 ///
 /// \note Throws a runtime_error if there is an error during parsing
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void parse_version_string(std::string version, size_t& major, size_t& minor, size_t& patch, std::string& extra);
 
 template <typename T>

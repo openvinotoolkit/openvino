@@ -12,20 +12,19 @@ extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
 extensions/back/ChangeOutputTypeAttributes.py
+extensions/back/ChangeRandomUniformOutputType.py
 extensions/back/ClampNormalizer.py
 extensions/back/compress_quantized_weights.py
 extensions/back/ConvolutionNormalizer.py
 extensions/back/CorrectName.py
 extensions/back/CropToStridedSlice.py
 extensions/back/CutMemory.py
-extensions/back/disable_unsupported_ND_operations.py
 extensions/back/EnableConstantStridedSlice.py
 extensions/back/FakeOutputResolver.py
 extensions/back/ForceStrictPrecision.py
 extensions/back/fuse_sub_div_min.py
 extensions/back/FuseTransposesSequence.py
 extensions/back/GatherNormalizer.py
-extensions/back/GroupedConvWeightsNormalize.py
 extensions/back/insert_compatibility_l2normalization.py
 extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
@@ -54,11 +53,9 @@ extensions/back/ResultNormalizer.py
 extensions/back/ResultRename.py
 extensions/back/ReverseInputChannels.py
 extensions/back/RNNSequenceTypeRename.py
-extensions/back/ScalarConstNormalize.py
 extensions/back/SelectBroadcast.py
 extensions/back/ShapeOfConstFolding.py
 extensions/back/ShuffleChannelPatternOptimization.py
-extensions/back/ShufflenetReLUReorder.py
 extensions/back/SpecialNodesFinalization.py
 extensions/back/StridedSliceMasksNormalizer.py
 extensions/back/TopKNormalizer.py
@@ -71,11 +68,11 @@ extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
 extensions/front/AttributedPadToPad.py
+extensions/front/AttributedRandomUniformToRandomUniform.py
 extensions/front/AttributedRollToRoll.py
 extensions/front/binary_quantize_normalization.py
 extensions/front/broadcast_with_range.py
 extensions/front/caffe/__init__.py
-extensions/front/caffe/accum_ext.py
 extensions/front/caffe/argmax_ext.py
 extensions/front/caffe/ArgMaxFlatten.py
 extensions/front/caffe/axpy.py
@@ -86,11 +83,9 @@ extensions/front/caffe/bn.py
 extensions/front/caffe/bn_ext.py
 extensions/front/caffe/concat_ext.py
 extensions/front/caffe/conv_ext.py
-extensions/front/caffe/correlation_ext.py
 extensions/front/caffe/crop_ext.py
 extensions/front/caffe/ctcgreedydecoder_ext.py
 extensions/front/caffe/CustomLayersMapping.xml.example
-extensions/front/caffe/data_augmentation_ext.py
 extensions/front/caffe/detection_output.py
 extensions/front/caffe/dropout_ext.py
 extensions/front/caffe/elementwise_ext.py
@@ -107,7 +102,6 @@ extensions/front/caffe/MVNCaffeToMVN.py
 extensions/front/caffe/normalize_ext.py
 extensions/front/caffe/permute_ext.py
 extensions/front/caffe/pooling_ext.py
-extensions/front/caffe/power_file_ext.py
 extensions/front/caffe/prelu_ext.py
 extensions/front/caffe/priorbox_clustered_ext.py
 extensions/front/caffe/priorbox_ext.py
@@ -124,18 +118,15 @@ extensions/front/caffe/roipooling_ext.py
 extensions/front/caffe/scale_ext.py
 extensions/front/caffe/shufflechannel_ext.py
 extensions/front/caffe/sigmoid.py
-extensions/front/caffe/simplernms_ext.py
 extensions/front/caffe/slice_ext.py
 extensions/front/caffe/slice_to_split.py
 extensions/front/caffe/softmax_ext.py
-extensions/front/caffe/spatial_transformer_ext.py
 extensions/front/caffe/split_to_identity.py
 extensions/front/caffe/tanh.py
 extensions/front/ChangePlaceholderTypes.py
 extensions/front/create_tensor_nodes.py
 extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
-extensions/front/DropoutWithRandomUniformReplacer.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
 extensions/front/FillToBroadcast.py
@@ -160,6 +151,7 @@ extensions/front/kaldi/apply_counts.py
 extensions/front/kaldi/logsoftmax_component_ext.py
 extensions/front/kaldi/memory_offset_adjustment.py
 extensions/front/kaldi/memoryoffset_batch_update.py
+extensions/front/kaldi/replace_dropoutmask.py
 extensions/front/kaldi/replace_eltwise_nin1.py
 extensions/front/kaldi/replace_lstm_node_pattern.py
 extensions/front/kaldi/replace_lstm_nonlinearity.py
@@ -221,6 +213,7 @@ extensions/front/mxnet/pad_ext.py
 extensions/front/mxnet/pooling_ext.py
 extensions/front/mxnet/proposal_ext.py
 extensions/front/mxnet/psroi_pooling_ext.py
+extensions/front/mxnet/random_uniform_ext.py
 extensions/front/mxnet/repeat_ext.py
 extensions/front/mxnet/reshape_ext.py
 extensions/front/mxnet/RNN_ext.py
@@ -329,6 +322,7 @@ extensions/front/onnx/priorgridgenerator_ext.py
 extensions/front/onnx/proposal_ext.py
 extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/quantize_linear_ext.py
+extensions/front/onnx/random_uniform_ext.py
 extensions/front/onnx/range_ext.py
 extensions/front/onnx/reduce_ext.py
 extensions/front/onnx/reshape_ext.py
@@ -388,6 +382,8 @@ extensions/front/tf/broadcast_ext.py
 extensions/front/tf/bucketize.py
 extensions/front/tf/bucketize_ext.py
 extensions/front/tf/Cast_ext.py
+extensions/front/tf/ClipByValue_ext.py
+extensions/front/tf/ClipByValueTFTransformation.py
 extensions/front/tf/ComplexAbs.py
 extensions/front/tf/ComplexAbsAfterComplex.py
 extensions/front/tf/concat.py
@@ -468,6 +464,8 @@ extensions/front/tf/placeholder_ext.py
 extensions/front/tf/placeholder_with_default_ext.py
 extensions/front/tf/pooling_ext.py
 extensions/front/tf/prelu.py
+extensions/front/tf/random_uniform_ext.py
+extensions/front/tf/random_uniform_int_ext.py
 extensions/front/tf/range_ext.py
 extensions/front/tf/reduce_ext.py
 extensions/front/tf/reshape_related_ext.py
@@ -632,7 +630,6 @@ extensions/middle/ReverseTransposeNormalization.py
 extensions/middle/ReverseV2ToReverseSequence.py
 extensions/middle/RNNSequenceNormalizeToIE.py
 extensions/middle/ScaleInput.py
-extensions/middle/SequenceLengthToMask.py
 extensions/middle/SharedWeightsDuplication.py
 extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
@@ -656,7 +653,6 @@ extensions/middle/UpsampleToResample.py
 extensions/middle/UselessMerge.py
 extensions/middle/UselessSplitEraser.py
 extensions/ops/__init__.py
-extensions/ops/accum.py
 extensions/ops/activation_ops.py
 extensions/ops/adaptive_avg_pooling.py
 extensions/ops/argmax.py
@@ -671,15 +667,14 @@ extensions/ops/BN.py
 extensions/ops/box_nms.py
 extensions/ops/bucketize.py
 extensions/ops/Cast.py
+extensions/ops/ClipByValueTF.py
 extensions/ops/constant_fill.py
 extensions/ops/ConvertLike.py
 extensions/ops/copyop.py
-extensions/ops/correlation.py
 extensions/ops/ctc_greedy_decoder.py
 extensions/ops/ctc_greedy_decoder_seq_len.py
 extensions/ops/ctc_loss.py
 extensions/ops/cumsum.py
-extensions/ops/data_augmentation.py
 extensions/ops/depth_to_space.py
 extensions/ops/dequantize_linear.py
 extensions/ops/DetectionOutput.py
@@ -729,8 +724,6 @@ extensions/ops/ONNXResize11.py
 extensions/ops/pack.py
 extensions/ops/parameter.py
 extensions/ops/pnorm.py
-extensions/ops/power_file.py
-extensions/ops/prediction_heatmap.py
 extensions/ops/prelu.py
 extensions/ops/priorbox.py
 extensions/ops/priorbox_clustered.py
@@ -740,6 +733,7 @@ extensions/ops/proposal_onnx.py
 extensions/ops/proposal_python_example.py
 extensions/ops/psroipooling.py
 extensions/ops/quantize_linear.py
+extensions/ops/random_uniform.py
 extensions/ops/range.py
 extensions/ops/rank.py
 extensions/ops/ReduceOps.py
@@ -758,7 +752,6 @@ extensions/ops/scatter.py
 extensions/ops/scatternd.py
 extensions/ops/select.py
 extensions/ops/shufflechannel.py
-extensions/ops/simplernms.py
 extensions/ops/size.py
 extensions/ops/slice_like.py
 extensions/ops/space_to_depth.py
@@ -767,7 +760,6 @@ extensions/ops/sparse_reshape.py
 extensions/ops/sparse_segment_mean.py
 extensions/ops/sparse_segment_sqrtn.py
 extensions/ops/sparse_segment_sum.py
-extensions/ops/spatial_transformer.py
 extensions/ops/splice.py
 extensions/ops/split.py
 extensions/ops/stop_gradient.py
@@ -844,8 +836,6 @@ mo/front/common/partial_infer/elemental.py
 mo/front/common/partial_infer/eltwise.py
 mo/front/common/partial_infer/multi_box_detection.py
 mo/front/common/partial_infer/multi_box_prior.py
-mo/front/common/partial_infer/random_uniform.py
-mo/front/common/partial_infer/reshape.py
 mo/front/common/partial_infer/roipooling.py
 mo/front/common/partial_infer/utils.py
 mo/front/common/register_custom_ops.py
@@ -870,6 +860,7 @@ mo/front/kaldi/extractors/convolutional_1d_component_ext.py
 mo/front/kaldi/extractors/convolutional_component_ext.py
 mo/front/kaldi/extractors/copy_ext.py
 mo/front/kaldi/extractors/crop_ext.py
+mo/front/kaldi/extractors/dropoutmask_ext.py
 mo/front/kaldi/extractors/elementwise_component_ext.py
 mo/front/kaldi/extractors/fixed_affine_component_ext.py
 mo/front/kaldi/extractors/generaldropout_ext.py
@@ -928,7 +919,6 @@ mo/front/tf/extractors/fused_bn.py
 mo/front/tf/extractors/identity.py
 mo/front/tf/extractors/native_tf.py
 mo/front/tf/extractors/pack.py
-mo/front/tf/extractors/random_uniform.py
 mo/front/tf/extractors/strided_slice.py
 mo/front/tf/extractors/subgraph_utils.py
 mo/front/tf/extractors/utils.py
@@ -984,6 +974,7 @@ mo/ops/convolution.py
 mo/ops/crop.py
 mo/ops/deconvolution.py
 mo/ops/deformable_convolution.py
+mo/ops/dropoutmask.py
 mo/ops/eltwise.py
 mo/ops/eltwise_n.py
 mo/ops/eltwise_ninputs_in_1.py
@@ -1066,6 +1057,7 @@ mo/utils/ir_reader/extenders/parameter_extender.py
 mo/utils/ir_reader/extenders/pooling_extender.py
 mo/utils/ir_reader/extenders/priorbox_clustered_extender.py
 mo/utils/ir_reader/extenders/priorbox_extender.py
+mo/utils/ir_reader/extenders/random_uniform_extender.py
 mo/utils/ir_reader/extenders/range_extender.py
 mo/utils/ir_reader/extenders/reorg_yolo_extender.py
 mo/utils/ir_reader/extenders/RNNCell_extender.py
