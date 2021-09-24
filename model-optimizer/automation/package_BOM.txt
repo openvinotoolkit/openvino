@@ -1058,6 +1058,7 @@ mo/utils/ir_reader/extenders/if_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
 mo/utils/ir_reader/extenders/loop_extender.py
 mo/utils/ir_reader/extenders/LSTMCell_extender.py
+mo/utils/ir_reader/extenders/LSTMSequence_extender.py
 mo/utils/ir_reader/extenders/non_max_suppression_extender.py
 mo/utils/ir_reader/extenders/non_zero_extender.py
 mo/utils/ir_reader/extenders/pad_extender.py
