@@ -99,7 +99,7 @@ Framework-agnostic parameters:
   --data_type {FP16,FP32,half,float}
                         Data type for all intermediate tensors and weights. If
                         original model is in FP32 and --data_type=FP16 is
-                        specified, all model weights and biases are quantized
+                        specified, all model weights and biases are compressed
                         to FP16.
   --disable_fusing      Turn off fusing of linear operations to Convolution
   --disable_resnet_optimization
