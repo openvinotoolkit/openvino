@@ -1,13 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include <ie_core.hpp>
-#include <ie_plugin_config.hpp>
+#include "behavior/locale.hpp"
+
+namespace BehaviorTestsDefinitions {
 
 inline std::shared_ptr<ngraph::Function> makeTestModel(std::vector<size_t> inputShape = {1, 1, 32, 32}) {
     ngraph::Shape in_shape(inputShape);
@@ -25,26 +22,34 @@ inline std::shared_ptr<ngraph::Function> makeTestModel(std::vector<size_t> input
     return fnPtr;
 }
 
-class CustomLocaleTest : public CommonTestUtils::TestsCommon {
-protected:
-    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    std::shared_ptr<ngraph::Function> function;
+std::string CustomLocaleTest::getTestCaseName(const testing::TestParamInfo<LocaleParams> &obj) {
+    std::ostringstream results;
+    std::string deviceName, localeName;
+    std::tie(localeName, deviceName) = obj.param;
+    results << "locale=" << localeName << "_"
+            << "targetDevice=" << deviceName;
+    return results.str();
+}
 
-    void SetUp() override {
-        function = makeTestModel();
-    }
-};
-TEST_F(CustomLocaleTest, CanLoadNetworkWithCustomLocale) {
+void CustomLocaleTest::SetUp() {
+    std::tie(localeName, deviceName) = GetParam();
+    testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    function = makeTestModel();
+}
+
+TEST_P(CustomLocaleTest, CanLoadNetworkWithCustomLocale) {
     auto prev = std::locale();
     try {
-        std::locale::global(std::locale("ru_RU.UTF-8"));
+        std::locale::global(std::locale(localeName.c_str()));
     } catch (...) {
         GTEST_SKIP();
     }
 
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie(deviceName);
     InferenceEngine::CNNNetwork cnnNet(function);
-    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, "GPU"));
+    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, deviceName));
 
     std::locale::global(prev);
 }
+
+} // namespace BehaviorTestsDefinitions
