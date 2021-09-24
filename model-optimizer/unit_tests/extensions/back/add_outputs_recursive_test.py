@@ -27,15 +27,13 @@ sub_graph_1_nodes = {
     **shaped_parameter("IN_2", int64_array([1, 4, 64, 54])),
     **valued_const_with_data("M_2", int64_array([0])),
     **valued_const_with_data("cond_2", int64_array([0])),
-    **regular_op_with_empty_data("Loop_2", {'op': "Loop", "body": None,
+    **regular_op_with_empty_data("Loop_2", {'op': "Loop", "body": None, 'out_ports_count': 1,
                                             'input_port_map': [{'external_port_id': 1, 'internal_layer_id': 0},
                                                                {'external_port_id': 2, 'internal_layer_id': 2}],
                                             'output_port_map': [{'external_port_id': -1, 'internal_layer_id': 1,
                                                                  'purpose': "execution_condition"}],
                                             'back_edges': [{'from_layer': 1, 'to_layer': 0},
                                                            {'from_layer': 8, 'to_layer': 2}]}),
-    **valued_const_with_data("Unsqueeze_const", int64_array([0])),
-    **regular_op_with_empty_data("Unsqueeze", {'op': "Unsqueeze", 'out_ports_count': 1}),
     **shaped_parameter("in_1_int", int64_array([1, 4, 64, 54])),
     **result("in_1_int_out"),
     **shaped_parameter("cond_1_int", int64_array([1])),
@@ -71,8 +69,6 @@ class AddOutputRecursiveTest(unittest.TestCase):
                                   edges=[*connect('M_2', 'Loop_2'),
                                          *connect('cond_2', 'Loop_2'),
                                          *connect('IN_2', 'Loop_2'),
-                                         *connect('Loop_2', 'Unsqueeze'),
-                                         *connect('Unsqueeze_const', 'Unsqueeze'),
                                          *connect('in_1_int', 'in_1_int_out'),
                                          *connect('cond_1_int', 'cond_1_int_out')],
                                   nodes_with_edges_only=True)
@@ -90,13 +86,15 @@ class AddOutputRecursiveTest(unittest.TestCase):
         loop_node = Node(main_graph, 'Loop')
         loop_node.body = sub_graph_1
         main_graph.stage = 'front'
-        main_graph.graph['additional_outputs'] = ['Loop', 'Unsqueeze']
+        main_graph.graph['additional_outputs'] = ['Loop', 'Loop_2']
 
         AddOutputRecursive().find_and_replace_pattern(main_graph)
         loop_node = Node(main_graph, 'Loop')
         self.assertEqual(len(loop_node.output_port_map), 2)
         self.assertEqual(len(loop_node.out_ports()), 2)
         self.assertEqual(loop_node.out_port(2).get_destination().node.op, 'Result')
-        unsq_node = Node(sub_graph_1, 'Unsqueeze')
-        self.assertEqual(len(unsq_node.out_ports()), 1)
+        last_node = Node(sub_graph_1, 'Loop_2')
+        self.assertEqual(len(last_node.out_ports()), 1)
+        unsq_node = last_node.out_port(0).get_destination().node
+        self.assertEqual(unsq_node.op, 'Unsqueeze')
         self.assertEqual(unsq_node.out_port(0).get_destination().node.op, 'Result')
