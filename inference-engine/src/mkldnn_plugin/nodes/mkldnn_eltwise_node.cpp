@@ -908,8 +908,7 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
 
         float alpha_ = static_cast<float>(clampOp->get_min());
         float beta_ = static_cast<float>(clampOp->get_max());
-        if (one_of(clampOp->get_input_element_type(0), ngraph::element::i8, ngraph::element::i32, ngraph::element::i64,
-                   ngraph::element::u64)) {
+        if (clampOp->get_input_element_type(0).is_integral_number()) {
             alpha_ = std::ceil(alpha_);
             beta_ = std::floor(beta_);
         }
