@@ -8,8 +8,9 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 
+namespace ov {
+
 using namespace std;
-using namespace ov;
 
 BWDCMP_RTTI_DEFINITION(op::util::LogicalReduction);
 
@@ -62,3 +63,5 @@ void op::util::LogicalReduction::validate_and_infer_types() {
     set_input_is_relevant_to_shape(1);
     set_output_type(0, data_et, result_shape);
 }
+
+}  // namespace ov
