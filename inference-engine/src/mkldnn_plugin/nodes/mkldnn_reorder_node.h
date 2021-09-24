@@ -25,6 +25,10 @@ public:
     bool created() const override;
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
+    bool isExecutable() const override {
+        return !isOptimized;
+    }
+
     void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
         this->input = input.clone();
         inputShapes.clear();

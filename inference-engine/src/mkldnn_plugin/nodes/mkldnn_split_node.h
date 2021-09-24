@@ -22,10 +22,13 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    bool isOptimized();
+    bool isOptimized() const;
     void initOptimalPrimitiveDescriptor() override;
 
     void setDynamicBatchLim(int lim) override;
+    bool isExecutable() const override {
+        return !isOptimized();
+    }
 
 private:
     void prepareOptimizedParams();

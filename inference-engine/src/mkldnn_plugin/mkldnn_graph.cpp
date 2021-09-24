@@ -344,7 +344,7 @@ void MKLDNNGraph::InitGraph() {
         graphNode->cleanup();
     }
 #endif
-    ExtractConstantNodes();
+    ExtractConstantAndExecutableNodes();
 
     ExecuteConstantNodesOnly();
 }
@@ -389,13 +389,13 @@ void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNGraph::ExtractConstantNodes() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantNodes");
-    for (auto& graphNode : graphNodes) {
+void MKLDNNGraph::ExtractConstantAndExecutableNodes() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantAndExecutableNodes");
+    for (const auto& graphNode : graphNodes) {
         if (graphNode->isConstant())
             constantGraphNodes.emplace_back(graphNode);
-        else
-            mutableGraphNodes.emplace_back(graphNode);
+        else if (graphNode->isExecutable())
+            executableGraphNodes.emplace_back(graphNode);
     }
 }
 
@@ -827,7 +827,7 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
     mkldnn::stream stream(eng);
 
-    for (const auto& node : mutableGraphNodes) {
+    for (const auto& node : executableGraphNodes) {
         PERF(config.collectPerfCounters, node);
         if (request)
             request->ThrowIfCanceled();

@@ -298,7 +298,7 @@ bool MKLDNNSplitNode::created() const {
     return getType() == Split;
 }
 
-bool MKLDNNSplitNode::isOptimized() {
+bool MKLDNNSplitNode::isOptimized() const {
     return getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].inPlace >= 0;
 }
 
