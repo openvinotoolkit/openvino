@@ -18,9 +18,11 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+
+    void prepareParams() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -38,6 +40,10 @@ private:
     std::vector<size_t> condOffset;
     std::vector<size_t> thenOffset;
     std::vector<size_t> elseOffset;
+
+    std::vector<size_t> condDims;
+    std::vector<size_t> thenDims;
+    std::vector<size_t> elseDims;
 
     std::string errorPrefix;
 
