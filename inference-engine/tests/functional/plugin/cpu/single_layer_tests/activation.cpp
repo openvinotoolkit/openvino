@@ -71,6 +71,7 @@ protected:
         auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
         activation->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "Activation");
+        functionRefs = ngraph::clone_function(*function);
     }
 
     InferenceEngine::Precision netPrecision;

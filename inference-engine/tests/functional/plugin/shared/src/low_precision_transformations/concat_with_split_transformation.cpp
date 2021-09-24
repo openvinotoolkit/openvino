@@ -65,6 +65,7 @@ void ConcatWithSplitTransformation::SetUp() {
         param.fqOnData1,
         param.fqOnData2,
         true);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ConcatWithSplitTransformation, CompareWithRefImpl) {

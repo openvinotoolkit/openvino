@@ -59,7 +59,6 @@ void ConvolutionLayerTest::SetUp() {
     setTargetStaticShape(targetStaticShapes[0]);
     function = makeConvolution("convolution");
     functionRefs = ngraph::clone_function(*function);
-    functionRefs->set_friendly_name("convolutionRefs");
 }
 
 std::shared_ptr<ngraph::Function> ConvolutionLayerTest::makeConvolution(const std::string& name) {

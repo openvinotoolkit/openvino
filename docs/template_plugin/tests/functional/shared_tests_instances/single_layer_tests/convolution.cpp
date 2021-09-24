@@ -58,7 +58,7 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
 );
 
 // ! [test_convolution:instantiate]
-INSTANTIATE_TEST_SUITE_P(Convolution2D_ExplicitPaddingStaticShape, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -71,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(Convolution2D_ExplicitPaddingStaticShape, ConvolutionLa
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(Convolution2D_ExplicitPaddingDynamicShape, ConvolutionLayerTest,
                          ::testing::Combine(
                                  conv2DParams_ExplicitPadding,
                                  ::testing::ValuesIn(netPrecisions),
@@ -87,7 +87,7 @@ INSTANTIATE_TEST_SUITE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                          ConvolutionLayerTest::getTestCaseName);
 // ! [test_convolution:instantiate]
 
-INSTANTIATE_TEST_SUITE_P(Convolution2D_AutoPadValidStaticShape, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -131,7 +131,7 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D_ExplicitPaddingStaticShape, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -144,7 +144,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D_ExplicitPaddingStaticShape, Convolu
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_Convolution3D_AutoPadValidStaticShape, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(nightly_Convolution3D_AutoPadValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),

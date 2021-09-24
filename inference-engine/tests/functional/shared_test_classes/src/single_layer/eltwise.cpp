@@ -107,5 +107,6 @@ void EltwiseLayerTest::SetUp() {
 
     auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
     function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace LayerTestsDefinitions

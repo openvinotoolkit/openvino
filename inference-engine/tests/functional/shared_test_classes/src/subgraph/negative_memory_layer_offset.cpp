@@ -50,6 +50,7 @@ namespace SubgraphTestsDefinitions {
         sigm->add_control_dependency(mem_w);
 
         function = std::make_shared<ngraph::Function>(sigm, input, "negative_memory_layer_offset_memory");
+        functionRefs = ngraph::clone_function(*function);
     }
 
     void NegativeMemoryOffsetTest::switchToNgraphFriendlyModel() {

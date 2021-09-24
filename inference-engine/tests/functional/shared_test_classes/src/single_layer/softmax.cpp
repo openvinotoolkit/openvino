@@ -48,7 +48,6 @@ void SoftMaxLayerTest::SetUp() {
     setTargetStaticShape(targetStaticShapes[0]);
     function = makeSoftMax("softMax");
     functionRefs = ngraph::clone_function(*function);
-    functionRefs->set_friendly_name("softMaxRefs");
 }
 
 std::shared_ptr<ngraph::Function> SoftMaxLayerTest::makeSoftMax(const std::string& name) {

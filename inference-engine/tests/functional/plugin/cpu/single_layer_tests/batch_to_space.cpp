@@ -55,6 +55,7 @@ protected:
         b2s->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(b2s)};
         function = std::make_shared<ngraph::Function>(results, params, "BatchToSpace");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

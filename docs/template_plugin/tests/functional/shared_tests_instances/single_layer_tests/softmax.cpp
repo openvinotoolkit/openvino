@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecision = {
+const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
 };
 
@@ -38,8 +38,8 @@ const std::vector<size_t> axis2D = {
     0, 1
 };
 
-const auto params2DStaticShape = testing::Combine(
-        testing::ValuesIn(netPrecision),
+const auto params2D = testing::Combine(
+        testing::ValuesIn(netPrecisions),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::ValuesIn(inputLayouts2D),
@@ -51,8 +51,8 @@ const auto params2DStaticShape = testing::Combine(
         testing::Values(std::map<std::string, std::string>())
 );
 
-const auto params2D = testing::Combine(
-        testing::ValuesIn(netPrecision),
+const auto params2DDynamicShape = testing::Combine(
+        testing::ValuesIn(netPrecisions),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::ValuesIn(inputLayouts2D),
@@ -65,16 +65,16 @@ const auto params2D = testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_SoftMax2DStaticShape,
+        smoke_SoftMax2D,
         SoftMaxLayerTest,
-        params2DStaticShape,
+        params2D,
         SoftMaxLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_SoftMax2D,
+        smoke_SoftMax2DDynamicShape,
         SoftMaxLayerTest,
-        params2D,
+        params2DDynamicShape,
         SoftMaxLayerTest::getTestCaseName
 );
 
@@ -94,8 +94,8 @@ const std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes4D = {
 
 const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
-const auto params4DStaticShape = testing::Combine(
-    testing::ValuesIn(netPrecision),
+const auto params4D = testing::Combine(
+    testing::ValuesIn(netPrecisions),
     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::Values(InferenceEngine::Layout::NCHW),
@@ -107,8 +107,8 @@ const auto params4DStaticShape = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
-const auto params4D = testing::Combine(
-    testing::ValuesIn(netPrecision),
+const auto params4DDynamicShape = testing::Combine(
+    testing::ValuesIn(netPrecisions),
     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::Values(InferenceEngine::Layout::NCHW),
@@ -121,16 +121,16 @@ const auto params4D = testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_SoftMax4DStaticShape,
+        smoke_SoftMax4D,
         SoftMaxLayerTest,
-        params4DStaticShape,
+        params4D,
         SoftMaxLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_SoftMax4D,
+        smoke_SoftMax4DDynamicShape,
         SoftMaxLayerTest,
-        params4D,
+        params4DDynamicShape,
         SoftMaxLayerTest::getTestCaseName
 );
 

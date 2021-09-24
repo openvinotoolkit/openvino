@@ -47,5 +47,6 @@ void EltwiseReshapeActivation::SetUp() {
     auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(relu, reshape_pattern2, false);
 
     function = std::make_shared<ngraph::Function>(reshape2, input, "EltwiseReshapeActivation");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions
