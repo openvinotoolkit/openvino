@@ -21,6 +21,8 @@ class MKLDNNMemory;
 
 class MemoryDescUtils {
 public:
+    MemoryDescUtils() = delete;
+
     /**
      * @brief Converts MemoryDesc to DnnlMemoryDesc
      * @param desc MemoryDesc to be converted
@@ -69,6 +71,14 @@ public:
      * @return converted InferenceEngine::TensorDesc
      */
     static InferenceEngine::TensorDesc convertToTensorDesc(const MemoryDesc& desc);
+
+    /**
+     * @brief Makes a dummy descriptor where all undefined values are replaced with the parameter value
+     * @param desc MemoryDesc from which the new descriptor is generated
+     * @param dummyVal Dim value to replace undefined dimensions
+     * @return a new MemoryDesc with dummy values instead of undefined dims
+     */
+     static std::shared_ptr<MemoryDesc> makeDummyDesc(const MemoryDesc& desc, Dim dummyVal = 64);
 
     /**
      * @brief Converts dim to string, undefined dim represented as ?

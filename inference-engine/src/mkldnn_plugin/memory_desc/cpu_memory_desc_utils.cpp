@@ -107,4 +107,11 @@ std::string MemoryDescUtils::dims2str(const VectorDims& dims) {
     return output.str();
 }
 
+std::shared_ptr<MemoryDesc> MemoryDescUtils::makeDummyDesc(const MemoryDesc &desc, Dim dummyVal) {
+    const auto& dims = desc.getShape().getDims();
+    VectorDims dummyDims(dims.size());
+    std::transform(dims.begin(), dims.end(), dummyDims.begin(), [=](const Dim& dim){ return dim == Shape::UNDEFINED_DIM ? dummyVal : dim; });
+    return desc.cloneWithNewDims(dummyDims);
+}
+
 } // namespace MKLDNNPlugin

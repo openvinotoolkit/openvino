@@ -75,7 +75,14 @@ private:
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
     std::shared_ptr<mkldnn::convolution_forward::desc>
-    createDescriptorInternal(const std::array<mkldnn::memory::desc, 3>& inputDesc,
+    createDescriptorInternal(const mkldnn::memory::desc& inputDesc,
+                             const mkldnn::memory::desc& weightDesc,
+                             const mkldnn::memory::desc& outputDesc,
+                             mkldnn::algorithm alg);
+    std::shared_ptr<mkldnn::convolution_forward::desc>
+    createDescriptorInternal(const mkldnn::memory::desc& inputDesc,
+                             const mkldnn::memory::desc& weightDesc,
+                             const mkldnn::memory::desc& biasDesc,
                              const mkldnn::memory::desc& outputDesc,
                              mkldnn::algorithm alg);
 
