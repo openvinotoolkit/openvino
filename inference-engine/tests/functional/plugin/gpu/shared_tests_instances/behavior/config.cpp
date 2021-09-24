@@ -97,6 +97,13 @@ namespace {
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY}},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
                     {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}},
+            // check that hints doesn't override customer value (now for streams/throttling and later for other config opts)
+            {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
+             {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, "3"}},
+            {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
+             {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, "3"}},
+            {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
+             {InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE, "0"}},
     };
     IE_SUPPRESS_DEPRECATED_END
 
@@ -111,7 +118,21 @@ namespace {
                 {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}}
     };
 
+    const std::vector<std::map<std::string, std::string>> autoConfigs = {
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
+             CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}}
+    };
+
+
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
+            ::testing::Combine(
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                ::testing::ValuesIn(conf)),
+            CorrectConfigAPITests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, DefaultValuesConfigTests,
             ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
@@ -136,7 +157,7 @@ namespace {
             ::testing::Combine(
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                    ::testing::ValuesIn(multiconf)),
+                    ::testing::ValuesIn(autoConfigs)),
             CorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,

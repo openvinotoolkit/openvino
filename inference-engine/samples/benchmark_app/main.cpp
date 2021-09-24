@@ -21,6 +21,7 @@
 #include "infer_request_wrap.hpp"
 #include "inputs_filling.hpp"
 #include "progress_bar.hpp"
+#include "remote_blobs_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
 
@@ -390,6 +391,12 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
+            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
+                                                             FLAGS_layout,
+                                                             FLAGS_b,
+                                                             FLAGS_iscale,
+                                                             FLAGS_imean,
+                                                             exeNetwork.GetInputsInfo());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -592,7 +599,16 @@ int main(int argc, char* argv[]) {
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
-        fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+        if (isFlagSetInCommandLine("use_device_mem")) {
+            if (device_name.find("GPU") == 0)
+                ::gpu::fillRemoteBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests, exeNetwork);
+            else if (device_name.find("CPU") == 0)
+                fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+            else
+                IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
+        } else {
+            fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+        }
 
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------

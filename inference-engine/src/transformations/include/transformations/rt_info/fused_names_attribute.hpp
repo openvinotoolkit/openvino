@@ -15,6 +15,7 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
+#include "openvino/core/rtti.hpp"
 #include <transformations_visibility.hpp>
 
 
@@ -85,11 +86,8 @@ extern template class TRANSFORMATIONS_API VariantImpl<ngraph::FusedNames>;
 template<>
 class TRANSFORMATIONS_API VariantWrapper<ngraph::FusedNames> : public VariantImpl<ngraph::FusedNames> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::FusedNames", 0};
-
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("Variant::RuntimeAttribute::FusedNames");
+    BWDCMP_RTTI_DECLARATION;
 
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 

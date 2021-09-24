@@ -52,7 +52,8 @@ namespace v0 {
 ///
 class OPENVINO_API LSTMCell : public util::RNNCellBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("LSTMCell", "opset1", op::util::RNNCellBase);
+    BWDCMP_RTTI_DECLARATION;
 
     LSTMCell();
     ///
@@ -272,7 +273,8 @@ namespace v4 {
 ///
 class OPENVINO_API LSTMCell : public util::RNNCellBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("LSTMCell", "opset4", op::util::RNNCellBase, 4);
+    BWDCMP_RTTI_DECLARATION;
 
     LSTMCell();
     ///
@@ -388,10 +390,8 @@ class OPENVINO_API AttributeAdapter<op::LSTMWeightsFormat> : public EnumAttribut
 public:
     AttributeAdapter(op::LSTMWeightsFormat& value) : EnumAttributeAdapterBase<op::LSTMWeightsFormat>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::LSTMWeightsFormat>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::LSTMWeightsFormat>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

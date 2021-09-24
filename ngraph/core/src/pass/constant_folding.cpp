@@ -12,8 +12,6 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::pass::ConstantFolding, "ConstantFolding", 0);
-
 bool ov::pass::ConstantFolding::run_on_function(std::shared_ptr<ov::Function> f) {
     bool rewritten = pre_calculated_values_folding(f);
 

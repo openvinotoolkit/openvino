@@ -116,7 +116,7 @@ bool convert_precision(pass::PassBase& pass,
     };
 
     auto convert_node_output_precision = [&](const std::shared_ptr<ngraph::Node>& node) {
-        for (auto output : node->outputs()) {
+        for (const auto& output : node->outputs()) {
             if (output.get_element_type() == from) {
                 // Handle case with Constants as they can have consumers from other nGraph
                 // Function object
@@ -223,8 +223,8 @@ using precisions_set_t = std::unordered_set<ngraph::element::Type_t, EnumClassHa
 precisions_set_t find_all_used_precisions(const std::shared_ptr<ngraph::Function>& fn) {
     precisions_set_t used_precisions;
 
-    ngraph::traverse_nodes(fn, [&](std::shared_ptr<ngraph::Node> node) {
-        for (auto output : node->outputs()) {
+    ngraph::traverse_nodes(fn, [&](const std::shared_ptr<ngraph::Node>& node) {
+        for (const auto& output : node->outputs()) {
             used_precisions.emplace(output.get_element_type());
         }
         if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(node)) {
@@ -245,35 +245,35 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPrecision, "ConvertPrecision", 0);
 
 bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
     type_to_fuse_map type_to_fuse{
-        {opset4::Parameter::type_info, fuse_type_to_parameter},
-        {opset4::Convert::type_info, fuse_type_to_convert},
-        {opset4::ShapeOf::type_info, fuse_type_to_shapeof},
-        {opset3::NonMaxSuppression::type_info, fuse_type_to_nms3},
-        {opset4::NonMaxSuppression::type_info, fuse_type_to_nms4},
-        {opset5::NonMaxSuppression::type_info, fuse_type_to_nms5},
-        {opset6::CTCGreedyDecoderSeqLen::type_info, fuse_type_to_ctc_greedy_decoder_seq_len},
-        {opset4::TopK::type_info, fuse_type_to_topk},
-        {opset4::NonZero::type_info, fuse_type_to_nonzero},
-        {opset4::Bucketize::type_info, fuse_type_to_bucketize},
-        {opset4::Equal::type_info, fuse_type_to_binary_comparision<opset4::Equal>},
-        {opset4::NotEqual::type_info, fuse_type_to_binary_comparision<opset4::NotEqual>},
-        {opset4::Greater::type_info, fuse_type_to_binary_comparision<opset4::Greater>},
-        {opset4::GreaterEqual::type_info, fuse_type_to_binary_comparision<opset4::GreaterEqual>},
-        {opset4::Less::type_info, fuse_type_to_binary_comparision<opset4::Less>},
-        {opset4::LessEqual::type_info, fuse_type_to_binary_comparision<opset4::LessEqual>},
-        {opset4::LogicalAnd::type_info, fuse_type_to_logical<opset4::LogicalAnd>},
-        {opset4::LogicalOr::type_info, fuse_type_to_logical<opset4::LogicalOr>},
-        {opset4::LogicalXor::type_info, fuse_type_to_logical<opset4::LogicalXor>},
-        {opset4::LogicalNot::type_info, fuse_type_to_logical<opset4::LogicalNot>},
-        {opset4::ReduceLogicalAnd::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
-        {opset4::ReduceLogicalOr::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
-        {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0},
-        {opset4::Range::type_info, fuse_type_to_range_v4}};
+        {opset4::Parameter::get_type_info_static(), fuse_type_to_parameter},
+        {opset4::Convert::get_type_info_static(), fuse_type_to_convert},
+        {opset4::ShapeOf::get_type_info_static(), fuse_type_to_shapeof},
+        {opset3::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms3},
+        {opset4::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms4},
+        {opset5::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms5},
+        {opset6::CTCGreedyDecoderSeqLen::get_type_info_static(), fuse_type_to_ctc_greedy_decoder_seq_len},
+        {opset4::TopK::get_type_info_static(), fuse_type_to_topk},
+        {opset4::NonZero::get_type_info_static(), fuse_type_to_nonzero},
+        {opset4::Bucketize::get_type_info_static(), fuse_type_to_bucketize},
+        {opset4::Equal::get_type_info_static(), fuse_type_to_binary_comparision<opset4::Equal>},
+        {opset4::NotEqual::get_type_info_static(), fuse_type_to_binary_comparision<opset4::NotEqual>},
+        {opset4::Greater::get_type_info_static(), fuse_type_to_binary_comparision<opset4::Greater>},
+        {opset4::GreaterEqual::get_type_info_static(), fuse_type_to_binary_comparision<opset4::GreaterEqual>},
+        {opset4::Less::get_type_info_static(), fuse_type_to_binary_comparision<opset4::Less>},
+        {opset4::LessEqual::get_type_info_static(), fuse_type_to_binary_comparision<opset4::LessEqual>},
+        {opset4::LogicalAnd::get_type_info_static(), fuse_type_to_logical<opset4::LogicalAnd>},
+        {opset4::LogicalOr::get_type_info_static(), fuse_type_to_logical<opset4::LogicalOr>},
+        {opset4::LogicalXor::get_type_info_static(), fuse_type_to_logical<opset4::LogicalXor>},
+        {opset4::LogicalNot::get_type_info_static(), fuse_type_to_logical<opset4::LogicalNot>},
+        {opset4::ReduceLogicalAnd::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
+        {opset4::ReduceLogicalOr::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
+        {opset1::ShapeOf::get_type_info_static(), fuse_type_to_shapeof_v0},
+        {opset4::Range::get_type_info_static(), fuse_type_to_range_v4}};
 
     type_to_fuse.insert(m_additional_type_to_fuse_map.begin(), m_additional_type_to_fuse_map.end());
 
     static type_to_fuse_map type_to_extend{
-        {opset4::Select::type_info, extend_select_type},
+        {opset4::Select::get_type_info_static(), extend_select_type},
     };
 
     bool is_changed = false;
