@@ -36,10 +36,10 @@ public:
         function = create_function(params.inputs);
         inputData.reserve(params.inputs.size());
         refOutData.reserve(params.expected_results.size());
-        for (auto& input_tensor : params.inputs) {
+        for (const auto& input_tensor : params.inputs) {
             inputData.push_back(input_tensor.data);
         }
-        for (auto& expected_tensor : params.expected_results) {
+        for (const auto& expected_tensor : params.expected_results) {
             refOutData.push_back(expected_tensor.data);
         }
     }
