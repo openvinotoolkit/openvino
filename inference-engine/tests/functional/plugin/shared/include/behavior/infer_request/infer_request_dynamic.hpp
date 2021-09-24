@@ -357,28 +357,31 @@ inline std::string vec2str(const std::vector<vecElementType> &vec) {
 TEST_P(InferRequestDynamicTests, CPU_ONLY) {
     const std::string param_name_1 = "Param_1";
     const std::string param_name_2 = "Param_2";
-    const std::string param_name_3 = "Param_3";
+    // const std::string param_name_3 = "Param_3";
 
-    InferenceEngine::Precision netPrecision = InferenceEngine::Precision::I32;
-    std::vector<std::vector<size_t>> inputShapes{/*{2, 1, 5}, */{8, 6, 2, 3, 1}/*, {5}*/};
+    InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32;
+    std::vector<std::vector<size_t>> inputShapes{{8, 6, 3}/*, {2}*/};
     auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    ngraph::ParameterVector params = ngraph::builder::makeParams(inType, inputShapes);
-
+    ngraph::ParameterVector params(1); // = ngraph::builder::makeParams(inType, inputShapes);
+    params[0] = std::make_shared<ngraph::op::Parameter>(inType, ngraph::Shape(inputShapes[0]));
+    // params[1] = std::make_shared<ngraph::op::Parameter>(ov::element::i32, ngraph::Shape(inputShapes[1]));
+    auto constanta = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i32, ngraph::Shape{2}, std::vector<int>{1, 2});
     params[0]->set_friendly_name(param_name_1);
+    // params[1]->set_friendly_name(param_name_2);
 
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    const std::shared_ptr<ngraph::Node> convet = std::make_shared<ngraph::op::Convert>(paramOuts[0], ov::element::Type_t::f32);
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(convet)};
-    function = std::make_shared<ngraph::Function>(results, params, "Convert");
+    const std::shared_ptr<ngraph::Node> reshape = std::make_shared<ngraph::opset1::Unsqueeze>(paramOuts[0], constanta);
+    const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reshape)};
+    function = std::make_shared<ngraph::Function>(results, params, "Squeeze");
 
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     // cnnNet.serialize("/home/maximandronov/test_repo/openvino/models/before.xml");
     std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name_1] = {ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()};
+    shapes[param_name_1] = {ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()};
     // shapes[param_name_2] = {ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()};
     // shapes[param_name_3] = {ngraph::Dimension::dynamic()};
     cnnNet.reshape(shapes);
@@ -387,54 +390,61 @@ TEST_P(InferRequestDynamicTests, CPU_ONLY) {
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob1 = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::I32, inputShapes[0], InferenceEngine::Layout::BLOCKED});
-    // InferenceEngine::Blob::Ptr blob2 = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShapes[1], InferenceEngine::Layout::BLOCKED});
+    InferenceEngine::Blob::Ptr blob1 = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShapes[0], InferenceEngine::Layout::BLOCKED});
+    // InferenceEngine::Blob::Ptr blob2 = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::I32, inputShapes[1], InferenceEngine::Layout::BLOCKED});
+    // int32_t *ptr = blob2->buffer().as<int32_t *>();
+    // ptr[0] = 2;
+    // ptr[1] = 4;
     // InferenceEngine::Blob::Ptr blob3 = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShapes[2], InferenceEngine::Layout::BLOCKED});
 
     req = execNet.CreateInferRequest();
     req.SetBlob(param_name_1, blob1);
-    // const int32_t *in1 = blob1->cbuffer().as<const int32_t *>();
-    // for (size_t i = 0; i < blob1->size(); i++)
-    //     std::cout << in1[i] << " ";
-    // std::cout << std::endl;
+    const float *in1 = blob1->cbuffer().as<const float *>();
+    for (size_t i = 0; i < blob1->size(); i++)
+        std::cout << in1[i] << " ";
+    std::cout << std::endl;
     // req.SetBlob(param_name_2, blob2);
     // req.SetBlob(param_name_3, blob3);
     // ASSERT_EQ(blob->getTensorDesc().getDims(), inputShapes);
+    std::cout << "IN: " << vec2str(blob1->getTensorDesc().getDims()) << std::endl;
     req.Infer();
     InferenceEngine::StatusCode sts;
     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
     InferenceEngine::Blob::Ptr blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
-    std::cout << vec2str(blob->getTensorDesc().getDims()) << std::endl;
-    // std::cout << blob->getTensorDesc().getPrecision() << std::endl;
-    // const float *out1 = blob->cbuffer().as<const float *>();
-    // for (size_t i = 0; i < blob->size(); i++)
-    //     std::cout << out1[i] << " ";
-    // std::cout << std::endl;
+    std::cout << "OUT: " << vec2str(blob->getTensorDesc().getDims()) << std::endl;
+    std::cout << blob->getTensorDesc().getPrecision() << std::endl;
+    const float *out1 = blob->cbuffer().as<const float *>();
+    for (size_t i = 0; i < blob->size(); i++)
+        std::cout << out1[i] << " ";
+    std::cout << std::endl;
     // ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
 
-    std::vector<std::vector<size_t>> inputShapes2{/*{5, 10, 1},*/ {1, 4, 1, 10, 1}/*, {12}*/};
-    blob1 = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::I32, inputShapes2[0], InferenceEngine::Layout::BLOCKED});
+    std::vector<std::vector<size_t>> inputShapes2{/*{5, 10, 1},*/ {2, 5, 1, }/*, {12}*/};
+    blob1 = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShapes2[0], InferenceEngine::Layout::BLOCKED});
+    // ptr[0] = 1;
+    // ptr[1] = 3;
     // blob2 = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShapes2[1], InferenceEngine::Layout::BLOCKED});
     // blob3 = FuncTestUtils::createAndFillBlob(InferenceEngine::TensorDesc{InferenceEngine::Precision::FP32, inputShapes2[2], InferenceEngine::Layout::BLOCKED});
     req.SetBlob(param_name_1, blob1);
-    // const int32_t *in2 = blob1->cbuffer().as<const int32_t *>();
-    // for (size_t i = 0; i < blob1->size(); i++)
-    //     std::cout << in2[i] << " ";
-    // std::cout << std::endl;
+    const float *in2 = blob1->cbuffer().as<const float *>();
+    for (size_t i = 0; i < blob1->size(); i++)
+        std::cout << in2[i] << " ";
+    std::cout << std::endl;
     // req.SetBlob(param_name_2, blob2);
     // req.SetBlob(param_name_3, blob3);
     // ASSERT_EQ(blob->getTensorDesc().getDims(), inputShape2);
+    std::cout << "IN: " << vec2str(blob1->getTensorDesc().getDims()) << std::endl;
     req.Infer();
     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
     blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
-    std::cout << vec2str(blob->getTensorDesc().getDims()) << std::endl;
-    // std::cout << blob->getTensorDesc().getPrecision() << std::endl;
-    // const float *out2 = blob->cbuffer().as<const float *>();
-    // for (size_t i = 0; i < blob->size(); i++)
-    //     std::cout << out2[i] << " ";
-    // std::cout << std::endl;
+    std::cout << "OUT: " << vec2str(blob->getTensorDesc().getDims()) << std::endl;
+    std::cout << blob->getTensorDesc().getPrecision() << std::endl;
+    const float *out2 = blob->cbuffer().as<const float *>();
+    for (size_t i = 0; i < blob->size(); i++)
+        std::cout << out2[i] << " ";
+    std::cout << std::endl;
     // ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape2);
 }
 
