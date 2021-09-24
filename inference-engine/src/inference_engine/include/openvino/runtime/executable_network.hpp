@@ -65,6 +65,10 @@ public:
      * @return vector of paramter nodes
      */
     ParameterVector get_parameters() const;
+    std::vector<ov::Output<const ov::Node>> inputs() const;
+    ov::Output<const ov::Node> input() const;
+    ov::Output<const ov::Node> input(size_t i) const;
+    ov::Output<const ov::Node> input(const std::string& tensor_name) const;
 
     /**
      * @brief Get results of executeble graph function
@@ -72,6 +76,10 @@ public:
      * @return vector of result nodes
      */
     ResultVector get_results() const;
+    std::vector<ov::Output<const ov::Node>> outputs() const;
+    ov::Output<const ov::Node> output() const;
+    ov::Output<const ov::Node> output(size_t i) const;
+    ov::Output<const ov::Node> output(const std::string& tensor_name) const;
 
     /**
      * @brief Creates an inference request object used to infer the network.

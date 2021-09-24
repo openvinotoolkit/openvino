@@ -136,9 +136,41 @@ std::shared_ptr<const Function> ExecutableNetwork::get_runtime_function() const 
 ParameterVector ExecutableNetwork::get_parameters() const {
     OV_EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_parameters());
 }
+std::vector<ov::Output<const ov::Node>> ExecutableNetwork::inputs() const {
+    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
+    OV_EXEC_NET_CALL_STATEMENT(return func->inputs());
+}
+ov::Output<const ov::Node> ExecutableNetwork::input() const {
+    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
+    OV_EXEC_NET_CALL_STATEMENT(return func->input());
+}
+ov::Output<const ov::Node> ExecutableNetwork::input(size_t i) const {
+    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
+    OV_EXEC_NET_CALL_STATEMENT(return func->input(i));
+}
+ov::Output<const ov::Node> ExecutableNetwork::input(const std::string& tensor_name) const {
+    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
+    OV_EXEC_NET_CALL_STATEMENT(return func->input(tensor_name));
+}
 
 ResultVector ExecutableNetwork::get_results() const {
     OV_EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_results());
+}
+std::vector<ov::Output<const ov::Node>> ExecutableNetwork::outputs() const {
+    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
+    OV_EXEC_NET_CALL_STATEMENT(return func->outputs());
+}
+ov::Output<const ov::Node> ExecutableNetwork::output() const {
+    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
+    OV_EXEC_NET_CALL_STATEMENT(return func->output());
+}
+ov::Output<const ov::Node> ExecutableNetwork::output(size_t i) const {
+    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
+    OV_EXEC_NET_CALL_STATEMENT(return func->output(i));
+}
+ov::Output<const ov::Node> ExecutableNetwork::output(const std::string& tensor_name) const {
+    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
+    OV_EXEC_NET_CALL_STATEMENT(return func->output(tensor_name));
 }
 
 InferRequest ExecutableNetwork::create_infer_request() {
