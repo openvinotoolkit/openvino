@@ -67,7 +67,7 @@ Formula:
 
 * **5**: `R` - 2D tensor of type *T* `[4 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: fico. **Required.**
 
-* **6**: `B` 1D tensor of type *T* `[4 * hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
+* **6**: `B` 1D tensor of type *T* `[4 * hidden_size]`, the sum of biases (weights and recurrence weights), if not specified - assumed to be 0. **optional.**
 
 
 **Outputs**
