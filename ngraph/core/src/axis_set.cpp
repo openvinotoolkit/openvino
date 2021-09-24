@@ -56,4 +56,4 @@ void ov::AttributeAdapter<ov::AxisSet>::set(const std::vector<int64_t>& value) {
     m_buffer_valid = false;
 }
 
-constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ov::AxisSet>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::AxisSet>);

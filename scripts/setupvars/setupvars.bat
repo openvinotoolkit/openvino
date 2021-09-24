@@ -23,12 +23,15 @@ if not "%1"=="" (
 )
 
 :: OpenCV
+if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
+call "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat"
+goto :opencv_done
+)
 if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
 call "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat"
-) else (
-set "OpenCV_DIR=%INTEL_OPENVINO_DIR%\opencv\x64\vc14\lib"
-set "PATH=%INTEL_OPENVINO_DIR%\opencv\x64\vc14\bin;%PATH%"
+goto :opencv_done
 )
+:opencv_done
 
 :: Model Optimizer
 if exist %INTEL_OPENVINO_DIR%\tools\model_optimizer (
@@ -118,8 +121,8 @@ if exist %INTEL_OPENVINO_DIR%\tools\accuracy_checker (
     set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\accuracy_checker;%PYTHONPATH%
 )
 
-if exist %INTEL_OPENVINO_DIR%\post_training_optimization_toolkit (
-    set PYTHONPATH=%INTEL_OPENVINO_DIR%\post_training_optimization_toolkit;%PYTHONPATH%
+if exist %INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit (
+    set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit;%PYTHONPATH%
 )
 
 echo [setupvars.bat] OpenVINO environment initialized

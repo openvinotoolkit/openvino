@@ -8,10 +8,6 @@
 
 using namespace ngraph;
 
-// Define variant for std::string
-constexpr VariantTypeInfo VariantWrapper<std::string>::type_info;
-constexpr VariantTypeInfo VariantWrapper<int64_t>::type_info;
-
 Variant::~Variant() = default;
 
 std::shared_ptr<ngraph::Variant> Variant::init(const std::shared_ptr<ngraph::Node>& node) {

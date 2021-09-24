@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::RegionYolo, "RegionYolo", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::RegionYolo);
 
 op::RegionYolo::RegionYolo(const Output<Node>& input,
                            const size_t coords,

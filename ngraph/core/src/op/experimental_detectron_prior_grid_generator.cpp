@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator, "ExperimentalDetectronPriorGridGenerator", 6);
+BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator);
 
 op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
     const Output<Node>& priors,
@@ -60,10 +60,12 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate() {
 
     NODE_VALIDATION_CHECK(this, priors_shape.rank().get_length() == 2, "Priors rank must be equal to 2.");
 
-    NODE_VALIDATION_CHECK(this,
-                          priors_shape[1].is_static() && priors_shape[1].get_length() == 4u,
-                          "The last dimension of the 'priors' input must be equal to 4. Got: ",
-                          priors_shape[1]);
+    if (priors_shape[1].is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              priors_shape[1].is_static() && priors_shape[1].get_length() == 4u,
+                              "The last dimension of the 'priors' input must be equal to 4. Got: ",
+                              priors_shape[1]);
+    }
 
     NODE_VALIDATION_CHECK(this, featmap_shape.rank().get_length() == 4, "Feature_map rank must be equal to 4.");
 
