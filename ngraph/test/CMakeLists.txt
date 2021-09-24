@@ -39,6 +39,7 @@ set(SRC
     eval.cpp
     file_util.cpp
     float16.cpp
+    function.cpp
     graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
@@ -244,6 +245,7 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/acos.cpp
     visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
@@ -410,7 +412,6 @@ add_subdirectory(util)
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
     backend/abs.in.cpp
-    backend/acos.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
@@ -589,6 +590,9 @@ add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+
+get_target_property(NGRAPH_SRC_DIR openvino::core SOURCE_DIR)
+target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
 
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")

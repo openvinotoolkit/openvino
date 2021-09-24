@@ -353,13 +353,15 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
 
         # parse input
         in_node_id = parse_input_for_node(s[s.find(b'input=') + 6:], graph, layer_node_map)
-        out_port = len(Node(graph, in_node_id).out_nodes())
-        in_port = len(Node(graph, node_name).in_nodes())
+        # don't create cyclic edges node to itself to avoid removing later
+        if in_node_id != node_name:
+            out_port = len(Node(graph, in_node_id).out_nodes())
+            in_port = len(Node(graph, node_name).in_nodes())
 
-        Node(graph, node_name).add_input_port(in_port)
-        Node(graph, in_node_id).add_output_port(out_port, skip_if_exist=True)
+            Node(graph, node_name).add_input_port(in_port)
+            Node(graph, in_node_id).add_output_port(out_port, skip_if_exist=True)
 
-        graph.add_edge(in_node_id, node_name, **create_edge_attrs(in_node_id, node_name, in_node_id, in_port, out_port))
+            graph.add_edge(in_node_id, node_name, **create_edge_attrs(in_node_id, node_name, in_node_id, in_port, out_port))
     elif tokens[0] == b'output-node':
         layer_name = s[s.find(b'name=') + len(b'name='):].split(b' ')[0]
         layer_name = str(layer_name).strip('b').replace('\'', "")
