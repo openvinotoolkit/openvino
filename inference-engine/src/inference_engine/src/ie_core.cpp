@@ -594,6 +594,15 @@ public:
         return copyParameterValue(GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config));
     }
 
+    ie::Parameter GetConfig(const std::string& deviceName, const std::string& name) const override {
+        auto parsed = parseDeviceNameIntoConfig(deviceName);
+
+        // we need to return a copy of Parameter object which is created on Core side,
+        // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
+        // TODO: remove this WA after *-31417 is resolved
+        return copyParameterValue(GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config));
+    }
+
     /**
      * @brief Returns devices available for neural networks inference
      *

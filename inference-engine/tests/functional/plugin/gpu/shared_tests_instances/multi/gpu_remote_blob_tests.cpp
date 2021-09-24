@@ -10,6 +10,7 @@
 
 const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remote_blobs {
         {{GPU}, true}, // GPU via MULTI,
+        {{"GPU.0"}, true}, // GPU.0 via MULTI,
 #ifdef ENABLE_MKL_DNN
         {{GPU, CPU}, true}, // GPU+CPU
         {{CPU, GPU}, true}, // CPU+GPU

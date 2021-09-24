@@ -372,6 +372,10 @@ std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::Ge
                              << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
 }
 
+std::shared_ptr<InferenceEngine::ICore> MultiDeviceExecutableNetwork::GetCore() const {
+    return _plugin->GetCore();
+}
+
 InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
     auto num = _numRequestsCreated++;
