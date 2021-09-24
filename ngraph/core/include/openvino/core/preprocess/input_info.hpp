@@ -87,7 +87,6 @@ public:
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     InputInfo&& network(InputNetworkInfo&& builder) &&;
-
 };
 
 }  // namespace preprocess

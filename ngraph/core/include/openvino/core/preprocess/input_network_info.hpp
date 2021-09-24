@@ -11,11 +11,12 @@
 namespace ov {
 namespace preprocess {
 
-/// \brief Information about network's input tensor. If all information is already included to loaded network, this info may not be needed. However it can be set to specify additional information about network, like 'layout'.
+/// \brief Information about network's input tensor. If all information is already included to loaded network, this info
+/// may not be needed. However it can be set to specify additional information about network, like 'layout'.
 ///
 /// Example of usage of network 'layout':
-/// Support network has input parameter with shape {1, 3, 224, 224} and user needs to resize input image to network's dimensions
-/// It can be done like this
+/// Support network has input parameter with shape {1, 3, 224, 224} and user needs to resize input image to network's
+/// dimensions It can be done like this
 ///
 /// \code{.cpp}
 /// <network has input parameter with shape {1, 3, 224, 224}>
