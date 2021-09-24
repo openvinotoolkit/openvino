@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v1::LogicalAnd, "LogicalAnd", 1, util::BinaryElementwiseLogical);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::LogicalAnd);
 
 op::v1::LogicalAnd::LogicalAnd(const Output<Node>& arg0,
                                const Output<Node>& arg1,

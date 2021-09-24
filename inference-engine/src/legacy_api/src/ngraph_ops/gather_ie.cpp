@@ -16,7 +16,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::GatherIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::GatherIE);
 
 op::GatherIE::GatherIE(const Output<Node>& params, const Output<Node>& indices, int64_t axis)
         : Op({params, indices})

@@ -11,7 +11,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::PRelu, "PRelu", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::PRelu);
 
 ov::op::v0::PRelu::PRelu() : Op() {}
 
