@@ -195,6 +195,11 @@ public:
         return engine;
     }
 
+    // must be called only after MKLDNNGraph::InitEdges()
+    virtual bool isExecutable() const {
+        return true;
+    }
+
     bool isConstant();
 
     bool isInplace() const;
