@@ -65,14 +65,14 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_1, InferRequestDynamicTests,
                                 ::testing::ValuesIn(configs)),
                         InferRequestDynamicTests::getTestCaseName);
 
-// INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
-//                         ::testing::Combine(
-//                                 ::testing::Values(getFunction2()),
-//                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
-//                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
-//                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-//                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//                                 ::testing::ValuesIn(configs)),
-//                         InferRequestDynamicTests::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
+                        ::testing::Combine(
+                                ::testing::Values(getFunction2()),
+                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                                    {{1, 4, 20, 20}, {1, 2, 20, 40}},
+                                    {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::ValuesIn(configs)),
+                        InferRequestDynamicTests::getTestCaseName);
 
 }  // namespace

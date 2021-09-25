@@ -102,7 +102,7 @@ std::vector<VectorDims> MKLDNNReshapeNode::shapeInfer() const {
                                                                               getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape()));
     inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i32, memPtr.getStaticDims(), lastSecondInputValues));
     opToShapeInfer = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
-    
+
     opToShapeInfer->validate_and_infer_types();
 
     std::vector<VectorDims> newOutputShapes(outputShapes.size());
@@ -169,17 +169,7 @@ void MKLDNNReshapeNode::executeDynamicImpl(mkldnn::stream strm) {
     const auto count = srcMemPtr->GetShape().getElementsCount();
     if (count != dstMemPtr->GetShape().getElementsCount())
         IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
-    // std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
-    // const float * in = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
-    // for (size_t i = 0; i < count; i++)
-    //     std::cout << in[i] << " ";
-    // std::cout << std::endl;
     cpu_memcpy(dstMemPtr->GetPtr(), srcMemPtr->GetPtr(), count * MKLDNNExtensionUtils::sizeOfDataType(srcMemPtr->GetDataType()));
-    // const float * out = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
-    // for (size_t i = 0; i < count; i++)
-    //     std::cout << out[i] << " ";
-    // std::cout << std::endl;
-    // std::cout << "BBBBBBBBBBBBBBBBBBBBBBBBBBBBB" << std::endl;
 }
 
 bool MKLDNNReshapeNode::created() const {

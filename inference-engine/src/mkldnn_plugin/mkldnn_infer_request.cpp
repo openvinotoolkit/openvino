@@ -178,9 +178,6 @@ void MKLDNNPlugin::MKLDNNInferRequest::redefineMemoryForInputNodes() {
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
-    static size_t inferNum = 0;
-    std::cout << inferNum++ << std::endl;
-
     using namespace openvino::itt;
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, profilingTask);
     auto graphLock = execNetwork->GetGraph();
