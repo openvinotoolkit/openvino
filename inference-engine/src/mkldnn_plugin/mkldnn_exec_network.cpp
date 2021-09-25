@@ -13,7 +13,7 @@
 #include "mkldnn_serialize.h"
 #include "nodes/mkldnn_memory_node.hpp"
 #include <threading/ie_executor_manager.hpp>
-#define FIX_62820 0
+#define FIX_62820 1
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #include <threading/ie_tbb_streams_executor.hpp>
 #endif
