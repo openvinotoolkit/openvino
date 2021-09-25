@@ -21,7 +21,9 @@
 
 #endif
 
-namespace BehaviorTestsDefinitions {
+namespace ov {
+namespace test {
+namespace behavior {
 
 #define ASSERT_METRIC_SUPPORTED(metricName)                                                      \
 {                                                                                                \
@@ -1004,4 +1006,6 @@ TEST_P(OVClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins
     //     auto executableNetwork = ie.compile_model(actualNetwork, deviceName, config);
     // });
 };
-}  // namespace BehaviorTestsDefinitions
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

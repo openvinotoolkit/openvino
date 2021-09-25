@@ -5,7 +5,7 @@
 #include "behavior/executable_network/ov_get_metric.hpp"
 #include "openvino/runtime/core.hpp"
 
-using namespace BehaviorTestsDefinitions;
+using namespace ov::test::behavior;
 
 using namespace InferenceEngine::PluginConfigParams;
 

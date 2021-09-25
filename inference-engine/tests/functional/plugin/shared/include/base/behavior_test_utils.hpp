@@ -24,6 +24,7 @@
 
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
 
@@ -121,9 +122,46 @@ protected:
     InferenceEngine::ExecutableNetwork execNet;
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> function;
-//    InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
+};
+
+class OVInferRequestTests : public testing::WithParamInterface<InferRequestParams>,
+                            public CommonTestUtils::TestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
+        std::string targetDevice;
+        std::map<std::string, std::string> configuration;
+        std::tie(targetDevice, configuration) = obj.param;
+        std::ostringstream result;
+        result << "targetDevice=" << targetDevice << "_";
+        if (!configuration.empty()) {
+            for (auto &configItem : configuration) {
+                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+            }
+        }
+        return result.str();
+    }
+
+    void SetUp() override {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        std::tie(targetDevice, configuration) = this->GetParam();
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
+    }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+    }
+
+protected:
+    ov::runtime::ExecutableNetwork execNet;
+    std::shared_ptr<ov::runtime::Core> core = ov::test::PluginCache::get().core();
+    std::string targetDevice;
+    std::map<std::string, std::string> configuration;
+    std::shared_ptr<ov::Function> function;
 };
 
 inline ov::runtime::Core createCoreWithTemplate() {

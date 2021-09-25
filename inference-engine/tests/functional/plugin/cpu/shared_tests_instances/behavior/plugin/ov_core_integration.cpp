@@ -5,8 +5,7 @@
 #include "behavior/plugin/ov_core_integration.hpp"
 #include "openvino/runtime/core.hpp"
 
-using namespace BehaviorTestsDefinitions;
-
+using namespace ov::test::behavior;
 using namespace InferenceEngine::PluginConfigParams;
 
 namespace {

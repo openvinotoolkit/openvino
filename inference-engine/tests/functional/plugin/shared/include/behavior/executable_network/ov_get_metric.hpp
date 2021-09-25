@@ -16,7 +16,9 @@
 
 #endif
 
-namespace BehaviorTestsDefinitions {
+namespace ov {
+namespace test {
+namespace behavior {
 
 #define ASSERT_EXEC_METRIC_SUPPORTED(metricName)                                                \
     {                                                                                           \
@@ -340,4 +342,6 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoT
     ASSERT_EQ(expectedTargets, targets);
 }
 
-}  // namespace BehaviorTestsDefinitions
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

@@ -88,6 +88,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Auto.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
         R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
+        R"(.*OVExecutableNetworkBaseTest.*(CanGetInputsInfoAndCheck|CanSetConfigToExecNet|canLoadCorrectNetworkToGetExecutableWithIncorrectConfig).*)",
         // azure is failing after #6199
         R"(.*/NmsLayerTest.*)",
         // TODO: 56520 Accuracy mismatch
