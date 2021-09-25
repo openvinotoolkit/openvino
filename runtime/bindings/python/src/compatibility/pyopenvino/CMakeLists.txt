@@ -10,7 +10,17 @@ else()
     set(InferenceEngine_LIBRARIES IE::inference_engine)
 endif()
 
+# PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
+set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+message(STATUS "Python version=${PYTHON_VERSION}")
+
 if(OpenVINO_SOURCE_DIR)
+    if(WIN32)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/)
+    else()
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/)
+    endif()
+
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
     set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
@@ -18,15 +28,6 @@ if(OpenVINO_SOURCE_DIR)
 endif()
 
 # create target
-
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
-
-if(PYTHON_FOUND)
-    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-    message("Python version={${Python_VERSION}}")
-else()
-    message(FATAL_ERROR "Python was not found!")
-endif()
 
 file(GLOB_RECURSE SOURCES *.cpp)
 
