@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/executable_network/core_integration.hpp"
+#include "behavior/executable_network/get_metric.hpp"
 #include <gna/gna_config.hpp>
 
 using namespace BehaviorTestsDefinitions;

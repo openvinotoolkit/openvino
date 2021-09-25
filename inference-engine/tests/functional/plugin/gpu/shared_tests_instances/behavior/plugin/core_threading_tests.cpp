@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <behavior/plugin/core_threading_tests.hpp>
+#include <behavior/plugin/core_threading.hpp>
 #include <remote_blob_tests/remote_blob_helpers.hpp>
 
 using namespace InferenceEngine;

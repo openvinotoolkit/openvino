@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "behavior/executable_network/exec_graph_info.hpp"
+#include "behavior/executable_network/exec_network_base.hpp"
 
 using namespace BehaviorTestsDefinitions;
 

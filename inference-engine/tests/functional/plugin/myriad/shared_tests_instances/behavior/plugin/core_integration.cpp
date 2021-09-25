@@ -3,7 +3,7 @@
 //
 
 #include <functional_test_utils/skip_tests_config.hpp>
-#include "behavior/plugin/core_intergration.hpp"
+#include "behavior/plugin/core_integration.hpp"
 #include "common_test_utils/file_utils.hpp"
 
 using namespace BehaviorTestsDefinitions;

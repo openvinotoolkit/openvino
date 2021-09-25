@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "behavior/executable_network/core_integration.hpp"
+#include "behavior/executable_network/get_metric.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
