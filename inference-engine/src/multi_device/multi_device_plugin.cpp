@@ -253,11 +253,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         }
         // replace the configure with configure that auto want to pass to device
         // and reset the strDevices to support devices
-        std::vector<std::string> validConfigKey;
+        auto validConfigKey = PerfHintsConfig::SupportedKeys();
         validConfigKey.push_back(PluginConfigParams::KEY_PERF_COUNT);
         validConfigKey.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
-        validConfigKey.push_back(PluginConfigParams::KEY_PERFORMANCE_HINT);
-        validConfigKey.push_back(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
         strDevices = "";
         for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
              std::map<std::string, std::string> deviceConfig;
@@ -268,7 +266,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                  }
              }
              iter->config = deviceConfig;
-             strDevices = iter->deviceName;
+             strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
         }
 
