@@ -20,14 +20,14 @@ namespace runtime {
  */
 INFERENCE_ENGINE_API_CPP(std::shared_ptr<void>) load_shared_object(const char* path);
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
  * @brief Loads a library with the wide char name specified.
  * @param path Full or relative path to the plugin library
  * @return Reference to shared object
  */
 INFERENCE_ENGINE_API_CPP(std::shared_ptr<void>) load_shared_object(const wchar_t* path);
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
  * @brief Searches for a function symbol in the loaded module
  * @param shared_object shared object reference

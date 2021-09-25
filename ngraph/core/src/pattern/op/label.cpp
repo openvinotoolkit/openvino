@@ -10,11 +10,7 @@
 
 using namespace std;
 
-constexpr ov::NodeTypeInfo ov::pass::pattern::op::Label::type_info;
-
-const ov::NodeTypeInfo& ov::pass::pattern::op::Label::get_type_info() const {
-    return type_info;
-}
+BWDCMP_RTTI_DEFINITION(ov::pass::pattern::op::Label);
 
 ov::Output<ov::Node> ov::pass::pattern::op::Label::wrap_values(const ov::OutputVector& wrapped_values) {
     switch (wrapped_values.size()) {

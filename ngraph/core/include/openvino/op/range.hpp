@@ -12,7 +12,8 @@ namespace v4 {
 /// \brief Range operation, analogous to `arange()` in Numpy.
 class OPENVINO_API Range : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Range", "opset4", op::Op, 4);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an unitialized range operation.
     Range() = default;
 
@@ -47,7 +48,8 @@ namespace v0 {
 /// \brief Range operation, analogous to `range()` in Python.
 class OPENVINO_API Range : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Range", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an unitialized range operation.
     Range() = default;

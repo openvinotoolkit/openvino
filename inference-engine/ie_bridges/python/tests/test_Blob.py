@@ -149,10 +149,11 @@ def test_set_shape():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_blob_set_shape_after_async_infer():
-    from conftest import create_ngraph_function
+    from conftest import create_encoder
     import ngraph as ng
-    function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
+    function = create_encoder([1, 4, 20, 20])
     net = ng.function_to_cnn(function)
+    net.reshape({"data": [(1, 5), 4, 20, 20]})
     ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
@@ -161,3 +162,4 @@ def test_blob_set_shape_after_async_infer():
     with pytest.raises(RuntimeError) as e:
         request.input_blobs['data'].set_shape([3, 4, 20, 20])
     assert "REQUEST_BUSY" in str(e.value)
+    request.wait()
