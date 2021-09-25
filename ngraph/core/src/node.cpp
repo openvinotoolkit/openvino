@@ -162,10 +162,10 @@ void ov::Node::set_arguments(const OutputVector& arguments) {
     // Add this node as a user of each argument.
     size_t i = 0;
     for (auto& output : arguments) {
-        //set_argument(i++, output);
-        auto output_node = output.get_node();
-        auto& output_descriptor = output_node->m_outputs.at(output.get_index());
-        m_inputs.emplace_back(this, i++, output_descriptor);
+        set_argument(i++, output);
+        //auto output_node = output.get_node();
+        //auto& output_descriptor = output_node->m_outputs.at(output.get_index());
+        //m_inputs.emplace_back(this, i++, output_descriptor);
     }
 }
 
