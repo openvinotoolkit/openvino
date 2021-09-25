@@ -200,5 +200,7 @@ using IncorrectConfigTests = CorrectConfigTests;
 using IncorrectConfigSingleOptionTests = BehaviorTestsSingleOption;
 using IncorrectConfigAPITests = CorrectConfigTests;
 using CorrectConfigCheck = CorrectConfigTests;
+using DefaultValuesConfigTests = CorrectConfigTests;
+
 
 } // namespace BehaviorTestsDefinitions

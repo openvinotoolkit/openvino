@@ -179,12 +179,10 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, DefaultValuesConfigTests,
             ::testing::Combine(
-                ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                 ::testing::ValuesIn(conf)),
-            CorrectConfigAPITests::getTestCaseName);
+            DefaultValuesConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigAPITests,
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
                     ::testing::Values(CommonTestUtils::DEVICE_GPU),

@@ -168,4 +168,22 @@ TEST_P(IncorrectConfigAPITests, SetConfigWithNoExistingKey) {
     ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     ASSERT_THROW(ie->SetConfig(configuration, targetDevice), InferenceEngine::Exception);
 }
+
+
+TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
+    InferenceEngine::Parameter metric;
+    ASSERT_NO_THROW(metric = ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    std::vector<std::string> keys = metric;
+
+    for (auto& key : keys) {
+        InferenceEngine::Parameter configValue;
+        ASSERT_NO_THROW(configValue = ie->GetConfig(targetDevice, key));
+
+        ASSERT_NO_THROW(ie->SetConfig({{ key, configValue.as<std::string>()}}, targetDevice))
+                                    << "device=" << targetDevice << " "
+                                    << "config key=" << key << " "
+                                    << "value=" << configValue.as<std::string>();
+    }
+}
+
 } // namespace BehaviorTestsDefinitions
