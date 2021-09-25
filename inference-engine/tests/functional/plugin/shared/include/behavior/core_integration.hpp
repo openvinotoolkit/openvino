@@ -21,7 +21,7 @@
 #include <common_test_utils/common_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
 #define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #include <codecvt>
@@ -263,7 +263,7 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
 
 #endif
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -310,7 +310,7 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     CommonTestUtils::removeFile(pluginXML);
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 //
 // GetVersions()

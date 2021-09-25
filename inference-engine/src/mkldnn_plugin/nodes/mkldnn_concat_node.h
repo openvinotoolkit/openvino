@@ -27,6 +27,9 @@ public:
     bool isOptimized() const;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
+    bool isExecutable() const override {
+        return !isOptimized();
+    }
 
 private:
     size_t axis = 0;

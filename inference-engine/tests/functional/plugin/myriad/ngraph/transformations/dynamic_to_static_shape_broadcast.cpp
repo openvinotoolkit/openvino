@@ -103,7 +103,6 @@ protected:
         // static rank only in cases when the second input is Concat
         std::vector<ngraph::Dimension> broadcastOutShape(shapeOfNode->get_output_shape(0)[0], ngraph::Dimension::dynamic());
         broadcast->set_output_type(0, tensorParam->get_output_element_type(0), ngraph::PartialShape(broadcastOutShape));
-        function->get_result()->set_output_type(0, tensorParam->get_output_element_type(0), targetShape);
 
         const auto transformations = vpu::Transformations{{ngraph::opset3::Broadcast::type_info, vpu::dynamicToStaticShapeBroadcast}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
