@@ -166,11 +166,6 @@ TEST_P(IncorrectConfigSingleOptionTests, CanNotGetConfigWithIncorrectConfig) {
 
 TEST_P(IncorrectConfigAPITests, SetConfigWithNoExistingKey) {
     ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    // TODO: iefode
-    if (targetDevice.find(CommonTestUtils::DEVICE_GNA) != std::string::npos) {
-        ASSERT_THROW(ie->SetConfig(configuration, targetDevice), InferenceEngine::NotFound);
-    } else {
-        ASSERT_THROW(ie->SetConfig(configuration, targetDevice), InferenceEngine::Exception);
-    }
+    ASSERT_THROW(ie->SetConfig(configuration, targetDevice), InferenceEngine::Exception);
 }
 } // namespace BehaviorTestsDefinitions
