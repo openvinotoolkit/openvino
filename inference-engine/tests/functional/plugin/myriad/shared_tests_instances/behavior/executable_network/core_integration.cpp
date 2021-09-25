@@ -3,7 +3,7 @@
 //
 
 #include <functional_test_utils/skip_tests_config.hpp>
-#include "behavior/executable_network/core_integration.hpp"
+#include "behavior/executable_network/get_metric.hpp"
 #include "common_test_utils/file_utils.hpp"
 
 using namespace BehaviorTestsDefinitions;
