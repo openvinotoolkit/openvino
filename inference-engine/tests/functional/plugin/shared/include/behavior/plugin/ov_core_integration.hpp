@@ -308,7 +308,6 @@ TEST_P(OVClassNetworkTestP, QueryNetworkWithKSO) {
 }
 
 TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
 
     try {
