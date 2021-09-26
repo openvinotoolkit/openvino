@@ -211,9 +211,10 @@ struct TBBStreamsExecutor::Impl {
         }
     }
 
-    static void Schedule(Shared::Ptr& shared, Task task) {
-        Stream* stream = nullptr;
-        if (shared->_streamQueue.try_pop(stream)) {
+    static void Schedule(Shared::Ptr& shared, Task task, Stream* stream = nullptr) {
+        if (stream != nullptr) {
+            shared->_taskQueue.push(std::move(task));
+        } else if (shared->_streamQueue.try_pop(stream)) {
             struct TryPop {
                 void operator()() const {
                     try {
@@ -279,7 +280,7 @@ void TBBStreamsExecutor::run(Task task) {
     if (_impl->_config._streams == 0) {
         Execute(std::move(task));
     } else {
-        Impl::Schedule(_impl->_shared, std::move(task));
+        Impl::Schedule(_impl->_shared, std::move(task), _impl->_localStream.local());
     }
 }
 
