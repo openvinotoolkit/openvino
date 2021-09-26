@@ -69,7 +69,7 @@ class BehaviorTestsEmptyConfig : public testing::WithParamInterface<std::string>
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
         std::string targetDevice;
-        std::tie(targetDevice) = obj.param;
+        targetDevice = obj.param;
         std::ostringstream result;
         result << "targetDevice=" << targetDevice;
         return result.str();
