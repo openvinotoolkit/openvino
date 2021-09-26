@@ -71,6 +71,7 @@ public:
         return def;
     }
 
+    /// Returns node attribute by name
     template <typename T>
     T get_attribute(const std::string& name) const {
         auto res = m_decoder.get_attribute(name, VariantWrapper<T>::type_info);
@@ -80,6 +81,7 @@ public:
         return ret->get();
     }
 
+    /// Check if an attribute of a given name exists
     template <typename T>
     bool has_attribute(const std::string& name) const {
         return m_decoder.get_attribute(name, VariantWrapper<T>::type_info) != nullptr;
@@ -115,21 +117,25 @@ public:
         return res;
     }
 
+    /// Get a number of inputs
+    size_t get_ng_input_size() const {
+        return m_name_map.size();
+    }    
+
+    /// Get operation type
     std::string get_op_type() const {
         return m_decoder.get_op_type();
     }
 
+    /// Get a node name
     std::string get_name() const {
         return m_decoder.get_op_name();
     }
 
+    /// Get a decoder
     const ::ngraph::frontend::DecoderBase* get_decoder() const {
         return &m_decoder;
     }
-
-    size_t get_ng_input_size() const {
-        return m_name_map.size();
-    }    
 };
 
 }  // namespace tf
