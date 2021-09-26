@@ -4,14 +4,15 @@
 
 #include "ngraph/op/prior_box.hpp"
 
-#include <ngraph/opsets/opset8.hpp>
 #include <node_context.hpp>
+
+#include "default_opset.hpp"
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
 namespace op {
-using namespace opset8;
+using namespace default_opset;
 using namespace element;
 namespace detail {
 namespace {
