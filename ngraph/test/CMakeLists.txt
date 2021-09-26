@@ -209,7 +209,6 @@ set(SRC
     type_prop/roi_align.cpp
     type_prop/roi_pooling.cpp
     type_prop/roll.cpp
-    type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
     type_prop/round.cpp
@@ -245,6 +244,7 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/abs.cpp
     visitors/op/acos.cpp
     visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
@@ -412,7 +412,6 @@ add_subdirectory(util)
 
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/abs.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
@@ -427,7 +426,6 @@ set(MULTI_TEST_SRC
     backend/broadcast.in.cpp
     backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
-    backend/ceiling.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convolution_backprop.in.cpp
@@ -455,7 +453,6 @@ set(MULTI_TEST_SRC
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/fake_quantize.in.cpp
-    backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
     backend/gather.in.cpp
@@ -467,7 +464,6 @@ set(MULTI_TEST_SRC
     backend/hard_sigmoid.in.cpp
     backend/idft.in.cpp
     backend/interpolate.in.cpp
-    backend/log.in.cpp
     backend/log_softmax.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
@@ -480,7 +476,6 @@ set(MULTI_TEST_SRC
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
-    backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
@@ -503,7 +498,6 @@ set(MULTI_TEST_SRC
     backend/result.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
-    backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
     backend/selu.in.cpp
@@ -516,7 +510,6 @@ set(MULTI_TEST_SRC
     backend/softplus.in.cpp
     backend/space_to_batch.in.cpp
     backend/split.in.cpp
-    backend/sqrt.in.cpp
     backend/squared_difference.in.cpp
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
