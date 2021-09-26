@@ -91,6 +91,115 @@ std::vector<ScatterUpdate6Params> generateScatterUpdate6Params(const element::Ty
     using I = typename element_type_traits<INT_ET>::value_type;
     std::vector<ScatterUpdate6Params> ScatterUpdateParams {
         Builder {}
+            .data({{3, 2, 2, 3}, numeric_type, std::vector<N> {// ---------------------
+                                                               // 1
+                                                               0, 0, 0,
+                                                               0, 0, 0,
+                                                               // 2
+                                                               0, 0, 0,
+                                                               0, 0, 0,
+                                                               // ---------------------
+                                                               // 3
+                                                               0, 0, 0,
+                                                               0, 0, 0,
+                                                               /// 4
+                                                               0, 0, 0,
+                                                               0, 0, 0,
+                                                               // ---------------------
+                                                               // 5
+                                                               0, 0, 0,
+                                                               0, 0, 0,
+                                                               // 6
+                                                               0, 0, 0,
+                                                               0, 0, 0}}) // rank 3
+            .indices({{2, 1}, integer_type, std::vector<I> {0, 1}}) // rank 1
+            .updates({{3, 3, 2, 2, 2}, numeric_type, std::vector<N> { // -------
+                                                                     1, 2,
+                                                                     3, 4,
+                                                                     //
+                                                                     5, 6,
+                                                                     7, 8,
+                                                                     // ---------
+                                                                     //
+                                                                     9, 10,
+                                                                     11, 12,
+                                                                     //
+                                                                     13, 14,
+                                                                     15, 16,
+                                                                     // ------------
+                                                                     //
+                                                                     17, 18,
+                                                                     19, 20,
+                                                                     //
+                                                                     21, 22,
+                                                                     23, 24,
+                                                                     // -------------
+                                                                     //
+                                                                     // ===================
+                                                                     25, 26,
+                                                                     27, 28,
+                                                                     //
+                                                                     29, 30,
+                                                                     31, 32,
+                                                                     // ------
+                                                                     //
+                                                                     33, 34,
+                                                                     35, 36,
+                                                                     //
+                                                                     37, 38,
+                                                                     39, 40,
+                                                                     // --------------
+                                                                     //
+                                                                     41, 42,
+                                                                     43, 44,
+                                                                     //
+                                                                     45, 46,
+                                                                     47, 48,
+                                                                     // -------------
+                                                                     //
+                                                                     // ===================
+                                                                     49, 50,
+                                                                     51, 52,
+                                                                     //
+                                                                     53, 54,
+                                                                     55, 56,
+                                                                     // -----------
+                                                                     //
+                                                                     57, 58,
+                                                                     59, 60,
+                                                                     //
+                                                                     61, 62,
+                                                                     63, 64,
+                                                                     // ------------
+                                                                     //
+                                                                     65, 66,
+                                                                     67, 68,
+                                                                     //
+                                                                     69, 70,
+                                                                     71, 72}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {2}})
+            .expected({{3, 2, 2, 3}, numeric_type, std::vector<N> {// ---------------------
+                                                               // 1
+                                                               1, 2, 9,
+                                                               3, 4, 11,
+                                                               // 2
+                                                               10, 17, 18,
+                                                               12, 19, 20,
+                                                               // ---------------------
+                                                               // 3
+                                                               25, 26, 33,
+                                                               27, 28, 35,
+                                                               /// 4
+                                                               34, 41, 42,
+                                                               36, 43, 44,
+                                                               // ---------------------
+                                                               // 5
+                                                               49, 50, 57,
+                                                               51, 52, 59,
+                                                               // 6
+                                                               58, 65, 66,
+                                                               60, 67, 68}}),
+        Builder {}
             .data({{3, 3}, numeric_type, std::vector<N> {0, 0, 0,
                                                          0, 0, 0,
                                                          0, 0, 0}}) // rank 3
@@ -161,13 +270,33 @@ std::vector<ScatterUpdate6Params> generateScatterUpdate6Params(const element::Ty
                                                              0, 3, 4,
                                                              0, 5, 6}}),
         Builder {}
-            .data({{3, 3, 2}, numeric_type, std::vector<N> {0, 0, 0, 0, 0, 0,
-                                                            0, 0, 0, 0, 0, 0,
-                                                            0, 0, 0, 0, 0, 0}}) // rank 3
+            .data({{3, 3, 2}, numeric_type, std::vector<N> {0, 0,
+                                                            0, 0,
+                                                            0, 0,
+                                                            // --------
+                                                            0, 0,
+                                                            0, 0,
+                                                            0, 0,
+                                                            // --------
+                                                            0, 0,
+                                                            0, 0,
+                                                            0, 0}}) // rank 3
             .indices({{1, 1}, integer_type, std::vector<I> {1}}) // rank 1
-            .updates({{1, 1, 3, 2}, numeric_type, std::vector<N> {1, 2, 3, 4, 5, 6}}) // rank 3
+            .updates({{1, 1, 3, 2}, numeric_type, std::vector<N> {1, 2,
+                                                                  3, 4,
+                                                                  5, 6}}) // rank 3
             .axis({{1}, integer_type, std::vector<I> {1}})
-            .expected({{3, 3, 2}, numeric_type, std::vector<N> {0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0}})};
+            .expected({{3, 3, 2}, numeric_type, std::vector<N> {0, 0,
+                                                                1, 2,
+                                                                0, 0,
+                                                                // ------
+                                                                0, 0,
+                                                                0, 0,
+                                                                0, 0,
+                                                                // -----------
+                                                                0, 0,
+                                                                0, 0,
+                                                                0, 0}})};
     return ScatterUpdateParams;
 }
 
@@ -243,7 +372,7 @@ std::vector<ScatterUpdate6Params> generateScatterUpdateCombinedParams() {
         generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::u8>(element::u64, element::u8),
         generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::u16>(element::u64, element::u16),
         generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::u32>(element::u64, element::u32),
-        // bf16
+        // // bf16
         generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i16>(element::bf16, element::i16),
         generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i32>(element::bf16, element::i32),
         generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i64>(element::bf16, element::i64),
