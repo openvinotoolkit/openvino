@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,16 +12,16 @@
 
 #include <transformations/init_node_info.hpp>
 #include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/low_precision_transformations/concat_function.hpp"
+#include "lpt_ngraph_functions/concat_function.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithIntermediateTransformationParams> obj) {
+std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithIntermediateTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool transparentIntermediate;
@@ -39,7 +39,7 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestP
 
 InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
-    InferenceEngine::SizeVector inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params trasformationParams;
     bool transparentIntermediate;
@@ -47,7 +47,7 @@ InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(c
     std::tie(netPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
 
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(trasformationParams.precisionsOnActivations[0], info.getTensorDesc(), k);
+    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
 }
 
 /*
@@ -60,7 +60,7 @@ InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(c
 
 void ConcatWithIntermediateTransformation::SetUp() {
     ngraph::element::Type ngPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params trasformationParams;
     bool transparentIntermediate;
     bool multichannel;

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
@@ -28,23 +15,23 @@ class Eltwise(Op):
         operations = {
             'sum': ('Add', lambda a, b: a + b),
             'mul': ('Mul', lambda a, b: a * b),
-            'max': ('Max', lambda a, b: np.maximum(a, b)),
-            'pow': ('Pow', lambda a, b: np.power(a, b)),
-            'less': ('Less', lambda a, b: a < b),
-            'less_equal': ('LessEqual', lambda a, b: a <= b),
-            'greater': ('Greater', lambda a, b: a > b),
-            'greater_equal': ('GreaterEqual', lambda a, b: a >= b),
-            'equal': ('Equal', lambda a, b: a == b),
-            'floor_mod': ('FloorMod', lambda a, b: a % b),
-            'not_equal': ('NotEqual', lambda a, b: a != b),
+            'max': ('Max', lambda a, b: np.ma.maximum(a, b)),
+            'pow': ('Pow', lambda a, b: np.ma.power(a, b)),
+            'less': ('Less', lambda a, b: np.ma.less(a, b)),
+            'less_equal': ('LessEqual', lambda a, b: np.ma.less_equal(a, b)),
+            'greater': ('Greater', lambda a, b: np.ma.greater(a, b)),
+            'greater_equal': ('GreaterEqual', lambda a, b: np.ma.greater_equal(a, b)),
+            'equal': ('Equal', lambda a, b: np.ma.equal(a, b)),
+            'floor_mod': ('FloorMod', lambda a, b: np.ma.fmod(a, b)),
+            'not_equal': ('NotEqual', lambda a, b: np.ma.not_equal(a, b)),
             'logical_or': ('LogicalOr', lambda a, b: bool(a) or bool(b)),
             'logical_and': ('LogicalAnd', lambda a, b: bool(a) and bool(b)),
             'logical_xor': ('LogicalXor', lambda a, b: bool(a) ^ bool(b)),
-            'log': ('Log', lambda x: np.log(x)),
+            'log': ('Log', lambda x: np.ma.log(x)),
         }
 
         super().__init__(graph, {
-            'type': __class__.op,
+            'type': self.op,
             'op': operations[attrs['operation']][0],
             'infer': lambda node: eltwise_infer(node, operations[node.operation][1]),
             'in_ports_count': 2,

@@ -1,9 +1,10 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pipelines.h"
 #include "../utils.h"
+#include "common_utils.h"
 
 #include <iostream>
 #include <string>
@@ -113,6 +114,12 @@ std::function<void()> infer_request_inference(const std::string &model, const st
         CNNNetwork cnnNetwork = ie.ReadNetwork(model);
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
         InferRequest infer_request = exeNetwork.CreateInferRequest();
+
+        auto batchSize = cnnNetwork.getBatchSize();
+        batchSize = batchSize != 0 ? batchSize : 1;
+        const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+        fillBlobs(infer_request, inputsInfo, batchSize);
+
         infer_request.Infer();
         OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
         for (auto &output : output_info)
@@ -120,11 +127,45 @@ std::function<void()> infer_request_inference(const std::string &model, const st
     };
 }
 
-std::function<void()> reinfer_request_inference(InferenceEngine::InferRequest& infer_request, InferenceEngine::CNNNetwork& cnnNetwork) {
+std::function<void()> reinfer_request_inference(InferenceEngine::InferRequest& infer_request, InferenceEngine::OutputsDataMap& output_info) {
     return [&] {
         infer_request.Infer();
-        OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
         for (auto &output : output_info)
             Blob::Ptr outputBlob = infer_request.GetBlob(output.first);
+    };
+}
+
+std::function<void()> inference_with_streams(const std::string &model, const std::string &target_device, const int& nstreams) {
+    return [&] {
+        std::map<std::string, std::string> config;
+        config[target_device + "_THROUGHPUT_STREAMS"] = std::to_string(nstreams);
+
+        Core ie;
+        ie.GetVersions(target_device);
+        ie.SetConfig(config, target_device);
+
+        InferRequest inferRequest;
+
+        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
+        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
+        auto batchSize = cnnNetwork.getBatchSize();
+        batchSize = batchSize != 0 ? batchSize : 1;
+        const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+
+        unsigned int nireq = nstreams;
+        try {
+            nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+        } catch (const std::exception &ex) {
+            log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
+        }
+        for (int counter = 0; counter < nireq; counter++) {
+            inferRequest = exeNetwork.CreateInferRequest();
+            fillBlobs(inferRequest, inputsInfo, batchSize);
+
+            inferRequest.Infer();
+            OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
+            for (auto &output : output_info)
+                Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
+        }
     };
 }

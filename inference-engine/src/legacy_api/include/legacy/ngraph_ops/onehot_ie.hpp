@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,8 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(OneHotIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"OneHotIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("OneHotIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     explicit OneHotIE(const Output<ngraph::Node>& input, int axis, int depth, float on_value, float off_value, element::Type type);
 
@@ -27,6 +27,7 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     int get_axis() { return m_axis; }
     int get_depth() { return m_depth; }

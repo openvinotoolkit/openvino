@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/interpolate_function.hpp"
+#include "lpt_ngraph_functions/interpolate_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -28,9 +28,9 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) 
     return os;
 }
 
-std::string InterpolateTransformation::getTestCaseName(testing::TestParamInfo<InterpolateTransformationParams> obj) {
+std::string InterpolateTransformation::getTestCaseName(const testing::TestParamInfo<InterpolateTransformationParams>& obj) {
     ngraph::element::Type precision;
-    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     std::string targetDevice;
     interpAttributes attributes;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
@@ -51,9 +51,8 @@ std::string InterpolateTransformation::getTestCaseName(testing::TestParamInfo<In
 void InterpolateTransformation::SetUp() {
     SetRefMode(LayerTestsUtils::RefMode::IE);
     ngraph::element::Type precision;
-    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     interpAttributes attributes;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::tie(precision, shapes, targetDevice, attributes) = this->GetParam();
 
     ngraph::op::InterpolateAttrs interpAttrs;

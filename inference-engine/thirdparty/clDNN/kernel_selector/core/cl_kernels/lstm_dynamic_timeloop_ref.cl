@@ -1,19 +1,9 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #define ACTIVATION_LOGISTIC(input)        (UNIT_VAL_ONE/(UNIT_VAL_ONE + exp(-input)))
 #define ACTIVATION_HYPERBOLIC_TAN(input)  (tanh(input))
@@ -42,7 +32,7 @@ KERNEL(lstm_dynamic_timeloop_ref)(
     const uint dir      = get_global_id(2);
     uint unroll_timesteps = dyn_lengths[b];
 
-    //if hidden_size is bigger then 256, then ELEMENTS_TO_COUNT will be hidden_size/256 
+    //if hidden_size is bigger then 256, then ELEMENTS_TO_COUNT will be hidden_size/256
     ACCUMULATOR_TYPE it[ELEMENTS_TO_COUNT];
     ACCUMULATOR_TYPE ot[ELEMENTS_TO_COUNT];
     ACCUMULATOR_TYPE zt[ELEMENTS_TO_COUNT];
@@ -61,7 +51,7 @@ KERNEL(lstm_dynamic_timeloop_ref)(
     #else
     bool use_cell = false;
     #endif //cell_term
-   
+
     for(int timestep = 0; timestep < MAX_SEQUENCE_LENGTH; timestep++)
     {
         //not all workitems will do computations
@@ -74,7 +64,7 @@ KERNEL(lstm_dynamic_timeloop_ref)(
                 ft[element_idx] = input[GET_DATA_INDEX(INPUT0, b, timestep, dir, y + GEMM_OFFSET_F)];
                 it[element_idx] = input[GET_DATA_INDEX(INPUT0, b, timestep, dir, y + GEMM_OFFSET_I)];
                 zt[element_idx] = input[GET_DATA_INDEX(INPUT0, b, timestep, dir, y + GEMM_OFFSET_Z)];
-                ot[element_idx] = input[GET_DATA_INDEX(INPUT0, b, timestep, dir, y + GEMM_OFFSET_O)];  
+                ot[element_idx] = input[GET_DATA_INDEX(INPUT0, b, timestep, dir, y + GEMM_OFFSET_O)];
                 if(use_hidden)
                 {
                     for(uint x = 0; x < OUTPUT_SIZE_X; ++x)
@@ -97,9 +87,9 @@ KERNEL(lstm_dynamic_timeloop_ref)(
                             zt[element_idx] += (ACCUMULATOR_TYPE)(output[hidden_idx] * recurrent[GET_DATA_INDEX(RECURRENT, 0, dir, y + GEMM_OFFSET_Z, x)]);
                             ot[element_idx] += (ACCUMULATOR_TYPE)(output[hidden_idx] * recurrent[GET_DATA_INDEX(RECURRENT, 0, dir, y + GEMM_OFFSET_O, x)]);
                         } //else timesteo ==0
-                    }//for(uint x = 0; x < OUTPUT_SIZE_X; ++x)                  
+                    }//for(uint x = 0; x < OUTPUT_SIZE_X; ++x)
                 }//if(use_hidden)
- 
+
                 //eltwise operation
                 eltiwse_vals[element_idx] = ACTIVATION_LOGISTIC(CLIP(it[element_idx])) * ACTIVATION_HYPERBOLIC_TAN(CLIP(zt[element_idx]));
                 #if INPUT_FORGET
@@ -120,12 +110,12 @@ KERNEL(lstm_dynamic_timeloop_ref)(
                     }
                 }
                 //end of eltwise operation
-            }//for(uint cell_element = 0; cell_element < ELEMENTS_TO_COUNT; cell_element++)      
+            }//for(uint cell_element = 0; cell_element < ELEMENTS_TO_COUNT; cell_element++)
         } //first if(timestep < unroll_timesteps)
 
         //all workitems needs to hit the barrier before writing to global output memory
         barrier(CLK_GLOBAL_MEM_FENCE);
-        
+
         //not all workitems will do computations
         if(timestep < unroll_timesteps)
         {
@@ -155,6 +145,6 @@ KERNEL(lstm_dynamic_timeloop_ref)(
         } //second if(timestep < unroll_timesteps)
 
         //all workitems needs to hit the barrier after writing to global output memory
-        barrier(CLK_GLOBAL_MEM_FENCE);         
+        barrier(CLK_GLOBAL_MEM_FENCE);
     }
 }

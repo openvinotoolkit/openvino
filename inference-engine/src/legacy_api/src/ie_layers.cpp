@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,11 +36,11 @@ WeightableLayer::WeightableLayer(const LayerParams& prms) : CNNLayer(prms) {}
 
 const DataPtr CNNLayer::input() const {
     if (insData.empty()) {
-        THROW_IE_EXCEPTION << "Internal error: input data is empty";
+        IE_THROW() << "Internal error: input data is empty";
     }
     auto lockedFirstInsData = insData[0].lock();
     if (!lockedFirstInsData) {
-        THROW_IE_EXCEPTION << "Internal error: unable to lock weak_ptr\n";
+        IE_THROW() << "Internal error: unable to lock weak_ptr\n";
     }
     return lockedFirstInsData;
 }
@@ -55,7 +55,7 @@ float CNNLayer::ie_parse_float(const std::string& str) {
         std::stringstream val_stream(str);
         val_stream.imbue(std::locale("C"));
         val_stream >> res;
-        if (!val_stream.eof()) THROW_IE_EXCEPTION;
+        if (!val_stream.eof()) IE_THROW();
         return res;
     }
 }
@@ -72,7 +72,7 @@ float CNNLayer::GetParamAsFloat(const char* param, float def) const {
     try {
         return ie_parse_float(val);
     } catch (...) {
-        THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
+        IE_THROW() << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
                            << val << " cannot be casted to float.";
     }
 }
@@ -82,7 +82,7 @@ float CNNLayer::GetParamAsFloat(const char* param) const {
     try {
         return ie_parse_float(val);
     } catch (...) {
-        THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
+        IE_THROW() << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
                            << val << " cannot be casted to float.";
     }
 }
@@ -98,7 +98,7 @@ std::vector<float> CNNLayer::GetParamAsFloats(const char* param, std::vector<flo
             float val = ie_parse_float(str);
             result.push_back(val);
         } catch (...) {
-            THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
+            IE_THROW() << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
                                << ". Value " << vals << " cannot be casted to floats.";
         }
     }
@@ -115,7 +115,7 @@ std::vector<float> CNNLayer::GetParamAsFloats(const char* param) const {
             float val = ie_parse_float(str);
             result.push_back(val);
         } catch (...) {
-            THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
+            IE_THROW() << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
                                << ". Value " << vals << " cannot be casted to floats.";
         }
     }
@@ -127,7 +127,7 @@ int CNNLayer::GetParamAsInt(const char* param, int def) const {
     try {
         return std::stoi(val);
     } catch (...) {
-        THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
+        IE_THROW() << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
                            << val << " cannot be casted to int.";
     }
 }
@@ -137,7 +137,7 @@ int CNNLayer::GetParamAsInt(const char* param) const {
     try {
         return std::stoi(val);
     } catch (...) {
-        THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
+        IE_THROW() << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
                            << val << " cannot be casted to int.";
     }
 }
@@ -152,7 +152,7 @@ std::vector<int> CNNLayer::GetParamAsInts(const char* param, std::vector<int> de
         try {
             result.push_back(std::stoi(str));
         } catch (...) {
-            THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
+            IE_THROW() << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
                                << ". Value " << vals << " cannot be casted to int.";
         }
     }
@@ -168,7 +168,7 @@ std::vector<int> CNNLayer::GetParamAsInts(const char* param) const {
         try {
             result.push_back(std::stoi(str));
         } catch (...) {
-            THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
+            IE_THROW() << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
                                << ". Value " << vals << " cannot be casted to int.";
         }
     }
@@ -178,15 +178,15 @@ std::vector<int> CNNLayer::GetParamAsInts(const char* param) const {
 unsigned int CNNLayer::GetParamAsUInt(const char* param, unsigned int def) const {
     std::string val = GetParamAsString(param, std::to_string(def).c_str());
     std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
-                          ". Value " + val + " cannot be casted to int.";
+                          ". Value " + val + " cannot be casted to unsigned int.";
     try {
-        int value = std::stoi(val);
-        if (value < 0) {
-            THROW_IE_EXCEPTION << message;
+        long long value = std::stoll(val);
+        if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
+            IE_THROW() << message;
         }
         return static_cast<unsigned int>(value);
     } catch (...) {
-        THROW_IE_EXCEPTION << message;
+        IE_THROW() << message;
     }
 }
 
@@ -195,13 +195,13 @@ unsigned int CNNLayer::GetParamAsUInt(const char* param) const {
     std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
                           ". Value " + val + " cannot be casted to unsigned int.";
     try {
-        int value = std::stoi(val);
-        if (value < 0) {
-            THROW_IE_EXCEPTION << message;
+        long long value = std::stoll(val);
+        if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
+            IE_THROW() << message;
         }
         return static_cast<unsigned int>(value);
     } catch (...) {
-        THROW_IE_EXCEPTION << message;
+        IE_THROW() << message;
     }
 }
 
@@ -215,13 +215,13 @@ std::vector<unsigned int> CNNLayer::GetParamAsUInts(const char* param, std::vect
     if (vals.empty()) return def;
     while (getline(stream, str, ',')) {
         try {
-            int value = std::stoi(str);
-            if (value < 0) {
-                THROW_IE_EXCEPTION << message;
+            long long value = std::stoll(str);
+            if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
+                IE_THROW() << message;
             }
             result.push_back(static_cast<unsigned int>(value));
         } catch (...) {
-            THROW_IE_EXCEPTION << message;
+            IE_THROW() << message;
         }
     }
     return result;
@@ -233,19 +233,49 @@ std::vector<unsigned int> CNNLayer::GetParamAsUInts(const char* param) const {
     std::istringstream stream(vals);
     std::string str;
     std::string message = "Cannot parse parameter " + std::string(param) + " " + str + " from IR for layer " +
-                          name + ". Value " + vals + " cannot be casted to int.";
+                          name + ". Value " + vals + " cannot be casted to unsigned int.";
     while (getline(stream, str, ',')) {
         try {
-            int value = std::stoi(str);
-            if (value < 0) {
-                THROW_IE_EXCEPTION << message;
+            long long value = std::stoll(str);
+            if ((value < 0) || (value > std::numeric_limits<unsigned int>::max())) {
+                IE_THROW() << message;
             }
             result.push_back(static_cast<unsigned int>(value));
         } catch (...) {
-            THROW_IE_EXCEPTION << message;
+            IE_THROW() << message;
         }
     }
     return result;
+}
+
+size_t CNNLayer::GetParamAsSizeT(const char* param, size_t def) const {
+    std::string val = GetParamAsString(param, std::to_string(def).c_str());
+    std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
+                          ". Value " + val + " cannot be casted to size_t.";
+    try {
+        long long value = std::stoll(val);
+        if ((value < 0) || (static_cast<unsigned long long>(value) > std::numeric_limits<size_t>::max())) {
+            IE_THROW() << message;
+        }
+        return static_cast<size_t>(value);
+    } catch (...) {
+        IE_THROW() << message;
+    }
+}
+
+size_t CNNLayer::GetParamAsSizeT(const char* param) const {
+    std::string val = GetParamAsString(param);
+    std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
+                          ". Value " + val + " cannot be casted to size_t.";
+    try {
+        long long value = std::stoll(val);
+        if ((value < 0) || (static_cast<unsigned long long>(value) > std::numeric_limits<size_t>::max())) {
+            IE_THROW() << message;
+        }
+        return static_cast<size_t>(value);
+    } catch (...) {
+        IE_THROW() << message;
+    }
 }
 
 bool CNNLayer::GetParamAsBool(const char* param, bool def) const {
@@ -301,9 +331,19 @@ bool CNNLayer::CheckParamPresence(const char* param) const {
 std::string CNNLayer::GetParamAsString(const char* param) const {
     auto it = params.find(param);
     if (it == params.end()) {
-        THROW_IE_EXCEPTION << "No such parameter name '" << param << "' for layer " << name;
+        IE_THROW() << "No such parameter name '" << param << "' for layer " << name;
     }
     return (*it).second;
+}
+
+std::string CNNLayer::getBoolStrParamAsIntStr(const char *param) const {
+    std::string val = GetParamAsString(param);
+    if (val == "true" || val == "True") {
+        return "1";
+    } else if (val == "false" || val == "False") {
+        return "0";
+    }
+    return val;
 }
 
 std::vector<std::string> CNNLayer::GetParamAsStrings(const char* param, std::vector<std::string> def) const {
@@ -316,7 +356,7 @@ std::vector<std::string> CNNLayer::GetParamAsStrings(const char* param, std::vec
         try {
             result.push_back(str);
         } catch (...) {
-            THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name << ".";
+            IE_THROW() << "Cannot parse parameter " << param << " from IR for layer " << name << ".";
         }
     }
     return result;

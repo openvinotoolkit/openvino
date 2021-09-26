@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,8 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(TopKIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"TopKIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("TopKIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     TopKIE(const Output<Node>& data,
            const Output<Node>& k,
@@ -36,6 +36,7 @@ public:
     ngraph::op::TopKMode get_mode() { return m_mode; }
 
     ngraph::op::TopKSortType get_sort_type() { return m_sort_type; }
+    bool visit_attributes(AttributeVisitor &visitor) override;
 
 private:
     int64_t m_axis;

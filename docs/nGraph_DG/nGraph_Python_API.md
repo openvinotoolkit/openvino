@@ -169,13 +169,13 @@ You can also set attribute values using corresponding setter methods, for exampl
 node.set_axis(0)
 ```
 
-Currently, you can get all attributes of a node using the `_get_attributes` method. Please note that this is an internal API method and may change in future versions of OpenVINO.
+Currently, you can get all attributes of a node using the `get_attributes` method.
 
 The following code displays all attributes for all nodes in a function:
 
 ```python
 for node in function.get_ordered_ops():
-    attributes = node._get_attributes()
+    attributes = node.get_attributes()
     if(attributes):
         print('Operation {} of type {} has attributes:'.format(node.get_friendly_name(), node.get_type_name()))
         for attr, value in attributes.items():
@@ -187,6 +187,8 @@ for node in function.get_ordered_ops():
 ### Node runtime information
 
 Attributes are properties of nodes in the computational graph, which will be stored when the model is serialized to a file. However, there can be additional properties of nodes, which are only important during the execution of a graph. An example of such a property is `affinity`, which determines which operation will be executed on which hardware in a heterogeneous environment. You can get and set runtime information by using the `get_rt_info` method of a node.
+
+> **NOTE**: If you set affinity manually, be careful at the current moment Inference Engine plugins don't support constant (`Constant`->`Result`) and empty (`Parameter`->`Result`) networks. Please avoid such subgraphs when you set affinity manually.
 
 ```python
 rt_info = node.get_rt_info()

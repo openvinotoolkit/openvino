@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
 #include <vector>
 
+#include "itt.hpp"
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -15,6 +16,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceOptimization, "StridedSliceOpti
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UselessStridedSliceEraser, "UselessStridedSliceEraser", 0);
 
 bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(UselessStridedSliceEraser);
     bool rewritten = false;
     for (auto & node : f->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
@@ -89,6 +91,7 @@ bool strided_slices_perform_the_same(std::shared_ptr<ngraph::opset1::StridedSlic
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedStridedSliceEraser, "SharedStridedSliceEraser", 0);
 
 bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(SharedStridedSliceEraser);
     bool graph_rewritten = false;
 
     std::map<ngraph::Output<Node>, std::vector<std::shared_ptr<ngraph::opset1::StridedSlice>>> source_to_ss;
@@ -120,6 +123,7 @@ bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngr
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupedStridedSliceOptimizer, "GroupedStridedSliceOptimizer", 0);
 
 bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(GroupedStridedSliceOptimizer);
     bool graph_rewritten = false;
     using planned_slice = std::pair<std::shared_ptr<ngraph::opset1::StridedSlice>, ngraph::SlicePlan>;
 
@@ -167,13 +171,20 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         std::vector<OutputToPatrition> output_to_partition;
         for (size_t i = 0; i < input_shape.size(); ++i) {
             for (const auto & ss_plan : pair.second) {
-                if (ss_plan.second.begins[i] != 0 || ss_plan.second.ends[i] != input_shape[i]) {
-                    if (axis == -1 || axis == i)
+                if (ss_plan.second.begins[i] != 0 || ss_plan.second.ends[i] != static_cast<int64_t>(input_shape[i])) {
+                    if (axis == -1 || axis == static_cast<int>(i))
                         axis = static_cast<int>(i);
                     else
                         valid_for_replacement = false;
                     if (ss_plan.second.strides[i] != 1)
                         valid_for_replacement = false;
+
+                    for (auto& target_input : ss_plan.first->output(0).get_target_inputs()) {
+                        if (is_type<op::Result>(target_input.get_node())) {
+                            valid_for_replacement = false;
+                            break;
+                        }
+                    }
                     output_to_partition.push_back({ss_plan.first->output(0), ss_plan.second.begins[i], ss_plan.second.ends[i]});
                 }
                 if (!valid_for_replacement) break;
@@ -231,3 +242,10 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
     return graph_rewritten;
 }
 
+bool ngraph::pass::StridedSliceOptimization::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
+    bool rewritten = UselessStridedSliceEraser().run_on_function(f);
+    rewritten |= SharedStridedSliceEraser().run_on_function(f);
+    rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);
+    return rewritten;
+}

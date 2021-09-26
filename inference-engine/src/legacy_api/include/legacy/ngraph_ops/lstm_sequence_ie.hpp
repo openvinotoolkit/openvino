@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,14 +17,15 @@ namespace ngraph {
 namespace op {
 class INFERENCE_ENGINE_API_CLASS(LSTMSequenceIE) : public ngraph::op::util::RNNCellBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("LSTMSequenceIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     LSTMSequenceIE() = delete;
 
     LSTMSequenceIE(const Output <Node> &X,
                    const Output <Node> &H_t,
                    const Output <Node> &C_t,
-                   const Output <Node> &seq_lenghts,
+                   const Output <Node> &seq_lengths,
                    const Output <Node> &WR,
                    const Output <Node> &B,
                    size_t hidden_size,
@@ -32,7 +33,8 @@ public:
                    const std::vector<std::string> &activations,
                    const std::vector<float> &activations_alpha,
                    const std::vector<float> &activations_beta,
-                   float clip);
+                   float clip,
+                   int64_t seq_len = 1);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override;
 
@@ -44,6 +46,7 @@ public:
 
 protected:
     ngraph::op::RecurrentSequenceDirection m_direction;
+    int64_t m_seq_axis;
 };
 }  // namespace op
 }  // namespace ngraph

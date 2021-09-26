@@ -1,20 +1,6 @@
-/*
-* Copyright 2017-2019 Intel Corporation.
-* The source code, information and material ("Material") contained herein is
-* owned by Intel Corporation or its suppliers or licensors, and title to such
-* Material remains with Intel Corporation or its suppliers or licensors.
-* The Material contains proprietary information of Intel or its suppliers and
-* licensors. The Material is protected by worldwide copyright laws and treaty
-* provisions.
-* No part of the Material may be used, copied, reproduced, modified, published,
-* uploaded, posted, transmitted, distributed or disclosed in any way without
-* Intel's prior express written permission. No license under any patent,
-* copyright or other intellectual property rights in the Material is granted to
-* or conferred upon you, either expressly, by implication, inducement, estoppel
-* or otherwise.
-* Any license under such intellectual property rights must be express and
-* approved by Intel in writing.
-*/
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include "mvnc_data.h"
 #include "mvnc_tool.h"
@@ -49,35 +35,12 @@ ncDeviceProtocol_t convertProtocolToNC(
     }
 }
 
-XLinkPlatform_t convertPlatformToXlink(
-    const ncDevicePlatform_t ncProtocol) {
-    switch (ncProtocol) {
-        case NC_ANY_PLATFORM: return X_LINK_ANY_PLATFORM;
-        case NC_MYRIAD_2:     return X_LINK_MYRIAD_2;
-        case NC_MYRIAD_X:     return X_LINK_MYRIAD_X;
-        default:           return X_LINK_ANY_PLATFORM;
-    }
-}
-
-ncDevicePlatform_t convertPlatformToNC(
-    const XLinkPlatform_t xLinkProtocol) {
-    switch (xLinkProtocol) {
-        case X_LINK_ANY_PLATFORM:   return NC_ANY_PLATFORM;
-        case X_LINK_MYRIAD_2:       return NC_MYRIAD_2;
-        case X_LINK_MYRIAD_X:       return NC_MYRIAD_X;
-        default:
-            mvLog(MVLOG_WARN, "This convertation not supported, set to NC_ANY_PLATFORM");
-            return NC_ANY_PLATFORM;
-    }
-}
-
 int copyNcDeviceDescrToXLink(const struct ncDeviceDescr_t *in_ncDeviceDesc,
                                     deviceDesc_t *out_deviceDesc) {
     CHECK_HANDLE_CORRECT(in_ncDeviceDesc);
     CHECK_HANDLE_CORRECT(out_deviceDesc);
 
     out_deviceDesc->protocol = convertProtocolToXlink(in_ncDeviceDesc->protocol);
-    out_deviceDesc->platform = convertPlatformToXlink(in_ncDeviceDesc->platform);
     mv_strncpy(out_deviceDesc->name, XLINK_MAX_NAME_SIZE, in_ncDeviceDesc->name, XLINK_MAX_NAME_SIZE - 1);
 
     return NC_OK;
@@ -89,7 +52,6 @@ int copyXLinkDeviceDescrToNc(const deviceDesc_t *in_DeviceDesc,
     CHECK_HANDLE_CORRECT(out_ncDeviceDesc);
 
     out_ncDeviceDesc->protocol = convertProtocolToNC(in_DeviceDesc->protocol);
-    out_ncDeviceDesc->platform = convertPlatformToNC(in_DeviceDesc->platform);
     mv_strncpy(out_ncDeviceDesc->name, XLINK_MAX_NAME_SIZE, in_DeviceDesc->name, XLINK_MAX_NAME_SIZE - 1);
 
     return NC_OK;
@@ -212,7 +174,7 @@ static ncStatus_t patchSetWdSwitchCommand(char **firmware, size_t *length, const
 // 0x98 the write command for 8bit
 // {0x00, 0x0c, 0x20, 0x70} == 0x70200c00 the address of memory type for ddrInit application
 const char g_setMemTypeCommandMX[] = {0x98, 0x00, 0x0c, 0x20, 0x70};
-const char g_callCommand[] = {0xba, 0x24, 0xe7, 0x21, 0x70};
+const char g_callCommand[] = {0xba, 0x78, 0xe9, 0x00, 0x70};
 
 static ncStatus_t patchSetMemTypeCommand(char **firmware, size_t *length, const char memType) {
     CHECK_HANDLE_CORRECT(firmware);
@@ -261,17 +223,15 @@ ncStatus_t bootDevice(deviceDesc_t* deviceDescToBoot,
     }
 
     if(deviceDescToBoot->platform == X_LINK_MYRIAD_X) {
-        if(deviceDescToBoot->protocol != X_LINK_PCIE) {
-            sc = patchSetWdSwitchCommand(&firmware, &length, bootOptions.wdEnable);
-            if(sc) {
-                mvLog(MVLOG_WARN, "Fail to patch \"Set wd switch value\" command for firmware sc = %d", sc);
-            }
+        sc = patchSetWdSwitchCommand(&firmware, &length, bootOptions.wdEnable);
+        if(sc) {
+            mvLog(MVLOG_WARN, "Fail to patch \"Set wd switch value\" command for firmware sc = %d", sc);
+        }
             
-            sc = patchSetMemTypeCommand(&firmware, &length, bootOptions.memType);
-            if(sc) {
-                mvLog(MVLOG_WARN, "Fail to patch \"Set memory type\" command for firmware sc = %d", sc);
-            }
-        }       
+        sc = patchSetMemTypeCommand(&firmware, &length, bootOptions.memType);
+        if(sc) {
+            mvLog(MVLOG_WARN, "Fail to patch \"Set memory type\" command for firmware sc = %d", sc);
+        }
     }
 
     XLinkError_t rc = XLinkBootFirmware(deviceDescToBoot, firmware, (unsigned long)length);

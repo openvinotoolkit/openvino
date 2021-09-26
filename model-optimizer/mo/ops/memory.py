@@ -1,21 +1,8 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.op import Op
@@ -59,7 +46,7 @@ class Memory(Op):
             # And we can set the attribute 'shape' in extracting
             batch = 1
             for out_node in node.out_nodes().values():
-                out_node.shape = int64_array([batch, *node.shape[:]])
+                out_node.shape = shape_array([batch, *node.shape[:]])
             return
         else:
             raise Error('Model Optimizer is unable to calculate output shape of Memory node {}. ' +

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "subgraph_tests/matmul_squeeze_add.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -39,7 +39,7 @@ std::vector<size_t> output_sizes = {
     8
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MatmulSqueezeAdd, MatmulSqueezeAddTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MatmulSqueezeAdd, MatmulSqueezeAddTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

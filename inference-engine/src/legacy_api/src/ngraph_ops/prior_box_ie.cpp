@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PriorBoxIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::PriorBoxIE);
 
 op::PriorBoxIE::PriorBoxIE(const Output<Node>& input, const Output<Node>& image, const PriorBoxAttrs& attrs)
     : Op({input, image}), m_attrs(attrs) {
@@ -33,4 +33,20 @@ void op::PriorBoxIE::validate_and_infer_types() {
 std::shared_ptr<Node> op::PriorBoxIE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<PriorBoxIE>(new_args.at(0), new_args.at(1), m_attrs);
+}
+
+bool op::PriorBoxIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("min_size", m_attrs.min_size);
+    visitor.on_attribute("max_size", m_attrs.max_size);
+    visitor.on_attribute("aspect_ratio", m_attrs.aspect_ratio);
+    visitor.on_attribute("density", m_attrs.density);
+    visitor.on_attribute("fixed_ratio", m_attrs.fixed_ratio);
+    visitor.on_attribute("fixed_size", m_attrs.fixed_size);
+    visitor.on_attribute("clip", m_attrs.clip);
+    visitor.on_attribute("flip", m_attrs.flip);
+    visitor.on_attribute("step", m_attrs.step);
+    visitor.on_attribute("offset", m_attrs.offset);
+    visitor.on_attribute("variance", m_attrs.variance);
+    visitor.on_attribute("scale_all_sizes", m_attrs.scale_all_sizes);
+    return true;
 }

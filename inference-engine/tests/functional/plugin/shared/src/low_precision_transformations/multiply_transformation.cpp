@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,27 +11,31 @@
 #include <ie_core.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "ngraph_functions/low_precision_transformations/multiply_function.hpp"
+#include "lpt_ngraph_functions/multiply_function.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
 
 namespace LayerTestsDefinitions {
 
-std::string MultiplyTransformation::getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj) {
+std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyTransformationParams>& obj) {
     ngraph::element::Type precision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     MultiplyTestValues param;
     std::tie(precision, inputShapes, targetDevice, param) = obj.param;
 
-    if (!param.precisionOnActivations.empty()) {
-        params.precisionsOnActivations = param.precisionOnActivations;
-    }
-
     std::ostringstream result;
     result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params) <<
         (param.broadcast ? "_broadcast" : "");
+    for (const auto& elem : param.precisionOnActivations) {
+        result << "_" << elem << "_";
+    }
+    result << "expected_precisions_";
+    for (const auto& elem : param.expectedPrecisions) {
+        result << "_" << elem << "_";
+    }
+
     if (!param.fakeQuantize1.empty()) {
         result << "_on_branch1_" <<
             param.fakeQuantize1.inputLowValues[0] << "_" <<
@@ -51,40 +55,16 @@ std::string MultiplyTransformation::getTestCaseName(testing::TestParamInfo<Multi
 
 void MultiplyTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape1;
+    ngraph::PartialShape inputShape;
     MultiplyTestValues param;
-    std::tie(precision, inputShape1, targetDevice, param) = this->GetParam();
+    std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
 
-    ngraph::Shape inputShape2 = inputShape1;
-
-    if (param.broadcast) {
-        inputShape2[2] = 1;
-        inputShape2[3] = 1;
-    }
-
-    auto fq1 = param.fakeQuantize1;
-    auto fq2 = param.fakeQuantize2;
-
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
-    const auto fakeQuantize1 = fq1.empty() ?
-        nullptr :
-        ngraph::builder::makeFakeQuantize(
-            input1, precision, fq1.quantizationLevel, fq1.constantShape,
-            fq1.inputLowValues, fq1.inputHighValues, fq1.outputLowValues, fq1.outputHighValues);
-
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape2);
-    const auto fakeQuantize2 = fq2.empty() ?
-        nullptr :
-        ngraph::builder::makeFakeQuantize(
-            input2, precision, fq2.quantizationLevel, fq2.constantShape,
-            fq2.inputLowValues, fq2.inputHighValues, fq2.outputLowValues, fq2.outputHighValues);
-
-    const auto multiply = std::make_shared<ngraph::opset1::Multiply>(
-        fq1.empty() ? input1 : fakeQuantize1,
-        fq2.empty() ? input2 : fakeQuantize2);
-
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "MultiplyTransformation");
+    function = ngraph::builder::subgraph::MultiplyFunction::getOriginal(
+        precision,
+        inputShape,
+        param.broadcast,
+        param.fakeQuantize1,
+        param.fakeQuantize2);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 }

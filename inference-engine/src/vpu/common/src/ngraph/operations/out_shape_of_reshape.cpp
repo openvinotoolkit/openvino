@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ void OutShapeOfReshape::validate_and_infer_types() {
                           ") shape descriptor type needs to be an integral type. Got: ",
                           outShapeDescriptorTensorType);
 
-    set_output_type(0, element::i64, outShapeDescriptorTensorShape);
+    set_output_type(0, m_output_type, outShapeDescriptorTensorShape);
 }
 
 std::shared_ptr<Node> OutShapeOfReshape::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -78,7 +78,7 @@ bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
     }
     size_t outputRank = data->get_shape()[0];
 
-    for (int i = 0; i < outputRank; i++) {
+    for (size_t i = 0; i < outputRank; i++) {
         result.push_back(dataPtr[i]);
     }
 
@@ -97,7 +97,7 @@ bool setShapeToHostTensorData(const HostTensorPtr& data, const Shape& shape) {
         return false;
     }
 
-    for (int i = 0; i < outputRank; i++) {
+    for (size_t i = 0; i < outputRank; i++) {
         dataPtr[i] = static_cast<T>(shape[i]);
     }
     return true;
@@ -257,6 +257,9 @@ bool OutShapeOfReshape::evaluate(const HostTensorVector& outputs,
     return out_shape::evaluateOutShapeOfReshape(inputs[0], inputs[1], m_specialZero, outputs[0]);
 }
 
+void OutShapeOfReshape::set_output_type(const ngraph::element::Type& output_type) {
+    m_output_type = output_type;
+}
 
 }  // namespace op
 }  // namespace vpu

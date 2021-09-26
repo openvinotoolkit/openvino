@@ -1,23 +1,13 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/deconvolution.hpp"
+
+#include "cldnn/primitives/deconvolution.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <memory>
 
@@ -28,7 +18,7 @@ struct typed_program_node<deconvolution> : public typed_program_node_base<deconv
     using parent = typed_program_node_base<deconvolution>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog),
           split(this->get_primitive()->split()),
           depthwise_sep_opt(false),
@@ -100,27 +90,27 @@ public:
     static std::string to_string(deconvolution_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, deconvolution_node const& node);
+    typed_primitive_inst(network& network, deconvolution_node const& node);
 
-    memory_impl& weights_memory(size_t index) const {
+    memory::ptr weights_memory(size_t index) const {
         if (node.get_groups() == 1) {
             if (static_cast<int32_t>(index) >= node.get_split())
                 throw std::range_error("weights offset too big");
-            return dep_memory(1 + index);
+            return dep_memory_ptr(1 + index);
         } else {  // all weights are in one buffer
-            return dep_memory(1);
+            return dep_memory_ptr(1);
         }
     }
 
-    memory_impl& bias_memory(size_t index) const {
+    memory::ptr bias_memory(size_t index) const {
         if (node.get_groups() == 1) {
             if (argument.bias.size() == 0 && static_cast<int32_t>(index) >= node.get_split())
                 throw std::range_error("no bias data");
             if (static_cast<int32_t>(index) > node.get_split())
                 throw std::range_error("bias offset too big");
-            return dep_memory(1 + node.get_split() + index);
+            return dep_memory_ptr(1 + node.get_split() + index);
         } else {  // all bias are in one buffer
-            return dep_memory(2);
+            return dep_memory_ptr(2);
         }
     }
 

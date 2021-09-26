@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -139,7 +139,7 @@ TEST(BlobConversionTests, blobSharesOwnershipOnCast) {
 TEST_F(CompoundBlobTests, cannotCreateCompoundBlobFromNullptr) {
     Blob::Ptr valid = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 3, 4, 4}, NCHW));
     EXPECT_THROW(make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>({valid, nullptr})),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 TEST_F(CompoundBlobTests, canCreateEmptyCompoundBlob) {
@@ -174,7 +174,7 @@ TEST_F(CompoundBlobTests, cannotCreateCompoundBlobFromCompoundBlob) {
     verifyCompoundBlob(_test_blob);
 
     EXPECT_THROW(make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>({blob, _test_blob})),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 TEST_F(CompoundBlobTests, compoundBlobHoldsCorrectDataInCorrectOrder) {
@@ -248,46 +248,46 @@ TEST_F(CompoundBlobTests, compoundBlobHoldsValidDataWhenUnderlyingBlobIsDestroye
 TEST_F(NV12BlobTests, cannotCreateNV12BlobFromNullptrBlobs) {
     Blob::Ptr valid = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 4, 4}, NHWC));
     EXPECT_THROW(make_shared_blob<NV12Blob>(valid, nullptr),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
     EXPECT_THROW(make_shared_blob<NV12Blob>(nullptr, valid),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 TEST_F(NV12BlobTests, cannotCreateNV12BlobFromCompoundBlobs) {
     Blob::Ptr blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 4, 4}, NHWC));
     auto cblob = make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>({blob}));
     EXPECT_THROW(make_shared_blob<NV12Blob>(cblob, blob),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
     EXPECT_THROW(make_shared_blob<NV12Blob>(blob, cblob),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 TEST_F(NV12BlobTests, cannotCreateNV12BlobFromPlanesWithDifferentElementSize) {
     Blob::Ptr blob_u8 = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 4, 4}, NHWC));
     Blob::Ptr blob_float = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 2, 2, 2}, NHWC));
     EXPECT_THROW(make_shared_blob<NV12Blob>(blob_u8, blob_float),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 TEST_F(NV12BlobTests, cannotCreateNV12BlobFromPlanesWithNonU8Precision) {
     Blob::Ptr float_y_blob = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 1, 4, 4}, NHWC));
     Blob::Ptr float_uv_blob = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 2, 2, 2}, NHWC));
     EXPECT_THROW(make_shared_blob<NV12Blob>(float_y_blob, float_uv_blob),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 TEST_F(NV12BlobTests, cannotCreateNV12BlobFromPlanesWithInconsistentBatchSize) {
     Blob::Ptr y = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 4, 4}, NHWC));
     Blob::Ptr uv = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {2, 2, 2, 2}, NHWC));
-    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv), InferenceEngine::Exception);
 }
 
 TEST_F(NV12BlobTests, cannotCreateNV12BlobFromPlanesWithWrongChannelNumber) {
     Blob::Ptr y = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 4, 4}, NHWC));
     Blob::Ptr uv = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 2, 2}, NHWC));
-    EXPECT_THROW(make_shared_blob<NV12Blob>(y, y), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<NV12Blob>(uv, uv), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<NV12Blob>(uv, y), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(y, y), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(uv, uv), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(uv, y), InferenceEngine::Exception);
 }
 
 TEST_F(NV12BlobTests, cannotCreateNV12BlobFromPlanesWithWrongWidthRatio) {
@@ -296,10 +296,10 @@ TEST_F(NV12BlobTests, cannotCreateNV12BlobFromPlanesWithWrongWidthRatio) {
     Blob::Ptr uv1 = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 5, 3}, NHWC));
     Blob::Ptr uv2 = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 6, 3}, NHWC));
     Blob::Ptr uv3 = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 8, 3}, NHWC));
-    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv0), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv1), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv2), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv3), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv0), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv1), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv2), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv3), InferenceEngine::Exception);
 }
 
 TEST_F(NV12BlobTests, cannotCreateNV12BlobFromPlanesWithWrongHeightRatio) {
@@ -308,10 +308,10 @@ TEST_F(NV12BlobTests, cannotCreateNV12BlobFromPlanesWithWrongHeightRatio) {
     Blob::Ptr uv1 = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 3, 5}, NHWC));
     Blob::Ptr uv2 = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 3, 6}, NHWC));
     Blob::Ptr uv3 = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 3, 8}, NHWC));
-    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv0), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv1), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv2), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv3), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv0), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv1), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv2), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<NV12Blob>(y, uv3), InferenceEngine::Exception);
 }
 
 TEST_F(NV12BlobTests, canCreateNV12BlobFromTwoPlanes) {
@@ -351,8 +351,8 @@ TEST_F(I420BlobTests, canCreateI420BlobFromThreeMovedPlanes) {
 
 TEST_F(I420BlobTests, cannotCreateI420BlobFromNullptrBlobs) {
     Blob::Ptr valid = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 4, 4}, NHWC));
-    EXPECT_THROW(make_shared_blob<I420Blob>(valid, nullptr, nullptr), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<I420Blob>(nullptr, valid, nullptr), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(valid, nullptr, nullptr), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<I420Blob>(nullptr, valid, nullptr), InferenceEngine::Exception);
 }
 
 TEST_F(I420BlobTests, cannotCreateI420BlobFromCompoundBlobs) {
@@ -367,7 +367,7 @@ TEST_F(I420BlobTests, cannotCreateI420BlobFromCompoundBlobs) {
     auto c_y_blob = make_cblob(y_blob);
     auto c_u_blob = make_cblob(u_blob);
     auto c_v_blob = make_cblob(v_blob);
-    using ie_exception_t = InferenceEngine::details::InferenceEngineException;
+    using ie_exception_t = InferenceEngine::Exception;
 
     EXPECT_THROW(make_shared_blob<I420Blob>(c_y_blob, u_blob,   v_blob), ie_exception_t);
     EXPECT_THROW(make_shared_blob<I420Blob>(y_blob,   c_u_blob, v_blob), ie_exception_t);
@@ -379,7 +379,7 @@ TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithDifferentElementSize) {
     Blob::Ptr u_blob_float = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 1, 2, 2}, NHWC));
     Blob::Ptr v_blob_float = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 1, 2, 2}, NHWC));
 
-    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob_u8, u_blob_float, v_blob_float), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob_u8, u_blob_float, v_blob_float), InferenceEngine::Exception);
 }
 
 TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithNonU8Precision) {
@@ -387,23 +387,23 @@ TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithNonU8Precision) {
     Blob::Ptr u_blob_float = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 1, 2, 2}, NHWC));
     Blob::Ptr v_blob_float = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 1, 2, 2}, NHWC));
 
-    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob_float, u_blob_float, v_blob_float), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob_float, u_blob_float, v_blob_float), InferenceEngine::Exception);
 }
 
 TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithInconsistentBatchSize) {
     Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
     Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {2, 1, 3, 4}, NHWC));
     Blob::Ptr v_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
-    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::Exception);
 }
 
 TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithWrongChannelNumber) {
     Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
     Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 3, 4}, NHWC));
     Blob::Ptr v_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
-    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::Exception);
 }
 
 TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithWrongWidthRatio) {
@@ -411,8 +411,8 @@ TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithWrongWidthRatio) {
     Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 2}, NHWC));
     Blob::Ptr v_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
 
-    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::Exception);
 }
 
 TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithWrongHeightRatio) {
@@ -420,8 +420,8 @@ TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithWrongHeightRatio) {
     Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 2, 4}, NHWC));
     Blob::Ptr v_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
 
-    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::details::InferenceEngineException);
-    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::Exception);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::Exception);
 }
 
 

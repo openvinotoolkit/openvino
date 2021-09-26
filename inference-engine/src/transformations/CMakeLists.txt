@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -24,27 +24,32 @@ ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
-target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
-                                     PRIVATE openvino::itt ngraph::builder pugixml)
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Transformations library")
 
-target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
+target_link_libraries(${TARGET_NAME} PUBLIC ngraph
+                                     PRIVATE ngraph_reference openvino::itt ngraph::builder pugixml::static)
+
+target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+ie_mark_target_as_cc(${TARGET_NAME})
+
 # LTO
 
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
 
 # install
 
-install(TARGETS ${TARGET_NAME}
+install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)

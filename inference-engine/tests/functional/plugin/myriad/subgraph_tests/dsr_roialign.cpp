@@ -1,8 +1,8 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 
@@ -54,7 +54,7 @@ TEST_P(DSR_ROIAlignDataDSR, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_DynamicROIAlignDataDSR, DSR_ROIAlignDataDSR,
+INSTANTIATE_TEST_SUITE_P(DISABLED_DynamicROIAlignDataDSR, DSR_ROIAlignDataDSR,
     ::testing::Combine(
         ::testing::Values(
                     ngraph::element::f16,
@@ -99,7 +99,7 @@ TEST_P(DSR_ROIAlignROIDSR, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_DynamicROIAlign, DSR_ROIAlignROIDSR,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_DynamicROIAlign, DSR_ROIAlignROIDSR,
     ::testing::Combine(
         ::testing::Values(
                     ngraph::element::f16,
@@ -148,7 +148,7 @@ TEST_P(DSR_ROIAlign, CompareWithReference) {
 }
 
 // #-30909
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_DynamicROIAlign, DSR_ROIAlign,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_DynamicROIAlign, DSR_ROIAlign,
     ::testing::Combine(
         ::testing::Values(
                     ngraph::element::f16,

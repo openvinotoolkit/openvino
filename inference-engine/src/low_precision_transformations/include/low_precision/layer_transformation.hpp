@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-#include "iparams_manager.hpp"
-#include "ilayer_transformations_manager.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
@@ -41,9 +39,16 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API DataPrecision {
+class LP_TRANSFORMATIONS_API DataPrecision {
 public:
     DataPrecision() : precision(element::undefined), min(0.f), max(0.f), hasZeroPoint(false) {}
+
+    explicit DataPrecision(const element::Type& precision) {
+        this->precision = precision;
+        min = getMinValue(precision, 256);
+        max = getMaxValue(precision, 256);
+        hasZeroPoint = false;
+    }
 
     DataPrecision(const element::Type precision, const float min, const float max, const bool hasZeroPoint) :
             precision(precision),
@@ -51,41 +56,93 @@ public:
             max(max),
             hasZeroPoint(hasZeroPoint) {}
 
+    static bool isSupported(const element::Type& precision) {
+        static const std::set<element::Type_t> lowPrecision = {
+                element::i8, element::u8,
+                element::i16, element::u16,
+                element::i32, element::u32
+        };
+        return lowPrecision.count(precision) == 1;
+    }
+
     static float getMinValue(const element::Type precision, const size_t levels) {
-        if (precision == element::i8) {
-            if (levels == 255) {
-                return static_cast<float>(std::numeric_limits<signed char>::lowest()) + 1.f;
-            } else if (levels == 256) {
-                return static_cast<float>(std::numeric_limits<signed char>::lowest());
-            } else {
-                NGRAPH_CHECK(false, "unexpected levels ", levels, " for precision ", precision);
-            }
-        } else if (precision == element::u8) {
-            return static_cast<float>(std::numeric_limits<unsigned char>::lowest());
-        } else if (precision == element::f16) {
-            return -1.0e15f;
-        } else if (precision == element::f32) {
-            return std::numeric_limits<float>::lowest();
-        } else {
-            NGRAPH_CHECK(false, "unexpected precision ", precision);
+        switch (precision) {
+            case element::u4:
+            case element::u8:
+            case element::u16:
+            case element::u32:
+                return 0.f;
+            case element::i4:
+                return -8.f;
+            case element::i8:
+                switch (levels) {
+                    case 255:
+                        return -127.f;
+                    case 256:
+                        return -128.f;
+                }
+                break;
+            case element::i16:
+                switch (levels) {
+                    case 65536:
+                        return -32768.f;
+                    case 65535:
+                        return -32767.f;
+                }
+                break;
+            case element::i32:
+                switch (levels) {
+                    case static_cast<size_t>(4294967296):
+                        return -2147483648.f;
+                    case 4294967295:
+                        return -2147483647.f;
+                }
+                break;
+            case element::f16:
+                return -1.0e15f;
+            case element::f32:
+                return std::numeric_limits<float>::lowest();
+            default:
+                NGRAPH_CHECK(false, "unexpected precision ", precision);
         }
+        NGRAPH_CHECK(false, "unexpected levels ", levels, " for precision ", precision);
     }
 
     static float getMaxValue(const element::Type precision, const size_t levels) {
-        if ((levels != 255ul) && (levels != 256ul)) {
-            THROW_TRANSFORMATION_EXCEPTION << "unexpected levels " << levels;
+        switch (precision) {
+            case element::u4:
+                return 15.f;
+            case element::u8:
+                return 255.f;
+            case element::u16:
+                return 65535.f;
+            case element::u32:
+                return 4294967296.f;
+            case element::i4:
+                return 7.f;
+            case element::i8:
+                return 127.f;
+            case element::i16:
+                return 32767.f;
+            case element::i32:
+                return 2147483647.f;
+            case element::f16:
+                return 1.0e15f;
+            case element::f32:
+                return std::numeric_limits<float>::max();
+            default:
+                NGRAPH_CHECK(false, "unexpected precision ", precision);
         }
+    }
 
-        if (precision == element::i8) {
-            return static_cast<float>(std::numeric_limits<signed char>::max());
-        } else if (precision == element::u8) {
-            return static_cast<float>(std::numeric_limits<unsigned char>::max()) - (256 - levels);
-        } else if (precision == element::f16) {
-            return 1.0e15f;
-        } else if (precision == element::f32) {
-            return std::numeric_limits<float>::max();
+    // Return maximum value for quantization level. Quantization level is maximum value for precision.
+    static float getMaxValue(const size_t maxLevelsForPrecision) {
+        if (maxLevelsForPrecision == 255ul) {
+            return 254.f;
+        } else if (maxLevelsForPrecision == 256ul) {
+            return 255.f;
         } else {
-            THROW_TRANSFORMATION_EXCEPTION << "unexpected precision " << precision;
+            THROW_TRANSFORMATION_EXCEPTION << "unexpected quantization level " << maxLevelsForPrecision;
         }
     }
 
@@ -110,29 +167,6 @@ public:
     static element::Type getPrecision(const size_t /* quantizationLevels */, const bool signedInterval) {
         return signedInterval ? element::i8 : element::u8;
     }
-
-    static float getMin(const size_t quantizationLevels, const bool signedInterval) {
-        if (quantizationLevels == 255) {
-            return signedInterval  ? -127.0f : 0.0f;
-        } else if (quantizationLevels == 256) {
-            return signedInterval ? -128.0f : 0.0f;
-        } else {
-            // THROW_TRANSFORMATION_EXCEPTION << "quantization level " << quantizationLevels << " is not supported";
-            // FIXME: not completed
-            return signedInterval ? -128.0f : 0.0f;
-        }
-    }
-
-    static float getMax(const size_t quantizationLevels, const bool signedInterval) {
-        if ((quantizationLevels == 255) || (quantizationLevels == 256)) {
-            return signedInterval ? 127.0f : 255.0f;
-        } else {
-            // THROW_TRANSFORMATION_EXCEPTION << "quantization level " << quantizationLevels << " is not supported";
-            // FIXME: not completed
-            // return quantizationLevels - 1.0;
-            return signedInterval ? 127.0f : 255.0f;
-        }
-    }
 };
 
 inline bool operator==(const DataPrecision& value1, const DataPrecision& value2) {
@@ -152,73 +186,28 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 }
 
 // Base class for all LP transformations, holds some common data structures
-class TRANSFORMATIONS_API LayerTransformation {
+class LP_TRANSFORMATIONS_API LayerTransformation : public ngraph::pass::MatcherPass {
 public:
-    enum QuantizedTensorAlignment {
-        None,
-        UpdateLevel
-    };
-
     class Params {
     public:
         Params(
-                const bool updatePrecisions = true,
-                const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations = QuantizedTensorAlignment::UpdateLevel,
-                const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
-                bool supportAsymmetricQuantization = false,
-                std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
-                std::vector<element::Type> precisionsOnWeights = { element::i8 }) :
-                updatePrecisions(updatePrecisions),
-                quantizedTensorAlignmentOnActivations(quantizedTensorAlignmentOnActivations),
-                quantizedTensorAlignmentOnWeights(quantizedTensorAlignmentOnWeights),
-                supportAsymmetricQuantization(supportAsymmetricQuantization),
-                precisionsOnActivations(precisionsOnActivations),
-                precisionsOnWeights(precisionsOnWeights) {
-            if (precisionsOnActivations.size() == 0ul) {
-                THROW_TRANSFORMATION_EXCEPTION << "precisions on activations are not specisifed";
-            }
-
-            if (precisionsOnWeights.size() == 0ul) {
-                THROW_TRANSFORMATION_EXCEPTION << "precisions on weights are not specisifed";
-            }
-        }
+            const bool updatePrecisions = true,
+            element::Type deqPrecision = element::f32) :
+            updatePrecisions(updatePrecisions),
+            deqPrecision(deqPrecision) {}
 
         Params& setUpdatePrecisions(const bool updatePrecisions) {
             this->updatePrecisions = updatePrecisions;
             return *this;
         }
 
-        Params& setQuantizedTensorAlignmentOnActivations(const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations) {
-            this->quantizedTensorAlignmentOnActivations = quantizedTensorAlignmentOnActivations;
-            return *this;
-        }
-
-        Params& setQuantizedTensorAlignmentOnWeights(const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights) {
-            this->quantizedTensorAlignmentOnWeights = quantizedTensorAlignmentOnWeights;
-            return *this;
-        }
-
-        Params& setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization) {
-            this->supportAsymmetricQuantization = supportAsymmetricQuantization;
-            return *this;
-        }
-
-        Params& setPrecisionsOnActivations(const std::vector<element::Type>& precisionsOnActivations) {
-            this->precisionsOnActivations = precisionsOnActivations;
-            return *this;
-        }
-
-        Params& setPrecisionsOnWeights(const std::vector<element::Type>& precisionsOnWeights) {
-            this->precisionsOnWeights = precisionsOnWeights;
+        Params& setDeqPrecision(const element::Type& deqPrecision) {
+            this->deqPrecision = deqPrecision;
             return *this;
         }
 
         bool updatePrecisions;
-        QuantizedTensorAlignment quantizedTensorAlignmentOnActivations;
-        QuantizedTensorAlignment quantizedTensorAlignmentOnWeights;
-        bool supportAsymmetricQuantization;
-        std::vector<element::Type> precisionsOnActivations;
-        std::vector<element::Type> precisionsOnWeights;
+        element::Type deqPrecision;
     };
 
     class PrecisionDetails {
@@ -228,55 +217,49 @@ public:
                 hasNegativeOutput(hasNegativeOutput),
                 hasZeroPoint(hasZeroPoint) {}
 
-        const element::Type precision;
-        const bool hasNegativeOutput;
-        const bool hasZeroPoint;
+        element::Type precision;
+        bool hasNegativeOutput;
+        bool hasZeroPoint;
     };
 
     LayerTransformation(const Params& params);
     virtual ~LayerTransformation() = default;
-    virtual void registerMatcherIn(ngraph::pass::GraphRewrite& pass, TransformationContext& context) const = 0;
-    virtual bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const = 0;
+    virtual bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) = 0;
 
-    void setParamsManager(IParamsManager* paramsManager) noexcept;
-    void setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept;
+    void setContext(TransformationContext* context) noexcept;
 
     void setUpdatePrecisions(const bool updatePrecisions);
-    void setQuantizedTensorAlignmentOnActivations(const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations);
-    void setQuantizedTensorAlignmentOnWeights(const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights);
-
-    void setQuantizationIntervalAsymmetryThreshold(const float value);
-    void setZeroThreshold(const float value);
-    void setMinQuantizationLevels(const size_t levels);
-
-    const std::vector<element::Type>& getPrecisionsOnActivations() const;
-    const std::vector<element::Type>& getPrecisionsOnWeights() const;
 
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
-
-    bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const size_t parentIndex = 0ul) const;
+    static bool canBeTransformedStatic(const std::shared_ptr<Node>& layer);
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
-    PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails) const;
+    // Get precision based on FakeQuantize operation.
+    // Undefined value is expected. In this case the accuracy has to be defined by the calling code.
+    // TODO: LPT: INT8 specific here
+    static PrecisionDetails getPrecisionDetails(
+        const size_t quantizationLevels,
+        const std::vector<float>& outputLowValues,
+        const std::vector<float>& outputHighValues);
+    static PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails);
+
+    static bool isAsymmetricQuantization(const std::shared_ptr<const Node>& node);
 
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise
     // note: dequantization operations on activations are absent during method execution
-    virtual bool isQuantized(std::shared_ptr<Node> layer) const noexcept;
+    virtual bool isQuantized(const std::shared_ptr<const Node>& layer) const noexcept;
 
     // return true if operation can be preserved for precision
     // note: dequantization operations on activations are absent during method execution
     virtual bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept = 0;
 
-    DataPrecision getDataPrecision(
-            std::shared_ptr<Node> layer,
+    // weights specific
+    static DataPrecision getDataPrecision(
+            const std::shared_ptr<Node>& layer,
             const QuantizationDetails& quantizationDetails,
-            const bool onWeights) const;
-
-    void fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const;
-
-    std::vector<std::shared_ptr<Node>> getChildrenRecursivelyExceptPrecisionPreserved(const std::shared_ptr<Node>& op) const noexcept;
+            const std::vector<element::Type>& precisions);
 
 protected:
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -288,33 +271,18 @@ protected:
 #endif
 
     bool updatePrecisions;
-    QuantizedTensorAlignment quantizedTensorAlignmentOnActivations;
-    QuantizedTensorAlignment quantizedTensorAlignmentOnWeights;
-    bool supportAsymmetricQuantization;
-    std::vector<element::Type> precisionsOnActivations;
-    std::vector<element::Type> precisionsOnWeights;
-
-    // absolute value, used to determine quantization interval asymmetry
-    float quantizationIntervalAsymmetryThreshold;
-    // absolute value, used to determine zero
-    float zeroThreshold;
-    size_t minQuantizationLevels;
+    element::Type deqPrecision;
 
     static const char originalLayerPostfix[];
-    IParamsManager* paramsManager;
-    ILayerTransformationsManager* layerTransformationsManager;
+    TransformationContext* context;
 
 protected:
-    std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const;
-
     std::shared_ptr<ngraph::Node> moveDequantizationAfter(
         TransformationContext &context,
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
         const bool moveSubtract = true) const;
-
-    void fuseConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const;
 
     void updateOutput(
         TransformationContext &context,
@@ -326,7 +294,10 @@ protected:
         std::shared_ptr<ngraph::Node> lastNode,
         std::string originalName) const;
 
-    void addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const;
+    void addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot);
+
+    //TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
+    bool canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 
     template <typename Operation>
     void addSingleNodePattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context) const {
@@ -340,38 +311,6 @@ protected:
         addPattern(pass, context, p_node);
     }
 };
-
-inline std::ostream &operator << (std::ostream &os, const LayerTransformation::QuantizedTensorAlignment& value) {
-    switch (value) {
-        case LayerTransformation::QuantizedTensorAlignment::None: {
-            os << "None";
-            break;
-        }
-        case LayerTransformation::QuantizedTensorAlignment::UpdateLevel: {
-            os << "UpdateLevel";
-            break;
-        }
-        default: {
-            os << static_cast<int>(value);
-            break;
-        }
-    }
-    return os;
-}
-
-inline std::ostream &operator << (std::ostream &os, const std::vector<element::Type>& values) {
-    os << "{";
-    for (size_t i = 0; i < values.size(); ++i) {
-        const element::Type& value = values[i];
-        if (i > 0) {
-            os << value;
-        } else {
-            os << ", " << value;
-        }
-    }
-    os << "}";
-    return os;
-}
 
 typedef std::shared_ptr<LayerTransformation> LayerTransformationPtr;
 

@@ -1,29 +1,17 @@
-"""
- Copyright (c) 2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import numpy as np
 from typing import List
 
 from extensions.ops.interpolate import Interpolate
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
+from mo.utils.utils import group_by_with_binary_predicate
 
 
 def node_has_one_consumer(node: Node) -> bool:
@@ -39,12 +27,12 @@ def is_next(first: Node, second: Node) -> bool:
     :param second: another Interpolate layer
     :return: True, if 'first' is an predecessor of 'second', and False otherwise.
     """
-    if not node_has_one_consumer(first):
-        return False
     dests = first.out_port(0).get_destinations()
-    if len(dests) != 1:
-        return False
-    return second.id == dests[0].node.id
+    if node_has_one_consumer(first):
+        return second.id == dests[0].node.id
+    elif first.soft_get('maybe_part_of_sequence', False):
+        return len(dests) == 2 and second.id in [d.node.id for d in dests]
+    return False
 
 
 class CanBeFused:
@@ -130,7 +118,8 @@ class CanBeFused:
         :param second: the second of fused nodes
         :return: True, if nodes can be fused, and False otherwise
         """
-        if not self._compare_attributes(first, second):
+        if not (is_next(first, second) and self._compare_attributes(first, second)):
+            self.accumulated_axes = set()
             return False
 
         fst_axes = set([a for a in Interpolate.get_axes(first)])
@@ -146,34 +135,6 @@ class CanBeFused:
         # Otherwise, nodes cannot be fused.
         self.accumulated_axes = set()
         return False
-
-
-def collect_sequences(xs: List[Node]) -> List[List[Node]]:
-    """
-    This function receive a list of Interpolate layers, and returns a list of sequences
-    of Interpolate layers. Two Interpolate layers, 'first' and 'second' are called to be
-    a consecutive, if an output of 'first' is an input of 'second', and number of destinations
-    of 'first' is equal to 1.
-    :param xs: list of Interpolate layers
-    :return: list of sequences of consecutive Interpolate layers
-    """
-    fuser = CanBeFused()
-    if not xs:
-        return []
-
-    prev = xs[0]
-    sequence = [prev]
-    result = []
-    for x in xs[1:]:
-        if is_next(prev, x) and fuser(prev, x):
-            sequence.append(x)
-            prev = x
-        else:
-            result.append(sequence)
-            prev = x
-            sequence = [prev]
-    result.append(sequence)
-    return result
 
 
 def get_interpolate_attributes(node: Node) -> dict:
@@ -239,7 +200,7 @@ def replace_sequence(seq: List[Node], graph: Graph):
 
         axis_to_size = sorted(list(dict(dims_and_scales_).items()), key=lambda x: x[0])
         axes_of_node = int64_array([z[0] for z in axis_to_size])
-        sizes = int64_array([z[1] for z in axis_to_size])
+        sizes = shape_array([z[1] for z in axis_to_size])
         scales = np.ones(len(axis_to_size))
     else:
         for interp in seq:
@@ -249,7 +210,7 @@ def replace_sequence(seq: List[Node], graph: Graph):
 
         axis_to_size = sorted(dims_and_scales_, key=lambda x: x[0])
         axes_of_node = int64_array([z[0] for z in axis_to_size])
-        sizes = int64_array([z[1] for z in axis_to_size])
+        sizes = shape_array([z[1] for z in axis_to_size])
         scales = np.array([z[2] for z in axis_to_size])
 
     fst_interp_node = seq[0]
@@ -277,7 +238,7 @@ def replace_sequence(seq: List[Node], graph: Graph):
 
         last_interp_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
 
-    rename_nodes([(last_interp_node, last_interp_node_name + '/delete_'), (interp_node, last_interp_node_name)])
+    rename_nodes([(last_interp_node, last_interp_node_name + '/delete'), (interp_node, last_interp_node_name)])
 
 
 class InterpolateSequenceToInterpolate(MiddleReplacementPattern):
@@ -293,6 +254,7 @@ class InterpolateSequenceToInterpolate(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         log.debug('Enabled replacement of a sequence of Interpolate layers with one Interpolate layer.')
         interps = [n for n in graph.pseudo_topological_sort() if n.kind == 'op' and n.op == 'Interpolate']
-        sequences = collect_sequences(interps)
+        fuser = CanBeFused()
+        sequences = group_by_with_binary_predicate(interps, fuser)
         for seq in sequences:
             replace_sequence(seq, graph)

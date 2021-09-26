@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -174,3 +174,4 @@ ngraph::pass::Reshape1DMaxPool::Reshape1DMaxPool() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DMaxPool");
     this->register_matcher(m, get_callback());
 }
+

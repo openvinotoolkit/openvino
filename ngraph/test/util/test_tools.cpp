@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 
@@ -62,21 +50,21 @@ bool validate_list(const vector<shared_ptr<Node>>& nodes)
 
 shared_ptr<Function> make_test_graph()
 {
-    auto arg_0 = make_shared<op::Parameter>(element::f32, Shape{});
-    auto arg_1 = make_shared<op::Parameter>(element::f32, Shape{});
-    auto arg_2 = make_shared<op::Parameter>(element::f32, Shape{});
-    auto arg_3 = make_shared<op::Parameter>(element::f32, Shape{});
-    auto arg_4 = make_shared<op::Parameter>(element::f32, Shape{});
-    auto arg_5 = make_shared<op::Parameter>(element::f32, Shape{});
+    auto arg_0 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_1 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_3 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_4 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_5 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
 
-    auto t0 = make_shared<op::Add>(arg_0, arg_1);
-    auto t1 = make_shared<op::Dot>(t0, arg_2);
-    auto t2 = make_shared<op::Multiply>(t0, arg_3);
+    auto t0 = make_shared<op::v1::Add>(arg_0, arg_1);
+    auto t1 = make_shared<op::MatMul>(t0, arg_2);
+    auto t2 = make_shared<op::v1::Multiply>(t0, arg_3);
 
-    auto t3 = make_shared<op::Add>(t1, arg_4);
-    auto t4 = make_shared<op::Add>(t2, arg_5);
+    auto t3 = make_shared<op::v1::Add>(t1, arg_4);
+    auto t4 = make_shared<op::v1::Add>(t2, arg_5);
 
-    auto r0 = make_shared<op::Add>(t3, t4);
+    auto r0 = make_shared<op::v1::Add>(t3, t4);
 
     auto f0 = make_shared<Function>(r0, ParameterVector{arg_0, arg_1, arg_2, arg_3, arg_4, arg_5});
 
@@ -227,16 +215,16 @@ string get_results_str(const std::vector<char>& ref_data,
             Node* dep = node->get_input_node_ptr(i);
             if (seen.count(dep) == 0)
             {
-                return ::testing::AssertionFailure() << "Argument " << *dep
-                                                     << " does not occur before op" << *node;
+                return ::testing::AssertionFailure()
+                       << "Argument " << *dep << " does not occur before op" << *node;
             }
         }
         for (auto& dep_ptr : node->get_control_dependencies())
         {
             if (seen.count(dep_ptr.get()) == 0)
             {
-                return ::testing::AssertionFailure() << "Control dependency " << *dep_ptr
-                                                     << " does not occur before op" << *node;
+                return ::testing::AssertionFailure()
+                       << "Control dependency " << *dep_ptr << " does not occur before op" << *node;
             }
         }
         seen.insert(node);
@@ -245,8 +233,8 @@ string get_results_str(const std::vector<char>& ref_data,
     {
         if (seen.count(node_ptr.get()) == 0)
         {
-            return ::testing::AssertionFailure() << "Required op " << *node_ptr
-                                                 << "does not occur in ordered ops";
+            return ::testing::AssertionFailure()
+                   << "Required op " << *node_ptr << "does not occur in ordered ops";
         }
     }
     return ::testing::AssertionSuccess();

@@ -1,0 +1,106 @@
+<?xml version="1.0" ?>
+<!--This is syntetic model created by hand desined only for white-box unit testing-->
+<net name="ExperimentalDetectronDetectionOutput" version="10">
+    <layers>
+        <layer name="in0" type="Parameter" id="0" version="opset1">
+            <data shape="1000,4" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in1" type="Parameter" id="1" version="opset1">
+            <data shape="1000,324" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>324</dim>
+                </port>
+            </output>
+        </layer>
+       <layer name="in2" type="Parameter" id="2" version="opset1">
+            <data shape="1000,81" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>81</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in3" type="Parameter" id="3" version="opset1">
+            <data shape="1,3" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="DO" type="ExperimentalDetectronDetectionOutput" version="experimental">
+            <data class_agnostic_box_regression="0" deltas_weights="10.0,10.0,5.0,5.0" max_delta_log_wh="4.135166645050049" max_detections_per_image="100" nms_threshold="0.5" num_classes="81" post_nms_count="2000" score_threshold="0.05000000074505806"/>
+            <input>
+                <port id="0">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="1">
+                    <dim>1000</dim>
+                    <dim>324</dim>
+                </port>
+                <port id="2">
+                    <dim>1000</dim>
+                    <dim>81</dim>
+                </port>
+                <port id="3">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                </port>
+            </input>
+            <output>
+                <port id="4" precision="FP32">
+                    <dim>100</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="5" precision="I32">
+                    <dim>100</dim>
+                </port>
+                <port id="6" precision="FP32">
+                    <dim>100</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="out_0" type="Result" id="5" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>100</dim>
+                    <dim>4</dim>
+                </port>
+            </input>
+        </layer>
+        <layer name="out_1" type="Result" id="6" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>100</dim>
+                </port>
+            </input>
+        </layer>
+        <layer name="out_2" type="Result" id="7" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>100</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="4" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="4" to-port="2"/>
+        <edge from-layer="3" from-port="0" to-layer="4" to-port="3"/>
+        <edge from-layer="4" from-port="4" to-layer="5" to-port="0"/>
+        <edge from-layer="4" from-port="5" to-layer="6" to-port="0"/>
+        <edge from-layer="4" from-port="6" to-layer="7" to-port="0"/>
+    </edges>
+</net>

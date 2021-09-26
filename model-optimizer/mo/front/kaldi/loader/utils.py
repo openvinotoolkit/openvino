@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import io
 import os
@@ -37,6 +24,7 @@ supported_components = [
     'convolutional1dcomponent',
     'convolutionalcomponent',
     'copy',
+    'dropoutmaskcomponent',
     'elementwiseproductcomponent',
     'fixedaffinecomponent',
     'fixedscalecomponent',
@@ -65,6 +53,7 @@ supported_components = [
     'sumgroupcomponent',
     'tanhcomponent',
     'tdnncomponent',
+    'timeheightconvolutioncomponent',
 ]
 
 
@@ -331,11 +320,12 @@ def collect_until_token_and_read(file_desc: io.BufferedReader, token, value_type
     return getters[value_type](file_desc)
 
 
-def create_edge_attrs(prev_layer_id: str, next_layer_id: str, in_port=0, out_port=0) -> dict:
+def create_edge_attrs(prev_layer_id: str, next_layer_id: str, tensor_name: str, in_port=0, out_port=0) -> dict:
     """
     Create common edge's attributes
     :param prev_layer_id: id of previous layer
     :param next_layer_id: id of next layer
+    :param tensor_name: framework tensor name
     :param in_port: 'in' port
     :param out_port: 'out' port
     :return: dictionary contains common attributes for edge
@@ -344,7 +334,7 @@ def create_edge_attrs(prev_layer_id: str, next_layer_id: str, in_port=0, out_por
         'out': out_port,
         'in': in_port,
         'name': next_layer_id,
-        'fw_tensor_debug_info': [(prev_layer_id, next_layer_id)],
+        'fw_tensor_debug_info': [(prev_layer_id, tensor_name + ":" + str(out_port))],
         'in_attrs': ['in', 'permutation'],
         'out_attrs': ['out', 'permutation'],
         'data_attrs': ['fw_tensor_debug_info']
@@ -378,7 +368,7 @@ def get_args_for_specifier(string):
     args = []
     prev_arg_pos = 1
     pos_close = string.rfind(b')')
-    string = string[:pos_close+1]
+    string = string[:pos_close + 1]
     while pos < len(string):
         pos_open = string.find(b'(', pos)
         pos_close = string.find(b')', pos)
@@ -391,13 +381,13 @@ def get_args_for_specifier(string):
             else:
                 open_bracket = open_bracket - 1
                 while open_bracket > 1:
-                    pos_close = string.find(b')', pos_close+1)
+                    pos_close = string.find(b')', pos_close + 1)
                     if pos_close != -1:
                         open_bracket = open_bracket - 1
                     else:
                         raise Error("Syntax error in model: incorrect number of brackets")
-                args.append(string[prev_arg_pos:pos_close+1].strip())
-                prev_arg_pos = string.find(b',', pos_close+1) + 1
+                args.append(string[prev_arg_pos:pos_close + 1].strip())
+                prev_arg_pos = string.find(b',', pos_close + 1) + 1
                 if prev_arg_pos != 0 and string[prev_arg_pos:-2].replace(b' ', b'').split(b',') != [b'']:
                     args = args + string[prev_arg_pos:-1].replace(b' ', b'').split(b',')
                 pos = len(string)
@@ -414,7 +404,7 @@ def get_args_for_specifier(string):
                 open_bracket = open_bracket - 1
                 if open_bracket == 1:
                     args.append(string[prev_arg_pos:pos_close + 1].strip())
-                    prev_arg_pos = string.find(b',', pos_close+1) + 1
+                    prev_arg_pos = string.find(b',', pos_close + 1) + 1
                     pos = prev_arg_pos
                 else:
                     pos = pos_close + 1

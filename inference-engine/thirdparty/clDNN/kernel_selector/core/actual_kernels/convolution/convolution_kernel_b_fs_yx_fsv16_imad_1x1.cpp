@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "convolution_kernel_b_fs_yx_fsv16_imad_1x1.h"
 #include "kernel_selector_utils.h"
@@ -71,6 +60,9 @@ ParamsKey Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_WEIGHTS);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS);
     k.DisableTuning();
     return k;
 }
@@ -126,15 +118,24 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::S
     dispatchData.cldnnStyle.blockHeight = tune_params.out_block_features;
     dispatchData.cldnnStyle.prefetch = k_slices;
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
+    return dispatchData;
+}  // SetDefault
 
-    auto in_f = params.weights.IFM().v;
-    auto out_f = params.weights.OFM().v;
+KernelsPriority Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    const auto& output = p.output;
+    auto tune_params = GetAutoTuneParams(p, -1);
+
+    auto priority = FORCE_PRIORITY_2;
+
+    auto in_f = p.weights.IFM().v;
+    auto out_f = p.weights.OFM().v;
     auto batch = output.Batch().v;
     auto out_x = output.X().v;
     auto out_y = output.Y().v;
 
-    bool x_strided = params.stride.x != 1;
+    bool x_strided = p.stride.x != 1;
     bool general_is_faster = false;
 
     // This kernel cannot split for large x, but general could
@@ -158,15 +159,15 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::S
     general_is_faster |= in_f == 256 && out_f == 128 && out_x == 3 && out_y == 3 && batch == 1;
 
     if (general_is_faster && !x_strided) {
-        dispatchData.efficiency = FORCE_PRIORITY_3;
+        priority = FORCE_PRIORITY_3;
     }
 
     // Better to use kernel with 4 input features in a loop
-    if (static_cast<float>(params.weights.IFM().v) / static_cast<float>(Align(params.weights.IFM().v, fsv)) < 0.5f)
-        dispatchData.efficiency = FORCE_PRIORITY_4;
+    if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f)
+        priority = FORCE_PRIORITY_4;
 
-    return dispatchData;
-}  // SetDefault
+    return priority;
+}
 
 bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options)) {
@@ -174,16 +175,34 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params, c
     }
 
     KernelData kd = KernelData::Default<convolution_params>(params);
-    convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
+    convolution_params& conv_params = *static_cast<convolution_params*>(kd.params.get());
 
-    if ((newParams.filterSize.x != newParams.filterSize.y) ||
-        newParams.filterSize.x != 1) {
+    if ((conv_params.filterSize.x != conv_params.filterSize.y) ||
+        conv_params.filterSize.x != 1) {
         // Fitler size needs to be 1x1
         return false;
     }
 
-    if (newParams.groups != 1 || newParams.split != 1)
+    if (conv_params.groups != 1 || conv_params.split != 1)
         return false;
+
+    if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
+        if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
+            (conv_params.compensation.empty()))
+            return false;
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
+        if ((conv_params.activations_zero_points.empty()) &&
+            (conv_params.compensation.empty()))
+            return false;
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
+        if (conv_params.weights_zero_points.empty())
+            return false;
+    } else {
+        if (!conv_params.activations_zero_points.empty() ||
+            !conv_params.weights_zero_points.empty() ||
+            !conv_params.compensation.empty())
+            return false;
+    }
 
     return true;
 }
@@ -317,11 +336,8 @@ float Convolution_kernel_b_fs_yx_fsv16_imad_1x1::EstimateOccupancy(const convolu
     size_t block_b = params.output.Batch().v;
 
     auto threads = blocks_s * blocks_f * block_b;
-    constexpr size_t max_threads_per_cu = 7;
-    size_t compute_units = params.engineInfo.computeUnitsCount;
-    size_t max_threads = compute_units * max_threads_per_cu;
 
-    return static_cast<float>(threads) / static_cast<float>(max_threads);
+    return static_cast<float>(threads) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
 }
 
 float Convolution_kernel_b_fs_yx_fsv16_imad_1x1::EstimateSLMUsage(const convolution_params& params, const AutoTuneParams& tparams) const {

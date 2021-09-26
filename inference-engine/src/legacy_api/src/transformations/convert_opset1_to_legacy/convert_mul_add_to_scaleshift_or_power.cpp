@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,14 +40,14 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
     bool is_power = false;
     auto in_it = const_shape.rbegin();
     auto out_it = input_shape.rbegin();
-    for (int idx = 0; in_it != const_shape.rend() && out_it != input_shape.rend(); ++in_it, ++out_it, ++idx) {
+    for (size_t idx = 0; in_it != const_shape.rend() && out_it != input_shape.rend(); ++in_it, ++out_it, ++idx) {
         if (idx != feature_index && *in_it != 1) {
             return CONVERSION_RESULT::NONE;
         }
 
         if (idx == feature_index && *in_it == 1) {
             is_power = true;
-        } else if (idx == feature_index && (out_it->is_dynamic() || *in_it != out_it->get_length())) {
+        } else if (idx == feature_index && (out_it->is_dynamic() || static_cast<int64_t>(*in_it) != out_it->get_length())) {
             return CONVERSION_RESULT::NONE;
         }
     }
@@ -57,7 +57,7 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMulAddToScaleShiftOrPower, "ConvertMulAddToScaleShiftOrPower", 0);
 
-void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshift_or_power() {
+ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower() {
     auto data_batch = std::make_shared<pattern::op::Label>(element::f32, Shape {1});
 
     auto weights = std::make_shared<ngraph::opset1::Constant>(element::f32, Shape {1}, std::vector<float> {0});
@@ -66,7 +66,7 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
     auto mul = std::make_shared<ngraph::opset1::Multiply>(data_batch, weights);
     auto add = std::make_shared<ngraph::opset1::Add>(mul, bias);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto add_node = ngraph::as_type_ptr<ngraph::opset1::Add>(m.get_match_root());
 
         if (!add_node) {
@@ -145,16 +145,13 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
         const auto output_shape = add_node->get_output_partial_shape(0);
         const auto output_shape_rank = output_shape.rank().get_length();
 
-        bool is_dequantization =
-                (add_node->get_rt_info().count("DEQUANTIZATION") != 0 || mul_node->get_rt_info().count("DEQUANTIZATION") != 0);
-
         if (res1 == CONVERSION_RESULT::NONE || res2 == CONVERSION_RESULT::NONE ||
-            ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) && !is_dequantization && output_shape_rank < 4)) {
+            ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) && output_shape_rank < 4)) {
             return false;
         }
 
         // TODO: in case if scale and shift constants has equal values the best way is to convert them to Power
-        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT || is_dequantization) {
+        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) {
             NodeVector new_ops;
 
             auto weights_in = ngraph::op::util::normalize_constant(const_weights_node, output_shape);
@@ -162,23 +159,11 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
             new_ops.push_back(weights_in);
             new_ops.push_back(biases_in);
 
-            if (is_dequantization) {
-                const Shape data_shape = data_node.get_shape();
-                Shape broadcasted_shape = std::vector<size_t>(data_shape.size(), 1ul);
-                broadcasted_shape[1] = data_shape[1];
-
-                weights_in = ngraph::op::util::broadcastTo(weights_in, broadcasted_shape);
-                new_ops.push_back(weights_in);
-
-                biases_in = ngraph::op::util::broadcastTo(biases_in, broadcasted_shape);
-                new_ops.push_back(biases_in);
-            }
-
-            if (res1 == CONVERSION_RESULT::POWER && !is_dequantization) {
+            if (res1 == CONVERSION_RESULT::POWER) {
                 weights_in = ngraph::op::util::broadcastTo(weights_in, biases_in->get_shape());
                 new_ops.push_back(weights_in);
             }
-            if (res2 == CONVERSION_RESULT::POWER && !is_dequantization) {
+            if (res2 == CONVERSION_RESULT::POWER) {
                 biases_in = ngraph::op::util::broadcastTo(biases_in, weights_in->get_shape());
                 new_ops.push_back(biases_in);
             }
@@ -209,6 +194,6 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "CPUFusion.MulAddToScaleShiftOrPower");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "MulAddToScaleShiftOrPower");
+    register_matcher(m, callback);
 }

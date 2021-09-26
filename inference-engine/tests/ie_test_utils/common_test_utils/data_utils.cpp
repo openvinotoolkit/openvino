@@ -1,14 +1,15 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cmath>
 
 #include <debug.h>  // to allow putting vector into exception string stream
-#include <details/ie_exception.hpp>
 
 #include <ie_blob.h>
 #include <blob_factory.hpp>
+
+using namespace InferenceEngine::details;
 
 namespace CommonTestUtils {
 
@@ -70,8 +71,8 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
         if (src_dims[i] != dst_dims[i] && src_dims[i] != 1)
             compatible = false;
     }
-    IE_ASSERT(compatible) << "fill_data_with_broadcast error: Tensor shape " << values_dims
-                          << " can not be broadcasted to shape " << blob_dims;
+
+    IE_ASSERT(compatible);
 
     auto fill_strides_like_plain = [] (SizeVector dims) {
         SizeVector str(dims.size());
@@ -104,6 +105,10 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
     auto src_ptr = get_data(values);
 
     switch (blob->getTensorDesc().getPrecision()) {
+        case InferenceEngine::Precision::U64:
+        case InferenceEngine::Precision::I64:
+            copy_7D<uint64_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
+            break;
         case InferenceEngine::Precision::FP32:
         case InferenceEngine::Precision::I32:
             copy_7D<uint32_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
@@ -119,7 +124,7 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
             copy_7D<uint8_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision by fill_data_with_broadcast function";
+            IE_THROW() << "Unsupported precision by fill_data_with_broadcast function";
     }
 }
 
@@ -150,7 +155,7 @@ InferenceEngine::Blob::Ptr make_with_precision_convert(InferenceEngine::Blob::Pt
         copy_with_convert<InferenceEngine::Precision::FP32, InferenceEngine::Precision::_PRC> (blob, new_blob); break
     switch (prc) {
         CASE(FP32); CASE(I64); CASE(U64); CASE(I32); CASE(U32); CASE(I16); CASE(U16); CASE(I8); CASE(U8);
-        default: THROW_IE_EXCEPTION << "Unsupported precision case";
+        default: IE_THROW() << "Unsupported precision case";
     }
 #undef CASE
 
@@ -187,6 +192,12 @@ InferenceEngine::Blob::Ptr make_reshape_view(const InferenceEngine::Blob::Ptr &b
     auto new_tdesc = TensorDesc(blob->getTensorDesc().getPrecision(), new_shape, TensorDesc::getLayoutByDims(new_shape));
     auto new_blob = make_blob_with_precision(new_tdesc, orig_ptr);
     return new_blob;
+}
+
+size_t byte_size(const InferenceEngine::TensorDesc &tdesc) {
+    auto prc = tdesc.getPrecision();
+    auto dims = tdesc.getDims();
+    return prc.size() * std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
 }
 
 /**
@@ -233,7 +244,7 @@ void fill_data_const(InferenceEngine::Blob::Ptr& blob, const std::vector<float> 
             fill_data_const<Precision::I16>(raw_data_ptr, raw_data_size, val);
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision by fill_data_const() function";
+            IE_THROW() << "Unsupported precision by fill_data_const() function";
     }
 }
 

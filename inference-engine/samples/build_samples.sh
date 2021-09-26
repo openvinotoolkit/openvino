@@ -1,18 +1,7 @@
 #!/usr/bin/env bash
 
-# Copyright (C) 2018-2020 Intel Corporation
-#
-#  Licensed under the Apache License, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#       http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 error() {
     local code="${3:-1}"
@@ -25,17 +14,15 @@ error() {
 }
 trap 'error ${LINENO}' ERR
 
-SAMPLES_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SAMPLES_PATH="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 
 printf "\nSetting environment variables for building samples...\n"
 
 if [ -z "$INTEL_OPENVINO_DIR" ]; then
-    if [ -e "$SAMPLES_PATH/../../../bin/setupvars.sh" ]; then
-        setvars_path="$SAMPLES_PATH/../../../bin/setupvars.sh"
-    elif [ -e "$SAMPLES_PATH/../../../../bin/setupvars.sh" ]; then
-        setvars_path="$SAMPLES_PATH/../../../../bin/setupvars.sh"
+    if [ -e "$SAMPLES_PATH/../../setupvars.sh" ]; then
+        setvars_path="$SAMPLES_PATH/../../setupvars.sh"
     else
-        printf "Error: Failed to set the environment variables automatically. To fix, run the following command:\n source <INSTALL_DIR>/bin/setupvars.sh\n where INSTALL_DIR is the OpenVINO installation directory.\n\n"
+        printf "Error: Failed to set the environment variables automatically. To fix, run the following command:\n source <INSTALL_DIR>/setupvars.sh\n where INSTALL_DIR is the OpenVINO installation directory.\n\n"
         exit 1
     fi
     if ! source "$setvars_path" ; then
@@ -44,7 +31,7 @@ if [ -z "$INTEL_OPENVINO_DIR" ]; then
     fi
 else
     # case for run with `sudo -E` 
-    source "$INTEL_OPENVINO_DIR/bin/setupvars.sh"
+    source "$INTEL_OPENVINO_DIR/setupvars.sh"
 fi
 
 if ! command -v cmake &>/dev/null; then

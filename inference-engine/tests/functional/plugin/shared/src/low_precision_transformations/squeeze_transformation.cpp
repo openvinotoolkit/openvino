@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,7 @@
 #include <transformations/init_node_info.hpp>
 #include "low_precision_transformations/squeeze_transformation.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "ngraph_functions/low_precision_transformations/squeeze_function.hpp"
-
-#include <ngraph/pass/visualize_tree.hpp>
+#include "lpt_ngraph_functions/squeeze_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -32,7 +30,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 }
 
 InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SqueezeTransformationParam squeezeParam;
     std::string targetDevice;
@@ -48,8 +46,8 @@ InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceE
         1ul);
 }
 
-std::string SqueezeTransformation::getTestCaseName(testing::TestParamInfo<SqueezeTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
+std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj) {
+    ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::string targetDevice;
     SqueezeTransformationParam squeezeParam;
@@ -65,15 +63,14 @@ std::string SqueezeTransformation::getTestCaseName(testing::TestParamInfo<Squeez
     return result.str();
 }
 void SqueezeTransformation::SetUp() {
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SqueezeTransformationParam squeezeParam;
 
     std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
-    ngraph::element::Type ngraphPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     function = ngraph::builder::subgraph::SqueezeFunction::getOriginal(
-        ngraphPrecision,
+        netPrecision,
         squeezeParam.shape,
         squeezeParam.fakeQuantize,
         squeezeParam.squeezeAxes);

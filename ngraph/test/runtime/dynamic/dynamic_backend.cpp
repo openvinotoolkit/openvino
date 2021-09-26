@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "dynamic_backend.hpp"
 #include "ngraph/graph_util.hpp"
@@ -27,8 +15,6 @@
 #include "ngraph/specialize_function.hpp"
 #include "ngraph/util.hpp"
 #include "pass/dyn_elimination.hpp"
-#include "pass/opset0_downgrade.hpp"
-#include "pass/opset1_downgrade.hpp"
 #include "pass/shape_relevance.hpp"
 
 using namespace std;
@@ -89,8 +75,8 @@ runtime::dynamic::DynamicExecutable::DynamicExecutable(shared_ptr<Function> wrap
 // count_dyn_nodes.
 bool is_dynamic_op(const std::shared_ptr<Node>& op)
 {
-    return is_type<op::Transpose>(op) || is_type<op::v1::Reshape>(op) || is_type<op::Range>(op) ||
-           is_type<op::v1::ConvolutionBackpropData>(op) || is_type<op::v3::Broadcast>(op);
+    return ov::is_type<op::Range>(op) || ov::is_type<op::v1::ConvolutionBackpropData>(op) ||
+           ov::is_type<op::v3::Broadcast>(op);
 }
 
 // Helper for a vile hack in DynamicExecutable::call. See body of that function for details.
@@ -127,7 +113,7 @@ bool runtime::dynamic::DynamicExecutable::call(
             int size = input->get_size_in_bytes() / (input->get_element_type().bitwidth() / 8);
             std::vector<int64_t> data(size);
             input->read(data.data(), input->get_size_in_bytes());
-            for (int i = 0; i < input->get_element_count(); i++)
+            for (size_t i = 0; i < input->get_element_count(); i++)
             {
                 merged_input_shapes.emplace_back(data[i]);
             }
@@ -135,7 +121,7 @@ bool runtime::dynamic::DynamicExecutable::call(
         else
         {
             // Caching on all remaining shapes
-            for (int i = 0; i < input->get_shape().size(); i++)
+            for (size_t i = 0; i < input->get_shape().size(); i++)
             {
                 merged_input_shapes.emplace_back(input->get_shape()[i]);
             }
@@ -244,17 +230,17 @@ bool runtime::dynamic::DynamicExecutable::call(
                 i++;
             }
 
+            NGRAPH_SUPPRESS_DEPRECATED_START;
             clone = specialize_function(
                 m_wrapped_function, arg_element_types, arg_shapes, arg_value_base_pointers);
+            NGRAPH_SUPPRESS_DEPRECATED_END;
         }
 
         pass::Manager passes;
         // Opset1Downgrade should be moved below DynElimination
         // when ConstantFolding for v3 ops will be ready
-        passes.register_pass<pass::Opset1Downgrade>();
         passes.register_pass<pass::ConstantFolding>();
         passes.register_pass<pass::DynElimination>();
-        passes.register_pass<pass::Opset0Downgrade>(); // Converts dynamic v1 variants to v0 ops
         passes.set_per_pass_validation(false);
 
         // FIXME(amprocte): Vile, temporary hack: we need to do repeated rounds of
@@ -279,19 +265,11 @@ bool runtime::dynamic::DynamicExecutable::call(
             num_dyn_nodes_last_pass = num_dyn_nodes_this_pass;
         }
 
-        pass::Manager pass_val;
-        pass_val.register_pass<pass::Validate>();
-        pass_val.run_passes(clone);
+        clone->validate_nodes_and_infer_types();
 
         std::vector<std::shared_ptr<runtime::Tensor>> wrapped_outputs;
 
         const ResultVector& results = clone->get_results();
-        for (auto& result : results)
-        {
-            NGRAPH_CHECK(result->get_output_partial_shape(0).is_static(),
-                         "Shape staticization failed for result node ",
-                         *result);
-        }
         NGRAPH_CHECK(results.size() == outputs.size());
 
         for (size_t i = 0; i < outputs.size(); i++)
@@ -300,7 +278,7 @@ bool runtime::dynamic::DynamicExecutable::call(
                     std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(outputs[i]))
             {
                 dynamic_tensor->make_storage(results[i]->get_output_element_type(0),
-                                             results[i]->get_output_shape(0));
+                                             results[i]->get_output_partial_shape(0));
                 wrapped_outputs.push_back(dynamic_tensor->get_wrapped_tensor());
             }
             else
@@ -333,6 +311,8 @@ size_t runtime::dynamic::DynamicTensor::get_size_in_bytes() const
 {
     NGRAPH_CHECK(m_wrapped_tensor != nullptr,
                  "asked for size in bytes of a dynamic tensor with no allocated storage");
+    // TODO expand size calculation for type with bitwidth less than 8 like:
+    // m_wrapped_tensor->get_size_in_bytes()
     return get_element_count() * get_element_type().size();
 }
 
@@ -387,7 +367,7 @@ void runtime::dynamic::DynamicTensor::release_storage()
 }
 
 void runtime::dynamic::DynamicTensor::make_storage(const element::Type& element_type,
-                                                   const Shape& shape)
+                                                   const PartialShape& shape)
 {
     NGRAPH_CHECK(element_type.is_static(), "make_storage requires a static element type");
     NGRAPH_CHECK(get_element_type().is_dynamic() || get_element_type() == element_type,
@@ -400,7 +380,14 @@ void runtime::dynamic::DynamicTensor::make_storage(const element::Type& element_
                  shape,
                  " which is incompatible with dynamic tensor shape ",
                  get_partial_shape());
-    m_wrapped_tensor = m_wrapped_backend->create_tensor(element_type, shape);
+    if (shape.is_static())
+    {
+        m_wrapped_tensor = m_wrapped_backend->create_tensor(element_type, shape.get_shape());
+    }
+    else
+    {
+        m_wrapped_tensor = m_wrapped_backend->create_dynamic_tensor(element_type, shape);
+    }
 }
 
 const std::shared_ptr<ngraph::runtime::Tensor>&

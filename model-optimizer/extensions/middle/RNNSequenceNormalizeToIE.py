@@ -1,22 +1,9 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_delete
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
@@ -34,7 +21,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
     This class normalize RNNSequence layers to IE-compatible from of weights, inputs and outputs.
 
     In this pass next will be done:
-        1. Weights repack (squeeze all useless shapes in all blobls and concatenate W and R together, also add
+        1. Weights repack (squeeze all useless shapes in all blobs and concatenate W and R together, also add
                             bin param and all similar staff )
         1. UNSqueeze num directions (in states and )
         2. Initial states squeeze
@@ -104,7 +91,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             B_tmp[:, :, :, 3, :] = B[:, :, 1, 2, :][:, :, np.newaxis, :]
             B = B_tmp
         else:
-            B = np.add.reduce(B, axis=2, keepdims=True)
+            B = np.sum(B, axis=2, keepdims=True)
 
         # Concatenate W, R to IE-compatible format
         assert len(W.shape) == 5
@@ -155,7 +142,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
         for i in rnn_layer.out_nodes():
             old_data_node = rnn_layer.out_node(i)
             old_shape = old_data_node.shape.copy()
-            new_shape = np.delete(old_shape, direction_dim[i])
+            new_shape = shape_delete(old_shape, direction_dim[i])
 
             data = Op._create_data_node(graph, name=rnn_layer.name + '/Out/{}/'.format(i), attrs={'shape': new_shape})
             graph.remove_edge(rnn_layer.id, old_data_node.id)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PadIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::PadIE);
 
 op::PadIE::PadIE(const std::shared_ptr<op::v1::Pad>& pad)
     : Op({pad->input(0).get_source_output()}),
@@ -43,4 +43,12 @@ void op::PadIE::validate_and_infer_types() {
 
 shared_ptr<Node> op::PadIE::clone_with_new_inputs(const OutputVector& new_args) const {
     return nullptr;
+}
+
+bool op::PadIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("pads_begin", m_pads_begin);
+    visitor.on_attribute("pads_end", m_pads_end);
+    visitor.on_attribute("pad_mode", m_pad_mode);
+    visitor.on_attribute("pad_value", m_pad_value);
+    return true;
 }

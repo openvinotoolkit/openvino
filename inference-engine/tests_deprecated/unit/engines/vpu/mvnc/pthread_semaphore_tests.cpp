@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ class PThreadBinSemaphoreTest : public ::testing::TestWithParam<int>{
             std::cerr << "clock_gettime";
         }
 
-        auto newNsec = (long)(spec.tv_nsec + timeout * 1000000000L);
+        auto newNsec = static_cast<long long>(spec.tv_nsec + timeout * 1000000000LL);
         spec.tv_sec   += newNsec / 1000000000L;
         spec.tv_nsec  =  newNsec % 1000000000L;
 
@@ -366,7 +366,7 @@ TEST_P(PThreadBinSemaphoreTest, PostWakeUpOnlyOneWaiterOfMany) {
     th3.join();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     PThreadParametrizedTests,
     PThreadBinSemaphoreTest,
     ::testing::Values(

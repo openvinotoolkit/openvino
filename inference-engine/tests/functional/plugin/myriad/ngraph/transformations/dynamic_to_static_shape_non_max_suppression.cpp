@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ protected:
                 boxes, dsr, maxOutputBoxesPerClass, iouThreshold, scoreThreshold, softNMSSigma);
 
         const auto function = std::make_shared<ngraph::Function>(
-                ngraph::OutputVector{node->outputs()},
+                node->outputs(),
                 ngraph::ParameterVector{boxes, scores, dims},
                 "Actual");
 
@@ -111,7 +111,7 @@ protected:
 TEST_P(DynamicToStaticShapeNonMaxSuppression, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeNonMaxSuppression, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeNonMaxSuppression, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32),

@@ -1,21 +1,9 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
+from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
@@ -27,8 +15,8 @@ class Bucketize(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset3',
 
             'type_infer': self.type_infer,
@@ -42,10 +30,10 @@ class Bucketize(Op):
     def backend_attrs(self):
         version = self.get_opset()
         if version == "extension":
-            return ['with_right_bound']
+            return [('with_right_bound', lambda node: bool_to_str(node, 'with_right_bound'))]
         else:
             return [
-                'with_right_bound',
+                ('with_right_bound', lambda node: bool_to_str(node, 'with_right_bound')),
                 ('output_type', lambda node: np_data_type_to_destination_type(node.output_type)),
             ]
 
@@ -56,7 +44,8 @@ class Bucketize(Op):
             node.out_port(0).set_data_type(np.int32)
         else:
             assert node.output_type in [np.int64, np.int32], \
-                'Bucketize `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type).name)
+                'Bucketize `output_type` attribute must be int32 or int64, `{}` found' \
+                ''.format(np.dtype(node.output_type).name)
             node.out_port(0).set_data_type(node.output_type)
 
     @staticmethod
@@ -66,14 +55,11 @@ class Bucketize(Op):
             "Attribute \"with_right_bound\" is not defined"
         assert len(node.in_nodes()) == 2, \
             "Incorrect number of inputs for {} node".format(node.id)
-        if node.get_opset() == "extension":
-            output_type = np.int32
-        else:
+        if node.get_opset() != "extension":
             assert node.has_valid('output_type'), \
                 '`output_type` attribute is not set for Bucketize node `{}`'.format(node_name)
             assert node.output_type in [np.int64, np.int32], \
                 'Bucketize `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type).name)
-            output_type = node.output_type
 
         output_shape = node.in_port(0).data.get_shape()
         node.out_port(0).data.set_shape(output_shape)

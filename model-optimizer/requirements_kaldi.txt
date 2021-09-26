@@ -1,4 +1,5 @@
-networkx>=1.11
-numpy>=1.13.0
-test-generator==0.1.1
-defusedxml>=0.5.0
+networkx~=2.5
+numpy>=1.16.6,<1.20
+defusedxml>=0.7.1
+requests>=2.25.1
+fastjsonschema~=2.15.1

@@ -1,31 +1,19 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "program_node.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include <vector>
 #include <map>
 #include <algorithm>
 
 namespace cldnn {
 // helper method for calc_processing order
-void program_impl::nodes_ordering::calc_processing_order_visit(program_node* node) {
+void program::nodes_ordering::calc_processing_order_visit(program_node* node) {
     if (node->is_marked())
         return;
     for (auto user : node->users) {
@@ -39,7 +27,7 @@ void program_impl::nodes_ordering::calc_processing_order_visit(program_node* nod
 
 // DFS to sort nodes topologically
 // any topological sort of nodes is required for further optimizations
-void program_impl::nodes_ordering::calc_processing_order(program_impl& p) {
+void program::nodes_ordering::calc_processing_order(program& p) {
     _processing_order.clear();
     for (auto input : p.get_inputs()) {
         calc_processing_order_visit(input);
@@ -57,7 +45,7 @@ void program_impl::nodes_ordering::calc_processing_order(program_impl& p) {
     input: any topological order in processing order
     output: BFS topological order.
     */
-void program_impl::nodes_ordering::calculate_BFS_processing_order() {
+void program::nodes_ordering::calculate_BFS_processing_order() {
     std::map<program_node*, int> distances;
     for (auto itr : _processing_order) {
         distances[itr] = -1;
@@ -95,7 +83,7 @@ void program_impl::nodes_ordering::calculate_BFS_processing_order() {
 }
 
 // verifies if a given node will be processed before all its dependent nodes
-bool program_impl::nodes_ordering::is_correct(program_node* node) {
+bool program::nodes_ordering::is_correct(program_node* node) {
     for (auto& dep : node->get_dependencies()) {
         if (get_processing_number(node) < get_processing_number(dep)) {
             return false;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PowerIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::PowerIE);
 
 op::PowerIE::PowerIE(const Output<ngraph::Node>& data_batch, const float power, const float scale, const float shift, const element::Type output_type)
     : Op({data_batch}), scale(scale), power(power), shift(shift), m_output_type(output_type) {
@@ -29,4 +29,11 @@ std::shared_ptr<Node> op::PowerIE::clone_with_new_inputs(const OutputVector& new
 
 void op::PowerIE::validate_and_infer_types() {
     set_output_type(0, m_output_type == element::undefined ? get_input_element_type(0) : m_output_type, get_input_partial_shape(0));
+}
+
+bool op::PowerIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("scale", scale);
+    visitor.on_attribute("power", power);
+    visitor.on_attribute("shift", shift);
+    return true;
 }

@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "kernel_selector_common.h"
 #include <sstream>
@@ -115,6 +104,10 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::b_fs_zyx_fsv16:        return "B_FS_ZYX_FSV16";
         case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv16:  return "BS_FS_YX_BSV16_FSV16";
         case kernel_selector::DataLayout::bs_fs_zyx_bsv16_fsv16: return "BS_FS_ZYX_BSV16_FSV16";
+        case kernel_selector::DataLayout::bs_fs_yx_bsv4_fsv4:    return "BS_FS_YX_BSV4_FSV4";
+        case kernel_selector::DataLayout::bs_fs_yx_bsv4_fsv2:    return "BS_FS_YX_BSV4_FSV2";
+        case kernel_selector::DataLayout::bs_fs_yx_bsv32_fsv32:  return "BS_FS_YX_BSV32_FSV32";
+        case kernel_selector::DataLayout::bs_fs_yx_bsv32_fsv16:  return "BS_FS_YX_BSV32_FSV16";
         case kernel_selector::DataLayout::nv12:                  return "NV12";
         case kernel_selector::DataLayout::image_2d_rgba:         return "IMAGE_2D_RGBA";
         default:
@@ -167,6 +160,8 @@ std::string toString(KernelType kt) {
                                           return "FUSED_CONV_ELTWISE";
         case KernelType::BINARY_CONVOLUTION:
                                           return "BINARY_CONVOLUTION";
+        case KernelType::NON_MAX_SUPPRESSION:
+                                          return "NON_MAX_SUPPRESSION";
         default: return "";
     }
 }
@@ -295,11 +290,20 @@ std::string toString(MVNMode mode) {
     }
 }
 
+std::string toString(MVNEpsMode mode) {
+    switch (mode) {
+        case MVNEpsMode::INSIDE_SQRT : return "INSIDE_SQRT";
+        case MVNEpsMode::OUTSIDE_SQRT : return "OUTSIDE_SQRT";
+        default: return "";
+    }
+}
+
 std::string toString(WeightsLayout layout) {
    switch (layout) {
         case WeightsLayout::oi:                                          return "OI";
         case WeightsLayout::io:                                          return "IO";
         case WeightsLayout::oiyx:                                        return "OIYX";
+        case WeightsLayout::ioyx:                                        return "IOYX";
         case WeightsLayout::oyxi:                                        return "OYXI";
         case WeightsLayout::iyxo:                                        return "IYXO";
         case WeightsLayout::yxio:                                        return "YXIO";
@@ -308,6 +312,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_zyx_osv16_isv16:                       return "OS_IS_ZYX_OSV16_ISV16";
         case WeightsLayout::os_is_zyx_osv32_isv16:                       return "OS_IS_ZYX_OSV32_ISV16";
         case WeightsLayout::os_is_zyx_osv64_isv16:                       return "OS_IS_ZYX_OSV64_ISV16";
+        case WeightsLayout::o_is_yx_isv16:                               return "O_IS_YX_ISV16";
+        case WeightsLayout::os_yxi_osv16:                                return "OS_YXI_OSV16";
         case WeightsLayout::os_iyx_osv16:                                return "OS_IYX_OSV16";
         case WeightsLayout::os_iyx_osv32:                                return "OS_IYX_OSV32";
         case WeightsLayout::os_iyx_osv32__ai32:                          return "OS_IYX_OSV32__AI32";
@@ -329,8 +335,10 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb:      return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB";
         case WeightsLayout::dlstm_dir_io:                                return "DLSTM_DIR_IO";
         case WeightsLayout::os_is_yx_isa8_osv8_isv4:                     return "OS_IS_YX_ISA8_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_isa8_osv16_isv4:                    return "OS_IS_YX_ISA8_OSV16_ISV4";
         case WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4:       return "OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::os_is_zyx_isa8_osv8_isv4:                    return "OS_IS_ZYX_ISA8_OSV8_ISV4";
+        case WeightsLayout::os_is_zyx_isa8_osv16_isv4:                   return "OS_IS_ZYX_ISA8_OSV16_ISV4";
         case WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:  return "OS_IS_YX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4: return "OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::is_o_yx_isv32:                               return "IS_O_YX_ISV32";
@@ -343,6 +351,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4:          return "OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::os_is_yx_osv32_isv32p:                       return "OS_IS_YX_OSV32_ISV32P";
         case WeightsLayout::oizyx:                                       return "OIZYX";
+        case WeightsLayout::iozyx:                                       return "IOZYX";
         case WeightsLayout::os_is_zyx_isv16_osv16:                       return "OS_IS_ZYX_ISV16_OSV16";
         case WeightsLayout::is_os_zyx_isv16_osv16:                       return "IS_OS_ZYX_ISV16_OSV16";
         case WeightsLayout::is_os_yx_isv16_osv16:                        return "IS_OS_YX_ISV16_OSV16";
@@ -351,9 +360,14 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_yx_isv8_osv16_isv2:                    return "OS_IS_YX_ISV8_OSV16_ISV2";
         case WeightsLayout::os_is_osv32_isv32_swizzled_by_4:             return "OS_IS_OSV32_ISV32_SWIZZLED_BY_4";
         case WeightsLayout::os_i_yxs_osv4_yxsv4:                         return "OS_I_YXS_OSV4_YXSV4";
+        case WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4:                return "OS_IS_YX_OSA4_ISA8_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_osv8_isv4:                          return "OS_IS_YX_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_osv8_isv2:                          return "OS_IS_YX_OSV8_ISV2";
         case WeightsLayout::goiyx:                                       return "GOIYX";
+        case WeightsLayout::gioyx:                                       return "GIOYX";
         case WeightsLayout::gyxio:                                       return "GYXIO";
         case WeightsLayout::goizyx:                                      return "GOIZYX";
+        case WeightsLayout::giozyx:                                      return "GIOZYX";
         case WeightsLayout::g_os_iyx_osv16:                              return "G_OS_IYX_OSV16";
         case WeightsLayout::g_os_iyx_osv32:                              return "G_OS_IYX_OSV32";
         case WeightsLayout::gs_oiyx_gsv16:                               return "GS_OIYX_GSV16";
@@ -370,6 +384,9 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::gs_oi_yxs_gsv4_yxsv4:                        return "GS_OI_YXS_GSV4_YXSV4";
         case WeightsLayout::gs_oi_yxs_gsv16_yxsv4:                       return "GS_OI_YXS_GSV16_YXSV4";
         case WeightsLayout::gs_oi_yxs_gsv32_yxsv4:                       return "GS_OI_YXS_GSV32_YXSV4";
+        case WeightsLayout::g_os_is_yx_osa4_isa8_osv8_isv4:              return "G_OS_IS_YX_OSA4_ISA8_OSV8_ISV4";
+        case WeightsLayout::g_os_is_yx_osa4_isa8_osv8_isv2:              return "G_OS_IS_YX_OSA4_ISA8_OSV8_ISV2";
+        case WeightsLayout::os_is_yx_osa4_isa8_osv8_isv2:                return "OS_IS_YX_OSA4_ISA8_OSV8_ISV2";
         case WeightsLayout::g_os_is_yx_isv16_osv16:                      return "G_OS_IS_YX_ISV16_OSV16";
         case WeightsLayout::g_os_is_yx_osv16_isv4:                       return "G_OS_IS_YX_OSV16_ISV4";
         case WeightsLayout::g_os_is_zyx_osv16_isv16:                     return "G_OS_IS_ZYX_OSV16_ISV16";
@@ -399,6 +416,8 @@ std::string toString(GatherAxis a) {
     switch (a) {
         case GatherAxis::X:       return "X";
         case GatherAxis::Y:       return "Y";
+        case GatherAxis::Z:       return "Z";
+        case GatherAxis::W:       return "W";
         case GatherAxis::FEATURE: return "FEATURE";
         case GatherAxis::BATCH:   return "BATCH";
         default: return "";

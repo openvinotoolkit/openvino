@@ -1,29 +1,17 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from mo.front.common.layout import shape_for_layout, get_batch_dim, get_features_dim
-from mo.front.common.partial_infer.utils import int64_array, tf_window_op_pad_infer
+from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class ExtractImagePatches(Op):
     op = "ExtractImagePatches"
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         assert 'spatial_dims' in attrs, \
@@ -60,7 +48,7 @@ class ExtractImagePatches(Op):
         N = input_shape[get_batch_dim(layout, 4)]
         C = input_shape[get_features_dim(layout, 4)]
 
-        size_spatial = int64_array(node.sizes)[node.spatial_dims]
+        size_spatial = shape_array(node.sizes)[node.spatial_dims]
 
         input_spatial_shape = input_shape[node.spatial_dims]
         stride_spatial_shape = node.strides[node.spatial_dims]
@@ -79,4 +67,4 @@ class ExtractImagePatches(Op):
                                      height=output_spatial_shape[0],
                                      width=output_spatial_shape[1])
 
-        node.out_port(0).data.set_shape(int64_array(out_shape))
+        node.out_port(0).data.set_shape(out_shape)

@@ -1,99 +1,88 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
+#include "ngraph/op/parameter.hpp"
 
 #include <sstream>
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/parameter.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Parameter::type_info;
+BWDCMP_RTTI_DEFINITION(op::v0::Parameter);
 
-op::Parameter::Parameter(const element::Type& element_type,
-                         const PartialShape& pshape,
-                         const bool cacheable)
-    : m_cacheable(cacheable)
-    , m_partial_shape(pshape)
-    , m_element_type(element_type)
-    , m_is_relevant_to_shapes(false)
-{
+op::Parameter::Parameter(const element::Type& element_type, const ov::PartialShape& pshape)
+    : m_partial_shape(pshape),
+      m_element_type(element_type),
+      m_is_relevant_to_shapes(false) {
     constructor_validate_and_infer_types();
 }
 
-bool op::Parameter::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("cacheable", m_cacheable);
+bool op::Parameter::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v0_Parameter_visit_attributes);
     visitor.on_attribute("shape", m_partial_shape);
     visitor.on_attribute("element_type", m_element_type);
     return true;
 }
 
-void op::Parameter::validate_and_infer_types()
-{
+void op::Parameter::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v0_Parameter_validate_and_infer_types);
     Op::validate_and_infer_types();
     set_output_type(0, m_element_type, m_partial_shape);
 }
 
-shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_args) const
-{
+shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v0_Parameter_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Parameter>(m_element_type, m_partial_shape);
 }
 
-bool op::Parameter::is_relevant_to_shapes() const
-{
+bool op::Parameter::is_relevant_to_shapes() const {
     return m_is_relevant_to_shapes;
 }
 
-void op::Parameter::set_is_relevant_to_shapes(bool is_relevant)
-{
+void op::Parameter::set_is_relevant_to_shapes(bool is_relevant) {
     m_is_relevant_to_shapes = is_relevant;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ParameterVector>::type_info;
-
-AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref)
-    : m_ref(ref)
-{
+ov::Layout op::Parameter::get_layout() const {
+    auto it = get_output_tensor(0).get_rt_info().find("LAYOUT");
+    if (it == get_output_tensor(0).get_rt_info().end()) {
+        return ov::Layout();
+    }
+    auto layout = std::dynamic_pointer_cast<VariantWrapper<ov::Layout>>(it->second);
+    OPENVINO_ASSERT(layout, "'LAYOUT' runtime info for node is invalid, use set_layout API");
+    return layout->get();
 }
 
-bool AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visitor)
-{
-    int64_t size = m_ref.size();
+void op::Parameter::set_layout(const ov::Layout& layout) {
+    get_output_tensor(0).get_rt_info()["LAYOUT"] = std::make_shared<VariantWrapper<ov::Layout>>(layout);
+}
+
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ParameterVector>);
+
+ov::AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
+
+bool ov::AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visitor) {
+    size_t size = m_ref.size();
     visitor.on_attribute("size", size);
-    if (size != m_ref.size())
-    {
+    if (size != m_ref.size()) {
         m_ref.resize(size);
     }
     ostringstream index;
-    for (int64_t i = 0; i < size; i++)
-    {
+    for (size_t i = 0; i < size; i++) {
         index.str("");
         index << i;
         string id;
-        if (m_ref[i])
-        {
+        if (m_ref[i]) {
             id = visitor.get_registered_node_id(m_ref[i]);
         }
         visitor.on_attribute(index.str(), id);
-        if (!m_ref[i])
-        {
-            m_ref[i] = as_type_ptr<op::v0::Parameter>(visitor.get_registered_node(id));
+        if (!m_ref[i]) {
+            m_ref[i] = ov::as_type_ptr<ngraph::op::v0::Parameter>(visitor.get_registered_node(id));
         }
     }
     return true;

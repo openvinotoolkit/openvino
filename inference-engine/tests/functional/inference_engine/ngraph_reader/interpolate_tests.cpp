@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, ReadInterpolateNetwork) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" precision="I64" version="opset1">
-            <data offset="0" size="16"/>
+            <data element_type="i64" offset="0" shape="2" size="16"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>2</dim>
@@ -127,7 +127,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate2Network) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" precision="I64" version="opset1">
-            <data offset="0" size="32"/>
+            <data element_type="i64" offset="0" shape="4" size="32"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>4</dim>
@@ -237,7 +237,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
             </output>
         </layer>
         <layer id="1" name="output_shape" type="Const" precision="I32" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i32" offset="0" shape="2" size="8"/>
             <output>
                 <port id="1" precision="I32">
                     <dim>2</dim>
@@ -245,7 +245,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
             </output>
         </layer>
         <layer id="2" name="scales" type="Const" precision="FP32" version="opset1">
-            <data offset="8" size="8"/>
+            <data element_type="f32" offset="8" shape="2" size="8"/>
             <output>
                 <port id="1" precision="FP32">
                     <dim>2</dim>
@@ -253,7 +253,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
             </output>
         </layer>
         <layer id="3" name="axes" type="Const" precision="I32" version="opset1">
-            <data offset="16" size="8"/>
+            <data element_type="i32" offset="16" shape="2" size="8"/>
             <output>
                 <port id="1" precision="I32">
                     <dim>2</dim>
@@ -352,7 +352,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
             </blobs>
         </layer>
         <layer id="4" name="interpolate" precision="FP32" type="Interpolate">
-            <data antialias="False" coordinate_transformation_mode="asymmetric" cube_coeff="123" mode="nearest" nearest_mode="floor" pads_begin="2,3,4,5" pads_end="6,7,8,9" shape_calculation_mode="sizes"/>
+            <data antialias="false" coordinate_transformation_mode="asymmetric" cube_coeff="123" mode="nearest" nearest_mode="floor" pads_begin="2,3,4,5" pads_end="6,7,8,9" shape_calculation_mode="sizes"/>
             <input>
                 <port id="0">
                     <dim>1</dim>

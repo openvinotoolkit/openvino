@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,12 +37,12 @@ const auto params2D = testing::Combine(
     testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes2D),
     testing::ValuesIn(axis2D),
-    testing::Values("TEMPLATE"),
+    testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
-        SoftMax2D,
+INSTANTIATE_TEST_SUITE_P(
+        smoke_SoftMax2D,
         SoftMaxLayerTest,
         params2D,
         SoftMaxLayerTest::getTestCaseName
@@ -64,12 +64,12 @@ const auto params4D = testing::Combine(
     testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes4D),
     testing::ValuesIn(axis4D),
-    testing::Values("TEMPLATE"),
+    testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
-        SoftMax4D,
+INSTANTIATE_TEST_SUITE_P(
+        smoke_SoftMax4D,
         SoftMaxLayerTest,
         params4D,
         SoftMaxLayerTest::getTestCaseName

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,33 +11,34 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/relu_function.hpp"
+#include "lpt_ngraph_functions/relu_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string ReluTransformation::getTestCaseName(testing::TestParamInfo<ReluTransformationParams> obj) {
+std::string ReluTransformation::getTestCaseName(const testing::TestParamInfo<ReluTransformationParams>& obj) {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-    std::tie(precision, inputShape, targetDevice, fqOnData) = obj.param;
+    ReluTestValues testValues;
+    std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
     result <<
         precision << "_" <<
         targetDevice << "_" <<
-        fqOnData;
+        testValues.fakeQuantize;
 
     return result.str();
 }
 
 InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-    std::tie(precision, inputShape, targetDevice, fqOnData) = this->GetParam();
+    ReluTestValues testValues;
+    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
+    const auto fqOnData = testValues.fakeQuantize;
     return FuncTestUtils::createAndFillBlobConsistently(
         info.getTensorDesc(),
         static_cast<uint32_t>(fqOnData.empty() ? 25.f : fqOnData.outputHighValues[0] - fqOnData.outputLowValues[0]),
@@ -47,11 +48,11 @@ InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngi
 
 void ReluTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-    std::tie(precision, inputShape, targetDevice, fqOnData) = this->GetParam();
+    ngraph::PartialShape inputShape;
+    ReluTestValues testValues;
+    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, fqOnData);
+    function = ngraph::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 }

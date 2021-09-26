@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,8 @@ namespace ngraph {
 namespace op {
 class INFERENCE_ENGINE_API_CLASS(RNNSequenceIE) : public ngraph::op::util::RNNCellBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("RNNSequenceIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     RNNSequenceIE(const Output <Node> &X,
                   const Output <Node> &H_t,
@@ -29,7 +30,8 @@ public:
                   const std::vector<std::string> &activations,
                   const std::vector<float> &activations_alpha,
                   const std::vector<float> &activations_beta,
-                  float clip);
+                  float clip,
+                  int64_t seq_axis = 1);
 
     RNNSequenceIE() = delete;
 
@@ -51,6 +53,7 @@ public:
 
 protected:
     op::RecurrentSequenceDirection m_direction;
+    int64_t m_seq_axis;
 };
 }  // namespace op
 }  // namespace ngraph

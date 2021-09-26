@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
@@ -29,7 +29,7 @@ std::pair<float, float> outputLayersHandlingInTransformationsForConcatMultiChann
 }
 
 std::string OutputLayersHandlingInTransformationsForConcatMultiChannel::getTestCaseName(
-    testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
+    const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
@@ -47,16 +47,15 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcatMultiCh
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     if ((info.name() != "input1") && (info.name() != "input2")) {
-        THROW_IE_EXCEPTION << "unexpected input name " << info.name();
+        IE_THROW() << "unexpected input name " << info.name();
     }
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
 
-    const auto interval = outputLayersHandlingInTransformationsForConcatMultiChannelGetInterval(params.precisionsOnActivations);
+    const auto interval = outputLayersHandlingInTransformationsForConcatMultiChannelGetInterval({ ngraph::element::u8, ngraph::element::i8 });
     const float low = interval.first / k;
     const float hight = interval.second / k;
 
     InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
-    const auto buffer = input->buffer().as<float*>();
     return input;
 }
 

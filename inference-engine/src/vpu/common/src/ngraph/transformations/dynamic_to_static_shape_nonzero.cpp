@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace vpu {
 void dynamicToStaticShapeNonZero(std::shared_ptr<ngraph::Node> node) {
     auto nonZero = std::dynamic_pointer_cast<ngraph::op::v3::NonZero>(node);
     VPU_THROW_UNLESS(nonZero, "dynamicToStaticShapeNonZero transformation for {} of type {} expects {} as node for replacement",
-                     node->get_friendly_name(), node->get_type_info(), ngraph::op::v3::NonZero::type_info);
+                     node->get_friendly_name(), node->get_type_info(), ngraph::op::v3::NonZero::get_type_info_static());
 
     auto staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(nonZero->input(0).get_source_output(), nonZero->get_output_type());
 

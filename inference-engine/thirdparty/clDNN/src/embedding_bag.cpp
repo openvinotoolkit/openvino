@@ -1,23 +1,11 @@
-/*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "embedding_bag_inst.h"
 
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -47,7 +35,7 @@ std::string embedding_bag_inst::to_string(embedding_bag_node const& node) {
 
     json_composite embedding_bag_info;
     embedding_bag_info.add("input id", input.id());
-    switch(desc->type) {
+    switch (desc->type) {
     case embedding_bag::packed_sum:
         embedding_bag_info.add("embedding bag type", "PackedSum");
         break;
@@ -65,6 +53,6 @@ std::string embedding_bag_inst::to_string(embedding_bag_node const& node) {
     return primitive_description.str();
 }
 
-embedding_bag_inst::typed_primitive_inst(network_impl& network, embedding_bag_node const& node)
+embedding_bag_inst::typed_primitive_inst(network& network, embedding_bag_node const& node)
     : parent(network, node) {}
 }  // namespace cldnn

@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <legacy/ie_layers.h>
 #include <precision_utils.h>
 #include "conv_ref.hpp"
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
 using namespace InferenceEngine;
 
@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 void Convolution_parseParams(InferenceEngine::CNNLayer* layer) {
     auto convLayer = dynamic_cast<InferenceEngine::ConvolutionLayer*>(layer);
     if (!convLayer) {
-        THROW_IE_EXCEPTION << "Layer is not instance of ConvolutionLayer class";
+        IE_THROW() << "Layer is not instance of ConvolutionLayer class";
     }
     convLayer->_out_depth = convLayer->GetParamAsUInt("output");
 
@@ -51,7 +51,7 @@ void Convolution_parseParams(InferenceEngine::CNNLayer* layer) {
         convLayer->_dilation.insert(InferenceEngine::Y_AXIS, convLayer->GetParamAsUInt("dilation-y", 1u));
     } else {
         // IR_v > 2
-        for (int i = 1; i <= kernels.size(); i++) {
+        for (size_t i = 1; i <= kernels.size(); i++) {
             convLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
         }
 
@@ -59,25 +59,25 @@ void Convolution_parseParams(InferenceEngine::CNNLayer* layer) {
         std::vector<unsigned int> default_1 = std::vector<unsigned int> (convLayer->_kernel.size(), 1u);
 
         std::vector<unsigned int> strides = convLayer->GetParamAsUInts("strides", default_1);
-        for (int i = 1; i <= strides.size(); i++) {
+        for (size_t i = 1; i <= strides.size(); i++) {
             if (strides[strides.size() - i] == 0) {
-                THROW_IE_EXCEPTION << "Stride could not be 0.\nIn layer " << convLayer->name;
+                IE_THROW() << "Stride could not be 0.\nIn layer " << convLayer->name;
             }
             convLayer->_stride.insert(i - 1, strides[strides.size() - i]);
         }
 
         std::vector<unsigned int> pads_begin = convLayer->GetParamAsUInts("pads_begin", default_0);
-        for (int i = 1; i <= pads_begin.size(); i++) {
+        for (size_t i = 1; i <= pads_begin.size(); i++) {
             convLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
         }
 
         std::vector<unsigned int> pads_end = convLayer->GetParamAsUInts("pads_end", pads_begin);
-        for (int i = 1; i <= pads_end.size(); i++) {
+        for (size_t i = 1; i <= pads_end.size(); i++) {
             convLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
         }
 
         std::vector<unsigned int> dilations = convLayer->GetParamAsUInts("dilations", default_1);
-        for (int i = 1; i <= dilations.size(); i++) {
+        for (size_t i = 1; i <= dilations.size(); i++) {
             convLayer->_dilation.insert(i - 1, dilations[dilations.size() - i]);
         }
     }
@@ -96,7 +96,7 @@ void ref_conv_common(const std::vector<InferenceEngine::Blob::Ptr> srcs,
                      const CommonTestUtils::conv_common_params& prm) {
     if (srcs[0]->getTensorDesc().getLayout() != Layout::NCHW &&
             srcs[0]->getTensorDesc().getLayout() != Layout::NCDHW)
-        THROW_IE_EXCEPTION << "Reference FP32 convolution supports NCHW and NCDHW layouts only";
+        IE_THROW() << "Reference FP32 convolution supports NCHW and NCDHW layouts only";
     size_t KW = prm.kernel[X_AXIS];
     size_t KH = prm.kernel[Y_AXIS];
     size_t KD = prm.kernel.size() > Z_AXIS ? prm.kernel[Z_AXIS] : 1lu;

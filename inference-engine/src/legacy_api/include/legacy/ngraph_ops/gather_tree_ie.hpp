@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,8 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(GatherTreeIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"GatherTreeIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("GatherTreeIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
     GatherTreeIE() = default;
     /// \param step_ids     Tensor of shape [MAX_TIME, BATCH_SIZE, BEAM_WIDTH] with
     ///                     indices from per each step
@@ -32,6 +32,7 @@ public:
                  const Output<Node>& end_token);
 
     void validate_and_infer_types() override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };

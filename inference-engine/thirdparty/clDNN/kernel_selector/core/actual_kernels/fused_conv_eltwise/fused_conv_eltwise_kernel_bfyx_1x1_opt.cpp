@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "fused_conv_eltwise_kernel_bfyx_1x1_opt.h"
 #include "kernel_selector_utils.h"
@@ -136,8 +124,6 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_1x1_
 
     constexpr size_t sub_group_size = 8;
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     auto block = get_out_block_size(arg);
 
     dispatchData.gws[0] = arg.output.X().v / block.out_width;
@@ -150,6 +136,10 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_1x1_
     dispatchData.lws[2] = 2 * sub_group_size;
 
     return dispatchData;
+}
+
+KernelsPriority fused_conv_eltwise_kernel_bfyx_1x1_opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 JitConstants fused_conv_eltwise_kernel_bfyx_1x1_opt::GetJitConstants(const fused_conv_eltwise_params& params,
@@ -167,8 +157,6 @@ JitConstants fused_conv_eltwise_kernel_bfyx_1x1_opt::GetJitConstants(const fused
 KernelsData fused_conv_eltwise_kernel_bfyx_1x1_opt::GetKernelsData(const Params& params,
                                                                    const optional_params& options) const {
     KernelsData kd = GetCommonKernelsData(params, options);
-    if (!kd.empty())
-        kd[0].estimatedTime = FORCE_PRIORITY_1;
     return kd;
 }
 }  // namespace kernel_selector

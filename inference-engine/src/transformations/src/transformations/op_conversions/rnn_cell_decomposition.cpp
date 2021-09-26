@@ -1,7 +1,8 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
 
 #include <memory>
@@ -15,10 +16,11 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::RNNCellDecomposition, "RNNCellDecomposition", 0);
 
 ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
+    MATCHER_SCOPE(RNNCellDecomposition);
     auto rnn_cell = ngraph::pattern::wrap_type<opset4::RNNCell>();
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto rnn_cell = std::dynamic_pointer_cast<ngraph::opset4::RNNCell> (m.get_match_root());
-        if (!rnn_cell) {
+        if (!rnn_cell || transformation_callback(rnn_cell)) {
             return false;
         }
         const Output<Node>& X = rnn_cell->input_value(0);
@@ -49,6 +51,6 @@ ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_cell, "RNNCellDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_cell, matcher_name);
     register_matcher(m, callback);
 }

@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "myriad_layers_concat_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsConcat_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsConcat_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_concatCores),
         ::testing::ValuesIn(s_axis),
@@ -160,37 +160,27 @@ TEST_F(myriadLayersTestsConcat_smoke, ConcatAfterNormalize) {
     outputsInfo["copy2"]->setLayout(Layout::NHWC);
 
     // Load network
-    StatusCode st;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, {}));
 
     // Create InferRequest
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = _exeNetwork.CreateInferRequest());
+    
     // Generate input blob
     InferenceEngine::Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("input", inputBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob("input"));
     GenRandomData(inputBlob);
 
     // Get output blob
     InferenceEngine::Blob::Ptr output;
-    ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("concat", output, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(inferRequest.Infer());
+    ASSERT_NO_THROW(output = inferRequest.GetBlob("concat"));
+    
     // Get blobs which are input to Concat
-    InferenceEngine::Blob::Ptr norm1;
-    InferenceEngine::Blob::Ptr norm2;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("copy1", norm1, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("copy2", norm2, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    InferenceEngine::Blob::Ptr norm1, norm2;
+    ASSERT_NO_THROW(norm1 = inferRequest.GetBlob("copy1"));
+    ASSERT_NO_THROW(norm2 = inferRequest.GetBlob("copy2"));
+    
     InferenceEngine::BlobMap normMap;
     normMap["normalize1"] = norm1;
     normMap["normalize2"] = norm2;

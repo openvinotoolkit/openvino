@@ -1,112 +1,124 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
-#include "ngraph/descriptor/tensor.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
+
+#include "atomic_guard.hpp"
 #include "ngraph/node.hpp"
 
-using namespace ngraph;
 using namespace std;
+atomic<size_t> ov::descriptor::Tensor::m_next_instance_id(0);
 
-descriptor::Tensor::Tensor(const element::Type& element_type,
-                           const PartialShape& pshape,
-                           const std::string& name)
-    : m_element_type(element_type)
-    , m_shape(pshape.is_static() ? pshape.to_shape() : Shape{})
-    , m_partial_shape(pshape)
-    , m_name(name)
-{
-}
+ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
+    : m_element_type(element_type),
+      m_partial_shape(pshape),
+      m_name(name),
+      m_shape_changed(true) {}
 
-descriptor::Tensor::Tensor(const element::Type& element_type,
-                           const PartialShape& pshape,
-                           Node* node,
-                           size_t node_output_number)
-    : m_element_type(element_type)
-    , m_shape(pshape.is_static() ? pshape.to_shape() : Shape{})
-    , m_partial_shape(pshape)
-    , m_node(node)
-    , m_node_output_number(node_output_number)
-{
-}
+ov::descriptor::Tensor::Tensor(const element::Type& element_type,
+                               const PartialShape& pshape,
+                               ngraph::Node* node,
+                               size_t node_output_number)
+    : m_element_type(element_type),
+      m_partial_shape(pshape),
+      m_shape_changed(true) {}
 
-void descriptor::Tensor::set_name(const string& name)
-{
-    m_name = name;
-}
-
-void descriptor::Tensor::set_tensor_type(const element::Type& element_type,
-                                         const PartialShape& pshape)
-{
+void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const PartialShape& pshape) {
     set_element_type(element_type);
     set_partial_shape(pshape);
 }
 
-void descriptor::Tensor::set_element_type(const element::Type& element_type)
-{
+void ov::descriptor::Tensor::set_element_type(const element::Type& element_type) {
     m_element_type = element_type;
 }
 
-void descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape)
-{
+void ov::descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape) {
     m_partial_shape = partial_shape;
-    if (m_partial_shape.is_static())
-    {
-        m_shape = m_partial_shape.to_shape();
-    }
-    else
-    {
-        m_shape = Shape{};
-    }
+    m_shape_changed = true;
 }
 
-const Shape& descriptor::Tensor::get_shape() const
-{
-    if (m_partial_shape.is_static())
-    {
+void ov::descriptor::Tensor::invalidate_values() {
+    m_upper_value = nullptr;
+    m_lower_value = nullptr;
+}
+
+void ov::descriptor::Tensor::set_lower_value(const ngraph::HostTensorPtr& value) {
+    NGRAPH_CHECK(value != nullptr);
+    NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
+    NGRAPH_CHECK(m_element_type == value->get_element_type());
+    m_lower_value = value;
+}
+
+void ov::descriptor::Tensor::set_upper_value(const ngraph::HostTensorPtr& value) {
+    NGRAPH_CHECK(value != nullptr);
+    NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
+    NGRAPH_CHECK(m_element_type == value->get_element_type());
+    m_upper_value = value;
+}
+
+const ov::Shape& ov::descriptor::Tensor::get_shape() const {
+    if (m_partial_shape.is_static()) {
+        if (m_shape_changed.load(std::memory_order_relaxed)) {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            if (m_shape_changed)  // double check after mutex lock
+            {
+                m_shape = m_partial_shape.to_shape();
+                m_shape_changed = false;
+            }
+        }
         return m_shape;
-    }
-    else
-    {
-        throw std::invalid_argument(
-            "get_shape was called on a descriptor::Tensor with dynamic shape");
+    } else {
+        throw std::invalid_argument("get_shape was called on a descriptor::Tensor with dynamic shape");
     }
 }
 
-void descriptor::Tensor::set_pool_offset(size_t offset)
-{
-    m_pool_offset = offset;
-}
-
-size_t descriptor::Tensor::get_pool_offset() const
-{
-    return m_pool_offset;
-}
-
-size_t descriptor::Tensor::size() const
-{
+size_t ov::descriptor::Tensor::size() const {
+    const bool bitwidth_less_than_byte = m_element_type.bitwidth() < 8;
+    if (bitwidth_less_than_byte) {
+        return ceil((1.0 * shape_size(get_shape()) * m_element_type.bitwidth()) / 8);
+    }
     return shape_size(get_shape()) * m_element_type.size();
 }
 
-const std::string& descriptor::Tensor::get_name() const
-{
-    return m_name;
+NGRAPH_SUPPRESS_DEPRECATED_START
+void ov::descriptor::Tensor::set_name(const string& name) {
+    m_name = name;
 }
 
-ostream& operator<<(ostream& out, const descriptor::Tensor& tensor)
-{
-    out << "Tensor(" << tensor.get_name() << ")";
+const std::string& ov::descriptor::Tensor::get_name() const {
+    return m_name;
+}
+NGRAPH_SUPPRESS_DEPRECATED_END
+
+const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {
+    AtomicGuard lock(m_names_changing);
+    if (m_names.empty())
+        m_names.insert("Tensor_" + to_string(m_next_instance_id.fetch_add(1)));
+    return m_names;
+}
+
+void ov::descriptor::Tensor::set_names(const std::unordered_set<std::string>& names) {
+    m_names = names;
+}
+
+void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& names) {
+    for (const auto& name : names) {
+        m_names.insert(name);
+    }
+}
+
+ostream& operator<<(ostream& out, const ov::descriptor::Tensor& tensor) {
+    std::string names;
+    for (const auto& name : tensor.get_names()) {
+        if (!names.empty())
+            names += ", ";
+        names += name;
+    }
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    if (names.empty())
+        names = tensor.get_name();
+    NGRAPH_SUPPRESS_DEPRECATED_END
+    out << "Tensor(" << names << ")";
     return out;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,16 +12,16 @@
 
 #include <transformations/init_node_info.hpp>
 #include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/low_precision_transformations/concat_function.hpp"
+#include "lpt_ngraph_functions/concat_function.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatWithSplitTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithSplitTransformationParams> obj) {
+std::string ConcatWithSplitTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithSplitTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithSplitTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -34,14 +34,14 @@ std::string ConcatWithSplitTransformation::getTestCaseName(testing::TestParamInf
 
 InferenceEngine::Blob::Ptr ConcatWithSplitTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithSplitTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
 
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(params.precisionsOnActivations[0], info.getTensorDesc(), k);
+    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
 }
 
 /*
@@ -54,7 +54,7 @@ InferenceEngine::Blob::Ptr ConcatWithSplitTransformation::GenerateInput(const In
 
 void ConcatWithSplitTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     ConcatWithSplitTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
@@ -63,7 +63,8 @@ void ConcatWithSplitTransformation::SetUp() {
         netPrecision,
         inputShapes,
         param.fqOnData1,
-        param.fqOnData2);
+        param.fqOnData2,
+        true);
 }
 
 TEST_P(ConcatWithSplitTransformation, CompareWithRefImpl) {

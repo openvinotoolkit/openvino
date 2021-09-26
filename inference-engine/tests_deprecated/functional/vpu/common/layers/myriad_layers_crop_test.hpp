@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,8 +78,6 @@ TEST_P(myriadLayerCropOneInputAndDim_smoke, CropWithOneInputAndDim) {
     InferenceEngine::SizeVector input_dim2 = {tensor2.n, tensor2.c, tensor2.h, tensor2.w};
     ASSERT_EQ(axis_val.size(), offsets.size());
     ASSERT_EQ(axis_val.size(), dims.size());
-    char prm[256];
-    char val[256];
     std::string axis;
     std::string offset;
     std::string dim;

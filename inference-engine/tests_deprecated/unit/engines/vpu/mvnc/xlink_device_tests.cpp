@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <gmock/gmock.h>
 #include <tests_common.hpp>
 #include <watchdog/xlink_device.h>
-#include <mvnc/include/ncPrivateTypes.h>
+#include <ncPrivateTypes.h>
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -34,6 +34,6 @@ TEST_P(XLinkDeviceTestsWithParam, shouldNotCreateXlinkDeviceWithInvalidInterval)
     xlink_device_destroy(deviceHndl);
 }
 
-INSTANTIATE_TEST_CASE_P(WatchdogDevice,
+INSTANTIATE_TEST_SUITE_P(WatchdogDevice,
     XLinkDeviceTestsWithParam,
     testing::Values(0, -1, -WATCHDOG_MAX_PING_INTERVAL_MS));

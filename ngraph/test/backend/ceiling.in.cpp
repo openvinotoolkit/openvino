@@ -1,25 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
-
-#include <algorithm>
-#include <cinttypes>
-#include <cmath>
-#include <cstdlib>
-#include <random>
-#include <string>
 
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
@@ -43,8 +24,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, ceiling)
-{
+NGRAPH_TEST(${BACKEND_NAME}, ceiling) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Ceiling>(A), ParameterVector{A});
@@ -55,8 +35,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ceiling)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, ceiling_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, ceiling_int64) {
     // This tests large numbers that will not fit in a double
     Shape shape{3};
     auto A = make_shared<op::Parameter>(element::i64, shape);

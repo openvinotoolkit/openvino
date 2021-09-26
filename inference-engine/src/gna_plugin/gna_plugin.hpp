@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,16 +13,17 @@
 #include <vector>
 #include <tuple>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include "cpp_interfaces/impl/ie_memory_state_internal.hpp"
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
+#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_output_desc.hpp"
 #include "backend/am_intel_dnn.hpp"
 #include "gna_data_types.hpp"
 #include "gna_graph_compiler.hpp"
-#include "gna_plugin_policy.hpp"
 #include "gna_plugin_log.hpp"
 #include "gna_plugin_config.hpp"
+#include <legacy/ie_util_internal.hpp>
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -55,9 +56,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 #if GNA_LIB_VER == 2
     uint32_t activeLayerIndex = 0xffffffff;
 #endif
-    bool do_rotate_input = false;
-    uint32_t num_rotate_rows = 0;
-    uint32_t num_rotate_columns = 0;
+    TranspositionInfoMap transpose_inputs_info;
+    TranspositionInfoMap transpose_outputs_info;
     uint32_t *ptr_active_indices = nullptr;
     uint32_t num_active_indices = 0;
     uint32_t num_group_in = 0;
@@ -67,8 +67,6 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     std::vector<GNAPluginNS::OutputDesc> outputsDesc = std::vector<OutputDesc>();
 
     intel_dnn_number_type_t output_type = kDnnInt;
-
-    GNAPluginNS::Policy policy;
 
 #if GNA_LIB_VER == 2
     void createRequestConfigsForGnaModels();
@@ -84,7 +82,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 
     InferenceEngine::InputsDataMap inputsDataMap;
     InferenceEngine::OutputsDataMap outputsDataMap;
-    std::vector<InferenceEngine::MemoryStateInternal::Ptr> memoryStates;
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
+    bool trivialTopology = false;
 
  public:
     explicit GNAPlugin(const std::map<std::string, std::string>& configMap);
@@ -96,23 +95,16 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     std::string GetName() const noexcept override;
     void SetName(const std::string & pluginName) noexcept override;
 
-    void LoadNetwork(InferenceEngine::ICNNNetwork &network);
+    void LoadNetwork(InferenceEngine::CNNNetwork &network);
 
     bool Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap);
-    void AddExtension(InferenceEngine::IExtensionPtr extension) override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts();
+    void AddExtension(const InferenceEngine::IExtensionPtr& extension) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
-    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::ICNNNetwork &network,
-        const std::map<std::string, std::string> &config_map) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::ICNNNetwork &network,
-                                  const std::map<std::string, std::string> &config_map,
-                                  InferenceEngine::RemoteContext::Ptr context) override { THROW_GNA_EXCEPTION << "Not implemented"; }
     bool Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &result);
-    void SetCore(InferenceEngine::ICore*) noexcept override {}
-    InferenceEngine::ICore* GetCore() const noexcept override {return nullptr;}
     void Reset();
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork &network,
                                                      const std::map<std::string, std::string>& config) const override;
     uint32_t QueueInference(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
     bool Wait(uint32_t idx);
@@ -122,28 +114,33 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;
-    InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& params) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext() override { THROW_GNA_EXCEPTION << "Not implemented"; }
+    std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
+    std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(const InferenceEngine::ParamMap&) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
 
     void Wait(uint32_t sync, InferenceEngine::Blob &result) { THROW_GNA_EXCEPTION << "Not implemented"; }
 
     void Export(const std::string &fileName);
-    InferenceEngine::ExecutableNetwork ImportNetwork(const std::string &modelFileName,
+    void Export(std::ostream &networkModel);
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(const std::string &modelFileName,
                                                      const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                                     const InferenceEngine::RemoteContext::Ptr& context,
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
+                                                     const std::shared_ptr<InferenceEngine::RemoteContext>& context,
                                                      const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
                                                      const std::map<std::string, std::string>& config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel);
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel);
 
     /**
      * utility to provide input and output blobs externally to be used by InferenceEngine request API clients
@@ -159,12 +156,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      * QueryState API
      * @return
      */
-     std::vector<InferenceEngine::IMemoryStateInternal::Ptr>  QueryState();
-
-     /**
-      * test-wise API
-      */
-     void SetPolicy(GNAPluginNS::Policy p) {policy = p;}
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState();
 
      /**
       * QueryMetrics API
@@ -218,6 +211,28 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                     int idx = 0);
 
     void UpdateFieldsFromConfig();
+    void UpdateGnaQuantModeFromNetwork(InferenceEngine::CNNNetwork &);
+    void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork &);
+    void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork &);
+    /**
+     * @brief Tries to init an output on the base of a layer data
+     * @param portId output port identificator
+     * @param layer layer pointer
+     * @return true if the output is initiated, false otherwise
+    */
+    bool TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer);
+
+    /**
+     * @brief Fills inputs and outputs transposition info for model convertion from NCHW to NHWC.
+     *        Information for transposition is found from convolution/pooling input or output dimensions.
+     * @param layers model sorted layers
+     */
+    void FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net);
+#ifdef PLOT
+    void AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
+        InferenceEngine::ordered_properties& printed_properties,
+        InferenceEngine::ordered_properties& node_properties);
+#endif
 };
 
 }  // namespace GNAPluginNS

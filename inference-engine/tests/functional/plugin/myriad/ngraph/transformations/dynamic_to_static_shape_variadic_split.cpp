@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <vpu/utils/error.hpp>
+#include <vpu/ngraph/utilities.hpp>
 
 namespace {
 
@@ -74,11 +75,9 @@ protected:
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
         const auto node = std::make_shared<ngraph::opset3::VariadicSplit>(dsr, axis, split_lengths);
 
-        const auto tests_wa = std::make_shared<ngraph::opset3::Concat>(node->outputs(), variadic_split_setup.axis);
-
         auto outputShape = node->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{tests_wa},
+            node->outputs(),
             ngraph::ParameterVector{data, dims},
             "Actual");
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(variadic_split_setup.data_shape.size()));
@@ -104,22 +103,13 @@ protected:
 
         ngraph::OutputVector first_shape_part, second_shape_part;
         if (variadic_split_setup.first_split_point) {
-            std::vector<int64_t> idxs(variadic_split_setup.first_split_point);
-            std::iota(idxs.begin(), idxs.end(), 0);
-            first_shape_part.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            first_shape_part.push_back(vpu::gatherShapeElements(dims, 0, variadic_split_setup.first_split_point));
         }
         if (variadic_split_setup.first_split_point + 1 < variadic_split_setup.data_shape.size()) {
-            std::vector<int64_t> idxs(variadic_split_setup.data_shape.size() - variadic_split_setup.second_split_point);
-            std::iota(idxs.begin(), idxs.end(), variadic_split_setup.second_split_point);
-            second_shape_part.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            second_shape_part.push_back(vpu::gatherShapeElements(
+                dims,
+                variadic_split_setup.second_split_point,
+                variadic_split_setup.data_shape.size() - variadic_split_setup.second_split_point));
         }
         ngraph::NodeVector results;
         for (auto i = 0; i < variadic_split_setup.split_lengths.size(); ++i) {
@@ -134,10 +124,9 @@ protected:
                 results.push_back(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(i), dim));
             }
         }
-        const auto tests_wa = std::make_shared<ngraph::opset3::Concat>(results, variadic_split_setup.axis);
 
         return std::make_shared<ngraph::Function>(
-            tests_wa,
+            results,
             ngraph::ParameterVector{data, dims},
             "Expected");
     }
@@ -146,6 +135,6 @@ protected:
 TEST_P(DynamicToStaticShapeVeriadicSplit, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeVeriadicSplit, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeVeriadicSplit, combinations);
 
 }  // namespace

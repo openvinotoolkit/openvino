@@ -844,12 +844,7 @@ EXCLUDE_SYMLINKS       = NO
 # Note that the wildcards are matched against the file with absolute path, so to
 # exclude all test directories for example use the pattern */test/*
 
-EXCLUDE_PATTERNS       = cnn_network_ngraph_impl.hpp \
-                         ie_imemory_state_internal.hpp \
-                         ie_memory_state_internal.hpp \
-                         ie_memory_state_base.hpp \
-                         generic_ie.hpp \
-                         function_name.hpp \
+EXCLUDE_PATTERNS       = function_name.hpp \
                          macro_overload.hpp
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
@@ -2051,14 +2046,23 @@ INCLUDE_FILE_PATTERNS  =
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
 PREDEFINED             = INFERENCE_PLUGIN_API \
+                         OPENVINO_PLUGIN_API \
                          INFERENCE_ENGINE_API \
                          INFERENCE_ENGINE_API_CPP \
                          INFERENCE_ENGINE_API_CLASS \
+                         OPENVINO_RUNTIME_API_C \
+                         OPENVINO_RUNTIME_API \
+                         OPENVINO_EXTERN_C \
+                         OPENVINO_CORE_IMPORTS \
+                         OPENVINO_CORE_EXPORTS \
+                         OPENVINO_CDECL \
+                         OPENVINO_STDCALL \
                          INFERENCE_ENGINE_DEPRECATED \
+                         OPENVINO_DEPRECATED \
                          IE_SUPPRESS_DEPRECATED_START \
                          IE_SUPPRESS_DEPRECATED_END \
-                         IE_SUPPRESS_DEPRECATED_START_WIN \
-                         IE_SUPPRESS_DEPRECATED_END_WIN \
+                         _IE_SUPPRESS_DEPRECATED_START_GCC \
+                         _IE_SUPPRESS_DEPRECATED_END_GCC \
                          IE_THREAD=IE_THREAD_TBB \
                          TRANSFORMATIONS_API
 

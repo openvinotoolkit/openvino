@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string OutputLayersHandlingInTransformationsForConcat::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
+std::string OutputLayersHandlingInTransformationsForConcat::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
@@ -39,14 +39,13 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::Gener
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     if ((info.name() != "input1") && (info.name() != "input2")) {
-        THROW_IE_EXCEPTION << "unexpected input name " << info.name();
+        IE_THROW() << "unexpected input name " << info.name();
     }
     const float k = (info.name() == "input1") ? 1.f : 2.f;
 
     const float low = 0.f / k;
     const float hight = 255.f / k;
     InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
-    const auto buffer = input->buffer().as<float*>();
     return input;
 }
 
@@ -74,8 +73,6 @@ void OutputLayersHandlingInTransformationsForConcat::SetUp() {
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
     input1->set_friendly_name("input1");
 
-    const float low = 0.f;
-    const float hight = 255.f;
     const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
         input1->output(0), ngPrecision, 256ul, { 1ul },
         { 0.f }, { 255.f }, { 0.f }, { 255.f });

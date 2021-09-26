@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::HardSigmoid_IE::type_info;
+BWDCMP_RTTI_DEFINITION(op::HardSigmoid_IE);
 
 op::HardSigmoid_IE::HardSigmoid_IE(const ngraph::Output<ngraph::Node> &arg,
                    float alpha,
@@ -34,4 +34,8 @@ void op::HardSigmoid_IE::validate_and_infer_types() {
 shared_ptr<Node> op::HardSigmoid_IE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<op::HardSigmoid_IE>(new_args.at(0), m_alpha, m_beta);
+}
+
+bool op::HardSigmoid_IE::visit_attributes(AttributeVisitor& visitor) {
+    return true;
 }

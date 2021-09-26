@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,21 +19,21 @@ TEST_F(NGraphReaderTests, ReadRangeNetwork) {
             </output>
         </layer>
         <layer id="4" name="start" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+           <data element_type="i64" offset="0" shape="" size="8"/>
             <output>
                 <port id="0" precision="I64">
                 </port>
             </output>
         </layer>
         <layer id="5" name="stop" type="Const" version="opset1">
-            <data offset="8" size="8"/>
+            <data element_type="i64" offset="8" shape="" size="8"/>
             <output>
                 <port id="0" precision="I64">
                 </port>
             </output>
         </layer>
         <layer id="6" name="step" type="Const" version="opset1">
-            <data offset="16" size="8"/>
+            <data element_type="i64" offset="16" shape="" size="8"/>
             <output>
                 <port id="0" precision="I64">
                 </port>

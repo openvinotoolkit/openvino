@@ -1,10 +1,15 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "test_common.hpp"
+#include "common_utils.hpp"
 
 #include <threading/ie_executor_manager.hpp>
+
+#include <algorithm>
+#include <cctype>
+#include <chrono>
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -62,6 +67,18 @@ TestsCommon::TestsCommon() {
         std::cout << "\nMEM_USAGE=" << memsize << "KB\n";
     }
     InferenceEngine::ExecutorManager::getInstance()->clear();
+}
+
+std::string TestsCommon::GetTimestamp() {
+    return CommonTestUtils::GetTimestamp();
+}
+
+std::string TestsCommon::GetTestName() const {
+    std::string test_name =
+        ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::replace_if(test_name.begin(), test_name.end(),
+        [](char c) { return !std::isalnum(c); }, '_');
+    return test_name;
 }
 
 }  // namespace CommonTestUtils

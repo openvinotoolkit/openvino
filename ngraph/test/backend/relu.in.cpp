@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -25,15 +13,12 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop)
-{
+NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop) {
     auto shape_a = Shape{2, 5};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto relu = make_shared<op::Relu>(A);
@@ -52,8 +37,7 @@ NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop_i32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop_i32) {
     auto shape_a = Shape{2, 5};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
     auto relu = make_shared<op::Relu>(A);
@@ -72,8 +56,7 @@ NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop_i32)
     EXPECT_EQ(expected, read_vector<int32_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, relu_4Dfprop)
-{
+NGRAPH_TEST(${BACKEND_NAME}, relu_4Dfprop) {
     auto shape_a = Shape{2, 2, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto relu = make_shared<op::Relu>(A);
@@ -92,12 +75,11 @@ NGRAPH_TEST(${BACKEND_NAME}, relu_4Dfprop)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, fuse_max_with_constant_zero_input_as_relu)
-{
+NGRAPH_TEST(${BACKEND_NAME}, fuse_max_with_constant_zero_input_as_relu) {
     auto shape_a = Shape{2, 5};
     auto A = op::Constant::create(element::f32, shape_a, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
     auto B = make_shared<op::Parameter>(element::f32, shape_a);
-    auto max = make_shared<op::Maximum>(A, B);
+    auto max = make_shared<op::v1::Maximum>(A, B);
     auto shape_rt = Shape{2, 5};
     auto f = make_shared<Function>(max, ParameterVector{B});
 

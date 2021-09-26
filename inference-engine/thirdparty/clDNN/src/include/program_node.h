@@ -1,29 +1,18 @@
-/*
-// Copyright (c) 2017-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
+
 #pragma once
+
+#include "cldnn/primitives/primitive.hpp"
+#include "cldnn/primitives/activation.hpp"
+#include "cldnn/primitives/implementation_desc.hpp"
+
+#include "kernel_selector_helper.h"
+#include "meta_utils.h"
 
 #include <set>
 #include <array>
-
-#include "api/primitive.hpp"
-#include "api/activation.hpp"
-#include "internal_primitive.h"
-#include "kernel_selector_helper.h"
-
-#include "meta_utils.h"
 #include <vector>
 #include <memory>
 #include <list>
@@ -31,7 +20,8 @@
 
 namespace cldnn {
 
-struct program_impl;
+struct program;
+struct primitive_impl;
 class reorder_inputs;
 class graph_initializations;
 class prepare_quantization;
@@ -39,9 +29,6 @@ class pre_replace_deconv;
 
 template <class T>
 struct typed_program_node;
-
-template <class PType>
-struct internal_primitive_type_base;
 
 class json_composite;
 class xml_composite;
@@ -51,8 +38,10 @@ struct fused_primitive_desc {
     std::shared_ptr<program_node> node;
     size_t dep_start_idx;
     std::vector<primitive_id> deps;
+    std::vector<primitive_id> fused_deps;
     activation_func activation;
     activation_additional_params activation_params;
+    layout input_layout = layout(data_types::f32, format::bfyx, tensor());
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 };
 
@@ -68,7 +57,7 @@ struct fused_primitive_desc {
     to API level where all primitives store only ids of related ones.
 */
 struct program_node {
-    friend struct program_impl;                     // to be removed when possible
+    friend struct program;                     // to be removed when possible
     friend class compile_graph;                     // to be removed when possible
     friend class graph_initializations;             // to be removed when possible
     friend class pre_replace_deconv;                // to be removed when possible
@@ -82,7 +71,7 @@ struct program_node {
     template <class PType>
     friend struct typed_program_node;
 
-    program_node(std::shared_ptr<primitive> prim, program_impl& prog);
+    program_node(std::shared_ptr<primitive> prim, program& prog);
 
     program_node(program_node const&) = delete;
 
@@ -93,6 +82,8 @@ public:
     virtual primitive_type_id type() const { return desc->type; }
     virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
 
+    const primitive_id& get_ext_prim_id() const { return desc->ext_prim_id; }
+
     template <class PType>
     bool is_type() const {
         static_assert(
@@ -101,11 +92,14 @@ public:
         return type() == PType::type_id();
     }
 
-    program_impl& get_program() { return myprog; }
-    program_impl const& get_program() const { return myprog; }
+    program& get_program() { return myprog; }
+    program& get_program() const { return myprog; }
 
-    std::shared_ptr<primitive_impl> get_selected_impl() const { return selected_impl; }
-    void set_selected_impl(std::shared_ptr<primitive_impl> impl) { selected_impl = impl; }
+    primitive_impl* get_selected_impl() const { return selected_impl.get(); }
+    void set_selected_impl(std::unique_ptr<primitive_impl> impl);
+
+    void set_preferred_impl_type(impl_types impl) { impl_type = impl; }
+    impl_types get_preferred_impl_type() const { return impl_type; }
 
     std::vector<program_node*> const& get_dependencies() const { return dependencies; }
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
@@ -318,11 +312,16 @@ public:
 
     bool need_lockable_memory() const;
 
-protected:
-    std::shared_ptr<primitive> desc;
-    program_impl& myprog;
+    std::string get_unique_id() const { return unique_id; }
+    void set_unique_id(std::string id) { unique_id = id; }
 
-    std::shared_ptr<primitive_impl> selected_impl;
+protected:
+    std::string unique_id;
+
+    std::shared_ptr<primitive> desc;
+    program& myprog;
+
+    std::unique_ptr<primitive_impl> selected_impl;
 
     bool valid_output_layout = false;
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
@@ -333,6 +332,7 @@ protected:
     // list of primitives that can reuse same memory buffers due to execution order conflicts
     std::set<primitive_id> memory_dependencies;
 
+    impl_types impl_type = impl_types::any;
     bool constant = false;
     bool data_flow = false;
 
@@ -340,7 +340,7 @@ protected:
     uint8_t user_mark = 0;
     bool optimized = false;
     bool share_buffer = true;
-    std::array<bool, tensor_dim_max> _support_padding_in_axis = {};  // zero-initialization
+    std::array<bool, tensor_dim_max> _support_padding_in_axis;
 
     mutable bool has_reused_memory = false;
     mutable uint32_t reused_memory_color = 0;
@@ -363,16 +363,20 @@ protected:
     void invalidate_users() const;
 };
 
-namespace details {
+/*
+Template class used to indicate that usage context requires 'program_node' to wrap primitive
+of type 'PType'. Successful conversion from 'program_node' to 'typed_program_node<PType>' means
+that this restriction in fact holds and functions/method/etc. may saftly use uderlaying primitive.
+
+This class shadows 'get_primitive' method from base class which now returns pointer to more specific
+type.
+*/
 template <class PType>
-struct api_typed_program_node_base : public program_node {
-    static_assert(meta::is_api_primitive<PType>::value,
-                  "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from "
-                  "cldnn::internal_primitive");
+struct typed_program_node_base : public program_node {
     friend class cldnn::graph_initializations;
     friend class cldnn::pre_replace_deconv;
     friend class cldnn::prepare_quantization;
-    friend struct cldnn::program_impl;
+    friend struct cldnn::program;
     friend class cldnn::reorder_inputs;
 
 public:
@@ -385,57 +389,6 @@ public:
 protected:
     std::shared_ptr<PType> typed_desc() const { return std::static_pointer_cast<PType>(desc); }
 };
-
-struct internal_program_node_base : public program_node {
-    friend struct cldnn::program_impl;
-
-    explicit internal_program_node_base(program_impl& prog);
-
-    const primitive_id& id() const override { return internal_id; }
-
-    void set_implementation(std::unique_ptr<primitive_impl>&& impl);
-
-private:
-    primitive_id internal_id;
-
-    static primitive_id get_next_internal_id();
-};
-
-template <class PType>
-struct internal_typed_program_node_base : public internal_program_node_base {
-    static_assert(meta::is_internal_primitive<PType>::value,
-                  "PType should name a non-const, non-volatile type derived from cldnn::internal_primitive");
-
-public:
-    using internal_program_node_base::internal_program_node_base;
-
-    primitive_type_id type() const override { return PType::type_id(); }
-
-    template <class... Guard>
-    [[noreturn]] void get_primitive(Guard&&...) {
-        static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
-    }
-
-protected:
-    template <class... Guard>
-    [[noreturn]] void typed_desc(Guard&&...) {
-        static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
-    }
-};
-}  // namespace details
-
-/*
-Template class used to indicate that usage context requires 'program_node' to wrap primitive
-of type 'PType'. Successful conversion from 'program_node' to 'typed_program_node<PType>' means
-that this restriction in fact holds and functions/method/etc. may saftly use uderlaying primitive.
-
-This class shadows 'get_primitive' method from base class which now returns pointer to more specific
-type.
-*/
-template <class PType>
-using typed_program_node_base = typename std::conditional<meta::is_api_primitive<PType>::value,
-                                                          details::api_typed_program_node_base<PType>,
-                                                          details::internal_typed_program_node_base<PType>>::type;
 
 /*
     Actual template class used in context which requires 'program_node' to wrap

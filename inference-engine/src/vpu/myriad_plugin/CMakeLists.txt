@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,7 +23,7 @@ target_include_directories(${TARGET_NAME}
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}")
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(${TARGET_NAME}
         PRIVATE
             -Wall)
@@ -39,14 +39,22 @@ endif()
 # "mvnc" must be the first library in the link list
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        mvnc inference_engine vpu_graph_transformer)
+        mvnc inference_engine inference_engine_legacy vpu_graph_transformer)
+
+# MyriadPlugin is not safe to unload it at runtime
+if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
+    set_target_properties(${TARGET_NAME} PROPERTIES LINK_OPTIONS "-Wl,-z,nodelete")
+endif()
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # LTO
 
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # install
-
-install(FILES ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/src/97-myriad-usbboot.rules
-        DESTINATION ${IE_CPACK_IE_DIR}/external
+if (LINUX)
+    install(FILES ${mvnc_SOURCE_DIR}/src/97-myriad-usbboot.rules
+        DESTINATION runtime/3rdparty
         COMPONENT myriad)
+endif()

@@ -1,11 +1,13 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <vector>
 #include "subgraph_tests/delayed_copy_layer.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "gna/gna_config.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
@@ -15,7 +17,7 @@ namespace {
             {"GNA_COMPACT_MODE", "NO"}
     };
 
-    INSTANTIATE_TEST_CASE_P(delayed_copy_layer, DelayedCopyTest,
+    INSTANTIATE_TEST_SUITE_P(delayed_copy_layer, DelayedCopyTest,
                             ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,16 +7,22 @@
 #include <string>
 #include <memory>
 
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
+typedef std::tuple<
+    ngraph::element::Type,
+    ngraph::PartialShape,
+    std::string,
+    ngraph::pass::low_precision::LayerTransformation::Params> GemmTransformationParams;
+
 // TODO: use MatMulTransformation
 class GemmTransformation :
-    public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
+    public testing::WithParamInterface<GemmTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<GemmTransformationParams>& obj);
 
 protected:
     void SetUp() override;

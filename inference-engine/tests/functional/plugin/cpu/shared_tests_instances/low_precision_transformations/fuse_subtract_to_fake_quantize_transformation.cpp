@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace {
 
 const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
     {
-        Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 10.f }, { 255.f } },
@@ -22,7 +22,7 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
         }
     },
     {
-        Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             { 256ul, {}, { -1.28f }, { 1.27f }, { 0.f }, { 255.f } },
@@ -31,7 +31,7 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
     },
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, FuseSubtractToFakeQuantizeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseSubtractToFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),

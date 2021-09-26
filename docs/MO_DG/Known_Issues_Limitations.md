@@ -25,7 +25,7 @@ Possible workarounds:
    LD_PRELOAD=<path_to_libiomp5.so> <path_to your_executable> ```
    This eliminates multiple loadings of libiomp, and makes all the components use this specific version of OpenMP.
 
-*  Alternatively, you can set <code>KMP_DUPLICATE_LIB_OK=TRUE</code>. However, performance degradation or results incorrectness may occur in this case.
+*  Alternatively, you can set <code>KMP_DUPLICATE_LIB_OK=TRUE</code>. However, performance degradation or incorrect results may occur in this case.
 
 
 ## Old proto compiler breaks protobuf library

@@ -1,135 +1,85 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/prelu.hpp"
+
 #include <ngraph/runtime/reference/prelu.hpp>
+#include <ngraph/validation_util.hpp>
+
 #include "itt.hpp"
 
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/convert.hpp"
-#include "ngraph/op/greater.hpp"
-#include "ngraph/op/less.hpp"
-#include "ngraph/op/multiply.hpp"
-
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+BWDCMP_RTTI_DEFINITION(ov::op::v0::PRelu);
 
-NGRAPH_RTTI_DEFINITION(op::PRelu, "PRelu", 0);
+ov::op::v0::PRelu::PRelu() : Op() {}
 
-op::PRelu::PRelu(const Output<Node>& data, const Output<Node>& slope)
-    : FusedOp({data, slope})
-{
+ov::op::v0::PRelu::PRelu(const Output<Node>& data, const Output<Node>& slope) : Op({data, slope}) {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::PRelu::visit_attributes(AttributeVisitor& visitor)
-{
+bool ngraph::op::v0::PRelu::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v0_PRelu_visit_attributes);
     return true;
 }
 
-void ngraph::op::v0::PRelu::pre_validate_and_infer_types()
-{
+void ngraph::op::v0::PRelu::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-OutputVector op::PRelu::decompose_op() const
-{
-    auto data = input_value(0);
-    auto data_shape = data.get_shape();
-    auto slope = input_value(1);
-    slope = std::make_shared<op::Convert>(slope, data.get_element_type());
-    auto slope_shape = slope.get_shape();
-
-    if ((slope_shape.size() == 1) && (slope_shape.at(0) != 1))
-    {
-        auto it = std::find(std::begin(data_shape), std::end(data_shape), slope_shape.at(0));
-        auto index = std::distance(std::begin(data_shape), it);
-        slope = builder::make_broadcast_node(slope, data.get_shape(), index);
-    }
-    else if (data_shape != slope_shape)
-    {
-        slope = builder::numpy_broadcast(slope, data.get_shape());
-    }
-
-    // x <  0 => f(x) = x * slope
-    // x >= 0 => f(x) = x
-
-    std::shared_ptr<ngraph::Node> zero_node = make_zero(data.get_element_type(), data.get_shape());
-
-    std::shared_ptr<ngraph::Node> negative_map = std::make_shared<ngraph::op::Convert>(
-        std::make_shared<ngraph::op::Less>(data, zero_node), data.get_element_type());
-
-    std::shared_ptr<ngraph::Node> positive_map = std::make_shared<ngraph::op::Convert>(
-        std::make_shared<ngraph::op::Greater>(data, zero_node), data.get_element_type());
-
-    slope = negative_map * slope + positive_map;
-
-    return {data * slope};
-}
-
-shared_ptr<Node> op::PRelu::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    if (new_args.size() != 2)
-    {
-        throw ngraph_error("Incorrect number of new arguments");
+shared_ptr<ov::Node> ov::op::v0::PRelu::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v0_PRelu_clone_with_new_inputs);
+    if (new_args.size() != 2) {
+        throw ov::Exception("Incorrect number of new arguments");
     }
     return make_shared<PRelu>(new_args.at(0), new_args.at(1));
 }
 
-namespace prelu
-{
-    template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& slope, const HostTensorPtr& out)
-    {
-        runtime::reference::prelu(arg->get_data_ptr<ET>(),
-                                  slope->get_data_ptr<ET>(),
-                                  out->get_data_ptr<ET>(),
-                                  arg->get_shape(),
-                                  slope->get_shape());
-        return true;
-    }
-
-    bool evaluate_prelu(const HostTensorPtr& arg,
-                        const HostTensorPtr& slope,
-                        const HostTensorPtr& out)
-    {
-        bool rc = true;
-        switch (arg->get_element_type())
-        {
-            TYPE_CASE(i8)(arg, slope, out);
-            break;
-            TYPE_CASE(bf16)(arg, slope, out);
-            break;
-            TYPE_CASE(f16)(arg, slope, out);
-            break;
-            TYPE_CASE(f32)(arg, slope, out);
-            break;
-        default: rc = false; break;
-        }
-        return rc;
-    }
+namespace prelu {
+template <ov::element::Type_t ET>
+bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& slope, const ngraph::HostTensorPtr& out) {
+    ngraph::runtime::reference::prelu(arg->get_data_ptr<ET>(),
+                                      slope->get_data_ptr<ET>(),
+                                      out->get_data_ptr<ET>(),
+                                      arg->get_shape(),
+                                      slope->get_shape());
+    return true;
 }
 
-bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::PRelu::evaluate");
+bool evaluate_prelu(const ngraph::HostTensorPtr& arg,
+                    const ngraph::HostTensorPtr& slope,
+                    const ngraph::HostTensorPtr& out) {
+    bool rc = true;
+    switch (arg->get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_prelu, i8, arg, slope, out);
+        NGRAPH_TYPE_CASE(evaluate_prelu, bf16, arg, slope, out);
+        NGRAPH_TYPE_CASE(evaluate_prelu, f16, arg, slope, out);
+        NGRAPH_TYPE_CASE(evaluate_prelu, f32, arg, slope, out);
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+}  // namespace prelu
+
+bool ov::op::v0::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v0_PRelu_evaluate);
+    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1) && ngraph::validate_host_tensor_vector(inputs, 2));
     return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
+}
+
+bool ov::op::v0::PRelu::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v0_PRelu_has_evaluate);
+    switch (get_input_element_type(0)) {
+    case ngraph::element::i8:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+        return true;
+    default:
+        break;
+    }
+    return false;
 }

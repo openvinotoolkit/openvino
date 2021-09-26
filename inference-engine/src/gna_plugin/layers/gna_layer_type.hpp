@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_icnn_network.hpp>
 #include <caseless.hpp>
 
 #include "backend/dnn_types.h"
@@ -49,6 +48,7 @@ enum LayerType {
     TensorIterator,
     SoftSign,
     FakeQuantize,
+    Gemm,
     NO_TYPE
 };
 
@@ -87,8 +87,8 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
         { "Abs", Abs },
         { "SoftSign", SoftSign },
         { "FakeQuantize", FakeQuantize },
+        {"Gemm", Gemm},
 };
 
 GNAPluginNS::LayerType LayerTypeFromStr(const std::string &str);
-bool AreLayersSupported(InferenceEngine::ICNNNetwork& network, std::string& errMessage);
 }  // namespace GNAPluginNS

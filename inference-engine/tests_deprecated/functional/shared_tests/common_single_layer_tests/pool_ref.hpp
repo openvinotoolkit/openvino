@@ -1,13 +1,14 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cfloat>
 #include <ie_blob.h>
-#include <single_layer_common.hpp>
+#include <gtest/gtest.h>
 #include <legacy/ie_layers_internal.hpp>
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
 template<typename data_t>
 void ref_pool_common(const std::vector<InferenceEngine::Blob::Ptr> srcs,

@@ -1,17 +1,6 @@
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "convolution_kernel_imad_b_fs_yx_fsv4_dw.hpp"
 #include "kernel_selector_utils.h"
@@ -24,7 +13,6 @@ namespace kernel_selector {
 
 namespace {
 constexpr size_t fsv = 4;
-constexpr size_t pref_simd = 16;
 constexpr size_t max_reg_usage = 64;
 
 enum mode : size_t {
@@ -374,10 +362,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::SetD
                                      | (static_cast<size_t>(autoTuneParam.preload_input) * mode::preload_input)
                                      | (static_cast<size_t>(autoTuneParam.preload_weights) * mode::preload_weights);
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
-
     return dispatchData;
 }  // SetDefault
+
+KernelsPriority ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
+}
 
 KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetTunedKernelsDataByIndex(const Params& params,
                                                                                const optional_params& options,

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,16 +16,20 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
-        {Sigmoid,  {}},
-        {Tanh,     {}},
-        {Relu,     {}},
-        {Exp,      {}},
-        {Log,      {}},
-        {Gelu,     {}},
-        {Mish,     {}},
-        {SoftPlus, {}},
-        {Swish,    {{0.05f}, {0.8f}, {1.0f}, {15.0f}}},
-        {HSwish,   {}},
+        {Abs,                   {}},
+        {Sigmoid,               {}},
+        {Tanh,                  {}},
+        {Relu,                  {}},
+        {Exp,                   {}},
+        {Log,                   {}},
+        {Gelu,                  {}},
+        {Mish,                  {}},
+        {SoftPlus,              {}},
+        {Swish,                 {{0.05f}, {0.8f}, {1.0f}, {15.0f}}},
+        {HSwish,                {}},
+        {Ceiling,               {}},
+        {RoundHalfToEven,       {}},
+        {RoundHalfAwayFromZero, {}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
@@ -45,6 +49,6 @@ const auto basicCases = ::testing::Combine(
 );
 
 
-INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

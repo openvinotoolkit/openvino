@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace {
 const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     // 1) Multiply
     {
-        ngraph::Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -25,9 +25,34 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
+    {
+        {128, 3},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::f32,
+            { {}, {}, { {0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3} } },
+            ngraph::element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // 1) Multiply by zero
+    {
+        {1, 3, 16, 16},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::f32,
+            { {}, {}, { {0.01f, 0.f, 0.01f} } },
+            ngraph::element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
     // 1) Subtract + Multiply
     {
-        ngraph::Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -40,7 +65,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // 1) Convert + Subtract + Multiply
     {
-        ngraph::Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -53,7 +78,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // 1) Convert + Subtract + Multiply 2) Add
     {
-        ngraph::Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -64,9 +89,22 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
+    // issue #40611 for FP32
+    {
+        {1, 3, 16, 16},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        {
+            { },
+            { },
+            ngraph::element::i32,
+            { {ngraph::element::f32}, {}, {} },
+            ngraph::element::f32,
+            { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } }
+        }
+    },
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, FuseFakeQuantizeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),

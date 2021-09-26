@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,9 @@ const std::vector<int64_t> axes = {
         0,
         1,
         2,
+        -1,
+        -2,
+        -3,
 };
 
 const std::vector<int64_t> k = {
@@ -37,7 +40,7 @@ const std::vector<ngraph::opset5::TopK::SortType> sortTypes = {
         ngraph::opset5::TopK::SortType::SORT_VALUES,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_IndicesValuesSort, TopKLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_IndicesValuesSort, TopKLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(k),
             ::testing::ValuesIn(axes),
@@ -51,7 +54,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_IndicesValuesSort, TopKLayerTest,
             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
         TopKLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_NoneSort, TopKLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_NoneSort, TopKLayerTest,
         ::testing::Combine(
             ::testing::Values(1),
             ::testing::ValuesIn(axes),

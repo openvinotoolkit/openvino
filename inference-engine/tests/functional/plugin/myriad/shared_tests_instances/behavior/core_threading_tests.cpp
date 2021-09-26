@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,11 @@ Params params[] = {
 
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(MYRIAD, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(MYRIAD, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(DISABLED_MYRIAD, CoreThreadingTestsWithIterations,
+INSTANTIATE_TEST_SUITE_P(DISABLED_MYRIAD, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(2),
-                     testing::Values(2)),
+                     testing::Values(2),
+                     testing::Values(ModelClass::Default)),
     CoreThreadingTestsWithIterations::getTestCaseName);

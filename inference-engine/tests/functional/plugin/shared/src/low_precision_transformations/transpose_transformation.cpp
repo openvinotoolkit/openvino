@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,11 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/transpose_function.hpp"
+#include "lpt_ngraph_functions/transpose_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string TransposeTransformation::getTestCaseName(testing::TestParamInfo<TransposeTransformationParams> obj) {
+std::string TransposeTransformation::getTestCaseName(const testing::TestParamInfo<TransposeTransformationParams>& obj) {
     ngraph::element::Type precision;
     std::string targetDevice;
     TransposeTransformationTestValues testValues;

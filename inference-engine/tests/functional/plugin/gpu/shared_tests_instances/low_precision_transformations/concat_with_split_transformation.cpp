@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,14 +12,14 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 const std::vector<ConcatWithSplitTransformationParam> testValues = {
@@ -45,10 +45,10 @@ const std::vector<ConcatWithSplitTransformationParam> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithSplitTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithSplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 6, 10, 10 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 6, 10, 10 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues),
         ::testing::ValuesIn(trasformationParamValues)),

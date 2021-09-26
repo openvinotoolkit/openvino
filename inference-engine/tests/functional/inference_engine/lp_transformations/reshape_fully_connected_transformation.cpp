@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include "layer_transformation.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/reshape_fully_connected_function.hpp"
+#include "lpt_ngraph_functions/reshape_fully_connected_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -99,8 +99,8 @@ std::vector<ReshapeFullyConnectedTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
-    LPT,
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
     ReshapeFullyConnectedTransformation,
     ::testing::ValuesIn(testValues),
     ReshapeFullyConnectedTransformation::getTestCaseName);

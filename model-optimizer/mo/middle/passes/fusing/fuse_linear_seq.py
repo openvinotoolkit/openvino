@@ -1,27 +1,14 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
 from extensions.ops.elementwise import Mul, Add
+from mo.front.common.partial_infer.utils import compatible_shapes
 from mo.graph.graph import Node, Graph
-from mo.middle.passes.fusing.helpers import get_value_in_port, \
-    get_tensor_in_port
+from mo.middle.passes.fusing.helpers import get_value_in_port, get_tensor_in_port
 from mo.ops.const import Const
 
 
@@ -38,7 +25,8 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
         if len(destinations) != 1:
             break
         dst_node = destinations[0].node
-        if dst_node.soft_get('op') in ['Mul', 'Add'] and get_value_in_port(dst_node) is not None and dst_node.soft_get('can_be_fused') is True:
+        if dst_node.soft_get('op') in ['Mul', 'Add'] and get_value_in_port(dst_node) is not None and \
+                dst_node.soft_get('can_be_fused') is True:
             fnodes.append(dst_node)
         else:
             break
@@ -72,7 +60,7 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
     if mul.shape != add.shape and len(mul.shape) == 1 and mul.shape[0] == 1:
         mul = np.array([mul[0] for x in range(add.shape[0])])
 
-    assert (np.array_equal(get_tensor_in_port(fnodes[0]).data.get_shape(), fnodes[-1].out_port(0).data.get_shape()))
+    assert (compatible_shapes(get_tensor_in_port(fnodes[0]).data.get_shape(), fnodes[-1].out_port(0).data.get_shape()))
 
     mul_op = Mul(graph, dict(name='{}/Fused_Mul_'.format(first_mul_name or '')))
     add_op = Add(graph, dict(name='{}/Fused_Add_'.format(first_add_name or '')))
@@ -141,7 +129,8 @@ def fuse_mul_add_sequence(graph: Graph):
         is_fused = False
         for node in graph.pseudo_topological_sort():
             if node.id in graph:
-                if node.soft_get('op') in ['Mul', 'Add'] and get_value_in_port(node) is not None and node.soft_get('can_be_fused') is True:
+                if node.soft_get('op') in ['Mul', 'Add'] and get_value_in_port(node) is not None and \
+                        node.soft_get('can_be_fused') is True:
                     is_fused |= _fuse_linear_sequence(graph, node)
         if not is_fused:
             break

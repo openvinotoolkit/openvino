@@ -1,39 +1,40 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-
-import networkx as nx
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
+from mo.front.common.partial_infer.utils import dynamic_dimension, dynamic_dimension_value
+from mo.utils.error import Error
 
 
 def eltwise_infer(node, op=None, **kwargs):
+    def broadcast_dims(dim1, dim2):
+        if dim1 is not dynamic_dimension and dim2 is not dynamic_dimension:
+            mind = min(dim1, dim2)
+            maxd = max(dim1, dim2)
+            if mind == 1:
+                return maxd
+            elif mind != maxd:
+                raise Error('Input shapes mismatch for node {}: {}'.format(node_name, shapes))
+            return mind
+        elif dim1 is dynamic_dimension and dim2 is dynamic_dimension:
+            return dynamic_dimension_value
+        elif dim1 is dynamic_dimension and dim2 is not dynamic_dimension:
+            return broadcast_dims(dim2, dim1)
+        else:  # dim1 is static, dim2 is dynamic
+            if dim1 != 1:
+                return dim1
+            else:
+                return dim2
+
     raw_inputs = [(inp, attr) for inp, attr in node.get_sorted_inputs()
                   if 'control_flow_edge' not in attr or not attr['control_flow_edge']]
-    inputs = [Node(node.graph, inp) for inp, attr in raw_inputs]
     shapes = [node.graph.node[inp]['shape'] for inp, attr in raw_inputs]
     values = [node.graph.node[inp]['value'] for inp, attr in raw_inputs]
-
-    # infer output shape based on input shapes without op involvement
-    # based on repeated application of rules https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
+    node_name = node.soft_get('name', node.id)
 
     if any([s is None for s in shapes]):
-        # nothing is known
-        return
+        raise Error('One of the input shapes for node "{}" is None'.format(node_name))
 
     max_dims = None
     for id, s in enumerate(shapes):
@@ -49,36 +50,21 @@ def eltwise_infer(node, op=None, **kwargs):
 
             # Extend shape with 1's
             for cnt in range(axis + len(shape), max_dims):
-                new_shape = np.append(new_shape, 1)
+                new_shape = np.ma.append(new_shape, 1)
 
             shapes[id] = new_shape
 
-            # Save shape for further transformation that applies this shapes for input nodes
-            # We set new_shape attribute on edge for given input node
-            edge_attrs = node.graph.get_edge_data(inputs[id].id, node.id)[0]
-
-            nx.set_edge_attributes(G=node.graph,
-                                   values={(inputs[id].id, node.id, 0): new_shape},
-                                   name='new_shape')
-
             # Reshape value to correctly calculate output shape
             if values[id] is not None:
-                values[id] = np.reshape(values[id], new_shape)
+                values[id] = np.ma.reshape(values[id], new_shape)
 
-    extended_shapes = int64_array([np.concatenate((np.ones(max_dims - len(s), dtype=np.int64), s)) for s in shapes])
-    # ugly but clear solution
+    extended_shapes = [np.ma.concatenate((np.ma.ones(max_dims - len(s), dtype=np.int64), s)) for s in shapes]
     output_shape = extended_shapes[0]
     for si in range(1, len(extended_shapes)):
         for ei in range(max_dims):
-            mind = min(output_shape[ei], extended_shapes[si][ei])
-            maxd = max(output_shape[ei], extended_shapes[si][ei])
-            if mind == -1:
-                output_shape[ei] = -1
-            elif mind == 1:
-                output_shape[ei] = maxd
-            elif mind != maxd:
-                output_shape[ei] = -1
-    node.out_node().shape = output_shape
+            output_shape[ei] = broadcast_dims(output_shape[ei], extended_shapes[si][ei])
+
+    node.out_port(0).data.set_shape(output_shape)
 
     if node.has_and_set('stop_value_propagation'):
         return
@@ -87,11 +73,11 @@ def eltwise_infer(node, op=None, **kwargs):
         return
 
     if len(values) <= 2:
-        node.out_node().value = op(*values, **kwargs)
+        node.out_port(0).data.set_value(op(*values, **kwargs))
     else:
-        node.out_node().value = values[0]
+        node.out_port(0).data.set_value(values[0])
         for i in range(len(values) - 1):
-            node.out_node().value = op(node.out_node().value, values[i + 1])
+            node.out_port(0).data.set_value(op(node.out_node().value, values[i + 1]))
 
 
 def bias_add_infer(node, op):

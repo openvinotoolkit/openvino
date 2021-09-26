@@ -1,24 +1,22 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "layer_transformation.hpp"
 
-#include <map>
-#include <memory>
-#include <sstream>
+#include <ostream>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
-#include <ngraph/pass/visualize_tree.hpp>
 #include <low_precision/prelu.hpp>
 #include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize.hpp>
+#include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/max_pool.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/fake_quantize_precision_selection_function.hpp"
+#include "lpt_ngraph_functions/fake_quantize_precision_selection_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -75,11 +73,11 @@ public:
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizePrecisionSelectionTransformationTestValues testValues = std::get<3>(GetParam());
 
-        low_precision::LayerTransformation::Params params = createParamsU8I8AndI8();
+        auto params = createParamsU8I8AndI8();
         params.setUpdatePrecisions(updatePrecision);
         params.setPrecisionsOnActivations(testValues.precisionsOnActivations);
 
-        low_precision::LayerTransformation::Params precisionLimitedOperationParams(params);
+        auto precisionLimitedOperationParams(params);
         precisionLimitedOperationParams.setPrecisionsOnActivations(testValues.precisionsOnActivationForLimitedOperation);
 
         actualFunction = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
@@ -90,10 +88,18 @@ public:
                 testValues.actual.fakeQuantizeOnData,
                 testValues.actual.fakeQuantizeOnWeights
             });
-        SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::PReluTransformation, ngraph::opset1::AvgPool>(params);
+
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
+           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+               {0, testValues.precisionsOnActivationForLimitedOperation},
+               {1, { element::i8 }}
+           })
+        });
+
+        SimpleLowPrecisionTransformer transform(supportedPrecisions);
+        transform.add<ngraph::pass::low_precision::PReluTransformation, ngraph::opset1::PRelu>(params);
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(precisionLimitedOperationParams);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(params);
         transform.transform(actualFunction);
 
@@ -115,7 +121,7 @@ public:
         FakeQuantizePrecisionSelectionTransformationTestValues testValues;
         std::tie(precision, shape, updatePrecision, testValues) = obj.param;
 
-        low_precision::LayerTransformation::Params params;
+        TestTransformationParams params;
         params.setUpdatePrecisions(updatePrecision);
         params.setPrecisionsOnActivations(testValues.precisionsOnActivations);
 
@@ -195,8 +201,8 @@ const std::vector<ngraph::Shape> shapes = {
     // TODO: 3D tensor
 };
 
-INSTANTIATE_TEST_CASE_P(
-    LPT,
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
     FakeQuantizePrecisionSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

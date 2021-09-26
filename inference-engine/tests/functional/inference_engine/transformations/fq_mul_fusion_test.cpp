@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,8 +49,10 @@ public:
         const auto fq = std::make_shared<ngraph::opset4::FakeQuantize>(
             data, in_low, in_high, out_low, out_high, 255);
 
+        std::vector<float> mul_const(shape_size(mul_const_shape));
+        std::iota(mul_const.begin(), mul_const.end(), 0);
         const auto mul_value = ngraph::opset4::Constant::create(
-            ngraph::element::Type_t::f32, mul_const_shape, {3.14f});
+            ngraph::element::Type_t::f32, mul_const_shape, mul_const);
         const auto mul = std::make_shared<ngraph::opset4::Multiply>(fq, mul_value);
 
         m_function = std::make_shared<ngraph::Function>(
@@ -92,96 +94,97 @@ TEST_P(FQMulFusion, ExpectFusion) {
 };
 
 namespace {
-INSTANTIATE_TEST_CASE_P(ScalarFQParams_C6_4D_channel_0, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(ScalarFQParams_C6_4D_channel_0, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{64, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{64, 1, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(ScalarFQParams_C6_4D_channel_1, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(ScalarFQParams_C6_4D_channel_1, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(ScalarFQParams_C6_scalar, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(ScalarFQParams_C6_scalar, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{})));
 
-INSTANTIATE_TEST_CASE_P(FQOutputs1D_C6_scalar, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(FQOutputs1D_C6_scalar, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1})));
 
-INSTANTIATE_TEST_CASE_P(FQOutputs_NHWC_C6_scalar, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(FQOutputs_NHWC_C6_scalar, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 7, 7, 3}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 3}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 3})));
 
-INSTANTIATE_TEST_CASE_P(FQOutputs_NCHW_C6_scalar, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(FQOutputs_NCHW_C6_scalar, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1, 1}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQInputs_4D_with_channel_dimension, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(FQInputs_4D_with_channel_dimension, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQInputs_4D_per__multiplier_with_channel, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(FQInputs_4D_per__multiplier_with_channel, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQInputs_4D_with_channel__multiplier_4D_per_tensor, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(FQInputs_4D_with_channel__multiplier_4D_per_tensor, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQInputs_4D__multiplier_channel_3rd_dim, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(FQInputs_4D__multiplier_channel_3rd_dim, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 3, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 3, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQOutputs_1D__multiplier_3D, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(FQOutputs_1D__multiplier_3D, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1}),
-                                           ::testing::Values(ngraph::Shape{1, 3, 1})));
+                                           ::testing::Values(ngraph::Shape{1, 1, 3, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQ_all_ones__multiplier_4D_with_channel, FQMulFusion,
-                        ::testing::Combine(::testing::Values(ngraph::Shape{1, 1, 1, 1}),
-                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
-                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
-                                           ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
-                                           ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
-
-INSTANTIATE_TEST_CASE_P(FQInOUt_ones__multiplier_4D_with_channel, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(FQInOUt_ones__multiplier_4D_with_channel, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 64, 3, 3})));
+
+INSTANTIATE_TEST_CASE_P(FQInOUt_ones__multiplier_3D, FQMulFusion,
+                        ::testing::Combine(::testing::Values(ngraph::Shape{1, 128, 512}),
+                                           ::testing::Values(ngraph::Shape{1}),
+                                           ::testing::Values(ngraph::Shape{1}),
+                                           ::testing::Values(ngraph::Shape{512}),
+                                           ::testing::Values(ngraph::Shape{1, 1, 512})));
+
 
 TEST(FQMulFusion_NonConstInputs, AllInputsNonConst) {
     const auto data = std::make_shared<ngraph::opset4::Parameter>(
@@ -356,6 +359,87 @@ TEST(FQMulFusion_FQ_Mul_inputs, FQ_out_to_mul_input_2_param) {
     const auto res = compare_functions(function, expected_function);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, FakeQuantizeMultiplyFusionNegative) {
+    const auto data = ngraph::opset4::Constant::create(
+            ngraph::element::Type_t::f32, ngraph::Shape{1, 300, 1}, {0.0f});
+    const auto in_low = ngraph::opset4::Constant::create(
+            ngraph::element::Type_t::f32, ngraph::Shape{}, {-0.5f});
+    const auto in_high = ngraph::opset4::Constant::create(
+            ngraph::element::Type_t::f32, ngraph::Shape{}, {0.5f});
+    const auto out_low = ngraph::opset4::Constant::create(
+            ngraph::element::Type_t::f32, ngraph::Shape{}, {0.0f});
+    // out_high is a parameter, which means it should not be constant folded
+    const auto out_high =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{});
+    const auto fq = std::make_shared<ngraph::opset4::FakeQuantize>(
+            data, in_low, in_high, out_low, out_high, 42);
+
+    const auto mul_value = ngraph::opset4::Constant::create(
+            ngraph::element::Type_t::f32, ngraph::Shape{1, 300, 16}, {3.14f});
+    // and here the output of FQ is passed as the second input of Mul
+    const auto mul = std::make_shared<ngraph::opset4::Multiply>(mul_value, fq);
+
+    auto function = std::make_shared<ngraph::Function>(
+            ngraph::OutputVector{mul}, ngraph::ParameterVector{out_high});
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+
+    manager.run_passes(function);
+    ASSERT_NO_THROW(check_rt_info(function));
+
+    ASSERT_EQ(function->get_output_shape(0), ngraph::Shape({1, 300, 16}));
+}
+
+TEST(TransformationTests, FakeQuantizeMultiplyFusionMulConstWithEqualValues) {
+    const auto data = std::make_shared<ngraph::opset4::Parameter>(
+        ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 224, 224});
+    const auto in_low =
+        std::make_shared<ngraph::opset4::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{});
+    const auto in_high =
+        std::make_shared<ngraph::opset4::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{});
+    const auto out_low = ngraph::opset4::Constant::create(
+        ngraph::element::Type_t::f32, ngraph::Shape{}, {1.0f});
+    const auto out_high = ngraph::opset4::Constant::create(
+        ngraph::element::Type_t::f32, ngraph::Shape{}, {100.0f});
+    const auto fq = std::make_shared<ngraph::opset4::FakeQuantize>(
+        data, in_low, in_high, out_low, out_high, 42);
+
+    const auto mul_value = ngraph::opset4::Constant::create(
+        ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 1, 1}, {3, 3, 3});
+    const auto mul = std::make_shared<ngraph::opset4::Multiply>(fq, mul_value);
+
+    auto function = std::make_shared<ngraph::Function>(ngraph::OutputVector{mul},
+        ngraph::ParameterVector{data, in_low, in_high});
+
+    const auto expected_out_low = ngraph::opset4::Constant::create(
+        ngraph::element::Type_t::f32, ngraph::Shape{1}, {3.0f});
+    // this constant should be created by constant folding of the last FQ input
+    const auto expected_out_high = ngraph::opset4::Constant::create(
+        ngraph::element::Type_t::f32, ngraph::Shape{1}, {300.0f});
+
+    const auto expected_fq = std::make_shared<ngraph::opset4::FakeQuantize>(
+        data, in_low, in_high, expected_out_low, expected_out_high, 42);
+
+    const auto expected_function =
+        std::make_shared<ngraph::Function>(ngraph::OutputVector{expected_fq},
+            ngraph::ParameterVector{data, in_low, in_high});
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+
+    manager.run_passes(function);
+    ASSERT_NO_THROW(check_rt_info(function));
+
+    const auto res = compare_functions(function, expected_function, true);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+
+
 
 } // namespace
 

@@ -1,22 +1,21 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <behavior_test_plugin.h>
 #include <XLink.h>
 #include <mvnc.h>
-#include <mvnc/include/ncPrivateTypes.h>
+#include <ncPrivateTypes.h>
 #include <watchdog.h>
 #include <watchdogPrivate.hpp>
 #include <thread>
 #include <file_utils.h>
 #include "vpu_test_data.hpp"
-#include "functional_test_utils/test_model/test_model.hpp"
 
 #include "helpers/myriad_devices.hpp"
-#include <details/ie_exception.hpp>
 
-#include <ie_plugin_ptr.hpp>
+#include <cpp/ie_plugin.hpp>
+#include <vpu/private_plugin_config.hpp>
 
 using namespace std;
 using namespace ::testing;
@@ -85,7 +84,6 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 
         ncDeviceDescr_t deviceDesc = {};
         deviceDesc.protocol = NC_ANY_PROTOCOL;
-        deviceDesc.platform = NC_ANY_PLATFORM;
 
         ncDeviceOpenParams_t deviceOpenParams = {};
         deviceOpenParams.watchdogHndl = m_watchdogHndl;
@@ -192,7 +190,7 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        auto model = convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
 
         ExecutableNetwork ret;
@@ -230,7 +228,7 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        auto model = convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
 
         ExecutableNetwork ret;
@@ -262,4 +260,4 @@ const BehTestParams vpuValues[] = {
     BEH_MYRIAD,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, MYRIADWatchdog, ValuesIn(vpuValues), getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, MYRIADWatchdog, ValuesIn(vpuValues), getTestCaseName);

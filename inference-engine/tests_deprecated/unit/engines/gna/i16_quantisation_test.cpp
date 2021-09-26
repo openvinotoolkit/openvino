@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,8 +99,7 @@ TEST_F(I16QuantisationTest, outputAffinePrecisionIs32Bits){
     auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
 
     auto newNet = q.quantize(network, 1000);
-    InputsDataMap inputs;
-    newNet->getInputsInfo(inputs);
+    InputsDataMap inputs = newNet.getInputsInfo();
     auto affineDataPtr = getInputTo(inputs.begin()->second->getInputData()).begin()->second->outData.front();
 
     ASSERT_EQ(affineDataPtr->getTensorDesc().getPrecision(), Precision::I32);
@@ -130,15 +129,14 @@ TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
     auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
 
     auto newNet = q.quantize(network, 1000);
-    InputsDataMap inputs;
-    newNet->getInputsInfo(inputs);
+    InputsDataMap inputs = newNet.getInputsInfo();
     auto affineLayerPtr = getInputTo(inputs.begin()->second->getInputData()).begin()->second;
 
     auto quantParams = getInjectedData<QuantizedLayerParams>(affineLayerPtr);
 
 
-    ASSERT_FLOAT_EQ(quantParams->_dst_quant.scale, 100);
-    ASSERT_FLOAT_EQ(quantParams->_weights_quant.scale, 100);
+    ASSERT_FLOAT_EQ(quantParams->_dst_quant.GetScale(), 100);
+    ASSERT_FLOAT_EQ(quantParams->_weights_quant.GetScale(), 100);
 }
 
 TEST_F(I16QuantisationTest, OnlyAffine_NoActivationInsertion) {

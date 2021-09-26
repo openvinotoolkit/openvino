@@ -1,33 +1,29 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
+
 """Utility module."""
 
-import os
-from pymongo import MongoClient
+import numpy as np
 
-# constants
-DATABASE = 'timetests'   # database name for timetests results
-DB_COLLECTIONS = ["commit", "nightly", "weekly"]
-
-
-def expand_env_vars(obj):
-    """Expand environment variables in provided object."""
-
-    if isinstance(obj, list):
-        for i, value in enumerate(obj):
-            obj[i] = expand_env_vars(value)
-    elif isinstance(obj, dict):
-        for name, value in obj.items():
-            obj[name] = expand_env_vars(value)
-    else:
-        obj = os.path.expandvars(obj)
-    return obj
+# Define a range to cut outliers which are < Q1 − IQR_CUTOFF * IQR, and > Q3 + IQR_CUTOFF * IQR
+# https://en.wikipedia.org/wiki/Interquartile_range
+IQR_CUTOFF = 1.5
 
 
-def upload_timetest_data(data, db_url, db_collection):
-    """ Upload timetest data to database
-    """
-    client = MongoClient(db_url)
-    collection = client[DATABASE][db_collection]
-    collection.replace_one({'_id': data['_id']}, data, upsert=True)
+def calculate_iqr(stats: list):
+    """IQR is calculated as the difference between the 3th and the 1th quantile of the data."""
+    q1 = np.quantile(stats, 0.25)
+    q3 = np.quantile(stats, 0.75)
+    iqr = q3 - q1
+    return iqr, q1, q3
+
+
+def filter_timetest_result(stats: dict):
+    """Identify and remove outliers from time_results."""
+    filtered_stats = {}
+    for step_name, time_results in stats.items():
+        iqr, q1, q3 = calculate_iqr(time_results)
+        cut_off = iqr * IQR_CUTOFF
+        upd_time_results = [x for x in time_results if (q1 - cut_off < x < q3 + cut_off)]
+        filtered_stats.update({step_name: upd_time_results if upd_time_results else time_results})
+    return filtered_stats

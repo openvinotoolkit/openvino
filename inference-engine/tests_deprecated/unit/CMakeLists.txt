@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,10 +15,7 @@ SET (CMAKE_SKIP_RPATH OFF)
 
 file(GLOB
         TEST_SRC
-        cnn_network/*.cpp
-        graph_tools/*.cpp
         inference_engine_tests/*.cpp
-        stress_tests/*.cpp
         )
 
 if (ENABLE_GNA)
@@ -26,9 +23,17 @@ if (ENABLE_GNA)
             GNA_TESTS
             engines/gna/*cpp
             engines/gna/layers/*cpp
+            engines/gna/graph_tools/*cpp
             )
-    list(APPEND TEST_SRC ${GNA_TESTS})
     source_group("gna" FILES ${GNA_TESTS})
+    list(APPEND TEST_SRC ${GNA_TESTS})
+    list(APPEND TEST_DEPS GNAPlugin_test_static)
+
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_source_files_properties(engines/gna/graph_tools/graph_copy_tests.cpp
+                                    engines/gna/graph_tools/graph_tools_test.cpp
+                                    PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+    endif()
 
     # TODO: fix GNA tests
     if(OFF)
@@ -49,35 +54,21 @@ if (ENABLE_GNA)
         if(UNIX)
             set_target_properties(libGNAStubs PROPERTIES CXX_VISIBILITY_PRESET default)
         endif()
+        list(APPEND TEST_DEPS libGNAStubs)
     endif()
-
-    set (GNA_TEST_ENGINE GNAPlugin_test_static)
 endif()
-
-if (ENABLE_MKL_DNN)
-    if (GEMM STREQUAL "MKL")
-        add_definitions(-DUSE_MKL)
-    endif ()
-    file(GLOB
-            MKLDNN_TESTS
-            engines/mkldnn/*.cpp
-            engines/mkldnn/graph/layers/extensions/*.cpp
-            engines/mkldnn/graph/layers/internal/*.cpp
-            engines/mkldnn/graph/structure/*.cpp
-            engines/mkldnn/graph/*.cpp)
-    file(GLOB
-            MKLDNN_TESTS_INCLUDE engines/mkldnn/graph/*.hpp)
-    include_directories(
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include
-            engines/mkldnn/graph
-            ${CMAKE_BINARY_DIR}/include/)
-
-    source_group("mkldnn" FILES ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE})
-    list(APPEND MKLDNN_TESTS $<TARGET_OBJECTS:MKLDNNPlugin_obj>)
-endif ()
 
 if (ENABLE_MYRIAD)
     include(${XLINK_DIR}/XLink.cmake)
+
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_source_files_properties(engines/vpu/myriad_tests/helpers/myriad_test_case.cpp
+                                    engines/vpu/mvnc/watchdog_tests.cpp
+                                    engines/vpu/sw_conv_adaptation.cpp
+                                    engines/vpu/myriad_tests/myriad_engine_tests.cpp
+                                    engines/vpu/myriad_tests/myriad_metrics_tests.cpp
+                                    PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+    endif()
 
     file(GLOB
             VPU_TESTS
@@ -87,12 +78,11 @@ if (ENABLE_MYRIAD)
             engines/vpu/myriad_tests/helpers/*cpp
             engines/vpu/myriad_tests/helpers/*h
             ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/*.cpp
+            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/configuration/*.cpp
             )
     include_directories(
             engines/vpu/myriad_tests/helpers
             ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include/watchdog
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE})
 
@@ -101,28 +91,21 @@ if (ENABLE_MYRIAD)
     source_group("vpu" FILES ${VPU_TESTS})
 endif()
 
-file(GLOB
-        TEST_INCLUDE
-        shape_infer/*.hpp)
-
 source_group("src" FILES ${TEST_SRC})
 source_group("include" FILES ${TEST_INCLUDE})
 
 # create target
 
-add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE} ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE} ${DLIA_TESTS})
-set_ie_threading_interface_for(${TARGET_NAME})
+add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})
 
 target_include_directories(${TARGET_NAME} PRIVATE
-        ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin
-        ${IE_MAIN_SOURCE_DIR}/src/gna_plugin
-        "${CMAKE_CURRENT_SOURCE_DIR}")
+        ${CMAKE_CURRENT_SOURCE_DIR})
 
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 
 # because IE unit tests use plugin and IE object files compiled with LTO
 if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
-    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endif()
 
 ## Mock macros doesn't use "override" specificator
@@ -139,25 +122,12 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine_s # need to have this explicitly for USE_STATIC_IE
     unitTestUtils
     ieTestHelpers_s
-    ${GNA_TEST_ENGINE}
+    ${TEST_DEPS}
 
     # dynamic libraries
     inference_engine_transformations
-    inference_engine_ir_v7_reader)
-
-if(USE_CNNNETWORK_LPT)
-    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations_legacy)
-else()
-    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations)
-endif()
-
-if(TARGET libGNAStubs)
-    target_link_libraries(${TARGET_NAME} PRIVATE libGNAStubs)
-endif()
-
-if (ENABLE_MKL_DNN)
-    target_link_libraries(${TARGET_NAME} PRIVATE mkldnn)
-endif ()
+    inference_engine_lp_transformations
+    )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
@@ -166,5 +136,10 @@ endif()
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 set_property(TEST ${TARGET_NAME} PROPERTY LABELS IE)
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 add_dependencies(${TARGET_NAME} mock_engine)

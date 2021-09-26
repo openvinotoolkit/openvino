@@ -1,41 +1,45 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <cldnn/graph/network.hpp>
+#include <cldnn/runtime/profiling.hpp>
+
+#include "cldnn_graph.h"
+#include "simple_math.h"
+#include <cldnn/cldnn_config.hpp>
+#include "cldnn_infer_request.h"
+
+#include <description_buffer.hpp>
+#include <threading/ie_executor_manager.hpp>
+#include <exec_graph_info.hpp>
+
+#include <ie_ngraph_utils.hpp>
+#include <ngraph/variant.hpp>
 
 #include <list>
 #include <set>
 #include <unordered_set>
 #include <sstream>
-#include <api/cldnn.hpp>
-#include <api/network.hpp>
-#include <api/profiling.hpp>
-#include <api/custom_gpu_primitive.hpp>
 #include <chrono>
 #include <cmath>
 #include <algorithm>
-#include "cldnn_graph.h"
-#include "simple_math.h"
-#include <description_buffer.hpp>
-#include <cldnn/cldnn_config.hpp>
-#include <legacy/graph_tools.hpp>
-#include <legacy/net_pass.h>
-#include "cldnn_infer_request.h"
-#include <threading/ie_executor_manager.hpp>
 #include <fstream>
 #include <utility>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
-#include <legacy/ie_ngraph_utils.hpp>
-#include "generic_ie.hpp"
+#include <ie_ngraph_utils.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph/ngraph.hpp>
+#include "cldnn_itt.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
-CLDNNGraph::CLDNNGraph(InferenceEngine::ICNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
+CLDNNGraph::CLDNNGraph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
@@ -54,9 +58,8 @@ CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
 }
 
 void CLDNNGraph::UpdateLayersMaps() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::UpdateLayersMaps");
     primitiveIDs = m_program->primitiveIDs;
-    primitivesToIRLayersMap = m_program->primitivesToIRLayersMap;
-    IRToNgraphLayersMap = m_program->IRToNgraphLayersMap;
     prevPrimitiveIDs = m_program->prevPrimitiveIDs;
     profilingIDs = m_program->profilingIDs;
     perfMap = m_program->perfMap;
@@ -64,30 +67,30 @@ void CLDNNGraph::UpdateLayersMaps() {
 }
 
 void CLDNNGraph::Build() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::Build");
     UpdateLayersMaps();
 
     if (GetMaxDynamicBatchSize() > 1) {
         int m_bv_sz = m_program->GetMaxBatchSizeForSingleProgram();
         for (int b = m_bv_sz - 1; b >= 0; b--) {
-            auto network = BuildNetwork(m_program->getCompiledProgram(b));
+            auto network = BuildNetwork(m_program->GetCompiledProgram(b));
             m_networks.insert(m_networks.begin(), network);
-            GetEngine()->release_pending_memory(network->get_id());
         }
     } else {
-        auto network = BuildNetwork(m_program->getCompiledProgram());
+        auto network = BuildNetwork(m_program->GetCompiledProgram());
         m_networks.emplace_back(network);
-        GetEngine()->release_pending_memory(network->get_id());
     }
 
     UpdateImplementationsMap();
 }
 
 std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
-    auto network = std::make_shared<cldnn::network>(*program, m_stream_id);
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::BuildNetwork");
+    auto network = std::make_shared<cldnn::network>(program, m_stream_id);
 
     if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
         static int net_id = 0;
-        auto steps_info = network->get_optimization_steps_info();
+        auto steps_info = network->get_optimizer_passes_info();
         size_t step_idx = 0;
         for (auto& step : steps_info) {
             CNNNetwork net(GetExecGraphInfoByPrimitivesInfo(step.second, true));
@@ -101,8 +104,9 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
     return network;
 }
 
-InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
+std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetExecGraphInfoByPrimitivesInfo");
     if (m_config.useProfiling) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,
@@ -131,6 +135,7 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         }
     };
 
+    // TODO: Adjust output layer names to be aligned with ngraph and add new ops
     auto to_IE_type_name = [](const std::string& cldnn_name) -> std::string{
         static std::map<std::string, std::string> type_n2l {
                 { "activation", "Activation" },
@@ -178,6 +183,7 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
                 { "tile", "Tile" },
                 { "resample", "Resample" },
                 { "interp", "Interp" },
+                { "reduce", "Reduce" },
                 { "reduce_max", "ReduceMax" },
                 { "reduce_min", "ReduceMin" },
                 { "reduce_mean", "ReduceMean" },
@@ -211,25 +217,6 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         return res;
     };
 
-    auto split_string = [](std::string src, std::string delimiter = ",") -> std::vector<std::string> {
-        std::vector<std::string> tokens;
-        std::string tokenBuf;
-        size_t prev = 0, pos = 0, srcLength = src.length(), delimLength = delimiter.length();
-        do {
-            pos = src.find(delimiter, prev);
-            if (pos == std::string::npos) {
-                pos = srcLength;
-            }
-            tokenBuf = src.substr(prev, pos - prev);
-            if (!tokenBuf.empty()) {
-                tokens.push_back(tokenBuf);
-            }
-            prev = pos + delimLength;
-        } while (pos < srcLength && prev < srcLength);
-
-        return tokens;
-    };
-
     auto remove_type_from_name = [](const std::string& name) -> std::string {
         auto it = std::find(name.begin(), name.end(), ':');
         if (it == name.end() || (it + 1) == name.end())
@@ -238,29 +225,19 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         return std::string((it+1), name.end());
     };
 
+    auto extIdMap = GetNetwork()->get_ext_id_mapping();
+
     auto find_origin_layers = [&](const std::string& name) -> std::vector<std::string> {
-        if (primitivesToIRLayersMap.find(name) == primitivesToIRLayersMap.end())
+        if (extIdMap.find(name) == extIdMap.end()) {
             return {};
-
-        auto cnn_names = primitivesToIRLayersMap.at(name);
-        std::vector<std::string> res;
-
-        for (auto& cnn_name : cnn_names) {
-            if (IRToNgraphLayersMap.find(cnn_name) != IRToNgraphLayersMap.end()) {
-                auto ngraph_names = split_string(IRToNgraphLayersMap.at(cnn_name));
-                res.insert(res.end(), ngraph_names.begin(), ngraph_names.end());
-            } else {
-                res.push_back(cnn_name);
-            }
         }
-        return res;
+        return { extIdMap.at(name) };
     };
 
     auto get_inputs = [&] (const cldnn::primitive_info& prim_info) {
         ngraph::OutputVector inputs;
 
         auto& deps = prim_info.c_dependencies;
-        size_t in_size = deps.size();
 
         // Decrease expected dependencies count if there is a const input without original id in the IR
         for (auto& dep : deps) {
@@ -316,7 +293,6 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
     };
 
     auto create_ngraph_node = [&](const cldnn::primitive_info& prim_info) {
-        const auto& deps = prim_info.c_dependencies;
         const auto& user_ids = prim_info.c_users;
         size_t output_size = user_ids.size();
         bool is_output = user_ids.empty();
@@ -333,7 +309,7 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
             return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
                 get_inputs(prim_info), output_size);
 
-            if (is_output) {    // create additinal result node
+            if (is_output) {    // create additional result node
                 nodes.push_back(return_node);
                 node2layer[prim_info.original_id] = return_node;
                 return_node->set_output_type(0,
@@ -364,11 +340,13 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
 
         std::map<std::string, std::string> info;
         Precision prec = data_type_to_precision(prim_info.output_layout.data_type);
+        Precision inference_precision = data_type_to_precision(prim_info.runtime_precision);
         info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = prec.name();
         info[ExecGraphInfoSerialization::LAYER_TYPE] = to_IE_type_name(prim_info.type_id);
         info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = prim_info.layout_str;
         info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(prim_info.exec_id);
         info[ExecGraphInfoSerialization::IMPL_TYPE] = prim_info.kernel_id;
+        info[ExecGraphInfoSerialization::RUNTIME_PRECISION] = inference_precision.name();
 
         std::vector<std::string> originalNames{find_origin_layers(prim_info.original_id)};
         for (auto& fused_id : prim_info.c_fused_ids) {
@@ -459,19 +437,17 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         create_ngraph_node(pi);
     }
 
-    ngraph::op::GenericIE::DisableReshape reshape(nodes);
-    auto function = std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
-    InferenceEngine::CNNNetwork net(function);
-    return net;
+    return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
 }
 
-InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfo() {
     auto primitives_info = GetNetwork()->get_primitives_info();
     return GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
 }
 
 
 void CLDNNGraph::UpdatePerfStatistics() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::UpdatePerfStatistics");
     if (GetNetworksCount() == 0) {
         return;
     }
@@ -495,7 +471,7 @@ void CLDNNGraph::UpdatePerfStatistics() {
         }
     };
 
-    std::map<cldnn::primitive_id, cldnn::event> executedPrimitives = GetNetwork()->get_executed_primitives();
+    std::map<cldnn::primitive_id, cldnn::event::ptr> executedPrimitives = GetNetwork()->get_executed_primitives();
     auto allPrimitives = GetNetwork()->get_all_primitives();
 
     // Get profiling info for all layers
@@ -517,7 +493,7 @@ void CLDNNGraph::UpdatePerfStatistics() {
         auto event = execIter->second;
         executedPrimitives.erase(execIter);
 
-        cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event.get_profiling_info()};
+        cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event->get_profiling_info()};
 
         collectTimings(cldnnInfo, perfCount);
         perfCount.num++;
@@ -530,7 +506,7 @@ void CLDNNGraph::UpdatePerfStatistics() {
             pcIter = perfMap.find(executedID.first);
             auto& perfCount = pcIter->second.second;
 
-            cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second.get_profiling_info()};
+            cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second->get_profiling_info()};
 
             collectTimings(cldnnInfo, perfCount);
             perfCount.num++;
@@ -543,6 +519,7 @@ bool CLDNNGraph::IsLoaded() const {
 }
 
 void CLDNNGraph::UpdateImplementationsMap() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::UpdateImplementationsMap");
     if (m_config.useProfiling) {
         auto extractImplementationFromInfo = [](const std::string& info) -> std::string {
             std::string def_implementation = "undef";
@@ -584,16 +561,26 @@ void CLDNNGraph::UpdateImplementationsMap() {
     }
 }
 
-void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &result) const {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::GetPerformanceCounts() const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetPerformanceCounts");
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> result;
     bool combinePrimByIRLayers = false;
     unsigned i = 0;
     auto allIds = GetNetwork()->get_all_primitive_org_ids();
     auto executedPrimitives = GetNetwork()->get_executed_primitives();
     auto primitivesInfo = GetNetwork()->get_primitives_info();
+    auto extIdMap = GetNetwork()->get_ext_id_mapping();
 
-    auto getUpperCaseName = [&](std::string name) {
+    auto getUpperCaseName = [](std::string name) {
         if (name.length() > 0)
             name[0] = toupper(name[0]);
+        return name;
+    };
+
+    auto getClearName = [](std::string name) {
+        if (name.find(":") != std::string::npos) {
+            name = name.substr(name.find(":") + 1, name.length());
+        }
         return name;
     };
 
@@ -668,7 +655,7 @@ void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::Inf
             executedPrimitives.find(primId) != executedPrimitives.end()) {
             auto event = executedPrimitives.at(primId);
 
-            cldnn::instrumentation::profiling_info cldnnInfo{primId, event.get_profiling_info()};
+            cldnn::instrumentation::profiling_info cldnnInfo{primId, event->get_profiling_info()};
 
             // Collect timings
             long long cpuTime = 0;
@@ -687,10 +674,7 @@ void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::Inf
                 }
             }
 
-            std::string layerName = primId;
-            if (primId.find(":") != std::string::npos) {
-                layerName = primId.substr(primId.find(":") + 1, primId.length());
-            }
+            std::string layerName = getClearName(primId);
 
             for (auto& pi : primitivesInfo) {
                 if (pi.original_id == primId) {
@@ -726,15 +710,33 @@ void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::Inf
     }
 
     // Step 3. Checking primitives which has been deleted from execution order but added by clDNNPlugin
-    for (auto& primId : profilingIDs)
+    for (auto& primId : profilingIDs) {
         if (std::find(allIds.begin(), allIds.end(), primId) == allIds.end()) {
             getFromProfiling(primId);
         }
+    }
+
+    for (auto& p : extIdMap) {
+        if (p.first.find(p.second) != std::string::npos) {
+            continue;
+        }
+        auto first_res = result.find(getClearName(p.first));
+        auto second_res = result.find(getClearName(p.second));
+
+        if (first_res != result.end() && second_res != result.end() && first_res != second_res) {
+            std::swap(first_res->second.cpu_uSec,        second_res->second.cpu_uSec);
+            std::swap(first_res->second.realTime_uSec,   second_res->second.realTime_uSec);
+            std::swap(first_res->second.status,          second_res->second.status);
+            std::swap(first_res->second.exec_type,       second_res->second.exec_type);
+            std::swap(first_res->second.execution_index, second_res->second.execution_index);
+        }
+    }
+    return result;
 }
 
 std::shared_ptr<cldnn::network> CLDNNGraph::GetNetwork(size_t idx) const {
     if (idx >= GetNetworksCount())
-        THROW_IE_EXCEPTION << "Unable to find network with id=" << idx << ". Stored networks count: " << GetNetworksCount();
+        IE_THROW() << "Unable to find network with id=" << idx << ". Stored networks count: " << GetNetworksCount();
 
     return m_networks[idx];
 }
@@ -745,16 +747,19 @@ std::string CLDNNGraph::MapOutputName(std::string outName) const {
     auto allPrimitiveIds = GetNetwork()->get_all_primitives();
 
     // Find correct output ID. Start with name stored in IR.
+    if (primitiveIDs.find(outName) == primitiveIDs.end()) {
+        IE_THROW() << "output with name " << outName << " was not found in primitiveIDs";
+    }
     std::string outputID = primitiveIDs.at(outName);
     while (std::find(networkOutputsIDs.begin(), networkOutputsIDs.end(), outputID) == networkOutputsIDs.end()) {
         // If current ID isn't found in cldnn network outputs, get previous primitive id and try again.
         auto prim = allPrimitiveIds.find(outputID);
         if (prim == allPrimitiveIds.end()) {
-            THROW_IE_EXCEPTION << "Unknown primitive id " << outputID;
+            IE_THROW() << "Unknown primitive id " << outputID;
         }
 
         if (prevPrimitiveIDs.at(outputID).size() != 1 || prim->second != "_optimized_") {
-            THROW_IE_EXCEPTION << "Unable to find parent for output primitive " << outputID;
+            IE_THROW() << "Unable to find parent for output primitive " << outputID;
         }
         outputID = prevPrimitiveIDs.at(outputID)[0];
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,12 @@
 
 #include <transformations/init_node_info.hpp>
 #include "low_precision/split.hpp"
-#include "ngraph_functions/low_precision_transformations/split_function.hpp"
+#include "lpt_ngraph_functions/split_function.hpp"
 
 namespace LayerTestsDefinitions {
-std::string SplitTransformation::getTestCaseName(testing::TestParamInfo<SplitTransformationParams> obj) {
+std::string SplitTransformation::getTestCaseName(const testing::TestParamInfo<SplitTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape  inputShapes;
+    ngraph::PartialShape  inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
@@ -31,7 +31,7 @@ std::string SplitTransformation::getTestCaseName(testing::TestParamInfo<SplitTra
 
 InferenceEngine::Blob::Ptr SplitTransformation::GenerateInput(const InferenceEngine::InputInfo& info) const {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
@@ -47,7 +47,7 @@ InferenceEngine::Blob::Ptr SplitTransformation::GenerateInput(const InferenceEng
 
 void SplitTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape  inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
     std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
@@ -58,30 +58,6 @@ void SplitTransformation::SetUp() {
         param.fakeQuantize,
         param.splitedAxis,
         param.numSplit);
-
-    validateNGraph();
-}
-
-void SplitTransformation::validateNGraph() {
-    ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    SplitTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
-
-    ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations;
-    additionalTransformations.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(params);
-    auto transformed = transformNGraph(params, additionalTransformations);
-
-    EXPECT_EQ(param.numSplit, transformed->get_output_size());
-
-    for (size_t i = 0; i < param.numSplit; ++i) {
-        std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
-        std::shared_ptr<ngraph::Node> scaleShift = output->get_input_node_shared_ptr(0);
-        const std::string typeName = scaleShift->get_type_name();
-        ASSERT_TRUE(typeName == "ScaleShiftIE" || typeName == "PowerIE" || typeName == "ConvolutionIE");
-    }
 }
 
 TEST_P(SplitTransformation, CompareWithRefImpl) {

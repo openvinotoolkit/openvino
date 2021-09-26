@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -90,29 +78,10 @@ namespace ngraph
             void add_expected_output(const ngraph::Shape& expected_shape,
                                      const std::vector<T>& values)
             {
-                std::string network_out_name;
-                InferenceEngine::DataPtr network_output;
-                if (m_function->get_results().size() == 1)
-                {
-                    network_out_name = m_network_outputs.begin()->first;
-                    network_output = m_network_outputs.begin()->second;
-                }
-                else
-                {
-                    const auto& function_output =
-                        m_function->get_results()[m_allocated_expected_outputs];
-
-                    network_out_name = function_output->get_friendly_name();
-
-                    NGRAPH_CHECK(
-                        m_network_outputs.count(network_out_name) == 1,
-                        "nGraph function's output number ",
-                        m_allocated_expected_outputs,
-                        " was not found in the CNNNetwork built from it. Function's output name: ",
-                        function_output->get_friendly_name());
-
-                    network_output = m_network_outputs[function_output->get_friendly_name()];
-                }
+                const auto& function_output =
+                    m_function->get_results()[m_allocated_expected_outputs];
+                std::string network_out_name = get_output_name(function_output);
+                InferenceEngine::DataPtr network_output = m_network_outputs[network_out_name];
 
                 auto blob =
                     std::make_shared<InferenceEngine::TBlob<T>>(network_output->getTensorDesc());
@@ -144,13 +113,11 @@ namespace ngraph
             unsigned int m_allocated_inputs = 0;
             unsigned int m_allocated_expected_outputs = 0;
 
-            /// Upgrades functions containing legacy opset0 to opset1
-            /// and checks if the graph can be executed
-            std::shared_ptr<Function>
-                upgrade_and_validate_function(const std::shared_ptr<Function> function) const;
-
             /// Retrieves a set of all ops IE can execute
             std::set<NodeTypeInfo> get_ie_ops() const;
+
+            // Get IE blob which corresponds to result of nG Function
+            std::string get_output_name(const std::shared_ptr<op::v0::Result>& ng_result);
         };
 
         class IE_CPU_Engine final : public IE_Engine
@@ -188,5 +155,5 @@ namespace ngraph
         {
             static constexpr bool value = true;
         };
-    }
-}
+    } // namespace test
+} // namespace ngraph

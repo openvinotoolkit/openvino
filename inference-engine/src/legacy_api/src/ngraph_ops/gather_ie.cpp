@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::GatherIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::GatherIE);
 
 op::GatherIE::GatherIE(const Output<Node>& params, const Output<Node>& indices, int64_t axis)
         : Op({params, indices})
@@ -33,4 +33,9 @@ void op::GatherIE::validate_and_infer_types() {
     // Use opset1::Gather to calculate output shape
     auto gather = std::make_shared<opset1::Gather>(input_value(0), input_value(1), opset1::Constant::create(element::i64, Shape{1}, {m_axis}));
     set_output_type(0, gather->output(0).get_element_type(), gather->output(0).get_partial_shape());
+}
+
+bool op::GatherIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("axis", m_axis);
+    return true;
 }

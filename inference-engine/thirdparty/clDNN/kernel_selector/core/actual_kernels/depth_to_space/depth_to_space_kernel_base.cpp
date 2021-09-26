@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "depth_to_space_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -64,7 +52,7 @@ JitConstants DepthToSpaceKernelBase::GetJitConstants(const depth_to_space_params
     return jit;
 }
 
-KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options, float estimatedTime) const {
+KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
     KernelData kd = KernelData::Default<depth_to_space_params>(params);
     depth_to_space_params& newParams = *static_cast<depth_to_space_params*>(kd.params.get());
 
@@ -73,16 +61,14 @@ KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params, c
     }
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = estimatedTime;
 
     return { kd };
 }

@@ -5,6 +5,11 @@
 #include <memory>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/op_conversions/convert_gelu.hpp>
+#include <transformations/op_conversions/convert_space_to_depth.hpp>
+#include <transformations/op_conversions/convert_depth_to_space.hpp>
+#include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
 
 // ! [ngraph:include]
 #include <ngraph/ngraph.hpp>
@@ -134,7 +139,7 @@ Output <Node> output = node->output(0);
 auto pshape = data.get_partial_shape();
 auto el_type = data.get_element_type();
 
-// Ggetting parent for input port
+// Getting parent for input port
 Output <Node> parent_output;
 parent_output = data.get_source_output();
 
@@ -149,7 +154,7 @@ auto consumers = output.get_target_inputs();
 {
 // ! [ngraph:shape]
 auto partial_shape = node->input(0).get_partial_shape(); // get zero input partial shape
-if (partial_shape.is_dynamic() /* or !partial_shape.is_staic() */) {
+if (partial_shape.is_dynamic() /* or !partial_shape.is_static() */) {
     return false;
 }
 auto static_shape = partial_shape.get_shape();
@@ -249,3 +254,61 @@ void visualization_example(std::shared_ptr<ngraph::Function> f) {
     manager.run_passes(f);
 }
 // ! [ngraph:visualize]
+
+void pass_manager_example1(std::shared_ptr<ngraph::Function> f) {
+// ! [ngraph:disable_gelu]
+ngraph::pass::Manager manager;
+manager.register_pass<ngraph::pass::CommonOptimizations>();
+
+auto pass_config = manager.get_pass_config();
+pass_config->disable<ngraph::pass::ConvertGELU>();
+
+manager.run_passes(f);
+// ! [ngraph:disable_gelu]
+}
+
+void pass_manager_example2(std::shared_ptr<ngraph::Function> f) {
+    ngraph::pass::Manager manager;
+    std::function<bool(const std::shared_ptr<const Node>)> transformation_callback;
+// ! [ngraph:disable_callback]
+// Set callback to particular transformation with specific condition
+auto pass_config = manager.get_pass_config();
+pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
+                          ngraph::pass::ConvertDepthToSpace>(
+        [](const std::shared_ptr<const Node> &node) -> bool {
+            return node->input_value(0).get_shape().size() <= 5lu &&
+                   node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
+        });
+
+// Update transformation to call callback
+ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
+    auto node = m.get_match_root();
+    if (transformation_callback(node)) {
+        return false;
+    }
+    // transformation code
+    return false;
+};
+// ! [ngraph:disable_callback]
+}
+
+void pass_manager_example3(std::shared_ptr<ngraph::Function> f) {
+    std::function<bool(const std::shared_ptr<const Node>)> transformation_callback;
+// ! [ngraph:disabled_by_default]
+// Example of disabled by default transformation
+{
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
+    manager.run_passes(f);
+}
+
+// Enable disabled by default transformation inside plugin
+{
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::CommonOptimizations>();
+    auto pass_config = manager.get_pass_config();
+    pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
+    manager.run_passes(f);
+}
+// ! [ngraph:disabled_by_default]
+}

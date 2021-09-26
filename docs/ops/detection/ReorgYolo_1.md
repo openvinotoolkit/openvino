@@ -17,7 +17,6 @@
   * **Description**: *stride* is the distance between cut throws in output blobs.
   * **Range of values**: positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**:
@@ -26,7 +25,7 @@
 
 **Outputs**:
 
-*   **1**: 4D output tensor of the same type as input tensor and shape `[N, C*stride*stride, H/stride, W/stride]`. Required.
+*   **1**: 4D output tensor of the same type as input tensor and shape `[N, C*stride*stride, H/stride, W/stride]`.
 
 **Example**
 

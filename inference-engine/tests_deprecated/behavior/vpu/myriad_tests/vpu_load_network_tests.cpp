@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ TEST_F(MyriadLoadNetworkTestCase, smoke_SimpleLoading) {
         {KEY_DEVICE_ID, device_to_load},
     };
 
-    ASSERT_NO_THROW(ExeNetworkPtr exe_network =
+    ASSERT_NO_THROW(ExeNetwork exe_network =
                         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 
     ASSERT_TRUE(!IsDeviceAvailable(device_to_load));
@@ -37,12 +37,12 @@ TEST_F(MyriadLoadNetworkTestCase, smoke_LoadingAtTheSameDevice) {
         {KEY_DEVICE_ID, device_to_load},
     };
 
-    ASSERT_NO_THROW(ExeNetworkPtr exe_network =
+    ASSERT_NO_THROW(ExeNetwork exe_network =
                         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 
     ASSERT_TRUE(!IsDeviceAvailable(device_to_load));
 
-    ASSERT_NO_THROW(ExeNetworkPtr exe_network =
+    ASSERT_NO_THROW(ExeNetwork exe_network =
                         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 }
 
@@ -52,30 +52,6 @@ TEST_F(MyriadLoadNetworkTestCase, smoke_ThrowsExeptionWhenNameIsInvalid) {
         {KEY_DEVICE_ID, device_to_load},
     };
 
-    ASSERT_ANY_THROW(ExeNetworkPtr exe_network =
-        ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
-}
-
-TEST_F(MyriadLoadNetworkTestCase, smoke_ThrowsExeptionWhenPlatformConflictWithProtocol) {
-    std::string wrong_platform;
-    auto devices = getDevicesList();
-    ASSERT_TRUE(devices.size());
-
-    auto device_to_load = devices[0];
-
-    IE_SUPPRESS_DEPRECATED_START
-    if(isMyriadXDevice(device_to_load)) {
-        wrong_platform = VPU_MYRIAD_2450;
-    } else {
-        wrong_platform = VPU_MYRIAD_2480;
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    std::map<std::string, std::string> config = {
-        {KEY_DEVICE_ID, device_to_load},
-        {KEY_VPU_MYRIAD_PLATFORM, wrong_platform},
-    };
-
-    ASSERT_ANY_THROW(ExeNetworkPtr exe_network =
+    ASSERT_ANY_THROW(ExeNetwork exe_network =
         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 }

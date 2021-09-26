@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::TopKIE::type_info;
-
+BWDCMP_RTTI_DEFINITION(op::TopKIE);
 
 op::TopKIE::TopKIE(const ngraph::Output<ngraph::Node> &data, const ngraph::Output<ngraph::Node> &k, const int64_t axis, const ngraph::op::TopKMode mode,
                    const ngraph::op::TopKSortType sort, const element::Type& index_element_type)
@@ -53,4 +52,11 @@ void op::TopKIE::validate_and_infer_types() {
     set_output_size(2);
     set_output_type(0, topk->get_output_element_type(0), topk->get_output_partial_shape(0));
     set_output_type(1, topk->get_output_element_type(1), topk->get_output_partial_shape(1));
+}
+
+bool op::TopKIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("axis", m_axis);
+    visitor.on_attribute("mode", m_mode);
+    visitor.on_attribute("sort", m_sort_type);
+    return true;
 }

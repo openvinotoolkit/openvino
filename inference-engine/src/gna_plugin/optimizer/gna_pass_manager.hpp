@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <string>
 #include <map>
 #include <ie_common.h>
-#include "gna_plugin_policy.hpp"
 
 namespace GNAPluginNS {
 /**
@@ -29,8 +28,8 @@ class IPassManager {
 public:
     virtual ~IPassManager() = default;
     virtual int &getIntVar(std::string name) = 0;
-    virtual const Policy &getPolicy() const = 0;
-    virtual const InferenceEngine::CNNNetPtr &getNetwork() const = 0;
+    virtual const bool& isLowPrecision() const = 0;
+    virtual InferenceEngine::CNNNetwork &getNetwork() = 0;
 };
 
 class BasePass : public Pass {
@@ -75,17 +74,6 @@ DECL_PASS(InsertIdentityLayer);
 DECL_PASS(SubstituteScaleShiftBroadCast);
 
 /**
- * @brief GNA convolution layers have deinterleaved layout, while affine one doesn't
- * so between convolution and affine layers permute layers need to be inserted,
- * current MO approach is to insert such permutations
- * since GNA-HW already support conv->affine in permuted for, this pass inverses MO behavior
- * so its remove permutations of certain form conv->conv, and between conv->affine
- * and insert permutation between conv->affine if they are missed in IR
- * @param layers
- */
-DECL_PASS(ReversePermutations);
-
-/**
  * @brief Pass support --disable_nhwc_to_nchw option in MO
  * @param layers
  */
@@ -116,12 +104,21 @@ DECL_PASS(InsertDiagonalLayer);
  * it means maxpool receives 4 bytes, and produces 4 bytes
  */
 DECL_PASS(ReorderMaxPool);
+
 /**
  * @brief GNA doesn't support multiple activations fused with functional layer
  * currently for n activations for the layer X, it will be 1 PWL identity inserted, and n diagonal layers.
  * if one of activations is already identity, n-1 diagonal layers will be inserted
  */
 DECL_PASS(HandleMultipleActivationsForTheLayer);
+
+/**
+ * @brief GNA doesn't provide intermediate results (sums) when the layer is fused with activation.
+ * When more layers use the sums as inputs (beside the activation) then the diagonal layer
+ * is inserted before the activation to forbid the fusing and make the sums exposed.
+ * This is observed in the multiple_activations_onGNA_INT16 test.
+ */
+DECL_PASS(ForbidActivationFusing);
 
 /**
  * @brief copy layer insertion required in cases where input layer does not have output memory
@@ -132,6 +129,11 @@ DECL_PASS(InsertCopyLayer);
  * @brief aligning filter layer insertion required in cases when split/slice have output connections on not aligned addresses
  */
 DECL_PASS(InsertSplitAligningFilter);
+
+/**
+* @brief Pass that flattens trivial concatenations inputs and output and changes its axis to 1
+*/
+DECL_PASS(FlattenTrivialConcat);
 
 /**
  * @brief concat-aligning filter layer insertion required in cases when concat inputs size are not 64-aligned
@@ -186,21 +188,39 @@ DECL_PASS(FuseMultipleIdentities);
 */
 DECL_PASS(BroadcastConst);
 
+/**
+* @brief runs static quantisation on given floating weights and replaces fakeQuantize with constblobs
+*/
+DECL_PASS(FuseFQIntoWeights);
+
+/**
+* @brief remove all fake quantize layers while moving it's settings into QuantParams for certain layer
+*/
+DECL_PASS(MoveFakeQuantizeLayerIntoQuantParams);
+
+/**
+* @brief convert FullyConnected, ScaleShift and Eltwise layers weights order from NCHW to NHWC.
+* Information for transposition is found from convolution/pooling input or output dimensions.
+* Convolution weights are transposed in finalizeConvolution1DPrimitive() method (gna_graph_compiler.cpp).
+* They are transposed for the both, NCHW and NHWC models since MO always stores them in NCHW layout.
+*/
+DECL_PASS(TransposeWeightsFromNCHWToNHWC);
+
 struct PassManagerSettings {
-    Policy policy;
     /// @brief whether to run passes before copy
     bool runBeforeCopy;
+    bool lowPrecision;
 };
 
 
 class PassManager : public IPassManager, public std::enable_shared_from_this<PassManager> {
     PassManagerSettings settings;
-    InferenceEngine::CNNNetPtr network;
+    InferenceEngine::CNNNetwork network;
     std::vector<std::shared_ptr<Pass>> passes;
     std::map<std::string, int> intMap;
 
 public:
-    explicit PassManager(PassManagerSettings settings, InferenceEngine::CNNNetPtr network) noexcept
+    explicit PassManager(PassManagerSettings settings, InferenceEngine::CNNNetwork network) noexcept
     : settings(settings)
     , network(network) {}
 
@@ -211,10 +231,10 @@ public:
     int & getIntVar(std::string name) override {
         return intMap[name];
     }
-    const Policy & getPolicy() const override {
-        return settings.policy;
+    const bool& isLowPrecision() const override {
+        return settings.lowPrecision;
     }
-    const InferenceEngine::CNNNetPtr & getNetwork() const override {
+    InferenceEngine::CNNNetwork& getNetwork() override {
         return network;
     }
     /**

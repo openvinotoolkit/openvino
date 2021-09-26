@@ -1,27 +1,13 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from extensions.ops.split import VariadicSplit
 from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
 from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.graph.graph import Graph
-from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 
 
@@ -54,6 +40,7 @@ class CellNormalizer(BackReplacementPattern):
 
         WR_shape = node.in_port(WR_input_id).data.get_shape()
         assert WR_shape is not None, "Undefined 'WR' input shape for Cell node '{}'".format(cell_name)
+        assert is_fully_defined(WR_shape), 'Not fully defined shape for WR for Cell node "{}"'.format(cell_name)
 
         num_elements_in_WR = np.prod(WR_shape)
         input_size = (num_elements_in_WR / (hidden_size_coef * hidden_size)) - hidden_size

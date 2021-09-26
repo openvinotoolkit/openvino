@@ -1,20 +1,9 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/common.cl"
+#include "include/fetch_data.cl"
 #include "include/data_types.cl"
-#include "include/include_all.cl"
 
 inline uint FUNC(get_input_index)(uint b, uint f, uint z, uint y, uint x)
 {
@@ -132,9 +121,18 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
             interp_val = INPUT0_VAL_ZERO;
 #endif
     #if HAS_FUSED_OPS
+        #define batch (out_coords[0])
         #define OF_ID (out_coords[1] + pi)
+        #define oz (out_coords[2])
+        #define oy (out_coords[3])
+        #define ox (out_coords[4])
         FUSED_OPS;
         res[pi] = FUSED_OPS_RESULT;
+        #undef batch
+        #undef OF_ID
+        #undef oz
+        #undef oy
+        #undef ox
     #else // HAS_FUSED_OPS
         res[pi] = ACTIVATION(interp_val, ACTIVATION_PARAMS);
     #endif // HAS_FUSED_OPS
@@ -170,11 +168,20 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         interp_val = INPUT0_VAL_ZERO;
 #endif
 #if HAS_FUSED_OPS
+    #define batch (out_coords[0])
     #define OF_ID (out_coords[1])
+    #define oz (out_coords[2])
+    #define oy (out_coords[3])
+    #define ox (out_coords[4])
     FUSED_OPS;
     OUTPUT_TYPE res = FUSED_OPS_RESULT;
+    #undef batch
+    #undef OF_ID
+    #undef oz
+    #undef oy
+    #undef ox
 #else // HAS_FUSED_OPS
-    OUTPUT_TYPE res = ACTIVATION(interp_val, ACTIVATION_PARAMS);
+    OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(interp_val, ACTIVATION_PARAMS));
 #endif // HAS_FUSED_OPS
     output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], out_coords[2], out_coords[3], out_coords[4])] = res;
 #elif defined(SAMPLE_TYPE_CUBIC) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
@@ -227,9 +234,18 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     }
 
 #if HAS_FUSED_OPS
+    #define batch (out_coords[0])
     #define OF_ID (out_coords[1])
+    #define oz (out_coords[2])
+    #define oy (out_coords[3])
+    #define ox (out_coords[4])
     FUSED_OPS;
     OUTPUT_TYPE res = FUSED_OPS_RESULT;
+    #undef batch
+    #undef OF_ID
+    #undef oz
+    #undef oy
+    #undef ox
 #else // HAS_FUSED_OPS
     OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif // HAS_FUSED_OPS
@@ -296,6 +312,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         #define OF_ID (in_f)
         FUSED_OPS;
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
+        #undef OF_ID
 #else
         OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif
@@ -337,6 +354,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         #define OF_ID (in_f)
         FUSED_OPS;
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
+        #undef OF_ID
 #else
         OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif
@@ -354,11 +372,6 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     const int batch = (int)get_global_id(2) % OUTPUT_BATCH_NUM;
     const int oz    = (int)get_global_id(2) / OUTPUT_BATCH_NUM;
 #endif
-    const int PADDED_B = in_size[0] + PADS_BEGIN[0] + PADS_END[0];
-    const int PADDED_F = in_size[1] + PADS_BEGIN[1] + PADS_END[1];
-    const int PADDED_Z = in_size[2] + PADS_BEGIN[2] + PADS_END[2];
-    const int PADDED_Y = in_size[3] + PADS_BEGIN[3] + PADS_END[3];
-    const int PADDED_X = in_size[4] + PADS_BEGIN[4] + PADS_END[4];
 
     ACCUMULATOR_TYPE i_b = AXES_USED[0] ? FUNC_CALL(get_original_coordinate)(batch, SCALES[0], out_size[0], PADDED_B) : batch;
     ACCUMULATOR_TYPE i_f = AXES_USED[1] ? FUNC_CALL(get_original_coordinate)(feature, SCALES[1], out_size[1], PADDED_F) : feature;
@@ -465,6 +478,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         #define OF_ID (feature + f)
         FUSED_OPS;
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
+        #undef OF_ID
 #else
         OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif

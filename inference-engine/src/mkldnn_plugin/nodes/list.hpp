@@ -1,16 +1,18 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <mkldnn_selective_build.h>
+
 #include <ie_iextension.h>
-#include <legacy/ie_layers.h>
 
 #include <string>
 #include <map>
 #include <memory>
 #include <algorithm>
+#include <ngraph/node.hpp>
 
 namespace InferenceEngine {
 
@@ -41,7 +43,7 @@ public:
 namespace Extensions {
 namespace Cpu {
 
-using ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const InferenceEngine::CNNLayer*)>;
+using ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const std::shared_ptr<ngraph::Node>& op)>;
 
 struct ExtensionsHolder {
     std::map<std::string, ext_factory> list;
@@ -53,26 +55,26 @@ public:
 
     virtual StatusCode
     getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
-        collectTypes(types, size, extensionsHolder->list);
+        collectTypes(types, size);
         return OK;
     }
 
     virtual StatusCode
-    getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer, ResponseDesc* resp) noexcept {
-        auto& factories = extensionsHolder->list;
-        if (factories.find(cnnLayer->type) == factories.end()) {
-            std::string errorMsg = std::string("Factory for ") + cnnLayer->type + " wasn't found!";
+    getFactoryFor(ILayerImplFactory*& factory, const std::shared_ptr<ngraph::Node>& op, ResponseDesc* resp) noexcept {
+        using namespace MKLDNNPlugin;
+        factory = layersFactory.createNodeIfRegistered(MKLDNNPlugin, op->get_type_name(), op);
+        if (!factory) {
+            std::string errorMsg = std::string("Factory for ") + op->get_type_name() + " wasn't found!";
             errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
             return NOT_FOUND;
         }
-        factory = factories[cnnLayer->type](cnnLayer);
         return OK;
     }
 
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
         static Version ExtensionDescription = {
-            { 2, 0 },    // extension API version
-            "2.0",
+            { 2, 1 },    // extension API version
+            "2.1",
             "ie-cpu-ext"  // extension description message
         };
 
@@ -81,26 +83,21 @@ public:
 
     void Unload() noexcept override {}
 
-    void Release() noexcept override {
-        delete this;
-    }
+    using LayersFactory = openvino::cc::Factory<
+                                std::string,
+                                InferenceEngine::ILayerImplFactory*(const std::shared_ptr<ngraph::Node>& op)>;
 
-    void AddExt(std::string name, ext_factory factory) {
-        extensionsHolder->list[name] = factory;
-    }
+    LayersFactory layersFactory;
 
 private:
-    std::shared_ptr<ExtensionsHolder> extensionsHolder = std::make_shared<ExtensionsHolder>();
-
-    template<class T>
-    void collectTypes(char**& types, unsigned int& size, const std::map<std::string, T> &factories) {
-        types = new char *[factories.size()];
+    void collectTypes(char**& types, unsigned int& size) const {
+        types = new char *[layersFactory.size()];
         unsigned count = 0;
-        for (auto it = factories.begin(); it != factories.end(); it++, count ++) {
-            types[count] = new char[it->first.size() + 1];
-            std::copy(it->first.begin(), it->first.end(), types[count]);
-            types[count][it->first.size() ] = '\0';
-        }
+        layersFactory.foreach([&](std::pair<std::string, LayersFactory::builder_t> const &builder) {
+            types[count] = new char[builder.first.size() + 1];
+            std::copy(builder.first.begin(), builder.first.end(), types[count]);
+            types[count][builder.first.size() ] = '\0';
+        });
         size = count;
     }
 };

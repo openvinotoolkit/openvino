@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ public:
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         return std::make_shared<FakeAbs>(new_args.at(0));
     }
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
+    bool visit_attributes(ngraph::AttributeVisitor&) override {
         return true;
     }
 };
@@ -32,7 +32,6 @@ constexpr ngraph::NodeTypeInfo FakeAbs::type_info;
 class AbsFakeExtension: public InferenceEngine::IExtension {
 public:
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
-    void Release() noexcept override { delete this; }
     void Unload() noexcept override {}
 
     std::map<std::string, ngraph::OpSet> getOpSets() override{

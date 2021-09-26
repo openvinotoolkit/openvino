@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,19 +13,17 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/low_precision_transformations/mvn_function.hpp"
-
-#include <ngraph/pass/visualize_tree.hpp>
+#include "lpt_ngraph_functions/mvn_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string MVNTransformation::getTestCaseName(testing::TestParamInfo<MVNTransformationParams> obj) {
+std::string MVNTransformation::getTestCaseName(const testing::TestParamInfo<MVNTransformationParams>& obj) {
     std::string targetDevice;
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
     ngraph::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ngraph::AxisSet reductionAxes;
@@ -39,9 +37,8 @@ std::string MVNTransformation::getTestCaseName(testing::TestParamInfo<MVNTransfo
 }
 
 void MVNTransformation::SetUp() {
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
     ngraph::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ngraph::AxisSet reductionAxes;
     bool normalizeVariance;
     std::tie(precision, shape, targetDevice, reductionAxes, normalizeVariance) = this->GetParam();

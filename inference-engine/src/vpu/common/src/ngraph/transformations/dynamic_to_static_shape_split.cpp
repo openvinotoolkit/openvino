@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,18 +14,29 @@
 
 namespace vpu {
 
+void validateSplit(const ngraph::Node& split) {
+    VPU_THROW_UNLESS(split.get_input_size() >= 2, "There is Split operation \"{}\" without specified axis", split.get_friendly_name());
+    const auto& axis = ngraph::as_type_ptr<ngraph::opset5::Constant>(split.input_value(1).get_node_shared_ptr());
+    VPU_THROW_UNLESS(axis != nullptr, "There is Split operation \"{}\" with dynamic axis \"{}\", but only constant axis is supported",
+        split.get_friendly_name(), split.input_value(1).get_node_shared_ptr()->get_friendly_name());
+    const auto axisValue = ngraph::normalize_axis(split.description(), axis->cast_vector<std::int64_t>().front(), split.get_input_partial_shape(0).rank());
+    VPU_THROW_UNLESS(split.get_input_partial_shape(0)[axisValue].is_static(),
+        "There is Split operation \"{}\" by dynamic dimension, but only split by static dimension is supported: shape = \"{}\", axis = \"{}\"",
+        split.get_friendly_name(), split.get_input_partial_shape(0), axisValue);
+}
+
 void dynamicToStaticShapeSplit(std::shared_ptr<ngraph::Node> target) {
     const auto split = ngraph::as_type_ptr<ngraph::opset5::Split>(target);
     VPU_THROW_UNLESS(split,
                      "dynamicToStaticShapeSplit transformation is not applicable for {}, "
                      "it should be {} instead",
-                     target, ngraph::opset5::Split::type_info);
+                     target, ngraph::opset5::Split::get_type_info_static());
 
     const auto numSplits = split->get_num_splits();
 
     const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node_shared_ptr());
     VPU_THROW_UNLESS(dsr, "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
-                     target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
+                     target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::get_type_info_static(), 0);
 
     const auto dataShape = dsr->input_value(1).get_node_shared_ptr();
     const auto dataShapeType = dataShape->get_element_type();

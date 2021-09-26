@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -146,3 +146,4 @@ ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_cell_ngraph, "ConvertRNNCellToRNNCellIE");
     this->register_matcher(m, callback);
 }
+

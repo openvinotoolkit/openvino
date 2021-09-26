@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@ const Params params[] = {
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_CPU, {{ CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_HETERO, {{ "TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU }}},
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_MULTI, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU }}},
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_AUTO, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU }}},
 };
 
 const Params paramsStreams[] = {
@@ -17,16 +18,18 @@ const Params paramsStreams[] = {
 };
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(CPU, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(CPU, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(CPU, CoreThreadingTestsWithIterations,
+INSTANTIATE_TEST_SUITE_P(CPU, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(4),
-                     testing::Values(50)),
+                     testing::Values(50),
+                     testing::Values(ModelClass::Default)),
     CoreThreadingTestsWithIterations::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(CPU_Streams, CoreThreadingTestsWithIterations,
+INSTANTIATE_TEST_SUITE_P(CPU_Streams, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(paramsStreams),
                      testing::Values(4),
-                     testing::Values(10)),
+                     testing::Values(50),
+                     testing::Values(ModelClass::Default)),
     CoreThreadingTestsWithIterations::getTestCaseName);

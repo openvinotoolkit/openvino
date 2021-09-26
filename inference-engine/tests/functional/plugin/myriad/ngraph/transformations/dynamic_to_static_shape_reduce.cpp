@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -134,8 +134,6 @@ protected:
             logical_reduce->set_keep_dims(reduce_setup.keep_dims);
         node->validate_and_infer_types();
 
-        const auto data_rank_value = reduce_setup.data_shape.size();
-
         ngraph::Output<ngraph::Node> output_shape;
         if (reduce_setup.keep_dims) {
             output_shape = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(
@@ -160,7 +158,7 @@ protected:
 TEST_P(DynamicToStaticShapeReduce, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_Arithmetic, DynamicToStaticShapeReduce, arithmetic_combinations);
-INSTANTIATE_TEST_CASE_P(smoke_Logical, DynamicToStaticShapeReduce, logical_combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_Arithmetic, DynamicToStaticShapeReduce, arithmetic_combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_Logical, DynamicToStaticShapeReduce, logical_combinations);
 
 }  // namespace

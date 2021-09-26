@@ -1,27 +1,14 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/input_layout.hpp>
-#include <api/normalize.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <api/data.hpp>
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/normalize.hpp>
+#include <cldnn/primitives/data.hpp>
 
 #include <vector>
 #include <iostream>
@@ -33,15 +20,15 @@ TEST(normalizel2_f32_gpu, basic) {
     //  Input  : 1x2x3x3
     //  Output : 1x2x3x3
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const unsigned b = 1;
     const unsigned f = 2;
     const unsigned y = 3;
     const unsigned x = 3;
 
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {b, f, y, x}});
-    auto weights = memory::allocate(engine, {data_types::f32, format::bfyx, {1, f, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {b, f, y, x}});
+    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, f, 1, 1}});
 
     std::vector<float> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -57,7 +44,7 @@ TEST(normalizel2_f32_gpu, basic) {
     set_values(weights, weightVals);
 
     topology topology;
-    topology.add(input_layout("Input0", input.get_layout()));
+    topology.add(input_layout("Input0", input->get_layout()));
     topology.add(data("Input1", weights));
     topology.add(normalize("normalizel2", "Input0", "Input1", false));
 
@@ -68,7 +55,7 @@ TEST(normalizel2_f32_gpu, basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("normalizel2").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {0.f,
                                            0.0995037f,
@@ -98,15 +85,15 @@ TEST(normalizel2_f32_gpu, basic2) {
     //  Input  : 1x2x3x3
     //  Output : 1x2x3x3
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const unsigned b = 1;
     const unsigned f = 2;
     const unsigned y = 3;
     const unsigned x = 3;
 
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {b, f, y, x}});
-    auto weights = memory::allocate(engine, {data_types::f32, format::bfyx, {1, f, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {b, f, y, x}});
+    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, f, 1, 1}});
 
     std::vector<float> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -122,7 +109,7 @@ TEST(normalizel2_f32_gpu, basic2) {
     set_values(weights, weightVals);
 
     topology topology;
-    topology.add(input_layout("Input0", input.get_layout()));
+    topology.add(input_layout("Input0", input->get_layout()));
     topology.add(data("Input1", weights));
     topology.add(normalize("normalizel2", "Input0", "Input1", true));
 
@@ -133,7 +120,7 @@ TEST(normalizel2_f32_gpu, basic2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("normalizel2").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {0.f,
                                            0.0236691f,
@@ -163,15 +150,15 @@ TEST(normalizel2_int8_gpu, basic) {
     //  Input  : 1x2x3x3
     //  Output : 1x2x3x3
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const unsigned b = 1;
     const unsigned f = 2;
     const unsigned y = 3;
     const unsigned x = 3;
 
-    auto input = memory::allocate(engine, {data_types::i8, format::bfyx, {b, f, y, x}});
-    auto weights = memory::allocate(engine, {data_types::f32, format::bfyx, {1, f, 1, 1}});
+    auto input = engine.allocate_memory({data_types::i8, format::bfyx, {b, f, y, x}});
+    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, f, 1, 1}});
 
     std::vector<int8_t> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -187,7 +174,7 @@ TEST(normalizel2_int8_gpu, basic) {
     set_values(weights, weightVals);
 
     topology topology;
-    topology.add(input_layout("Input0", input.get_layout()));
+    topology.add(input_layout("Input0", input->get_layout()));
     topology.add(data("Input1", weights));
     topology.add(normalize("normalizel2", "Input0", "Input1", false));
 
@@ -198,7 +185,7 @@ TEST(normalizel2_int8_gpu, basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("normalizel2").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {0.f,
                                            0.0995037f,
@@ -228,15 +215,15 @@ TEST(normalizel2_int8_gpu, basic2) {
     //  Input  : 1x2x3x3
     //  Output : 1x2x3x3
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const unsigned b = 1;
     const unsigned f = 2;
     const unsigned y = 3;
     const unsigned x = 3;
 
-    auto input = memory::allocate(engine, {data_types::i8, format::bfyx, {b, f, y, x}});
-    auto weights = memory::allocate(engine, {data_types::f32, format::bfyx, {1, f, 1, 1}});
+    auto input = engine.allocate_memory({data_types::i8, format::bfyx, {b, f, y, x}});
+    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, f, 1, 1}});
 
     std::vector<int8_t> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
@@ -252,7 +239,7 @@ TEST(normalizel2_int8_gpu, basic2) {
     set_values(weights, weightVals);
 
     topology topology;
-    topology.add(input_layout("Input0", input.get_layout()));
+    topology.add(input_layout("Input0", input->get_layout()));
     topology.add(data("Input1", weights));
     topology.add(normalize("normalizel2", "Input0", "Input1", true));
 
@@ -263,7 +250,7 @@ TEST(normalizel2_int8_gpu, basic2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("normalizel2").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {0.f,
                                            0.0236691f,

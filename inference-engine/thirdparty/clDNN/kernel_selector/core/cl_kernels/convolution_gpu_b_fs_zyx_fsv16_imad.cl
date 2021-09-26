@@ -1,26 +1,47 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/common.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
+#include "include/fetch_weights.cl"
 #include "include/imad.cl"
-#include "include/mmad.cl"
 #include "include/data_types.cl"
 
+#define TYPE_N_(type, n) type##n
+#define TYPE_N(type, n) TYPE_N_(type, n)
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
+#define INPUT0_TYPE_4 TYPE_N(INPUT0_TYPE, 4)
 #define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
+
+#if INPUT0_PAD_BEFORE_SIZE_X != 0 || \
+    INPUT0_PAD_BEFORE_SIZE_Y != 0 || \
+    INPUT0_PAD_BEFORE_SIZE_Z != 0
+    #define NON_ZERO_INPUT0_PAD_BEFORE
+#endif
+
+#if !defined COMPENSATION_TERM || \
+    (defined COMPENSATION_TERM && defined NON_ZERO_INPUT0_PAD_BEFORE)
+    #define SHOULD_BALANCE_COMPENSATION
+#endif
+
+#if defined ASYMMETRIC_DATA_QUANTIZATION && defined SHOULD_BALANCE_COMPENSATION
+    #define SHOULD_USE_DATA_ZP
+#endif
+
+#if defined ASYMMETRIC_DATA_QUANTIZATION && \
+    defined ASYMMETRIC_WEIGHTS_QUANTIZATION && \
+    defined SHOULD_BALANCE_COMPENSATION
+    #define SHOULD_USE_DATA_AND_WEIGHTS_ZP
+#endif
+
+#ifdef SHOULD_USE_DATA_AND_WEIGHTS_ZP
+    #define ACCUMULATOR_TYPE_4 TYPE_N(ACCUMULATOR_TYPE, 4)
+#endif
+
+#ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
+    #define FILTER_TYPE_16 TYPE_N(FILTER_TYPE, 16)
+#endif
 
 #define AS_FILTER_TYPE_4(x) AS_TYPE_N(FILTER_TYPE, 4, x)
 
@@ -40,6 +61,15 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     const __global FILTER_TYPE *weights,
 #if BIAS_TERM
     const __global BIAS_TYPE *biases,
+#endif
+#ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
+    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+#endif
+#ifdef ASYMMETRIC_DATA_QUANTIZATION
+    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
+#endif
+#ifdef COMPENSATION_TERM
+    const __global COMPENSATION_TYPE *compensation,
 #endif
 #if HAS_FUSED_OPS_DECLS
     FUSED_OPS_DECLS,
@@ -71,18 +101,18 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     const int input_z = out_z * STRIDE_SIZE_Z - PADDING_SIZE_Z;
 
 #if FEATURE_SLM_SPLIT == 1
-    const uint k_start = 0;
+    const uint in_f_start = 0;
 #else
-    const uint k_start = get_sub_group_id() * FSV;
+    const uint in_f_start = get_sub_group_id() * FSV;
 #endif
 
-    uint filter_idx  = GET_FILTER_G_OS_IS_ZYX_OSV16_ISV16_INDEX(FILTER, g, out_f_g, k_start, 0, 0, 0);
+    uint filter_idx  = GET_FILTER_G_OS_IS_ZYX_OSV16_ISV16_INDEX(FILTER, g, out_f_g, in_f_start, 0, 0, 0);
     const uint filter_idx_diff = (ALIGN(FILTER_IFM_NUM, FSV) * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * FSV);
 
 #if INPUT0_DIMS == 4
-    uint input_start_idx = INPUT0_GET_INDEX(out_b, g * FILTER_IFM_NUM + k_start, input_y, input_x);
+    uint input_start_idx = INPUT0_GET_INDEX(out_b, g * FILTER_IFM_NUM + in_f_start, input_y, input_x);
 #else
-    uint input_start_idx = INPUT0_GET_INDEX(out_b, g * FILTER_IFM_NUM + k_start, input_z, input_y, input_x);
+    uint input_start_idx = INPUT0_GET_INDEX(out_b, g * FILTER_IFM_NUM + in_f_start, input_z, input_y, input_x);
 #endif
 
     ACCUMULATOR_TYPE dotProd[OFM_BLOCKS_PER_SIMD][OUT_BLOCK_DEPTH][OUT_BLOCK_HEIGHT][OUT_BLOCK_WIDTH] = { };
@@ -92,8 +122,67 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
     uint4 input_val[IN_BLOCK_DEPTH][IN_BLOCK_HEIGHT][CEIL_DIV(IN_BLOCK_WIDTH, SIMD)];
 
+#ifdef SHOULD_USE_DATA_ZP
+    uint data_zp_idx = g * FILTER_IFM_NUM + in_f_start;
+    uint4 data_zp_val;
+#endif
+
+#ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
+    uint4 weights_zp_val[OFM_BLOCKS_PER_SIMD];
+    __attribute__((opencl_unroll_hint))
+    for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+        weights_zp_val[ofb] = as_uint4((FILTER_TYPE_16)weights_zp[out_f + ofb * FSV]);
+    }
+    #if FILTER_IFM_NUM % FSV != 0
+        uint4 weights_zp_vec_partial[OFM_BLOCKS_PER_SIMD];
+        __attribute__((opencl_unroll_hint))
+        for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+            weights_zp_vec_partial[ofb] = weights_zp_val[ofb];
+            FILTER_TYPE* wzp_p = (FILTER_TYPE*)&weights_zp_vec_partial[ofb];
+            __attribute__((opencl_unroll_hint))
+            for (uint f = FILTER_IFM_NUM % FSV; f < FSV; f++) {
+                wzp_p[f] = 0;
+            }
+        }
+    #endif
+#endif
+
     __attribute__((opencl_unroll_hint(1)))
     for (uint k = 0; k < CEIL_DIV(FILTER_IFM_NUM, FSV) / FEATURE_SLM_SPLIT; k++) {
+        #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
+            #if FILTER_IFM_NUM % FSV != 0
+                if (in_f_start + (k + 1) * FSV >= ALIGN(FILTER_IFM_NUM, FSV)) {
+                    __attribute__((opencl_unroll_hint))
+                    for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+                        weights_zp_val[ofb] = weights_zp_vec_partial[ofb];
+                    }
+                }
+            #endif
+        #endif
+
+        #ifdef SHOULD_USE_DATA_ZP
+            #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
+                data_zp_val = as_uint4(vload16(0, activations_zp + data_zp_idx));
+            #else
+                data_zp_val = vload4(0, (__global uint *)(activations_zp + data_zp_idx));
+            #endif
+        #endif
+
+        #ifdef SHOULD_USE_DATA_AND_WEIGHTS_ZP
+            ACCUMULATOR_TYPE_4 dotProdAZPxWZP[OFM_BLOCKS_PER_SIMD];
+            __attribute__((opencl_unroll_hint))
+            for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+                dotProdAZPxWZP[ofb] = 0;
+                __attribute__((opencl_unroll_hint))
+                for (uint ive = 0; ive < 4; ive++) {
+                    dotProdAZPxWZP[ofb][ive] = TO_ACCUMULATOR_TYPE(
+                    IMAD(dotProdAZPxWZP[ofb][ive],
+                    AS_INPUT0_TYPE_4(data_zp_val[ive]),
+                    AS_FILTER_TYPE_4(weights_zp_val[ofb][ive])));
+                }
+            }
+        #endif
+
         __attribute__((opencl_unroll_hint(1)))
         for (uint fzn = 0; fzn < FILTER_SIZE_Z / FILTER_SIZE_Z_UNROLL; fzn++) {
             __attribute__((opencl_unroll_hint(1)))
@@ -106,52 +195,103 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                         __attribute__((opencl_unroll_hint))
                         for (uint ixb = 0; ixb < CEIL_DIV(IN_BLOCK_WIDTH, SIMD); ++ixb) {
                             uint input_idx = input_start_idx + izb * INPUT0_Z_PITCH * FSV + iyb * INPUT0_Y_PITCH * FSV + ixb * SIMD * FSV;
-
+                            #ifdef SHOULD_USE_DATA_ZP
+                                const int y_idx = input_y + fyn * DILATION_SIZE_Y + iyb;
+                                const int z_idx = input_z + fzn * DILATION_SIZE_Z + izb;
+                            #endif
                             if (ixb != CEIL_DIV(IN_BLOCK_WIDTH, SIMD) - 1) {
+                                #ifdef SHOULD_USE_DATA_ZP
+                                    const int x_idx = input_x + ixb * SIMD + get_sub_group_local_id();
+                                    const bool input_on_padding = (((x_idx < 0) || (x_idx >= INPUT0_SIZE_X)) ||
+                                                                   ((y_idx < 0) || (y_idx >= INPUT0_SIZE_Y)) ||
+                                                                   ((z_idx < 0) || (z_idx >= INPUT0_SIZE_Z)));
+                                #endif
+
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 if (in_f_offset == 0) {
-                                    input_val[izb][iyb][ixb] = as_uint4(vload16(0, conv_input + input_idx + get_sub_group_local_id() * FSV));
-                                #else
-                                    input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + get_sub_group_local_id() * FSV));
                                 #endif
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        if (input_on_padding) {
+                                            input_val[izb][iyb][ixb] = data_zp_val;
+                                        } else {
+                                    #endif
+                                            input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + get_sub_group_local_id() * FSV));
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        }
+                                    #endif
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 } else {
                                     INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &input_val[izb][iyb][ixb];
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        INPUT0_TYPE* input_zp_int8_arr = (INPUT0_TYPE*) &data_zp_val;
+                                    #endif
                                     __attribute__((opencl_unroll_hint(FSV)))
                                     for (uint v = 0; v < FSV; v++) {
-                                        if (v + in_f_offset < FSV) {
-                                            input_int8_arr[v] = conv_input[input_idx + get_sub_group_local_id() * FSV + v];
-                                        } else {
-                                            input_int8_arr[v] = conv_input[input_idx + get_sub_group_local_id() * FSV + v + 
-                                                                           ((INPUT0_SIZE_X + 2*PADDING_SIZE_X) * 
-                                                                            (INPUT0_SIZE_Y + 2*PADDING_SIZE_Y) * 
-                                                                            (INPUT0_SIZE_Z + 2*PADDING_SIZE_Z) - 1) * 
-                                                                           FSV];
-                                        }
+                                        #ifdef SHOULD_USE_DATA_ZP
+                                            if (input_on_padding) {
+                                                input_int8_arr[v] = input_zp_int8_arr[v];
+                                            } else {
+                                        #endif
+                                                if (v + in_f_offset < FSV) {
+                                                    input_int8_arr[v] = conv_input[input_idx + get_sub_group_local_id() * FSV + v];
+                                                } else {
+                                                    const uint addr = input_idx + get_sub_group_local_id() * FSV + v +
+                                                                ((INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) *
+                                                                 (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
+                                                                 (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
+                                                    input_int8_arr[v] = conv_input[addr];
+                                                }
+                                        #ifdef SHOULD_USE_DATA_ZP
+                                            }
+                                        #endif
                                     }
                                 }
                                 #endif
                             } else {
+                                #ifdef SHOULD_USE_DATA_ZP
+                                    const int x_idx = input_x + ixb * SIMD + tmp;
+                                    const bool input_on_padding = (((x_idx < 0) || (x_idx >= INPUT0_SIZE_X)) ||
+                                                                   ((y_idx < 0) || (y_idx >= INPUT0_SIZE_Y)) ||
+                                                                   ((z_idx < 0) || (z_idx >= INPUT0_SIZE_Z)));
+                                #endif
+
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 if (in_f_offset == 0) {
-                                    input_val[izb][iyb][ixb] = as_uint4(vload16(0, conv_input + input_idx + tmp * FSV));
-                                #else
-                                    input_val[izb][iyb][ixb] = vload4(0, (__global uint*)(conv_input + input_idx + tmp * FSV));
                                 #endif
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        if (input_on_padding) {
+                                            input_val[izb][iyb][ixb] = data_zp_val;
+                                        } else {
+                                    #endif
+                                            input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + tmp * FSV));
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        }
+                                    #endif
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 } else {
                                     INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &input_val[izb][iyb][ixb];
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        INPUT0_TYPE* input_zp_int8_arr = (INPUT0_TYPE*) &data_zp_val;
+                                    #endif
                                     __attribute__((opencl_unroll_hint(FSV)))
                                     for (uint v = 0; v < FSV; v++) {
-                                        if (v + in_f_offset < FSV) {
-                                            input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v];
-                                        } else {
-                                            input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v + 
-                                                                           ((INPUT0_SIZE_X + 2*PADDING_SIZE_X) * 
-                                                                            (INPUT0_SIZE_Y + 2*PADDING_SIZE_Y) * 
-                                                                            (INPUT0_SIZE_Z + 2*PADDING_SIZE_Z) - 1) * 
-                                                                           FSV];
-                                        }
+                                        #ifdef SHOULD_USE_DATA_ZP
+                                            if (input_on_padding) {
+                                                input_int8_arr[v] = input_zp_int8_arr[v];
+                                            } else {
+                                            #endif
+                                                if (v + in_f_offset < FSV) {
+                                                    input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v];
+                                                } else {
+                                                    const uint addr = input_idx + tmp * FSV + v +
+                                                                ((INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) *
+                                                                    (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
+                                                                    (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
+                                                    input_int8_arr[v] = conv_input[addr];
+                                                }
+                                        #ifdef SHOULD_USE_DATA_ZP
+                                            }
+                                        #endif
                                     }
                                 }
                                 #endif
@@ -177,24 +317,52 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                             for (uint ive = 0; ive < 4; ive++) {
                                 __attribute__((opencl_unroll_hint))
                                 for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+                                    #ifdef SHOULD_USE_DATA_ZP
+                                        ACCUMULATOR_TYPE dotProdAZPxW = 0;
+                                        dotProdAZPxW = TO_ACCUMULATOR_TYPE(
+                                        IMAD(dotProdAZPxW,
+                                        AS_INPUT0_TYPE_4(data_zp_val[ive]),
+                                        AS_FILTER_TYPE_4(weights_val[ofb][ive])));
+                                    #endif
+
                                     __attribute__((opencl_unroll_hint(OUT_BLOCK_DEPTH)))
                                     for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
                                     __attribute__((opencl_unroll_hint(OUT_BLOCK_HEIGHT)))
                                         for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
                                             __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
                                             for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ow++) {
-                                                const uint ow_offset = ow + OUT_BLOCK_WIDTH;
                                                 const uint z_block_idx = od * STRIDE_SIZE_Z + fzu * DILATION_SIZE_Z;
                                                 const uint y_block_idx = oh * STRIDE_SIZE_Y + fyu * DILATION_SIZE_Y;
                                                 const uint x_block_idx = ow * STRIDE_SIZE_X + fx * DILATION_SIZE_X;
                                                 const uint shuffle_wi = x_block_idx % SIMD;
                                                 const uint shuffle_idx = x_block_idx / SIMD;
 
+                                                INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val[z_block_idx][y_block_idx][shuffle_idx][ive],
+                                                    shuffle_wi));
+
                                                 dotProd[ofb][od][oh][ow] = TO_ACCUMULATOR_TYPE(
                                                     IMAD(dotProd[ofb][od][oh][ow],
-                                                    AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val[z_block_idx][y_block_idx][shuffle_idx][ive], 
-                                                                                             shuffle_wi)),
+                                                    inputs,
                                                     AS_FILTER_TYPE_4(weights_val[ofb][ive])));
+
+                                                #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
+                                                    ACCUMULATOR_TYPE dotProdAxWZP = 0;
+                                                    dotProdAxWZP = TO_ACCUMULATOR_TYPE(
+                                                    IMAD(dotProdAxWZP,
+                                                    inputs,
+                                                    AS_FILTER_TYPE_4(weights_zp_val[ofb][ive])));
+                                                    dotProd[ofb][od][oh][ow] -= dotProdAxWZP;
+                                                #endif
+
+                                                #if !defined COMPENSATION_TERM && defined ASYMMETRIC_DATA_QUANTIZATION
+                                                    dotProd[ofb][od][oh][ow] -= dotProdAZPxW;
+                                                #endif
+
+                                                #if (!defined COMPENSATION_TERM && \
+                                                        defined ASYMMETRIC_DATA_QUANTIZATION && \
+                                                        defined ASYMMETRIC_WEIGHTS_QUANTIZATION)
+                                                    dotProd[ofb][od][oh][ow] += dotProdAZPxWZP[ofb][ive];
+                                                #endif
                                             }
                                         }
                                     }
@@ -212,6 +380,10 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
         input_start_idx += INPUT0_FEATURE_PITCH * FSV * FEATURE_SLM_SPLIT - (FILTER_SIZE_Z / FILTER_SIZE_Z_UNROLL) * DILATION_SIZE_Z * INPUT0_Z_PITCH * FSV;
 
         filter_idx += FSV * FSV * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * (FEATURE_SLM_SPLIT - 1);
+
+        #ifdef SHOULD_USE_DATA_ZP
+            data_zp_idx += FSV;
+        #endif
     }
 
 #if FEATURE_SLM_SPLIT != 1
@@ -225,7 +397,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
     uint sgid_start_idx = get_sub_group_id();
     sgid_start_idx = sgid_start_idx == 0 ? 0 : sgid_start_idx - 1;
-    __local ACCUMULATOR_TYPE* partial_acc_ptr = partial_acc + sgid_start_idx * OFM_SIZE_PER_SIMD * OUT_BLOCK_DEPTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH + 
+    __local ACCUMULATOR_TYPE* partial_acc_ptr = partial_acc + sgid_start_idx * OFM_SIZE_PER_SIMD * OUT_BLOCK_DEPTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH +
                                                 get_sub_group_local_id();
 
     if (get_sub_group_id() < OFM_BLOCKS_PER_SIMD) {
@@ -344,6 +516,14 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     }
 #endif
 
+#ifdef COMPENSATION_TERM
+    COMPENSATION_TYPE comp[OFM_VALUES_PER_WI];
+    __attribute__((opencl_unroll_hint))
+    for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
+        comp[ofb] = compensation[out_f + ofb * SIMD];
+    }
+#endif
+
     ACTIVATION_TYPE dequantized[OFM_VALUES_PER_WI][OUT_BLOCK_DEPTH][OUT_BLOCK_HEIGHT][OUT_BLOCK_WIDTH];
     __attribute__((opencl_unroll_hint))
     for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
@@ -356,6 +536,9 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                     dequantized[ofb][od][oh][ow] = TO_ACTIVATION_TYPE(dotProd[ofb][od][oh][ow]);
 #if BIAS_TERM
                     dequantized[ofb][od][oh][ow] += bias[ofb];
+#endif
+#ifdef COMPENSATION_TERM
+                    dequantized[ofb][od][oh][ow] += comp[ofb];
 #endif
                 }
             }
@@ -503,9 +686,38 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 #endif
 }
 
-#undef AS_INPUT0_TYPE_4
+#undef TYPE_N_
+#undef TYPE_N
 #undef AS_TYPE_N
 #undef AS_TYPE_N_
+
+#undef INPUT0_TYPE_4
+#undef AS_INPUT0_TYPE_4
+
+#ifdef NON_ZERO_INPUT0_PAD_BEFORE
+    #undef NON_ZERO_INPUT0_PAD_BEFORE
+#endif
+
+#ifdef SHOULD_BALANCE_COMPENSATION
+    #undef SHOULD_BALANCE_COMPENSATION
+#endif
+
+#ifdef SHOULD_USE_DATA_ZP
+    #undef SHOULD_USE_DATA_ZP
+#endif
+
+#ifdef SHOULD_USE_DATA_AND_WEIGHTS_ZP
+    #undef SHOULD_USE_DATA_AND_WEIGHTS_ZP
+#endif
+
+#ifdef ACCUMULATOR_TYPE_4
+#undef ACCUMULATOR_TYPE_4
+#endif
+
+#ifdef FILTER_TYPE_16
+#undef FILTER_TYPE_16
+#endif
+
 #undef AS_FILTER_TYPE_4
 
 #undef CEIL_DIV

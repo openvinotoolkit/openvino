@@ -1,28 +1,35 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME funcTestUtils)
 
-list(APPEND EXPORT_DEPENDENCIES commonTestUtils inference_engine inference_engine_legacy)
-
-list(APPEND EXPORT_DEPENDENCIES inference_engine_lp_transformations)
-
 addIeTarget(
     NAME ${TARGET_NAME}
     TYPE STATIC
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
     ADD_CPPLINT
     DEVELOPER_PACKAGE
-    LINK_LIBRARIES ngraphFunctions
-    EXPORT_DEPENDENCIES ${EXPORT_DEPENDENCIES}
+        inference_engine_tests
+    INCLUDES
+        PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    ADDITIONAL_SOURCE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    LINK_LIBRARIES
+        PUBLIC
+            commonTestUtils
+            inference_engine_transformations
+            inference_engine_lp_transformations
+            inference_engine
+        PRIVATE
+            ngraphFunctions
+            pugixml::static
+    INCLUDES
+        PUBLIC
+            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 ie_faster_build(${TARGET_NAME}
-    PCH PRIVATE "precomp.hpp"
+    PCH PRIVATE "src/precomp.hpp"
 )
-
-target_include_directories(${TARGET_NAME} PUBLIC
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
-
-target_link_libraries(${TARGET_NAME} PUBLIC ${EXPORT_DEPENDENCIES} inference_engine_transformations)

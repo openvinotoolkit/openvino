@@ -1,26 +1,49 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, float_array
+from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, float_array, shape_array, \
+    dynamic_dimension_value, dynamic_dimension
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
+from mo.front.extractor import bool_to_str
+
+
+class PoolingV2(Op):
+    """
+    TensorFlow MaxPoolV2 and AvgPoolV2 operations expect windows_size and strides values from inputs not from
+    attributes. This internal operation is introduced to handle that. Only constant windows_size and strides
+    values are supported. Eventually will be replaced with the standard pooling operations from the opset.
+    """
+    op = 'PoolingV2'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'type': None,
+            'op': self.op,
+            'version': None,
+            'infer': self.infer,
+            'in_ports_count': 3,
+            'out_ports_count': 1,
+        }, attrs)
+
+    @staticmethod
+    def infer(node: Node):
+        assert (len(node.in_nodes()) == 3), 'MaxPoolV2 node {} from must have only 3 inputs: input, window size, and strides ' \
+                                            'but instead got {} inputs'.format(node.soft_get('name', node.id), len(node.in_nodes()))
+        node['window'] = node.in_port(1).data.get_value()
+        node['stride'] = node.in_port(2).data.get_value()
+
+        if node['window'] is None:
+            raise Error('The non-constant window size for MaxPoolV2 node {} is not supported'.format(node.soft_get('name', node.id)))
+        if node['stride'] is None:
+            raise Error('The non-constant strides for MaxPoolV2 node {} is not supported'.format(node.soft_get('name', node.id)))
+
+        Pooling.pool_infer(node)
 
 
 class Pooling(Op):
@@ -44,16 +67,21 @@ class Pooling(Op):
             ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0)))),
             ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1)))),
 
-            ('pool-method', 'pool_method'),
-            ('exclude-pad', 'exclude_pad'),
+            ('exclude-pad', lambda node: bool_to_str(node, 'exclude_pad')),
 
             'rounding_type',
-            'auto_pad',
+            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
         ]
 
     @staticmethod
     def infer(node: Node):
-        assert (len(node.in_nodes()) == 1)
+        assert (len(node.in_nodes()) == 1), 'MaxPool node {} from must have only one input but instead got ' \
+                                            '{} inputs'.format(node.soft_get('name', node.id), len(node.in_nodes()))
+
+        Pooling.pool_infer(node)
+
+    @staticmethod
+    def pool_infer(node: Node):
         input_shape = node.in_node(0).shape
         if input_shape is None:
             return
@@ -64,11 +92,12 @@ class Pooling(Op):
 
         input_spatial_shape = input_shape[node.spatial_dims]
 
-        # Setting default pad and stride attrs in case of None specified
+        # Setting default pad and stride attrs in case if None specified
         if not node.has_valid('pad'):
             node['pad'] = int64_array([[0, 0] for x in range(len(input_shape))])
         if not node.has_valid('pad_spatial_shape'):
             node['pad_spatial_shape'] = node.pad[node.spatial_dims]
+
         if not node.has_valid('stride'):
             node['stride'] = int64_array([1 for x in range(len(input_shape))])
 
@@ -80,7 +109,7 @@ class Pooling(Op):
         stride_spatial = node.stride[node.spatial_dims]
         assert any(stride_spatial), 'Stride can not be zero in node {}'.format(node.id)
 
-        if node.has_valid('auto_pad'):
+        if node.has_valid('auto_pad') and node.auto_pad != 'explicit':
             node.pad_spatial_shape, node.output_spatial_shape = tf_window_op_pad_infer(input_spatial_shape,
                                                                                        window_spatial_shape,
                                                                                        stride_spatial, node.auto_pad)
@@ -100,7 +129,10 @@ class Pooling(Op):
                 raise Error("Data after padding has dimension less than window size. " +
                             "Possible reason of error is incorrectly specified model input shape(s).")
 
-            output_spatial_shape = int64_array(rounding(float_array(padded_spatial_shape) / stride_spatial)) + 1
+            output_spatial_shape = shape_array([dynamic_dimension_value for _ in range(len(padded_spatial_shape))])
+            for idx in range(len(padded_spatial_shape)):
+                if padded_spatial_shape[idx] is not dynamic_dimension and stride_spatial[idx] is not dynamic_dimension:
+                    output_spatial_shape[idx] = int(rounding(padded_spatial_shape[idx] / stride_spatial[idx])) + 1
 
             original_pads = np.array([i[1] for i in node.pad_spatial_shape])
 
@@ -113,7 +145,7 @@ class Pooling(Op):
 
         output_shape = input_shape.copy()
         output_shape[node.spatial_dims] = node.output_spatial_shape
-        node.out_node().shape = output_shape
+        node.out_port(0).data.set_shape(output_shape)
 
         # Add permute_attrs
         PermuteAttrs.create_permute_attrs(node, attrs=[('pad', 'input:0'),

@@ -1,17 +1,6 @@
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "convolution_kernel_imad_b_fs_yx_fsv4_1x1.h"
 #include "kernel_selector_utils.h"
@@ -27,8 +16,7 @@ namespace {
     constexpr size_t pref_features_per_wi = 16;
 
     size_t get_preferred_lwg_depth(const DataTensor& output, const WeightsTensor& weights, const EngineInfo& info) {
-        constexpr size_t threads_per_eu = 7;
-        size_t max_simd_number = info.computeUnitsCount * threads_per_eu;
+        size_t max_simd_number = static_cast<size_t>(info.maxThreadsPerDevice);
 
         size_t simd_number = CeilDiv(output.X().v * output.Y().v, pref_simd) *
                              CeilDiv(output.Feature().v, pref_features_per_wi) *
@@ -193,10 +181,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Set
     dispatchData.cldnnStyle.blockWidth = simd;
     dispatchData.cldnnStyle.prefetch = autoTuneParam.force_prefetch ? 1 : 0;
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
-
     return dispatchData;
 }  // SetDefault
+
+KernelsPriority ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
+}
 
 KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetTunedKernelsDataByIndex(const Params& params,
                                                                                 const optional_params& options,

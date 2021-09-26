@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_topk3.hpp"
 
 #include <memory>
@@ -12,12 +13,15 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTopK3, "ConvertTopK3", 0);
 
-void ngraph::pass::ConvertTopK3::convert_topk3() {
-    auto topk = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::TopK>());
+ngraph::pass::ConvertTopK3::ConvertTopK3() {
+    MATCHER_SCOPE(ConvertTopK3);
+    auto topk = pattern::wrap_type<opset3::TopK>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto topk = std::dynamic_pointer_cast<ngraph::opset3::TopK> (m.get_match_root());
         if (!topk) {
             return false;
@@ -36,6 +40,7 @@ void ngraph::pass::ConvertTopK3::convert_topk3() {
             last1 = new_topk->output(1);
             new_topk->set_friendly_name(topk->get_friendly_name());
         } else if (topk->get_output_target_inputs(0).size() == 0) {
+            last0 = topk->output(0);
             last1 = std::make_shared<ngraph::opset2::Convert>(new_topk->output(1), topk->get_index_element_type());
             new_ops.push_back(last1.get_node_shared_ptr());
 
@@ -59,6 +64,6 @@ void ngraph::pass::ConvertTopK3::convert_topk3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(topk, "ConvertTopK3");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(topk, matcher_name);
+    register_matcher(m, callback);
 }

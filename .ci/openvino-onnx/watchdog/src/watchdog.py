@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import datetime
@@ -352,7 +352,8 @@ class Watchdog:
             build_number = self._retrieve_build_number(status.target_url)
             # CI build finished - verify if expected output is present
             finished_statuses = ['Build finished', 'This commit cannot be built', 'This commit looks good']
-            pending_statuses = ['This commit is being built', 'Testing in progress']
+            pending_statuses = ['This commit is being built', 'Testing in progress',
+                                'This commit is scheduled to be built']
             if any(phrase in status.description for phrase in finished_statuses):
                 self._check_finished(pr, build_number)
             # CI build in progress - verify timeouts for build queue and duration
@@ -485,7 +486,7 @@ class Watchdog:
             self._queue_message(message, message_severity='warning', pr=pr)
         elif build_delta > _BUILD_DURATION_THRESHOLD:
             # CI job take too long, possibly froze - communicate failure
-            message = ('ONNX CI job build #{}, for PR #{} started,'
+            message = ('ONNX CI job build #{}, for PR #{} started, '
                        'but did not finish in designated time of {} '
                        'minutes!'.format(build_number, pr_number,
                                          str(_BUILD_DURATION_THRESHOLD.seconds / 60)))

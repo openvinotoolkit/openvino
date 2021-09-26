@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,40 +13,54 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/low_precision_transformations/multiply_to_group_convolution_function.hpp"
-
-#include <ngraph/pass/visualize_tree.hpp>
+#include "lpt_ngraph_functions/multiply_to_group_convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams> obj) {
+std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams>& obj) {
     std::string targetDevice;
     ngraph::element::Type precision;
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    builder::subgraph::FakeQuantizeOnData fqOnData;
-    std::tie(precision, shape, targetDevice, fqOnData) = obj.param;
+    MultiplyToGroupConvolutionTransformationParam param;
+    std::tie(precision, shape, targetDevice, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, shape, targetDevice, params) << "_" << fqOnData;
+    result << getTestCaseNameByParams(precision, shape, targetDevice, params) << "_" <<
+        param.fqOnData << "_" <<
+        param.constant << "_" <<
+        param.layerName << "_" <<
+        param.expectedKernelType;
     return result.str();
 }
 
 void MultiplyToGroupConvolutionTransformation::SetUp() {
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
     ngraph::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    builder::subgraph::FakeQuantizeOnData fqOnData;
-    std::tie(precision, shape, targetDevice, fqOnData) = this->GetParam();
+    MultiplyToGroupConvolutionTransformationParam param;
+    std::tie(precision, shape, targetDevice, param) = this->GetParam();
 
     function = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
         precision,
         shape,
-        fqOnData);
+        param.fqOnData,
+        param.constant);
+}
+
+void MultiplyToGroupConvolutionTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto param = std::get<3>(GetParam());
+    const auto actualPrecision = getRuntimePrecision(param.layerName);
+    auto expectedPrecision = param.expectedKernelType;
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+        expectedPrecision = "FP16";
+    }
+    EXPECT_EQ(actualPrecision, expectedPrecision);
 }
 
 TEST_P(MultiplyToGroupConvolutionTransformation, CompareWithRefImpl) {

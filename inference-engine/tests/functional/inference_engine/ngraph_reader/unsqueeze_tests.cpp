@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ TEST_F(NGraphReaderTests, ReadUnsqueeze) {
             </output>
         </layer>
         <layer id="1" name="const1" precision="I64" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>

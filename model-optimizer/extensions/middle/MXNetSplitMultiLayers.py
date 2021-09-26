@@ -1,20 +1,9 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
 
+from mo.front.common.partial_infer.utils import shape_insert, int64_array
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
@@ -143,9 +132,9 @@ class MXNetSplitLayersToRNNSequence(MiddleReplacementPattern):
                 output_data = rnn_layer.out_node(0)
 
             # Output nodes creating:
-            state_size = np.array([input.shape[rnn_layer.batch_dim], rnn_layer.hidden_size], dtype=np.int64)
+            state_size = int64_array([input.shape[rnn_layer.batch_dim], rnn_layer.hidden_size])
             if rnn_layer.has_num_directions:
-                state_size = np.insert(state_size, 0, direction)
+                state_size = shape_insert(state_size, 0, direction)
 
             output_hidden = Op._create_data_node(
                 rnn_layer.graph,

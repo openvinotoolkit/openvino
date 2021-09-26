@@ -1,11 +1,13 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <vector>
 #include <ie_precision.hpp>
 #include <subgraph_tests/cascade_concat.hpp>
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     std::vector<std::vector<std::vector<size_t>>> shape1{
@@ -41,7 +43,7 @@ namespace {
             {"GNA_SCALE_FACTOR_2", "1"}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_cascade_concat, CascadeConcat,
+    INSTANTIATE_TEST_SUITE_P(smoke_cascade_concat, CascadeConcat,
                             ::testing::Combine(
                                     ::testing::ValuesIn(shape1),
                                     ::testing::ValuesIn(shape2),
@@ -52,7 +54,7 @@ namespace {
                                     ::testing::Values(additional_config)),
                             CascadeConcat::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_cascade_concat_multioutput, CascadeConcat,
+    INSTANTIATE_TEST_SUITE_P(smoke_cascade_concat_multioutput, CascadeConcat,
                             ::testing::Combine(
                                     ::testing::ValuesIn(shape1),
                                     ::testing::ValuesIn(shape2),

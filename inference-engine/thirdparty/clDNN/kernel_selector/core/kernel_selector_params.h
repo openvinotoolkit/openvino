@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #pragma once
 
@@ -365,6 +353,14 @@ private:
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Device type
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class dev_type {
+    integrated_gpu = 0,
+    discrete_gpu = 1
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EngineInfo
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct EngineInfo {
@@ -378,14 +374,16 @@ struct EngineInfo {
     bool bIMMADSupport = false;
     bool bOptHintsSupport = false;
     bool bLocalBlockIOSupport = false;
+    dev_type deviceType = dev_type::integrated_gpu;
     uint32_t computeUnitsCount = 0;
+    uint32_t maxThreadsPerExecutionUnit = 0;
+    uint32_t maxThreadsPerDevice = 0;
     uint64_t maxWorkGroupSize = 0;
     uint64_t maxLocalMemSize = 0;
     uint64_t maxImage2dWidth = 0;
     uint64_t maxImage2dHeight = 0;
     std::string deviceId = "";
     std::string driverVersion = "";
-    std::string hostVersion = "";
     std::shared_ptr<TuningCache> deviceCache;
 };
 
@@ -406,6 +404,7 @@ public:
     std::string layerID;
     std::string forceImplementation;
     EngineInfo engineInfo;
+    std::string uniqueID;
 
     virtual std::string to_string() const;
     virtual std::string to_cache_string_v2() const;
@@ -470,6 +469,8 @@ struct FusedOpsConfiguration {
     bool allow_for_partial_preload;
     // Load index for shuffle fused op
     std::string shuffle_var_name;
+    // Record original output layout before reorder is fused
+    DataLayout orig_output_layout;
 
     FusedOpsConfiguration(std::string suffix,
                           std::vector<std::string> bfzyx_idx_order,
@@ -482,7 +483,8 @@ struct FusedOpsConfiguration {
                           Tensor::DataChannelName vec_axis = Tensor::DataChannelName::COUNT,
                           std::vector<Tensor::DataChannelName> loop_axes = {},
                           bool allow_for_partial_preload = false,
-                          std::string shuffle_var_name = "")
+                          std::string shuffle_var_name = "",
+                          DataLayout orig_output_layout = DataLayout::DataLayoutCount)
       : suffix(suffix)
       , bfzyx_idx_order(bfzyx_idx_order)
       , input_var_name(input_var_name)
@@ -494,7 +496,8 @@ struct FusedOpsConfiguration {
       , index_type(index_type)
       , loop_axes(loop_axes)
       , allow_for_partial_preload(allow_for_partial_preload)
-      , shuffle_var_name(shuffle_var_name) { }
+      , shuffle_var_name(shuffle_var_name)
+      , orig_output_layout(orig_output_layout) { }
 
     FusedOpsConfiguration& SetVectorSize(size_t val) { vec_size = val; return *this; }
     FusedOpsConfiguration& SetLoadType(LoadType val) { load_type = val; return *this; }
@@ -506,9 +509,10 @@ struct FusedOpsConfiguration {
         allow_for_partial_preload = partial_preload;
         return *this; }
     FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
+    bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
 };
 
-// Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program_impl::fuse_nodes
+// Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program::fuse_nodes
 // method. In order to process fused ops following modifications should be done in a kernel:
 // option 1 - using common generator:
 //     - create FusedOpsConfiguration object that contains configuration for common code generator.
@@ -560,6 +564,7 @@ struct fused_operation_desc {
     MultiDataTensor tensors;
     DataTensor output_tensor;
     size_t op_id;
+    std::vector<std::pair<size_t, Datatype>> fused_op_ids;
 
     // Helper functions for operation generation
     KernelType GetType() const { return op_params->GetType(); }

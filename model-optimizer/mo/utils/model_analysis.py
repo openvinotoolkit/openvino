@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import sys
 
 from extensions.front.user_data_repack import UserDataRepack
@@ -124,13 +112,14 @@ class AnalysisCollectorAnchor(AnalyzeAction):
         pass
 
 
-def graph_contains_scope(graph: Graph, scope: str):
+def graph_contains_scope(graph: Graph, scope: [str, tuple]):
     """
-    Checks whether the graph contains node(s) which name starts with "scope" string.
+    Checks whether the graph contains node(s) which name includes "scope" string.
     :param graph: graph to check
-    :param scope: string defining the scope
+    :param scope: string or tuple with strings defining the scope
     :return: the result of the check (True/False)
     """
-    if scope[-1] != '/':
-        scope += '/'
-    return any([node.soft_get('name').startswith(scope) for node in graph.get_op_nodes()])
+    if type(scope) is str:
+        return any([node.soft_get('name').find(scope) != -1 for node in graph.get_op_nodes()])
+    else:
+        return any([graph_contains_scope(graph, s) for s in scope])

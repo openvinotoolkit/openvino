@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -16,6 +17,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::InitNodeInfo, "InitNodeInfo", 0);
 
 bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(InitNodeInfo);
     std::vector<std::shared_ptr<Variant> > attributes {
         std::make_shared<VariantWrapper<FusedNames> >(FusedNames())
     };
@@ -45,7 +47,7 @@ bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Functio
                 rtInfo[attr->get_type_info().name] = init_attr;
             }
         }
-        // Convert manually set attributes to appropriate VariantWraper class instances
+        // Convert manually set attributes to appropriate VariantWrapper class instances
         // all manually set attributes must belong to VariantWrapper<std::string> class
         for (auto & attr : update_attributes) {
             if (rtInfo.count(attr.first)) {

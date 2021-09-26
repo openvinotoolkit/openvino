@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,11 @@
 #include <vector>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/fuse_subtract_to_fake_quantize_function.hpp"
+#include "lpt_ngraph_functions/fuse_subtract_to_fake_quantize_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string FuseSubtractToFakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationParams> obj) {
+std::string FuseSubtractToFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationParams>& obj) {
     std::string targetDevice;
     FuseSubtractToFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = obj.param;

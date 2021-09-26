@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,11 +30,11 @@ class FrontEnd final {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
 
-    explicit FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core);
+    explicit FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICore> core);
 
-    ModelPtr buildInitialModel(const ie::ICNNNetwork& network);
+    ModelPtr buildInitialModel(const ie::CNNNetwork& network);
 
-    std::set<std::string> checkSupportedLayers(const ie::ICNNNetwork& network);
+    std::set<std::string> checkSupportedLayers(const ie::CNNNetwork& network);
 
     const std::vector<ie::CNNLayerPtr>& origLayers() const {
         return _ieParsedNetwork.orderedLayers;
@@ -45,11 +45,11 @@ public:
 //
 
 private:
-    ModelPtr runCommonPasses(const ie::ICNNNetwork& network);
+    ModelPtr runCommonPasses(const ie::CNNNetwork& network);
 
     using SupportedLayerCallback = std::function<void(const ie::CNNLayerPtr&)>;
     using UnsupportedLayerCallback = std::function<void(const Model&, const ie::CNNLayerPtr&, const DataVector&, const DataVector&, const std::string&)>;
-    ModelPtr runCommonPasses(ie::ICNNNetwork::Ptr network, const UnsupportedLayerCallback& unsupportedLayer,
+    ModelPtr runCommonPasses(ie::CNNNetwork network, const UnsupportedLayerCallback& unsupportedLayer,
                              const SupportedLayerCallback& supportedLayer = nullptr);
 
     //
@@ -57,14 +57,14 @@ private:
     //
 
     void unrollLoops(
-            ie::ICNNNetwork& network);
+            ie::CNNNetwork& network);
 
     void detectNetworkBatch(
-            ie::ICNNNetwork& network,
+            ie::CNNNetwork& network,
             const Model& model);
 
     void removeConstLayers(
-            ie::ICNNNetwork& network);
+            ie::CNNNetwork& network);
 
     //
     // Process internal VPU Model
@@ -125,6 +125,7 @@ public:
     void parseMTCNN(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parsePad(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseResample(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseInterpolate(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseRNN(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseGEMM(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseLog(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
@@ -156,7 +157,12 @@ public:
     void parseSwish(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseActivation(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseLogicalNot(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseGatherND(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseHSwish(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseCeiling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseRound(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseAbs(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
 
     //
     // Special layers
@@ -169,6 +175,7 @@ public:
     void parseSplit(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseStridedSlice(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseGatherElements(const Model &model, const ie::CNNLayerPtr &layer, const DataVector &inputs, const DataVector &outputs) const;
 
     //
     // Parser with data sharing
@@ -183,8 +190,7 @@ public:
     //
 
     static CustomLayer::Ptr getSuitableCustomLayer(const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr&cnnLayer);
-    static ie::ICNNNetwork::Ptr convertNetwork(ie::ICNNNetwork& network);
-    bool isLayerSupported(const std::string& type);
+    static ie::CNNNetwork convertNetwork(ie::CNNNetwork& network);
 
 private:
     Data getVpuData(const ie::DataPtr& ieData) const;
@@ -205,9 +211,11 @@ private:
     void parseLayer(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                     const UnsupportedLayerCallback& onUnsupported, const SupportedLayerCallback& onSupported = nullptr);
 
+    void processTrivialCases(const Model& model);
+
 private:
     StageBuilder::Ptr _stageBuilder;
-    const ie::ICore* _core = nullptr;
+    const std::shared_ptr<ie::ICore> _core = nullptr;
 
     IeParsedNetwork _ieParsedNetwork;
     std::unordered_set<ie::DataPtr> _unbatchedOutputs;

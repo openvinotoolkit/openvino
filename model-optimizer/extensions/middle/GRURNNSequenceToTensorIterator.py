@@ -1,21 +1,10 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
 
 from extensions.ops.tensor_iterator import TensorIterator
+from mo.front.common.partial_infer.utils import shape_delete
 from mo.graph.graph import Graph, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -102,7 +91,7 @@ class GRUAndRNNToTensorIterator(MiddleReplacementPattern):
         for out in outputs:
             add_opoutput(body, out.id, 0, False)
 
-        outputs[0].shape = np.delete(outputs[0].shape.copy(), rnn_layer.sequence_dim)
+        outputs[0].shape = shape_delete(outputs[0].shape, rnn_layer.sequence_dim)
         output_unsqueeze_dim = Const(body, dict(name=rnn_layer.name + '/output_unsqueeze_dim',
                                                 value=rnn_layer.sequence_dim)).create_node_with_data()
         output_unsqueeze = Unsqueeze(body, dict(name=rnn_layer.name + '/output_unsqueeze/', internal_layer_id=2))

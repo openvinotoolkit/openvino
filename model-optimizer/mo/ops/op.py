@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import copy
 import logging as log
@@ -21,6 +8,7 @@ from collections import namedtuple
 import networkx as nx
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors
 from mo.front.extractor import add_attrs_props, update_ie_fields
 from mo.graph.graph import Node, Graph
 from mo.utils import class_registration
@@ -133,13 +121,20 @@ class Op(object):
         if attrs is None:
             attrs = dict()
         new_node = self.add_node(attrs)
-        # Missed careful handling of debug information
         for i, inp in enumerate(inputs):
             edge_attr = {'in': i, 'out': inp[1],
                          'in_attrs': ['in', 'permutation'],
                          'out_attrs': ['out', 'permutation'],
                          'data_attrs': []} if not inp[0].has_valid('kind') or inp[0].kind == 'op' \
                 else {'in': i, 'in_attrs': ['in', 'permutation']}
+
+            # handling of debug information
+            if inp[0].has_port('out', inp[1]):
+                debug_info = inp[0].out_port(inp[1]).get_tensor_debug_info()
+                if debug_info is not None and len(debug_info) > 0:
+                    edge_attr.update({'fw_tensor_debug_info': debug_info})
+                    edge_attr['data_attrs'].append('fw_tensor_debug_info')
+
             if edge_attrs is not None:
                 edge_attr.update(edge_attrs)
             new_node.add_input_port(i, skip_if_exist=True)
@@ -203,9 +198,11 @@ class Op(object):
                 for out_node in new_op_node.out_nodes().values():
                     out_node['nchw_layout'] = new_op_node.nchw_layout
             assert all(old_value is None for old_value in old_data_value) or all(
-                [np.array_equal(old_data_value[id], data_node.value) for id, data_node in enumerate(data_nodes)])
+                [strict_compare_tensors(old_data_value[id], data_node.value)
+                 for id, data_node in enumerate(data_nodes)])
             assert all(old_shape is None for old_shape in old_data_shape) or all(
-                [np.array_equal(old_data_shape[id], data_node.shape) for id, data_node in enumerate(data_nodes)]), \
+                [strict_compare_tensors(old_data_shape[id], data_node.shape)
+                 for id, data_node in enumerate(data_nodes)]), \
                 "After re-inference of {} node, old and new shapes do not match. Old shapes: {}, new shapes: {}." \
                 "".format(new_op_node.soft_get('name'), [old_data_shape[id] for id in range(len(data_nodes))],
                           [data_node.shape for data_node in data_nodes])
@@ -339,6 +336,8 @@ class PermuteAttrs:
     Attr = namedtuple('Attr', ['name', 'port', 'func'])
 
     common_permutation = lambda node, permutation, attr: node[attr][permutation.perm]
+    slice_permutation = lambda node, permutation, attr: node[attr][  # doesn't depend from permutation variable
+        PermuteAttrs.get_nhwc_to_nchw_permutation(len(node[attr])).perm]
     common_permutation_inv = lambda node, permutation, attr: permutation.inv[node[attr]]
 
     # List of default permutations
@@ -353,9 +352,11 @@ class PermuteAttrs:
             'dilation': common_permutation,
             'kernel_shape': common_permutation,
             'output_shape': common_permutation,
-            'slices': common_permutation,
-            'shrink_axis_mask': common_permutation,
-            'new_axis_mask': common_permutation,
+            'begin_mask': slice_permutation,
+            'end_mask': slice_permutation,
+            'shrink_axis_mask': slice_permutation,
+            'new_axis_mask': slice_permutation,
+            'ellipsis_mask': slice_permutation,
             'axes': common_permutation_inv,
             'axis': common_permutation_inv,
             'batch_dims': common_permutation_inv,
@@ -445,7 +446,7 @@ class PermuteAttrs:
             # Exclude 3D shapes from permutation process: identity permutation
             perm = list(range(0, dims_number))
         inv = PermuteAttrs.get_inverse_permutation(perm)
-        return PermuteAttrs.Permutation(perm=np.array(perm), inv=np.array(inv))
+        return PermuteAttrs.Permutation(perm=int64_array(perm), inv=int64_array(inv))
 
     @staticmethod
     def get_nchw_to_nhwc_permutation(dims_number: int):
@@ -456,4 +457,4 @@ class PermuteAttrs:
             # Exclude 3D shapes from permutation process: identity permutation
             perm = list(range(0, dims_number))
         inv = PermuteAttrs.get_inverse_permutation(perm)
-        return PermuteAttrs.Permutation(perm=np.array(perm), inv=np.array(inv))
+        return PermuteAttrs.Permutation(perm=int64_array(perm), inv=int64_array(inv))

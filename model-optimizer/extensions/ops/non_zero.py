@@ -1,22 +1,9 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension_value
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
@@ -57,12 +44,14 @@ class NonZero(Op):
             'NonZero `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type).name)
 
         input_value = node.in_port(0).data.get_value()
-        if input_value is not None:
+        if is_fully_defined(input_value):
             node.out_port(0).data.set_value(np.array(np.nonzero(input_value), dtype=node.output_type))
         else:
-            # output shape of NonZero should be [input_rank, dynamic]
-            # having restriction to save IR with static shape only we count upper-bound shape value here
-            node.out_port(0).data.set_shape(int64_array([len(input_shape), np.prod(input_shape)]))
+            if is_fully_defined(input_shape):
+                # output shape of NonZero is still static (upper bound)
+                node.out_port(0).data.set_shape([len(input_shape), np.prod(input_shape)])
+            else:
+                node.out_port(0).data.set_shape([len(input_shape), dynamic_dimension_value])
 
     @staticmethod
     def type_infer(node):

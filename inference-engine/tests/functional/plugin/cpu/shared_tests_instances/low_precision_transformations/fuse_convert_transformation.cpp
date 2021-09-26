@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,8 @@ const std::vector<element::Type> precisions = {
         element::f32
 };
 
-const std::vector< ngraph::Shape > inputAndQuantizationShapes = {
-        Shape{ 1, 4, 16, 16 },
+const std::vector< ngraph::PartialShape > inputAndQuantizationShapes = {
+        { 1, 4, 16, 16 },
 };
 
 const std::vector<ngraph::builder::subgraph::DequantizationOperations> deqOperations = {
@@ -31,7 +31,7 @@ const std::vector<ngraph::builder::subgraph::DequantizationOperations> deqOperat
 
 const std::vector<bool> constInput = { true, false };
 
-INSTANTIATE_TEST_CASE_P(LPT, FuseConvertTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseConvertTransformation,
     ::testing::Combine(
             ::testing::ValuesIn(precisions),
             ::testing::ValuesIn(inputAndQuantizationShapes),

@@ -1,16 +1,6 @@
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #pragma once
 
@@ -57,7 +47,11 @@ enum class KernelType {
     CONTRACT,
     ONE_HOT,
     GATHER,
+    GATHER_ND,
+    GATHER_ELEMENTS,
     SCATTER_UPDATE,
+    SCATTER_ND_UPDATE,
+    SCATTER_ELEMENTS_UPDATE,
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
     SHUFFLE_CHANNELS,
@@ -75,7 +69,10 @@ enum class KernelType {
     CTC_GREEDY_DECODER,
     CUM_SUM,
     EMBEDDING_BAG,
-    EXTRACT_IMAGE_PATCHES
+    EXTRACT_IMAGE_PATCHES,
+    LOOP,
+    NON_MAX_SUPPRESSION,
+    DETECTION_OUTPUT
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -249,6 +246,14 @@ enum class NormalizeMode {
 enum class MVNMode {
     ACROSS_CHANNELS,
     WITHIN_CHANNELS
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// MVNEpsMode
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class MVNEpsMode {
+    INSIDE_SQRT,
+    OUTSIDE_SQRT
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -578,5 +583,13 @@ enum class EmbeddingBagType {
     PACKED_SUM,
     OFFSETS_SUM,
     SEGMENTS_SUM
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// BoxEncodingType
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class BoxEncodingType {
+    BOX_ENCODING_CORNER,
+    BOX_ENCODING_CENTER,
 };
 }  // namespace kernel_selector

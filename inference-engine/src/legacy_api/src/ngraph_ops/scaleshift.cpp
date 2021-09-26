@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-constexpr NodeTypeInfo op::ScaleShiftIE::type_info;
 
 element::Type getMaxBitwidth(const std::vector<element::Type>& types) {
     if (types.empty()) {
@@ -27,6 +25,8 @@ element::Type getMaxBitwidth(const std::vector<element::Type>& types) {
     }
     return maxType;
 }
+
+BWDCMP_RTTI_DEFINITION(op::ScaleShiftIE);
 
 op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch, const Output<Node>& weights, const Output<Node>& bias, const element::Type output_type)
     : Op({data_batch, weights, bias}), output_type(output_type) {
@@ -56,4 +56,8 @@ void op::ScaleShiftIE::validate_and_infer_types() {
                           ", weights element type: ", weights_et, ").");
 
     set_output_type(0, data_et, get_input_partial_shape(0));
+}
+
+bool ngraph::op::ScaleShiftIE::visit_attributes(AttributeVisitor& visitor) {
+    return true;
 }

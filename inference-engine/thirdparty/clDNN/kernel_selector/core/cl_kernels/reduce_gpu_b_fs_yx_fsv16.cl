@@ -1,18 +1,9 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #define SIMD 16
 #define FSV 16
@@ -160,9 +151,17 @@ KERNEL(reduce_fsv16)(
 #endif
 )
 {
+#if IS_REDUCE_XY
+    __local ACCUMULATOR_TYPE lg_storage[SIMD][BLOCK_Y_NUM];
+    const uint lid0 = (uint)get_local_id(0);
+    const uint lid1 = (uint)get_local_id(1);
+    const uint x    = 0;
+    const uint y    = 0;
+#else
     const uint xy   = (uint)get_global_id(1) * READ_OFFSET;
     const uint x    = xy % ALIGN(COMMON_OUTPUT_SIZE_X, READ_OFFSET);
     const uint y    = xy / ALIGN(COMMON_OUTPUT_SIZE_X, READ_OFFSET);
+#endif
     const uint bf   = (uint)get_global_id(2) * SIMD;
     const uint b    = bf / ALIGN(COMMON_OUTPUT_FEATURE_NUM, SIMD);
     const uint f    = bf % ALIGN(COMMON_OUTPUT_FEATURE_NUM, SIMD);
@@ -225,8 +224,13 @@ KERNEL(reduce_fsv16)(
 #endif
 
 #if REDUCE_Y
+    #if IS_REDUCE_XY
+    const uint y_out = (uint)get_local_id(1) * BLOCK_Y_SIZE;
+    const uint y_max_val = min((uint)(y_out + BLOCK_Y_SIZE), (uint)INPUT0_SIZE_Y);
+    #else
     const uint y_out = 0;
     const uint y_max_val = INPUT0_SIZE_Y;
+    #endif
 #else
     const uint y_out = SIZE_Y_IDX_COMP(linear_idx);
     const uint y_max_val = y_out + 1;
@@ -253,7 +257,7 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
             for (uint yi = y_out; yi < y_max_val; ++yi) {
                 for (uint xi = x_out; xi < x_max_val; ++xi) {
                     INPUT_VEC input = (INPUT_VEC)(INPUT_INIT_VAL);
-                    #if (REDUCE_MAX_MODE || REDUCE_MIN_MODE || REDUCE_PROD_MODE || REDUCE_AND_MODE || REDUCE_LOG_SUM_EXP_MODE) && REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
+                    #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
                         if (fi + FSV <= INPUT0_FEATURE_NUM)
                             input = BLOCK_READ(data, offset);
                         else
@@ -270,7 +274,7 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
                 #if INPUT0_SIZE_X % READ_OFFSET != 0
                     for (uint xi = x_leftover_start; xi < x_leftover_end; ++xi) {
                         INPUT0_TYPE leftovers = INIT_VAL;
-                        #if (REDUCE_MAX_MODE || REDUCE_MIN_MODE || REDUCE_PROD_MODE || REDUCE_AND_MODE || REDUCE_LOG_SUM_EXP_MODE) && REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
+                        #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
                             if (fi + FSV <= INPUT0_FEATURE_NUM)
                                 leftovers = DT_INPUT_BLOCK_READ(data, offset);
                             else
@@ -290,10 +294,30 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
         offset += input_batch_pitch - ((((feature_max_val - feature_out) + FSV - 1) / FSV) * input_fs_pitch);
     }
 
+#if IS_REDUCE_XY
+    lg_storage[lid0][lid1] = acc;
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if (lid1 != 0)
+        return;
+
+    #if REDUCE_SUM_SQUARE_MODE || REDUCE_L2_MODE || REDUCE_LOG_SUM_MODE || REDUCE_LOG_SUM_EXP_MODE
+        acc = INIT_VAL;
+        unroll_for (uint i = 0; i < BLOCK_Y_NUM; i++) {
+            acc += lg_storage[lid0][i];
+        }
+    #else
+        acc = lg_storage[lid0][0];
+        unroll_for (uint i = 1; i < BLOCK_Y_NUM; i++) {
+            acc = FUNC_CALL(apply_reduce)(acc, lg_storage[lid0][i]);
+        }
+    #endif
+#endif
+
     FINAL_ACCUMULATOR_TYPE final_acc;
     acc = FUNC_CALL(sub_group_reduce)(acc);
     final_acc = FUNC_CALL(final_reduce)(TO_FINAL_ACCUMULATOR_TYPE(acc));
-
     OUTPUT_TYPE final_result;
     ACTIVATION_TYPE reduce_result = TO_ACTIVATION_TYPE(final_acc);
     #if HAS_FUSED_OPS
@@ -318,7 +342,7 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
             for (uint yi = y_out; yi < y_max_val; ++yi) {
                 for (uint xi = x_out; xi < x_max_val; ++xi) {
                     INPUT_VEC input = (INPUT_VEC)(INPUT_INIT_VAL);
-                    #if (REDUCE_MAX_MODE || REDUCE_MIN_MODE || REDUCE_PROD_MODE || REDUCE_AND_MODE || REDUCE_LOG_SUM_EXP_MODE) && REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
+                    #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
                         if (fi + FSV <= INPUT0_FEATURE_NUM)
                             input = BLOCK_READ(data, offset);
                         else

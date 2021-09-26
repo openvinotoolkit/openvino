@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,30 +6,29 @@
 
 #include "description_buffer.hpp"
 #include "ie_icore.hpp"
-#include "cpp_interfaces/impl/ie_plugin_internal.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include <memory>
 #include <string>
 #include <map>
 #include <unordered_map>
 #include <vector>
 #include <utility>
-#include <legacy/ie_util_internal.hpp>
 
 namespace HeteroPlugin {
 
-class Engine : public InferenceEngine::InferencePluginInternal {
+class Engine : public InferenceEngine::IInferencePlugin {
 public:
     using Configs = std::map<std::string, std::string>;
     using DeviceMetaInformationMap = std::unordered_map<std::string, Configs>;
 
     Engine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr
-    LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const Configs &config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr
+    LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const Configs &config) override;
 
     void SetConfig(const Configs &config) override;
 
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork &network,
                                                      const Configs& config) const override;
 
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string,
@@ -38,26 +37,14 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string,
                                          InferenceEngine::Parameter> & options) const override;
 
-    ExecutableNetwork ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
-
-
-    void SetAffinity(InferenceEngine::ICNNNetwork& network, const Configs &config);
+    InferenceEngine::IExecutableNetworkInternal::Ptr
+    ImportNetwork(std::istream& heteroModel, const std::map<std::string, std::string>& config) override;
 
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback,
-        const Configs & localConfig) const;
+                                              const Configs & localConfig) const;
 
 private:
     Configs GetSupportedConfig(const Configs& config, const std::string & deviceName) const;
+    std::string DeviceArchitecture(const std::string& targetFallback) const;
 };
-
-struct HeteroLayerColorer {
-    explicit HeteroLayerColorer(const std::vector<std::string>& devices);
-
-    void operator() (const CNNLayerPtr layer,
-                    ordered_properties &printed_properties,
-                    ordered_properties &node_properties);
-
-    std::unordered_map<std::string, std::string> deviceColorMap;
-};
-
 }  // namespace HeteroPlugin

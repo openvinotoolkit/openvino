@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ class GNAEltwiseTest : public GNATest<>, public testing::WithParamInterface<GNAE
             FC2 = std::make_shared<ngraph::op::v1::Reshape>(FC2, reshape_pattern, false);
         }
 
-        auto add = std::make_shared<ngraph::op::Add>(FC1, FC2);
+        auto add = std::make_shared<ngraph::op::v1::Add>(FC1, FC2);
 
         auto function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{input1, input2});
 
@@ -106,7 +106,7 @@ TEST_P(GNAEltwiseTest, FourBytesInputsViaReshape) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     GNALayerTests,
     GNAEltwiseTest,
     ::testing::Combine(

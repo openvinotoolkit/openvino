@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -26,8 +14,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, non_zero)
-{
+NGRAPH_TEST(${BACKEND_NAME}, non_zero) {
     PartialShape p_shape = PartialShape::dynamic();
     auto p = make_shared<op::Parameter>(element::f32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i32);
@@ -51,8 +38,7 @@ NGRAPH_TEST(${BACKEND_NAME}, non_zero)
     ASSERT_EQ(result_data, expected_result);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_1s)
-{
+NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_1s) {
     PartialShape p_shape = PartialShape::dynamic();
     auto p = make_shared<op::Parameter>(element::i32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i64);
@@ -78,8 +64,7 @@ NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_1s)
     ASSERT_EQ(result_data, expected_result);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_0s)
-{
+NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_0s) {
     PartialShape p_shape = PartialShape::dynamic();
     auto p = make_shared<op::Parameter>(element::i32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i64);

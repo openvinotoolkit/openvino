@@ -1,37 +1,15 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <tuple>
-#include <vector>
-#include <array>
-#include <string>
-#include <memory>
+#include "shared_test_classes/subgraph/reshape_permute_conv_permute_reshape_act.hpp"
 
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+namespace SubgraphTestsDefinitions {
 
-namespace LayerTestsDefinitions {
-    typedef std::tuple<
-        InferenceEngine::Precision,         // Network Precision
-        std::string,                        // Target Device
-        std::array<size_t, 4>,              // Input shape
-        std::array<size_t, 2>,              // Kernel shape
-        size_t,                             // Output channels
-        std::map<std::string, std::string>  // Configuration
-    > ConvReshapeActParams;
+TEST_P(ConvReshapeAct, CompareWithRefs) {
+    Run();
+}
 
-class ConvReshapeAct : public testing::WithParamInterface<ConvReshapeActParams>,
-                        virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvReshapeActParams> obj);
-
-protected:
-    void SetUp() override;
-    void Run() override;
-};
-
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ static const ActivationCaseParam gna_activation_test_params[] = {
     {"softsign", 200, {-10, 10}},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     GNALayerTests, GNAActivationTest,
     ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16, InferenceEngine::Precision::I8),

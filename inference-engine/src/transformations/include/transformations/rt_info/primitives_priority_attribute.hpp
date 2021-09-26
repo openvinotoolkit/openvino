@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,25 +47,6 @@ public:
      */
     std::string getPrimitivesPriority() const;
 };
-
-extern template class TRANSFORMATIONS_API VariantImpl<PrimitivesPriority>;
-
-template<>
-class TRANSFORMATIONS_API VariantWrapper<PrimitivesPriority> : public VariantImpl<PrimitivesPriority> {
-public:
-    static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::PrimitivesPriority", 0};
-
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
-
-    VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
-
-    std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector & nodes) override;
-
-    std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
-};
-
 /**
  * @ingroup ie_runtime_attr_api
  * @brief getPrimitivesPriority return string with primitive priorities value
@@ -74,3 +55,21 @@ public:
 TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 
 }  // namespace ngraph
+
+namespace ov {
+
+extern template class TRANSFORMATIONS_API VariantImpl<ngraph::PrimitivesPriority>;
+
+template<>
+class TRANSFORMATIONS_API VariantWrapper<ngraph::PrimitivesPriority> : public VariantImpl<ngraph::PrimitivesPriority> {
+public:
+    OPENVINO_RTTI("VariantWrapper<PrimitivesPriority>");
+
+    VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
+
+    std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector & nodes) override;
+
+    std::shared_ptr<ov::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
+};
+
+}  // namespace ov

@@ -1,25 +1,13 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "pass_manager.h"
 #include "convolution_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -217,7 +205,17 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
 
     // get output feature map from weights. It should be the same as number of biases. Will be verifed in
     // convolution::create()
-    auto number_of_features = weights_layout.size.batch[0] * weights_layout.size.group[0];
+    auto group = desc->groups;
+    int32_t number_of_features = 0;
+    if (desc->grouped_weights_shape && !format::is_grouped(weights_layout.format)) {
+        number_of_features = weights_layout.size.feature[0] * static_cast<int32_t>(group);
+    } else {
+        if (format::is_grouped(weights_layout.format)) {
+            number_of_features = weights_layout.size.batch[0] * static_cast<int32_t>(group);
+        } else {
+            number_of_features = weights_layout.size.batch[0];
+        }
+    }
 
     if (desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
@@ -313,7 +311,7 @@ std::string convolution_inst::to_string(convolution_node const& node) {
     return primitive_description.str();
 }
 
-convolution_inst::typed_primitive_inst(network_impl& network, convolution_node const& node) : parent(network, node) {
+convolution_inst::typed_primitive_inst(network& network, convolution_node const& node) : parent(network, node) {
     auto stride = argument.stride;
 
     auto input_inst = node.input().get_output_layout();
@@ -336,6 +334,11 @@ convolution_inst::typed_primitive_inst(network_impl& network, convolution_node c
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
         auto filter_inst = node.weights(j).get_output_layout();  // convolution filter
+        auto weights_ifm = filter_inst.size.feature[0];
+        if (argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
+            weights_ifm = filter_inst.size.spatial[filter_inst.format.spatial_num() - 1] * argument.groups;
+        }
+
         if (bias_term()) {
             auto bias_inst = node.bias(j).get_output_layout();
             CLDNN_ERROR_NOT_EQUAL(node.id(),
@@ -406,7 +409,7 @@ convolution_inst::typed_primitive_inst(network_impl& network, convolution_node c
                               "Weights feature maps number",
                               (input_inst.size.feature[0] - input_offset.feature[0]) / split,
                               "input feature maps number",
-                              filter_inst.size.feature[0],
+                              weights_ifm,
                               "Weights/ifm mismatch");
     }
 }

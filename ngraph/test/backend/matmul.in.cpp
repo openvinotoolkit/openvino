@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cinttypes>
@@ -28,7 +16,9 @@
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
+#include "util/engine/test_engines.hpp"
 #include "util/ndarray.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
@@ -36,9 +26,9 @@ using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x0_0x2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x0_0x2) {
     Shape shape_a{2, 0};
     Shape shape_b{0, 2};
     Shape shape_r{2, 2};
@@ -65,8 +55,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x0_0x2)
     EXPECT_TRUE(test::all_close_f((vector<float>{0, 0, 0, 0}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_0x2_2x0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_0x2_2x0) {
     Shape shape_a{0, 2};
 
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -89,8 +78,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_0x2_2x0)
     EXPECT_TRUE(test::all_close_f((vector<float>{}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x0) {
     Shape shape_a{3, 2};
 
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -113,8 +101,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x0)
     EXPECT_TRUE(test::all_close_f((vector<float>{}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2_2x2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2_2x2) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -135,8 +122,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2_2x2)
     EXPECT_TRUE(test::all_close_f((vector<float>{19, 22, 43, 50}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3) {
     Shape shape_in1{2, 3};
     Shape shape_in2{3, 3};
     Shape shape_out{2, 3};
@@ -158,12 +144,10 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f}));
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3_int64) {
     Shape shape_in1{2, 3};
     Shape shape_in2{3, 3};
     Shape shape_out{2, 3};
@@ -185,12 +169,10 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3_int64)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(
-        test::all_close(read_vector<int64_t>(result), vector<int64_t>{30, 36, 42, 66, 81, 96}));
+    EXPECT_TRUE(test::all_close(read_vector<int64_t>(result), vector<int64_t>{30, 36, 42, 66, 81, 96}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_3x3_transpose)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_3x3_transpose) {
     Shape shape_in1{3, 2};
     Shape shape_in2{3, 3};
     Shape shape_out{2, 3};
@@ -212,12 +194,10 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_3x3_transpose)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f}));
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x3_transpose)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x3_transpose) {
     Shape shape_in1{3, 2};
     Shape shape_in2{2, 3};
     Shape shape_out{2, 2};
@@ -239,12 +219,10 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x3_transpose)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(
-        test::all_close_f(read_vector<float>(result), vector<float>{22.f, 28.f, 49.f, 64.f}));
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{22.f, 28.f, 49.f, 64.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3x2_3x3_transpose)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3x2_3x3_transpose) {
     Shape shape_in1{2, 3, 2};
     Shape shape_in2{3, 3};
     Shape shape_out{2, 2, 3};
@@ -266,13 +244,12 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3x2_3x3_transpose)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(test::all_close_f(
-        read_vector<float>(result),
-        vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f, 42.f, 51.f, 60.f, 60.f, 72.f, 84.f}));
+    EXPECT_TRUE(
+        test::all_close_f(read_vector<float>(result),
+                          vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f, 42.f, 51.f, 60.f, 60.f, 72.f, 84.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2) {
     Shape shape_in1{2};
     Shape shape_in2{2};
     Shape shape_out{};
@@ -296,8 +273,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{5.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose) {
     Shape shape_in1{2, 2, 3};
     Shape shape_in2{2, 1, 3};
     Shape shape_out{2, 2, 1};
@@ -324,12 +300,10 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(
-        test::all_close(read_vector<float>(result), vector<float>{14.f, 32.f, 122.f, 167.f}));
+    EXPECT_TRUE(test::all_close(read_vector<float>(result), vector<float>{14.f, 32.f, 122.f, 167.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose_int64) {
     Shape shape_in1{2, 2, 3};
     Shape shape_in2{2, 1, 3};
     Shape shape_out{2, 2, 1};
@@ -359,8 +333,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose_int64)
     EXPECT_TRUE(test::all_close(read_vector<int64_t>(result), vector<int64_t>{14, 32, 122, 167}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x3x1_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x3x1_int64) {
     Shape shape_in1{2, 2, 3};
     Shape shape_in2{2, 3, 1};
     Shape shape_out{2, 2, 1};
@@ -390,8 +363,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x3x1_int64)
     EXPECT_TRUE(test::all_close(read_vector<int64_t>(result), vector<int64_t>{14, 32, 122, 167}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_1x2x3_1x4x3x2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1x2x3_1x4x3x2) {
     Shape shape_in1{1, 2, 3};
     Shape shape_in2{1, 4, 3, 2};
     Shape shape_out{1, 4, 2, 2};
@@ -436,4 +408,664 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_1x2x3_1x4x3x2)
                                                 67.f,
                                                 244.f,
                                                 256.f}));
+}
+
+// 1D x 1D
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_false_false_param) {
+    Shape shape_in1{3};
+    Shape shape_in2{3};
+    Shape shape_out{};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_true_true_param) {
+    Shape shape_in1{3};
+    Shape shape_in2{3};
+    Shape shape_out{};
+
+    // For 1D inputs transpose is expected to be ignored
+    bool transpose_a = true;
+    bool transpose_b = true;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_false_false_const) {
+    Shape shape_in1{3};
+    Shape shape_in2{3};
+    Shape shape_out{};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Constant>(element::f32, shape_in2, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_true_true_const) {
+    Shape shape_in1{3};
+    Shape shape_in2{3};
+    Shape shape_out{};
+
+    // For 1D inputs transpose is expected to be ignored
+    bool transpose_a = true;
+    bool transpose_b = true;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Constant>(element::f32, shape_in2, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+// 2D x 1D
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_x_3_false_false_param) {
+    Shape shape_in1{1, 3};
+    Shape shape_in2{3};
+    Shape shape_out{1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_x_3_false_false_const) {
+    Shape shape_in1{1, 3};
+    Shape shape_in2{3};
+    Shape shape_out{1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Constant>(element::f32, shape_in2, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_x_3_true_false_param) {
+    Shape shape_in1{3, 1};
+    Shape shape_in2{3};
+    Shape shape_out{1};
+
+    bool transpose_a = true;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_x_3_true_false_const) {
+    Shape shape_in1{3, 1};
+    Shape shape_in2{3};
+    Shape shape_out{1};
+
+    bool transpose_a = true;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Constant>(element::f32, shape_in2, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+// 1D x 2D
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_1_false_false_param) {
+    Shape shape_in1{3};
+    Shape shape_in2{3, 1};
+    Shape shape_out{1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_1_false_false_const) {
+    Shape shape_in1{3};
+    Shape shape_in2{3, 1};
+    Shape shape_out{1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Constant>(element::f32, shape_in2, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_false_true_param) {
+    Shape shape_in1{3};
+    Shape shape_in2{1, 3};
+    Shape shape_out{1};
+
+    bool transpose_a = false;
+    bool transpose_b = true;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_false_true_const) {
+    Shape shape_in1{3};
+    Shape shape_in2{1, 3};
+    Shape shape_out{1};
+
+    bool transpose_a = false;
+    bool transpose_b = true;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Constant>(element::f32, shape_in2, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_true_true_param) {
+    Shape shape_in1{3};
+    Shape shape_in2{1, 3};
+    Shape shape_out{1};
+
+    bool transpose_a = true;
+    bool transpose_b = true;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_true_true_const) {
+    Shape shape_in1{3};
+    Shape shape_in2{1, 3};
+    Shape shape_out{1};
+
+    bool transpose_a = true;
+    bool transpose_b = true;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Constant>(element::f32, shape_in2, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+// 3D x 1D
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_1_3_x_3_false_false_param) {
+    Shape shape_in1{1, 1, 3};
+    Shape shape_in2{3};
+    Shape shape_out{1, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_1_3_x_3_false_false_const) {
+    Shape shape_in1{1, 1, 3};
+    Shape shape_in2{3};
+    Shape shape_out{1, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Constant>(element::f32, shape_in2, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_1_x_3_true_false_param) {
+    Shape shape_in1{1, 3, 1};
+    Shape shape_in2{3};
+    Shape shape_out{1, 1};
+
+    bool transpose_a = true;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_1_x_3_true_false_const) {
+    Shape shape_in1{1, 3, 1};
+    Shape shape_in2{3};
+    Shape shape_out{1, 1};
+
+    bool transpose_a = true;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Constant>(element::f32, shape_in2, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+// 1D x 3D
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_1_false_false_param) {
+    Shape shape_in1{3};
+    Shape shape_in2{1, 3, 1};
+    Shape shape_out{1, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_1_3_false_true_param) {
+    Shape shape_in1{3};
+    Shape shape_in2{1, 1, 3};
+    Shape shape_out{1, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = true;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_1_false_false_const) {
+    Shape shape_in1{3};
+    Shape shape_in2{1, 3, 1};
+    Shape shape_out{1, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Constant>(element::f32, shape_in2, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_1_3_false_true_const) {
+    Shape shape_in1{3};
+    Shape shape_in2{1, 1, 3};
+    Shape shape_out{1, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = true;
+
+    std::vector<float> inputs_a{1, 2, 3};
+    std::vector<float> inputs_b{1, 2, 3};
+    std::vector<float> expected_result{14.};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Constant>(element::f32, shape_in2, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_param) {
+    Shape shape_a{2, 2, 1, 3};
+    Shape shape_b{3};
+    Shape shape_out{2, 2, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a(shape_size(shape_a));
+    std::iota(inputs_a.begin(), inputs_a.end(), 0);
+
+    std::vector<float> inputs_b(shape_size(shape_b));
+    std::iota(inputs_b.begin(), inputs_b.end(), 0);
+
+    std::vector<float> expected_result{5, 14, 23, 32};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto B = make_shared<op::Parameter>(element::f32, shape_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_const) {
+    Shape shape_a{2, 2, 1, 3};
+    Shape shape_b{3};
+    Shape shape_out{2, 2, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a(shape_size(shape_a));
+    std::iota(inputs_a.begin(), inputs_a.end(), 0);
+
+    std::vector<float> inputs_b(shape_size(shape_b));
+    std::iota(inputs_b.begin(), inputs_b.end(), 0);
+
+    std::vector<float> expected_result{5, 14, 23, 32};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto B = make_shared<op::Constant>(element::f32, shape_b, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_param) {
+    Shape shape_a{3};
+    Shape shape_b{2, 2, 3, 1};
+    Shape shape_out{2, 2, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a(shape_size(shape_a));
+    std::iota(inputs_a.begin(), inputs_a.end(), 0);
+
+    std::vector<float> inputs_b(shape_size(shape_b));
+    std::iota(inputs_b.begin(), inputs_b.end(), 0);
+
+    std::vector<float> expected_result{5, 14, 23, 32};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto B = make_shared<op::Parameter>(element::f32, shape_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_const) {
+    Shape shape_a{3};
+    Shape shape_b{2, 2, 3, 1};
+    Shape shape_out{2, 2, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a(shape_size(shape_a));
+    std::iota(inputs_a.begin(), inputs_a.end(), 0);
+
+    std::vector<float> inputs_b(shape_size(shape_b));
+    std::iota(inputs_b.begin(), inputs_b.end(), 0);
+
+    std::vector<float> expected_result{5, 14, 23, 32};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto B = make_shared<op::Constant>(element::f32, shape_b, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
 }

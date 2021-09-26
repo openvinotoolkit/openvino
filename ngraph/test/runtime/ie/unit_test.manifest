@@ -15,6 +15,7 @@ onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 onnx_model_quantize_linear_axis_zero
 onnx_model_quantize_linear_axis_negative
+onnx_expand_function
 
 # DequantizeLinear:
 # C++ exception with description "Unsupported precisions!
@@ -40,11 +41,12 @@ onnx_model_matmul_integer_4d_no_zero_point
 onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
 
-# The indices input type i64 is not supported by the CPU plugin
-onnx_model_gatherND_int32
-onnx_model_gatherND_float
+# No support yet for RandomUniform
+onnx_model_random_uniform
+onnx_model_random_uniform_like
 
 # Result mismatch
+onnx_model_shape
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
 onnx_model_softmax
@@ -55,17 +57,12 @@ onnx_model_addmul_abc
 IE_CPU.interpolate_down_scales_const_linear
 
 # data [<name>] doesn't exist
-onnx_model_sum_one_input
-onnx_model_shape
-onnx_model_eye_like
-convert_float32_bool
 broadcast_trivial
 aliased_output
 bool_init_raw
 bool_const_op
 onnx_model_tile
 onnx_model_tile_static
-onnx_model_softmax_0D
 onnx_model_logsoftmax_0D
 builder_opset1_collapse_none
 
@@ -74,19 +71,18 @@ onnx_model_split_equal_parts_2d
 onnx_model_split_variable_parts_2d
 onnx_top_k_opset_10_const_k
 onnx_top_k_opset_11_const_k_smallest
+onnx_top_k_opset_11_const_k_smallest_negative_axis
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 bool_input_or
+onnx_constant_sparse_tensor_boolean_3x4
 
 # Layer <name> input port 1 is not connected to any data
 onnx_model_conv_transpose_w_groups
 
-#Incorrect number of inputs
-onnx_model_prelu
-
 # [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
 onnx_model_global_lp_pool_p0
-onnx_model_mod
+onnx_model_mod_sign_i64
 onnx_model_constant_of_shape_float_zeros
 onnx_model_constant_of_shape_int_ones
 ab_plus_c_inference
@@ -104,11 +100,11 @@ ceiling_int64
 matmul_2x2x3_2x3x1_int64
 matmul_2x2x3_2x1x3_transpose_int64
 onnx_dyn_shapes_slice_10_3d_input_12_axes
-IE_CPU.fused_clamp_int64
 IE_CPU.onnx_dyn_shapes_slice_10_default_axes
 onnx_dyn_shapes_ab_plus_c_inference
 onnx_dyn_shapes_dynamic_rank_input_inference
 onnx_dyn_shapes_model_conv_with_dynamic_batch
+onnx_dyn_shapes_model_conv_with_dynamic_bias
 onnx_dyn_shapes_expand_1_dyn_shape
 onnx_dyn_shapes_expand_2_dyn_shape
 onnx_dyn_shapes_expand_3_dyn_shape
@@ -130,11 +126,9 @@ onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max
 onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
 onnx_dyn_shapes_slice_10_3d_input_12_axes
 onnx_top_k_opset_10
-onnx_model_one_hot_without_axis
 onnx_model_scatterND_param_i64_indices
-
-# [NOT_IMPLEMENTED] Input image format U64 is not supported yet...
-IE_CPU.fused_clamp_uint64
+IE_CPU.onnx_constant_sparse_tensor_int64_3x4
+IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
 
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
@@ -144,12 +138,11 @@ arg_max_dyn_shape
 # Result mismatch
 onnx_model_argmax_float
 onnx_model_argmin_float
+onnx_model_argmax_select_last_index
+onnx_model_argmin_select_last_index
 
 # Constant has zero dimension that is not allowable
 onnx_dyn_shapes_transpose
-
-# Select layer with name 'y' has 'Mask' input's rank more than broadcasted 'Then' and 'Else' inputs' ranks
-onnx_model_where
 
 # y Incorrect input precision. Only FP32 is supported!
 onnx_model_erf_int32
@@ -164,16 +157,12 @@ onnx_model_quantize_linear_const_scale_const_zero_p
 
 # Incorrect number of 'indices_to_squeeze' input dimensions!
 arg_min_no_keep_dims_dyn_shape
+
+# OneHot operation has a form that is not supported
+onnx_model_one_hot_without_axis
 onnx_model_one_hot_with_axis
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
-# onnx_upsample9_scales_input_nearest_infer
-fused_clamp_uint16
-fused_clamp_uint8
-fused_clamp_int32
-fused_clamp_int8
-fused_clamp_float
-fused_clamp_int16
 onnx_dyn_shapes_model_acosh_1_3
 onnx_dyn_shapes_model_acosh_3_2
 onnx_dyn_shapes_model_asinh_1_3
@@ -198,29 +187,25 @@ onnx_dyn_shapes_flatten_neg_axis
 onnx_model_range_positive_step
 onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
+onnx_model_max_pool_dyn_rank_without_default_attrs
+onnx_model_lp_norm_default_dynamic
+onnx_instance_normalization_dynamic
 
-# LSTMSequence Layer is not instance of RNNLayer class
-# (Constant W, B, R inputs are required)
-onnx_model_lstm_fwd_with_clip_peepholes
-onnx_model_lstm_fwd_mixed_seq
-onnx_model_lstm_fwd_hardsigmoid_activation
-onnx_model_lstm_fwd_large_batch_no_clip
-onnx_model_lstm_bdir_short_input_seq_peepholes
-onnx_model_lstm_mixed_seq_reverse
-
-# GRUCell/GRUSequence operation has a form that is not supported
-# (Constant W, B, R inputs are required)
+# (Constant W, R inputs are required) Ticket: 49207
+# Function references undeclared parameters
+# LSTMSequence
+IE_CPU.onnx_model_lstm_fwd_large_batch_no_clip
+IE_CPU.onnx_model_lstm_fwd_mixed_seq
+IE_CPU.onnx_model_lstm_mixed_seq_reverse
+# GRUSequence
 IE_CPU.onnx_model_gru_defaults_fwd
-IE_CPU.onnx_model_gru_fwd_activations
 IE_CPU.onnx_model_gru_fwd_mixed_seq_len
 IE_CPU.onnx_model_gru_rev_clip
 IE_CPU.onnx_model_gru_reverse
 IE_CPU.onnx_model_gru_fwd_bias_initial_h
 IE_CPU.onnx_model_gru_bidirectional
 IE_CPU.onnx_model_gru_fwd_linear_before_reset
-
-# RNNCell/RNNSequence operation has a form that is not supported
-# (Constant W, B, R inputs are required)
+# RNNSequence
 IE_CPU.onnx_model_rnn_defaults_fwd
 IE_CPU.onnx_model_rnn_fwd_activations
 IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
@@ -229,14 +214,35 @@ IE_CPU.onnx_model_rnn_reverse
 IE_CPU.onnx_model_rnn_fwd_bias_initial_h
 IE_CPU.onnx_model_rnn_bidirectional
 
-## RNN/GRU/LSTM Sequence: Output values mismatch - seq_lengths not supported
-IE_CPU.onnx_model_lstm_fwd_mixed_seq_const
-IE_CPU.onnx_model_lstm_reverse_mixed_seq_const
-IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
-IE_CPU.onnx_model_rnn_fwd_mixed_seq_len_const
-IE_CPU.onnx_model_gru_fwd_mixed_seq_len
-IE_CPU.onnx_model_gru_fwd_mixed_seq_len_const
+# Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
+# Peepholes input unsupported
+onnx_model_lstm_fwd_with_clip_peepholes
+onnx_model_lstm_bdir_short_input_seq_peepholes
+# Activation function hardsigmoid is not supported
+onnx_model_gru_fwd_activations_relu_hardsigmoid
+onnx_model_lstm_fwd_hardsigmoid_activation
 
+# Const layer has incorrect dimensions in the output data
+IE_CPU.nothing_to_reverse
+
+# Unsupported dynamic ops
+onnx_size_dyn_op
+onnx_model_gru_defaults_fwd_const_dynamic
+onnx_model_rnn_defaults_fwd_const_dynamic
+onnx_model_depth_to_space_dynamic_input
+onnx_model_space_to_depth_dynamic_input
+squeeze_dynamic
+
+
+# Constant network
+# MKLDNNGraph::CreateGraph: No inputs for the topology
+onnx_size_op_single
+onnx_size_op_graph_end
+onnx_size_op_graph_middle
+
+# /openvino/inference-engine/src/mkldnn_plugin/mkldnn_graph.cpp:747
+# Output blob byte size is not equal network output byte size (64!=216)." thrown in the test body.
+onnx_model_quant_conv_linear_3d
 
 #-------------------------------------------------------------------------------
 #
@@ -248,14 +254,11 @@ IE_CPU.onnx_model_gru_fwd_mixed_seq_len_const
 shape_of_vector
 shape_of_matrix
 shape_of_5d
-numeric_float_nan
-numeric_float_inf
-numeric_double_nan
-numeric_double_inf
-fake_quantize
-fake_quantize_with_clip
-fake_quantize_with_clip_across_channels
+
 fake_quantize_pdpd
+IE_GPU.fake_quantize
+IE_GPU.fake_quantize_with_clip
+IE_GPU.fake_quantize_with_clip_across_channels
 
 # <op name> has zero dimension that is not allowable
 zero_sized_abs
@@ -287,7 +290,6 @@ zero_sized_lesseq
 zero_sized_maximum
 zero_sized_minimum
 zero_sized_multiply
-zero_sized_not_equal
 zero_sized_power
 zero_sized_subtract
 sum_trivial
@@ -303,7 +305,7 @@ slice_scalar
 slice_3d_start_just_oob
 shape_of_scalar
 reverse_0d
-reverse_1d_nochange
+reverse_1d
 reverse_2d_nochange
 reverse_3d_nochange
 product_trivial
@@ -336,13 +338,7 @@ max_matrix_to_scalar_zero_by_zero
 max_3d_eliminate_zero_dim
 lrn_across_empty
 lrn_2d_across_empty
-normalize_across_empty_axes_input
-normalize_l2_all_mode_add
-normalize_l2_none_mode_add
-normalize_l2_zero_mode_add
-normalize_l2_all_mode_max
-normalize_l2_none_mode_max
-normalize_l2_zero_mode_max
+
 squeeze_default_axes
 dynamic_abc
 broadcast_v1
@@ -365,66 +361,16 @@ any_2x0_to_scalar
 all_trivial
 all_2x0_to_scalar
 all_dynamic
-reduce_sum_keep_dynamic
-reduce_sum_keep_stable_simple_double
-reduce_sum_keep_stable_acc_double
-reduce_sum_keep_stable_acc
-reduce_sum_keep_3d_eliminate_zero_dim
-reduce_sum_keep_vector_zero
-reduce_sum_keep_matrix_rows_zero
-reduce_sum_dynamic
-reduce_sum_3d_eliminate_zero_dim_int32
-reduce_sum_keep_3d_eliminate_zero_dim_int32
-reduce_sum_keep_trivial_in_double
-reduce_sum_3d_eliminate_zero_dim
-reduce_sum_matrix_to_scalar_zero_by_zero
-reduce_sum_vector_zero
-reduce_sum_matrix_cols_zero
-reduce_sum_matrix_rows_zero
-reduce_sum_keep_matrix_to_scalar_zero_by_zero
-reduce_sum_keep_matrix_cols_zero
-reduce_product_matrix_columns
-
-# accuracy
-reduce_sum_keep_stable_acc
-reduce_sum_keep_2d_to_scalar_int8
-reduce_sum_keep_3d_to_scalar_int32
-reduce_sum_keep_large_1d_to_scalar
-reduce_sum_stable_simple_double
-reduce_sum_stable_acc_double
-reduce_sum_stable_acc
-reduce_sum_trivial_in_double
-reduce_sum_2d_to_scalar_int8
-reduce_sum_3d_to_scalar_int32
-reduce_sum_large_1d_to_scalar
 
 # Doesn't throw expected exception type.
 unhandled_op
 
-# Cannot cast ngraph node Reshape_158305 to CNNLayer
-transpose
-slice_matrix_axis_0_in_place_with_reshape
-reshape_t2v_012
-reshape_t2s_012
-reshape_t2s_120
-reshape_s2t
+# Expected equality of these values:
+#  (vector<char>{42})
+#    Which is: { '*' (42, 0x2A) }
+#  read_vector<char>(result)
+#    Which is: { '\0' }
 reshape_s2t1
-reshape_v2m_col
-reshape_v2m_row
-reshape_v2t_middle
-reshape_m2m_same
-reshape_m2m_transpose
-reshape_m2m_dim_change_transpose
-reshape_3d_transpose_021
-reshape_3d_transpose_210
-reshape_3d_transpose_201
-reshape_3d_transpose_102
-reshape_3d_transpose_120
-reshape_4d_transpose
-reshape_4d_no_transpose
-reshape_transposed_shape_change
-reshape_6d
-reshape_shufflenet_5d
 dyn_group_convolution_backprop_data
 group_conv
 group_conv_striding
@@ -440,9 +386,6 @@ dynamic_reverse_shape
 tile_3d_small_data_rank
 tile_3d_few_repeats
 
-# Error of validate layer: MatMul_683292 with type: Gemm. Gemm input shapes must have at least 2 dimensions
-matmul_2_2
-
 # Result mismatch
 sum_large_1d_to_scalar
 sum_stable_acc
@@ -454,16 +397,11 @@ lrn_across_all_dims
 elu
 elu_negative_alpha
 max_pool_2d_1channel_1image_overpadded
-normalize_across_chw_4d_max_bias
 grn_2d_with_bias
 erf
 divide_adjoint_stability
-equal
 notequal
-greater
-greatereq
 less
-lesseq
 sum_3d_to_scalar_int32
 sum_2d_to_scalar_int8
 max_pool_uint8
@@ -477,92 +415,15 @@ onnx_dyn_shapes_model_tile_static
 gather_4d_indices_axis_0_uint8
 tensor_constant_with_op
 constant_equality_bool
-reduce_product_matrix_rows
-reduce_product_3d_to_matrix_most_sig
-reduce_product_3d_to_matrix_least_sig
-reduce_product_keep_matrix_columns
-reduce_product_keep_matrix_rows
-reduce_product_keep_3d_to_matrix_most_sig
-reduce_product_keep_3d_to_matrix_least_sig
-reduce_product_matrix_columns_dynamic
-reduce_product_matrix_rows_dynamic
-reduce_product_keep_matrix_columns_dynamic
-reduce_product_keep_matrix_rows_dynamic
-reduce_min_matrix_columns
-reduce_min_matrix_rows
-reduce_min_matrix_rows_int32
-reduce_min_3d_to_matrix_most_sig
-reduce_min_3d_to_matrix_least_sig
-reduce_min_keep_matrix_columns
-reduce_min_keep_matrix_rows
-reduce_min_keep_matrix_rows_int32
-reduce_min_keep_3d_to_matrix_most_sig
-reduce_min_keep_3d_to_matrix_least_sig
-reduce_min_matrix_columns_dynamic
-reduce_min_matrix_rows_dynamic
-reduce_min_keep_matrix_columns_dynamic
-reduce_min_keep_matrix_rows_dynamic
-
-# zero dimension / result mismatch
-reduce_product_matrix_rows_zero
-reduce_product_matrix_cols_zero
-reduce_product_vector_zero
-reduce_product_matrix_to_scalar_zero_by_zero
-reduce_product_3d_eliminate_zero_dim
-reduce_product_to_scalar_int8
-reduce_product_keep_matrix_rows_zero
-reduce_product_keep_matrix_cols_zero
-reduce_product_keep_vector_zero
-reduce_product_keep_matrix_to_scalar_zero_by_zero
-reduce_product_keep_3d_eliminate_zero_dim
-reduce_product_keep_to_scalar_int8
-reduce_min_to_scalar_int8
-reduce_min_matrix_rows_zero
-reduce_min_matrix_cols_zero
-reduce_min_vector_zero
-reduce_min_matrix_to_scalar_zero_by_zero
-reduce_min_3d_eliminate_zero_dim
-reduce_min_keep_to_scalar_int8
-reduce_min_keep_matrix_rows_zero
-reduce_min_keep_matrix_cols_zero
-reduce_min_keep_vector_zero
-reduce_min_keep_matrix_to_scalar_zero_by_zero
-reduce_min_keep_3d_eliminate_zero_dim
-reduce_mean_to_scalar_int8
-reduce_mean_matrix_rows_int32
-reduce_mean_keep_to_scalar_int8
-reduce_mean_keep_matrix_rows_int32
-reduce_max_to_scalar_int8
-reduce_max_matrix_rows_zero
-reduce_max_matrix_rows_zero_int32
-reduce_max_matrix_cols_zero
-reduce_max_vector_zero
-reduce_max_matrix_to_scalar_zero_by_zero
-reduce_max_3d_to_scalar_double
-reduce_max_3d_eliminate_zero_dim
-reduce_max_keep_to_scalar_int8
-reduce_max_keep_matrix_rows_zero
-reduce_max_keep_matrix_rows_zero_int32
-reduce_max_keep_matrix_cols_zero
-reduce_max_keep_vector_zero
-reduce_max_keep_matrix_to_scalar_zero_by_zero
-reduce_max_keep_3d_to_scalar_double
-reduce_max_keep_3d_eliminate_zero_dim
 
 # Incorrect precision f64!
 sum_trivial_in_double
 sum_stable_acc_double
 sum_stable_simple_double
 softmax_axis_3d_double
-select_double
 quantize_clamp_int32
 max_3d_to_scalar_double
 argmin_trivial_in_double
-IE_CPU.fused_clamp_double
-
-# Incorrect precision bf16!
-convert_float32_bf16
-convert_bf16_float32
 
 # [nGraph upgrade pass] Unable to convert Softmax:0 to Softmax:1 with zero or more than one axis.
 softmax_dynamic_axes
@@ -579,14 +440,16 @@ gather_axis_0_int64
 gather_axis_0_uint16
 gather_axis_0_uint64
 concat_matrix_int64
-greater_int64
 broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
 
-# Unsupported primitive of type: Round
-IE_CPU.onnx_model_round
-IE_CPU.onnx_model_round_half_nearest_even
+# [NOT_IMPLEMENTED] Output format I64 is not supported yet...
+onnx_constant_integer_scalar
+onnx_constant_integer_array
+adaptive_max_pool_1d
+adaptive_max_pool_2d
+adaptive_max_pool_3d
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
@@ -595,13 +458,8 @@ sigmoid_bprop_n1c1h4
 IE_CPU.onnx_roi_align_f32
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
-select
 not
-logical_xor
-logical_or
-logical_and
 gather_axis_0_bool
-lesseq_bool
 auto_bcast_binary_elementwise
 auto_bcast_binary_elementwise_pdpd
 any_2x2_to_scalar_true
@@ -629,14 +487,13 @@ all_2x2x3_eliminate_dims_0_1_2
 all_dynamic_axis
 all_change_axis
 
-# Positive input shape should be the same as negative input shape
-select_v1
-
 # Cannot cast ngraph node Reverse to CNNLayer!
 reverse_1d_0
 reverse_2d_0
 reverse_2d_1
+reverse_2d_1_mask
 reverse_2d_01
+reverse_2d_01_mask
 reverse_3d_0
 reverse_3d_1
 reverse_3d_2
@@ -661,8 +518,13 @@ relu_2Dbackprop
 relu_4Dbackprop
 
 # data [<name>] doesn't exist
-range
 parameter_as_output
+
+# MKLDNNGraph::CreateGraph: No inputs for the topology
+range_v0_int32
+range_v0_float32
+range_v4_int32
+range_v4_float32
 
 # Cannot cast ngraph node QuantizedDot to CNNLayer!
 quantized_dot_u8u8
@@ -724,30 +586,24 @@ dyn_convolution_backprop_data
 dyn_convolution_backprop_filter
 
 # Pad Pad_524448 with not constant pad_value is not allowed
-pad_exterior_1d
 pad_negative_exterior_1d
 pad_negative_exterior_1d_check_limits
-pad_edge_1d
 pad_edge_1d_top_neg
 pad_edge_1d_top_neg_bigger_than_tensor
 pad_edge_1d_bottom_neg
 pad_edge_1d_bottom_neg_bigger_than_tensor
-pad_edge_2d
 pad_edge_2d_with_neg
-pad_reflect_1d
 pad_reflect_1d_top_neg
 pad_reflect_1d_top_neg_bigger_than_tensor
 pad_reflect_1d_bottom_neg
 pad_reflect_1d_bottom_neg_bigger_than_tensor
 pad_reflect_1d_multi_reflect
-pad_reflect_2d
 pad_reflect_2d_with_neg
 pad_negative_exterior_2d
 pad_negative_exterior_2d_all_negative
 pad_exterior_4d_1x2x2x2
 pad_negative_exterior_4d
 pad_2channel_2image_asym
-pad_symmetric
 
 # LRN operation should be converted to LRN_IE
 lrn_across_h
@@ -761,26 +617,7 @@ lrn_2d_across_outermost_axis
 dyn_group_convolution_backprop_filters
 
 # Layer <op_name> input port 1 is not connected to any data
-prelu
-prelu_shared_slope
-prelu_negative_slope
 convolution_simple_padding
-
-# Cannot cast ngraph node GatherND to CNNLayer!
-gather_nd_single_indices
-gather_nd_scalar_from_2d
-gather_nd_1d_from_2d
-gather_nd_scalar_from_3d
-gather_nd_1d_from_3d
-gather_nd_2d_from_3d
-gather_nd_batch_scalar_from_2d
-gather_nd_batch_1d_from_2d
-gather_nd_batch_scalar_from_3d
-gather_nd_batch_1d_from_3d
-gather_nd_batch_2d_from_3d
-gather_nd_batch_dims1
-gather_nd_batch_dims2
-gather_nd_batch_dims2_lead_dims
 
 # Cannot cast ngraph node Stack to CNNLayer!
 stack_matrix_rowise
@@ -798,14 +635,6 @@ conv_bias_bprop_2d
 # Cannot cast ngraph node ConvolutionBiasAdd to CNNLayer!
 conv_bias_add_2d
 
-# Unsupported primitive of type: SpaceToBatch
-space_to_batch
-batch_to_space
-
-# [Validation] Argument must have rank >= 2 and <= 4 (argument shape: {1,2,2,2,3})
-normalize_across_1axis_5d
-normalize_across_123axes_5d
-
 # Unsupported operator detected in the graph.
 gemm
 gemm_C
@@ -814,35 +643,6 @@ gemm_broadcast_axes_0_input_C
 gemm_broadcast_axes_1_input_C
 scale_shift_no_broadcast
 scale_shift
-
-# Cannot cast ngraph node ShuffleChannels to CNNLayer!
-shuffle_channels_simple
-shuffle_channels_negative_axis
-shuffle_channels_float
-
-# Cannot cast ngraph node LSTMCell to CNNLayer!
-lstm_cell_no_bias_no_peepholes
-lstm_cell_zero_bias_peepholes
-lstm_cell_zero_bias_peepholes_constant
-lstm_cell_fixed_no_bias_no_peepholes
-lstm_cell_bias_peepholes
-lstm_cell_bias_peepholes_clip_input_forget
-lstm_cell_activaction_functions
-
-# RNNCell should be converted to RNNCellIE operation!
-rnn_cell_no_bias
-rnn_cell_bias_clip
-rnn_cell_activation_function
-
-# GRUCell should be converted to GRUCellIE operation!
-gru_cell_bias_clip
-gru_cell_linear_before_reset
-gru_cell_activation_function
-
-# Detected op not belonging to opset1!
-onnx_model_quant_conv_linear
-onnx_model_quant_conv_linear_2d
-onnx_model_quant_conv_linear_3d
 
 # Cannot cast ngraph node Dot to CNNLayer!
 dot_4d_5d_multi_axis
@@ -866,12 +666,6 @@ cum_sum_default
 cum_sum_2dim
 cum_sum_3d
 cum_sum_2dim_allmodes
-
-# Cannot create MKLDNNMemoryDesc from TensorDesc. Unsupported precision!
-convert_uint16_float32
-
-# Unsupported primitive of type: Ceiling
-ceiling
 
 # Incorrect dimensions for broadcasting for Add
 auto_bcast_binary_elementwise_pdpd_dynamic
@@ -911,8 +705,12 @@ broadcast_algo_matrix_stride_1
 broadcast_algo_matrix_stride_2
 broadcast_algo_matrix_stride_3
 
-# Failing from new reason after unblocking more Blob types
+# Cannot find blob with name: Parameter_1
+dyn_group_convolution_backprop_data
+
+# todo: check negative indices implementation
 gather_2d_negative_and_positive_indices_axis_0_2d_input
+# Failing from new reason after unblocking more Blob types
 gather_axis_0_int8
 gather_axis_0_uint8
 gather_axis_0_uint32
@@ -925,8 +723,14 @@ strided_slice_stride_optional
 divide_int32
 divide_cpp_rounding_int32
 divide_python_rounding_int32
-convert_int32_bool
-lesseq_int32
+
+# Constant and Low Precision
+constant_equality_u4_2x2x3
+constant_equality_u4_1x3
+constant_equality_u4_1x10
+constant_equality_i4_2x2x3
+constant_equality_i4_1x3
+
 
 # Uncategorized
 convolution_2d_1item
@@ -976,19 +780,6 @@ topk_max_sort_index
 topk_min_sort_index
 topk_1d_i32_max_all
 topk_int64
-gelu_f32
-gelu_f64
-gelu_backprop_factor_f32
-gelu_backprop_factor_f64
-
-# Incorrect precision f64!
-batch_norm_inference_0eps_f64
-batch_norm_inference_f64
-batch_norm_training_0eps_f64
-
-# Function inputs number differ from number of given inputs
-batch_norm_inference_parameters_duplication
-batch_norm_inference_parameters_duplication_v5
 
 backwards_abs
 backwards_acos
@@ -1023,8 +814,6 @@ backwards_power
 backwards_relu
 backwards_replace_slice
 backwards_reshape
-backwards_select
-backwards_select_nested
 backwards_sigmoid
 backwards_sign
 backwards_sin
@@ -1075,16 +864,93 @@ non_zero
 non_zero_all_1s
 non_zero_all_0s
 
+# NormalizeL2 - output mismatch,
+# mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+# Issue: 59586
+IE_CPU.normalize_l2_4D_axes_123_big_eps_max
+IE_CPU.normalize_l2_4D_axes_123_big_eps_add
+
+# NormalizeL2 - Plugins support normalize over "channel" dimension
+# or "channel + all spatial" dimensions for 2D, 3D or 4D cases
+# Issue: 35627, 59791
+normalize_l2_1D_axes_empty_add
+normalize_l2_1D_axes_empty_max
+normalize_l2_1D_axes_0_add
+normalize_l2_1D_axes_0_max
+normalize_l2_2D_axes_0_add
+normalize_l2_2D_axes_0_max
+normalize_l2_2D_axes_01_add
+normalize_l2_2D_axes_01_max
+normalize_l2_3D_axes_2_add
+normalize_l2_3D_axes_2_max
+normalize_l2_4D_axes_0_max
+normalize_l2_4D_axes_0_add
+normalize_l2_4D_axes_2_max
+normalize_l2_4D_axes_2_add
+normalize_l2_4D_axes_3_max
+normalize_l2_4D_axes_3_add
+normalize_l2_4D_axes_23_max
+normalize_l2_4D_axes_23_add
+normalize_l2_4D_axes_0123_max
+normalize_l2_4D_axes_0123_add
+normalize_l2_5D_axes_empty_max
+normalize_l2_5D_axes_empty_add
+normalize_l2_5D_axes_1_max
+normalize_l2_5D_axes_1_add
+normalize_l2_5D_axes_2_max
+normalize_l2_5D_axes_2_add
+normalize_l2_5D_axes_3_max
+normalize_l2_5D_axes_3_add
+normalize_l2_5D_axes_4_max
+normalize_l2_5D_axes_4_add
+normalize_l2_5D_axes_34_max
+normalize_l2_5D_axes_34_add
+normalize_l2_5D_axes_234_max
+normalize_l2_5D_axes_234_add
+
+# (Constant W, R inputs are required) Ticket: 49207
+# W, R inputs as Parameter, default clip value
+# Operation has a form that is not supported.
+# LSTMCell_... should be converted to LSTMCellIE operation.
+lstm_cell_zero_bias_default_attrs
+lstm_cell_bias_default_attrs
+# RNNCell_.. should be converted to RNNCellIE operation.
+rnn_cell_zero_bias_default_attrs
+
+# Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
+# Activation function hardsigmoid is not supported
+gru_cell_hardsigmoid_activation_function
+
+# Roll is not implemented yet for CPU, GPU
+roll_2d_input
+roll_2d_input_negative_shift
+roll_repeated_axes
+roll_3d_input
+roll_3d_input_negative_shift
+roll_negative_axes
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine CPU plugin excludes
 #
 #-------------------------------------------------------------------------------
 
-# Cannot cast ngraph node ReplaceSlice to CNNLayer!
-# Incorrect precision u32!
-# Parameter has zero dimension that is not allowable
-IE_CPU.fused_clamp_uint32
+# Clamp op:
+# Issue 51676: Output mismatch due to wrong conversion of bounds
+IE_CPU.clamp_integral
+IE_CPU.clamp_integral_negative
+# Issue 51679: CI failure on Ubuntu 20. Overflow handling -inf lower bound
+IE_CPU.clamp_int32
+# Precision mismatch
+IE_CPU.clamp_uint32
+IE_CPU.clamp_uint16
+IE_CPU.clamp_int16
+IE_CPU.clamp_int64
+IE_CPU.clamp_float16
+# [NOT_IMPLEMENTED] Input image format U64 is not supported yet...
+IE_CPU.clamp_uint64
+# [NOT_IMPLEMENTED] Input image format BF16 is not supported yet...
+IE_CPU.clamp_bfloat16
 
 # Cannot cast ngraph node Reshape to CNNLayer!
 # Parameter has zero dimension that is not allowable
@@ -1102,16 +968,9 @@ IE_CPU.backwards_log
 IE_CPU.backwards_batchmatmultranspose_tensor2_tensor2
 IE_CPU.round_int64
 
-# Can't convert type f16 to IE Precision!
-IE_CPU.fused_clamp_float16
-
-# [NOT_IMPLEMENTED] Input image format BF16 is not supported yet...
-IE_CPU.fused_clamp_bfloat16
-
 # Operations were removed from opset
 IE_CPU.atanh
 IE_CPU.asinh
-IE_CPU.acosh
 
 # Unsupported collapse op with dynamic shape
 IE_CPU.builder_opset1_collapse_dyn_shape
@@ -1119,16 +978,107 @@ IE_CPU.builder_opset1_collapse_dyn_shape
 # nGraph Interpolate operation with name: Y cannot be converted to Interpolate layer with name:
 # Y because output with index 0 contains dynamic shapes: {?,?,?,?}
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
+IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
+mish_f16
 
-# Wrong output when axis 0
-IE_CPU.log_softmax_1d_single_value
-IE_CPU.log_softmax_2d_axis0
-IE_CPU.log_softmax_2d_axis_neg2
-IE_CPU.log_softmax_3d_axis_0
-IE_CPU.log_softmax_3d_axis_neg3
+# function with NMS-5 to get the nGraph function with NMSIE3 (internal
+# operation, similar with NMS-5, but with all static output shapes), before
+# the method compile() call, then tests for INTERPRETER backend for NMS-5 will
+# fail, because NMSIE3 has not the reference implementation, but NMS-5 has one.
+IE_CPU.nonmaxsuppression_center_point_box_format
+IE_CPU.nonmaxsuppression_flipped_coordinates
+IE_CPU.nonmaxsuppression_identical_boxes
+IE_CPU.nonmaxsuppression_limit_output_size
+IE_CPU.nonmaxsuppression_single_box
+IE_CPU.nonmaxsuppression_suppress_by_IOU
+IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores
+IE_CPU.nonmaxsuppression_two_batches
+IE_CPU.nonmaxsuppression_two_classes
+
+# Unsupported dynamic ops: v3::NonMaxSuppressionIE3
+IE_CPU.onnx_model_nonmaxsuppression_center_point_box_format
+IE_CPU.onnx_model_nonmaxsuppression_single_box
+IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores_without_constants
+
+# Unsupported dynamic op
+IE_CPU.multiclass_nms_by_score
+IE_CPU.multiclass_nms_by_class_id
+IE_CPU.multiclass_nms_output_type_i32
+IE_CPU.multiclass_nms_two_batches_two_classes_by_score
+IE_CPU.multiclass_nms_two_batches_two_classes_by_class_id
+IE_CPU.multiclass_nms_two_batches_two_classes_by_score_cross_batch
+IE_CPU.multiclass_nms_two_batches_two_classes_by_class_id_cross_batch
+IE_CPU.multiclass_nms_no_output
+IE_CPU.multiclass_nms_by_background
+IE_CPU.multiclass_nms_by_keep_top_k
+IE_CPU.multiclass_nms_by_nms_eta
+IE_CPU.multiclass_nms_flipped_coordinates
+IE_CPU.multiclass_nms_identical_boxes
+IE_CPU.multiclass_nms_limit_output_size
+IE_CPU.multiclass_nms_single_box
+IE_CPU.multiclass_nms_by_IOU
+IE_CPU.multiclass_nms_by_IOU_and_scores
+
+# Unsupported dynamic op
+IE_CPU.matrix_nms_output_type_i64
+IE_CPU.matrix_nms_output_type_i32
+IE_CPU.matrix_nms_gaussian
+IE_CPU.matrix_nms_two_batches_two_classes
+IE_CPU.matrix_nms_two_batches_two_classes_by_score_cross_batch
+IE_CPU.matrix_nms_two_batches_two_classes_by_classid_cross_batch
+IE_CPU.matrix_nms_by_keep_top_k
+IE_CPU.matrix_nms_background
+IE_CPU.matrix_nms_flipped_coordinates
+IE_CPU.matrix_nms_post_threshold
+IE_CPU.matrix_nms_identical_boxes
+IE_CPU.matrix_nms_nms_top_k
+IE_CPU.matrix_nms_single_box
+IE_CPU.matrix_nms_no_output
+
+# Unsupported dynamic op
+IE_CPU.range_v4_trunc_inputs
+IE_CPU.onnx_model_reduce_sum_13_axes_as_input
+IE_CPU.onnx_model_reduce_sum_13_input_dynamic
+IE_CPU.onnx_model_reduce_sum_13_axes_empty_dynamic_rank_input
+IE_CPU.onnx_model_reduce_sum_dynamic_rank_input
+IE_CPU.transpose_axes_parameter_static_shapes
+IE_CPU.transpose_axes_parameter_dynamic_shapes
+
+# Axes has zero dimension which is not allowed
+IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
+
+# output mismatch
+IE_CPU.gather_nd_batch_1d_from_3d_negative
+
+# nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
+IE_CPU.dft1d_eval_bfloat16
+IE_CPU.dft2d_eval_bfloat16
+IE_CPU.dft3d_eval_bfloat16
+IE_CPU.dft1d_eval_float16
+IE_CPU.dft2d_eval_float16
+IE_CPU.dft3d_eval_float16
+IE_CPU.onnx_constant_sparse_tensor_float16_3x4
+IE_CPU.onnx_float16_tensor_as_int32
+
+
+# nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
+IE_CPU.idft1d_eval_bfloat16
+IE_CPU.idft2d_eval_bfloat16
+IE_CPU.idft3d_eval_bfloat16
+IE_CPU.idft1d_eval_float16
+IE_CPU.idft2d_eval_float16
+IE_CPU.idft3d_eval_float16
+
+# The plugin does not support UNSPECIFIED
+IE_CPU.onnx_constant_sparse_tensor_uint32_3x4
+IE_CPU.onnx_constant_sparse_tensor_double_3x4
+
+# Sparse tensor with (u)i16 type tests
+IE_CPU.onnx_constant_sparse_tensor_int16_3x4
+IE_CPU.onnx_constant_sparse_tensor_uint16_3x4
 
 #-------------------------------------------------------------------------------
 #
@@ -1347,7 +1297,7 @@ IE_GPU.normalize_across_chw_4d
 IE_GPU.normalize_across_h_4d
 IE_GPU.normalize_across_c_2x2_shape
 IE_GPU.normalize_across_c_2x4_shape
-IE_GPU.fused_clamp
+IE_GPU.clamp
 IE_GPU.grn_4d
 IE_GPU.squeeze
 IE_GPU.squared_difference
@@ -1360,7 +1310,6 @@ IE_GPU.divide_overload
 IE_GPU.divide_by_zero_float32
 IE_GPU.cosh
 IE_GPU.cos
-IE_GPU.convert_int32_float32
 IE_GPU.concat_negative_axis
 IE_GPU.concat_matrix_colwise
 IE_GPU.concat_matrix_rowwise
@@ -1419,7 +1368,14 @@ IE_GPU.onnx_dyn_shapes_model_acosh_1_3
 IE_GPU.onnx_dyn_shapes_model_acosh_3_2
 IE_GPU.onnx_dyn_shapes_model_asinh_1_3
 IE_GPU.onnx_dyn_shapes_model_asinh_3_2
-# IE_GPU.onnx_upsample9_scales_input_nearest_infer
+
+# RNN/GRU/LSTM Sequence: Output values mismatch - seq_lengths not supported
+IE_GPU.onnx_model_lstm_fwd_mixed_seq_const
+IE_GPU.onnx_model_lstm_reverse_mixed_seq_const
+IE_GPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_GPU.onnx_model_rnn_fwd_mixed_seq_len_const
+IE_GPU.onnx_model_gru_fwd_mixed_seq_len
+IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
 
 IE_GPU.sum_matrix_6d
 IE_GPU.sqrt
@@ -1470,22 +1426,149 @@ IE_GPU.region_yolo_v3_mxnet
 # Detected op not belonging to opset1!
 IE_GPU.round_int64
 
-# Unsupported collapse op with dynamic shape
+# Unsupported ops with dynamic shape
 IE_GPU.builder_opset1_collapse_dyn_shape
+IE_GPU.convert_like_dyn_float16_to_int64
 
 IE_GPU.onnx_model_fake_quantize_const_inputs_infer
 IE_GPU.onnx_model_fake_quantize_nonconst_inputs_infer
 
-# ONNX Loop
-onnx_controlflow_loop_2d_add_execution
+# Not supported dynamic shapes cases for Loop
+onnx_controlflow_loop_2d_no_identity_termination_cond
+onnx_controlflow_loop_2d_no_identity_termination_cond_false
+onnx_controlflow_loop_2d_trip_count_max_int
+onnx_controlflow_loop_2d_const_no_identity_termination_cond
+onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
+onnx_controlflow_loop_no_variadic_inputs_and_outputs
+onnx_controlflow_loop_power
+onnx_if_dynamic_inputs
 
-# ONNX Loop - tests disabled temporarily
-onnx_controlflow_loop_2d_add_check_model
-onnx_controlflow_loop_scalars_check_model
-onnx_controlflow_loop_add_initializer_from_parent_scope
-onnx_controlflow_loop_add_input_from_parent_scope
-onnx_controlflow_loop_add_node_from_parent_scope
-onnx_controlflow_loop_add_value_access_to_body_scope_exception
-onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph
-onnx_controlflow_loop_2d_add_exception_if_no_identity_cond
-onnx_controlflow_loop_2d_add_const_cond
+# Input body shape is changed during Loop iterations
+# Exception is throw during Loop shape inference
+onnx_controlflow_loop_concat_values
+
+# dynamic trip count
+onnx_controlflow_loop_2d_trip_count_dynamic
+
+# Infinitive Loop is not supported
+onnx_controlflow_loop_infinite
+
+# unsupported dynamic ops
+onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis
+IE_GPU.range_v4_trunc_inputs
+variadic_split_1d_dynamic
+variadic_split_2d_axis_0_dynamic
+variadic_split_2d_axis_1_dynamic
+variadic_split_4d_axis_0_dynamic
+variadic_split_4d_axis_1_dynamic
+variadic_split_4d_axis_2_dynamic
+variadic_split_4d_axis_3_dynamic
+
+# CPU plugin does not support bool type
+IE_CPU.evaluate_2D_gather_elements_3x2_data_bool
+
+# CPU plugin does not validate whether indices values are out of range
+IE_CPU.evaluate_1D_gather_elements_negative_test
+IE_CPU.evaluate_2D_gather_elements_negative_test
+
+# not implemented yet on GPU plugin
+IE_GPU.evaluate_1D_gather_elements_3_indices_int32
+IE_GPU.evaluate_2D_gather_elements_2x2_indices_int32_axis_0
+IE_GPU.evaluate_2D_gather_elements_2x2_indices_int32_axis_1
+IE_GPU.evaluate_2D_gather_elements_2x2_indices_int32_axis_minus_1
+IE_GPU.evaluate_2D_gather_elements_2x3_indices_int32
+IE_GPU.evaluate_3D_gather_elements_3x2x2_indices_int32
+IE_GPU.evaluate_3D_gather_elements_3x2x2_indices_int64
+IE_GPU.evaluate_2D_gather_elements_3x2_data_bool
+IE_GPU.evaluate_2D_gather_elements_2x3_data_float32
+IE_GPU.evaluate_1D_gather_elements_negative_test
+IE_GPU.evaluate_2D_gather_elements_negative_test
+IE_GPU.evaluate_2D_gather_elements_2x2x1_data_float32
+IE_GPU.evaluate_4D_gather_elements_3x2x2x2_indices_int64
+IE_GPU.onnx_model_gather_elements_float_1D
+IE_GPU.onnx_model_gather_elements_float_negative_axis
+IE_GPU.onnx_model_gather_elements_int32_axis_0
+IE_GPU.onnx_model_gather_elements_int8_axis_1
+IE_GPU.onnx_model_gather_elements_float_3D_axis_2
+
+# not supported fp16 blob input
+IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
+
+IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
+
+# not yet implemented on CPU/GPU Gather 7
+gather_v7_data_int32_2d_indices_axis_1_negative_batch_dims
+gather_v7_1d_int32
+gather_v7_data_int32_3d_indices_axis_1_batch_dims_1
+gather_v7_data_int32_2d_indices_axis_1_batch_dims_1
+gather_v7_3d_indices_axis_1_batch_dims_1
+gather_v7_4d_indices_axis_0_uint8
+gather_v7_4d_indices_axis_0_2d_input
+gather_v7_3d_indices_axis_0_2d_input
+gather_v7_2d_indices_axis_0_2d_input
+gather_v7_2d_negative_and_positive_indices_axis_0_2d_input
+gather_v7_1d_indices_axis_0_1d_input
+gather_v7_scalar_indices_axis_0_2d_input
+gather_v7_2d_indices_axis_1_2d_input
+gather_v7_1d_indices_axis_2_4d_input
+gather_v7_scalar_indices_axis_1_2d_input
+gather_v7_axis_0_int8
+gather_v7_axis_0_int16
+gather_v7_axis_0_int32
+gather_v7_axis_0_int64
+gather_v7_axis_0_uint8
+gather_v7_axis_0_uint16
+gather_v7_axis_0_uint32
+gather_v7_axis_0_uint64
+gather_v7_axis_0_bool
+gather_v7_3d_indices_axis_1_batch_dims_1_int32
+gather_v7_4d_data_axis_2_batch_dims_1_int32
+
+# Issue 49621: Incorrect blob sizes for node BinaryConvolution_X
+bin_convolution_2D_1batch_1channel
+bin_convolution_2D_1batch_1channel_padding_pad_val_0
+bin_convolution_2D_1batch_1channel_padding_pad_val_1
+bin_convolution_2D_1batch_1channel_stride
+bin_convolution_2D_1batch_1channel_dilation
+bin_convolution_2D_1batch_1channel_strides_dilation_padding_pad_val_0
+bin_convolution_2D_1batch_1channel_strides_dilation_padding_pad_val_1
+bin_convolution_2D_1batch_2channel
+bin_convolution_2D_2batch_1channel
+
+# RuntimeError: Unsupported dynamic ops: v4::Interpolate - Ticket: 50691
+onnx_upsample6_dynamic
+
+# random values returned from the plugin: ticket 51762
+onnx_model_deformable_conv_2d
+
+# DeformableConvolution groups attribute: ticket 53312 (fixed, but reproduced after v8->v1 conversion was enabled)
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups
+
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_2D_real_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_real_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_real_offsets_groups_and_deforgroups
+# No plugin support for DeformableConvolution v8
+IE_GPU.deformable_convolution_opset8_2D_v8_zeroed_offsets_default_mask
+IE_GPU.deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups_mask
+IE_GPU.deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups_mask_2
+IE_GPU.deformable_convolution_opset8_2D_neg_offsets_groups_and_deforgroups_mask
+# results missmatch, ticket: 59600
+IE_GPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
+IE_GPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
+
+# Not yet implemented - refer PR#6601
+IE_CPU.onnx_model_gather_float_2D_neg_indices

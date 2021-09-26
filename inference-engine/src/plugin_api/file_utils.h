@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,71 +15,34 @@
 
 #include "ie_api.h"
 #include "details/ie_so_pointer.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace FileUtils {
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Interface function to get absolute path of file
+ * @ingroup ie_dev_api_file_utils
+ * @param filePath - path to file, can be relative to current working directory
+ * @return Absolute path of file
+ * @throw InferenceEngine::Exception if any error occurred
+ */
+INFERENCE_ENGINE_API_CPP(std::string) absoluteFilePath(const std::string& filePath);
 
 /**
- * @brief Conversion from wide character string to a single-byte chain.
- * @param wstr A wide-char string
- * @return A multi-byte string
+ * @brief Interface function to create directorty recursively by given path
+ * @ingroup ie_dev_api_file_utils
+ * @param dirPath - path to file, can be relative to current working directory
+ * @throw InferenceEngine::Exception if any error occurred
  */
-INFERENCE_ENGINE_API_CPP(std::string) wStringtoMBCSstringChar(const std::wstring& wstr);
+INFERENCE_ENGINE_API_CPP(void) createDirectoryRecursive(const std::string& dirPath);
 
 /**
- * @brief Conversion from single-byte chain to wide character string.
- * @param str A null-terminated string
- * @return A wide-char string
+ * @brief Interface function to check if directory exists for given path
+ * @ingroup ie_dev_api_file_utils
+ * @param path - path to directory
+ * @return true if directory exists, false otherwise
  */
-INFERENCE_ENGINE_API_CPP(std::wstring) multiByteCharToWString(const char* str);
-
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
-
-template <typename T> struct FileTraits;
-
-#ifdef _WIN32
-
-/// @brief File path separator
-const char FileSeparator = '\\';
-
-template<> struct FileTraits<char> {
-    constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
-    static std::string SharedLibraryPrefix() { return { }; }
-    static std::string SharedLibraryExt() { return { "dll" }; }
-};
-template<> struct FileTraits<wchar_t> {
-    constexpr static const auto FileSeparator = L'\\';
-    static std::wstring SharedLibraryPrefix() { return { }; }
-    static std::wstring SharedLibraryExt() { return { L"dll" }; }
-};
-#elif defined __APPLE__
-/// @brief File path separator
-const char FileSeparator = '/';
-template<> struct FileTraits<char> {
-    constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
-    static std::string SharedLibraryPrefix() { return { "lib" }; }
-    static std::string SharedLibraryExt() { return { "dylib" }; }
-};
-template<> struct FileTraits<wchar_t> {
-    constexpr static const auto FileSeparator = L'/';
-    static std::wstring SharedLibraryPrefix() { return { L"lib" }; }
-    static std::wstring SharedLibraryExt() { return { L"dylib" }; }
-};
-#else
-/// @brief File path separator
-const char FileSeparator = '/';
-template<> struct FileTraits<char> {
-    constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
-    static std::string SharedLibraryPrefix() { return { "lib" }; }
-    static std::string SharedLibraryExt() { return { "so" }; }
-};
-template<> struct FileTraits<wchar_t> {
-    constexpr static const auto FileSeparator = L'/';
-    static std::wstring SharedLibraryPrefix() { return { L"lib" }; }
-    static std::wstring SharedLibraryExt() { return { L"so" }; }
-};
-#endif
+INFERENCE_ENGINE_API_CPP(bool) directoryExists(const std::string& path);
 
 /**
  * @brief Interface function to get the size of a file. The function supports UNICODE path
@@ -89,7 +52,7 @@ template<> struct FileTraits<wchar_t> {
  */
 INFERENCE_ENGINE_API(long long) fileSize(const char *fileName);
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief      Returns file size for file with UNICODE path name
@@ -100,10 +63,10 @@ INFERENCE_ENGINE_API(long long) fileSize(const char *fileName);
  * @return     { description_of_the_return_value }
  */
 inline long long fileSize(const wchar_t* fileName) {
-    return fileSize(::FileUtils::wStringtoMBCSstringChar(fileName).c_str());
+    return fileSize(::ov::util::wstring_to_string(fileName).c_str());
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief Function to get the size of a file. The function supports UNICODE path
@@ -150,12 +113,8 @@ template <typename C, typename = InferenceEngine::details::enableIfSupportedChar
 inline std::basic_string<C> makePath(const std::basic_string<C> &folder, const std::basic_string<C> &file) {
     if (folder.empty())
         return file;
-    return folder + FileTraits<C>::FileSeparator + file;
+    return folder + ov::util::FileTraits<C>::file_separator + file;
 }
-
-template <typename C> struct DotSymbol;
-template <> struct DotSymbol<char> { constexpr static const char value = '.'; };
-template <> struct DotSymbol<wchar_t> { constexpr static const wchar_t value = L'.'; };
 
 /**
  * @brief CPP Interface function to extract extension from filename
@@ -165,45 +124,19 @@ template <> struct DotSymbol<wchar_t> { constexpr static const wchar_t value = L
  */
 template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
 inline std::basic_string<C> fileExt(const std::basic_string<C> &filename) {
-    auto pos = filename.rfind(DotSymbol<C>::value);
+    auto pos = filename.rfind(ov::util::FileTraits<C>::dot_symbol);
     if (pos == std::string::npos)
         return {};
     return filename.substr(pos + 1);
 }
 
 template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
-inline std::basic_string<C> makeSharedLibraryName(const std::basic_string<C> &path, const std::basic_string<C> &input) {
-    std::basic_string<C> separator(1, FileTraits<C>::FileSeparator);
+inline std::basic_string<C> makePluginLibraryName(const std::basic_string<C> &path, const std::basic_string<C> &input) {
+    std::basic_string<C> separator(1, ov::util::FileTraits<C>::file_separator);
     if (path.empty())
         separator = {};
-    return path + separator + FileTraits<C>::SharedLibraryPrefix() + input + DotSymbol<C>::value + FileTraits<C>::SharedLibraryExt();
+    return path + separator + ov::util::FileTraits<C>::library_prefix() + input + ov::util::FileTraits<C>::dot_symbol + ov::util::FileTraits<C>::library_ext();
 }
-
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-
-using FilePath = std::wstring;
-
-inline std::string fromFilePath(const FilePath & path) {
-    return ::FileUtils::wStringtoMBCSstringChar(path);
-}
-
-inline FilePath toFilePath(const std::string & path) {
-    return ::FileUtils::multiByteCharToWString(path.c_str());
-}
-
-#else
-
-using FilePath = std::string;
-
-inline std::string fromFilePath(const FilePath & path) {
-    return path;
-}
-
-inline FilePath toFilePath(const std::string & path) {
-    return path;
-}
-
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
 
 }  // namespace FileUtils
 // clang-format on
@@ -217,7 +150,7 @@ namespace InferenceEngine {
  */
 INFERENCE_ENGINE_API_CPP(std::string) getIELibraryPath();
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief   Returns a unicode path to Inference Engine library
@@ -226,16 +159,16 @@ INFERENCE_ENGINE_API_CPP(std::string) getIELibraryPath();
  */
 INFERENCE_ENGINE_API_CPP(std::wstring) getIELibraryPathW();
 
-inline ::FileUtils::FilePath getInferenceEngineLibraryPath() {
+inline ::ov::util::FilePath getInferenceEngineLibraryPath() {
     return getIELibraryPathW();
 }
 
 #else
 
-inline ::FileUtils::FilePath getInferenceEngineLibraryPath() {
+inline ::ov::util::FilePath getInferenceEngineLibraryPath() {
     return getIELibraryPath();
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 }  // namespace InferenceEngine

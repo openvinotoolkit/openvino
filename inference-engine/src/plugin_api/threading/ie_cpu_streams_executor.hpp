@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,9 +30,9 @@ public:
     using Ptr = std::shared_ptr<CPUStreamsExecutor>;
 
     /**
-    * @brief Constructor
-    * @param config Stream executor parameters
-    */
+     * @brief Constructor
+     * @param config Stream executor parameters
+     */
     explicit CPUStreamsExecutor(const Config& config = {});
 
     /**

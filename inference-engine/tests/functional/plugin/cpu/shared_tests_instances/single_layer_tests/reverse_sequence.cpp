@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@ namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::U8, //doesn't match the reference values
-        InferenceEngine::Precision::I8, //doesn't match the reference values
+        InferenceEngine::Precision::U8,
+        InferenceEngine::Precision::I8,
         InferenceEngine::Precision::U16,
         InferenceEngine::Precision::I32
 };
@@ -33,7 +33,7 @@ const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER
 };
 
-INSTANTIATE_TEST_CASE_P(Basic_smoke, ReverseSequenceLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequence, ReverseSequenceLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(batchAxisIndices),
                             ::testing::ValuesIn(seqAxisIndices),

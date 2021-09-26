@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,16 +22,22 @@ endif()
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 
-# Create library file from sources.
-add_library(${TARGET_NAME} SHARED
+# Create module library file from sources.
+add_library(${TARGET_NAME} MODULE
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS})
 
-target_include_directories (${TARGET_NAME} PRIVATE
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-        PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+if(TARGET IE::inference_engine_plugin_api)
+    target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine_plugin_api)
+else()
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api)
+endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+
+install(TARGETS ${TARGET_NAME}
+        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)

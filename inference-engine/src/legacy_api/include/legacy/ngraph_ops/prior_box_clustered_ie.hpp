@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,8 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(PriorBoxClusteredIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"PriorBoxClusteredIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("PriorBoxClusteredIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a PriorBoxClusteredIE operation
     ///
@@ -31,7 +31,7 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
+    bool visit_attributes(AttributeVisitor& visitor) override;
     const PriorBoxClusteredAttrs& get_attrs() const { return m_attrs; }
 
 private:

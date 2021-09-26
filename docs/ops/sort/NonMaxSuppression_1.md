@@ -10,12 +10,12 @@
 
 1.  Take the box with highest score. If the score is less than `score_threshold` then stop. Otherwise add the box to the
 output and continue to the next step.
-2.  For each input box, calculate the IOU (intersection over union) with the box added during the previous step. If the 
-value is greater than the `iou_threshold` threshold then remove the input box from further consideration.  
+2.  For each input box, calculate the IOU (intersection over union) with the box added during the previous step. If the
+value is greater than the `iou_threshold` threshold then remove the input box from further consideration.
 3.  Return to step 1.
 
 This algorithm is applied independently to each class of each batch element. The total number of output boxes for each
-class must not exceed `max_output_boxes_per_class`. 
+class must not exceed `max_output_boxes_per_class`.
 
 **Attributes**:
 
@@ -32,29 +32,29 @@ class must not exceed `max_output_boxes_per_class`.
 * *sort_result_descending*
 
   * **Description**: *sort_result_descending* is a flag that specifies whenever it is necessary to sort selected boxes across batches or not.
-  * **Range of values**: True of False
-    * *True* - sort selected boxes across batches.
-    * *False* - do not sort selected boxes across batches (boxes are sorted per class).
+  * **Range of values**: true of false
+    * *true* - sort selected boxes across batches.
+    * *false* - do not sort selected boxes across batches (boxes are sorted per class).
   * **Type**: boolean
-  * **Default value**: True
+  * **Default value**: true
   * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: `boxes` - floating point tensor of shape `[num_batches, num_boxes, 4]` with box coordinates. Required.
+*   **1**: `boxes` - floating-point tensor of shape `[num_batches, num_boxes, 4]` with box coordinates. **Required.**
 
-*   **2**: `scores` - floating point tensor of shape `[num_batches, num_classes, num_boxes]` with box scores. Required.
+*   **2**: `scores` - floating-point tensor of shape `[num_batches, num_classes, num_boxes]` with box scores. **Required.**
 
 *   **3**: `max_output_boxes_per_class` - integer scalar tensor specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
 
-*   **4**: `iou_threshold` - floating point scalar tensor specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
+*   **4**: `iou_threshold` - floating-point scalar tensor specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
 
-*   **5**: `score_threshold` - floating point scalar tensor specifying minimum score to consider box for the processing. Optional with default value 0.
+*   **5**: `score_threshold` - floating-point scalar tensor specifying minimum score to consider box for the processing. Optional with default value 0.
 
 **Outputs**:
 
 *   **1**: `selected_indices` - integer tensor of shape `[min(num_boxes, max_output_boxes_per_class * num_classes), 3]` containing information about selected boxes as triplets `[batch_index, class_index, box_index]`.
-The output tensor is filled with 0s for output tensor elements if the total number of selected boxes is less than the output tensor size.
+The output tensor is filled with -1s for output tensor elements if the total number of selected boxes is less than the output tensor size.
 
 **Example**
 

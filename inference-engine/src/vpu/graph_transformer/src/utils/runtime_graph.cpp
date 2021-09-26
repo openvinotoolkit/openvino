@@ -1,15 +1,14 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "vpu/utils/runtime_graph.hpp"
 
-#include "generic_ie.hpp"
-
 #include <legacy/ie_util_internal.hpp>
-#include <legacy/ie_ngraph_utils.hpp>
+#include <ie_ngraph_utils.hpp>
 #include <exec_graph_info.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph/ngraph.hpp>
 
 #include <vector>
 #include <map>
@@ -26,7 +25,7 @@ std::map<std::string, std::string> extractMeta(const StageMetaInfo&);
 
 }  // namespace
 
-InferenceEngine::CNNNetwork buildRuntimeGraph(GraphMetaInfo& graphMetaInfo, const std::vector<float>& perfInfo) {
+std::shared_ptr<ngraph::Function> buildRuntimeGraph(GraphMetaInfo& graphMetaInfo, const std::vector<float>& perfInfo) {
     std::map<size_t, std::shared_ptr<ngraph::Node>> stageMetaIndexToNode;
     std::function<void(size_t)> createNodeFromMeta;
 
@@ -81,7 +80,7 @@ InferenceEngine::CNNNetwork buildRuntimeGraph(GraphMetaInfo& graphMetaInfo, cons
         if (stageMeta.stageType == "Input") {
             params.emplace_back(std::make_shared<ngraph::op::Parameter>());
             node = params.back();
-        } else if (stageMeta.childsNum == 0) {
+        } else if (stageMeta.childrenNum == 0) {
             results.emplace_back(std::make_shared<ngraph::op::Result>(inputs.back()));
             node = results.back();
         } else {
@@ -113,105 +112,7 @@ InferenceEngine::CNNNetwork buildRuntimeGraph(GraphMetaInfo& graphMetaInfo, cons
         createNodeFromMeta(i);
     }
 
-    auto ngraph = std::make_shared<ngraph::Function>(results, params, graphMetaInfo.graphName);
-    InferenceEngine::CNNNetwork net(ngraph);
-    return net;
-}
-
-InferenceEngine::CNNNetwork buildRuntimeGraphAsIeNet(GraphMetaInfo& graphMetaInfo, const std::vector<float>& perfInfo) {
-    auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>();
-    net->setName(graphMetaInfo.graphName);
-
-    std::map<size_t, CNNLayerPtr> stageMetaIndexToLayer;
-
-    auto createLayerFromMeta = [&](const StageMetaInfo &stageMetaInfo) -> CNNLayer::Ptr {
-        auto layer = std::make_shared<CNNLayer>(LayerParams{stageMetaInfo.stageName,
-                                                            stageMetaInfo.layerType,
-                                                            Precision::FP16});
-        const auto metaData = extractMeta(stageMetaInfo);
-        for (const auto& meta : metaData) {
-            layer->params[meta.first] = meta.second;
-        }
-
-        return layer;
-    };
-
-    //
-    // Write performance counts
-    //
-
-    const auto deviceTimings = perfInfo.data();
-    auto deviceTimingsCount = perfInfo.size();
-
-    if (deviceTimingsCount > 0) {
-        std::size_t timeIndex = 0;
-
-        for (auto &stageMeta : graphMetaInfo.stagesMeta) {
-            if (stageMeta.status == ie::InferenceEngineProfileInfo::EXECUTED &&
-                timeIndex < deviceTimingsCount) {
-                stageMeta.execTime += deviceTimings[timeIndex];
-                timeIndex++;
-            }
-        }
-    }
-
-    //
-    // Add all stages to network
-    //
-
-    for (std::size_t i = 0; i < graphMetaInfo.stagesMeta.size(); i++) {
-        const auto stageMetaData = graphMetaInfo.stagesMeta[i];
-
-        if (stageMetaData.status == ie::InferenceEngineProfileInfo::LayerStatus::OPTIMIZED_OUT ||
-            stageMetaData.stageName == "<Receive-Tensor>" ||
-            stageMetaData.stageName == "<none>") {
-            continue;
-        }
-
-        auto layer = createLayerFromMeta(stageMetaData);
-        stageMetaIndexToLayer.insert(std::make_pair(i, layer));
-        net->addLayer(layer);
-    }
-
-    //
-    // Add all edges to network
-    //
-
-    for (const auto &dataMetaData : graphMetaInfo.datasMeta) {
-        ::InferenceEngine::DataPtr data;
-
-        auto parent = stageMetaIndexToLayer[dataMetaData.parentIndex];
-        data = std::make_shared<::InferenceEngine::Data>(dataMetaData.name, dataMetaData.desc);
-        parent->outData.push_back(data);
-        getCreatorLayer(data) = parent;
-
-        for (auto &childMetaIndex : dataMetaData.childrenIndices) {
-            auto child = stageMetaIndexToLayer[childMetaIndex];
-            getInputTo(data)[child->name] = child;
-            child->insData.push_back(data);
-        }
-    }
-
-    //
-    // Specify inputs data
-    //
-
-    for (std::size_t i = 0; i < graphMetaInfo.stagesMeta.size(); i++) {
-        const auto stageMetaData = graphMetaInfo.stagesMeta[i];
-
-        if (stageMetaData.layerType != "Input" ||
-            stageMetaData.stageName == "<Receive-Tensor>" ||
-            stageMetaData.stageName == "<none>") {
-            continue;
-        }
-
-        auto input = stageMetaIndexToLayer[i];
-        auto inputInfo = std::make_shared<InputInfo>();
-        inputInfo->setInputData(input->outData[0]);
-        net->setInputInfo(inputInfo);
-    }
-
-    return InferenceEngine::CNNNetwork{net};
+    return std::make_shared<ngraph::Function>(results, params, graphMetaInfo.graphName);
 }
 
 namespace {
@@ -226,7 +127,8 @@ std::map<std::string, std::string> extractMeta(const StageMetaInfo& stageMeta) {
     if (stageMeta.execOrder < 0 || stageMeta.execTime == 0) {
         serializationInfo[ExecGraphInfoSerialization::PERF_COUNTER] = "not_executed";
     } else {
-        serializationInfo[ExecGraphInfoSerialization::PERF_COUNTER] = std::to_string(stageMeta.execTime);
+        int execTimeMcs = stageMeta.execTime * 1000; // ms to mcs
+        serializationInfo[ExecGraphInfoSerialization::PERF_COUNTER] = std::to_string(execTimeMcs);
     }
     std::stringstream layoutStream;
     int ind = 0;

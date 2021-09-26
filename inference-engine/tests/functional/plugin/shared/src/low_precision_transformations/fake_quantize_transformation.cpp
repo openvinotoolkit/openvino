@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,34 +12,52 @@
 
 #include <transformations/init_node_info.hpp>
 
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+
 namespace LayerTestsDefinitions {
 
-std::string FakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
+    ngraph::element::Type netPrecision;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShapes, targetDevice, params, fakeQuantizeOnData) = obj.param;
+    FakeQuantizeTransformationParam testParams;
+    std::tie(netPrecision, inputShape, targetDevice, params, testParams) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << "_" << fakeQuantizeOnData;
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" << testParams.fakequantize;
     return result.str();
 }
 
 void FakeQuantizeTransformation::SetUp() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
+    FakeQuantizeTransformationParam testParams;
+    std::tie(netPrecision, inputShape, targetDevice, params, testParams) = this->GetParam();
 
     function = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
-        FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision),
+        params,
+        netPrecision,
         inputShape,
-        fakeQuantizeOnData);
+        testParams.fakequantize,
+        true);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+}
+
+void FakeQuantizeTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<4>(GetParam());
+    const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
+    auto expectedPrecision = params.expectedKernelType;
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+        expectedPrecision = "FP16";
+    }
+
+    EXPECT_EQ(actualPrecision, expectedPrecision);
 }
 
 TEST_P(FakeQuantizeTransformation, CompareWithRefImpl) {

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 from copy import deepcopy
@@ -21,13 +8,28 @@ import numpy as np
 
 from extensions.middle.SliceConverter import ConvertSlice
 from extensions.ops.split import VariadicSplit
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array
 from mo.graph.graph import Graph, Node, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.op import Op
 from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
+from mo.utils.utils import unique_by
+
+
+def strided_slices_equality(lhs: Node, rhs: Node) -> bool:
+    """
+    Equality criterion for StridedSlice layers.
+    :param lhs: the first StridedSlice layer
+    :param rhs: the second StridedSlice layer
+    :return: True, if lhs and rhs have identical attributes 'slices', 'begin_mask', 'end_mask', 'ellipsis_mask',
+             'new_axis_mask', 'shrink_axis_mask', and False otherwise.
+    """
+    for attr in ['slices', 'new_axis_mask', 'shrink_axis_mask', 'begin_mask', 'end_mask', 'ellipsis_mask']:
+        if not np.array_equal(lhs[attr], rhs[attr]):
+            return False
+    return True
 
 
 class ConvertGroupedStridedSlice(MiddleReplacementPattern):
@@ -53,7 +55,8 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        return [ConvertSlice]
+        from extensions.middle.StridedSliceNormalizer import StridedSliceNormalizer
+        return [ConvertSlice, StridedSliceNormalizer]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleFinish
@@ -66,14 +69,27 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             if input_data.value is not None:
                 continue
 
-            input_shape = np.array(input_data.shape)
+            if input_data.shape is None:
+                continue
+            input_shape = shape_array(input_data.shape)
 
-            # Get all StridedSlice consumers
-            out_nodes = [node for node in input_data.out_nodes() if node.op == 'StridedSlice' and node.in_node(0).name == input_data.name]
+            # Get all unique StridedSlice consumers
+            out_nodes = [node for node in input_data.out_nodes() if node.op == 'StridedSlice' and
+                         node.in_node(0).id == input_data.id]
+
             if len(out_nodes) <= 1:
                 continue
 
             valid_for_replacement = True
+            for n in out_nodes:
+                if any(not isinstance(s, slice) for s in n.slices):
+                    # this is a slice with dynamic dimension. Such operation is not valid for replacement
+                    valid_for_replacement = False
+            if not valid_for_replacement:
+                continue
+
+            sorted_out_nodes = sorted(out_nodes, key=lambda n: list(n.slices))
+            out_nodes = unique_by(sorted_out_nodes, strided_slices_equality)
 
             for node in out_nodes:
                 if len(node.slices) != len(out_nodes[0].slices):
@@ -83,7 +99,8 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             split_channel_dim = None
             for dim_id, s in enumerate(out_nodes[0].slices):
                 l, r, stride = s.start, s.stop, s.step
-                if l != 0 or r != input_shape[dim_id]:
+                # if both l and r are None then the dimension is not sliced
+                if (l != 0 or r != input_shape[dim_id]) and (l is not None or r is not None):
                     if split_channel_dim is None:
                         split_channel_dim = dim_id
                     else:
@@ -148,7 +165,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                     size_splits.append(l - prev_r)
                     shape[split_channel_dim] = l - prev_r
                     data_node = Op._create_data_node(graph, 'fake_data_'+out_nodes[0].name, {'shape': shape})
-                    add_opoutput(graph, data_node.id, 0, False)
+                    add_opoutput(graph, data_node.id, 0, False, keep_output_port=True)
                     final_data_nodes_list.append(data_node)
 
                 prev_r = r
@@ -161,7 +178,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                 shape[split_channel_dim] = input_shape[split_channel_dim] - prev_r
                 size_splits.append(input_shape[split_channel_dim] - prev_r)
                 data_node = Op._create_data_node(graph, 'fake_data_'+out_nodes[0].name, {'shape': shape})
-                add_opoutput(graph, data_node.id, 0, False)
+                add_opoutput(graph, data_node.id, 0, False, keep_output_port=True)
                 final_data_nodes_list.append(data_node)
 
             for node in out_nodes:

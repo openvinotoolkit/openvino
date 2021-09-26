@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,16 +7,18 @@
 #include <string>
 #include <memory>
 
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 
 
 namespace LayerTestsDefinitions {
 class ReshapeTransformationParam {
 public:
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::vector<int> reshapeConstValues;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    std::string layerType;
+    std::string expectedKernelType;
 };
 
 typedef std::tuple<
@@ -30,10 +32,11 @@ class ReshapeTransformation :
     public testing::WithParamInterface<ReshapeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReshapeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReshapeTransformationParams>& obj);
 
 protected:
     void SetUp() override;
+    void Run() override;
 };
 
 }  // namespace LayerTestsDefinitions

@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/backend/backend.hpp>
 
-#include <vpu/parsed_config.hpp>
 #include <vpu/compile_env.hpp>
 #include <vpu/utils/auto_scope.hpp>
 #include <vpu/utils/dot_io.hpp>
@@ -63,9 +62,6 @@ int BackEnd::serializeIOInfoSection(
             VPU_INTERNAL_CHECK(data->producerEdge() == nullptr,
                 "serializeIOInfoSection failed on input data {}. Input must have no producer but actually it has: {} with type {}",
                 data->name(), data->producerEdge()->producer()->name(), data->producerEdge()->producer()->type());
-            VPU_INTERNAL_CHECK(data->numConsumers() != 0,
-                "serializeIOInfoSection failed on input data {}. Input must have at least one consumer but it doesn't ",
-                data->usage());
         }
 
         if (dataUsage == DataUsage::Output) {
@@ -150,7 +146,10 @@ void BackEnd::serializeConstShapes(const Model& model, const mv_blob_header& blo
             serializeToBlob(data->desc().dims(), shapeLocation.dimsOffset);
         } else if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Input) {
             auto ioDimsUpperBoundOffset = data->attrs().get<int>("ioDimsUpperBoundOffset");
-            serializeToBlob(data->desc().dims(), ioDimsUpperBoundOffset);
+            auto d = data->desc().dims();
+            if (d.has(Dim::N))
+                d.set(Dim::N, d.get(Dim::N, 1) * data->attrs().getOrDefault<int>("batch", 1));
+            serializeToBlob(d, ioDimsUpperBoundOffset);
         }
 
         if (shapeLocation.stridesLocation == Location::Blob) {

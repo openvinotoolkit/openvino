@@ -1,20 +1,22 @@
-# [OpenVINO™ Toolkit](https://01.org/openvinotoolkit) - Deep Learning Deployment Toolkit repository
-[![Stable release](https://img.shields.io/badge/version-2021.1-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2021.1)
+# OpenVINO™ Toolkit
+[![Stable release](https://img.shields.io/badge/version-2021.4.1-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2021.4.1)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
-![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/9/master?label=Public%20CI)
+![GitHub branch checks state](https://img.shields.io/github/checks-status/openvinotoolkit/openvino/master?label=GitHub%20checks)
+![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/13?label=Public%20CI)
+[![PyPI Downloads](https://pepy.tech/badge/openvino)](https://pepy.tech/project/openvino)
 
 This toolkit allows developers to deploy pre-trained deep learning models
 through a high-level C++ Inference Engine API integrated with application logic.
 
-This open source version includes two components: namely [Model Optimizer] and
-[Inference Engine], as well as CPU, GPU and heterogeneous plugins to accelerate
-deep learning inferencing on Intel® CPUs and Intel® Processor Graphics.
+This open source version includes several components: namely [Model Optimizer], [nGraph] and
+[Inference Engine], as well as CPU, GPU, MYRIAD, multi device and heterogeneous plugins to accelerate deep learning inferencing on Intel® CPUs and Intel® Processor Graphics.
 It supports pre-trained models from the [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as Caffe\*, TensorFlow\*,
 MXNet\* and ONNX\*.
 
 ## Repository components:
 * [Inference Engine]
+* [nGraph]
 * [Model Optimizer]
 
 ## License
@@ -22,19 +24,14 @@ Deep Learning Deployment Toolkit is licensed under [Apache License Version 2.0](
 By contributing to the project, you agree to the license and copyright terms therein
 and release your contribution under these terms.
 
-## Documentation
-* [OpenVINO™ Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
-* [OpenVINO™ Inference Engine Build Instructions](build-instruction.md)
-* [Get Started with Deep Learning Deployment Toolkit on Linux](get-started-linux.md)\*
-* [Introduction to Deep Learning Deployment Toolkit](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Introduction.html)
-* [Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html)
-* [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
-* [Get Started with DockerHub CI for OpenVINO™ toolkit](https://github.com/openvinotoolkit/docker_ci/blob/master/README.md)
-
-## How to Contribute
-See [CONTRIBUTING](./CONTRIBUTING.md) for contribution to the code.
-See [CONTRIBUTING_DOCS](./CONTRIBUTING_DOCS.md) for contribution to the documentation.
-Thank you!
+## Resources:
+* Docs: https://docs.openvinotoolkit.org/
+* Wiki: https://github.com/openvinotoolkit/openvino/wiki
+* Issue tracking: https://github.com/openvinotoolkit/openvino/issues
+* Storage: https://storage.openvinotoolkit.org/
+* Additional OpenVINO™ modules: https://github.com/openvinotoolkit/openvino_contrib
+* [Intel® Distribution of OpenVINO™ toolkit Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
+* [Intel® Distribution of OpenVINO™ toolkit Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
 
 ## Support
 Please report questions, issues and suggestions using:
@@ -46,7 +43,9 @@ Please report questions, issues and suggestions using:
 ---
 \* Other names and brands may be claimed as the property of others.
 
-[Open Model Zoo]:https://github.com/opencv/open_model_zoo
+[Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
 [Inference Engine]:https://software.intel.com/en-us/articles/OpenVINO-InferEngine
 [Model Optimizer]:https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer
+[nGraph]:https://docs.openvinotoolkit.org/latest/openvino_docs_nGraph_DG_DevGuide.html
 [tag on StackOverflow]:https://stackoverflow.com/search?q=%23openvino
+

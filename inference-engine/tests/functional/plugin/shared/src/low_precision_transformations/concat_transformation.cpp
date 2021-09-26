@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,13 +12,13 @@
 
 #include <transformations/init_node_info.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "ngraph_functions/low_precision_transformations/concat_function.hpp"
+#include "lpt_ngraph_functions/concat_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
+std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<ConcatTransformationParams>& obj) {
     ngraph::element::Type precision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatTransformationTestValues testValues;
     std::tie(precision, inputShapes, targetDevice, testValues) = obj.param;
@@ -31,23 +31,18 @@ std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<ConcatT
 }
 
 InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    InferenceEngine::SizeVector inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::element::Type netPrecision;
     std::string targetDevice;
     ConcatTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(
-        params.precisionsOnActivations[0],
-        info.getTensorDesc(),
-        k);
+    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
 }
 
 void ConcatTransformation::SetUp() {
-    InferenceEngine::SizeVector inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::element::Type precision;
     ConcatTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();

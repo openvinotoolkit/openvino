@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 //  pwl_design.cpp : simple activation function designer
@@ -9,11 +9,10 @@
 #include <limits>
 #include <cstdint>
 #include <algorithm>
-#include "backend/gna_types.h"
 
 #ifdef _NO_MKL_
 #include <cmath>
-#include <backend/make_pwl.hpp>
+#include "backend/make_pwl.hpp"
 
 #define SCOPY(num, in, inci, out, inco) for (int i_ = 0; i_ < *(num); i_++) *(out + i_ * *(inco)) = *(in + i_ * *(inci));
 #define SSCAL(num, scale, inout, inco)  for (int i_ = 0; i_ < *(num); i_++) *(inout + i_ * *(inco)) = *(scale) * *(inout + i_ * *(inco));
@@ -27,7 +26,6 @@
 
 #include "pwl.h"
 #include "gna_plugin_log.hpp"
-#include "backend/dnn_types.h"
 #include "gna_slope_scale.h"
 #include "round_float_define.hpp"
 
@@ -74,7 +72,6 @@ double pivot_search(std::vector<pwl_t>& result,
     double max_epsilon = 0.0;
     double max_epsilon_prev;
     double min_epsilon;
-    double min_epsilon2;
     double sgn = (negative) ? -1.0 : 1.0;
     int j;
 
@@ -370,13 +367,13 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
             pwl.resize(4);
             pwl[0].alpha = pwl[0].t = pwl[0].beta = -std::numeric_limits<float>::infinity();
             pwl[0].m = 0.0;
-            pwl[0].b = pwl[0].beta = KALDI_LSTM_CLIP_LOWER;
-            pwl[1].alpha = pwl[0].t = pwl[1].beta = KALDI_LSTM_CLIP_LOWER;
+            pwl[0].b = pwl[0].beta = l_bound;
+            pwl[1].alpha = pwl[0].t = pwl[1].beta = l_bound;
             pwl[1].m = 1.0;
             pwl[1].b = 0.0;
-            pwl[2].alpha = pwl[0].t = pwl[1].beta = KALDI_LSTM_CLIP_UPPER;
+            pwl[2].alpha = pwl[0].t = pwl[1].beta = u_bound;
             pwl[2].m = 0.0;
-            pwl[2].b = KALDI_LSTM_CLIP_UPPER;
+            pwl[2].b = u_bound;
             pwl[3].alpha = pwl[3].beta = std::numeric_limits<float>::infinity();
 
         } else if (activation_type == kActSign) {
@@ -497,70 +494,92 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
 }
 
 
-void PwlDesignOpt16(const DnnActivation activation_type,
+void PwlDesignOpt(const DnnActivation activation_type,
                     std::vector<gna_pwl_segment_t> &ptr_segment,
                     const float scale_in,
-                    const float scale_out) {
+                    const float scale_out,
+                    const float pwlMaxErrorPercent,
+                    const bool low_precision) {
     std::vector<pwl_t> pwl;
     double err_pct = 0.0;
+    auto minInputStats = 0.0f;
+    auto maxInputStats = 0.0f;
+    if (activation_type.srcFQParams.set) {
+        minInputStats = std::min(*activation_type.srcFQParams.input_low, *activation_type.srcFQParams.input_high) * 1.25f;
+        maxInputStats = std::max(*activation_type.srcFQParams.input_low, *activation_type.srcFQParams.input_high) * 1.25f;
+    }
     switch (activation_type) {
-        case kActSigmoid:
-            pwl = pwl_search(activation_type, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, scale_in, scale_out, ptr_segment);
+        case kActSigmoid: {
+            auto absMax = std::max(std::abs(minInputStats), std::abs(maxInputStats));
+            auto minInput = (activation_type.srcFQParams.set && absMax < SIGMOID_DOMAIN) ? -absMax : -SIGMOID_DOMAIN;
+            auto maxInput = (activation_type.srcFQParams.set && absMax < SIGMOID_DOMAIN) ? absMax : SIGMOID_DOMAIN;
+            pwl = pwl_search(activation_type, minInput, maxInput, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
             break;
-        case kActTanh:
-            pwl = pwl_search(activation_type, -TANH_DOMAIN, TANH_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, -TANH_DOMAIN, TANH_DOMAIN, scale_in, scale_out, ptr_segment);
+        }
+        case kActTanh: {
+            auto absMax = std::max(std::abs(minInputStats), std::abs(maxInputStats));
+            auto minInput = (activation_type.srcFQParams.set && absMax < TANH_DOMAIN) ? -absMax : -TANH_DOMAIN;
+            auto maxInput = (activation_type.srcFQParams.set && absMax < TANH_DOMAIN) ? absMax : TANH_DOMAIN;
+            pwl = pwl_search(activation_type, minInput, maxInput, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
             break;
-        case kActSoftSign:
-            pwl = pwl_search(activation_type, -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, scale_in, scale_out, ptr_segment);
+        }
+        case kActSoftSign: {
+            auto absMax = std::max(std::abs(minInputStats), std::abs(maxInputStats));
+            auto minInput = (activation_type.srcFQParams.set && absMax < SOFTSIGN_DOMAIN) ? -absMax : -SOFTSIGN_DOMAIN;
+            auto maxInput = (activation_type.srcFQParams.set && absMax < SOFTSIGN_DOMAIN) ? absMax : SOFTSIGN_DOMAIN;
+            pwl = pwl_search(activation_type, minInput, maxInput, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
             break;
+        }
         case kActRelu:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
             break;
         case kActLeakyRelu:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
             break;
         case kActIdentity:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+        case kActFakeQuantize:
+            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
             break;
         case kActKaldiLstmClipping:
-            make_gna_pwl(activation_type, pwl, KALDI_LSTM_CLIP_LOWER, KALDI_LSTM_CLIP_UPPER, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, activation_type.args.clamp.low, activation_type.args.clamp.high,
+                         scale_in, scale_out, low_precision, ptr_segment);
             break;
         case kActLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
+            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActNegLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
+            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActNegHalfLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
+            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActExp: {
             double x_min = -log(scale_out);
             double x_max = x_min + log(INT16_MAX);
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.5*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActSign:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
             break;
         case kActAbs:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
             break;
         case kActPow: {
             auto fp32eq = [](float p1, float p2) -> bool {
@@ -577,10 +596,11 @@ void PwlDesignOpt16(const DnnActivation activation_type,
             x_max = std::min(x_max, POW_DOMAIN);
 
             if (activation_type.args.pow.exponent != 0.0f && activation_type.args.pow.exponent != 1.0f) {
-                pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.015 * PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+                auto maxError = pwlMaxErrorPercent > 0.015f? 0.015f: pwlMaxErrorPercent;
+                pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, maxError, PWL_DESIGN_SAMPLES, err_pct);
             }
 
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         default:
@@ -588,11 +608,12 @@ void PwlDesignOpt16(const DnnActivation activation_type,
     }
 }
 
-void PwlDesign16(const DnnActivation activation_type,
+void PwlDesign(const DnnActivation activation_type,
                  gna_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
                  const float scale_in,
-                 const float scale_out) {
+                 const float scale_out,
+                 const bool low_precision) {
     switch (activation_type) {
         case kActSigmoid:
            {
@@ -747,12 +768,12 @@ void PwlDesign16(const DnnActivation activation_type,
                 else
                     gnalog() << "=========================== Identity Segments ===========================\n";
                 if (x_lower_limit < INT32_MIN) {
-                    std::cerr << "Warning:  saturation in PwlDesign16! " << x_lower_limit  << " < INT32_MIN"<< std::endl;
+                    std::cerr << "Warning:  saturation in PwlDesign! " << x_lower_limit  << " < INT32_MIN"<< std::endl;
                     x_lower_limit = INT32_MIN;
                     y_lower_limit = static_cast<int16_t>((scale_out / scale_in)*static_cast<float>(INT32_MIN) - 0.5);
                 }
                 if (x_upper_limit > INT32_MAX) {
-                    std::cerr << "Warning:  saturation in PwlDesign16! " << x_upper_limit  << " > INT32_MAX"<< std::endl;
+                    std::cerr << "Warning:  saturation in PwlDesign! " << x_upper_limit  << " > INT32_MAX"<< std::endl;
                     x_upper_limit = INT32_MAX;
                     y_upper_limit = static_cast<int16_t>((scale_out / scale_in)*static_cast<float>(INT32_MAX) + 0.5);
                 }
@@ -979,20 +1000,23 @@ void PwlApply32(intel_dnn_component_t *component,
                 }
             }
             break;
-        case kActKaldiLstmClipping:
+        case kActKaldiLstmClipping: {
+            float upper_limit = component->op.pwl.func_id.args.clamp.high;
+            float lower_limit = component->op.pwl.func_id.args.clamp.low;
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
                     float val = ptr_in[i * num_columns + j];
-                    if (val > KALDI_LSTM_CLIP_UPPER) {
-                        ptr_out[i * num_columns + j] = KALDI_LSTM_CLIP_UPPER;
-                    } else if (val < KALDI_LSTM_CLIP_LOWER) {
-                        ptr_out[i * num_columns + j] = KALDI_LSTM_CLIP_LOWER;
+                    if (val > upper_limit) {
+                        ptr_out[i * num_columns + j] = upper_limit;
+                    } else if (val < lower_limit) {
+                        ptr_out[i * num_columns + j] = lower_limit;
                     } else {
                         ptr_out[i * num_columns + j] = val;
                     }
                 }
             }
             break;
+        }
         case kActExp:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
@@ -1047,25 +1071,36 @@ void PwlApply32(intel_dnn_component_t *component,
             }
             break;
         case kActFakeQuantize: {
-            auto input_low   = transform->func_id.args.fakeQuantize.input_low;
-            auto input_high  = transform->func_id.args.fakeQuantize.input_high;
-            auto output_low  = transform->func_id.args.fakeQuantize.output_low;
-            auto output_high = transform->func_id.args.fakeQuantize.output_high;
-            auto levels  = transform->func_id.args.fakeQuantize.levels;
-            // TODO: this special modification for spedup-compute give different result with straight FQ forulae
-            // but this used in referencen graph FakeQuantize implementations so we need to honor it for a while
-            float scaleInput = (input_high - input_low) / (levels-1);
-            float scaleOutputs = (output_high - output_low) / (levels-1);
+            bool clamping = true;
+            double levels  = transform->func_id.fqParams.levels;
 
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
+                auto inputChannel  = transform->func_id.fqParams.inputPerChannel ? i : 0;
+                auto outputChannel = transform->func_id.fqParams.outputPerChannel ? i : 0;
+
+                double input_low   = transform->func_id.fqParams.input_low[inputChannel];
+                double input_high  = transform->func_id.fqParams.input_high[inputChannel];
+                double output_low  = transform->func_id.fqParams.output_low[outputChannel];
+                double output_high = transform->func_id.fqParams.output_high[outputChannel];
+
+                auto scaleInput = (levels - 1) / (input_high - input_low);
+                auto scaleOutput = (levels - 1) / (output_high - output_low);
+
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    auto x = ptr_in[i * num_columns + j];
-                    if (x < std::min(input_low, input_high)) {
-                        ptr_out[i * num_columns + j] = output_low;
+                    auto offset = i * num_columns + j;
+                    auto x = ptr_in[offset];
+                    if (!clamping) {
+                        ptr_out[offset] = ptr_in[offset] * scaleInput / scaleOutput;
+                        continue;
+                    }
+
+                    if (x <= std::min(input_low, input_high)) {
+                        ptr_out[offset] = output_low;
                     } else if (x > std::max(input_low, input_high)) {
-                        ptr_out[i * num_columns + j] = output_high;
+                        ptr_out[offset] = output_high;
                     } else {
-                        ptr_out[i * num_columns + j] = nearbyint((x - input_low) / scaleInput) * scaleOutputs + output_low;
+                        ptr_out[offset] = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
+                            (levels - 1) * (output_high - output_low) + output_low;
                     }
                 }
             }

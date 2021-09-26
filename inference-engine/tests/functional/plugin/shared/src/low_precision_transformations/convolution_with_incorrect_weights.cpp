@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,16 +13,16 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/low_precision_transformations/convolution_function.hpp"
+#include "lpt_ngraph_functions/convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams> obj) {
+std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionWIthIncorrectWeightsParam param;
@@ -40,7 +40,7 @@ void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
     threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionWIthIncorrectWeightsParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
@@ -52,6 +52,7 @@ void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
         param.fakeQuantizeOnData,
         param.isCorrect);
 }
+
 TEST_P(ConvolutionWIthIncorrectWeightsTransformation, CompareWithRefImpl) {
     Run();
 };

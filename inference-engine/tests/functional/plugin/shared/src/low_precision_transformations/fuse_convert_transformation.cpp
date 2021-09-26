@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,19 +13,17 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/low_precision_transformations/fuse_convert_function.hpp"
-
-#include <ngraph/pass/visualize_tree.hpp>
+#include "lpt_ngraph_functions/fuse_convert_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string FuseConvertTransformation::getTestCaseName(testing::TestParamInfo<FuseConvertTransformationParams> obj) {
+std::string FuseConvertTransformation::getTestCaseName(const testing::TestParamInfo<FuseConvertTransformationParams>& obj) {
     std::string targetDevice;
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
     ngraph::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ngraph::builder::subgraph::DequantizationOperations deqOperations;
@@ -39,9 +37,8 @@ std::string FuseConvertTransformation::getTestCaseName(testing::TestParamInfo<Fu
 }
 
 void FuseConvertTransformation::SetUp() {
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
     ngraph::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ngraph::builder::subgraph::DequantizationOperations deqOperations;
     bool constInput;
     std::tie(precision, shape, targetDevice, deqOperations, constInput) = this->GetParam();

@@ -1,24 +1,14 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
-
-#include <memory>
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include "ngraph/ngraph.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
+#include "runtime/ie/ie_tensor.hpp"
 #include "util/type_prop.hpp"
 
 using namespace ngraph;
@@ -28,10 +18,10 @@ using namespace std;
 // boolean
 //
 
-TEST(constant, boolean_string)
-{
+TEST(constant, boolean_string) {
     Shape shape{4};
-    op::Constant c(element::boolean, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::boolean, shape, input);
     auto v = c.get_vector<char>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], 1);
@@ -44,10 +34,15 @@ TEST(constant, boolean_string)
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, boolean_string_broadcast)
-{
+TEST(constant, boolean_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::boolean, shape, vector<string>{"1"});
     auto v = c.get_vector<char>();
@@ -64,8 +59,7 @@ TEST(constant, boolean_string_broadcast)
     EXPECT_EQ(p[3], 1);
 }
 
-TEST(constant, boolean_vector)
-{
+TEST(constant, boolean_vector) {
     Shape shape{4};
     op::Constant c(element::boolean, shape, vector<char>{1, 0, 1, 0});
     auto v = c.get_vector<char>();
@@ -82,8 +76,7 @@ TEST(constant, boolean_vector)
     EXPECT_EQ(p[3], 0);
 }
 
-TEST(constant, boolean_vector_broadcast)
-{
+TEST(constant, boolean_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::boolean, shape, vector<char>{1});
     auto v = c.get_vector<char>();
@@ -104,10 +97,10 @@ TEST(constant, boolean_vector_broadcast)
 // float
 //
 
-TEST(constant, float_string)
-{
+TEST(constant, float_string) {
     Shape shape{4};
-    op::Constant c(element::f32, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::f32, shape, input);
     auto v = c.get_vector<float>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], 1);
@@ -120,10 +113,15 @@ TEST(constant, float_string)
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, float_string_broadcast)
-{
+TEST(constant, float_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::f32, shape, vector<string>{"1"});
     auto v = c.get_vector<float>();
@@ -140,8 +138,7 @@ TEST(constant, float_string_broadcast)
     EXPECT_EQ(p[3], 1);
 }
 
-TEST(constant, float_vector)
-{
+TEST(constant, float_vector) {
     Shape shape{4};
     op::Constant c(element::f32, shape, vector<float>{1, 0, 1, 0});
     auto v = c.get_vector<float>();
@@ -158,8 +155,7 @@ TEST(constant, float_vector)
     EXPECT_EQ(p[3], 0);
 }
 
-TEST(constant, float_vector_broadcast)
-{
+TEST(constant, float_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::f32, shape, vector<float>{1});
     auto v = c.get_vector<float>();
@@ -180,10 +176,10 @@ TEST(constant, float_vector_broadcast)
 // double
 //
 
-TEST(constant, double_string)
-{
+TEST(constant, double_string) {
     Shape shape{4};
-    op::Constant c(element::f64, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::f64, shape, input);
     auto v = c.get_vector<double>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], 1);
@@ -196,10 +192,15 @@ TEST(constant, double_string)
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, double_string_broadcast)
-{
+TEST(constant, double_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::f64, shape, vector<string>{"1"});
     auto v = c.get_vector<double>();
@@ -216,8 +217,7 @@ TEST(constant, double_string_broadcast)
     EXPECT_EQ(p[3], 1);
 }
 
-TEST(constant, double_vector)
-{
+TEST(constant, double_vector) {
     Shape shape{4};
     op::Constant c(element::f64, shape, vector<double>{1, 0, 1, 0});
     auto v = c.get_vector<double>();
@@ -234,8 +234,7 @@ TEST(constant, double_vector)
     EXPECT_EQ(p[3], 0);
 }
 
-TEST(constant, double_vector_broadcast)
-{
+TEST(constant, double_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::f64, shape, vector<double>{1});
     auto v = c.get_vector<double>();
@@ -253,13 +252,141 @@ TEST(constant, double_vector_broadcast)
 }
 
 //
+// int4
+//
+
+TEST(constant, int4_string) {
+    Shape shape{3};
+    std::vector<std::string> input{"1", "0", "-1"};
+    op::Constant c(element::i4, shape, input);
+    auto v = c.cast_vector<int8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 0);
+    EXPECT_EQ(v[2], -1);
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(0x10, p[0]);
+    EXPECT_EQ(0xF0, p[1] & 0xF0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
+}
+
+TEST(constant, int4_string_broadcast_negative_number) {
+    Shape shape{3};
+    op::Constant c(element::i4, shape, vector<string>{"-1"});
+    auto v = c.cast_vector<int8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], -1);
+    EXPECT_EQ(v[1], -1);
+    EXPECT_EQ(v[2], -1);
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(0xFF, p[0]);
+    EXPECT_EQ(0xF0, p[1] & 0xF0);
+
+    EXPECT_EQ(std::vector<std::string>(3, "-1"), c.get_value_strings());
+}
+
+TEST(constant, int4_string_broadcast_positive_number) {
+    Shape shape{3};
+    op::Constant c(element::i4, shape, vector<string>{"1"});
+    auto v = c.cast_vector<int8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 1);
+    EXPECT_EQ(v[2], 1);
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(0x11, p[0]);
+    EXPECT_EQ(0x10, p[1] & 0xF0);
+
+    EXPECT_EQ(std::vector<std::string>(3, "1"), c.get_value_strings());
+}
+
+TEST(constant, int4_vector_negative_number) {
+    Shape shape{3};
+    op::Constant c(element::i4, shape, vector<int8_t>{-1, -2, -1});
+    auto v = c.cast_vector<int8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], int8_t(-1));
+    EXPECT_EQ(v[1], int8_t(-2));
+    EXPECT_EQ(v[2], int8_t(-1));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(0xFE, p[0]);
+    EXPECT_EQ(0xF0, p[1] & 0xF0);
+}
+
+TEST(constant, int4_vector_positive_number) {
+    Shape shape{3};
+    op::Constant c(element::i4, shape, vector<int8_t>{1, 2, 5});
+    auto v = c.cast_vector<int8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], int8_t(1));
+    EXPECT_EQ(v[1], int8_t(2));
+    EXPECT_EQ(v[2], int8_t(5));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(0x12, p[0]);
+    EXPECT_EQ(0x50, p[1] & 0xF0);
+}
+
+TEST(constant, int4_vector_broadcast_negative_number) {
+    Shape shape{3};
+    op::Constant c(element::i4, shape, vector<int8_t>{-1});
+    auto v = c.cast_vector<int8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], int8_t(-1));
+    EXPECT_EQ(v[1], int8_t(-1));
+    EXPECT_EQ(v[2], int8_t(-1));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(0xFF, p[0]);
+    EXPECT_EQ(0xF0, p[1] & 0xF0);
+}
+
+TEST(constant, int4_vector_broadcast_positive_number) {
+    Shape shape{3};
+    op::Constant c(element::i4, shape, vector<int8_t>{3});
+    auto v = c.cast_vector<int8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], int8_t(3));
+    EXPECT_EQ(v[1], int8_t(3));
+    EXPECT_EQ(v[2], int8_t(3));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(0x33, p[0]);
+    EXPECT_EQ(0x30, p[1] & 0xF0);
+}
+
+TEST(constant, int4_input_value_validation) {
+    Shape shape{2};
+    EXPECT_THROW(op::Constant c(element::i4, shape, 8), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::i4, shape, -9), ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<int>{-9}), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<int>{8}), ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<int>{-9, 1}), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<int>{8, 2}), ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<std::string>{"-9", "1"}), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::i4, shape, std::vector<std::string>{"8", "1"}), ::ngraph::CheckFailure);
+}
+
+//
 // int8
 //
 
-TEST(constant, int8_string)
-{
+TEST(constant, int8_string) {
     Shape shape{4};
-    op::Constant c(element::i8, shape, vector<string>{"1", "0", "1", "0"});
+    std::vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::i8, shape, input);
     auto v = c.get_vector<int8_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], 1);
@@ -272,10 +399,17 @@ TEST(constant, int8_string)
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, int8_string_broadcast)
-{
+TEST(constant, int8_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::i8, shape, vector<string>{"1"});
     auto v = c.get_vector<int8_t>();
@@ -290,10 +424,11 @@ TEST(constant, int8_string_broadcast)
     EXPECT_EQ(p[1], 1);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 1);
+
+    EXPECT_EQ(std::vector<std::string>(4, "1"), c.get_value_strings());
 }
 
-TEST(constant, int8_vector)
-{
+TEST(constant, int8_vector) {
     Shape shape{4};
     op::Constant c(element::i8, shape, vector<int8_t>{1, 0, 1, 0});
     auto v = c.get_vector<int8_t>();
@@ -310,8 +445,7 @@ TEST(constant, int8_vector)
     EXPECT_EQ(p[3], 0);
 }
 
-TEST(constant, int8_vector_broadcast)
-{
+TEST(constant, int8_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::i8, shape, vector<int8_t>{1});
     auto v = c.get_vector<int8_t>();
@@ -332,10 +466,10 @@ TEST(constant, int8_vector_broadcast)
 // int16
 //
 
-TEST(constant, int16_string)
-{
+TEST(constant, int16_string) {
     Shape shape{4};
-    op::Constant c(element::i16, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::i16, shape, input);
     auto v = c.get_vector<int16_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], 1);
@@ -348,10 +482,15 @@ TEST(constant, int16_string)
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, int16_string_broadcast)
-{
+TEST(constant, int16_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::i16, shape, vector<string>{"1"});
     auto v = c.get_vector<int16_t>();
@@ -368,8 +507,7 @@ TEST(constant, int16_string_broadcast)
     EXPECT_EQ(p[3], 1);
 }
 
-TEST(constant, int16_vector)
-{
+TEST(constant, int16_vector) {
     Shape shape{4};
     op::Constant c(element::i16, shape, vector<int16_t>{1, 0, 1, 0});
     auto v = c.get_vector<int16_t>();
@@ -386,8 +524,7 @@ TEST(constant, int16_vector)
     EXPECT_EQ(p[3], 0);
 }
 
-TEST(constant, int16_vector_broadcast)
-{
+TEST(constant, int16_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::i16, shape, vector<int16_t>{1});
     auto v = c.get_vector<int16_t>();
@@ -408,10 +545,10 @@ TEST(constant, int16_vector_broadcast)
 // int32
 //
 
-TEST(constant, int32_string)
-{
+TEST(constant, int32_string) {
     Shape shape{4};
-    op::Constant c(element::i32, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::i32, shape, input);
     auto v = c.get_vector<int32_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], 1);
@@ -424,10 +561,15 @@ TEST(constant, int32_string)
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, int32_string_broadcast)
-{
+TEST(constant, int32_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::i32, shape, vector<string>{"1"});
     auto v = c.get_vector<int32_t>();
@@ -444,8 +586,7 @@ TEST(constant, int32_string_broadcast)
     EXPECT_EQ(p[3], 1);
 }
 
-TEST(constant, int32_vector)
-{
+TEST(constant, int32_vector) {
     Shape shape{4};
     op::Constant c(element::i32, shape, vector<int32_t>{1, 0, 1, 0});
     auto v = c.get_vector<int32_t>();
@@ -462,8 +603,7 @@ TEST(constant, int32_vector)
     EXPECT_EQ(p[3], 0);
 }
 
-TEST(constant, int32_vector_broadcast)
-{
+TEST(constant, int32_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::i32, shape, vector<int32_t>{1});
     auto v = c.get_vector<int32_t>();
@@ -484,10 +624,10 @@ TEST(constant, int32_vector_broadcast)
 // int64
 //
 
-TEST(constant, int64_string)
-{
+TEST(constant, int64_string) {
     Shape shape{4};
-    op::Constant c(element::i64, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::i64, shape, input);
     auto v = c.get_vector<int64_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], 1);
@@ -500,10 +640,15 @@ TEST(constant, int64_string)
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, int64_string_broadcast)
-{
+TEST(constant, int64_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::i64, shape, vector<string>{"1"});
     auto v = c.get_vector<int64_t>();
@@ -520,8 +665,7 @@ TEST(constant, int64_string_broadcast)
     EXPECT_EQ(p[3], 1);
 }
 
-TEST(constant, int64_vector)
-{
+TEST(constant, int64_vector) {
     Shape shape{4};
     op::Constant c(element::i64, shape, vector<int64_t>{1, 0, 1, 0});
     auto v = c.get_vector<int64_t>();
@@ -538,8 +682,7 @@ TEST(constant, int64_vector)
     EXPECT_EQ(p[3], 0);
 }
 
-TEST(constant, int64_vector_broadcast)
-{
+TEST(constant, int64_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::i64, shape, vector<int64_t>{1});
     auto v = c.get_vector<int64_t>();
@@ -557,13 +700,180 @@ TEST(constant, int64_vector_broadcast)
 }
 
 //
+// uint1
+//
+
+TEST(constant, uint1_string) {
+    Shape shape{4};
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::u1, shape, input);
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 0);
+    EXPECT_EQ(v[2], 1);
+    EXPECT_EQ(v[3], 0);
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0b10100000);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
+}
+
+TEST(constant, uint1_string_broadcast) {
+    Shape shape{4};
+    op::Constant c(element::u1, shape, vector<string>{"1"});
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 1);
+    EXPECT_EQ(v[2], 1);
+    EXPECT_EQ(v[3], 1);
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0] & 0b11110000, 0b11110000);
+}
+
+TEST(constant, uint1_vector_less_than_single_byte) {
+    Shape shape{4};
+    vector<uint8_t> input{1, 0, 1, 0};
+    op::Constant c(element::u1, shape, input);
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(v[i], input[i]) << "Error on index: " << i;
+    }
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0] & 0b11110000, 0b10100000);
+}
+
+TEST(constant, uint1_vector_bigger_than_single_byte) {
+    Shape shape{12};
+    vector<uint8_t> input{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0};
+    op::Constant c(element::u1, shape, input);
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(v[i], input[i]) << "Error on index: " << i;
+    }
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0] & 0b11110000, 0b10100000);
+}
+
+TEST(constant, uint1_vector_broadcast) {
+    Shape shape{3};
+    op::Constant c(element::u1, shape, vector<int8_t>{1});
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], int8_t(1));
+    EXPECT_EQ(v[1], int8_t(1));
+    EXPECT_EQ(v[2], int8_t(1));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(0xE0, p[0] & 0xE0);
+}
+
+//
+// uint4
+//
+
+TEST(constant, uint4_string) {
+    Shape shape{4};
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::u4, shape, input);
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 0);
+    EXPECT_EQ(v[2], 1);
+    EXPECT_EQ(v[3], 0);
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0x10);
+    EXPECT_EQ(p[1], 0x10);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
+}
+
+TEST(constant, uint4_string_broadcast) {
+    Shape shape{4};
+    op::Constant c(element::u4, shape, vector<string>{"1"});
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 1);
+    EXPECT_EQ(v[2], 1);
+    EXPECT_EQ(v[3], 1);
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0x11);
+    EXPECT_EQ(p[1], 0x11);
+}
+
+TEST(constant, uint4_vector) {
+    Shape shape{4};
+    op::Constant c(element::u4, shape, vector<uint8_t>{1, 0, 1, 0});
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 0);
+    EXPECT_EQ(v[2], 1);
+    EXPECT_EQ(v[3], 0);
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0x10);
+    EXPECT_EQ(p[1], 0x10);
+}
+
+TEST(constant, uint4_vector_broadcast) {
+    Shape shape{3};
+    op::Constant c(element::u4, shape, vector<uint8_t>{1});
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_EQ(v[0], int8_t(1));
+    EXPECT_EQ(v[1], int8_t(1));
+    EXPECT_EQ(v[2], int8_t(1));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    const auto first_byte = p[0];
+    const auto second_byte = p[1] & 0xF0;
+    EXPECT_EQ(0x11, first_byte);
+    EXPECT_EQ(0x10, second_byte);
+}
+
+TEST(constant, uint4_input_value_validation) {
+    Shape shape{2};
+    EXPECT_THROW(op::Constant c(element::u4, shape, 16), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::u4, shape, -1), ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<int>{-1}), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<int>{16}), ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<int>{-1, 1}), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<int>{16, 2}), ::ngraph::CheckFailure);
+
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<std::string>{"-1", "1"}), ::ngraph::CheckFailure);
+    EXPECT_THROW(op::Constant c(element::u4, shape, std::vector<std::string>{"16", "1"}), ::ngraph::CheckFailure);
+}
+
+//
 // uint8
 //
 
-TEST(constant, uint8_string)
-{
+TEST(constant, uint8_string) {
     Shape shape{4};
-    op::Constant c(element::u8, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::u8, shape, input);
     auto v = c.get_vector<uint8_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], 1);
@@ -576,10 +886,15 @@ TEST(constant, uint8_string)
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, uint8_string_broadcast)
-{
+TEST(constant, uint8_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::u8, shape, vector<string>{"1"});
     auto v = c.get_vector<uint8_t>();
@@ -596,8 +911,7 @@ TEST(constant, uint8_string_broadcast)
     EXPECT_EQ(p[3], 1);
 }
 
-TEST(constant, uint8_vector)
-{
+TEST(constant, uint8_vector) {
     Shape shape{4};
     op::Constant c(element::u8, shape, vector<uint8_t>{1, 0, 1, 0});
     auto v = c.get_vector<uint8_t>();
@@ -614,8 +928,7 @@ TEST(constant, uint8_vector)
     EXPECT_EQ(p[3], 0);
 }
 
-TEST(constant, uint8_vector_broadcast)
-{
+TEST(constant, uint8_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::u8, shape, vector<uint8_t>{1});
     auto v = c.get_vector<uint8_t>();
@@ -636,10 +949,10 @@ TEST(constant, uint8_vector_broadcast)
 // uint16
 //
 
-TEST(constant, uint16_string)
-{
+TEST(constant, uint16_string) {
     Shape shape{4};
-    op::Constant c(element::u16, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::u16, shape, input);
     auto v = c.get_vector<uint16_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], 1);
@@ -652,10 +965,15 @@ TEST(constant, uint16_string)
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, uint16_string_broadcast)
-{
+TEST(constant, uint16_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::u16, shape, vector<string>{"1"});
     auto v = c.get_vector<uint16_t>();
@@ -672,8 +990,7 @@ TEST(constant, uint16_string_broadcast)
     EXPECT_EQ(p[3], 1);
 }
 
-TEST(constant, uint16_vector)
-{
+TEST(constant, uint16_vector) {
     Shape shape{4};
     op::Constant c(element::u16, shape, vector<uint16_t>{1, 0, 1, 0});
     auto v = c.get_vector<uint16_t>();
@@ -690,8 +1007,7 @@ TEST(constant, uint16_vector)
     EXPECT_EQ(p[3], 0);
 }
 
-TEST(constant, uint16_vector_broadcast)
-{
+TEST(constant, uint16_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::u16, shape, vector<uint16_t>{1});
     auto v = c.get_vector<uint16_t>();
@@ -712,10 +1028,10 @@ TEST(constant, uint16_vector_broadcast)
 // uint32
 //
 
-TEST(constant, uint32_string)
-{
+TEST(constant, uint32_string) {
     Shape shape{4};
-    op::Constant c(element::u32, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::u32, shape, input);
     auto v = c.get_vector<uint32_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], 1);
@@ -728,10 +1044,15 @@ TEST(constant, uint32_string)
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, uint32_string_broadcast)
-{
+TEST(constant, uint32_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::u32, shape, vector<string>{"1"});
     auto v = c.get_vector<uint32_t>();
@@ -748,8 +1069,7 @@ TEST(constant, uint32_string_broadcast)
     EXPECT_EQ(p[3], 1);
 }
 
-TEST(constant, uint32_vector)
-{
+TEST(constant, uint32_vector) {
     Shape shape{4};
     op::Constant c(element::u32, shape, vector<uint32_t>{1, 0, 1, 0});
     auto v = c.get_vector<uint32_t>();
@@ -766,8 +1086,7 @@ TEST(constant, uint32_vector)
     EXPECT_EQ(p[3], 0);
 }
 
-TEST(constant, uint32_vector_broadcast)
-{
+TEST(constant, uint32_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::u32, shape, vector<uint32_t>{1});
     auto v = c.get_vector<uint32_t>();
@@ -788,10 +1107,10 @@ TEST(constant, uint32_vector_broadcast)
 // uint64
 //
 
-TEST(constant, uint64_string)
-{
+TEST(constant, uint64_string) {
     Shape shape{4};
-    op::Constant c(element::u64, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::u64, shape, input);
     auto v = c.get_vector<uint64_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], 1);
@@ -804,10 +1123,15 @@ TEST(constant, uint64_string)
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, uint64_string_broadcast)
-{
+TEST(constant, uint64_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::u64, shape, vector<string>{"1"});
     auto v = c.get_vector<uint64_t>();
@@ -824,8 +1148,7 @@ TEST(constant, uint64_string_broadcast)
     EXPECT_EQ(p[3], 1);
 }
 
-TEST(constant, uint64_vector)
-{
+TEST(constant, uint64_vector) {
     Shape shape{4};
     op::Constant c(element::u64, shape, vector<uint64_t>{1, 0, 1, 0});
     auto v = c.get_vector<uint64_t>();
@@ -842,8 +1165,7 @@ TEST(constant, uint64_vector)
     EXPECT_EQ(p[3], 0);
 }
 
-TEST(constant, uint64_vector_broadcast)
-{
+TEST(constant, uint64_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::u64, shape, vector<uint64_t>{1});
     auto v = c.get_vector<uint64_t>();
@@ -864,10 +1186,10 @@ TEST(constant, uint64_vector_broadcast)
 // bfloat16
 //
 
-TEST(constant, bfloat16_string)
-{
+TEST(constant, bfloat16_string) {
     Shape shape{4};
-    op::Constant c(element::bf16, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::bf16, shape, input);
     auto v = c.get_vector<bfloat16>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], bfloat16(1));
@@ -880,10 +1202,15 @@ TEST(constant, bfloat16_string)
     EXPECT_EQ(p[1], bfloat16(0));
     EXPECT_EQ(p[2], bfloat16(1));
     EXPECT_EQ(p[3], bfloat16(0));
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, bfloat16_string_broadcast)
-{
+TEST(constant, bfloat16_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::bf16, shape, vector<string>{"1"});
     auto v = c.get_vector<bfloat16>();
@@ -900,8 +1227,7 @@ TEST(constant, bfloat16_string_broadcast)
     EXPECT_EQ(p[3], bfloat16(1));
 }
 
-TEST(constant, bfloat16_vector)
-{
+TEST(constant, bfloat16_vector) {
     Shape shape{4};
     op::Constant c(element::bf16, shape, vector<bfloat16>{1, 0, 1, 0});
     auto v = c.get_vector<bfloat16>();
@@ -918,8 +1244,7 @@ TEST(constant, bfloat16_vector)
     EXPECT_EQ(p[3], bfloat16(0));
 }
 
-TEST(constant, bfloat16_vector_broadcast)
-{
+TEST(constant, bfloat16_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::bf16, shape, vector<bfloat16>{1});
     auto v = c.get_vector<bfloat16>();
@@ -940,10 +1265,10 @@ TEST(constant, bfloat16_vector_broadcast)
 // float16
 //
 
-TEST(constant, float16_string)
-{
+TEST(constant, float16_string) {
     Shape shape{4};
-    op::Constant c(element::f16, shape, vector<string>{"1", "0", "1", "0"});
+    vector<string> input{"1", "0", "1", "0"};
+    op::Constant c(element::f16, shape, input);
     auto v = c.get_vector<float16>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v[0], float16(1));
@@ -956,10 +1281,15 @@ TEST(constant, float16_string)
     EXPECT_EQ(p[1], float16(0));
     EXPECT_EQ(p[2], float16(1));
     EXPECT_EQ(p[3], float16(0));
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
 }
 
-TEST(constant, float16_string_broadcast)
-{
+TEST(constant, float16_string_broadcast) {
     Shape shape{4};
     op::Constant c(element::f16, shape, vector<string>{"1"});
     auto v = c.get_vector<float16>();
@@ -976,8 +1306,7 @@ TEST(constant, float16_string_broadcast)
     EXPECT_EQ(p[3], float16(1));
 }
 
-TEST(constant, float16_vector)
-{
+TEST(constant, float16_vector) {
     Shape shape{4};
     op::Constant c(element::f16, shape, vector<float16>{1, 0, 1, 0});
     auto v = c.get_vector<float16>();
@@ -994,8 +1323,7 @@ TEST(constant, float16_vector)
     EXPECT_EQ(p[3], float16(0));
 }
 
-TEST(constant, float16_vector_broadcast)
-{
+TEST(constant, float16_vector_broadcast) {
     Shape shape{4};
     op::Constant c(element::f16, shape, vector<float16>{1});
     auto v = c.get_vector<float16>();
@@ -1012,8 +1340,7 @@ TEST(constant, float16_vector_broadcast)
     EXPECT_EQ(p[3], float16(1));
 }
 
-TEST(constant, shared_data)
-{
+TEST(constant, shared_data) {
     Shape shape{100, 200};
     auto c1 = make_shared<op::Constant>(element::f16, shape, vector<float16>{123});
     auto c2 = static_pointer_cast<op::Constant>(c1->clone_with_new_inputs({}));
@@ -1023,8 +1350,7 @@ TEST(constant, shared_data)
 }
 
 template <typename T1, typename T2>
-::testing::AssertionResult test_convert()
-{
+::testing::AssertionResult test_convert() {
     Shape shape{5};
     vector<T1> expected{1, 2, 3, 4, 5};
     auto c1 = make_shared<op::Constant>(element::from<T2>(), shape, expected);
@@ -1035,8 +1361,7 @@ template <typename T1, typename T2>
     return rc;
 }
 
-TEST(constant, convert_input)
-{
+TEST(constant, convert_input) {
     EXPECT_TRUE((test_convert<float, float>()));
     EXPECT_TRUE((test_convert<float, double>()));
     EXPECT_TRUE((test_convert<float, float16>()));
@@ -1195,8 +1520,7 @@ TEST(constant, convert_input)
 }
 
 template <typename T1, typename T2>
-::testing::AssertionResult test_uniform_ctor()
-{
+::testing::AssertionResult test_uniform_ctor() {
     Shape shape{5};
     vector<T1> expected{3, 3, 3, 3, 3};
     auto c1 = make_shared<op::Constant>(element::from<T2>(), shape, 3);
@@ -1207,8 +1531,7 @@ template <typename T1, typename T2>
     return rc;
 }
 
-TEST(constant, construct_uniform)
-{
+TEST(constant, construct_uniform) {
     EXPECT_TRUE((test_uniform_ctor<float, float>()));
     EXPECT_TRUE((test_uniform_ctor<float, double>()));
     EXPECT_TRUE((test_uniform_ctor<float, float16>()));
@@ -1366,26 +1689,45 @@ TEST(constant, construct_uniform)
     EXPECT_TRUE((test_uniform_ctor<uint64_t, uint64_t>()));
 }
 
-TEST(constant, bad_get_data_ptr)
-{
+TEST(constant, bad_get_data_ptr) {
     op::Constant c(element::f32, Shape{}, vector<float>{1.0});
     EXPECT_EQ(*c.get_data_ptr<element::Type_t::f32>(), 1.0);
-    try
-    {
+    try {
         c.get_data_ptr<element::Type_t::f64>();
         FAIL() << "Bad type not detected.";
-    }
-    catch (const CheckFailure& error)
-    {
+    } catch (const CheckFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("get_data_ptr"));
     }
-    try
-    {
+    try {
         c.get_data_ptr<element::Type_t::i32>();
         FAIL() << "Bad type not detected.";
-    }
-    catch (const CheckFailure& error)
-    {
+    } catch (const CheckFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("get_data_ptr"));
     }
+}
+
+TEST(constant, hold_host_tensor) {
+    Shape shape{4};
+    void* hostDataPtr = nullptr;
+    std::shared_ptr<op::Constant> constOp;
+    {
+        auto tensor = std::make_shared<runtime::HostTensor>(element::f32, Shape{1, 2, 3, 3});
+        hostDataPtr = tensor->get_data_ptr();
+        constOp = std::make_shared<op::Constant>(tensor);
+    }
+    const void* constDataPtr = constOp->get_data_ptr();
+    ASSERT_EQ(constDataPtr, hostDataPtr);
+}
+
+TEST(constant, copy_unknown_tensor) {
+    Shape shape{4};
+    void* hostDataPtr = nullptr;
+    std::shared_ptr<op::Constant> constOp;
+    {
+        auto tensor = std::make_shared<runtime::ie::IETensor>(element::f32, Shape{1, 2, 3, 3});
+        hostDataPtr = const_cast<void*>(tensor->get_data_ptr());
+        constOp = std::make_shared<op::Constant>(tensor);
+    }
+    const void* constDataPtr = constOp->get_data_ptr();
+    ASSERT_NE(constDataPtr, hostDataPtr);
 }

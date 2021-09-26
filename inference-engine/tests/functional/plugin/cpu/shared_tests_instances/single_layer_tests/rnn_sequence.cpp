@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,13 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    // without clip values increase rapidly, so use only seq_lenghts = 2
+    std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
+                                                         ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
+                                                         ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
+                                                         ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM,
+                                                         ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST,
+                                                         ngraph::helpers::SequenceTestsMode::PURE_SEQ};
+    // output values increase rapidly without clip, so use only seq_lengths = 2
     std::vector<size_t> seq_lengths_zero_clip{2};
     std::vector<size_t> seq_lengths_clip_non_zero{20};
     std::vector<size_t> batch{1, 10};
@@ -21,13 +27,13 @@ namespace {
     std::vector<float> clip_non_zeros{0.7f};
     std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD,
                                                            ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                           ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL
+                                                           ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL,
     };
-    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                             InferenceEngine::Precision::FP16};
+    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-    INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCommonZeroClip, RNNSequenceTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCommonZeroClip, RNNSequenceTest,
                             ::testing::Combine(
+                                    ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_zero_clip),
                                     ::testing::ValuesIn(batch),
                                     ::testing::ValuesIn(hidden_size),
@@ -39,8 +45,9 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             RNNSequenceTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCommonClip, RNNSequenceTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCommonClip, RNNSequenceTest,
                             ::testing::Combine(
+                                    ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_clip_non_zero),
                                     ::testing::ValuesIn(batch),
                                     ::testing::ValuesIn(hidden_size),

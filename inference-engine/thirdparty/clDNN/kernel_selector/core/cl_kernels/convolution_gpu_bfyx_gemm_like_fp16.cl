@@ -1,20 +1,9 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #if defined(cl_intel_subgroups_short)
 #define TILE_M          1
@@ -146,12 +135,12 @@ KERNEL(convolution_f16)(
             // ...
             const bool kernel_width_is_odd = FILTER_SIZE_X % 2 == 1;
             #if defined(INPUT_BUFFER_WIDTH_PADDED) && defined(INPUT_BUFFER_HEIGHT_PADDED)
-            
+
             // in case the data is not aligned to sizeof(T)*FILTER_SIZE_X we need to use vload or set the data in a loop
             half blockA00[FILTER_SIZE_X];
             {
                 unsigned i = 0;
-                LOOP(FILTER_SIZE_X, i, 
+                LOOP(FILTER_SIZE_X, i,
                 {
 #if LEFTOVERS == 1
                     if(src0_read_offset_const + (FILTER_SIZE_Y - 1) * INPUT0_Y_PITCH + (FILTER_IFM_NUM - 1) * (INPUT0_FEATURE_PITCH - ( FILTER_SIZE_Y * INPUT0_Y_PITCH )) >= INPUT0_BATCH_NUM * INPUT0_BATCH_PITCH)
@@ -164,7 +153,7 @@ KERNEL(convolution_f16)(
                         blockA00[i] = src0[src0_read_offset + i];
                 } )
             }
-            
+
             half*  pblockA00 = (half*)(&blockA00);
 
             #elif !defined(INPUT_BUFFER_WIDTH_PADDED) && !defined(INPUT_BUFFER_HEIGHT_PADDED)

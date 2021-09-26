@@ -33,7 +33,7 @@ a temporary memory block for model decryption, and use
 For more information, see the `InferenceEngine::Core` Class
 Reference Documentation.
 
-@snippet openvino/docs/snippets/protecting_model_guide.cpp part0
+@snippet snippets/protecting_model_guide.cpp part0
 
 Hardware-based protection, such as Intel&reg; Software Guard Extensions
 (Intel&reg; SGX), can be utilized to protect decryption operation secrets and
@@ -43,7 +43,11 @@ Extensions](https://software.intel.com/en-us/sgx).
 Use `InferenceEngine::Core::ReadNetwork()` to set model representations and
 weights respectively.
 
-@snippet openvino/docs/snippets/protecting_model_guide.cpp part1
+Currently there are no possibility to read external weights from memory for ONNX models.
+The `ReadNetwork(const std::string& model, const Blob::CPtr& weights)` function
+should be called with `weights` passed as an empty `Blob`.
+
+@snippet snippets/protecting_model_guide.cpp part1
 
 [deploy_encrypted_model]: img/deploy_encrypted_model.png
 
@@ -53,7 +57,6 @@ weights respectively.
 - OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
 - Model Optimizer Developer Guide: [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - Inference Engine Developer Guide: [Inference Engine Developer Guide](Deep_Learning_Inference_Engine_DevGuide.md)
-- For more information on Sample Applications, see the [Inference Engine Samples Overview](Samples_Overview.html)
-- For information on a set of pre-trained models, see the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
-- For information on Inference Engine Tutorials, see the [Inference Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic)
+- For more information on Sample Applications, see the [Inference Engine Samples Overview](Samples_Overview.md)
+- For information on a set of pre-trained models, see the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).

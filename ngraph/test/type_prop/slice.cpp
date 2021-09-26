@@ -1,438 +1,1013 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
+#include <numeric>
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
-using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, slice_deduce_vector)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6});
-    auto sl = make_shared<op::Slice>(param, Coordinate{2}, Coordinate{5});
-    ASSERT_EQ(sl->get_element_type(), element::f32);
-    ASSERT_EQ(sl->get_shape(), (Shape{3}));
+namespace {
+template <typename T>
+std::shared_ptr<Node> make_slice_op_const_inputs(const std::vector<std::vector<T>>& args,
+                                                 PartialShape& data_shape,
+                                                 element::Type_t et) {
+    const auto& start_val = args[0];
+    const auto& stop_val = args[1];
+    const auto& step_val = args[2];
+
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Constant>(et, Shape{start_val.size()}, start_val);
+    const auto stop = std::make_shared<op::v0::Constant>(et, Shape{stop_val.size()}, stop_val);
+    const auto step = std::make_shared<op::v0::Constant>(et, Shape{step_val.size()}, step_val);
+
+    if (args.size() > 3) {
+        const auto& axes_val = args[3];
+        const auto axes = std::make_shared<op::v0::Constant>(et, Shape{axes_val.size()}, axes_val);
+        return std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+    }
+    return std::make_shared<op::v8::Slice>(data, start, stop, step);
+}
+}  // namespace
+
+TEST(type_prop, slice_v8_basic_const_inputs) {
+    PartialShape data_shape{10, 10, 10, 10, 10, 10, 10, 10};
+    PartialShape expected_out_shape{7, 4, 10, 10, 9, 9, 5, 10};
+
+    std::vector<int32_t> start_val{1, 1, -20, 9, 9, 9, 9, 20};
+    std::vector<int32_t> stop_val{8, 8, 20, -11, 0, -10, -11, -20};
+    std::vector<int32_t> step_val{1, 2, 1, -1, -1, -1, -2, -1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
-TEST(type_prop, slice_deduce_matrix)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{2, 1}, Coordinate{5, 7});
-    ASSERT_EQ(sl->get_element_type(), element::f32);
-    ASSERT_EQ(sl->get_shape(), (Shape{3, 6}));
+TEST(type_prop, slice_v8_basic_const_inputs_dif_steps) {
+    PartialShape data_shape{5, 5, 5, 5, 9, 9};
+    PartialShape expected_out_shape{3, 2, 2, 1, 5, 3};
+
+    std::vector<int32_t> start_val{0, 0, 0, 0, 0, 0};
+    std::vector<int32_t> stop_val{5, 5, 5, 5, 9, 9};
+    std::vector<int32_t> step_val{2, 3, 4, 5, 2, 3};
+
+    element::Type_t et = element::i32;
+
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
-TEST(type_prop, slice_deduce_matrix_strided)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{2, 1}, Coordinate{5, 7}, Strides{3, 2});
-    ASSERT_EQ(sl->get_element_type(), element::f32);
-    ASSERT_EQ(sl->get_shape(), (Shape{1, 3}));
+TEST(type_prop, slice_v8_basic_const_inputs_dif_neg_steps) {
+    PartialShape data_shape{5, 5, 5, 5, 9, 9};
+    PartialShape expected_out_shape{2, 2, 1, 1, 4, 3};
+
+    std::vector<int32_t> start_val{5, 5, 5, 5, 9, 9};
+    std::vector<int32_t> stop_val{0, 0, 0, 0, 0, 0};
+    std::vector<int32_t> step_val{-2, -3, -4, -5, -2, -3};
+
+    element::Type_t et = element::i32;
+
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
-TEST(type_prop, slice_deduce_matrix_strided_uneven)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{2, 1}, Coordinate{5, 7}, Strides{3, 4});
-    ASSERT_EQ(sl->get_element_type(), element::f32);
-    ASSERT_EQ(sl->get_shape(), (Shape{1, 2}));
+TEST(type_prop, slice_v8_basic_const_inputs_default_axes) {
+    PartialShape data_shape{10, 10, 10, 10, 10, 10, 10, 10};
+    PartialShape expected_out_shape{7, 4, 10, 10, 9, 9, 5, 10};
+
+    std::vector<int32_t> start_val{1, 1, -20, 9, 9, 9, 9, 20};
+    std::vector<int32_t> stop_val{8, 8, 20, -11, 0, -10, -11, -20};
+    std::vector<int32_t> step_val{1, 2, 1, -1, -1, -1, -2, -1};
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
-TEST(type_prop, slice_deduce_vector_edge)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6});
-    auto sl = make_shared<op::Slice>(param, Coordinate{0}, Coordinate{6});
-    ASSERT_EQ(sl->get_element_type(), element::f32);
-    ASSERT_EQ(sl->get_shape(), (Shape{6}));
+TEST(type_prop, slice_v8_basic_const_inputs_unordered_axes) {
+    PartialShape data_shape{10, 10, 10, 10, 10, 10, 10, 10};
+    PartialShape expected_out_shape{4, 9, 7, 10, 10, 9, 5, 10};
+
+    std::vector<int32_t> start_val{1, 1, -20, 9, 9, 9, 9, 20};
+    std::vector<int32_t> stop_val{8, 8, 20, -11, 0, -10, -11, -20};
+    std::vector<int32_t> step_val{1, 2, 1, -1, -1, -1, -2, -1};
+
+    std::vector<int32_t> axes_val{2, 0, 3, 7, 1, 5, 6, 4};
+
+    element::Type_t et = element::i32;
+
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
-TEST(type_prop, slice_deduce_matrix_edge)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{6, 8});
-    ASSERT_EQ(sl->get_element_type(), element::f32);
-    ASSERT_EQ(sl->get_shape(), (Shape{6, 8}));
+TEST(type_prop, slice_v8_const_inputs_not_all_axes_unordered) {
+    PartialShape data_shape{10, 10, 10, 10, 10, 20, Dimension(20, 30), 30, Dimension(2, 5), Dimension(-1)};
+    PartialShape expected_out_shape{4, 7, 10, 10, 9, 20, Dimension(10, 15), 30, Dimension(2, 5), Dimension(-1)};
+
+    std::vector<int32_t> start_val{1, 1, -20, 9, 10, 9};
+    std::vector<int32_t> stop_val{8, 8, 20, -11, 25, 0};
+    std::vector<int32_t> step_val{1, 2, 1, -1, 1, -1};
+
+    std::vector<int32_t> axes_val{1, 0, 2, 3, 6, 4};
+
+    element::Type_t et = element::i32;
+
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
-TEST(type_prop, slice_deduce_matrix_zero_cols)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{6, 0});
-    ASSERT_EQ(sl->get_element_type(), element::f32);
-    ASSERT_EQ(sl->get_shape(), (Shape{6, 0}));
+TEST(type_prop, slice_v8_basic_const_inputs_data_dynamic_bounds_dimensions) {
+    PartialShape data_shape{Dimension(10, 20), Dimension(20, 30), Dimension(30, 40)};
+    PartialShape expected_out_shape{6, Dimension(10, 15), Dimension(0, 5)};
+
+    std::vector<int32_t> start_val{2, 10, 35};
+    std::vector<int32_t> stop_val{8, 25, 40};
+    std::vector<int32_t> step_val{1, 1, 1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
-TEST(type_prop, slice_deduce_matrix_zero_zero)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{0, 0});
-    ASSERT_EQ(sl->get_element_type(), element::f32);
-    ASSERT_EQ(sl->get_shape(), (Shape{0, 0}));
+TEST(type_prop, slice_v8_basic_const_inputs_data_dynamic_rank) {
+    PartialShape data_shape = PartialShape::dynamic();
+    PartialShape expected_out_shape = PartialShape::dynamic();
+
+    std::vector<int32_t> start_val{1, 1, -20, 9, 9, 9, 9, 20};
+    std::vector<int32_t> stop_val{8, 8, 20, -11, 0, -10, -11, -20};
+    std::vector<int32_t> step_val{1, 2, 1, -1, -1, -1, -2, -1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+    EXPECT_TRUE(op->get_output_partial_shape(0).rank().is_dynamic());
 }
 
-TEST(type_prop, slice_deduce_vector_invalid_strides)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6});
-    try
+TEST(type_prop, slice_v8_basic_param_inputs_default_axes) {
+    PartialShape data_shape{Dimension(0, 10),
+                            Dimension(1, 10),
+                            10,
+                            Dimension(3, 5),
+                            Dimension(-1, -1),
+                            Dimension(100, -1),
+                            Dimension(0, 8),
+                            Dimension(4, 8),
+                            16};
+    PartialShape expected_out_shape{Dimension(0, 10),
+                                    Dimension(0, 10),
+                                    Dimension(0, 10),
+                                    Dimension(0, 5),
+                                    Dimension(0, -1),
+                                    Dimension(0, -1),
+                                    Dimension(0, 8),
+                                    Dimension(4, 8),
+                                    16};
+
+    PartialShape start_shape{7};
+    PartialShape stop_shape{7};
+    PartialShape step_shape{7};
+
+    element::Type_t et = element::i32;
+
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, start_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, stop_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, step_shape);
+
+    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_sss_param_inputs_const_axes) {
+    PartialShape data_shape{Dimension(0, 10),
+                            Dimension(1, 10),
+                            10,
+                            Dimension(3, 5),
+                            Dimension(-1, -1),
+                            Dimension(100, -1),
+                            Dimension(0, 8),
+                            Dimension(4, 8),
+                            16};
+
+    PartialShape expected_out_shape{Dimension(0, 10),
+                                    Dimension(0, 10),
+                                    Dimension(0, 10),
+                                    Dimension(0, 5),
+                                    Dimension(0, -1),
+                                    Dimension(0, -1),
+                                    Dimension(0, 8),
+                                    Dimension(4, 8),
+                                    16};
+
+    PartialShape start_shape{7};
+    PartialShape stop_shape{7};
+    PartialShape step_shape{7};
+
+    element::Type_t et = element::i32;
+
+    Shape axes_shape{7};
+    std::vector<int32_t> axes_val(7);
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, start_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, stop_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, step_shape);
+    const auto axes = std::make_shared<op::v0::Constant>(et, axes_shape, axes_val);
+
+    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_sss_param_inputs_param_axes) {
+    PartialShape data_shape{Dimension(0, 10),
+                            Dimension(1, 10),
+                            10,
+                            Dimension(3, 5),
+                            Dimension(-1, -1),
+                            Dimension(100, -1),
+                            Dimension(0, 8),
+                            Dimension(4, 8),
+                            16};
+
+    PartialShape expected_out_shape{Dimension(0, 10),
+                                    Dimension(0, 10),
+                                    Dimension(0, 10),
+                                    Dimension(0, 5),
+                                    Dimension(0, -1),
+                                    Dimension(0, -1),
+                                    Dimension(0, 8),
+                                    Dimension(4, 8),
+                                    16};
+    PartialShape start_shape{7};
+    PartialShape stop_shape{7};
+    PartialShape step_shape{7};
+    PartialShape axes_shape{7};
+
+    element::Type_t et = element::i32;
+
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, start_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, stop_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, step_shape);
+    const auto axes = std::make_shared<op::v0::Parameter>(et, axes_shape);
+
+    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_INT_dynamic_dimensions) {
+    PartialShape data_shape{10,
+                            Dimension(10, 20),
+                            Dimension(10, 20),
+                            Dimension(10, 20),
+                            Dimension(10, 20),
+                            Dimension(10, 20),
+                            Dimension(30, 40),
+                            Dimension(0, 50),
+                            Dimension(0, -1)};
+    PartialShape expected_out_shape{8,
+                                    Dimension(8, 18),
+                                    5,
+                                    10,
+                                    Dimension(10, 15),
+                                    Dimension(10, 20),
+                                    Dimension(30, 40),
+                                    Dimension(0, 50),
+                                    Dimension(0, INT32_MAX)};
+
+    std::vector<int32_t> start_val{2, 2, INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN, 0, 0};
+    std::vector<int32_t> stop_val{10, INT32_MAX, 5, 10, 15, 25, INT32_MAX, 50, INT32_MAX};
+    std::vector<int32_t> step_val{1, 1, 1, 1, 1, 1, 1, 1, 1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_INT_dynamic_dimensions_neg_step) {
+    PartialShape data_shape{10,
+                            Dimension(10, 20),
+                            Dimension(10, 20),
+                            Dimension(10, 20),
+                            Dimension(11, 20),
+                            Dimension(10, 20),
+                            Dimension(10, 20),
+                            Dimension(30, 40),
+                            Dimension(20),
+                            Dimension(20),
+                            Dimension(0, 20),
+                            Dimension(-1),
+                            Dimension(-1)};
+    PartialShape expected_out_shape{8,
+                                    Dimension(8, 18),
+                                    Dimension(5, 15),
+                                    Dimension(0, 9),
+                                    Dimension(0, 9),
+                                    Dimension(0, 4),
+                                    Dimension(0),
+                                    Dimension(30, 40),
+                                    Dimension(20),
+                                    Dimension(20),
+                                    Dimension(0, 20),
+                                    Dimension(0, 21),
+                                    Dimension(-1)};
+
+    std::vector<int32_t> start_val{9,
+                                   INT32_MAX,
+                                   INT32_MAX,
+                                   INT32_MAX,
+                                   INT32_MAX,
+                                   INT32_MAX,
+                                   INT32_MAX,
+                                   INT32_MAX,
+                                   20,
+                                   20,
+                                   20,
+                                   20,
+                                   INT32_MAX};
+    std::vector<int32_t> stop_val{1, 1, 4, 10, 10, 15, 25, INT32_MIN, -21, INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN};
+    std::vector<int32_t> step_val{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_data_full_dynamic_dims) {
+    PartialShape data_shape{Dimension(-1), Dimension(-1), Dimension(-1)};
+    PartialShape expected_out_shape{Dimension(0, 6), Dimension(0, 15), Dimension(0, 5)};
+
+    std::vector<int32_t> start_val{2, 10, 35};
+    std::vector<int32_t> stop_val{8, 25, 40};
+    std::vector<int32_t> step_val{1, 1, 1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_data_full_dynamic_dims_neg_ind) {
+    PartialShape data_shape{Dimension(-1), Dimension(-1), Dimension(-1)};
+    PartialShape expected_out_shape{Dimension(0, 6), Dimension(0, 15), Dimension(0, 5)};
+
+    std::vector<int32_t> start_val{-8, -25, -40};
+    std::vector<int32_t> stop_val{-2, -10, -35};
+    std::vector<int32_t> step_val{1, 1, 1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_data_full_dynamic_dims_neg_step) {
+    PartialShape data_shape{Dimension(-1), Dimension(-1), Dimension(-1)};
+    PartialShape expected_out_shape{Dimension(0, 6), Dimension(0, 15), Dimension(0, 5)};
+
+    std::vector<int32_t> start_val{8, 25, 40};
+    std::vector<int32_t> stop_val{2, 10, 35};
+    std::vector<int32_t> step_val{-1, -1, -1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_data_full_dynamic_dims_neg_step_neg_ind) {
+    PartialShape data_shape{Dimension(-1), Dimension(-1), Dimension(-1)};
+    PartialShape expected_out_shape{Dimension(0, 6), Dimension(0, 15), Dimension(0, 5)};
+
+    std::vector<int32_t> start_val{-2, -10, -35};
+    std::vector<int32_t> stop_val{-8, -25, -40};
+    std::vector<int32_t> step_val{-1, -1, -1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_data_full_dynamic_dims_neg_step_mix_ind) {
+    PartialShape data_shape{Dimension(-1), Dimension(-1), Dimension(-1), Dimension(-1), Dimension(-1)};
+    PartialShape expected_out_shape{Dimension(0, 6),
+                                    Dimension(0, 6),
+                                    Dimension(-1),
+                                    Dimension(0, INT32_MAX - 5),
+                                    Dimension(-1)};
+
+    std::vector<int32_t> start_val{5, 5, -10, INT32_MAX, INT32_MAX};
+    std::vector<int32_t> stop_val{-10, INT32_MIN, 5, 5, INT32_MIN};
+    std::vector<int32_t> step_val{-1, -1, -1, -1, -1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_INT_64_dynamic_dimensions_neg_step) {
+    PartialShape data_shape{10,
+                            Dimension(10, 20),
+                            Dimension(10, 20),
+                            Dimension(10, 20),
+                            Dimension(11, 20),
+                            Dimension(10, 20),
+                            Dimension(10, 20),
+                            Dimension(30, 40),
+                            Dimension(20),
+                            Dimension(20),
+                            Dimension(0, 20),
+                            Dimension(-1),
+                            Dimension(-1)};
+    PartialShape expected_out_shape{8,
+                                    Dimension(8, 18),
+                                    Dimension(5, 15),
+                                    Dimension(0, 9),
+                                    Dimension(0, 9),
+                                    Dimension(0, 4),
+                                    Dimension(0),
+                                    Dimension(30, 40),
+                                    Dimension(20),
+                                    Dimension(20),
+                                    Dimension(0, 20),
+                                    Dimension(0, 21),
+                                    Dimension(-1)};
+
+    std::vector<int64_t> start_val{9,
+                                   INT64_MAX,
+                                   INT64_MAX,
+                                   INT64_MAX,
+                                   INT64_MAX,
+                                   INT64_MAX,
+                                   INT64_MAX,
+                                   INT64_MAX,
+                                   20,
+                                   20,
+                                   20,
+                                   20,
+                                   INT64_MAX};
+    std::vector<int64_t> stop_val{1, 1, 4, 10, 10, 15, 25, INT64_MIN, -21, INT64_MIN, INT64_MIN, INT64_MIN, INT64_MIN};
+    std::vector<int64_t> step_val{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+
+    std::vector<int64_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i64;
+    std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_64_no_upper_bounds_neg_step) {
+    PartialShape data_shape{Dimension(-1), Dimension(0, INT64_MAX), Dimension(0, INT64_MAX)};
+    PartialShape expected_out_shape{Dimension(-1), Dimension(0, INT64_MAX), Dimension(0, INT64_MAX)};
+
+    std::vector<int64_t> start_val{INT64_MAX, INT64_MAX, INT64_MAX};
+    std::vector<int64_t> stop_val{INT64_MIN, INT64_MIN, INT64_MIN};
+    std::vector<int64_t> step_val{-1, -1, -1};
+
+    std::vector<int64_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i64;
+    std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_64_no_upper_bounds) {
+    PartialShape data_shape{Dimension(-1), Dimension(0, INT64_MAX), Dimension(0, INT64_MAX)};
+    PartialShape expected_out_shape{Dimension(-1), Dimension(0, INT64_MAX), Dimension(0, INT64_MAX)};
+
+    std::vector<int64_t> start_val{INT64_MIN, INT64_MIN, INT64_MIN};
+    std::vector<int64_t> stop_val{INT64_MAX, INT64_MAX, INT64_MAX};
+    std::vector<int64_t> step_val{1, 1, 1};
+
+    std::vector<int64_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i64;
+    std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_32_no_upper_bounds) {
+    PartialShape data_shape{Dimension(-1), Dimension(0, INT64_MAX), Dimension(0, INT32_MAX), Dimension(0, INT32_MAX)};
+    PartialShape expected_out_shape{Dimension(-1),
+                                    Dimension(0, INT64_MAX),
+                                    Dimension(0, INT32_MAX),
+                                    Dimension(0, INT32_MAX)};
+
+    std::vector<int32_t> start_val{INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN};
+    std::vector<int32_t> stop_val{INT32_MAX, INT32_MAX, INT32_MAX, INT32_MAX};
+    std::vector<int32_t> step_val{1, 1, 1, 1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_32_no_upper_bounds_neg_step) {
+    PartialShape data_shape{Dimension(-1), Dimension(0, INT64_MAX), Dimension(0, INT32_MAX), Dimension(0, INT32_MAX)};
+    PartialShape expected_out_shape{Dimension(-1), Dimension(-1), Dimension(0, INT32_MAX), Dimension(0, INT32_MAX)};
+
+    std::vector<int32_t> start_val{INT32_MAX, INT32_MAX, INT32_MAX, INT32_MAX};
+    std::vector<int32_t> stop_val{INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN};
+    std::vector<int32_t> step_val{-1, -1, -1, -1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_duplicated_axes) {
+    PartialShape data_shape{100, 100, 100, 100};
+    PartialShape expected_out_shape{100, 100, 100, 100};
+
+    std::vector<int32_t> start_val{2, 10, 35, 10};
+    std::vector<int32_t> stop_val{8, 25, 40, 20};
+    std::vector<int32_t> step_val{1, 1, 1, 100};
+
+    std::vector<int32_t> axes_val{2, 1, 2, 3};
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+
+    EXPECT_THROW(make_slice_op_const_inputs(input_vals, data_shape, et), NodeValidationFailure);
+}
+
+TEST(type_prop, slice_v8_zero_step) {
+    PartialShape data_shape{100, 100, 100};
+    PartialShape expected_out_shape{100, 100, 100};
+
+    std::vector<int32_t> start_val{2, 10, 35};
+    std::vector<int32_t> stop_val{8, 25, 40};
+    std::vector<int32_t> step_val{1, 0, 1};
+
+    std::vector<int32_t> axes_val{1, 2, 3};
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+
+    EXPECT_THROW(make_slice_op_const_inputs(input_vals, data_shape, et), NodeValidationFailure);
+}
+
+TEST(type_prop, slice_v8_ind_bad_type) {
+    PartialShape data_shape{100, 100, 100, 100};
+    PartialShape expected_out_shape{100, 100, 100, 100};
+
+    std::vector<int32_t> start_val{2, 10, 35, 10};
+    std::vector<int32_t> stop_val{8, 25, 40, 20};
+    std::vector<int32_t> step_val{1, 1, 1, 100};
+
+    std::vector<int32_t> axes_val{0, 1, 2, 3};
+
+    element::Type_t et = element::f32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+
+    EXPECT_THROW(make_slice_op_const_inputs(input_vals, data_shape, et), NodeValidationFailure);
+}
+
+TEST(type_prop, slice_v8_input_wrong_shape_catch) {
+    PartialShape data_shape{100, 100, 100, 100};
+
+    PartialShape correct_shape{3};
+    PartialShape wrong_shape{};
+
+    element::Type_t et = element::i32;
+
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto axes = std::make_shared<op::v0::Parameter>(et, correct_shape);
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0}, Coordinate{7}, Strides{1, 2});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid slice strides not detected";
+        try {
+            const auto start = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`start` input must be a 1D tensor");
+        }
     }
-    catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Ranks of lower bounds (Coordinate{0}), upper bounds "
-                        "(Coordinate{7}) and strides (Strides{1, 2}) do not match"));
+        try {
+            const auto stop = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`stop` input must be a 1D tensor");
+        }
     }
-    catch (...)
     {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        try {
+            const auto step = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`step` input must be a 1D tensor");
+        }
+    }
+    {
+        try {
+            const auto axes = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`axes` input must be a 1D tensor");
+        }
+    }
+    {
+        try {
+            const auto data = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`data` input can't be a scalar");
+        }
     }
 }
 
-TEST(type_prop, slice_deduce_vector_edge_upper_oob)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6});
-    try
+TEST(type_prop, slice_v8_input_start_stop_step_dif_length_catch) {
+    PartialShape data_shape{100, 100, 100, 100};
+
+    PartialShape correct_shape{3};
+    PartialShape wrong_shape{2};
+
+    element::Type_t et = element::i32;
+
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto axes = std::make_shared<op::v0::Parameter>(et, correct_shape);
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0}, Coordinate{7});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Upper bound out of range not detected";
+        try {
+            const auto start = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "start`, `stop`, `step` inputs must have compatible shapes");
+        }
     }
-    catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Upper bound for slice at axis 0 is out of range"));
+        try {
+            const auto stop = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "start`, `stop`, `step` inputs must have compatible shapes");
+        }
     }
-    catch (...)
     {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        try {
+            const auto step = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "start`, `stop`, `step` inputs must have compatible shapes");
+        }
+    }
+    {
+        try {
+            const auto axes = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(),
+                                 "`axes` input must have compatible shape with `start`, `stop`, `step` inputs");
+        }
     }
 }
 
-TEST(type_prop, slice_deduce_matrix_edge_upper_oob)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    try
+TEST(type_prop, slice_v8_input_start_stop_step_out_of_data_rank_length_catch) {
+    PartialShape data_shape{100, 100, 100, 100};
+
+    PartialShape correct_shape{3};
+    PartialShape wrong_shape{5};
+
+    element::Type_t et = element::i32;
+
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto axes = std::make_shared<op::v0::Parameter>(et, correct_shape);
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{6, 9});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Upper bound out of range not detected";
+        try {
+            const auto start = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`start` input dim size can't be bigger than `data` rank");
+        }
     }
-    catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Upper bound for slice at axis 1 is out of range"));
+        try {
+            const auto stop = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`stop` input dim size can't be bigger than `data` rank");
+        }
     }
-    catch (...)
     {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        try {
+            const auto step = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`step` input dim size can't be bigger than `data` rank");
+        }
+    }
+    {
+        try {
+            const auto axes = std::make_shared<op::v0::Parameter>(et, wrong_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`axes` input dim size can't be bigger than `data` rank");
+        }
     }
 }
 
-TEST(type_prop, slice_deduce_vector_lower_above_upper)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6});
-    try
+TEST(type_prop, slice_v8_input_wrong_types_float_catch) {
+    PartialShape data_shape{100, 100, 100, 100};
+    PartialShape correct_shape{3};
+
+    element::Type_t et = element::i32;
+    element::Type_t wrong_et = element::f32;
+
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto axes = std::make_shared<op::v0::Parameter>(et, correct_shape);
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{3}, Coordinate{2});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Lower bound above upper not detected";
+        try {
+            const auto start = std::make_shared<op::v0::Parameter>(wrong_et, correct_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`start` input type must be integer.");
+        }
     }
-    catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Lower bound for slice is greater than upper bound at axis 0"));
+        try {
+            const auto stop = std::make_shared<op::v0::Parameter>(wrong_et, correct_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`stop` input type must be integer.");
+        }
     }
-    catch (...)
     {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        try {
+            const auto step = std::make_shared<op::v0::Parameter>(wrong_et, correct_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`step` input type must be integer.");
+        }
+    }
+    {
+        try {
+            const auto axes = std::make_shared<op::v0::Parameter>(wrong_et, correct_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`axes` input type must be integer.");
+        }
     }
 }
 
-TEST(type_prop, slice_deduce_matrix_lower_above_upper)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    try
+TEST(type_prop, slice_v8_input_wrong_types_bool_catch) {
+    PartialShape data_shape{100, 100, 100, 100};
+    PartialShape correct_shape{3};
+
+    element::Type_t et = element::u64;
+    element::Type_t wrong_et = element::boolean;
+
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, correct_shape);
+    const auto axes = std::make_shared<op::v0::Parameter>(et, correct_shape);
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0, 5}, Coordinate{6, 4});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Lower bound above upper not detected";
+        try {
+            const auto start = std::make_shared<op::v0::Parameter>(wrong_et, correct_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`start` input type must be integer.");
+        }
     }
-    catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Lower bound for slice is greater than upper bound at axis 1"));
+        try {
+            const auto stop = std::make_shared<op::v0::Parameter>(wrong_et, correct_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`stop` input type must be integer.");
+        }
     }
-    catch (...)
     {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        try {
+            const auto step = std::make_shared<op::v0::Parameter>(wrong_et, correct_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`step` input type must be integer.");
+        }
+    }
+    {
+        try {
+            const auto axes = std::make_shared<op::v0::Parameter>(wrong_et, correct_shape);
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "`axes` input type must be integer.");
+        }
     }
 }
 
-TEST(type_prop, slice_deduce_matrix_lower_missing)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    try
+TEST(type_prop, slice_v8_basic_const_inputs_out_axes_val) {
+    PartialShape data_shape{10, 10, 10, 10, 10, 10, 10, 10};
+
+    std::vector<int32_t> start_val{1, 1, -20, 9, 9, 9, 9, 20};
+    std::vector<int32_t> stop_val{8, 8, 20, -11, 0, -10, -11, -20};
+    std::vector<int32_t> step_val{1, 2, 1, -1, -1, -1, -2, -1};
+
+    element::Type_t et = element::i32;
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0}, Coordinate{5, 5});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Missing lower bound coordinate not detected";
+        try {
+            std::vector<int32_t> axes_val{2, 0, -20, 7, 1, 20, 6, 4};
+            std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+            const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+            FAIL() << "Slice validation did not work!";
+        } catch (const ov::AssertFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "must be in range of the `data` input rank: [-8, 7]. Got: -20");
+        }
     }
-    catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Ranks of lower bounds (Coordinate{0}), upper bounds "
-                        "(Coordinate{5, 5}) and strides (Strides{1}) do not match"));
+        try {
+            std::vector<int32_t> axes_val{2, 0, 9, 7, 1, 20, 6, 4};
+            std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+            const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "must be in range of the `data` input rank: [-8, 7]. Got: 9");
+        }
     }
-    catch (...)
     {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        try {
+            const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+            const auto start = std::make_shared<op::v0::Parameter>(et, PartialShape{2});
+            const auto stop = std::make_shared<op::v0::Parameter>(et, PartialShape{2});
+            const auto step = std::make_shared<op::v0::Parameter>(et, PartialShape{2});
+            const auto axes = std::make_shared<op::v0::Constant>(et, Shape{2}, std::vector<int32_t>{-15, 7});
+            const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "must be in range of the `data` input rank: [-8, 7]. Got: -15");
+        }
     }
 }
 
-TEST(type_prop, slice_deduce_matrix_upper_missing)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    try
+TEST(type_prop, slice_v8_basic_const_inputs_step_zero) {
+    PartialShape data_shape{10, 10, 10, 10, 10, 10, 10, 10};
+    PartialShape expected_out_shape{4, 9, 7, 10, 10, 9, 5, 10};
+
+    std::vector<int32_t> start_val{1, 1, -20, 9, 9, 9, 9, 20};
+    std::vector<int32_t> stop_val{8, 8, 20, -11, 0, -10, -11, -20};
+
+    element::Type_t et = element::i32;
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{5});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Missing upper bound coordinate not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Ranks of lower bounds (Coordinate{0, 0}), upper bounds "
-                        "(Coordinate{5}) and strides (Strides{1, 1}) do not match"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        std::vector<int32_t> step_val{1, 2, 0, -1, -1, -1, -2, -1};
+        std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val};
+        try {
+            const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+            FAIL() << "Slice validation did not work!";
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "'step' value can't be zero");
+        }
     }
 }
 
-TEST(type_prop, slice_deduce_matrix_lower_extra)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    try
-    {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0, 0, 0}, Coordinate{5, 5});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Extra lower bound coordinate not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Ranks of lower bounds (Coordinate{0, 0, "
-                                         "0}), upper bounds (Coordinate{5, 5}) and "
-                                         "strides (Strides{1, 1, 1}) do not match"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
+TEST(type_prop, slice_v8_dynamic_rank_inputs) {
+    PartialShape dyn_rank_shape = PartialShape::dynamic();
+    element::Type_t et = element::i32;
 
-TEST(type_prop, slice_deduce_matrix_upper_extra)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    try
-    {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{5, 5, 5});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Extra upper bound coordinate not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Ranks of lower bounds (Coordinate{0, 0}), "
-                                         "upper bounds (Coordinate{5, 5, 5}) and "
-                                         "strides (Strides{1, 1}) do not match"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
+    const auto data = std::make_shared<op::v0::Parameter>(et, dyn_rank_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, dyn_rank_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, dyn_rank_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, dyn_rank_shape);
+    const auto axes = std::make_shared<op::v0::Parameter>(et, dyn_rank_shape);
+    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
 
-TEST(type_prop, slice_partial_arg_input_rank_dynamic_attribs_ok)
-{
-    PartialShape input_shape{PartialShape::dynamic()};
-    Coordinate lower_bounds{1, 2, 3, 4};
-    Coordinate upper_bounds{1, 3, 5, 7};
-    Strides strides{1, 1, 1, 2};
-
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
-    auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
-
-    ASSERT_EQ(sl->get_element_type(), element::f32);
-    ASSERT_EQ(sl->get_shape(), (Shape{0, 1, 2, 2}));
-}
-
-TEST(type_prop, slice_partial_arg_rank_dynamic_attribs_rank_mismatch)
-{
-    PartialShape input_shape{PartialShape::dynamic()};
-    Coordinate lower_bounds{1, 2, 3, 4};
-    Coordinate upper_bounds{1, 3, 5};
-    Strides strides{1, 1, 1, 2};
-
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
-    try
-    {
-        auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Mismatch of lower-bounds/upper-bounds/strides ranks not detected (argument "
-                  "rank-dynamic)";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Ranks of lower bounds (Coordinate{1, 2, 3, 4}), upper bounds "
-                        "(Coordinate{1, 3, 5}) and strides (Strides{1, 1, 1, 2}) do not match"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, slice_partial_arg_rank_dynamic_attribs_bounds_crossing)
-{
-    PartialShape input_shape{PartialShape::dynamic()};
-    Coordinate lower_bounds{1, 2, 3, 8};
-    Coordinate upper_bounds{1, 3, 5, 7};
-    Strides strides{1, 1, 1, 2};
-
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
-    try
-    {
-        auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Crossing lower/upper bounds not detected (argument rank-dynamic)";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Lower bound for slice is greater than upper bound at axis 3 (lower "
-                        "bounds: Coordinate{1, 2, 3, 8}, upper bounds: Coordinate{1, 3, 5, 7})"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, slice_partial_arg_rank_static_dynamic_ok)
-{
-    PartialShape input_shape{
-        Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()};
-    Coordinate lower_bounds{1, 2, 3, 4};
-    Coordinate upper_bounds{1, 3, 5, 7};
-    Strides strides{1, 1, 1, 2};
-
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
-    auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
-
-    ASSERT_EQ(sl->get_element_type(), element::f32);
-    ASSERT_EQ(sl->get_shape(), (Shape{0, 1, 2, 2}));
-}
-
-TEST(type_prop, slice_partial_arg_rank_static_dynamic_some_dims_known_ok)
-{
-    PartialShape input_shape{2, 4, 10, Dimension::dynamic()};
-    Coordinate lower_bounds{1, 2, 3, 4};
-    Coordinate upper_bounds{1, 3, 5, 7};
-    Strides strides{1, 1, 1, 2};
-
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
-    auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
-
-    ASSERT_EQ(sl->get_element_type(), element::f32);
-    ASSERT_EQ(sl->get_shape(), (Shape{0, 1, 2, 2}));
-}
-
-TEST(type_prop, slice_partial_arg_rank_static_dynamic_attribs_rank_mismatches_arg)
-{
-    PartialShape input_shape{Dimension::dynamic(),
-                             Dimension::dynamic(),
-                             Dimension::dynamic(),
-                             Dimension::dynamic(),
-                             Dimension::dynamic()};
-    Coordinate lower_bounds{1, 2, 3, 4};
-    Coordinate upper_bounds{1, 3, 5, 7};
-    Strides strides{1, 1, 1, 2};
-
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
-    try
-    {
-        auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Mismatch of attrib ranks with arg ranks not detected (argument rank-static "
-                  "dynamic)";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Input rank does not match the "
-                                         "rank of the lower bounds (Coordinate{1, 2, "
-                                         "3, 4}), upper bounds (Coordinate{1, 3, 5, "
-                                         "7}), and strides (Strides{1, 1, 1, 2})"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, slice_partial_arg_rank_static_dynamic_some_dims_known_upper_bounds_oob)
-{
-    PartialShape input_shape{2, 2, 10, Dimension::dynamic()};
-    Coordinate lower_bounds{1, 2, 3, 4};
-    Coordinate upper_bounds{1, 3, 5, 7};
-    Strides strides{1, 1, 1, 2};
-
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
-    try
-    {
-        auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Upper bounds out of bounds not detected (argument rank-static dynamic)";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Upper bound for slice at axis 1 is out of "
-                                         "range (upper bounds: Coordinate{1, 3, 5, "
-                                         "7}, argument shape: {2,2,10,?})"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    EXPECT_EQ(op->get_output_partial_shape(0), dyn_rank_shape);
 }

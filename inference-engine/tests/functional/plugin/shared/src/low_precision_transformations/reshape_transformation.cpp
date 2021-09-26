@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,18 +6,14 @@
 
 #include <memory>
 #include <tuple>
-#include <vector>
-#include <string>
 #include <ie_core.hpp>
 
-#include "ngraph_functions/builders.hpp"
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/reshape_function.hpp"
-
+#include "lpt_ngraph_functions/reshape_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string ReshapeTransformation::getTestCaseName(testing::TestParamInfo<ReshapeTransformationParams> obj) {
+std::string ReshapeTransformation::getTestCaseName(const testing::TestParamInfo<ReshapeTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -48,6 +44,18 @@ void ReshapeTransformation::SetUp() {
         param.reshapeConstValues,
         netPrecision,
         param.fakeQuantize);
+}
+
+void ReshapeTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<3>(GetParam());
+    auto actualPrecision = getRuntimePrecisionByType(params.layerType);
+    const auto expectedPrecision = params.expectedKernelType;
+    if ((expectedPrecision == "FP32") && (actualPrecision == "FP16")) {
+        actualPrecision = "FP32";
+    }
+    EXPECT_EQ(actualPrecision, expectedPrecision);
 }
 
 TEST_P(ReshapeTransformation, CompareWithRefImpl) {

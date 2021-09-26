@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,8 @@ namespace op {
 
 class TRANSFORMATIONS_API DeconvolutionIE : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"DeconvolutionIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("DeconvolutionIE", "util");
+    BWDCMP_RTTI_DECLARATION;
 
     DeconvolutionIE() = default;
 
@@ -29,6 +29,7 @@ public:
                     const Strides& dilations,
                     const CoordinateDiff& pads_begin,
                     const CoordinateDiff& pads_end,
+                    const element::Type output_type,
                     const size_t& group = 1,
                     const PadType& auto_pad = PadType::EXPLICIT,
                     const CoordinateDiff& output_padding = {},
@@ -41,6 +42,7 @@ public:
                     const Strides& dilations,
                     const CoordinateDiff& pads_begin,
                     const CoordinateDiff& pads_end,
+                    const element::Type output_type,
                     const size_t& group = 1,
                     const PadType& auto_pad = PadType::EXPLICIT,
                     const CoordinateDiff& output_padding = {},
@@ -68,16 +70,18 @@ public:
     /// \return The group
     const size_t& get_group() const { return m_group; }
     void set_group(const size_t & group) { m_group = group; }
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
     Strides m_strides;
     Strides m_dilations;
     CoordinateDiff m_pads_begin;
     CoordinateDiff m_pads_end;
-    CoordinateDiff m_output_padding;
     PadType m_auto_pad;
     size_t m_group;
+    CoordinateDiff m_output_padding;
     std::shared_ptr<Node> m_output_shape;
+    element::Type m_output_type;
 };
 
 }  // namespace op

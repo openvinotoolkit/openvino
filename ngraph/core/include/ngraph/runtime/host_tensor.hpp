@@ -1,56 +1,39 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
 #include <memory>
 
-#include "ngraph/node.hpp"
+#include "ngraph/descriptor/output.hpp"
+#include "ngraph/partial_shape.hpp"
+#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
-#include "tensor.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        class HostTensor;
-    }
-    namespace op
-    {
-        namespace v0
-        {
-            class Constant;
-        }
-    }
+namespace ov {
+class Node;
+namespace op {
+namespace v0 {
+class Constant;
 }
-
-class NGRAPH_API ngraph::runtime::HostTensor : public ngraph::runtime::Tensor
-{
+}  // namespace op
+}  // namespace ov
+namespace ngraph {
+namespace op {
+namespace v0 {
+using ov::op::v0::Constant;
+}
+}  // namespace op
+namespace runtime {
+class NGRAPH_API HostTensor : public ngraph::runtime::Tensor {
 public:
-    HostTensor(const element::Type& element_type,
-               const Shape& shape,
-               void* memory_pointer,
-               const std::string& name = "");
-    HostTensor(const element::Type& element_type, const Shape& shape, const std::string& name = "");
-    HostTensor(const element::Type& element_type,
-               const PartialShape& partial_shape,
-               const std::string& name = "");
-    HostTensor(const std::string& name = "");
-    explicit HostTensor(const Output<Node>&);
+    HostTensor(const element::Type& element_type, const Shape& shape, void* memory_pointer);
+    HostTensor(const element::Type& element_type, const Shape& shape);
+    HostTensor(const element::Type& element_type, const PartialShape& partial_shape);
+    HostTensor();
+    explicit HostTensor(const Output<ov::Node>&);
     explicit HostTensor(const std::shared_ptr<op::v0::Constant>& constant);
     virtual ~HostTensor() override;
 
@@ -60,27 +43,23 @@ public:
     const void* get_data_ptr() const;
 
     template <typename T>
-    T* get_data_ptr()
-    {
+    T* get_data_ptr() {
         return static_cast<T*>(get_data_ptr());
     }
 
     template <typename T>
-    const T* get_data_ptr() const
-    {
+    const T* get_data_ptr() const {
         return static_cast<T*>(get_data_ptr());
     }
 
     template <element::Type_t ET>
-    typename element_type_traits<ET>::value_type* get_data_ptr()
-    {
+    typename element_type_traits<ET>::value_type* get_data_ptr() {
         NGRAPH_CHECK(ET == get_element_type(), "get_data_ptr() called for incorrect element type.");
         return static_cast<typename element_type_traits<ET>::value_type*>(get_data_ptr());
     }
 
     template <element::Type_t ET>
-    const typename element_type_traits<ET>::value_type* get_data_ptr() const
-    {
+    const typename element_type_traits<ET>::value_type* get_data_ptr() const {
         NGRAPH_CHECK(ET == get_element_type(), "get_data_ptr() called for incorrect element type.");
         return static_cast<typename element_type_traits<ET>::value_type>(get_data_ptr());
     }
@@ -109,9 +88,7 @@ public:
     /// \param autob The broadcast mode
     /// \param arg0 The first argument
     /// \param arg1 The second argument
-    void set_broadcast(const op::AutoBroadcastSpec& autob,
-                       const HostTensorPtr& arg0,
-                       const HostTensorPtr& arg1);
+    void set_broadcast(const op::AutoBroadcastSpec& autob, const HostTensorPtr& arg0, const HostTensorPtr& arg1);
     /// \brief Set the shape of the tensor using broadcast rules
     /// \param autob The broadcast mode
     /// \param arg0 The first argument
@@ -133,3 +110,5 @@ private:
     void* m_aligned_buffer_pool{nullptr};
     size_t m_buffer_size;
 };
+}  // namespace runtime
+}  // namespace ngraph

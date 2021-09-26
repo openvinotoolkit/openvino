@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,12 @@
 #include <string>
 #include <memory>
 #include <ngraph/ngraph.hpp>
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 class MatMulShapes {
 public:
-    ngraph::Shape inputA;
-    ngraph::Shape inputB;
+    ngraph::PartialShape inputA;
+    ngraph::PartialShape inputB;
     bool transposeA;
     bool transposeB;
 };
@@ -29,7 +29,7 @@ class FullyConnectedTransformation :
     public testing::WithParamInterface<FullyConnectedTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FullyConnectedTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FullyConnectedTransformationParams>& obj);
 
 protected:
     void SetUp() override;

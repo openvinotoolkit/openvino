@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,15 +43,12 @@ TEST_P(myriadBlobTests_smoke, CanGetSameBlobsOnSameIR) {
     const size_t countBlobsToDump = 3;
     std::vector<std::string> filenames(countBlobsToDump);
     for (int i = 0; i < countBlobsToDump; i++) {
-
-        StatusCode st;
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork,
-        { {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, HWConfigValue } }, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork,
+            { {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, HWConfigValue } }));
         std::stringstream modelFilenameStream;
         modelFilenameStream << "spltConvConcat" << i << ".blob";
         filenames[i] = modelFilenameStream.str();
-        ASSERT_NO_THROW(_exeNetwork->Export(modelFilenameStream.str(), nullptr));
+        ASSERT_NO_THROW(_exeNetwork.Export(modelFilenameStream.str()));
     }
 
     for (int i = 0; i < filenames.size() - 1; i++) {
@@ -65,7 +62,7 @@ TEST_P(myriadBlobTests_smoke, CanGetSameBlobsOnSameIR) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadBlobTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadBlobTests_smoke,
     ::testing::Values(CONFIG_VALUE(YES), CONFIG_VALUE(NO))
 );
 
@@ -74,8 +71,8 @@ using myriadBlobExportTests_smoke = myriadLayersTests_nightly;
 
 TEST_F(myriadBlobExportTests_smoke, CanNotDoImportOnNonExistFile)
 {
-    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;
-    ASSERT_EQ(StatusCode::NETWORK_NOT_READ, _vpuPluginPtr->ImportNetwork(importedNetworkPtr, "I_dont_exist.blob", {}, nullptr));
+    ASSERT_THROW(_vpuPluginPtr->ImportNetwork("I_dont_exist.blob"),
+        InferenceEngine::NetworkNotRead);
 }
 
 TEST_F(myriadBlobExportTests_smoke, CanInferImportedNetworkOnExportedBlob)
@@ -83,17 +80,17 @@ TEST_F(myriadBlobExportTests_smoke, CanInferImportedNetworkOnExportedBlob)
     auto fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(_cnnNetwork = CNNNetwork(fnPtr));
 
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork, { }, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork));
     std::stringstream modelFilenameStream;
     modelFilenameStream << "SplitConvConcat" << ".blob";
-    ASSERT_EQ(StatusCode::OK, _exeNetwork->Export(modelFilenameStream.str(), &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork.Export(modelFilenameStream.str()));
 
-    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->ImportNetwork(importedNetworkPtr, modelFilenameStream.str(), {}, &_resp)) << _resp.msg;
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    ASSERT_EQ(StatusCode::OK, importedNetworkPtr->CreateInferRequest(inferRequest, &_resp)) << _resp.msg;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = _vpuPluginPtr->ImportNetwork(modelFilenameStream.str()));
 
-    ASSERT_EQ(StatusCode::OK, inferRequest->Infer(&_resp)) << _resp.msg;
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(inferRequest.Infer());
 }
 
 TEST_F(myriadBlobExportTests_smoke, CanGetPerfCountsImportedNetwork)
@@ -101,20 +98,20 @@ TEST_F(myriadBlobExportTests_smoke, CanGetPerfCountsImportedNetwork)
     auto fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(_cnnNetwork = CNNNetwork(fnPtr));
 
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork, {}, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork));
     std::stringstream modelFilenameStream;
     modelFilenameStream << "splitConvConcat" << ".blob";
-    ASSERT_EQ(StatusCode::OK, _exeNetwork->Export(modelFilenameStream.str(), &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork.Export(modelFilenameStream.str()));
 
     std::map<std::string, std::string> config = { {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)} };
-    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->ImportNetwork(importedNetworkPtr, modelFilenameStream.str(), config, &_resp)) << _resp.msg;
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    ASSERT_EQ(StatusCode::OK, importedNetworkPtr->CreateInferRequest(inferRequest, &_resp)) << _resp.msg;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = _vpuPluginPtr->ImportNetwork(modelFilenameStream.str(), config));
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest =  importedNetwork.CreateInferRequest());
 
-    ASSERT_EQ(StatusCode::OK, inferRequest->Infer(&_resp)) << _resp.msg;
+    ASSERT_NO_THROW(inferRequest.Infer());
     std::map<std::string, InferenceEngineProfileInfo> perfCounts;
-    ASSERT_EQ(StatusCode::OK, inferRequest->GetPerformanceCounts(perfCounts, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(perfCounts = inferRequest.GetPerformanceCounts());
 
     ASSERT_NE(0, perfCounts.size());
     for (const auto &perfInfoElem : perfCounts) {
@@ -154,10 +151,10 @@ TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetCompileOptionPrintsWar
     auto fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(_cnnNetwork = CNNNetwork(fnPtr));
 
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork, {}, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork));
     std::stringstream modelFilenameStream;
     modelFilenameStream << "splitConvConcat" << ".blob";
-    ASSERT_EQ(StatusCode::OK, _exeNetwork->Export(modelFilenameStream.str(), &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork.Export(modelFilenameStream.str()));
 
 
     std::map<std::string, std::string> config = { {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, CONFIG_VALUE(YES)},
@@ -167,15 +164,20 @@ TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetCompileOptionPrintsWar
                                                   {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, std::to_string(10)},
                                                   {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES, std::to_string(10)} };
 
-    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->ImportNetwork(importedNetworkPtr, modelFilenameStream.str(), config, &_resp)) << _resp.msg;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = _vpuPluginPtr->ImportNetwork(modelFilenameStream.str(), config));
 
     std::string content = redirectCoutStream.str();
     for (auto &&elem : config) {
+        // TODO: remove once all options are migrated
+        std::stringstream deprecatedExpectedMsgStream;
+        deprecatedExpectedMsgStream << "[Warning][VPU][Config] " << elem.first;
+        const auto& deprecatedMsg = deprecatedExpectedMsgStream.str();
+
         std::stringstream expectedMsgStream;
-        expectedMsgStream << "[Warning][VPU][Config] " << elem.first;
-        std::string msg = expectedMsgStream.str();
-        ASSERT_TRUE(content.find(msg) != std::string::npos) << msg;
+        expectedMsgStream << "[Warning][VPU][Configuration] Configuration option \"" << elem.first;
+        const auto& msg = expectedMsgStream.str();
+        ASSERT_TRUE(content.find(msg) != std::string::npos || content.find(deprecatedMsg) != std::string::npos) << msg;
     }
 }
 
@@ -184,10 +186,10 @@ TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetRuntimeOptionDoesNotPr
     auto fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(_cnnNetwork = CNNNetwork(fnPtr));
 
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork, {}, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork));
     std::stringstream modelFilenameStream;
     modelFilenameStream << "splitConvConcat" << ".blob";
-    ASSERT_EQ(StatusCode::OK, _exeNetwork->Export(modelFilenameStream.str(), &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork.Export(modelFilenameStream.str()));
 
     std::map<std::string, std::string> config = { {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)},
                                                   {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)},
@@ -195,11 +197,10 @@ TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetRuntimeOptionDoesNotPr
                                                   {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(YES)} };
     if (vpu::tests::deviceForceReset()) {
         config.insert({InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO)});
-        config.insert({VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)});
     }
 
-    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->ImportNetwork(importedNetworkPtr, modelFilenameStream.str(), config, &_resp)) << _resp.msg;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = _vpuPluginPtr->ImportNetwork(modelFilenameStream.str(), config));
 
     std::string content = redirectCoutStream.str();
     for (auto &&elem : config) {
@@ -220,62 +221,62 @@ TEST_F(myriadBlobExportAccuracyDifferentCountInAndOutTests_smoke, IsResultOfImpo
     auto fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(_cnnNetwork = CNNNetwork(fnPtr));
 
-    InferenceEngine::IExecutableNetwork::Ptr originalExeNetworkPtr;
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->LoadNetwork(originalExeNetworkPtr, _cnnNetwork, { }, &_resp)) << _resp.msg;
+    InferenceEngine::ExecutableNetwork originalExeNetwork;
+    ASSERT_NO_THROW(originalExeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork));
 
     ConstInputsDataMap originalInputsInfo;
-    ASSERT_EQ(StatusCode::OK, originalExeNetworkPtr->GetInputsInfo(originalInputsInfo, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(originalInputsInfo = originalExeNetwork.GetInputsInfo());
 
-    InferenceEngine::IInferRequest::Ptr orignalInferRequest;
-    ASSERT_EQ(StatusCode::OK, originalExeNetworkPtr->CreateInferRequest(orignalInferRequest, &_resp)) << _resp.msg;
+    InferenceEngine::InferRequest orignalInferRequest;
+    ASSERT_NO_THROW(orignalInferRequest = originalExeNetwork.CreateInferRequest());
 
     std::vector<Blob::Ptr> inputBlobs(originalInputsInfo.size());
     auto inputBlobsIt = inputBlobs.begin();
     for (const auto &inputInfo : originalInputsInfo) {
-        ASSERT_EQ(StatusCode::OK, orignalInferRequest->GetBlob(inputInfo.first.c_str(), *inputBlobsIt, &_resp)) << _resp.msg;
+        ASSERT_NO_THROW(*inputBlobsIt = orignalInferRequest.GetBlob(inputInfo.first.c_str()));
         GenRandomData(*inputBlobsIt);
         inputBlobsIt++;
     }
 
-    ASSERT_EQ(StatusCode::OK, orignalInferRequest->Infer(&_resp)) << _resp.msg;
+    ASSERT_NO_THROW(orignalInferRequest.Infer());
 
     ConstOutputsDataMap orignalOutputsInfo;
-    ASSERT_EQ(StatusCode::OK, originalExeNetworkPtr->GetOutputsInfo(orignalOutputsInfo, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(orignalOutputsInfo = originalExeNetwork.GetOutputsInfo());
 
     std::vector<Blob::Ptr> originalOutputBlobs(orignalOutputsInfo.size());
     auto outputBlobsIt = originalOutputBlobs.begin();
     for (const auto &outputInfo: orignalOutputsInfo) {
-        ASSERT_EQ(StatusCode::OK, orignalInferRequest->GetBlob(outputInfo.first.c_str(), *outputBlobsIt, &_resp)) << _resp.msg;
+        ASSERT_NO_THROW(*outputBlobsIt = orignalInferRequest.GetBlob(outputInfo.first.c_str()));
         outputBlobsIt++;
     }
 
     std::stringstream modelFilenameStream;
     modelFilenameStream << "exportedModel" << ".blob";
-    ASSERT_EQ(StatusCode::OK, originalExeNetworkPtr->Export(modelFilenameStream.str(), &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(originalExeNetwork.Export(modelFilenameStream.str()));
 
-    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->ImportNetwork(importedNetworkPtr, modelFilenameStream.str(), {}, &_resp)) << _resp.msg;
-    InferenceEngine::IInferRequest::Ptr importedInferRequest;
-    ASSERT_EQ(StatusCode::OK, importedNetworkPtr->CreateInferRequest(importedInferRequest, &_resp)) << _resp.msg;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = _vpuPluginPtr->ImportNetwork(modelFilenameStream.str()));
+    InferenceEngine::InferRequest importedInferRequest;
+    ASSERT_NO_THROW(importedInferRequest =  importedNetwork.CreateInferRequest());
 
     ConstInputsDataMap importedInputsInfo;
-    ASSERT_EQ(StatusCode::OK, importedNetworkPtr->GetInputsInfo(importedInputsInfo, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(importedInputsInfo = importedNetwork.GetInputsInfo());
 
     inputBlobsIt = inputBlobs.begin();
     for (const auto &inputInfo : importedInputsInfo) {
-        ASSERT_EQ(StatusCode::OK, importedInferRequest->SetBlob(inputInfo.first.c_str(), *inputBlobsIt, &_resp)) << &_resp.msg;
+        ASSERT_NO_THROW(importedInferRequest.SetBlob(inputInfo.first.c_str(), *inputBlobsIt));
         inputBlobsIt++;
     }
 
-    ASSERT_EQ(StatusCode::OK, importedInferRequest->Infer(&_resp)) << _resp.msg;
+    ASSERT_NO_THROW(importedInferRequest.Infer());
 
     ConstOutputsDataMap importedOutputsInfo;
-    ASSERT_EQ(StatusCode::OK, importedNetworkPtr->GetOutputsInfo(importedOutputsInfo, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(importedOutputsInfo = importedNetwork.GetOutputsInfo());
 
     outputBlobsIt = originalOutputBlobs.begin();
     for (const auto &outputInfo : importedOutputsInfo) {
         Blob::Ptr importedOutputBlobPtr;
-        ASSERT_EQ(StatusCode::OK, importedInferRequest->GetBlob(outputInfo.first.c_str(), importedOutputBlobPtr, &_resp)) << _resp.msg;
+        ASSERT_NO_THROW(importedOutputBlobPtr = importedInferRequest.GetBlob(outputInfo.first.c_str()));
 
         CompareCommonAbsolute(importedOutputBlobPtr, *outputBlobsIt, 0.f);
         outputBlobsIt++;
@@ -306,46 +307,46 @@ TEST_P(myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_smoke, IsResult
     auto outputInfo = outputsInfo.begin();
     ASSERT_NO_THROW(outputInfo->second->setPrecision(outputPrecision));
 
-    InferenceEngine::IExecutableNetwork::Ptr originalExeNetworkPtr;
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->LoadNetwork(originalExeNetworkPtr, network, { }, &_resp)) << _resp.msg;
+    InferenceEngine::ExecutableNetwork originalExeNetwork;
+    ASSERT_NO_THROW(originalExeNetwork = _vpuPluginPtr->LoadNetwork(network));
 
-    InferenceEngine::IInferRequest::Ptr orignalInferRequest;
-    ASSERT_EQ(StatusCode::OK, originalExeNetworkPtr->CreateInferRequest(orignalInferRequest, &_resp)) << _resp.msg;
+    InferenceEngine::InferRequest orignalInferRequest;
+    ASSERT_NO_THROW(orignalInferRequest = originalExeNetwork.CreateInferRequest());
 
     Blob::Ptr inputBlobPtr;
-    ASSERT_EQ(StatusCode::OK, orignalInferRequest->GetBlob(inputInfo->first.c_str(), inputBlobPtr, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(inputBlobPtr = orignalInferRequest.GetBlob(inputInfo->first.c_str()));
     GenRandomData(inputBlobPtr);
 
-    ASSERT_EQ(StatusCode::OK, orignalInferRequest->Infer(&_resp)) << _resp.msg;
+    ASSERT_NO_THROW(orignalInferRequest.Infer());
 
     Blob::Ptr outputBlobPtr;
-    ASSERT_EQ(StatusCode::OK, orignalInferRequest->GetBlob(outputInfo->first.c_str(), outputBlobPtr, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(outputBlobPtr = orignalInferRequest.GetBlob(outputInfo->first.c_str()));
 
     std::stringstream modelFilenameStream;
     modelFilenameStream << "exportedModel" << ".blob";
-    ASSERT_EQ(StatusCode::OK, originalExeNetworkPtr->Export(modelFilenameStream.str(), &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(originalExeNetwork.Export(modelFilenameStream.str()));
 
-    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;
-    ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->ImportNetwork(importedNetworkPtr, modelFilenameStream.str(), {}, &_resp)) << _resp.msg;
-    InferenceEngine::IInferRequest::Ptr importedInferRequest;
-    ASSERT_EQ(StatusCode::OK, importedNetworkPtr->CreateInferRequest(importedInferRequest, &_resp)) << _resp.msg;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = _vpuPluginPtr->ImportNetwork(modelFilenameStream.str()));
+    InferenceEngine::InferRequest importedInferRequest;
+    ASSERT_NO_THROW(importedInferRequest =  importedNetwork.CreateInferRequest());
 
     ConstInputsDataMap importedInputsInfo;
-    ASSERT_EQ(StatusCode::OK, importedNetworkPtr->GetInputsInfo(importedInputsInfo, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(importedInputsInfo = importedNetwork.GetInputsInfo());
     ASSERT_EQ(importedInputsInfo.size(), 1);
     auto importedInputInfo = importedInputsInfo.begin();
 
-    ASSERT_EQ(StatusCode::OK, importedInferRequest->SetBlob(importedInputInfo->first.c_str(), inputBlobPtr, &_resp)) << &_resp.msg;
+    ASSERT_NO_THROW(importedInferRequest.SetBlob(importedInputInfo->first.c_str(), inputBlobPtr));
 
-    ASSERT_EQ(StatusCode::OK, importedInferRequest->Infer(&_resp)) << _resp.msg;
+    ASSERT_NO_THROW(importedInferRequest.Infer());
 
     ConstOutputsDataMap importedOutputsInfo;
-    ASSERT_EQ(StatusCode::OK, importedNetworkPtr->GetOutputsInfo(importedOutputsInfo, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(importedOutputsInfo = importedNetwork.GetOutputsInfo());
     ASSERT_EQ(importedOutputsInfo.size(), 1);
     auto importedOutputInfo = importedOutputsInfo.begin();
 
     Blob::Ptr importedOutputBlobPtr;
-    ASSERT_EQ(StatusCode::OK, importedInferRequest->GetBlob(importedOutputInfo->first.c_str(), importedOutputBlobPtr, &_resp)) << _resp.msg;
+    ASSERT_NO_THROW(importedOutputBlobPtr = importedInferRequest.GetBlob(importedOutputInfo->first.c_str()));
 
     CompareCommonAbsolute(importedOutputBlobPtr, outputBlobPtr, 0.f);
 }
@@ -354,7 +355,7 @@ using myriadExtraTests_smoke = myriadLayersTests_nightly;
 
 TEST_F(myriadExtraTests_smoke, ThereIsNoSegfaultOnZeroConvolutionWeights) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     tensor_test_params input_dims = { 1, 3, 25, 25 };
@@ -396,6 +397,7 @@ TEST_F(myriadExtraTests_smoke, ThereIsNoSegfaultOnZeroConvolutionWeights) {
         ,{ "dilation-x", std::to_string(dilation_factor.x) }
         ,{ "dilation-y", std::to_string(dilation_factor.y) }
     };
+
     ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Convolution")
                                         .params(layer_params)
                                         .weights(num_weights)
@@ -410,5 +412,5 @@ static const std::vector<InferenceEngine::Precision> inputPrecisions = {Inferenc
 static const std::vector<InferenceEngine::Precision> outputPrecisions = {InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32};
 
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_smoke,
                         ::testing::Combine(::testing::ValuesIn(inputPrecisions), ::testing::ValuesIn(outputPrecisions)));

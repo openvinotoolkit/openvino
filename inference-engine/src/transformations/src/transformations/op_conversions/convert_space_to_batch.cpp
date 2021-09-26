@@ -1,7 +1,8 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 
 #include <memory>
@@ -14,6 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSpaceToBatch, "ConvertSpaceToBatch", 0);
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
+    MATCHER_SCOPE(ConvertSpaceToBatch_convert_space_to_batch);
     auto space_to_batch = ngraph::pattern::wrap_type<ngraph::opset3::SpaceToBatch>();
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch> (m.get_match_root());
@@ -30,7 +32,6 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         if (data.get_partial_shape().is_dynamic()) {
             return false;
         }
-        const auto& data_shape = data.get_shape();
 
         const auto block_const = std::dynamic_pointer_cast<opset3::Constant>(block.get_node_shared_ptr());
         const auto pads_begin_const = std::dynamic_pointer_cast<opset3::Constant>(pads_begin.get_node_shared_ptr());
@@ -113,11 +114,12 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(space_to_batch, "ConvertSpaceToBatch");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(space_to_batch, matcher_name);
     this->register_matcher(m, callback);
 }
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
+    MATCHER_SCOPE(ConvertSpaceToBatch_convert_space_to_batch_by_elements);
     auto space_to_batch = ngraph::pattern::wrap_type<ngraph::opset3::SpaceToBatch>();
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch> (m.get_match_root());
@@ -132,7 +134,7 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         }
         const auto& data_shape = data.get_shape();
 
-        if (m_transformation_callback(space_to_batch) && (data_shape.size() == 4 || data_shape.size() == 5)) {
+        if (transformation_callback(space_to_batch) && (data_shape.size() == 4 || data_shape.size() == 5)) {
             return false;
         }
 
@@ -140,9 +142,9 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         auto pads_begin = space_to_batch->input_value(2);
         auto pads_end = space_to_batch->input_value(3);
 
-        const auto block_const = as_type_ptr<opset3::Constant>(block.get_node_shared_ptr());
-        const auto pads_begin_const = as_type_ptr<opset3::Constant>(pads_begin.get_node_shared_ptr());
-        const auto pads_end_const = as_type_ptr<opset3::Constant>(pads_end.get_node_shared_ptr());
+        const auto block_const = ov::as_type_ptr<opset3::Constant>(block.get_node_shared_ptr());
+        const auto pads_begin_const = ov::as_type_ptr<opset3::Constant>(pads_begin.get_node_shared_ptr());
+        const auto pads_end_const = ov::as_type_ptr<opset3::Constant>(pads_end.get_node_shared_ptr());
 
         if (!block_const || !pads_begin_const || !pads_end_const) {
             return false;
@@ -204,6 +206,6 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(space_to_batch, "ConvertSpaceToBatch");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(space_to_batch, matcher_name);
     this->register_matcher(m, callback);
 }

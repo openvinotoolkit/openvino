@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,8 +16,6 @@ file(GLOB MVNC_TESTS_COMMON_SOURCES
         "cases/mvnc_common_test_cases.cpp")
 
 set(PRIVATE_INCLUDE
-        ${IE_MAIN_SOURCE_DIR}/tests_new/gtest/googletest/include
-        ${IE_MAIN_SOURCE_DIR}/tests_new/gtest/googletest/
         ${XLINK_INCLUDE}
         ${XLINK_PLATFORM_INCLUDE}
         ${WATCHDOG_INCLUDE})

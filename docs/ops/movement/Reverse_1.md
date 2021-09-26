@@ -2,17 +2,17 @@
 
 **Versioned name**: *Reverse-1*
 
-**Category**: data movement operation
+**Category**: *Data movement*
 
 **Short description**: *Reverse* operations reverse specified axis in an input tensor.
 
-**Detailed description**: *Reverse* produces a tensor with the same shape as the first input tensor and with elements reversed along dimensions specified in the second input tensor. The axes can be represented either by dimension indices or as a mask. The interpretation of the second input is determined by *mode* attribute. 
+**Detailed description**: *Reverse* produces a tensor with the same shape as the first input tensor and with elements reversed along dimensions specified in the second input tensor. The axes can be represented either by dimension indices or as a mask. The interpretation of the second input is determined by *mode* attribute.
 
 If `index` mode is used, the second tensor should contain indices of axes that should be reversed. The length of the second tensor should be in a range from 0 to rank of the 1st input tensor.
 
-In case if `mask` mode is used, then the second input tensor length should be equal to the rank of the 1st input. And each value has boolean value `True` or `False`. `True` means the corresponding axes should be reverted, `False` means it should be untouched.
+In case if `mask` mode is used, then the second input tensor length should be equal to the rank of the 1st input. And each value has boolean value `true` or `false`. `true` means the corresponding axes should be reverted, `false` means it should be untouched.
 
-If no axis specified, that means either the second input is empty if `index` mode is used or second input has only `False` elements if `mask` mode is used, then *Reverse* just passes the source tensor through output not doing any data movements.
+If no axis specified, that means either the second input is empty if `index` mode is used or second input has only `false` elements if `mask` mode is used, then *Reverse* just passes the source tensor through output not doing any data movements.
 
 **Attributes**
 
@@ -21,7 +21,6 @@ If no axis specified, that means either the second input is empty if `index` mod
   * **Description**: specifies how the second input tensor should be interpreted: as a set of indices or a mask
   * **Range of values**: `index`, `mask`
   * **Type**: `string`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**:

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,101 +12,275 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <low_precision/max_pool.hpp>
-#include <low_precision/transformer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/max_pool_function.hpp"
+#include "lpt_ngraph_functions/max_pool_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+
 
 using namespace testing;
 using namespace ngraph::pass;
+using namespace ngraph;
 
 class MaxPoolTransformationTestValues {
 public:
-    low_precision::LayerTransformation::Params params;
-    std::vector<float> subtractValues;
-    std::vector<float> mutliplyValues;
+    class Actual {
+    public:
+        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ngraph::element::Type preicsionAfterOperation;
+        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+    };
+
+    class Expected {
+    public:
+        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ngraph::element::Type preicsionAfterOperation;
+        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+    };
+
+    TestTransformationParams params;
+    Actual actual;
+    Expected expected;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     MaxPoolTransformationTestValues> MaxPoolTransformationParams;
 
 class MaxPoolTransformation : public LayerTransformation, public testing::WithParamInterface<MaxPoolTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
-        const MaxPoolTransformationTestValues testValues = std::get<2>(GetParam());
+        const ngraph::PartialShape shape = std::get<0>(GetParam());
+        const MaxPoolTransformationTestValues testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::MaxPoolFunction::getOriginal(
-            precision,
+        actualFunction = ngraph::builder::subgraph::MaxPoolFunction::get(
             shape,
-            {
-                testValues.params.updatePrecisions ? testValues.params.precisionsOnActivations[0] : precision,
-                testValues.subtractValues,
-                testValues.mutliplyValues
-            });
+            testValues.actual.precisionBeforeDequantization,
+            testValues.actual.dequantization1,
+            testValues.actual.preicsionAfterOperation,
+            testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::MaxPoolFunction::getReference(
-            precision,
+        referenceFunction = ngraph::builder::subgraph::MaxPoolFunction::get(
             shape,
-            {
-                testValues.params.updatePrecisions ? testValues.params.precisionsOnActivations[0] : precision,
-                testValues.subtractValues,
-                testValues.mutliplyValues
-            });
+            testValues.expected.precisionBeforeDequantization,
+            testValues.expected.dequantization1,
+            testValues.expected.preicsionAfterOperation,
+            testValues.expected.dequantization2);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MaxPoolTransformationParams> obj) {
-        const ngraph::element::Type precision = std::get<0>(obj.param);
-        const ngraph::Shape shape = std::get<1>(obj.param);
-        const MaxPoolTransformationTestValues testValues = std::get<2>(obj.param);
+        const ngraph::PartialShape shape = std::get<0>(obj.param);
+        const MaxPoolTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result <<
-            LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params) << "_" <<
-            testValues.subtractValues.size() << "_" <<
-            testValues.mutliplyValues.size() << "_";
+        result << testValues.actual.precisionBeforeDequantization << "_"<<
+            shape << "_" << toString(testValues.params) << "_" <<
+            testValues.actual.dequantization1 << "_" <<
+            testValues.actual.dequantization2 << "_" <<
+            testValues.expected.dequantization1 << "_" <<
+            testValues.expected.dequantization2 << "_";
         return result.str();
     }
 };
 
 TEST_P(MaxPoolTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, false, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
-};
-
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 32, 72, 48 }
+namespace testValues1 {
+const std::vector<ngraph::PartialShape> shapes = {
+    { 1, 3, 72, 48 },
+    { 4, 3, 72, 48 },
+    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
 };
 
 const std::vector<MaxPoolTransformationTestValues> testValues = {
-    { LayerTransformation::createParamsU8I8(), { 128 }, { 0.02f } },
-    { LayerTransformation::createParamsU8I8(), {}, { 0.02f } },
-    { LayerTransformation::createParamsU8I8().setUpdatePrecisions(false), { 128 }, { 0.02f } },
-    { LayerTransformation::createParamsU8I8().setUpdatePrecisions(false), {}, { 0.02f } },
-    { LayerTransformation::createParamsI8I8(), { 128 }, { 0.02f } },
+    // Multiply
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { {}, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }},
+            ngraph::element::f32,
+            {}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }}
+        }
+    },
+    // Subtract + Multiply
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {},
+                { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
+                { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }
+            },
+            ngraph::element::f32,
+            {}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                ngraph::element::f32,
+                { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
+                { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }
+            }
+        }
+    },
+    // Convert + Subtract + Multiply
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { ngraph::element::f32, { 128 }, { 0.02f }},
+            ngraph::element::f32,
+            {}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, { 128 }, { 0.02f }}
+        }
+    },
+    // Convert + Subtract + Multiply
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.02f }},
+            ngraph::element::f32,
+            {}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.02f }}
+        }
+    },
+    // Convert + Subtract + Multiply
+    {
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::f32,
+            { ngraph::element::f32, { 128 }, { 0.02f }},
+            ngraph::element::f32,
+            {}
+        },
+        {
+            ngraph::element::f32,
+            {},
+            ngraph::element::f32,
+            { {}, { 128 }, { 0.02f }}
+        }
+    },
+    // Convert + Subtract + Multiply
+    {
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::f32,
+            { ngraph::element::f32, {}, { 0.02f }},
+            ngraph::element::f32,
+            {}
+        },
+        {
+            ngraph::element::f32,
+            {},
+            ngraph::element::f32,
+            { {}, {}, { 0.02f }}
+        }
+    },
+    // per-channel dequantization
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { ngraph::element::f32, {{128.f, 64.f, 32.f}}, {{0.02f, 0.01f, 0.03f}}},
+            ngraph::element::f32,
+            {}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, { {0.02f, 0.01f, 0.03f} }}
+        }
+    }
 };
 
-INSTANTIATE_TEST_CASE_P(
-    LPT,
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
     MaxPoolTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues)),
     MaxPoolTransformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
+    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+    PartialShape::dynamic()
+};
+
+const std::vector<MaxPoolTransformationTestValues> testValues = {
+    // per-tensor dequantization
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { ngraph::element::f32, {128.f}, {0.01f}},
+            ngraph::element::f32,
+            {}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {128.f}, {0.01f}}
+        }
+    },
+    // per-channel dequantization
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { ngraph::element::f32, {{128.f, 64.f, 32.f}}, {{0.02f, 0.01f, 0.03f}}},
+            ngraph::element::f32,
+            {}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, { {0.02f, 0.01f, 0.03f} }},
+            ngraph::element::f32,
+            {}
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    MaxPoolTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(shapesWithDynamicChannels),
+        ::testing::ValuesIn(testValues)),
+    MaxPoolTransformation::getTestCaseName);
+} // namespace testValues2

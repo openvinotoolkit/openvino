@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-# Copyright (C) 2020 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-#
 
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 """ Script to acquire model IRs for stress tests.
 Usage: ./scrips/get_testdata.py
@@ -10,13 +9,13 @@ Usage: ./scrips/get_testdata.py
 # pylint:disable=line-too-long
 
 import argparse
+import json
 import logging as log
-import multiprocessing
 import os
 import shutil
 import subprocess
 import sys
-import json
+from distutils.dir_util import copy_tree
 from inspect import getsourcefile
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -26,7 +25,6 @@ log.basicConfig(format="{file}: [ %(levelname)s ] %(message)s".format(file=os.pa
 
 # Parameters
 OMZ_NUM_ATTEMPTS = 6
-DOWNLOADER_JOBS_NUM = 4
 
 
 def abs_path(relative_path):
@@ -87,12 +85,27 @@ def run_in_subprocess(cmd, check_call=True):
         subprocess.call(cmd, shell=True)
 
 
+def get_model_recs(test_conf_root):
+    """Parse models from test config.
+       Model records in multi-model configs with static test definition are members of "device" sections
+    """
+    device_recs = test_conf_root.findall("device")
+    if device_recs:
+        model_recs = []
+        for device_rec in device_recs:
+            for model_rec in device_rec.findall("model"):
+                model_recs.append(model_rec)
+
+        return model_recs
+
+    return test_conf_root.find("models")
+
+
 def main():
     """Main entry point.
     """
-    parser = argparse.ArgumentParser(
-        description='Acquire test data',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description='Acquire test data',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--test_conf', required=True, type=Path,
                         help='Path to a test config .xml file containing models '
@@ -104,7 +117,7 @@ def main():
                         help='Path to Model Optimizer (MO) runner. Required for OMZ converter.py only.')
     parser.add_argument('--omz_models_out_dir', type=Path,
                         default=abs_path('../_omz_out/models'),
-                        help='Directory to put test data into. Required for OMZ downloader.py and converter.py')
+                        help='Directory to put test data into. Required for OMZ downloader.py and converter.py.')
     parser.add_argument('--omz_irs_out_dir', type=Path,
                         default=abs_path('../_omz_out/irs'),
                         help='Directory to put test data into. Required for OMZ converter.py only.')
@@ -117,21 +130,6 @@ def main():
                         help='Skip errors caused by OMZ while downloading and converting.')
     args = parser.parse_args()
 
-    # constants
-    PRECISION = "FP32"
-
-    # parse models from test config
-    test_conf_obj = ET.parse(str(args.test_conf))
-    test_conf_root = test_conf_obj.getroot()
-    models_from_cfg = []
-    for model_rec in test_conf_root.find("models"):
-        if "source" in model_rec.attrib and "name" in model_rec.attrib:
-            if model_rec.attrib["source"] == "omz":
-                models_from_cfg.append(model_rec.attrib["name"])
-        else:
-            log.warning("Record from test config '{}' doesn't contain attributes 'source' or 'name'"
-                        .format(args.test_conf.resolve()))
-
     # prepare Open Model Zoo
     if args.omz_repo:
         omz_path = Path(args.omz_repo).resolve()
@@ -141,72 +139,9 @@ def main():
         if os.path.exists(str(omz_path)):
             shutil.rmtree(str(omz_path))
         cmd = 'git clone --single-branch --branch develop' \
-              ' https://github.com/opencv/open_model_zoo {omz_path}'.format(omz_path=omz_path)
+              ' https://github.com/openvinotoolkit/open_model_zoo {omz_path}'.format(omz_path=omz_path)
         run_in_subprocess(cmd)
 
-    # prepare models list
-    downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
-    models_list_path = args.omz_models_out_dir / "models_list.txt"
-
-    cmd = '{downloader_path} --print_all'.format(downloader_path=downloader_path)
-    models_available = subprocess.check_output(cmd, shell=True, universal_newlines=True).split("\n")
-    models_to_run = set(models_from_cfg).intersection(models_available)
-
-    os.makedirs(str(args.omz_models_out_dir), exist_ok=True)
-    log.info("List of models from {models_list_path} used for downloader.py and converter.py: "
-             "{models_to_run}".format(models_list_path=models_list_path, models_to_run=",".join(models_to_run)))
-    with open(str(models_list_path), "w") as file:
-        file.writelines([name + "\n" for name in models_to_run])
-    if set(models_from_cfg) - models_to_run:
-        log.warning("List of models defined in config but not available in OMZ: {}"
-                    .format(",".join(set(models_from_cfg) - models_to_run)))
-
-    # update test config with Open Model Zoo info
-    info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
-    cmd = "{executable} {info_dumper_path} --list {models_list_path}"\
-        .format(executable=sys.executable, info_dumper_path=info_dumper_path,
-                models_list_path=models_list_path)
-    out = subprocess.check_output(cmd, shell=True, universal_newlines=True)
-    models_info = json.loads(out)
-
-    fields_to_add = ["framework", "subdirectory"]
-    models_root = test_conf_root.find("models")
-    for model_rec in list(models_root):     # convert iterator to list to prevent incorrect removing of records
-        if model_rec.attrib.get("source") == "omz" and "name" in model_rec.attrib:
-            if model_rec.attrib["name"] not in models_to_run:
-                # remove models from test config which aren't available in OMZ
-                models_root.remove(model_rec)
-            else:
-                # Open Model Zoo ensures name uniqueness of every model
-                models_info_rec = next(iter([rec for rec in models_info if rec["name"] == model_rec.attrib["name"]]))
-                info_to_add = {key: models_info_rec[key] for key in fields_to_add}
-                model_rec.attrib.update(info_to_add)
-                model_rec.attrib["precision"] = PRECISION
-                model_rec.attrib["path"] = str(
-                    Path(model_rec.attrib["subdirectory"]) / PRECISION / (model_rec.attrib["name"] + ".xml"))
-                model_rec.attrib["full_path"] = str(
-                    args.omz_irs_out_dir / model_rec.attrib["subdirectory"] / PRECISION / (model_rec.attrib["name"] + ".xml"))
-    test_conf_obj.write(args.test_conf)
-
-    # prepare models
-    cmd = '{downloader_path} --list {models_list_path}' \
-          ' --num_attempts {num_attempts}' \
-          ' --output_dir {models_dir}' \
-          ' --cache_dir {cache_dir}' \
-          ' --jobs {jobs_num}'.format(downloader_path=downloader_path, models_list_path=models_list_path,
-                                      num_attempts=OMZ_NUM_ATTEMPTS,
-                                      models_dir=args.omz_models_out_dir,
-                                      cache_dir=args.omz_cache_dir,
-                                      jobs_num=DOWNLOADER_JOBS_NUM)
-
-    run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
-
-    # Open Model Zoo doesn't copy downloaded IRs to converter.py output folder where IRs should be stored.
-    # Do it manually to have only one folder with IRs
-    for ir_src_path in args.omz_models_out_dir.rglob("*.xml"):
-        ir_dst_path = args.omz_irs_out_dir / os.path.relpath(ir_src_path, args.omz_models_out_dir)
-        shutil.copytree(ir_src_path.parent, ir_dst_path.parent)
-    
     # prepare virtual environment and install requirements
     python_executable = sys.executable
     if not args.no_venv:
@@ -221,20 +156,78 @@ def main():
         Venv.create_n_install_requirements(*requirements)
         python_executable = Venv.get_venv_executable()
 
-    # convert models to IRs
-    converter_path = omz_path / "tools" / "downloader" / "converter.py"
-    # NOTE: remove --precision if both precisions (FP32 & FP16) required
-    cmd = '{executable} {converter_path} --list {models_list_path}' \
-          ' -p {executable}' \
-          ' --precision={PRECISION}' \
-          ' --output_dir {irs_dir}' \
-          ' --download_dir {models_dir}' \
-          ' --mo {mo_tool} --jobs {workers_num}'.format(executable=python_executable, PRECISION=PRECISION,
-                                                        converter_path=converter_path,
-                                                        models_list_path=models_list_path, irs_dir=args.omz_irs_out_dir,
-                                                        models_dir=args.omz_models_out_dir, mo_tool=args.mo_tool,
-                                                        workers_num=multiprocessing.cpu_count())
-    run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
+    test_conf_obj = ET.parse(str(args.test_conf))
+    test_conf_root = test_conf_obj.getroot()
+    model_recs = get_model_recs(test_conf_root)
+
+    for model_rec in model_recs:
+        if "name" not in model_rec.attrib or model_rec.attrib.get("source") != "omz":
+            continue
+        model_name = model_rec.attrib["name"]
+        precision = model_rec.attrib["precision"]
+
+        info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
+        cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=sys.executable,
+                                                                               info_dumper_path=info_dumper_path,
+                                                                               model_name=model_name)
+        try:
+            out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
+        except subprocess.CalledProcessError as exc:
+            log.warning(exc.output)
+            continue
+
+        model_info = json.loads(out)[0]
+
+        # update model record from test config with Open Model Zoo info
+        fields_to_add = ["framework", "subdirectory"]
+        info_to_add = {key: model_info[key] for key in fields_to_add}
+        # check selected precision with model info from Open Model Zoo
+        if precision not in model_info['precisions']:
+            log.warning("Please specify precision for the model "
+                        "{model_name} from the list: {model_info}".format(model_name=model_name,
+                                                                          model_info=model_info['precisions']))
+            continue
+        model_rec.attrib.update(info_to_add)
+        model_rec.attrib["path"] = str(
+            Path(model_rec.attrib["subdirectory"]) / precision / (model_rec.attrib["name"] + ".xml"))
+        model_rec.attrib["full_path"] = str(
+            args.omz_irs_out_dir / model_rec.attrib["subdirectory"] / precision / (model_rec.attrib["name"] + ".xml"))
+
+        # prepare models
+        downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
+        cmd = '{downloader_path} --name {model_name}' \
+              ' --precisions={precision}' \
+              ' --num_attempts {num_attempts}' \
+              ' --output_dir {models_dir}' \
+              ' --cache_dir {cache_dir}'.format(downloader_path=downloader_path, model_name=model_name,
+                                                precision=precision, num_attempts=OMZ_NUM_ATTEMPTS,
+                                                models_dir=args.omz_models_out_dir, cache_dir=args.omz_cache_dir)
+
+        run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
+
+        # convert models to IRs
+        converter_path = omz_path / "tools" / "downloader" / "converter.py"
+        # NOTE: remove --precisions if both precisions (FP32 & FP16) required
+        cmd = '{executable} {converter_path} --name {model_name}' \
+              ' -p {executable}' \
+              ' --precisions={precision}' \
+              ' --output_dir {irs_dir}' \
+              ' --download_dir {models_dir}' \
+              ' --mo {mo_tool}'.format(executable=python_executable, precision=precision,
+                                       converter_path=converter_path,
+                                       model_name=model_name, irs_dir=args.omz_irs_out_dir,
+                                       models_dir=args.omz_models_out_dir, mo_tool=args.mo_tool)
+        run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
+
+    # rewrite test config with updated records
+    test_conf_obj.write(args.test_conf)
+
+    # Open Model Zoo doesn't copy downloaded IRs to converter.py output folder where IRs should be stored.
+    # Do it manually to have only one folder with IRs
+    for ir_src_path in args.omz_models_out_dir.rglob("*.xml"):
+        ir_dst_path = args.omz_irs_out_dir / os.path.relpath(ir_src_path, args.omz_models_out_dir)
+        # allows copy to an existing folder
+        copy_tree(str(ir_src_path.parent), str(ir_dst_path.parent))
 
 
 if __name__ == "__main__":

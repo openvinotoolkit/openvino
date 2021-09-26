@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ namespace MKLDNNPlugin {
  *
  * Example:
  *
- * Mem
+ * Mem(offset)
  *  |        |____|             Box {4, 5}
  *  |  |_____________|          Box {2, 6}
  *  |     |____|                Box {3, 4}
@@ -38,7 +38,7 @@ namespace MKLDNNPlugin {
  *
  *  Boxes which has an ExecOrder-axis intersection should have no Mem-axis intersections.
  *  The goal is to define a minimal required memory blob to store all boxes with such
- *  constraints and specify all corresponfing position on Mem axis(through offset field).
+ *  constraints and specify all corresponding position on Mem axis(through offset field).
  *
  *  NOTE!
  *  Exec order is predefined.

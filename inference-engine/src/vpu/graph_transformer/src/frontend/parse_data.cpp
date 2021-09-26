@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,8 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/model/data_contents/ie_blob_content.hpp>
+
+#include <vpu/configuration/options/tensor_strides.hpp>
 
 #include <memory>
 #include <algorithm>
@@ -25,8 +27,9 @@ void FrontEnd::parseInputAndOutputData(const Model& model) {
     VPU_LOGGER_SECTION(env.log);
 
     const auto parseIOStrides = [&env](const std::string& name, const Data& data) {
-        const auto& match = env.config.ioStrides.find(name);
-        if (match == env.config.ioStrides.end()) {
+        const auto tensorStrides = env.config.get<TensorStridesOption>();
+        const auto& match = tensorStrides.find(name);
+        if (match == tensorStrides.end()) {
             return;
         }
 
@@ -115,21 +118,6 @@ void FrontEnd::parseInputAndOutputData(const Model& model) {
             ieData->getName(),
             descriptor,
             ieBlobContent(ieBlob, descriptor.type()));
-
-        // User might ask to return the output from Const layer.
-        if (const auto vpuOutData = getVpuData(ieData)) {
-            env.log->trace("The constant %s is network output", vpuData);
-
-            IE_ASSERT(vpuOutData->usage() == DataUsage::Output);
-
-            _stageBuilder->addCopyStage(
-                model,
-                formatString("%s@return-const", vpuData->name()),
-                nullptr,
-                vpuData,
-                vpuOutData,
-                "parseInputAndOutputData::const");
-        }
 
         bindData(vpuData, ieData);
     }

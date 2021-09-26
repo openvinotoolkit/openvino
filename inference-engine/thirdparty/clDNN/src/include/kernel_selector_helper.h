@@ -1,30 +1,20 @@
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #pragma once
 
-#include "api/cldnn.hpp"
-#include "api/tensor.hpp"
-#include "api/eltwise.hpp"
-#include "api/scale.hpp"
-#include "api/quantize.hpp"
-#include "api/activation.hpp"
+#include "cldnn/runtime/utils.hpp"
+#include "cldnn/runtime/tensor.hpp"
+#include "cldnn/runtime/error_handler.hpp"
+#include "cldnn/primitives/eltwise.hpp"
+#include "cldnn/primitives/scale.hpp"
+#include "cldnn/primitives/quantize.hpp"
+#include "cldnn/primitives/activation.hpp"
 
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
-#include "error_handler.h"
 
 #include <cstdint>
 #include <string>
@@ -38,7 +28,7 @@ enum class data_types : size_t;
 enum class tuning_mode;
 struct format;
 struct layout;
-struct program_impl;
+struct program;
 struct program_node;
 }  // namespace cldnn
 
@@ -66,6 +56,7 @@ using lookt_axis = kernel_selector::LookUpTableAxis;
 using lrn_mode = kernel_selector::LRNMode;
 using normalize_mode = kernel_selector::NormalizeMode;
 using mvn_mode = kernel_selector::MVNMode;
+using mvn_eps_mode = kernel_selector::MVNEpsMode;
 using kernel_divider_mode = kernel_selector::KernelDividerMode;
 using eltwise_mode = kernel_selector::EltwiseMode;
 using eltwise_input_mode = kernel_selector::EltwiseInputMode;
@@ -81,6 +72,7 @@ using shape_calculation_mode = kernel_selector::ShapeCalculationMode;
 using interpolate_axis = kernel_selector::InterpolateAxis;
 using border_type = kernel_selector::BorderType;
 using gather_axis = kernel_selector::GatherAxis;
+using gather_elements_axis = kernel_selector::GatherAxis;
 using scatter_update_axis = kernel_selector::ScatterUpdateAxis;
 using reduce_mode = kernel_selector::ReduceMode;
 using cum_sum_axis = kernel_selector::CumSumAxis;
@@ -106,12 +98,11 @@ kernel_selector::weights_type to_weights_type(data_types dt);
 data_types from_weights_type(kernel_selector::weights_type dt);
 kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
-kernel_selector::weights_layout to_weights_layout(format f);
+kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
 kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode);
-std::string to_host_version(const cldnn::version_t& version);
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split = 1, const tensor view_offset = tensor {});
-kernel_selector::weights_tensor convert_weights_tensor(const layout& l);
+kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
 
@@ -169,6 +160,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
     params.layerID = arg.id();
 
     convert_fused_activation_func_params(arg, params.activations);
+    std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_op_id_map;
     size_t op_id = 0;
     for (auto& fused_prim : arg.get_fused_primitives()) {
         kernel_selector::fused_operation_desc desc;
@@ -181,6 +173,13 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
         desc.dep_size = fused_prim.deps.size();
         desc.op_id = op_id++;
         desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
+        prim_op_id_map[fused_prim.node->id()] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
+        for (auto& dep : fused_prim.fused_deps) {
+            auto iter = prim_op_id_map.find(dep);
+            if (iter != prim_op_id_map.end()) {
+                desc.fused_op_ids.push_back(iter->second);
+            }
+        }
 
         for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
             desc.tensors.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout()));
@@ -193,10 +192,10 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
 }
 
 template <typename params_t, typename arg_t>
-inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1) {
+inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1, bool has_group_dimension = false) {
     params_t params = get_default_params<params_t>(arg, split);
     const auto& weights_layout = arg.weights().get_output_layout();
-    params.weights = convert_weights_tensor(weights_layout);
+    params.weights = convert_weights_tensor(weights_layout, has_group_dimension);
 
     if (arg.bias_term()) {
         auto bias_layout = arg.bias().get_output_layout();
@@ -211,8 +210,8 @@ inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split
 }
 
 template <typename params_t, typename arg_t>
-params_t get_weight_bias_zero_point_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1) {
-    params_t params = get_weights_bias_default_params<params_t>(arg, split, groups);
+params_t get_weight_bias_zero_point_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1, bool has_group_dimension = false) {
+    params_t params = get_weights_bias_default_params<params_t>(arg, split, groups, has_group_dimension);
 
     if (arg.weights_zero_points_term()) {
         params.weights_zero_points.push_back(
@@ -234,16 +233,16 @@ params_t get_weight_bias_zero_point_default_params(const arg_t& arg, uint32_t sp
     return params;
 }
 
-void set_optional_params(const program_impl& program, kernel_selector::optional_params& params);
+void set_optional_params(const program& program, kernel_selector::optional_params& params);
 
 template <typename optional_params_t>
-inline optional_params_t get_default_optional_params(const program_impl& program) {
+inline optional_params_t get_default_optional_params(const program& program) {
     optional_params_t params;
     set_optional_params(program, params);
     return params;
 }
 
 template <typename optional_params_t>
-inline optional_params_t get_default_weights_bias_optional_params(const program_impl& program) {
+inline optional_params_t get_default_weights_bias_optional_params(const program& program) {
     return get_default_optional_params<optional_params_t>(program);
 }

@@ -36,6 +36,7 @@
     },
     {
         "custom_attributes": {
+            "operation_to_add": "Proposal",
             "clip_before_nms": true,
             "clip_after_nms": false
         },
@@ -60,8 +61,7 @@
     {
        "custom_attributes": {
             "clip_before_nms": true,
-            "clip_after_nms": false,
-            "coordinates_swap_method": "swap_weights"
+            "clip_after_nms": false
         },
         "id": "ObjectDetectionAPIDetectionOutputReplacement",
         "include_inputs_to_sub_graph": true,
@@ -98,6 +98,7 @@
     },
     {
        "custom_attributes": {
+            "masks_node_prefix_name": "SecondStageBoxPredictor"
         },
         "id": "ObjectDetectionAPIMaskRCNNSigmoidReplacement",
         "match_kind": "general"

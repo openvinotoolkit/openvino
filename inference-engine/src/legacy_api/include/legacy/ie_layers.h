@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,21 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include <legacy/ie_layers_property.hpp>
+#include <ngraph/node.hpp>
+
+#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+#    define INFERENCE_ENGINE_INTERNAL(msg)
+#else
+#    define INFERENCE_ENGINE_INTERNAL(msg) INFERENCE_ENGINE_DEPRECATED(msg)
+#endif
+
+#ifdef _WIN32
+#    define _IE_SUPPRESS_DEPRECATED_START_MSVC IE_SUPPRESS_DEPRECATED_START
+#    define _IE_SUPPRESS_DEPRECATED_END_MSVC   IE_SUPPRESS_DEPRECATED_END
+#else
+#    define _IE_SUPPRESS_DEPRECATED_START_MSVC
+#    define _IE_SUPPRESS_DEPRECATED_END_MSVC
+#endif
 
 #if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 # define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
@@ -30,12 +45,6 @@
     INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1") \
     INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
 #endif
-
-namespace ngraph {
-
-class Node;
-
-}  // namespace ngraph
 
 namespace InferenceEngine {
 
@@ -133,9 +142,9 @@ public:
     /**
      * @brief If suggested to fuse - a pointer to the layer which needs to be fused with this layer
      */
-    IE_SUPPRESS_DEPRECATED_START_WIN
+    _IE_SUPPRESS_DEPRECATED_START_MSVC
     Ptr _fusedWith;
-    IE_SUPPRESS_DEPRECATED_END_WIN
+    _IE_SUPPRESS_DEPRECATED_END_MSVC
 
     /**
      * @brief Convenience user values to store in this object as extra data
@@ -182,11 +191,11 @@ public:
      *
      * @param layer Reference to the layer to be fused with
      */
-    IE_SUPPRESS_DEPRECATED_START_WIN
+    _IE_SUPPRESS_DEPRECATED_START_MSVC
     void fuse(Ptr& layer) {
         _fusedWith = layer;
     }
-    IE_SUPPRESS_DEPRECATED_END_WIN
+    _IE_SUPPRESS_DEPRECATED_END_MSVC
 
     /**
      * @brief Returns the first element of the input data for this layer
@@ -205,7 +214,7 @@ public:
      *
      * @param str input string with float value
      * @return float value if parsing was successful
-     * @throws InferenceEngineException in case of parsing error
+     * @throws Exception in case of parsing error
      */
     static float ie_parse_float(const std::string& str);
 
@@ -301,6 +310,23 @@ public:
     unsigned int GetParamAsUInt(const char* param) const;
 
     /**
+     * @brief Returns an size_t value for the given parameter or returns the default value
+     *
+     * @param param Name of the layer parameter
+     * @param def Default value of the parameter if not found
+     * @return An size_t value for the specified parameter
+     */
+    size_t GetParamAsSizeT(const char* param, size_t def) const;
+
+    /**
+     * @brief Returns an size_t value for the given parameter
+     *
+     * @param param Name of the layer parameter
+     * @return An size_t value for the specified parameter
+     */
+    size_t GetParamAsSizeT(const char* param) const;
+
+    /**
      * @brief Returns a vector of unsigned int values for the given parameter or returns the default value
      *
      * @param param Name of the layer parameter
@@ -362,6 +388,15 @@ public:
     std::string GetParamAsString(const char* param) const;
 
     /**
+     * @brief Returns a string containing an integer if parameters value was
+     * "true" or "false"
+     *
+     * @param param Name of the layer parameter
+     * @return A string containing an integer or the parameter as string
+     */
+    std::string getBoolStrParamAsIntStr(const char *param) const;
+
+    /**
      * @brief Gets the parameter as a std::vector<std::string>
      * @param param  The parameter name
      * @param def The default values if case of parameter is not found
@@ -403,7 +438,7 @@ INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr & data)
 INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr & data);
 INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data * data);
 
-IE_SUPPRESS_DEPRECATED_START_WIN
+_IE_SUPPRESS_DEPRECATED_START_MSVC
 
 /**
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
@@ -999,7 +1034,8 @@ public:
         Logical_OR,
         Logical_XOR,
         Logical_NOT,
-        Mean
+        Mean,
+        Abs,
     };
 
     /**
@@ -1944,7 +1980,7 @@ public:
     /**
      * @brief The number of quantization levels
      */
-    int levels = 1;
+    size_t levels = 1;
 
     /**
      * @brief Creates a new QuantizeLayer instance.
@@ -2065,6 +2101,10 @@ public:
      */
     bool sort_result_descending = true;
     /**
+     * @brief Output type for first and third inputs
+     */
+    std::string output_type = "I64";
+    /**
      * @brief Creates a new NonMaxSuppressionLayer instance.
      */
     using CNNLayer::CNNLayer;
@@ -2182,6 +2222,6 @@ public:
     virtual ~ExperimentalDetectronGenerateProposalsSingleImageLayer();
 };
 
-IE_SUPPRESS_DEPRECATED_END_WIN
+_IE_SUPPRESS_DEPRECATED_END_MSVC
 
 }  // namespace InferenceEngine

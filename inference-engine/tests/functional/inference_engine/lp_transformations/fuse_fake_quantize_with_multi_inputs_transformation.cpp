@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,13 +12,12 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <low_precision/transformer.hpp>
 #include <low_precision/fuse_fake_quantize.hpp>
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/fuse_fake_quantize_function.hpp"
+#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
 
 #include "simple_low_precision_transformer.hpp"
 
@@ -46,7 +45,7 @@ public:
     };
 
     ngraph::Shape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
@@ -135,8 +134,8 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
-    LPT,
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
     FuseFakeQuantizeWithMultiInputsTransformation,
     ::testing::ValuesIn(testValues),
     FuseFakeQuantizeWithMultiInputsTransformation::getTestCaseName);

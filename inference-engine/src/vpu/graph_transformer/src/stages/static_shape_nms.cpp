@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
-
+#include <vpu/compile_env.hpp>
 #include <precision_utils.h>
 
 #include <memory>
@@ -32,13 +32,9 @@ private:
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
-        // Current NMS implementation doesn't allow calculation of `> boxesThreshold` boxes using one SHAVE
-        constexpr int boxesThreshold = 3650;
+        const auto use_one_slice = attrs().get<bool>("use_one_slice");
 
-        const auto& inDesc = input(0)->desc();
-        const auto& maxBoxesNum = inDesc.dim(Dim::H);
-
-        return maxBoxesNum <= boxesThreshold ? StageSHAVEsRequirements::OnlyOne : StageSHAVEsRequirements::NeedMax;
+        return use_one_slice ? StageSHAVEsRequirements::OnlyOne : StageSHAVEsRequirements::NeedMax;
     }
 
     void initialCheckImpl() const override {
@@ -54,8 +50,10 @@ private:
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         const auto center_point_box = attrs().get<bool>("center_point_box");
+        const auto use_ddr_buffer = !tempBuffers().empty();
 
         serializer.append(static_cast<int32_t>(center_point_box));
+        serializer.append(static_cast<int32_t>(use_ddr_buffer));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -74,10 +72,38 @@ private:
         input5->serializeBuffer(serializer);
         outputData->serializeBuffer(serializer);
         outputDims->serializeBuffer(serializer);
+
+        if (!tempBuffers().empty())
+            tempBuffer(0)->serializeBuffer(serializer);
     }
 };
 
+bool isCMXEnough(int cmxSize, int numSlices, std::vector<int> bufferSizes) {
+    int curOffset = 0;
+    int curSlice = 0;
+
+    const auto buffer_allocate = [&curOffset, &curSlice, &numSlices, cmxSize](int numBytes) {
+        if (curOffset + numBytes < cmxSize) {
+            curOffset += numBytes;
+        } else if ((curSlice + 1 < numSlices) && (numBytes < cmxSize)) {
+            curSlice++;
+            curOffset = numBytes;
+        } else {
+            return false;
+        }
+
+        return true;
+    };
+
+    return (numSlices > 0) && std::all_of(bufferSizes.begin(), bufferSizes.end(), buffer_allocate);
+}
+
+bool isOneSliceEnough(int cmxSize, const std::vector<int>& bufferSizes) {
+    return isCMXEnough(cmxSize, 1, bufferSizes);
+}
+
 }  // namespace
+
 
 void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     VPU_THROW_UNLESS(inputs.size() == 6,
@@ -119,6 +145,29 @@ void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& la
 
     auto stage = model->addNewStage<StaticShapeNMS>(layer->name, StageType::StaticShapeNMS, layer, usedInputs, DataVector{outIndices, outShape});
     stage->attrs().set<bool>("center_point_box", centerPointBox);
+
+    const auto inputDims0 = inputs[0]->desc().dims();
+    const auto perm = DimsOrder::fromNumDims(inputDims0.size()).toPermutation();
+    const auto spatDim = inputDims0[perm[1]];
+
+    const int ddrBufferSize0 = sizeof(int16_t) * 4 * spatDim;
+    const int ddrBufferSize1 = sizeof(int16_t) * spatDim;
+    const int ddrBufferSize2 = sizeof(int32_t) * spatDim;
+    const int ddrBufferSize = 2 * (ddrBufferSize0 + ddrBufferSize1 + ddrBufferSize2) + 2 * vpu::DATA_ALIGNMENT;
+    const int cmxTempBufferSize = 4 * sizeof(int32_t) * 256;
+
+    const auto& env = CompileEnv::get();
+
+    const std::vector<int> bufferSizes = {ddrBufferSize0, ddrBufferSize1, ddrBufferSize2,
+                                          ddrBufferSize0, ddrBufferSize1, ddrBufferSize2, cmxTempBufferSize};
+
+    const bool use_one_slice = isOneSliceEnough(CMX_SHAVE_BUFFER_SIZE, bufferSizes);
+    const auto numSlices = use_one_slice ? 1 : env.resources.numSHAVEs;
+    stage->attrs().set<bool>("use_one_slice", use_one_slice);
+
+    if (!isCMXEnough(CMX_SHAVE_BUFFER_SIZE, numSlices, bufferSizes)) {
+        model->addTempBuffer(stage, DataDesc({ddrBufferSize}));
+    }
 }
 
 }  // namespace vpu

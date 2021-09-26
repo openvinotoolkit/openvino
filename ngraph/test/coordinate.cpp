@@ -1,35 +1,22 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
+#include <ngraph/coordinate_transform.hpp>
 #include <numeric>
 #include <string>
 
 #include "gtest/gtest.h"
-
-#include <ngraph/coordinate_transform.hpp>
 #include "ngraph/ngraph.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
+NGRAPH_SUPPRESS_DEPRECATED_START
 
-TEST(coordinate, shape0d)
-{
+TEST(coordinate, shape0d) {
     auto ct = CoordinateTransform({});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 1);
     auto it = ct.begin();
@@ -37,8 +24,7 @@ TEST(coordinate, shape0d)
     EXPECT_TRUE(it == ct.end());
 }
 
-TEST(coordinate, shape1d)
-{
+TEST(coordinate, shape1d) {
     auto ct = CoordinateTransform({3});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 3);
     auto it = ct.begin();
@@ -48,8 +34,7 @@ TEST(coordinate, shape1d)
     EXPECT_TRUE(it == ct.end());
 }
 
-TEST(coordinate, shape2d)
-{
+TEST(coordinate, shape2d) {
     auto ct = CoordinateTransform({2, 3});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 6);
     auto it = ct.begin();
@@ -62,8 +47,7 @@ TEST(coordinate, shape2d)
     EXPECT_TRUE(it == ct.end());
 }
 
-TEST(coordinate, shape3d)
-{
+TEST(coordinate, shape3d) {
     auto ct = CoordinateTransform({2, 3, 4});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 24);
     auto it = ct.begin();
@@ -94,16 +78,14 @@ TEST(coordinate, shape3d)
     EXPECT_TRUE(it == ct.end());
 }
 
-TEST(coordinate, zero_sized_axis)
-{
+TEST(coordinate, zero_sized_axis) {
     auto ct = CoordinateTransform({2, 0, 4});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 0);
     auto it = ct.begin();
     EXPECT_TRUE(it == ct.end());
 }
 
-TEST(DISABLED_coordinate, random)
-{
+TEST(DISABLED_coordinate, random) {
     auto ct = CoordinateTransform({2, 3, 4});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 24);
     auto it = ct.begin();
@@ -113,8 +95,7 @@ TEST(DISABLED_coordinate, random)
     EXPECT_EQ(*it, Coordinate({0, 1, 1}));
 }
 
-TEST(coordinate, corner)
-{
+TEST(coordinate, corner) {
     Shape source_shape{10, 10};
     Coordinate source_start_corner = Coordinate{3, 3};
     Coordinate source_end_corner{6, 6};
@@ -148,8 +129,7 @@ TEST(coordinate, corner)
     EXPECT_TRUE(it == ct.end());
 }
 
-TEST(coordinate, strides)
-{
+TEST(coordinate, strides) {
     Shape source_shape{10, 10};
     Coordinate source_start_corner = Coordinate{0, 0};
     Coordinate source_end_corner{source_shape};
@@ -194,8 +174,7 @@ TEST(coordinate, strides)
     EXPECT_TRUE(it == ct.end());
 }
 
-TEST(coordinate, axis_order)
-{
+TEST(coordinate, axis_order) {
     Shape source_shape{3, 2, 4};
     Coordinate source_start_corner = Coordinate{0, 0, 0};
     Coordinate source_end_corner{source_shape};
@@ -243,8 +222,7 @@ TEST(coordinate, axis_order)
     EXPECT_TRUE(it == ct.end());
 }
 
-TEST(DISABLED_coordinate, padding)
-{
+TEST(DISABLED_coordinate, padding) {
     Shape source_shape{10, 10};
     Coordinate source_start_corner = Coordinate{0, 0};
     Coordinate source_end_corner{source_shape};
@@ -275,8 +253,7 @@ TEST(DISABLED_coordinate, padding)
     EXPECT_TRUE(it == ct.end());
 }
 
-TEST(DISABLED_coordinate, dilation)
-{
+TEST(DISABLED_coordinate, dilation) {
     Shape source_shape{10, 10};
     Coordinate source_start_corner = Coordinate{0, 0};
     Coordinate source_end_corner{source_shape};
@@ -307,8 +284,7 @@ TEST(DISABLED_coordinate, dilation)
     EXPECT_TRUE(it == ct.end());
 }
 
-TEST(benchmark, coordinate)
-{
+TEST(benchmark, coordinate) {
     Shape source_shape{128, 3, 2000, 1000};
     Coordinate source_start_corner = Coordinate{0, 0, 0, 0};
     Coordinate source_end_corner{source_shape};
@@ -330,8 +306,7 @@ TEST(benchmark, coordinate)
                                   target_padding_above,
                                   source_dilation_strides);
 
-    for (const Coordinate& c : ct)
-    {
+    for (const Coordinate& c : ct) {
         (void)c;
     }
     timer.stop();

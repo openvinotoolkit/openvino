@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,9 @@ const Named<rnn_param> test_name( [] (const rnn_param &p) {
 
 using RNNSeqTest = PlgTest<rnn_param>;
 
-TEST_P(RNNSeqTest, SingleRNN) {
+// disabled due to transition to ngraph transformation
+// DO NOT DELETE, part of the functionality is still needed
+TEST_P(RNNSeqTest, DISABLED_SingleRNN) {
     auto p = param();
 
     auto cell = std::get<0>(p);
@@ -73,7 +75,7 @@ TEST_P(RNNSeqTest, SingleRNN) {
     auto resh = std::get<7>(p);
 
     if (device_name == "GPU" && cell.type != LSTM)
-        SKIP();
+        GTEST_SKIP();
 
     cell.clip = clip;
 

@@ -1,25 +1,10 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
-#include "util/type_prop.hpp"
-
 #include "ngraph/ngraph.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
+#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -61,16 +46,15 @@ using namespace ngraph;
 //            |
 //           {r}
 //
-TEST(replace_node, replace_nodes)
-{
+TEST(replace_node, replace_nodes) {
     auto x = make_shared<op::Parameter>(element::f32, Shape{2});
     auto y = make_shared<op::Parameter>(element::f32, Shape{2});
     auto z = make_shared<op::Parameter>(element::f32, Shape{2});
 
-    auto add = x + y;
+    auto add = make_shared<op::v1::Add>(x, y);
     auto k = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{1, 2});
-    auto mul = add * k;
-    auto sub = mul - z;
+    auto mul = make_shared<op::v1::Multiply>(add, k);
+    auto sub = make_shared<op::v1::Subtract>(mul, z);
 
     auto f = make_shared<Function>(NodeVector{sub}, ParameterVector{x, y, z});
 
@@ -81,7 +65,7 @@ TEST(replace_node, replace_nodes)
     unordered_map<shared_ptr<Node>, shared_ptr<Node>> body_replacement_map;
     auto y_replacement = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{3, 4});
     auto k_replacement = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{5, 6});
-    auto z_replacement = x_replacement + mul;
+    auto z_replacement = make_shared<op::v1::Add>(x_replacement, mul);
     body_replacement_map[y] = y_replacement;
     body_replacement_map[k] = k_replacement;
     body_replacement_map[z] = z_replacement;
@@ -121,4 +105,58 @@ TEST(replace_node, replace_nodes)
     // z_replacement's arguments should be x_replacement and mul.
     ASSERT_EQ(z_replacement->get_input_node_shared_ptr(0), x_replacement);
     ASSERT_EQ(z_replacement->get_input_node_shared_ptr(1), mul);
+}
+
+TEST(replace_node, simple_node_replacement) {
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
+    param->output(0).get_tensor().set_names({"a", "b"});
+    auto relu = std::make_shared<op::Relu>(param);
+    relu->output(0).get_tensor().set_names({"c", "d"});
+
+    auto new_relu = std::make_shared<op::Relu>(param);
+    new_relu->output(0).get_tensor().set_names({"f"});
+    replace_node(relu, new_relu);
+
+    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+}
+
+TEST(replace_node, node_elimination) {
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
+    param->output(0).get_tensor().set_names({"a", "b"});
+    auto relu1 = std::make_shared<op::Relu>(param);
+    relu1->output(0).get_tensor().set_names({"c", "d"});
+    auto relu2 = std::make_shared<op::Relu>(relu1);
+    relu2->output(0).get_tensor().set_names({"e", "f"});
+
+    ASSERT_TRUE(replace_output_update_name(relu2->output(0), relu2->input_value(0)));
+    ASSERT_EQ(relu1->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d", "e", "f"}));
+    ASSERT_EQ(param->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"a", "b"}));
+}
+
+TEST(replace_node, output_replacement) {
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
+    param->output(0).get_tensor().set_names({"a", "b"});
+    auto relu = std::make_shared<op::Relu>(param);
+    relu->output(0).get_tensor().set_names({"c", "d"});
+
+    auto new_relu = std::make_shared<op::Relu>(param);
+    new_relu->output(0).get_tensor().set_names({"f"});
+
+    relu->output(0).replace(new_relu->output(0));
+
+    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+}
+
+TEST(replace_node, source_replacement) {
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
+    param->output(0).get_tensor().set_names({"a", "b"});
+
+    auto param1 = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
+    param1->output(0).get_tensor().set_names({"c", "d"});
+
+    auto relu = std::make_shared<op::Relu>(param);
+    relu->input(0).replace_source_output(param1->output(0));
+
+    ASSERT_EQ(param->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"a", "b"}));
+    ASSERT_EQ(param1->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
 }

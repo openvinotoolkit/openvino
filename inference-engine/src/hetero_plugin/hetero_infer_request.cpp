@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "hetero_infer_request.hpp"
 #include "hetero_itt.hpp"
 #include <ie_blob.h>
-#include <legacy/ie_util_internal.hpp>
 #include <description_buffer.hpp>
 #include <ie_layouts.h>
 #include <ie_algorithm.hpp>
@@ -21,13 +20,13 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
                                        InferenceEngine::OutputsDataMap networkOutputs,
                                        const SubRequestsList& inferRequests,
                                        const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames) :
-    InferRequestInternal(networkInputs, networkOutputs),
+    IInferRequestInternal(networkInputs, networkOutputs),
     _inferRequests(inferRequests) {
     if (_networkOutputs.empty() || _networkInputs.empty()) {
-        THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
+        IE_THROW() << "Internal error: no information about network's output/input";
     }
 
-    auto requestBlob([&](const std::string& blobName, InferenceEngine::InferRequest::Ptr r) {
+    auto requestBlob([&](const std::string& blobName, InferenceEngine::SoIInferRequestInternal& r) {
         std::string intermediateBlobName = blobName;
         auto itName = subgraphInputToOutputBlobNames.find(blobName);
         if (itName != subgraphInputToOutputBlobNames.end()) {
@@ -38,9 +37,9 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
         std::tie(itBlob, emplaced) = _blobs.emplace(intermediateBlobName, Blob::Ptr{});
         if (emplaced) {
             itBlob->second = r->GetBlob(blobName);
-            if (contains(networkInputs, blobName)) {
+            if (InferenceEngine::details::contains(networkInputs, blobName)) {
                 _inputs[blobName] = itBlob->second;
-            } else if (contains(networkOutputs, blobName)) {
+            } else if (InferenceEngine::details::contains(networkOutputs, blobName)) {
                 _outputs[blobName] = itBlob->second;
             }
         } else {
@@ -50,27 +49,27 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
 
     // go over all subnet and create requests
     for (auto&& desc : _inferRequests) {
-        desc._request = desc._network.CreateInferRequestPtr();
+        desc._request = { desc._network, desc._network->CreateInferRequest() };
         // go over all inputs and get blobs from subnet infer requests
-        for (auto&& outputInfo : desc._network.GetOutputsInfo()) {
+        for (auto&& outputInfo : desc._network->GetOutputsInfo()) {
             requestBlob(outputInfo.first, desc._request);
         }
     }
 
     // go over all outputs and get blobs from subnet infer requests
     for (auto&& desc : _inferRequests) {
-        for (auto&& inputInfo : desc._network.GetInputsInfo()) {
+        for (auto&& inputInfo : desc._network->GetInputsInfo()) {
             requestBlob(inputInfo.first, desc._request);
         }
     }
 }
 
-void HeteroInferRequest::SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) {
-    InferenceEngine::InferRequestInternal::SetBlob(name, data);
+void HeteroInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) {
+    InferenceEngine::IInferRequestInternal::SetBlob(name, data);
     assert(!_inferRequests.empty());
     for (auto &&desc : _inferRequests) {
         auto &r = desc._request;
-        assert(nullptr != r);
+        assert(r);
         InputInfo::Ptr foundInput;
         DataPtr foundOutput;
         try {
@@ -78,33 +77,29 @@ void HeteroInferRequest::SetBlob(const char* name, const InferenceEngine::Blob::
             if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
                 r->SetBlob(name, data, foundInput->getPreProcess());
             }
-        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
-            std::string message = ex.what();
-            if (message.find(NOT_FOUND_str) == std::string::npos)
-                throw ex;
-        }
+        } catch (const InferenceEngine::NotFound&) {}
     }
 }
 
 void HeteroInferRequest::InferImpl() {
     updateInOutIfNeeded();
-    size_t i = 0;
     for (auto &&desc : _inferRequests) {
         OV_ITT_SCOPED_TASK(itt::domains::HeteroPlugin, desc._profilingTask);
         auto &r = desc._request;
-        assert(nullptr != r);
+        assert(r);
         r->Infer();
     }
 }
 
-void HeteroInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
-    perfMap.clear();
+std::map<std::string, InferenceEngineProfileInfo> HeteroInferRequest::GetPerformanceCounts() const {
+    std::map<std::string, InferenceEngineProfileInfo> perfMap;
     for (size_t i = 0; i < _inferRequests.size(); i++) {
         auto perfMapRequest = _inferRequests[i]._request->GetPerformanceCounts();
         for (auto &&r : perfMapRequest) {
             perfMap[std::string("subgraph") + std::to_string(i) + ": " + r.first] = r.second;
         }
     }
+    return perfMap;
 }
 
 void HeteroInferRequest::updateInOutIfNeeded() {
@@ -112,8 +107,8 @@ void HeteroInferRequest::updateInOutIfNeeded() {
     assert(!_inferRequests.empty());
     for (auto &&desc : _inferRequests) {
         auto &r = desc._request;
-        assert(nullptr != r);
-        for (auto&& inputInfo : desc._network.GetInputsInfo()) {
+        assert(r);
+        for (auto&& inputInfo : desc._network->GetInputsInfo()) {
             auto& ioname = inputInfo.first;
             auto iti = _inputs.find(ioname);
             if (iti != _inputs.end()) {
@@ -131,7 +126,7 @@ void HeteroInferRequest::updateInOutIfNeeded() {
                 }
             }
         }
-        for (auto&& outputInfo : desc._network.GetOutputsInfo()) {
+        for (auto&& outputInfo : desc._network->GetOutputsInfo()) {
             auto& ioname = outputInfo.first;
             auto ito = _outputs.find(ioname);
             if (ito != _outputs.end()) {

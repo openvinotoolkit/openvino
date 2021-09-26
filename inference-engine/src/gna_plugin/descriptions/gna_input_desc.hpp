@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@ struct InputDesc {
     std::unordered_map<std::string, intel_dnn_orientation_t> orientation_in;
     /// order of scale factors matches inputs order in original topology
     std::vector<float> inputScaleFactors;
+    std::vector<uint8_t> inputPrecisions;
     std::map<std::string, int> bytes_allocated_for_input;
     size_t minBytesRequiredForStoreInput(InferenceEngine::CNNLayerPtr);
 

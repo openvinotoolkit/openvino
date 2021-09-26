@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "subgraph_tests/handling_orientation_conv.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
@@ -21,7 +21,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
         }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_handling_orientation, HandlingOrientationClass,
+INSTANTIATE_TEST_SUITE_P(smoke_handling_orientation, HandlingOrientationClass,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),

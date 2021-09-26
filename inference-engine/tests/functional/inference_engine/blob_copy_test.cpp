@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ InferenceEngine::Layout setLayout(IsInterleaved isInterleaved, int dimsSize) {
     } else if (dimsSize == 2) {
         return (isInterleaved) ?  InferenceEngine::Layout::NHWC : InferenceEngine::Layout::NCHW;
     }
-    THROW_IE_EXCEPTION << "Can't set layout";
+    IE_THROW() << "Can't set layout";
 }
 
 //  Support only for 4d and 5d blobs
@@ -37,15 +37,17 @@ SizeVector  SetDimVector(BatchNum batchNum, ChannelNum channelNum, Dims dims) {
     } else if (dims.size() == 3) {
         return SizeVector{ batchNum, channelNum, dims[0], dims[1], dims[2] };
     }
-    THROW_IE_EXCEPTION << "Can't set dimVector";
+    IE_THROW() << "Can't set dimVector";
 }
 
 //  For FP16 and Q78 precision we use int16_t type
 InferenceEngine::Blob::Ptr createBlob(InferenceEngine::Precision precision, SizeVector dimsVector, InferenceEngine::Layout layout) {
     InferenceEngine::TensorDesc tensorDesc(precision, dimsVector, layout);
     switch (precision) {
-        case  InferenceEngine::Precision::FP32 :
+        case  InferenceEngine::Precision::FP32:
              return make_shared_blob<float>(tensorDesc);
+        case  InferenceEngine::Precision::FP64:
+             return make_shared_blob<double>(tensorDesc);
         case InferenceEngine::Precision::FP16:
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::Q78:
@@ -60,13 +62,15 @@ InferenceEngine::Blob::Ptr createBlob(InferenceEngine::Precision precision, Size
             return make_shared_blob<uint64_t>(tensorDesc);
         case InferenceEngine::Precision::U16:
             return make_shared_blob<uint16_t>(tensorDesc);
+        case InferenceEngine::Precision::I4:
         case InferenceEngine::Precision::I8:
         case InferenceEngine::Precision::BIN:
             return make_shared_blob<int8_t>(tensorDesc);
+        case InferenceEngine::Precision::U4:
         case InferenceEngine::Precision::U8:
             return make_shared_blob<uint8_t>(tensorDesc);
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision";
+            IE_THROW() << "Unsupported precision";
     }
 }
 
@@ -105,7 +109,6 @@ template<typename T>
 void FillBlobRandom(Blob::Ptr& inputBlob) {
     srand(1);
     auto inputBlobData = inputBlob->buffer().as<T*>();
-    unsigned int seed = RAND_MAX;
     for (size_t i = 0; i < inputBlob->size(); i++) {
         inputBlobData[i] = (T) (GenerateRandom(RAND_MAX) / static_cast<float>(RAND_MAX) * 100);
     }
@@ -115,8 +118,10 @@ void FillBlobRandom(Blob::Ptr& inputBlob) {
 void FillBlob(Blob::Ptr& inputBlob) {
     auto precision = inputBlob->getTensorDesc().getPrecision();
     switch (precision) {
-        case  InferenceEngine::Precision::FP32 :
+        case  InferenceEngine::Precision::FP32:
             return FillBlobRandom<float>(inputBlob);
+        case  InferenceEngine::Precision::FP64:
+            return FillBlobRandom<double>(inputBlob);
         case InferenceEngine::Precision::FP16:
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::Q78:
@@ -131,13 +136,15 @@ void FillBlob(Blob::Ptr& inputBlob) {
             return FillBlobRandom<uint64_t>(inputBlob);
         case InferenceEngine::Precision::U16:
             return FillBlobRandom<uint16_t>(inputBlob);
+        case InferenceEngine::Precision::I4:
         case InferenceEngine::Precision::I8:
         case InferenceEngine::Precision::BIN:
             return FillBlobRandom<int8_t>(inputBlob);
+        case InferenceEngine::Precision::U4:
         case InferenceEngine::Precision::U8:
             return FillBlobRandom<uint8_t>(inputBlob);
         default:
-            THROW_IE_EXCEPTION << "Cant fill blob with \"" << precision << "\" precision\n";
+            IE_THROW() << "Cant fill blob with \"" << precision << "\" precision\n";
     }
 }
 
@@ -203,8 +210,10 @@ bool IsCorrectBlobCopy_Impl(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
 
 bool IsCorrectBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
     switch (srcBlob->getTensorDesc().getPrecision()) {
-        case  InferenceEngine::Precision::FP32 :
+        case  InferenceEngine::Precision::FP32:
             return IsCorrectBlobCopy_Impl<float>(srcBlob, dstBlob);
+        case  InferenceEngine::Precision::FP64:
+            return IsCorrectBlobCopy_Impl<double>(srcBlob, dstBlob);
         case InferenceEngine::Precision::FP16:
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::Q78:
@@ -219,9 +228,11 @@ bool IsCorrectBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
             return IsCorrectBlobCopy_Impl<uint64_t >(srcBlob, dstBlob);
         case InferenceEngine::Precision::U16:
             return IsCorrectBlobCopy_Impl<uint16_t>(srcBlob, dstBlob);
+        case InferenceEngine::Precision::I4:
         case InferenceEngine::Precision::I8:
         case InferenceEngine::Precision::BIN:
             return IsCorrectBlobCopy_Impl<int8_t>(srcBlob, dstBlob);
+        case InferenceEngine::Precision::U4:
         case InferenceEngine::Precision::U8:
             return IsCorrectBlobCopy_Impl<uint8_t>(srcBlob, dstBlob);
         default:
@@ -264,7 +275,7 @@ TEST_P(BlobCopyTest, BlobCopy) {
 
     std::cout << "Blob_copy execution time : " << std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() << " micros" << std::endl;
 
-    ASSERT_TRUE(IsCorrectBlobCopy(srcBlob, dstBlob)) << "'blob_copy' function is't correct";
+    ASSERT_TRUE(IsCorrectBlobCopy(srcBlob, dstBlob)) << "'blob_copy' function is not correct";
 }
 
 namespace {
@@ -309,7 +320,7 @@ std::vector<PrecisionType> BlobCopy_PrecisionParams = {
 
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(accuracy, BlobCopyTest,
+INSTANTIATE_TEST_SUITE_P(accuracy, BlobCopyTest,
                         ::testing::Combine(::testing::ValuesIn(BlobCopy_srcLayoutParam),
                            ::testing::ValuesIn(BlobCopy_dstLayoutParam),
                            ::testing::ValuesIn(BlobCopy_BatchNum),
@@ -332,6 +343,8 @@ bool IsEqualBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
     switch (srcBlob->getTensorDesc().getPrecision()) {
     case InferenceEngine::Precision::FP32:
         return IsEqualBlobCopy_Impl<float>(srcBlob, dstBlob);
+    case InferenceEngine::Precision::FP64:
+        return IsEqualBlobCopy_Impl<double>(srcBlob, dstBlob);
     case InferenceEngine::Precision::FP16:
     case InferenceEngine::Precision::I16:
     case InferenceEngine::Precision::Q78:
@@ -344,9 +357,11 @@ bool IsEqualBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
         return IsEqualBlobCopy_Impl<uint64_t>(srcBlob, dstBlob);
     case InferenceEngine::Precision::I64:
         return IsEqualBlobCopy_Impl<int64_t>(srcBlob, dstBlob);
+    case InferenceEngine::Precision::I4:
     case InferenceEngine::Precision::I8:
     case InferenceEngine::Precision::BIN:
         return IsEqualBlobCopy_Impl<int8_t>(srcBlob, dstBlob);
+    case InferenceEngine::Precision::U4:
     case InferenceEngine::Precision::U8:
         return IsEqualBlobCopy_Impl<uint8_t>(srcBlob, dstBlob);
     case InferenceEngine::Precision::U16:
@@ -381,6 +396,8 @@ void copy3DBlobsAllBytesWithReLayoutWrapper(const Blob::Ptr& srcLayoutBlob, Blob
     switch (precision) {
     case InferenceEngine::Precision::FP32:
         return copy3DBlobsAllBytesWithReLayout<float>(srcLayoutBlob, trgLayoutBlob);
+    case InferenceEngine::Precision::FP64:
+        return copy3DBlobsAllBytesWithReLayout<double>(srcLayoutBlob, trgLayoutBlob);
     case InferenceEngine::Precision::FP16:
     case InferenceEngine::Precision::I16:
     case InferenceEngine::Precision::Q78:
@@ -395,13 +412,15 @@ void copy3DBlobsAllBytesWithReLayoutWrapper(const Blob::Ptr& srcLayoutBlob, Blob
         return copy3DBlobsAllBytesWithReLayout<int64_t>(srcLayoutBlob, trgLayoutBlob);
     case InferenceEngine::Precision::U16:
         return copy3DBlobsAllBytesWithReLayout<uint16_t>(srcLayoutBlob, trgLayoutBlob);
+    case InferenceEngine::Precision::I4:
     case InferenceEngine::Precision::I8:
     case InferenceEngine::Precision::BIN:
         return copy3DBlobsAllBytesWithReLayout<int8_t>(srcLayoutBlob, trgLayoutBlob);
+    case InferenceEngine::Precision::U4:
     case InferenceEngine::Precision::U8:
         return copy3DBlobsAllBytesWithReLayout<uint8_t>(srcLayoutBlob, trgLayoutBlob);
     default:
-        THROW_IE_EXCEPTION << "Cant copy blob with \"" << precision << "\" precision\n";
+        IE_THROW() << "Cant copy blob with \"" << precision << "\" precision\n";
     }
 }
 
@@ -449,7 +468,7 @@ TEST_P(BlobCopySetLayoutTest, BlobCopyWithNCHW_To_NHWC_After_setLayout) {
     ASSERT_TRUE(IsEqualBlobCopy(ref, dst)) << "'blob_copy' after setLayout function is not correct";
 }
 
-INSTANTIATE_TEST_CASE_P(accuracy, BlobCopySetLayoutTest,
+INSTANTIATE_TEST_SUITE_P(accuracy, BlobCopySetLayoutTest,
     ::testing::Combine(::testing::ValuesIn(BlobCopySetLayout_Dims),
                        ::testing::ValuesIn(BlobCopySetLayout_Precisions)));
 

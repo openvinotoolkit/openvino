@@ -2,7 +2,7 @@
 
 **Versioned name**: *Bucketize-3*
 
-**Category**: Condition operation
+**Category**: *Condition*
 
 **Short description**: *Bucketize* bucketizes the input based on boundaries. This is similar to [Reference](https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/bucketize).
 
@@ -18,22 +18,22 @@ For example, if the first input tensor is `[[3, 50], [10, -1]]` and the second i
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i64"
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *with_right_bound*
 
   * **Description**: indicates whether bucket includes the right or the left edge of interval.
   * **Range of values**:
-    * True - bucket includes the right interval edge
-    * False - bucket includes the left interval edge
+    * true - bucket includes the right interval edge
+    * false - bucket includes the left interval edge
   * **Type**: `boolean`
-  * **Default value**: True
+  * **Default value**: true
   * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: N-D tensor of *T* type with elements for the bucketization. Required.
-*   **2**: 1-D tensor of *T_BOUNDARIES* type with sorted unique boundaries for buckets. Required.
+*   **1**: N-D tensor of *T* type with elements for the bucketization. **Required.**
+*   **2**: 1-D tensor of *T_BOUNDARIES* type with sorted unique boundaries for buckets. **Required.**
 
 **Outputs**:
 

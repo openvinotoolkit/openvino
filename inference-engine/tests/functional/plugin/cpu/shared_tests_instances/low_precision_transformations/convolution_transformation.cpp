@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,26 +26,74 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         false,
         {},
-        false
+        false,
+        "Convolution",
+        "FP32"
     },
     {
         {},
         false,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-        false
+        false,
+        "Convolution",
+        "FP32"
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         false,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-        false
+        false,
+        "Convolution",
+        "U8"
     },
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.75f }, { 6.375f } },
+        { 256ul, ngraph::Shape {}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        { 255ul, ngraph::Shape {}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false,
+        "Convolution",
+        "U8"
+    },
+    {
+        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false,
+        "Convolution",
+        "FP32"
+    },
+    {
+        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        false,
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f } },
+        false,
+        "Convolution",
+        "FP32"
+    },
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false,
+        "Convolution",
+        "FP32"
+    },
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.7f }, { 12.8f } },
         true,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-        false
-    }
+        false,
+        "Convolution",
+        "U8"
+    },
+    {
+        { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
+        true,
+        { 255ul, ngraph::Shape { 1 }, { 0.f }, { 254.f }, { -18.7f }, { 18.7f } },
+        false,
+        "Convolution",
+        "U8"
+    },
 };
 
 const std::vector<ngraph::Shape> shapes = {
@@ -53,7 +101,7 @@ const std::vector<ngraph::Shape> shapes = {
     { 4, 3, 16, 16 }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
@@ -77,7 +125,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionWIthIncorrectWeightsParam> i
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionWIthIncorrectWeightsTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionWIthIncorrectWeightsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),

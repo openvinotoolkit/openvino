@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ std::string generate_model_path(std::string dir, std::string filename) {
 }
 
 std::string generate_image_path(std::string dir, std::string filename) {
-    return get_data_path() + kPathSeparator +"validation_set" + kPathSeparator + dir + kPathSeparator + filename;
+    return get_data_path() + kPathSeparator + "validation_set" + kPathSeparator + dir + kPathSeparator + filename;
 }
 
 std::string generate_ieclass_xml_path(std::string filename) {

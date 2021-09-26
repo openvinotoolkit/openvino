@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "convolution_kernel_winograd_6x3_s1_fused.h"
 #include "kernel_selector_utils.h"
@@ -123,9 +111,11 @@ ConvolutionKernel_Winograd_6x3_s1_fused::Parent::DispatchData ConvolutionKernel_
     dispatchData.lws[1] = local_size[1];
     dispatchData.lws[2] = local_size[2];
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
-
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_Winograd_6x3_s1_fused::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 bool ConvolutionKernel_Winograd_6x3_s1_fused::Validate(const Params& p, const optional_params& o) const {

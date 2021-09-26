@@ -1,26 +1,16 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
 #include "program_node.h"
-#include "engine_impl.h"
-#include "program_impl.h"
+#include "cldnn/runtime/engine.hpp"
+#include "cldnn/graph/program.hpp"
+#include "data_inst.h"
+
 #include <string>
 #include <vector>
 #include <utility>
@@ -41,26 +31,26 @@ struct program_helpers {
     //
     // T& case -> returns container which holds T&
     template <class T>
-    static program_impl::single_element_container<T> wrap_if_single(T& t) {
-        return program_impl::single_element_container<T>(t);
+    static program::single_element_container<T> wrap_if_single(T& t) {
+        return program::single_element_container<T>(t);
     }
 
     // helper function which creates single-element array if it's given anything
     // other than std::vector.
     // T const& case -> returns container which holds T const&
     template <class T>
-    static program_impl::single_element_container<T const> wrap_if_single(T const& t) {
-        return program_impl::single_element_container<T const>(t);
+    static program::single_element_container<T const> wrap_if_single(T const& t) {
+        return program::single_element_container<T const>(t);
     }
 
     // helper function which creates single-element array if it's given anything
     // other than std::vector.
     // T&& case -> returns container which holds new instance of T created by moving given param
     template <class T>
-    static program_impl::single_element_container<T> wrap_if_single(T&& t) {
+    static program::single_element_container<T> wrap_if_single(T&& t) {
         static_assert(meta::always_false<T>::value,
                       "Wrapping temporary object into single_element_container is an error (requires valid reference)");
-        return program_impl::single_element_container<T>(t);
+        return program::single_element_container<T>(t);
     }
 
     // helper function which creates single-element array if it's given anything
@@ -107,7 +97,7 @@ struct program_helpers {
         else
             do_for_types<RestOfT...>(node, rest...);
     }
-    static void merge_buffers(engine_impl& engine,
+    static void merge_buffers(engine& engine,
                               program_node& node,
                               const layout& target_layout,
                               size_t begin_offset,
@@ -141,7 +131,7 @@ struct program_helpers {
 // and overload match and optimize methods.
 template <typename Impl>
 struct pattern_match_optimization {
-    pattern_match_optimization(program_impl& prog)
+    pattern_match_optimization(program& prog)
         : prog(prog)
     {}
 
@@ -164,9 +154,9 @@ struct pattern_match_optimization {
         return optimize(node);
     }
 
-    program_impl& get_program() { return prog; }
+    program& get_program() { return prog; }
 
-    program_impl& prog;
+    program& prog;
 };
 
 // Class for pattern-match optimizations that provides support for matching
@@ -215,15 +205,15 @@ bool run_node_optimizations(program_node& node, Opt&& opt, Rest&&... rest) {
 }
 
 // Runs pattern-match optimizations `Opts` on `node`.
-// Optimizations should have constructor with single argument `program_impl&`.
+// Optimizations should have constructor with single argument `program&`.
 template <typename... Opts>
-bool run_node_optimizations(program_impl& p, program_node& node) {
+bool run_node_optimizations(program& p, program_node& node) {
     return run_node_optimizations<Opts...>(node, Opts(p)...);
 }
 
 // Runs specified pattern-match optimizations on whole program, in processing order.
 template <typename... Opts>
-void run_node_optimizations(program_impl& p, Opts&&... opts) {
+void run_node_optimizations(program& p, Opts&&... opts) {
     auto it = p.get_processing_order().begin();
     while (it != p.get_processing_order().end()) {
         auto node = *it++;
@@ -232,7 +222,7 @@ void run_node_optimizations(program_impl& p, Opts&&... opts) {
 }
 
 template <typename... Opts>
-void run_node_optimizations(program_impl& p) {
+void run_node_optimizations(program& p) {
     run_node_optimizations(p, Opts(p)...);
 }
 

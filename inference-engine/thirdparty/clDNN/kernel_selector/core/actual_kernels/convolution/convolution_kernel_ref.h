@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #pragma once
 
@@ -27,6 +16,7 @@ public:
     virtual ~ConvolutionKernel_Ref() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
@@ -37,10 +27,15 @@ protected:
             return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        // FusedOpType::REORDER should be registered explicitly here
+        // only when fused_primitive_desc for reorder is added by optimization passes (e.g., remove_redundant_reorder) for corresponding primitive.
+        // The typical usage for fused_primitive_desc for convolution is to get original output layout from jitter,
+        // so that it can decide whether to fuse eltwise along with reorder.
         return { FusedOpType::ELTWISE,
                  FusedOpType::QUANTIZE,
                  FusedOpType::SCALE,
-                 FusedOpType::ACTIVATION };
+                 FusedOpType::ACTIVATION,
+                 FusedOpType::REORDER };
     }
 
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;

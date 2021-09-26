@@ -1,39 +1,23 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/single_layer/gather.hpp"
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<
-        std::vector<int>,                  // Indices
-        std::vector<size_t>,               // Indices shape
-        int,                               // Gather axis
-        std::vector<size_t>,               // Input shapes
-        InferenceEngine::Precision,        // Network precision
-        InferenceEngine::Precision,        // Input precision
-        InferenceEngine::Precision,        // Output precision
-        InferenceEngine::Layout,           // Input layout
-        InferenceEngine::Layout,           // Output layout
-        std::string                        // Device name
-> gatherParamsTuple;
-class GatherLayerTest : public testing::WithParamInterface<gatherParamsTuple>,
-                        virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<gatherParamsTuple> &obj);
+TEST_P(GatherLayerTest, CompareWithRefs) {
+    Run();
+};
 
-protected:
-    void SetUp() override;
+TEST_P(Gather7LayerTest, CompareWithRefs) {
+    Run();
+};
+
+TEST_P(Gather8LayerTest, CompareWithRefs) {
+    Run();
 };
 
 }  // namespace LayerTestsDefinitions

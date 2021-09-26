@@ -1,24 +1,16 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import functools
 import os
 import re
 import warnings
 
+from typing import Callable
+
 import numpy as np
+
+from mo.front.common.partial_infer.utils import dynamic_dimension
 
 
 def refer_to_faq_msg(question_num: int):
@@ -34,13 +26,12 @@ class NamedAttrsClass:
 
 
 def match_shapes(pattern: np.array, shape: np.array):
-    """ Check if shape matches shape pattern handling -1 and 0 in the pattern. """
-    # Elements with values -1 and 0 in pattern are just ignored.
-    # Other elements should match.
+    """ Check if shape matches shape pattern handling undefined dimension and 0 in the pattern. """
+    # Elements with value 0 and undefined values in pattern are just ignored. Other elements should match.
     if pattern.size != shape.size:
         return False
-    indices = [i for i, n in enumerate(pattern) if n not in [0, -1]]
-    return np.array_equal(pattern[indices], shape[indices])
+    indices = [i for i, n in enumerate(pattern) if n != 0 and n is not dynamic_dimension]
+    return np.ma.allequal(pattern[indices], shape[indices])
 
 
 def symm_match_shapes(shape1: np.array, shape2: np.array):
@@ -54,14 +45,12 @@ def deprecated_api(class_name=None, new_method_name=None):
     def deprecated(func):
         @functools.wraps(func)
         def deprecation_message(*args, **kwargs):
-            warnings.simplefilter('always', DeprecationWarning)  # turn on filter
             dep_msg = "Call to deprecated function {}. ".format(func.__name__)
             if class_name is not None:
                 dep_msg += "Please use {}.{} method" \
                            "".format(class_name.__name__ if not isinstance(class_name, str) else class_name,
                                      func.__name__ if new_method_name is None else new_method_name)
             warnings.warn(dep_msg, DeprecationWarning, stacklevel=2)
-            warnings.simplefilter('default', DeprecationWarning)  # reset filter
             return func(*args, **kwargs)
 
         return deprecation_message
@@ -108,3 +97,40 @@ def get_mo_root_dir():
     """
     return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath(__file__))), os.pardir,
                                          os.pardir))
+
+
+def group_by_with_binary_predicate(xs: list, predicate: Callable) -> list:
+    """
+    It is an analogue of the function groupby from itertools, but with a binary predicate.
+    In other words, group_by_with_binary_predicate generates a break or new group every time
+    the value of the predicate function is False.
+    :param xs: list of grouped value
+    :param predicate: criterion of equality
+    :return: grouped list
+    """
+    if not xs:
+        return []
+    prev = xs[0]
+    sequence = [prev]
+    result = []
+    for x in xs[1:]:
+        if predicate(prev, x):
+            sequence.append(x)
+            prev = x
+        else:
+            result.append(sequence)
+            prev = x
+            sequence = [prev]
+    result.append(sequence)
+    return result
+
+
+def unique_by(xs: list, predicate: Callable) -> list:
+    """
+    This function groups elements of the list xs using 'predicate', and then takes one element from each group.
+    :param xs: input list
+    :param predicate: grouping criterion which is some binary predicate
+    :return: list with unique elements
+    """
+    groups = group_by_with_binary_predicate(xs, predicate)
+    return [group[0] for group in groups]

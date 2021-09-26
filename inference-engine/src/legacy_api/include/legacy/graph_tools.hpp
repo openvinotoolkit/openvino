@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "ie_algorithm.hpp"
-#include "ie_icnn_network.hpp"
+#include "cpp/ie_cnn_network.h"
 
 #include <legacy/layer_transform.hpp>
 #include <legacy/cnn_network_impl.hpp>
@@ -182,7 +182,7 @@ inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited, const Inference
         if (visitBefore) visit(cnnLayer);
         visited.insert(cnnLayer.get());
 
-        // visit childs
+        // visit children
         for (auto& od : cnnLayer->outData) {
             for (auto nl : getInputTo(od)) {
                 layers.push(nl.second);
@@ -193,7 +193,7 @@ inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited, const Inference
         for (size_t i = 0; i < cnnLayer->insData.size(); i++) {
             auto& input = cnnLayer->insData[i];
             if (!input.lock()) {
-                THROW_IE_EXCEPTION << "Data " << i << " inserted into layer " << cnnLayer->name << " is nullptr";
+                IE_THROW() << "Data " << i << " inserted into layer " << cnnLayer->name << " is nullptr";
             } else {
                 auto creatorLayer = getCreatorLayer(input.lock()).lock();
                 if (creatorLayer) {
@@ -367,23 +367,43 @@ using CNNLayerSet = std::set<CNNLayerPtr, LayerNameLess>;
  * @param network
  * @return set of input layers
  */
-inline CNNLayerSet CNNNetGetAllInputLayers(const ICNNNetwork& network) {
-    InputsDataMap inputs;
-    network.getInputsInfo(inputs);
+inline CNNLayerSet CNNNetGetAllInputLayers(const CNNNetwork& network) {
+    InputsDataMap inputs = network.getInputsInfo();
+    OutputsDataMap outputs = network.getOutputsInfo();
+
+    std::vector<DataPtr> entryDataSet;
+    entryDataSet.reserve(inputs.size() + outputs.size());
+    for (const auto &kvp : inputs)
+        entryDataSet.push_back(kvp.second->getInputData());
+    for (const auto &kvp : outputs)
+        entryDataSet.push_back(kvp.second);
 
     CNNLayerSet inputLayers;
     std::unordered_set<CNNLayer*> allLayers;
 
-    if (inputs.empty()) return inputLayers;
+    if (entryDataSet.empty()) return inputLayers;
 
-    for (const auto& input : inputs) {
-        auto& secondLayers = getInputTo(input.second->getInputData());
+    // define any layer connected to provided Data object (consumer or creator)
+    auto findConnectedLayer = [] (const DataPtr& data) -> CNNLayerPtr {
+        auto consumerLayers = getInputTo(data);
+        if (!consumerLayers.empty())
+            return consumerLayers.begin()->second;
 
-        if (secondLayers.empty()) continue;
+        auto creator = getCreatorLayer(data).lock();
+        if (creator != nullptr)
+            return creator;
+
+        return nullptr;
+    };
+
+    for (const auto& data : entryDataSet) {
+        auto entryLayer = findConnectedLayer(data);
+
+        if (entryLayer == nullptr) continue;
 
         details::UnorderedDFS(
-            allLayers, secondLayers.begin()->second,
-            [&](CNNLayerPtr layer) {
+            allLayers, entryLayer,
+            [&inputLayers](const CNNLayerPtr& layer) {
                 if (layer->insData.empty()) {
                     inputLayers.insert(layer);
                 }
@@ -391,6 +411,11 @@ inline CNNLayerSet CNNNetGetAllInputLayers(const ICNNNetwork& network) {
             false);
     }
     return inputLayers;
+}
+
+inline CNNLayerSet CNNNetGetAllInputLayers(ICNNNetwork * network) {
+    std::shared_ptr<ICNNNetwork> pointer(network, [](ICNNNetwork* p) { });
+    return CNNNetGetAllInputLayers(CNNNetwork(pointer));
 }
 
 /**
@@ -422,7 +447,7 @@ inline CNNLayerSet CNNNetGetAllInputLayers(CNNLayer* layer) {
  * @return sorted CNNNetwork layers
  */
 template <class LayerOrdering>
-std::vector<CNNLayerPtr> CNNNetSortTopologicallyEx(const ICNNNetwork& network, LayerOrdering ordering) {
+std::vector<CNNLayerPtr> CNNNetSortTopologicallyEx(const CNNNetwork& network, LayerOrdering ordering) {
     std::vector<CNNLayerPtr> stackOfVisited;
     bool res = CNNNetForestDFS(
         CNNNetGetAllInputLayers(network),
@@ -432,7 +457,7 @@ std::vector<CNNLayerPtr> CNNNetSortTopologicallyEx(const ICNNNetwork& network, L
         false, ordering);
 
     if (!res) {
-        THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
+        IE_THROW() << "Sorting not possible, due to existed loop.";
     }
 
     std::reverse(std::begin(stackOfVisited), std::end(stackOfVisited));
@@ -450,7 +475,7 @@ using CNNNetCPtr = std::shared_ptr<const ICNNNetwork>;
  * @return copied network
  */
 template <class Copier>
-inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
+inline CNNNetwork CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
     net->setName(input.getName());
@@ -471,7 +496,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
         true);
 
     if (!res) {
-        THROW_IE_EXCEPTION << "Copying of network not possible, due to existed loop.";
+        IE_THROW() << "Copying of network not possible, due to existed loop.";
     }
 
     // internal utility to locate out data idx in layer
@@ -479,7 +504,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
         int dataIdx = -1;
         auto sourceLayer = getCreatorLayer(sourceData).lock();
         if (!sourceLayer) {
-            THROW_IE_EXCEPTION << "Data " << sourceData->getName() << " has no creator layer";
+            IE_THROW() << "Data " << sourceData->getName() << " has no creator layer";
         }
         for (size_t j = 0; j < sourceLayer->outData.size(); j++) {
             if (sourceData.get() == sourceLayer->outData[j].get()) {
@@ -557,7 +582,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
                 auto sourceData = current->insData[i].lock();
                 auto sourceLayer = getCreatorLayer(sourceData).lock();
                 if (!sourceLayer) {
-                    THROW_IE_EXCEPTION << "Data " << sourceData->getName() << " has no creator layer";
+                    IE_THROW() << "Data " << sourceData->getName() << " has no creator layer";
                 }
                 // find insData Entry in outData of sourceLayer
                 newLayer->insData[i] = oldToNewLayers[sourceLayer.get()]->outData[findOutDataIdx(sourceData)];
@@ -566,8 +591,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
         true);
 
     // transfer input info
-    InputsDataMap inputsInfo;
-    input.getInputsInfo(inputsInfo);
+    InputsDataMap inputsInfo = input.getInputsInfo();
     std::set<DataPtr> insDatas;
     for (auto&& info : inputsInfo) {
         for (auto secondLayer : getInputTo(info.second->getInputData())) {
@@ -581,22 +605,21 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
     }
 
     // transfer output info
-    OutputsDataMap outmap;
-    input.getOutputsInfo(outmap);
+    OutputsDataMap outmap = input.getOutputsInfo();
     for (auto&& data : outmap) {
         ResponseDesc dsc;
         if (OK != net->addOutput(getCreatorLayer(data.second).lock()->name, findOutDataIdx(data.second), &dsc)) {
-            THROW_IE_EXCEPTION << dsc.msg;
+            IE_THROW() << dsc.msg;
         }
     }
 
     ResponseDesc dsc;
     // transfer batch size
     if (OK != net->setBatchSize(input.getBatchSize(), &dsc)) {
-        THROW_IE_EXCEPTION << dsc.msg;
+        IE_THROW() << dsc.msg;
     }
 
-    return net;
+    return CNNNetwork(net);
 }
 
 /**
@@ -604,22 +627,13 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
  * @param input
  * @return
  */
-inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input) {
+inline CNNNetwork CNNNetCopy(const CNNNetwork& input) {
     struct EmptyStruct {};
     auto copier = [](CNNLayerPtr lp) {
         return injectData<EmptyStruct>(lp);
     };
     return InferenceEngine::CNNNetCopy(input, copier);
 }
-
-/**
- * @brief Replaces layer with newLayer in network
- * @param network  - graph containing the layer
- * @param layer    - layer which need to replace
- * @param newLayer - new layer instead of layer; it must have same name like a layer for replace
- */
-void CNNNetSubstituteLayer(InferenceEngine::ICNNNetwork& network, const InferenceEngine::CNNLayerPtr& layer,
-                           const InferenceEngine::CNNLayerPtr& newLayer);
 
 namespace details {
 
@@ -688,7 +702,7 @@ inline std::vector<CNNLayerPtr> CNNSubnetSortTopologically(const CNNSubnet& subn
             },
             false);
     if (!res) {
-        THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
+        IE_THROW() << "Sorting not possible, due to existed loop.";
     }
 
     std::reverse(stackOfVisited.begin(), stackOfVisited.end());

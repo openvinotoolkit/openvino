@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -209,7 +209,7 @@ IE::BlobMap RemoveLayerTests::fillConstDataDiffPrec (const std::vector<std::stri
                     break;
                 }
                 default:
-                    THROW_IE_EXCEPTION << "Not supported data type";
+                    IE_THROW() << "Not supported data type";
             }
             constData[outData->getName()] = blob;
         }
@@ -240,7 +240,7 @@ TEST_F(RemoveLayerTests, canTrimL2) {
     std::vector<std::string> constLayers = {"layer2"};
     std::vector<std::string> refNewLayers = {constLayers[0] + "__data5__Const"};
     auto constData = fillConstData(constLayers);
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
 
     auto newLayers = testTransformator->foldConstSubgraphsInternal({{constLayers[0], false}}, constData, sortedLayers);
 
@@ -284,7 +284,7 @@ TEST_F(RemoveLayerTests, canTrimI1andL1) {
     std::vector<std::string> refNewLayers = {(constLayers[1] + "__data4__Const"), (constLayers[1] + "__data7__Const")};
 
     auto constData = fillConstData(constLayers);
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     auto newLayers = testTransformator->foldConstSubgraphsInternal(mapConstLayers, constData, sortedLayers);
 
     std::vector<std::string> newLayer_names;
@@ -329,7 +329,7 @@ TEST_F(RemoveLayerTests, canFindConstLayers) {
     getLayer("input1")->type = "Const";
     getLayer("layer2")->type = "Shape";
 
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     auto constLayers = testTransformator->getConstLayers(sortedLayers);
 
     ASSERT_EQ(constLayers.size(), 2);
@@ -344,7 +344,7 @@ TEST_F(RemoveLayerTests, canFindConstLayers2) {
     getLayer("input2")->type = "Const";
     getLayer("layer2")->type = "Shape";
 
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     auto constLayers = testTransformator->getConstLayers(sortedLayers);
 
     ASSERT_EQ(constLayers.size(), 4);
@@ -360,7 +360,7 @@ TEST_F(RemoveLayerTests, canFindConstLayers3) {
     getLayer("layer1")->type = "Shape";
     getLayer("layer4")->type = "Reshape";
 
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     auto constLayers = testTransformator->getConstLayers(sortedLayers);
 
     ASSERT_EQ(constLayers.size(), 6);
@@ -378,7 +378,7 @@ TEST_F(RemoveLayerTests, canFindShapeConstLayers) {
     getLayer("layer1")->type = "Shape";
     getLayer("layer6")->type = "Interp";
 
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     auto constLayers = testTransformator->getConstLayers(sortedLayers);
 
     ASSERT_EQ(constLayers.size(), 6);
@@ -396,7 +396,7 @@ TEST_F(RemoveLayerTests, canFindShapeConstLayers2) {
     getLayer("layer2")->type = "Shape";
     getLayer("layer1")->type = "Resample";
 
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     auto constLayers = testTransformator->getConstLayers(sortedLayers);
 
     ASSERT_EQ(constLayers.size(), 4);
@@ -419,7 +419,7 @@ TEST_F(RemoveLayerTests, canTrimShapeInput) {
     auto layer4 = getLayer("layer4");
     auto layer5 = getLayer("layer5");
 
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     auto mapConstLayers = testTransformator->getConstLayers(sortedLayers);
     auto newLayers = testTransformator->foldConstSubgraphsInternal(mapConstLayers, {}, sortedLayers);
     testTransformator->trimShapeInputs(newLayers, sortedLayers);
@@ -452,7 +452,7 @@ TEST_F(RemoveLayerTests, canTrimShapeInput2) {
     for (auto &const_input_name : constLayer_names)
         constLayers.push_back(getLayer(const_input_name));
 
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     testTransformator->trimShapeInputs(constLayers, sortedLayers);
 
     auto data6 = net->getData("data6");
@@ -477,7 +477,7 @@ TEST_F(RemoveLayerTests, notTrimFirstConstInput) {
     for (const auto& name: testLayers) {
         layer6->type = name;
 
-        auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+        auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
         testTransformator->trimShapeInputs({constLayer}, sortedLayers);
 
         ASSERT_EQ(net->allLayers().size(), originalLayersNum);
@@ -498,7 +498,7 @@ TEST_F(RemoveLayerTests, canSaveConstForEltWise) {
     input2->type = "Const";
     layer1->type = "Eltwise";
 
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     testTransformator->trimShapeInputs({input2}, sortedLayers);
 
     IE::CNNNetwork cnnNetwork(net);
@@ -519,7 +519,7 @@ TEST_F(RemoveLayerTests, canSaveDataWithMultipleInputTo) {
     input3->type = "Const";
     layer2->type = "Reshape";
 
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     testTransformator->trimShapeInputs({input3}, sortedLayers);
 
     IE::CNNNetwork cnnNetwork(net);
@@ -543,7 +543,7 @@ TEST_F(RemoveLayerTests, canFoldConstSubgraphToConst) {
     }
     getLayer("layer2")->type = "Shape";
 
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     auto mapConstLayers = testTransformator->getConstLayers(sortedLayers);
     auto newLayers = testTransformator->foldConstSubgraphsInternal(mapConstLayers, {}, sortedLayers);
 
@@ -565,7 +565,7 @@ TEST_F(RemoveLayerTests, canGetConstData) {
     for (const auto& it : constLayers) {
         mapConstLayers[it] = false;
     }
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
 
     auto actBlobs = testTransformator->getConstData(mapConstLayers, sortedLayers);
 
@@ -585,7 +585,7 @@ TEST_F(RemoveLayerTests, canGetConstDataForUnknownImpl) {
         getLayer("layer5")->type = "Mul";
         getLayer("layer6")->type = "Reshape";
     }
-    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    auto sortedLayers = IE::details::CNNNetSortTopologically(IE::CNNNetwork(net));
     IE::SizeVector refShape = {1, 1, 3};
 
     auto mapConstLayers = testTransformator->getConstLayers(sortedLayers);
@@ -636,7 +636,7 @@ TEST_F(RemoveLayerTests, throwErrorOnFoldWithUnknownImplForNotShapeDefiningLayer
     }
 
     IE::ConstTransformer transformator(net.get());
-    ASSERT_THROW(transformator.foldConstSubgraphs(), IE::details::InferenceEngineException);
+    ASSERT_THROW(transformator.foldConstSubgraphs(), IE::Exception);
 }
 
 TEST_F(RemoveLayerTests, canFullTrim) {
@@ -701,6 +701,39 @@ TEST_F(AdvancedShapeInferTests, canFullTrimConstToReshape) {
     ASSERT_EQ(net->allLayers().size(), 3);
     ASSERT_EQ(layer1->insData.size(), 1);
     ASSERT_EQ(layer1->insData[0].lock(), getData("data1"));
+}
+
+TEST_F(AdvancedShapeInferTests, canFullTrimConstToMVN) {
+    //
+    //      I2-d2
+    //          \
+    //  I1-d1-Reshape-d3-L2-d4
+    //
+    net = netBuilder
+            .data("data1", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{3, 1, 1}, IE::Layout::CHW))
+            .data("data2", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{3}, IE::Layout::C))
+            .data("data3", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
+            .data("data4", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
+            .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", IE::Precision::I32})
+            .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", IE::Precision::FP32})
+            .layer<IE::CNNLayer>(IE::LayerParams{"layer1", "MVN", IE::Precision::FP32})
+            .layer<IE::CNNLayer>(IE::LayerParams{"layer2", "dummy", IE::Precision::FP32})
+            .linkToData("input1", "data1")
+            .linkToData("input2", "data2")
+            .linkDataTo("data1", "layer1")
+            .linkDataTo("data2", "layer1")
+            .linkToData("layer1", "data3")
+            .linkDataTo("data3", "layer2")
+            .linkToData("layer2", "data4")
+            .addInput("data1")
+            .addInput("data2")
+            .finalize();
+
+    IE::BlobMap refBlobs = initConstLayers({"input1", "input2"});
+    auto layer1 = getLayer("layer1");
+
+    IE::ConstTransformer transformator(net.get());
+    ASSERT_NO_THROW(transformator.fullTrim());
 }
 
 TEST_F(AdvancedShapeInferTests, canReshape) {

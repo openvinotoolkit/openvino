@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::CropIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::CropIE);
 
 op::CropIE::CropIE(const Output<Node>& data, std::vector<int64_t> axes, std::vector<int64_t> dim,
                    std::vector<int64_t> offset)
@@ -37,11 +37,18 @@ void op::CropIE::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, axes.size() == offset.size(), "axes and offset needs to have same number of values");
 
     ngraph::Shape output_shape(input_shape);
-    for (int i = 0; i < axes.size(); ++i) {
+    for (size_t i = 0; i < axes.size(); ++i) {
         NODE_VALIDATION_CHECK(this, axes[i] >= 0 && axes[i] < static_cast<int64_t>(output_shape.size()),
                               "axes should be positive and less than number of input dims");
         output_shape[axes[i]] = dim[i];
     }
 
     set_output_type(0, get_input_element_type(0), PartialShape(output_shape));
+}
+
+bool op::CropIE::visit_attributes(AttributeVisitor &visitor) {
+    visitor.on_attribute("axis", axes);
+    visitor.on_attribute("dim", dim);
+    visitor.on_attribute("offset", offset);
+    return true;
 }

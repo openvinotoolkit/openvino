@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -86,8 +74,11 @@ def protobuf2nx(graph: Graph, pb):
     # important)
     for node in graph_pb.node:
         # create an NX node
-        id = graph.unique_id(node_id(node))
+        fw_name = node_id(node)
+        id = graph.unique_id(fw_name)
         graph.add_node(id, pb=node, kind='op')
+        if hasattr(graph, 'op_names_statistic') and hasattr(node, 'op_type'):
+            graph.op_names_statistic[node.op_type] += 1
 
         # add incoming edges based on data_nodes_map
         for dst_port, inp in enumerate(node.input):
@@ -107,7 +98,7 @@ def protobuf2nx(graph: Graph, pb):
                 'out': src_port,
                 'in': dst_port,
                 'name': inp,
-                'fw_tensor_debug_info': [(inp, inp)],
+                'fw_tensor_debug_info': [(src_id, inp)],
                 'in_attrs': ['in', 'name'],
                 'out_attrs': ['out', 'name'],
                 'data_attrs': ['fw_tensor_debug_info']
@@ -121,7 +112,7 @@ def protobuf2nx(graph: Graph, pb):
                     'out': src_port,
                     'in': 0,
                     'name': out,
-                    'fw_tensor_debug_info': [(out, out)],
+                    'fw_tensor_debug_info': [(fw_name, out)],
                     'in_attrs': ['in', 'name'],
                     'out_attrs': ['out', 'name'],
                     'data_attrs': ['fw_tensor_debug_info']

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,23 +10,22 @@
 #include <memory>
 
 #include <ie_common.h>
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/ie_helpers.hpp>
+#include <vpu/graph_transformer.hpp>
 
 #include "myriad_executor.h"
-#include "myriad_config.h"
 
 namespace vpu {
 namespace MyriadPlugin {
 
-class MyriadInferRequest : public InferenceEngine::InferRequestInternal {
+class MyriadInferRequest : public InferenceEngine::IInferRequestInternal {
     MyriadExecutorPtr _executor;
     Logger::Ptr _log;
     std::vector<StageMetaInfo> _stagesMetaData;
-    MyriadConfig _config;
+    PluginConfiguration _config;
 
     const DataInfo _inputInfo;
     const DataInfo _outputInfo;
@@ -34,6 +33,8 @@ class MyriadInferRequest : public InferenceEngine::InferRequestInternal {
     GraphDesc _graphDesc;
     std::vector<uint8_t> resultBuffer;
     std::vector<uint8_t> inputBuffer;
+    std::map<std::string, ie::Blob::Ptr> _constDatas;
+    bool _isNetworkConstant;
 
 public:
     typedef std::shared_ptr<MyriadInferRequest> Ptr;
@@ -44,16 +45,18 @@ public:
                                 DataInfo& compilerInputsInfo,
                                 DataInfo& compilerOutputsInfo,
                                 const std::vector<StageMetaInfo> &blobMetaData,
-                                const MyriadConfig &myriadConfig,
+                                const PluginConfiguration &myriadConfig,
                                 const Logger::Ptr &log,
-                                const MyriadExecutorPtr &executor);
+                                const MyriadExecutorPtr &executor,
+                                std::map<std::string, ie::Blob::Ptr> constDatas,
+                                bool isNetworkConstant);
 
     void InferImpl() override;
     void InferAsync();
     void GetResult();
 
-    void
-    GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>
+    GetPerformanceCounts() const override;
 };
 
 }  // namespace MyriadPlugin

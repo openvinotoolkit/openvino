@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "cum_sum_kernel_partial_sum.h"
 #include "kernel_selector_utils.h"
@@ -39,8 +27,7 @@ JitConstants CumSumKernelPartialSum::GetJitConstants(const cum_sum_params& param
 }
 
 KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& params,
-                                                             const optional_params& options,
-                                                             float estimated_time) const {
+                                                             const optional_params& options) const {
     if (!Validate(params, options))
         return {};
 
@@ -53,31 +40,30 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
         // partial sum
         auto cldnn_jit = GetJitConstants(newParams, dispatchData.stage_1);
         cldnn_jit.AddConstant(MakeJitConstant("CUM_SUM_PARTIAL_SUM", 1));
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[0];
         FillCLKernelData(kernel, dispatchData.stage_1, params.engineInfo, kernelName, jit, entry_point);
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kd.internalBufferSizes.push_back(newParams.output.PhysicalSizeInBytes());
     }
     {
         // Final
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, 1);
         auto cldnn_jit = GetJitConstants(newParams, dispatchData.stage_final);
-        std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+        auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         auto& kernel = kd.kernels[1];
 
         FillCLKernelData(kernel, dispatchData.stage_final, params.engineInfo, kernelName, jit, entry_point);
 
-        kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        kernel.params.arguments.clear();  // Clear original output argument
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     }
     kd.internalBufferDataType = Datatype::F32;
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }
@@ -124,6 +110,10 @@ CumSumKernelPartialSum::MultiDispatchData CumSumKernelPartialSum::SetDefaultForM
 }
 
 KernelsData CumSumKernelPartialSum::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetMultiStageKernelsData(params, options, FORCE_PRIORITY_7);
+    return GetMultiStageKernelsData(params, options);
+}
+
+KernelsPriority CumSumKernelPartialSum::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

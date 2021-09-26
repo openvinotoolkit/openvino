@@ -1,37 +1,34 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_VERSION VERSION_GREATER 3.9.6)
-    include_guard(GLOBAL)
-else()
-    if(__CURRENT_FILE_VAR__)
-      return()
-    endif()
-    set(__CURRENT_FILE_VAR__ TRUE)
-endif()
+include_guard(GLOBAL)
 
-include(dependency_solver)
-
-set(VPU_SUPPORTED_FIRMWARES usb-ma2450 usb-ma2x8x pcie-ma248x)
+set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
+set(VPU_SUPPORTED_FIRMWARES_HASH
+    "54a732b5fb17a0124652bc5113fa628c718a5af40621bca309471cb5ffd9271b"
+    "5750b2831c77ef54b8e243d3840c5ed1c9509681d55aee7e369d558cef628735")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1440)
-set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.1")
+set(FIRMWARE_PACKAGE_VERSION 1717)
+set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #
 # CMake variables to override default firmware files
 #
-
-foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
+list(LENGTH VPU_SUPPORTED_FIRMWARES num_firmwares)
+math(EXPR num_firmwares "${num_firmwares} - 1")
+foreach(idx RANGE 0 ${num_firmwares})
+    list(GET VPU_SUPPORTED_FIRMWARES ${idx} firmware_name)
+    list(GET VPU_SUPPORTED_FIRMWARES_HASH ${idx} hash)
     string(TOUPPER "${firmware_name}" firmware_name_upper)
 
     set(firmware_name_full ${firmware_name}.mvcmd)
     # Handle PCIe elf firmware for Windows
-    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma248x")
+    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma2x8x")
         set(firmware_name_full ${firmware_name}.elf)
     endif ()
 
@@ -41,7 +38,8 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         ARCHIVE_UNIFIED VPU/${firmware_name}/firmware_${firmware_name}_${FIRMWARE_PACKAGE_VERSION}.zip
         TARGET_PATH "${TEMP}/vpu/firmware/${firmware_name}"
         ENVIRONMENT "VPU_FIRMWARE_${firmware_name_upper}_FILE"
-        FOLDER)
+        FOLDER
+        SHA256 ${hash})
     debug_message(STATUS "${firmware_name}=" ${VPU_FIRMWARE_${firmware_name_upper}})
 
     update_deps_cache(
@@ -66,11 +64,11 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
     string(TOUPPER "${firmware_name}" firmware_name_upper)
     set(var_name VPU_FIRMWARE_${firmware_name_upper}_FILE)
 
-    set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${firmware_name}.mvcmd")
+    set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/${firmware_name}.mvcmd")
 
     # Handle PCIe elf firmware for Windows
-    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma248x")
-        set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${firmware_name}.elf")
+    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma2x8x")
+        set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/${firmware_name}.elf")
     endif ()
 
     list(APPEND all_firmware_files ${firmware_out_file})
@@ -79,12 +77,20 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         COMMAND
             ${CMAKE_COMMAND} -E copy ${${var_name}} ${firmware_out_file}
         MAIN_DEPENDENCY ${${var_name}}
-        COMMENT "[VPU] Copy ${${var_name}} to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
+        COMMENT "[VPU] Copy ${${var_name}} to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}"
         VERBATIM)
 
     install(FILES ${${var_name}}
-        DESTINATION ${IE_CPACK_RUNTIME_PATH}
-        COMPONENT myriad)
+            DESTINATION ${IE_CPACK_RUNTIME_PATH}
+            COMPONENT myriad)
+
+    if(ENABLE_MYRIAD AND ENABLE_BEH_TESTS)
+        # for MyriadBehaviorTests
+        install(FILES ${${var_name}}
+                DESTINATION tests
+                COMPONENT tests
+                EXCLUDE_FROM_ALL)
+    endif()
 endforeach()
 
 add_custom_target(vpu_copy_firmware
@@ -98,13 +104,12 @@ add_custom_target(vpu_copy_firmware
 if(ANDROID)
     RESOLVE_DEPENDENCY(LIBUSB
         ARCHIVE_ANDROID "libusb_39409_android.tgz"
-        TARGET_PATH "${TEMP}/vpu/libusb")
+        TARGET_PATH "${TEMP}/vpu/libusb"
+        SHA256 "f9e73e95bc769abf1e9910a59b138cf387205e1b4c4e5faec236136fb1d325f7")
     debug_message(STATUS "LIBUSB=" ${LIBUSB})
 
     set(LIBUSB_INCLUDE_DIR "${LIBUSB}/include")
     set(LIBUSB_LIBRARY "${LIBUSB}/libs/${ANDROID_ABI}/libusb1.0.so")
-
-    log_rpath_from_dir(LIBUSB "${LIBUSB}/libs/${ANDROID_ABI}")
 endif()
 
 #
@@ -129,7 +134,8 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
         RESOLVE_DEPENDENCY(VPU_CLC_MA2X8X
             ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X8X_VERSION}.tar.gz"
             TARGET_PATH "${TEMP}/vpu/clc/ma2x8x/${VPU_CLC_MA2X8X_VERSION}"
-            ENVIRONMENT "VPU_CLC_MA2X8X_COMMAND")
+            ENVIRONMENT "VPU_CLC_MA2X8X_COMMAND"
+            SHA256 "0a864bd0e11cee2d85ac7e451dddae19216c8bc9bb50e1a8e0151ab97d5e3c8d")
         debug_message(STATUS "VPU_CLC_MA2X8X=" ${VPU_CLC_MA2X8X})
 
         update_deps_cache(
@@ -187,7 +193,7 @@ function(add_vpu_compile_custom_kernels)
             OUTPUT ${out_file}
             COMMAND
                 ${CMAKE_COMMAND} -E env
-                    "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X8X}/ldscripts/"
+                    "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X8X}/ldscripts/ma2x8x"
                     "SHAVE_MA2X8XLIBS_DIR=${VPU_CLC_MA2X8X}/lib"
                     "SHAVE_MOVIASM_DIR=${VPU_CLC_MA2X8X}/bin"
                     "SHAVE_MYRIAD_LD_DIR=${VPU_CLC_MA2X8X}/bin"

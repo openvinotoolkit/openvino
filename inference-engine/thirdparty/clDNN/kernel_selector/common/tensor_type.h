@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #pragma once
 
@@ -49,6 +38,10 @@ enum DataLayout {
     b_fs_zyx_fsv32,         // 4D+batch
     bs_fs_yx_bsv16_fsv16,   // batch, feature, 2D spatial. Blocks of 16 batch and channels
     bs_fs_zyx_bsv16_fsv16,  // batch, feature, 3D spatial. Blocks of 16 batch and channels
+    bs_fs_yx_bsv4_fsv4,     // batch, feature, 2D spatial. Blocks of 4 batch and 4 channels
+    bs_fs_yx_bsv4_fsv2,     // batch, feature, 2D spatial. Blocks of 4 batch and 2 channels
+    bs_fs_yx_bsv32_fsv32,   // batch, feature, 2D spatial. Blocks of 32 batch and 32 channels
+    bs_fs_yx_bsv32_fsv16,   // batch, feature, 2D spatial. Blocks of 32 batch and 16 channels
     bs_f_bsv8__af8,         // for optimized FC
     bs_f_bsv16__af8,        // for optimized FC
     winograd_2x3_s1_data,   // winograd convolution input, F(2,3) -- filter 3x3 with stride 1
@@ -69,9 +62,12 @@ enum WeightsLayout {
     oi = 0,
     io,
     oiyx,
+    ioyx,
     oyxi,
     iyxo,
     yxio,
+    o_is_yx_isv16,
+    os_yxi_osv16,
     os_iyx_osv16,
     os_iyx_osv32,
     os_iyx_osv32__ai32,
@@ -106,6 +102,12 @@ enum WeightsLayout {
     dlstm_dir_io,                            // dlstm weights layout direction, input_size, 4* hiden_size
     os_is_yx_isa8_osv8_isv4,                 // for MMAD convolution
     os_is_zyx_isa8_osv8_isv4,                // for MMAD convolution
+    os_is_yx_isa8_osv16_isv4,                // for fully connected MMAD
+    os_is_zyx_isa8_osv16_isv4,               // for fully connected MMAD
+    os_is_yx_osa4_isa8_osv8_isv4,            // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
+    g_os_is_yx_osa4_isa8_osv8_isv4,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
+    g_os_is_yx_osa4_isa8_osv8_isv2,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
+    os_is_yx_osa4_isa8_osv8_isv2,            // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
                                                  // 1,5...
     os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
@@ -118,15 +120,20 @@ enum WeightsLayout {
     os_is_y_x8_osv8_isv4_swizzled_by_4,  // for MMAD 1x1 convolutions swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
                                          // 1,5...
     os_is_yx_osv16_isv4,                 // swizzled weights for convolution using IMAD
+    os_is_yx_osv8_isv4,                      // weights for int8 blocked conv
+    os_is_yx_osv8_isv2,                      // weights for int8 blocked conv
     os_is_yx_osv32_isv4_swizzled_by_2,   //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzeled ofm (0, 2, 4..), (1, 3, 5...)
     os_is_yx_osv32_isv4,                 //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
     os_is_zyx_osv32_isv4,                //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
     oizyx,
+    iozyx,
     os_is_yx_osv32_isv32p,  // 2 blocks: 32 packed binary in channels and 32 output channels
     os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution
     os_i_yxs_osv4_yxsv4,                 // for weights for depthwise IMAD convolution
     goiyx,
+    gioyx,
     goizyx,
+    giozyx,
     gyxio,
     g_os_iyx_osv16,
     g_os_iyx_osv32,
@@ -195,10 +202,12 @@ inline bool SimpleLayout(WeightsLayout l) {
         case WeightsLayout::oi:
         case WeightsLayout::io:
         case WeightsLayout::oiyx:
+        case WeightsLayout::ioyx:
         case WeightsLayout::oyxi:
         case WeightsLayout::iyxo:
         case WeightsLayout::yxio:
         case WeightsLayout::oizyx:
+        case WeightsLayout::iozyx:
         case WeightsLayout::dlstm_dir_io:
             return true;
         default:
@@ -388,6 +397,8 @@ public:
 
         return differ;
     }
+
+    virtual ~TensorBase() = default;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

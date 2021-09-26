@@ -1,22 +1,9 @@
-"""
- Copyright (C) 2017-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import mark_input_bins
+from mo.front.common.partial_infer.utils import mark_input_bins, shape_array, shape_insert
 from mo.graph.graph import Node, add_opoutput, Graph
 from mo.ops.op import Op
 
@@ -44,13 +31,13 @@ class LSTMSequence(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': '__LSTMSequence',   # should be never emitted to IR; for debugging purposes
-            'op': __class__.op,
+            'type': None,  # should be never emitted to IR; for debugging purposes
+            'op': self.op,
             'blobs_wrb': False,
             'has_num_directions': False,
             'direction': 'forward',
             'num_layers': 1,
-            'infer': __class__.infer,
+            'infer': self.infer,
             'blob_bidirectional_split': lambda node: (
                 LSTMSequence.split_helper(node, 0, 'forward'),
                 LSTMSequence.split_helper(node, 1, 'reverse')
@@ -109,7 +96,7 @@ class LSTMSequence(Op):
                         node.in_node(port).value = np.repeat(node.in_node(port).value, input_shape[i], axis=i)
                         node.in_node(port).shape[i] = input_shape[i]
 
-        out_shape = np.array([input_shape[node.sequence_dim], input_shape[node.batch_dim], node.hidden_size], dtype=np.int64)
+        out_shape = shape_array([input_shape[node.sequence_dim], input_shape[node.batch_dim], node.hidden_size])
         assert not node.has_num_directions or node.sequence_dim == 0, \
             'If has_num_directions == True, then node.sequence_dim should be equal 0, but it is {}'.format(
                 node.sequence_dim)
@@ -117,12 +104,12 @@ class LSTMSequence(Op):
         num_layers = node.num_layers
         if node.has_num_directions:
             # insert extra dimension to output shape for num_directions
-            out_shape = np.insert(out_shape, 1, np.int64(num_directions))
+            out_shape = shape_insert(out_shape, 1, np.int64(num_directions))
         node.out_node(0).shape = out_shape
         # extra outputs for hidden/cell states
-        state_size = np.array([input_shape[1], node.hidden_size], dtype=np.int64)
+        state_size = shape_array([input_shape[1], node.hidden_size])
         if node.has_num_directions:
-            state_size = np.insert(state_size, 0, num_directions*num_layers)
+            state_size = shape_insert(state_size, 0, num_directions * num_layers)
         for i in [1,2]:
             if i not in node.out_nodes():
                 data_node = Op._create_data_node(

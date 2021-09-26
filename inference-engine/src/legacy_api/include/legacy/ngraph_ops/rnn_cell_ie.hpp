@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,8 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(RNNCellIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"RNNCellIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("RNNCellIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     RNNCellIE(const Output<Node> &X,
               const Output<Node> &H_t,

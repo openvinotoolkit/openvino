@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,19 +11,20 @@ using namespace LayerTestsDefinitions;
 using namespace ngraph::pass::low_precision;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32,
+    ngraph::element::f16
 };
 
-const std::vector<InferenceEngine::SizeVector> dimensions = {
-    InferenceEngine::SizeVector({ 1, 3, 16, 16 })
+const std::vector<ngraph::PartialShape> dimensions = {
+    {1, 3, 16, 16}
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8()
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, GemmTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GemmTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(dimensions),

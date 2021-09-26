@@ -1,15 +1,8 @@
-fake_quantize_pdpd
-convert_float32_bf16
-convert_bf16_float32
-
-INTERPRETER.onnx_model_quant_conv_linear
 INTERPRETER.onnx_top_k_opset_10
-
-reduce_sum_large_1d_to_scalar
-reduce_sum_keep_large_1d_to_scalar
 
 # Temporarily disabled:
 INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
+INTERPRETER.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 INTERPRETER.interpolate_down_scales_const_linear
 INTERPRETER.onnx_resize10_up_scales_const_nearest
 INTERPRETER.onnx_resize10_up_scales_const_linear
@@ -18,39 +11,20 @@ INTERPRETER.onnx_resize10_down_scales_const_nearest
 # Failed in MacOS:
 INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
 
-# ONNX Loop
-onnx_controlflow_loop_2d_add_execution
-
-# ONNX Loop - tests disabled temporarily
-onnx_controlflow_loop_2d_add_check_model
-onnx_controlflow_loop_scalars_check_model
-onnx_controlflow_loop_add_initializer_from_parent_scope
-onnx_controlflow_loop_add_input_from_parent_scope
-onnx_controlflow_loop_add_node_from_parent_scope
-onnx_controlflow_loop_add_value_access_to_body_scope_exception
-onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph
-onnx_controlflow_loop_2d_add_exception_if_no_identity_cond
-onnx_controlflow_loop_2d_add_const_cond
+# nGraph does not support the following ONNX operations
+INTERPRETER.onnx_model_qlinear_matmul
+INTERPRETER.onnx_model_qlinear_matmul_3d
+INTERPRETER.onnx_model_matmul_integer
+INTERPRETER.onnx_model_matmul_integer_zero_point_zero
+INTERPRETER.onnx_model_matmul_integer_no_zero_point
+INTERPRETER.onnx_model_matmul_integer_scalar
+INTERPRETER.onnx_model_matmul_integer_4d
+INTERPRETER.onnx_model_matmul_integer_4d_zero_point
+INTERPRETER.onnx_model_matmul_integer_4d_no_zero_point
 
 # Disabled tests for disabled reference implementations
-INTERPRETER.onnx_model_qlinear_matmul_3d
 INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
 INTERPRETER.sum_2d_to_scalar_int8
-INTERPRETER.sum_trivial_in_double
-INTERPRETER.reduce_sum_2d_to_scalar_int8
-INTERPRETER.reduce_sum_trivial_in_double
-INTERPRETER.reduce_sum_keep_2d_to_scalar_int8
-INTERPRETER.reduce_sum_keep_trivial_in_double
-INTERPRETER.reduce_product_to_scalar_int8
-INTERPRETER.reduce_product_keep_to_scalar_int8
-INTERPRETER.reduce_min_to_scalar_int8
-INTERPRETER.reduce_min_keep_to_scalar_int8
-INTERPRETER.reduce_mean_to_scalar_int8
-INTERPRETER.reduce_mean_keep_to_scalar_int8
-INTERPRETER.reduce_max_to_scalar_int8
-INTERPRETER.reduce_max_3d_to_scalar_double
-INTERPRETER.reduce_max_keep_to_scalar_int8
-INTERPRETER.reduce_max_keep_3d_to_scalar_double
 INTERPRETER.product_to_scalar_int8
 INTERPRETER.max_pool_uint8
 INTERPRETER.max_pool_int8
@@ -60,22 +34,25 @@ INTERPRETER.min_to_scalar_int8
 INTERPRETER.max_trivial_int8
 INTERPRETER.max_to_scalar_int8
 INTERPRETER.max_3d_to_scalar_double
-INTERPRETER.gelu_f64
-INTERPRETER.gelu_backprop_factor_f64
-INTERPRETER.backwards_gelu_f64
 INTERPRETER.gather_4d_indices_axis_0_uint8
 INTERPRETER.gather_axis_0_int8
 INTERPRETER.gather_axis_0_int16
 INTERPRETER.gather_axis_0_uint8
 INTERPRETER.gather_axis_0_uint16
-INTERPRETER.fused_clamp_double
-INTERPRETER.fused_clamp_int8
-INTERPRETER.fused_clamp_int16
-INTERPRETER.fused_clamp_uint8
-INTERPRETER.fused_clamp_uint16
-INTERPRETER.fused_clamp_bfloat16
+INTERPRETER.gather_v7_4d_indices_axis_0_uint8
+INTERPRETER.gather_v7_axis_0_int8
+INTERPRETER.gather_v7_axis_0_int16
+INTERPRETER.gather_v7_axis_0_uint8
+INTERPRETER.gather_v7_axis_0_uint16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
+
+# Revise reference implementation
+onnx_dyn_model_hardmax
+onnx_model_quantize_linear_const_scale_const_zero_p
+onnx_model_quantize_linear
+onnx_model_quantize_linear_axis_zero
+onnx_model_quantize_linear_axis_negative
 
 # Backward conv
 INTERPRETER.convolution_2d_1item
@@ -102,42 +79,64 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
-INTERPRETER.onnx_model_quant_conv_linear_2d
-INTERPRETER.onnx_model_quant_conv_linear_3d
 INTERPRETER.onnx_model_conv_integer
 INTERPRETER.onnx_model_conv_integer_zero_point_zero
 INTERPRETER.onnx_model_conv_integer_no_zero_point
 INTERPRETER.onnx_model_conv_integer_pads
-INTERPRETER.onnx_model_gatherND_int32
-INTERPRETER.onnx_model_gatherND_float
 
- 
-# GRU/RNN/LSTM Sequence: Output values mismatch - seq_lengths not supported
-onnx_model_lstm_fwd_mixed_seq_const
-onnx_model_lstm_reverse_mixed_seq_const
-onnx_model_lstm_fwd_mixed_seq
-onnx_model_lstm_mixed_seq_reverse
-onnx_model_gru_fwd_mixed_seq_len
-onnx_model_gru_fwd_mixed_seq_len_const
-onnx_model_rnn_fwd_mixed_seq_len
-onnx_model_rnn_fwd_mixed_seq_len_const
-
-
-# Activation function hardsigmoid is not supported.
-gru_cell_activation_function
-lstm_cell_activaction_functions
-onnx_model_gru_fwd_activations
-onnx_model_lstm_fwd_hardsigmoid_activation
-
-# Peepholes, input_forget are not supported
+# Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
+# Peepholes input unsupported
 onnx_model_lstm_fwd_with_clip_peepholes
 onnx_model_lstm_bdir_short_input_seq_peepholes
-lstm_cell_bias_peepholes
-lstm_cell_bias_peepholes_clip_input_forget
+# Activation function hardsigmoid unsupported
+onnx_model_gru_fwd_activations_relu_hardsigmoid
+onnx_model_lstm_fwd_hardsigmoid_activation
+gru_cell_hardsigmoid_activation_function
 
-# unsupported element type f16 
+# Check 'n_data_channels % groups == 0' failed
+dyn_group_convolution_backprop_data
+
+# Check 'num_dyn_nodes_this_pass < num_dyn_nodes_last_pass' failed
+dyn_convolution_backprop_data
+
+# unsupported element type f16
 INTERPRETER.ctc_greedy_decoder_f16
+
+# Issue 37473. Fails on ia32 platforms only
+onnx_model_softmax_axis_0
+onnx_model_reshape_negative_dim
 
 # LogSoftmax's reference implementation doesn't handle scalar input properly
 onnx_model_logsoftmax_0D
+# Input body shape is changed during Loop iterations
+# Exception is throw during Loop shape inference
+onnx_controlflow_loop_concat_values
 
+# Infinitive Loop is not supported
+onnx_controlflow_loop_infinite
+
+# Dynamic shape support
+onnx_controlflow_loop_2d_trip_count_dynamic
+onnx_controlflow_loop_no_variadic_inputs_and_outputs
+onnx_controlflow_loop_power
+squeeze_dynamic
+
+# The test fails in CI on Ubuntu i386
+# There's an overflow of some kind: 2147483647 is not close to -2147483648 at index 2
+quantize_clamp_int32
+
+# u16 type is not supported in Minimum evaluate method
+minimum_u16
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronROIFeatureExtractor
+INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
+
+# No evaluator for DeformableConv2D
+onnx_model_deformable_conv_2d
+
+# No support for unsigned types
+INTERPRETER.zero_sized_negative
+
+# No support yet for RandomUniform
+INTERPRETER.onnx_model_random_uniform
+INTERPRETER.onnx_model_random_uniform_like

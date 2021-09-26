@@ -2,7 +2,7 @@
 
 **Versioned name**: *SoftMax-1*
 
-**Category**: *Activation*
+**Category**: *Activation function*
 
 **Short description**: [Reference](https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions#softmax)
 
@@ -18,21 +18,20 @@
   * **Default value**: 1
   * **Required**: *no*
 
-
-**Inputs**:
-
-*   **1**: Input tensor with enough number of dimension to be compatible with *axis* attribute. Required.
-
-**Outputs**:
-
-*   **1**: The resulting tensor of the same shape and type as input tensor.
-
-**Detailed description**
+**Mathematical Formulation**
 
 \f[
 y_{c} = \frac{e^{Z_{c}}}{\sum_{d=1}^{C}e^{Z_{d}}}
 \f]
 where \f$C\f$ is a size of tensor along *axis* dimension.
+
+**Inputs**:
+
+*   **1**: Input tensor with enough number of dimension to be compatible with *axis* attribute. **Required.**
+
+**Outputs**:
+
+*   **1**: The resulting tensor of the same shape and type as input tensor.
 
 **Example**
 

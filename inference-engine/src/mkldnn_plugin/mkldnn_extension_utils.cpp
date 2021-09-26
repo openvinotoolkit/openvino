@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_extension_utils.h"
-#include <limits>
+#include "utils/general_utils.h"
 #include <vector>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -15,8 +16,6 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
         return 4;
     case mkldnn::memory::data_type::s32:
         return 4;
-    case mkldnn::memory::data_type::s16:
-        return 2;
     case mkldnn::memory::data_type::bf16:
         return 2;
     case mkldnn::memory::data_type::s8:
@@ -25,102 +24,115 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
         return 1;
     case mkldnn::memory::data_type::bin:
         return 1;
-    case mkldnn::memory::data_type::data_undef:
+    case mkldnn::memory::data_type::undef:
         return 0;
-
     default:
-        THROW_IE_EXCEPTION << "Unsupported data type.";
+        IE_THROW() << "Unsupported data type.";
     }
 }
 
-memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision prec) {
+memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(const InferenceEngine::Precision& prec) {
     switch (prec) {
         case InferenceEngine::Precision::FP32:
-            return memory::f32;
+            return memory::data_type::f32;
         case InferenceEngine::Precision::I32:
-            return memory::s32;
-        case InferenceEngine::Precision::I16:
-            return memory::s16;
+            return memory::data_type::s32;
         case InferenceEngine::Precision::BF16:
-            return memory::bf16;
+            return memory::data_type::bf16;
         case InferenceEngine::Precision::I8:
-            return memory::s8;
+            return memory::data_type::s8;
         case InferenceEngine::Precision::U8:
         case InferenceEngine::Precision::BOOL:
-            return memory::u8;
+            return memory::data_type::u8;
         case InferenceEngine::Precision::BIN:
-            return memory::bin;
-
+            return memory::data_type::bin;
+        case InferenceEngine::Precision::UNSPECIFIED:
+            return memory::data_type::undef;
         default: {
-            THROW_IE_EXCEPTION << "The plugin does not support " << prec.name();
+            IE_THROW() << "The plugin does not support " << prec.name();
         }
     }
 }
 
 InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::data_type dataType) {
     switch (dataType) {
-        case memory::f32:
-            return InferenceEngine::Precision(InferenceEngine::Precision::FP32);
-        case memory::s32:
+        case memory::data_type::f32:
+            return InferenceEngine::Precision::FP32;
+        case memory::data_type::s32:
             return InferenceEngine::Precision::I32;
-        case memory::s16:
-            return InferenceEngine::Precision::I16;
-        case memory::bf16:
+        case memory::data_type::bf16:
             return InferenceEngine::Precision::BF16;
-        case memory::s8:
+        case memory::data_type::s8:
             return InferenceEngine::Precision::I8;
-        case memory::u8:
+        case memory::data_type::u8:
             return InferenceEngine::Precision::U8;
-        case memory::bin:
+        case memory::data_type::bin:
             return InferenceEngine::Precision::BIN;
-
+        case memory::data_type::undef:
+            return InferenceEngine::Precision::UNSPECIFIED;
         default: {
-            THROW_IE_EXCEPTION << "Unsupported data type.";
+            IE_THROW() << "Unsupported data type.";
         }
     }
 }
 
-InferenceEngine::TensorDesc MKLDNNExtensionUtils::getUninitTensorDesc(const InferenceEngine::TensorDesc &desc) {
-    std::vector<size_t> notInitArr;
-    std::vector<size_t> zeroArr;
-    for (size_t i = 0; i < desc.getBlockingDesc().getBlockDims().size(); i++) {
-        notInitArr.push_back(std::numeric_limits<size_t>::max());
-        zeroArr.push_back(0);
-    }
-    // MKLDNN doesn't support offset_padding_to_data[i] != 0 (assert(src_d_blk.offset_padding_to_data[d] == 0);)
-    return desc.getLayout() == InferenceEngine::Layout::ANY ? desc :
-           InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(),
-                                       {desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder(),
-                                        std::numeric_limits<size_t>::max(), zeroArr, notInitArr});
+Dim MKLDNNExtensionUtils::convertToDim(const dnnl::memory::dim &dim) {
+    return dim == DNNL_RUNTIME_DIM_VAL ?  Shape::UNDEFINED_DIM : static_cast<size_t>(dim);
+}
+dnnl::memory::dim MKLDNNExtensionUtils::convertToDnnlDim(const Dim &dim) {
+    return dim == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<mkldnn::memory::dim>(dim);
 }
 
-bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2) {
-    if (desc1.getDims() != desc2.getDims() || desc1.getPrecision() != desc2.getPrecision())
-        return false;
-    if (desc1.getLayout() == InferenceEngine::Layout::SCALAR && desc2.getLayout() == InferenceEngine::Layout::SCALAR)
-        return true;
-    if (desc1.getLayout() == InferenceEngine::Layout::ANY || desc2.getLayout() == InferenceEngine::Layout::ANY)
-        return true;
-    bool batch1 = desc1.getDims()[0] == 1;
-    const auto& in1Block = desc1.getBlockingDesc();
-    const auto& in2Block = desc2.getBlockingDesc();
-    size_t uninitNum = std::numeric_limits<size_t>::max();
-    if (in1Block.getBlockDims().size() != in2Block.getBlockDims().size())
-        return false;
-    for (size_t i = 0; i < in1Block.getBlockDims().size(); i++) {
-        if (in1Block.getBlockDims()[i] != in2Block.getBlockDims()[i] &&
-                in1Block.getBlockDims()[i] != uninitNum && in2Block.getBlockDims()[i] != uninitNum)
-            return false;
-        if (in1Block.getOffsetPaddingToData()[i] != in2Block.getOffsetPaddingToData()[i] &&
-                in1Block.getOffsetPaddingToData()[i] != uninitNum && in2Block.getOffsetPaddingToData()[i] != uninitNum)
-            return false;
-        if (i >= batch1 && in1Block.getStrides()[i] != in2Block.getStrides()[i] &&
-                in1Block.getStrides()[i] != uninitNum && in2Block.getStrides()[i] != uninitNum)
-            return false;
-        if (in1Block.getOrder()[i] != in2Block.getOrder()[i] &&
-                in1Block.getOrder()[i] != uninitNum && in2Block.getOrder()[i] != uninitNum)
-            return false;
+VectorDims MKLDNNExtensionUtils::convertToVectorDims(const memory::dims& dims) {
+    std::vector<size_t> vecResult;
+    vecResult.reserve(dims.size());
+    std::back_insert_iterator<std::vector<size_t>> itr(vecResult);
+    std::transform(dims.begin(), dims.end(), itr, convertToDim);
+    return vecResult;
+}
+
+memory::dims MKLDNNExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
+    memory::dims vecResult;
+    vecResult.reserve(dims.size());
+    std::back_insert_iterator<memory::dims> itr(vecResult);
+    std::transform(dims.begin(), dims.end(), itr, convertToDnnlDim);
+    return vecResult;
+}
+
+memory::format_tag MKLDNNExtensionUtils::GetPlainFormatByRank(size_t rank) {
+    switch (rank) {
+        case 0:
+        case 1:
+            return memory::format_tag::a;
+        case 2:
+            return memory::format_tag::ab;
+        case 3:
+            return memory::format_tag::abc;
+        case 4:
+            return memory::format_tag::abcd;
+        case 5:
+            return memory::format_tag::abcde;
+        case 6:
+            return memory::format_tag::abcdef;
+        default:
+            return memory::format_tag::undef;
     }
-    return !(in1Block.getOffsetPadding() != in2Block.getOffsetPadding() &&
-        in1Block.getOffsetPadding() != uninitNum && in2Block.getOffsetPadding() != uninitNum);
+}
+
+DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc) {
+    if (desc.data.format_kind == dnnl_blocked) {
+        return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
+    } else {
+        return std::shared_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
+    }
+}
+
+size_t MKLDNNExtensionUtils::getMemSizeForDnnlDesc(mkldnn::memory::desc desc) {
+    const auto offset0 = desc.data.offset0;
+    desc.data.offset0 = 0;
+    size_t size = desc.get_size();
+    if (size == DNNL_RUNTIME_SIZE_VAL)
+        return MemoryDesc::UNDEFINED_SIZE;
+    size += offset0 * sizeOfDataType(desc.data_type());
+    return size;
 }

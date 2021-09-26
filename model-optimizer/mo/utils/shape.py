@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from extensions.ops.elementwise import Add
 from extensions.ops.gather import Gather
@@ -38,13 +25,13 @@ def get_canonical_axis_index_node(rank: Node, axis: int) -> Node:
     graph = rank.graph
     name = rank.soft_get('name', rank.id)
     if axis < 0:
-        axis = Const(graph, {'name': name + '/negative_axis', 'value': int64_array([axis])}).create_node()
+        axis = Const(graph, {'name': name + '/negative_axis', 'value': int64_array(axis)}).create_node()
         add = Add(graph, {'name': name + '/positive_axis'}).create_node()
         rank.out_port(0).connect(add.in_port(0))
         axis.out_port(0).connect(add.in_port(1))
         return add
     else:
-        return Const(graph, {'name': name + '/positive_axis', 'value': int64_array([axis])}).create_node()
+        return Const(graph, {'name': name + '/positive_axis', 'value': int64_array(axis)}).create_node()
 
 
 def get_range_node_of_idxs(rank: Node, begin: int, end: int,
@@ -66,20 +53,20 @@ def get_range_node_of_idxs(rank: Node, begin: int, end: int,
     end_idx = get_canonical_axis_index_node(rank, end)
 
     if not include_begin:
-        const = Const(graph, {'value': int64_array([1]), 'name': name + '/exclude_begin/value'}).create_node()
+        const = Const(graph, {'value': int64_array(1), 'name': name + '/exclude_begin/value'}).create_node()
         add = Add(graph, {'name': name + '/exclude_begin'}).create_node()
         start_idx.out_port(0).connect(add.in_port(0))
         const.out_port(0).connect(add.in_port(1))
         start_idx = add
 
     if include_end:
-        const = Const(graph, {'value': int64_array([1]), 'name': name + '/including_end/value'}).create_node()
+        const = Const(graph, {'value': int64_array(1), 'name': name + '/including_end/value'}).create_node()
         add = Add(graph, {'name': name + '/including_end'}).create_node()
         end_idx.out_port(0).connect(add.in_port(0))
         const.out_port(0).connect(add.in_port(1))
         end_idx = add
 
-    delta = Const(graph, {'name': name + '/delta', 'value': int64_array([1])}).create_node()
+    delta = Const(graph, {'name': name + '/delta', 'value': int64_array(1)}).create_node()
     range_node = Range(graph, {'name': name + '/range_idxs'}).create_node()
 
     start_idx.out_port(0).connect(range_node.in_port(0))

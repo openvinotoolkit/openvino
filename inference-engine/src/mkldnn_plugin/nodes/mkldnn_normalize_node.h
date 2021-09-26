@@ -1,11 +1,15 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ref_eltwise.hpp"
-#include "ref_depthwise.hpp"
+#include <mkldnn_node.h>
+#include <mkldnn.hpp>
+#include <cassert>
+
+#include <cpu/ref_eltwise.hpp>
+#include <cpu/ref_depthwise_injector.hpp>
 
 using namespace InferenceEngine;
 
@@ -16,7 +20,6 @@ struct jit_normalize_config_params {
     bool is_nhwc;
     bool is_blk;
     bool across_spatial;
-    bool channel_shared;
     mkldnn::memory::data_type src_dt;
     mkldnn::memory::data_type dst_dt;
     int src_data_size;
@@ -27,7 +30,6 @@ struct jit_normalize_config_params {
 struct jit_normalize_call_args {
     const void *src;
     void *dst;
-    const float *weights;
     const float *modulo;
     const float *fused_factor;
     size_t src_stride;
@@ -47,6 +49,8 @@ struct jit_uni_normalize_modulo_kernel {
     jit_uni_normalize_modulo_kernel(jit_normalize_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
     virtual ~jit_uni_normalize_modulo_kernel() {}
 
+    virtual void create_ker() = 0;
+
     jit_normalize_config_params jcp_;
 };
 
@@ -61,14 +65,15 @@ struct jit_uni_normalize_kernel {
     explicit jit_uni_normalize_kernel(jit_normalize_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
     virtual ~jit_uni_normalize_kernel() {}
 
+    virtual void create_ker() = 0;
+
     jit_normalize_config_params jcp_;
     const mkldnn_primitive_attr &attr_;
 };
 
-class MKLDNNNormalizeNode : public MKLDNNNode {
+class MKLDNNNormalizeL2Node : public MKLDNNNode {
 public:
-    MKLDNNNormalizeNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNNormalizeNode() override = default;
+    MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -79,7 +84,31 @@ public:
         return false;
     }
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    bool canFuse(const MKLDNNNodePtr& node) const override;
+
 private:
+    enum class NormEpsMode {
+        ADD,
+        MAX
+    };
+    NormEpsMode epsMode = NormEpsMode::ADD;
+
+    float epsApply(const float &modulo) const {
+        if (epsMode == NormEpsMode::ADD) {
+            return modulo + eps;
+        } else if (epsMode == NormEpsMode::MAX) {
+            return std::max(modulo, eps);
+        } else {
+            IE_THROW() << errorPrefix << "has unsupported epsilon mode";
+        }
+    }
+
+    bool cornerCase = false;
+
+    template<typename T>
+    struct NormalizeExecute;
+
     template <typename in_data_t, typename out_data_t>
     void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
 
@@ -98,13 +127,11 @@ private:
     template <typename in_data_t, typename out_data_t>
     void normalize_function(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
 
-    MemoryBlob::Ptr weights_blob;
     bool across_spatial = true;
-    bool channel_shared = true;
     float eps = 1e-10f;
 
-    InferenceEngine::Precision input_prec, output_prec, weights_prec;
-    size_t src_data_size, dst_data_size, weights_data_size;
+    InferenceEngine::Precision input_prec, output_prec;
+    size_t src_data_size, dst_data_size;
 
     mkldnn::primitive_attr attr;
 
@@ -115,6 +142,13 @@ private:
 
     std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
     std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
+
+    jit_normalize_config_params jcp = {};
+
+    static const size_t DATA = 0;
+    static const size_t AXES = 1;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

@@ -1,13 +1,14 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_utils/convolution_params.hpp"
 #include "subgraph_tests/include/conv_concat.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj) {
     std::ostringstream result;
@@ -38,7 +39,7 @@ std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convC
 
     result << CPUTestsBase::getTestCaseName(cpuParams);
 
-    result << "axis=" << axis;
+    result << "_axis=" << axis;
 
     return result.str();
 }
@@ -60,6 +61,8 @@ void ConvConcatSubgraphTest::SetUp() {
 
     std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+
+    selectedType += "_FP32";
 
     auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShapes, inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
@@ -99,7 +102,7 @@ void ConvConcatSubgraphTest::SetUp() {
         }
     }
     for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-        convolutionNodes[conv]->get_rt_info() = setCPUInfo(inFmts, outFmts, priority);
+        convolutionNodes[conv]->get_rt_info() = getCPUInfo();
     }
 
     auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{convolutionNodes[0], convolutionNodes[1]}, axis);
@@ -112,7 +115,8 @@ TEST_P(ConvConcatSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, pluginTypeNode, inFmts, outFmts, selectedType);
+
+    CheckPluginRelatedResults(executableNetwork, pluginTypeNode);
 };
 
 /* ============= Common Convolution Params ============= */
@@ -138,28 +142,6 @@ const SizeVector dilation3D{1, 1, 1};
 commonConvParams convParams3D = commonConvParams{kernelSize3D, strides3D, padBegin3D, padEnd3D, dilation3D, numOutChannels, paddingType, 1};
 commonConvParams groupConvParams3D = commonConvParams{kernelSize3D, strides3D, padBegin3D, padEnd3D, dilation3D, numOutChannels, paddingType, 2};
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams) {
-    std::vector<CPUSpecificParams> resCPUParams;
-    const int selectedTypeIndex = 3;
-
-    for (auto param : CPUParams) {
-        auto selectedTypeStr = std::get<selectedTypeIndex>(param);
-
-        if (selectedTypeStr.find("jit") != std::string::npos && !with_cpu_x86_sse42())
-            continue;
-        if (selectedTypeStr.find("sse42") != std::string::npos && !with_cpu_x86_sse42())
-            continue;
-        if (selectedTypeStr.find("avx2") != std::string::npos && !with_cpu_x86_avx2())
-            continue;
-        if (selectedTypeStr.find("avx512") != std::string::npos && !with_cpu_x86_avx512f())
-            continue;
-
-        resCPUParams.push_back(param);
-    }
-
-    return resCPUParams;
-}
-
 namespace Kernel_1x1 {
 
 /* ============= Kernel_1x1 (2D) ============= */
@@ -179,7 +161,7 @@ const auto params2DConv = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D1x1, ConvConcatSubgraphTest, params2DConv, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D1x1, ConvConcatSubgraphTest, params2DConv, ConvConcatSubgraphTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParams2DDeconv = {
     conv_avx2_2D_1x1,
@@ -194,7 +176,7 @@ const auto params2DDeconv = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D1x1, ConvConcatSubgraphTest, params2DDeconv, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D1x1, ConvConcatSubgraphTest, params2DDeconv, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace Kernel_1x1
 
@@ -217,7 +199,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_DWGroupConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DWGroupConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace GroupConvolutionBackpropDataDWConcat
 
@@ -240,7 +222,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_DWGroupConvolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DWGroupConvolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= GroupConvolution (DW 3D) ============= */
 commonConvParams dwConvParams3D = commonConvParams{kernelSize3D, strides3D, padBegin3D, padEnd3D, dilation3D, numOutChannels, paddingType, numOutChannels};
@@ -259,7 +241,7 @@ const auto params3D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_DWGroupConvolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DWGroupConvolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace GroupConvolutionDWConcat
 
@@ -280,7 +262,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= ConvolutionBackpropData (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
@@ -297,7 +279,7 @@ const auto params3D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace ConvolutionBackpropDataConcat
 
@@ -320,7 +302,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= Convolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
@@ -338,7 +320,7 @@ const auto params3D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace ConvolutionConact
 
@@ -361,7 +343,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= GroupConvolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
@@ -379,7 +361,7 @@ const auto params3D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace GroupConvolutionConcat
 
@@ -401,7 +383,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= GroupConvolutionBackpropData (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
@@ -418,8 +400,8 @@ const auto params3D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolutionBackpropData3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace GroupConvolutionBackpropDataConcat
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

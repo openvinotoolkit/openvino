@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,5 +15,5 @@ std::function<void()> recreate_exenetwork(InferenceEngine::Core &ie, const std::
 std::function<void()> create_infer_request(const std::string &model, const std::string &target_device);
 std::function<void()> recreate_infer_request(InferenceEngine::ExecutableNetwork& exeNetwork);
 std::function<void()> infer_request_inference(const std::string &model, const std::string &target_device);
-std::function<void()> infer_request_inference(const std::string &model, const std::string &target_device);
-std::function<void()> reinfer_request_inference(InferenceEngine::InferRequest& infer_request, InferenceEngine::CNNNetwork& cnnNetwork);
+std::function<void()> reinfer_request_inference(InferenceEngine::InferRequest& infer_request, InferenceEngine::OutputsDataMap& output_info);
+std::function<void()> inference_with_streams(const std::string &model, const std::string &target_device, const int& nstreams);

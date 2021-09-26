@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::SwishIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::SwishIE);
 
 op::SwishIE::SwishIE(const Output<Node> & input, const float alpha)
         : Op({input}), m_alpha(alpha) {

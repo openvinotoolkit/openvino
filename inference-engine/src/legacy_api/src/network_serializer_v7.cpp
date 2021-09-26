@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,13 @@
 #include <unordered_set>
 #include <sstream>
 
+#include "cpp/ie_cnn_network.h"
 #include "caseless.hpp"
 #include "legacy/ie_layers.h"
 #include "xml_parse_utils.h"
 #include "exec_graph_info.hpp"
 #include "network_serializer_v7.hpp"
+#include "legacy/details/ie_cnn_network_tools.h"
 
 namespace InferenceEngine {
 namespace Serialization {
@@ -40,48 +42,6 @@ std::string arrayRevertToIRProperty(const T& property) {
     return sProperty;
 }
 
-std::size_t updatePreProcInfo(const InferenceEngine::ICNNNetwork& network, pugi::xml_node& netXml,
-                              const std::size_t weightsDataOffset) {
-    InputsDataMap inputInfo;
-    network.getInputsInfo(inputInfo);
-
-    // Assume that you preprocess only one input
-    auto dataOffset = weightsDataOffset;
-    for (auto ii : inputInfo) {
-        const PreProcessInfo& pp = ii.second->getPreProcess();
-        size_t nInChannels = pp.getNumberOfChannels();
-        if (nInChannels) {
-            pugi::xml_node preproc = netXml.append_child("pre-process");
-
-            preproc.append_attribute("reference-layer-name").set_value(ii.first.c_str());
-            preproc.append_attribute("mean-precision").set_value(Precision(Precision::FP32).name());
-
-            for (size_t ch = 0; ch < nInChannels; ch++) {
-                const PreProcessChannel::Ptr& preProcessChannel = pp[ch];
-                auto channel = preproc.append_child("channel");
-                channel.append_attribute("id").set_value(ch);
-
-                auto mean = channel.append_child("mean");
-
-                if (!preProcessChannel->meanData) {
-                    mean.append_attribute("value").set_value(preProcessChannel->meanValue);
-                } else {
-                    auto size = preProcessChannel->meanData->byteSize();
-                    mean.append_attribute("size").set_value(size);
-                    mean.append_attribute("offset").set_value(dataOffset);
-                    dataOffset += size;
-                }
-
-                if (1.f != preProcessChannel->stdScale) {
-                    channel.append_child("scale").append_attribute("value").set_value(
-                        CNNLayer::ie_serialize_float(preProcessChannel->stdScale).c_str());
-                }
-            }
-        }
-    }
-    return dataOffset;
-}
-
 void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     auto layerPtr = layer.get();
     auto& params = layer->params;
@@ -89,7 +49,7 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     if (CaselessEq<std::string>()(layer->type, "power")) {
         auto* lr = dynamic_cast<PowerLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of PowerLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of PowerLayer class";
         }
         params["scale"] = CNNLayer::ie_serialize_float(lr->scale);
         params["shift"] = CNNLayer::ie_serialize_float(lr->offset);
@@ -98,7 +58,7 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
                CaselessEq<std::string>()(layer->type, "deconvolution")) {
         auto* lr = dynamic_cast<ConvolutionLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of ConvolutionLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of ConvolutionLayer class";
         }
         params["kernel"] = arrayRevertToIRProperty(lr->_kernel);
         params["pads_begin"] = arrayRevertToIRProperty(lr->_padding);
@@ -110,7 +70,7 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     } else if (CaselessEq<std::string>()(layer->type, "deformable_convolution")) {
         auto* lr = dynamic_cast<DeformableConvolutionLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of DeformableConvolutionLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of DeformableConvolutionLayer class";
         }
         params["kernel"] = arrayRevertToIRProperty(lr->_kernel);
         params["pads_begin"] = arrayRevertToIRProperty(lr->_padding);
@@ -123,7 +83,7 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     } else if (CaselessEq<std::string>()(layer->type, "relu")) {
         auto* lr = dynamic_cast<ReLULayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of ReLULayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of ReLULayer class";
         }
         if (lr->negative_slope != 0.0f) {
             params["negative_slope"] = CNNLayer::ie_serialize_float(lr->negative_slope);
@@ -131,7 +91,7 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     } else if (CaselessEq<std::string>()(layer->type, "norm") || CaselessEq<std::string>()(layer->type, "lrn")) {
         auto* lr = dynamic_cast<NormLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of NormLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of NormLayer class";
         }
         params["alpha"] = CNNLayer::ie_serialize_float(lr->_alpha);
         params["beta"] = CNNLayer::ie_serialize_float(lr->_beta);
@@ -140,7 +100,7 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     } else if (CaselessEq<std::string>()(layer->type, "pooling")) {
         auto* lr = dynamic_cast<PoolingLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of PoolingLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of PoolingLayer class";
         }
         params["kernel"] = arrayRevertToIRProperty(lr->_kernel);
         params["pads_begin"] = arrayRevertToIRProperty(lr->_padding);
@@ -156,44 +116,44 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
             break;
 
         default:
-            THROW_IE_EXCEPTION << "Found unsupported pooling method: " << lr->_type;
+            IE_THROW() << "Found unsupported pooling method: " << lr->_type;
         }
     } else if (CaselessEq<std::string>()(layer->type, "split")) {
         auto* lr = dynamic_cast<SplitLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of SplitLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of SplitLayer class";
         }
         params["axis"] = std::to_string(lr->_axis);
     } else if (CaselessEq<std::string>()(layer->type, "concat")) {
         auto* lr = dynamic_cast<ConcatLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of ConcatLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of ConcatLayer class";
         }
         params["axis"] = std::to_string(lr->_axis);
     } else if (CaselessEq<std::string>()(layer->type, "FullyConnected") ||
                CaselessEq<std::string>()(layer->type, "InnerProduct")) {
         auto* lr = dynamic_cast<FullyConnectedLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of FullyConnectedLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of FullyConnectedLayer class";
         }
         params["out-size"] = std::to_string(lr->_out_num);
     } else if (CaselessEq<std::string>()(layer->type, "softmax")) {
         auto* lr = dynamic_cast<SoftMaxLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of SoftMaxLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of SoftMaxLayer class";
         }
         params["axis"] = std::to_string(lr->axis);
     } else if (CaselessEq<std::string>()(layer->type, "reshape")) {
         // need to add here support of flatten layer if it is created from API
         auto* lr = dynamic_cast<ReshapeLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of ReshapeLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of ReshapeLayer class";
         }
         params["dim"] = arrayToIRProperty(lr->shape);
     } else if (CaselessEq<std::string>()(layer->type, "Eltwise")) {
         auto* lr = dynamic_cast<EltwiseLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of EltwiseLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of EltwiseLayer class";
         }
 
         std::string op;
@@ -219,13 +179,13 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     } else if (CaselessEq<std::string>()(layer->type, "scaleshift")) {
         auto* lr = dynamic_cast<ScaleShiftLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of ScaleShiftLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of ScaleShiftLayer class";
         }
         params["broadcast"] = std::to_string(lr->_broadcast);
     } else if (CaselessEq<std::string>()(layer->type, "crop")) {
         auto* lr = dynamic_cast<CropLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of CropLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of CropLayer class";
         }
         params["axis"] = arrayToIRProperty(lr->axis);
         params["offset"] = arrayToIRProperty(lr->offset);
@@ -233,51 +193,51 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     } else if (CaselessEq<std::string>()(layer->type, "tile")) {
         auto* lr = dynamic_cast<TileLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of TileLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of TileLayer class";
         }
         params["axis"] = std::to_string(lr->axis);
         params["tiles"] = std::to_string(lr->tiles);
     } else if (CaselessEq<std::string>()(layer->type, "prelu")) {
         auto* lr = dynamic_cast<PReLULayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of PReLULayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of PReLULayer class";
         }
         params["channel_shared"] = std::to_string(lr->_channel_shared);
     } else if (CaselessEq<std::string>()(layer->type, "clamp")) {
         auto* lr = dynamic_cast<ClampLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of ClampLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of ClampLayer class";
         }
         params["min"] = CNNLayer::ie_serialize_float(lr->min_value);
         params["max"] = CNNLayer::ie_serialize_float(lr->max_value);
     } else if (CaselessEq<std::string>()(layer->type, "BatchNormalization")) {
         auto* lr = dynamic_cast<BatchNormalizationLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of BatchNormalizationLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of BatchNormalizationLayer class";
         }
         params["epsilon"] = CNNLayer::ie_serialize_float(lr->epsilon);
     } else if (CaselessEq<std::string>()(layer->type, "grn")) {
         auto* lr = dynamic_cast<GRNLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of GRNLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of GRNLayer class";
         }
         params["bias"] = CNNLayer::ie_serialize_float(lr->bias);
     } else if (CaselessEq<std::string>()(layer->type, "mvn")) {
         auto* lr = dynamic_cast<MVNLayer*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of MVNLayer class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of MVNLayer class";
         }
         params["across_channels"] = std::to_string(lr->across_channels);
         params["normalize_variance"] = std::to_string(lr->normalize);
     } else if (CaselessEq<std::string>()(layer->type, "LSTMCell")) {
         auto* lr = dynamic_cast<RNNCellBase*>(layerPtr);
         if (lr == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of LSTMCell class";
+            IE_THROW() << "Layer " << layerPtr->name << " is not instance of LSTMCell class";
         }
         params["hidden_size"] = std::to_string(lr->hidden_size);
     } else if (CaselessEq<std::string>()(layer->type, "rnn") ||
                CaselessEq<std::string>()(layer->type, "TensorIterator")) {
-        THROW_IE_EXCEPTION << "Not covered layers for writing to IR";
+        IE_THROW() << "Not covered layers for writing to IR";
     }
 
     if (layer->params.find("quantization_level") != layer->params.end()) {
@@ -296,90 +256,9 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     }
 }
 
-std::vector<CNNLayerPtr> TopologicalSort(const ICNNNetwork& network) {
-    std::vector<CNNLayerPtr> ordered;
-    std::unordered_set<std::string> used;
-
-    OutputsDataMap outputs;
-    network.getOutputsInfo(outputs);
-
-    InputsDataMap inputs;
-    network.getInputsInfo(inputs);
-
-    auto get_consumers = [](const CNNLayerPtr& node) -> std::vector<CNNLayerPtr> {
-        std::vector<CNNLayerPtr> consumers;
-        for (const auto & output : node->outData) {
-            for (const auto &consumer : getInputTo(output)) {
-                consumers.push_back(consumer.second);
-            }
-        }
-        return consumers;
-    };
-    auto bfs = [&used, &ordered, &get_consumers](const CNNLayerPtr& start_node, bool traverse_via_outputs = false) {
-        if (!start_node) return;
-        std::deque<CNNLayerPtr> q;
-        q.push_front(start_node);
-        while (!q.empty()) {
-            auto node = q.front();
-            q.pop_front();
-            if (used.insert(node->name).second) {
-                ordered.push_back(node);
-            }
-
-            // Traverse via inputs
-            for (const auto & input : node->insData) {
-                auto locked_input = input.lock();
-                if (!locked_input) {
-                    THROW_IE_EXCEPTION << "insData for " << node->name << " is not valid.";
-                }
-                if (auto next_node = getCreatorLayer(locked_input).lock()) {
-                    if (!used.count(next_node->name)) {
-                        // Check that all consumers were used
-                        bool all_consumers_used(true);
-                        for (const auto & consumer : get_consumers(next_node)) {
-                            if (!used.count(consumer->name)) all_consumers_used = false;
-                        }
-                        if (all_consumers_used) {
-                            q.push_front(next_node);
-                        }
-                    }
-                }
-            }
-
-            // Traverse via outputs
-            if (traverse_via_outputs) {
-                for (const auto &consumer : get_consumers(node)) {
-                    if (!used.count(consumer->name)) {
-                        q.push_front(consumer);
-                    }
-                }
-            }
-        }
-    };
-
-    // First we run bfs starting from outputs that provides deterministic graph traverse
-    for (const auto & output : outputs) {
-        if (!used.count(output.first)) {
-            bfs(getCreatorLayer(output.second).lock());
-        }
-    }
-
-    // For cases when graph has no outputs we start bfs from inputs to ensure topological sort
-    for (const auto & input : inputs) {
-        const auto data_ptr = input.second->getInputData();
-        for (const auto & consumer : getInputTo(data_ptr))
-        if (!used.count(consumer.first)) {
-            bfs(consumer.second, true);
-        }
-    }
-
-    std::reverse(ordered.begin(), ordered.end());
-    return ordered;
-}
-
-std::size_t FillXmlDoc(const InferenceEngine::ICNNNetwork& network, pugi::xml_document& doc,
+std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_document& doc,
                        const bool execGraphInfoSerialization, const bool dumpWeights) {
-    const std::vector<CNNLayerPtr> ordered = TopologicalSort(network);
+    const std::vector<CNNLayerPtr> ordered = InferenceEngine::details::CNNNetSortTopologically(network);
     pugi::xml_node netXml = doc.append_child("net");
     netXml.append_attribute("name").set_value(network.getName().c_str());
 
@@ -471,17 +350,17 @@ std::size_t FillXmlDoc(const InferenceEngine::ICNNNetwork& network, pugi::xml_do
         if (!node->outData.empty()) {
             auto itFrom = matching.find(node);
             if (itFrom == matching.end()) {
-                THROW_IE_EXCEPTION << "Internal error, cannot find " << node->name
+                IE_THROW() << "Internal error, cannot find " << node->name
                                    << " in matching container during serialization of IR";
             }
             for (size_t oport = 0; oport < node->outData.size(); oport++) {
                 const DataPtr outData = node->outData[oport];
                 for (const auto& inputTo : getInputTo(outData)) {
-                    for (int iport = 0; iport < inputTo.second->insData.size(); iport++) {
+                    for (size_t iport = 0; iport < inputTo.second->insData.size(); iport++) {
                         if (inputTo.second->insData[iport].lock() == outData) {
                             auto itTo = matching.find(inputTo.second);
                             if (itTo == matching.end()) {
-                                THROW_IE_EXCEPTION << "Broken edge form layer " << node->name << " to layer "
+                                IE_THROW() << "Broken edge form layer " << node->name << " to layer "
                                                    << inputTo.first << "during serialization of IR";
                             }
                             pugi::xml_node edge = edges.append_child("edge");
@@ -500,8 +379,8 @@ std::size_t FillXmlDoc(const InferenceEngine::ICNNNetwork& network, pugi::xml_do
     return dataOffset;
 }
 
-void SerializeBlobs(std::ostream& stream, const InferenceEngine::ICNNNetwork& network) {
-    const std::vector<CNNLayerPtr> ordered = TopologicalSort(network);
+void SerializeBlobs(std::ostream& stream, const InferenceEngine::CNNNetwork& network) {
+    const std::vector<CNNLayerPtr> ordered = InferenceEngine::details::CNNNetSortTopologically(network);
     for (auto&& node : ordered) {
         if (!node->blobs.empty()) {
             for (const auto& dataIt : node->blobs) {
@@ -510,15 +389,13 @@ void SerializeBlobs(std::ostream& stream, const InferenceEngine::ICNNNetwork& ne
                 size_t dataSize = dataIt.second->byteSize();
                 stream.write(dataPtr, dataSize);
                 if (!stream.good()) {
-                    THROW_IE_EXCEPTION << "Error during writing blob weights";
+                    IE_THROW() << "Error during writing blob weights";
                 }
             }
         }
     }
 
-    InputsDataMap inputInfo;
-    network.getInputsInfo(inputInfo);
-
+    InputsDataMap inputInfo = network.getInputsInfo();
     for (auto ii : inputInfo) {
         const PreProcessInfo& pp = ii.second->getPreProcess();
         size_t nInChannels = pp.getNumberOfChannels();
@@ -530,7 +407,7 @@ void SerializeBlobs(std::ostream& stream, const InferenceEngine::ICNNNetwork& ne
                     size_t dataSize = preProcessChannel->meanData->byteSize();
                     stream.write(dataPtr, dataSize);
                     if (!stream.good()) {
-                        THROW_IE_EXCEPTION << "Error during writing mean data";
+                        IE_THROW() << "Error during writing mean data";
                     }
                 }
             }
@@ -541,19 +418,19 @@ void SerializeBlobs(std::ostream& stream, const InferenceEngine::ICNNNetwork& ne
 }  // namespace
 
 void Serialize(const std::string& xmlPath, const std::string& binPath,
-               const InferenceEngine::ICNNNetwork& network) {
+               const InferenceEngine::CNNNetwork& network) {
     // A flag for serializing executable graph information (not complete IR)
     bool execGraphInfoSerialization = false;
     pugi::xml_document doc;
 
-    const std::vector<CNNLayerPtr> ordered = TopologicalSort(network);
+    const std::vector<CNNLayerPtr> ordered = InferenceEngine::details::CNNNetSortTopologically(network);
     // If first layer has perfCounter parameter set then it's executable graph info serialization.
     // All other layers must also have this parameter set.
     if (ordered[0]->params.find(ExecGraphInfoSerialization::PERF_COUNTER) != ordered[0]->params.end()) {
         execGraphInfoSerialization = true;
         for (const auto& layer : ordered) {
             if (layer->params.find(ExecGraphInfoSerialization::PERF_COUNTER) == layer->params.end()) {
-                THROW_IE_EXCEPTION << "Each node must have " << ExecGraphInfoSerialization::PERF_COUNTER
+                IE_THROW() << "Each node must have " << ExecGraphInfoSerialization::PERF_COUNTER
                                    << " parameter set in case of executable graph info serialization";
             }
         }
@@ -563,14 +440,14 @@ void Serialize(const std::string& xmlPath, const std::string& binPath,
     FillXmlDoc(network, doc, execGraphInfoSerialization, dumpWeights);
 
     if (!doc.save_file(xmlPath.c_str())) {
-        THROW_IE_EXCEPTION << "file '" << xmlPath << "' was not serialized";
+        IE_THROW() << "file '" << xmlPath << "' was not serialized";
     }
 
     if (dumpWeights) {
         std::ofstream ofsBin;
         ofsBin.open(binPath, std::ofstream::out | std::ofstream::binary);
         if (!ofsBin.is_open()) {
-            THROW_IE_EXCEPTION << "File '" << binPath << "' is not opened as out file stream";
+            IE_THROW() << "File '" << binPath << "' is not opened as out file stream";
         }
         try {
             SerializeBlobs(ofsBin, network);
@@ -580,7 +457,7 @@ void Serialize(const std::string& xmlPath, const std::string& binPath,
         }
         ofsBin.close();
         if (!ofsBin.good()) {
-            THROW_IE_EXCEPTION << "Error during '" << binPath << "' closing";
+            IE_THROW() << "Error during '" << binPath << "' closing";
         }
     }
 }

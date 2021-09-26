@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,22 +8,20 @@
  */
 #pragma once
 
-#include "format_reader.h"
 #include <functional>
 #include <memory>
+
+#include "format_reader.h"
 
 namespace FormatReader {
 class ReaderPtr {
 public:
-    explicit ReaderPtr(const char *imageName) : reader(CreateFormatReader(imageName),
-                                                [](Reader *p) {
-                                                p->Release();
-                                           }) {}
+    explicit ReaderPtr(const char* imageName) : reader(CreateFormatReader(imageName)) {}
     /**
      * @brief dereference operator overload
      * @return Reader
      */
-    Reader *operator->() const noexcept {
+    Reader* operator->() const noexcept {
         return reader.get();
     }
 
@@ -31,15 +29,15 @@ public:
      * @brief dereference operator overload
      * @return Reader
      */
-    Reader *operator*() const noexcept {
+    Reader* operator*() const noexcept {
         return reader.get();
     }
 
-    Reader *get() {
+    Reader* get() {
         return reader.get();
     }
 
 protected:
-    std::unique_ptr<Reader, std::function<void(Reader *)>> reader;
+    std::unique_ptr<Reader> reader;
 };
 }  // namespace FormatReader

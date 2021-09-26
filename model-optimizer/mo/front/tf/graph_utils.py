@@ -1,21 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-
-import collections
-import logging as log
 from typing import Dict
 
 import numpy as np
@@ -23,6 +8,7 @@ import numpy as np
 from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout, \
     mark_output_as_in_correct_layout
 from extensions.ops.activation_ops import Sigmoid
+from extensions.ops.elementwise import Add, Less, Mul
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.concat import Concat
@@ -62,43 +48,6 @@ def create_op_with_const_inputs(graph: Graph, op: callable, port_value_dict: Dic
         if graph.stage != 'front':
             value_input_node.infer(value_input_node)
     return node
-
-
-def mark_squeeze_reshape_concat_before_detection_output(start_nodes: list):
-    """
-    The function looks for Reshape, Concat and Squeeze ops after the 'start_nodes' with 4D output and marks them with
-    proper attributes to infer them in original NHWC layout. This is a case of the TensorFlow Object Detection API
-    models for the SSD heads output which produces 4D tensor with bounding box deltas.
-    :param start_nodes: list of nodes to start search from.
-    :return: None
-    """
-    q = collections.deque()
-    q.extend(start_nodes)
-    while len(q) != 0:
-        cur_node = q.popleft()
-        if cur_node.has_valid('type'):
-            if cur_node.soft_get('type') == 'DetectionOutput':  # do not go beyond the DetectionOutput node
-                continue
-            # the input to Reshape comes from Convolution so it will be converted from NCHW to NHWC layout in the
-            # InsertLayoutPropagationTransposes transformation. But the output should be kept in the original layout
-            if cur_node.soft_get('type') == 'Reshape' and len(cur_node.out_port(0).data.get_shape()) == 4:
-                mark_output_as_in_correct_layout(cur_node, 0)
-
-            # Concat should be inferred in the original layout so the input with concatenation axis should not be
-            # updated from NHWC to NCHW layout
-            if cur_node.soft_get('type') == 'Concat' and len(cur_node.out_port(0).data.get_shape()) == 4:
-                cur_node.in_port(1).__setattr__('input_permutation', None)
-                cur_node['nchw_layout'] = True
-                cur_node.out_node(0)['nchw_layout'] = True
-
-            # Squeeze should be inferred in the original layout so the input with squeeze axis should not be updated
-            # from NHWC to NCHW layout. The input is marked as in correct layout to prevent from inserting Transpose
-            # from NHWC to NCHW.
-            if cur_node.soft_get('type') == 'Squeeze' and len(cur_node.in_port(0).data.get_shape()) == 4:
-                cur_node.in_port(1).__setattr__('input_permutation', None)
-                mark_input_as_in_correct_layout(cur_node, 0)
-
-        [q.append(port.node) for port in cur_node.out_port(0).get_destinations()]
 
 
 def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coordinates_size: int):
@@ -156,7 +105,7 @@ def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coord
 
 
 def add_fake_background_loc(graph: Graph, input_node: Node):
-    """
+    r"""
     DetectionOutput layer expects that box coordinates contains coordinates of boxes for the "background" class also,
     but in the TensorFlow\* Object Detection API the tensor contains information about real object classes only.
     The function copies a slice of the output data of the node 'input_node' and then concats it to the beginning of the
@@ -198,3 +147,31 @@ def add_activation_function_after_node(graph: Graph, node: Node, activation_func
     else:
         raise Error('Unknown post-processing activation function "{}".'.format(activation_function))
     return activation_node
+
+
+def add_constant_to_negative_values(node: Node, port_idx: int, added_value: np.array):
+    """
+    This function adds the given values to negative elements of value from the given input port.
+    :param node: node with corrected values in the input port port_idx
+    :param port_idx: input port index for negative values
+    :param added_value: the value to add
+    :return: None
+    """
+    negative_values_source = node.in_port(port_idx).get_source()
+    negative_values_node = node.in_port(port_idx).get_source().node
+    negative_values_node_name = negative_values_node.soft_get('name', negative_values_node.id)
+
+    graph = node.graph
+
+    less_node = create_op_with_const_inputs(graph, Less,
+                                            {1: np.array(0, dtype=added_value.dtype)},
+                                            {'name': negative_values_node_name + '/Less'})
+    mul_node = create_op_with_const_inputs(graph, Mul, {1: added_value}, {'name': negative_values_node_name + '/Mul'})
+
+    node.in_port(port_idx).get_connection().set_destination(less_node.in_port(0))
+    less_node.out_port(0).connect(mul_node.in_port(0))
+
+    add_node = Add(graph, {}).create_node()
+    mul_node.out_port(0).connect(add_node.in_port(1))
+    negative_values_source.connect(add_node.in_port(0))
+    add_node.out_port(0).connect(node.in_port(port_idx))

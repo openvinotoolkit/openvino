@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PriorBoxClusteredIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::PriorBoxClusteredIE);
 
 op::PriorBoxClusteredIE::PriorBoxClusteredIE(const Output<Node>& input, const Output<Node>& image,
                                              const PriorBoxClusteredAttrs& attrs)
@@ -36,4 +36,18 @@ void op::PriorBoxClusteredIE::validate_and_infer_types() {
 std::shared_ptr<Node> op::PriorBoxClusteredIE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<PriorBoxClusteredIE>(new_args.at(0), new_args.at(1), m_attrs);
+}
+
+bool op::PriorBoxClusteredIE::visit_attributes(AttributeVisitor& visitor) {
+    float step = 0.0f;
+
+    visitor.on_attribute("step", step);
+    visitor.on_attribute("step_w", m_attrs.step_widths);
+    visitor.on_attribute("step_h", m_attrs.step_heights);
+    visitor.on_attribute("width", m_attrs.widths);
+    visitor.on_attribute("height", m_attrs.heights);
+    visitor.on_attribute("clip", m_attrs.clip);
+    visitor.on_attribute("offset", m_attrs.offset);
+    visitor.on_attribute("variance", m_attrs.variances);
+    return true;
 }

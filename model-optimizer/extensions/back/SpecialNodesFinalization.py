@@ -1,26 +1,14 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
+import re
 from collections import defaultdict
-from copy import copy
 
 import numpy as np
 
 from extensions.back.pass_separator import BackFinish
-from extensions.ops.tensor_iterator import TensorIterator, get_internal_node_by_layer_id
+from extensions.ops.tensor_iterator import TensorIterator
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
 from mo.ops.const import Const
@@ -90,7 +78,8 @@ class CreateConstNodesReplacement(BackReplacementPattern):
 
         if self._check_bin_attrs(node):
             if node.has_valid('value'):
-                const_node_name = graph.unique_id(node.id + '_const')
+                const_node_name = node.soft_get('name', node.id)
+                const_node_name = graph.unique_id(re.sub(r'\/Output_\d+\/Data_(.?)+', '', const_node_name))
                 log.debug("Added Const node '{}'".format(const_node_name))
                 const_node = Const(graph, {'name': const_node_name, 'value': node.value,
                                            'force_shape': node.soft_get('force_shape', None),
@@ -112,45 +101,6 @@ class CreateConstNodesReplacement(BackReplacementPattern):
                     node.soft_get('name'),
                     node.out_node().soft_get('name') if len(node.out_nodes()) else "<no consumer>"
                 )
-
-
-class RemoveConstToResult(BackReplacementPattern):
-    """
-    Transformation looks for a constant sub-graph followed by Result operation.
-    If sub-graph is Const->data->Result -- then all three nodes are removed.
-    If there is more complex constant sub-graph -- then only Result node is removed.
-
-    Currently IE is unable to handle such graph so this transformation is a work around for such case.
-    For instance, this case appears for Wide and Deep model.
-    """
-    enabled = True
-    force_clean_up = True
-
-    @staticmethod
-    def pattern():
-        return dict(
-            nodes=[
-                ('const_data', {'kind': 'data', 'value': lambda value: value is not None}),
-                ('result_node', {'type': 'Result', 'kind': 'op'}),
-            ],
-            edges=[
-                ('const_data', 'result_node')
-            ]
-        )
-
-    @staticmethod
-    def replace_pattern(graph: Graph, match: dict):
-        const_data_node = match['const_data']
-        result_node = match['result_node']
-        nodes_to_remove = [result_node.id]
-
-        # in case only const data consumer that is the result node, remove the whole sub-graph
-        parent_node = result_node.in_port(0).get_source().node
-        if parent_node.soft_get('type') == 'Const' and len(parent_node.out_port(0).get_destinations()) == 1:
-            nodes_to_remove.append(parent_node.id)
-            nodes_to_remove.append(const_data_node.id)
-
-        graph.remove_nodes_from(nodes_to_remove)
 
 
 class NormalizeTI(BackReplacementPattern):

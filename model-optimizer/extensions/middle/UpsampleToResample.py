@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import math
@@ -24,10 +11,11 @@ from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.layout import get_height_dim, get_width_dim, get_depth_dim
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
 
@@ -63,6 +51,8 @@ class UpsampleToResample(MiddleReplacementPattern):
             return
 
         depth_scale = None
+        layout = graph.graph['layout']
+
         if len(upsample.in_nodes()) == 2:
             if upsample.in_node(1).value is None:
                 return
@@ -71,36 +61,28 @@ class UpsampleToResample(MiddleReplacementPattern):
                 len(scales), upsample_name)
             if not (math.isclose(scales[0], 1, rel_tol=1e-5) and math.isclose(scales[1], 1, rel_tol=1e-5)):
                 return
-            height_scale = scales[2]
-            width_scale = scales[3]
+            height_scale = scales[get_height_dim(layout, input_shape_rank)]
+            width_scale = scales[get_width_dim(layout, input_shape_rank)]
             if len(scales) == 5:
-                depth_scale = scales[4]
+                depth_scale = scales[get_depth_dim(layout, input_shape_rank)]
         else:
             height_scale = upsample['height_scale']
             width_scale = upsample['width_scale']
 
-        if not math.isclose(height_scale, width_scale, rel_tol=1e-5):
-            log.debug('Width and height scales are not equal: {} vs {} for node {}'.format(
-                width_scale, height_scale, upsample_name))
-            return
-        if depth_scale is not None and not math.isclose(height_scale, depth_scale, rel_tol=1e-5):
-            log.debug('Depth and height scales are not equal: {} vs {} for node {}'.format(
-                depth_scale, height_scale, upsample_name))
-            return
-
         if 1 in upsample.in_ports() and not upsample.in_port(1).disconnected():
             upsample.in_port(1).disconnect()
 
+        upsample_name = upsample.soft_get('name', upsample.id)
         shape = Shape(graph, {'name': upsample_name + '/0_port'}).create_node()
 
         layout = graph.graph['layout']
 
         if input_shape_rank == 4:
             begin_value = int64_array([get_height_dim(layout, input_shape_rank)])
-            factor_value = np.array([height_scale, width_scale])
+            factor_value = float32_array([height_scale, width_scale])
         else:
             begin_value = int64_array([get_depth_dim(layout, input_shape_rank)])
-            factor_value = np.array([depth_scale, height_scale, width_scale])
+            factor_value = float32_array([depth_scale, height_scale, width_scale])
 
         ss = create_op_with_const_inputs(graph, StridedSlice,
                                          {1: begin_value,
@@ -113,10 +95,9 @@ class UpsampleToResample(MiddleReplacementPattern):
                                           'new_axis_mask': int64_array([0]),
                                           'shrink_axis_mask': int64_array([0]),
                                           'ellipsis_mask': int64_array([0])
-                                          }
-                                         )
+                                          })
 
-        mul = create_op_node_with_second_input(graph, Mul, factor_value, {'name': upsample_name + '/factor_mul_'})
+        mul = create_op_node_with_second_input(graph, Mul, factor_value, {'name': upsample_name + '/factor_mul'})
 
         source = upsample.in_port(0).get_connection().get_source()
         source.connect(shape.in_port(0))
@@ -133,16 +114,28 @@ class UpsampleToResample(MiddleReplacementPattern):
                                 get_height_dim(layout, input_shape_rank),
                                 get_width_dim(layout, input_shape_rank)])
 
-        resample_op = Interpolate(graph, dict(name=upsample_name + '/Interpolate',
-                                              axes=axes, mode=upsample.attrs()['mode'],
-                                              antialias=0, convert_to_resample=True)).create_node()
+        axes_node = Const(graph, {'name': upsample_name + '/axis', 'value': axes}).create_node()
+
+        interpolate = Interpolate(graph, {'mode': upsample.attrs()['mode'], 'antialias': 0,
+                                          'pads_begin': int64_array([0]), 'pads_end': int64_array([0]),
+                                          'coordinate_transformation_mode': 'half_pixel',
+                                          'nearest_mode': 'round_prefer_floor', 'cube_coeff': -0.75,
+                                          'shape_calculation_mode': 'scales',
+                                          'version': 'opset4', 'in_ports_count': 4}).create_node()
 
         upsample.add_input_port(1, skip_if_exist=True)
         assert upsample.in_port(1).disconnected()
-        mul.out_port(0).connect(resample_op.in_port(1))
+        mul.out_port(0).connect(interpolate.in_port(1))
+        axes_node.out_port(0).connect(interpolate.in_port(3))
 
-        upsample.in_port(0).get_connection().set_destination(resample_op.in_port(0))
-        upsample.out_port(0).get_connection().set_source(resample_op.out_port(0))
+        scales_node = Const(graph, {'name': upsample_name + '/scales',
+                                    'value': factor_value}).create_node()
+        scales_node.out_port(0).connect(interpolate.in_port(2))
+
+        upsample.in_port(0).get_connection().set_destination(interpolate.in_port(0))
+        upsample.out_port(0).get_connection().set_source(interpolate.out_port(0))
+
+        rename_nodes([(upsample, upsample_name + '/delete'), (interpolate, upsample_name)])
 
         convert_to_float = Cast(graph, dict(dst_type=np.float32)).create_node()
         convert_to_int = Cast(graph, dict(dst_type=np.int64)).create_node()

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,9 +20,9 @@ class DSR_ReshapeWithStaticDescriptor : public testing::WithParamInterface<Param
 protected:
     std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
-        const auto& inDataType = std::get<0>(GetParam());
-        const auto& reshapeTestParams = std::get<1>(GetParam());
-        targetDevice = std::get<2>(GetParam());
+        const auto& inDataType = std::get<0>(parameters);
+        const auto& reshapeTestParams = std::get<1>(parameters);
+        targetDevice = std::get<2>(parameters);
 
         const auto& inDataShapes = std::get<0>(reshapeTestParams);
         const auto& specialZero = std::get<1>(reshapeTestParams);
@@ -46,9 +46,9 @@ class DSR_ReshapeWithDynamicDescriptor : public testing::WithParamInterface<Para
 protected:
     std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
-        const auto& inDataType = std::get<0>(GetParam());
-        const auto& inDataShapes = std::get<0>(std::get<1>(GetParam()));
-        targetDevice = std::get<2>(GetParam());
+        const auto& inDataType = std::get<0>(parameters);
+        const auto& inDataShapes = std::get<0>(std::get<1>(parameters));
+        targetDevice = std::get<2>(parameters);
 
         const auto inputSubgraph = createInputSubgraphWithDSR(inDataType, inDataShapes);
 
@@ -88,13 +88,13 @@ const std::vector<ngraph::element::Type> dataTypesVector = {
         ngraph::element::i32,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicReshape, DSR_ReshapeWithStaticDescriptor,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicReshape, DSR_ReshapeWithStaticDescriptor,
     ::testing::Combine(
         ::testing::ValuesIn(dataTypesVector),
         ::testing::ValuesIn(reshapeTestParams),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicReshape, DSR_ReshapeWithDynamicDescriptor,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicReshape, DSR_ReshapeWithDynamicDescriptor,
     ::testing::Combine(
         ::testing::ValuesIn(dataTypesVector),
         ::testing::ValuesIn(reshapeTestParams),

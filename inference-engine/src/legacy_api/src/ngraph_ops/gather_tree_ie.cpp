@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::GatherTreeIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::GatherTreeIE);
 
 op::GatherTreeIE::GatherTreeIE(const Output<Node>& step_ids,
                                const Output<Node>& parent_idx,
@@ -62,4 +62,8 @@ void op::GatherTreeIE::validate_and_infer_types() {
 
     const auto& step_ids_et = get_input_element_type(0);
     set_output_type(0, step_ids_et, step_ids_rank);
+}
+
+bool ngraph::op::GatherTreeIE::visit_attributes(AttributeVisitor& visitor) {
+    return true;
 }

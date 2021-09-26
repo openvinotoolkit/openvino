@@ -14,10 +14,11 @@ Transformation library is independent from Inference Engine target library named
 and is located in the `inference-engine/src/transformations` directory.
 
 Transformations root directory contains two folders:
-* `ngraph_ops` - Contains legacy opset operations needed for nGraph to CNNNetwork conversion.
-> **NOTE**: This operation is prohibited inside new plugins until they are not moved to a separate directory with allowed operations.
+* `ngraph_ops` - Contains internal opset operations that are common for plugins.
 * `transformations` - Includes all transformations, utils, runtime info attributes, and pass managers.
-> **NOTE**: Do not use transformation that belongs to `ngraph::pass::ConvertOpSet1ToLegacy` transformations until they are not moved to a separate directory with allowed transformations.
+
+All internal operations and transformations located inside the [Transformation Library](group__ie__transformation__api.html) can be used inside plugins.
+All legacy operations and transformations were moved to a legacy library and are not recommended to be used.
 
 ### Transformation Flow Layers
 Transformation flow in the transformation library has several layers:
@@ -26,21 +27,21 @@ Transformation flow in the transformation library has several layers:
 2. Transformations - Perform a particular transformation algorithm on `ngraph::Function`.
 3. Low-level functions - Take a set of nodes and perform some transformation action.
 They are not mandatory and all transformation code can be located inside the transformation.
-But if some transformation parts can potentially be reused in other transformations, we suggest keeping them as a separate functions.
+But if some transformation parts can potentially be reused in other transformations, we suggest keeping them as separate functions.
 
 ### Location for Your Transformation Code
 To decide where to store your transformation code, please follow these rules:
 
 1. If it is a plugin-specific transformation and cannot be reused by other plugins, keep source code inside plugin.
-2. If this transformation relates to the OpSetXToOpSetY conversion or it is common optimization, keep sources inside the transformation library.
+2. If this transformation relates to opset operation conversion or optimization, keep sources inside the transformation library.
 
 After you decide where to store your transformation code, you can start developing your own nGraph transformation.
 
 ## ngraph::Function and graph representation <a name="ngraph_function"></a>
 
-An nGraph function is a simple thing: it stores shared pointers to `ngraph::op::Result` and `ngraph::op::Parameter` operations that are inputs and outputs of the graph.
-All other operations hold each other via shared pointers: child operation holds its parent (hard link). If the operation has no consumers and it is not a Result operation
-(shared pointer counter is zero), it is destructed and  is not accessible anymore. Each operation in `ngraph::Function` has a `std::shared_ptr<ngraph::Node>` type.
+nGraph function is a very simple thing: it stores shared pointers to `ngraph::op::Parameter`, `ngraph::op::Result` and  `ngraph::op::Sink` operations that are inputs, outputs and sinks of the graph.
+Sinks of the graph have no consumers and not included into results vector. All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result or Sink operation
+(shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ngraph::Function` has a `std::shared_ptr<ngraph::Node>` type.
 
 For examples of how to build an nGraph function, see the [Build nGraph Function](./build_function.md) page.
 
@@ -50,7 +51,7 @@ nGraph has three main transformation types:
 
 * `ngraph::pass::FunctionPass` - straightforward way to work with `ngraph::Function` directly
 * `ngraph::pass::MatcherPass` - pattern-based transformation approach
-* `ngraph::pass::GraphRewrite` - container for matcher passes
+* `ngraph::pass::GraphRewrite` - container for matcher passes needed for efficient execution
 
 ![transformations_structure]
 
@@ -60,9 +61,9 @@ nGraph has three main transformation types:
 
 Template for FunctionPass transformation class
 
-@snippet src/template_function_transformation.hpp function_pass:template_transformation_hpp
+@snippet src/transformations/template_function_transformation.hpp function_pass:template_transformation_hpp
 
-@snippet src/template_function_transformation.cpp function_pass:template_transformation_cpp
+@snippet src/transformations/template_function_transformation.cpp function_pass:template_transformation_cpp
 
 Using `ngraph::FunctionPass`, you need to override the `run_on_function` method where you will write the transformation code.
 Return value is `true` if the original function has changed during transformation (new operation was added, or operations replacement was made, or node attributes were changed); otherwise, it is `false`.
@@ -74,9 +75,9 @@ Also `ngraph::FunctionPass` based transformations can be executed via `pass::Man
 `ngraph::pass::MatcherPass` is used for pattern-based transformations.
 
 Template for MatcherPass transformation class
-@snippet src/template_pattern_transformation.hpp graph_rewrite:template_transformation_hpp
+@snippet src/transformations/template_pattern_transformation.hpp graph_rewrite:template_transformation_hpp
 
-@snippet src/template_pattern_transformation.cpp graph_rewrite:template_transformation_cpp
+@snippet src/transformations/template_pattern_transformation.cpp graph_rewrite:template_transformation_cpp
 
 To use `ngraph::pass::MatcherPass`, you need to complete these steps:
 1. Create a pattern
@@ -87,14 +88,15 @@ To use `ngraph::pass::MatcherPass`, you need to complete these steps:
 So let's go through each of these steps.
 
 ### Create a pattern
-Pattern is a single root `ngraph::Function`. But the only difference is that you do not need to create a function object, you just need to create and connect nGraph or special pattern operations. Then you need to take the last created operation and put it as a root of the pattern. This root node will be used as a root node in pattern matching.
+Pattern is a single root `ngraph::Function`. But the only difference is that you do not need to create a function object, you just need to create and connect opset or special pattern operations.
+Then you need to take the last created operation and put it as a root of the pattern. This root node will be used as a root node in pattern matching.
 > **NOTE**: Any nodes in a pattern that have no consumers and are not registered as root will not be used in pattern matching. 
 
 @snippet example_ngraph_utils.cpp pattern:simple_example
 
 The `Parameter` operation in the example above has type and shape specified. These attributes are needed only to create Parameter operation class and will not be used in pattern matching.
 
-For instructions on how to match a pattern where `ShapeOf` takes any operation as an input, follow the [pattern matching](#pattern_matching) section.
+For more pattern examples, refer to the [pattern matching](#pattern_matching) section.
 
 ### Implement callback
 Callback is an action applied to every pattern entrance. In general, callback is the lambda function that takes Matcher object with detected subgraph.
@@ -111,7 +113,7 @@ That means that matcher passes registered in `pass::GraphRewrite` will be applie
 
 The example below shows how single MatcherPass can fuse sequence of operations using the `register_new_node` method.
 
-@snippet src/template_pattern_transformation.cpp matcher_pass:relu_fusion
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:relu_fusion
 
 > **NOTE**: If you register multiple nodes, please add them in topological order. We do not topologically sort these nodes as it is a time-consuming operation.
 
@@ -126,11 +128,11 @@ register_matcher(m, callback);
 ### Execute MatcherPass
 MatcherPass has multiple ways to be executed:
 * Run on a single node - it can be useful if you want to run MatcherPass inside another transformation.
-@snippet src/template_pattern_transformation.cpp matcher_pass:run_on_node
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:run_on_node
 * Run on `ngraph::Function` using GraphRewrite - this approach gives ability to run MatcherPass on whole `ngraph::Function`. Moreover, multiple MatcherPass transformation can be registered in a single GraphRewite to be executed in a single graph traversal.
-@snippet src/template_pattern_transformation.cpp matcher_pass:graph_rewrite
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:graph_rewrite
 * Run on `ngraph::Function` using `pass::Manager` - this approach helps you to register MatcherPass for execution on `ngraph::Function` as another transformation types.
-@snippet src/template_pattern_transformation.cpp matcher_pass:manager
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager
 
 
 ### ngraph::pass::GraphRewrite <a name="graph_rewrite_pass"></a>
@@ -138,7 +140,7 @@ MatcherPass has multiple ways to be executed:
 GraphRewrite pass serves for running multiple matcher passes on `ngraph::Function` in a single graph traversal.
 Example:
 
-@snippet src/template_pattern_transformation.cpp matcher_pass:graph_rewrite
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:graph_rewrite
 
 In addition, GraphRewrite handles nodes that were registered by MatcherPasses during their execution. This nodes will be added to the beginning of the sequence with nodes for pattern matching.
 
@@ -152,6 +154,8 @@ But it is not really efficient when you have a lot of registered passes. So firs
 And then creates map from registered MatcherPasses. That helps to avoid additional cost of applying each MatcherPass for each node.
 
 ![graph_rewrite_efficient_search] 
+
+> **NOTE**: GraphRewrite execution algorithm cannot be set manually and depends only on root nodes registered inside MatcherPasses.
 
 ## Pattern Matching <a name="pattern_matching"></a>
 
@@ -249,13 +253,20 @@ To eliminate operation, nGraph has special method that considers all limitations
 `replace_output_update_name` in case of successful replacement it automatically preserves friendly name and runtime info.
   
 
+## Transformation conditional compilation 
+
+Transformation library has two internal macros to support conditional compilation feature.
+
+* `MATCHER_SCOPE(region)` - allows to disable the MatcherPass if matcher isn't used. The region name should be unique. This macro creates a local variable `matcher_name` which you should use as a matcher name.
+* `RUN_ON_FUNCTION_SCOPE(region)` - allows to disable run_on_function pass if it isn't used. The region name should be unique.
+
 ## Transformation writing essentials <a name="transformation_writing_essentials"></a>
 
 When developing a transformation, you need to follow these transformation rules:
 
 ###1. Operation Set (OpSet)
 
-Use the latest version of OpSet in your transformation. An exception is ConvertOpSetXToOpSetY transformations, where you must use operations from OpSetX and OpSetY.
+Use the latest version of OpSet in your transformation. An exception is op_conversion transformations, where different opsets can be used.
 
 @snippet example_ngraph_utils.cpp ngraph:include
 
@@ -280,7 +291,7 @@ Not using `get_shape()` method makes your transformation more flexible and appli
 
 Each `ngraph::Node` has a unique name (used for nGraph internals) and a friendly name. In transformations we care only about friendly name because it represents the name from intermediate representation (IR). 
 Also friendly name is used as output tensor name (until we do not have other way to represent output tensor name) and user code that requests intermediate outputs based on these names.
-To avoid loosing friendly name when replacing node with other node or subgraph, set the original friendly name to the latest node in replacing subgraph. See the example below. 
+To avoid losing friendly name when replacing node with other node or subgraph, set the original friendly name to the latest node in replacing subgraph. See the example below.
 
 ```cpp
 // Replace Div operation with Power and Multiply sub-graph and set original friendly name to Multiply operation
@@ -341,7 +352,7 @@ Manual constant folding is more preferable than `ngraph::pass::ConstantFolding()
 
 Below you can find an example of manual constant folding:
 
-@snippet src/template_pattern_transformation.cpp manual_constant_folding
+@snippet src/transformations/template_pattern_transformation.cpp manual_constant_folding
 
 ## Common mistakes in transformations <a name="common_mistakes"></a>
 
@@ -362,11 +373,11 @@ In addition, `ngraph::pass::Manager` has extended debug capabilities (find more 
 
 The example below shows basic usage of `ngraph::pass::Manager`
 
-@snippet src/template_pattern_transformation.cpp matcher_pass:manager3
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager3
 
 Another example shows how multiple matcher passes can be united into single GraphRewrite.
 
-@snippet src/template_pattern_transformation.cpp matcher_pass:manager2
+@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager2
 
 > **Note:** nGraph used to have the `pass::PassConfig` class for transformation pipeline manipulation.
 This mechanism is now obsolete and the `pass::PassConfig` class will be removed in future release.
@@ -399,33 +410,22 @@ NGRAPH_ENABLE_VISUALIZE_TRACING=1 -  enables visualization after each transforma
 
 ## Disabling/Enabling specific transformations for plugin X	 <a name="disabling_transformation"></a>
 
-This topic is mostly related to conversion to legacy opset and plugins that are based on CNNNetwork. But this mechanism still can be applied for other cases.
-Let's suppose that plugin X enabled the `opset3::StridedSlice` operation support and you want to disable the `ngraph::pass::ConvertStridedSliceToCrop` transformation for plugin X.
-To do this, you need to create a callback on plugin side and pass it to transformation. And also you need to update particular transformation to use this callback.  
+In transformation library, we provide plugins transformations like CommonOptimizations, which contains predefined sequence of transformations.
+We also provide a tool that helps to disable or partially disable particular transformations in a transformation pipeline.
+For example, if a plugin uses the CommonOptimization transformation and needs to disable the ConvertGELU transformation, then inside the plugin we have to take the PassConfig instance
+from pass::Manger and call disable method.
 
-```cpp
-// Update callback to be able to use m_transformation_callback if this transformation based on GraphRewrite.
-ngraph::graph_rewrite_callback callback = [this](pattern::Matcher &m) {
-    ...
-}
+@snippet example_ngraph_utils.cpp ngraph:disable_gelu
 
-// Use transformation_callback not to execute transformation if callback returns true for given node
-if (m_transformation_callback(node)) {
-    return false;
-}
+In some cases, we need to disable transformation for some condition:
 
-// Implement transformation callback and pass it directly to transformation or pass::Manager
-const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-    return std::dynamic_pointer_cast<const ::ngraph::opset3::StridedSlice>(node) != nullptr;
-};
+@snippet example_ngraph_utils.cpp ngraph:disable_callback
 
-// Register transformation and pass callback to pass::Manager
-ngraph::pass::Manager manager;
-manager.register_pass<ngraph::pass::ConvertStridedSliceToCrop>();
-// pass::Manager will set callback to all reistered transformations automatically
-manager.set_callback(transformations_callback);
-manager.run_passes(f);
-```
+In some cases, pass::Manager pipelines inside transformations may have transformations disabled by default but enabled inside plugins.
+
+@snippet example_ngraph_utils.cpp ngraph:disabled_by_default
+
+PassConfig instance taken from pass::Manager is shared across all registered transformations including nested transformations. So it does not matter where we work with this object (before passes registration or after).
 
 ## Transformations testing <a name="transformations_testing"></a>
 

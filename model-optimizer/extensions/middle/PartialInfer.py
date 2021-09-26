@@ -1,18 +1,8 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+import logging as log
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+from mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, shape_array, dynamic_dimension_value
 from mo.graph.graph import Graph
 from mo.middle.passes.infer import partial_infer
 from mo.middle.replacement import MiddleReplacementPattern
@@ -30,4 +20,21 @@ class PartialInfer(MiddleReplacementPattern):
         return []
 
     def find_and_replace_pattern(self, graph: Graph):
+        dynamic_inputs = {}
+        for parameter in graph.get_op_nodes(op='Parameter'):
+            param_shape = parameter.soft_get('shape', shape_array(dynamic_dimension_value))
+            if not is_fully_defined(param_shape):
+                parameter_name = parameter.soft_get('name', parameter.id)
+                dynamic_inputs[parameter_name] = param_shape
+        if dynamic_inputs:
+            log.error('The model contains input(s) with partially defined shapes: {}. '
+                      'Starting from the 2022.1 release the Model Optimizer can generate an IR with partially defined '
+                      'input shapes ("-1" dimension in the TensorFlow model or dimension with string value in the ONNX '
+                      'model). Some of the OpenVINO plugins require model input shapes to be static, so you should '
+                      'call "reshape" method in the Inference Engine and specify static input shapes. For optimal '
+                      'performance, it is still recommended to update input shapes with fixed ones using "--input" or '
+                      '"--input_shape" command-line parameters.'
+                      .format(','.join('name="{}" shape="{}"'.format(name, unmask_shape(shape))
+                                       for name, shape in dynamic_inputs.items())),
+                      extra={'is_warning': True})
         partial_infer(graph)

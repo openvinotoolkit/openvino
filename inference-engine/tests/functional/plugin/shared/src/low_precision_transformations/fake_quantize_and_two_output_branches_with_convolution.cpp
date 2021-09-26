@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,43 +13,42 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
 
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTestCaseName(
-    testing::TestParamInfo<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    const testing::TestParamInfo<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams>& obj) {
+    ngraph::element::Type netPrecision;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues testValues;
-    std::tie(netPrecision, inputShapes, targetDevice, params, testValues) = obj.param;
+    FakeQuantizeAndTwoOutputBranchesWithConvolution testValues;
+    std::tie(netPrecision, inputShape, targetDevice, params, testValues) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << testValues;
+    result << netPrecision << "_" << inputShape << "_"
+           << targetDevice << "_" << testValues.fqOnData << "_"
+           << testValues.fqOnWeights1 << "_" << testValues.fqOnWeights2;
     return result.str();
 }
 
 void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
     threshold = 0.1f;
-
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
+    ngraph::element::Type netPrecision;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues testValues;
+    FakeQuantizeAndTwoOutputBranchesWithConvolution testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     function = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
-        precision,
+        netPrecision,
         inputShape,
-        testValues);
+        testValues.fqOnData,
+        testValues.fqOnWeights1,
+        testValues.fqOnWeights2);
 }
 
 TEST_P(FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation, CompareWithRefImpl) {

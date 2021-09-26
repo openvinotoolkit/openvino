@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,16 @@
 #include <description_buffer.hpp>
 #include <ie_layouts.h>
 #include <precision_utils.h>
+#include <blob_factory.hpp>
 
 #include <vpu/utils/error.hpp>
 #include <vpu/utils/perf_report.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/profiling.hpp>
+#include <vpu/utils/shape_io.hpp>
+#include "vpu/configuration/options/enable_receiving_tensor_time.hpp"
+#include "vpu/configuration/options/perf_report_mode.hpp"
+#include "vpu/configuration/options/tensor_strides.hpp"
 
 #include "myriad_executable_network.h"
 #include "myriad_infer_request.h"
@@ -29,16 +34,18 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
                                        DataInfo& compilerInputsInfo,
                                        DataInfo& compilerOutputsInfo,
                                        const std::vector<StageMetaInfo> &blobMetaData,
-                                       const MyriadConfig& myriadConfig,
+                                       const PluginConfiguration& myriadConfig,
                                        const Logger::Ptr &log,
-                                       const MyriadExecutorPtr &executor) :
-        InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
+                                       const MyriadExecutorPtr &executor,
+                                       std::map<std::string, ie::Blob::Ptr> constDatas,
+                                       bool isNetworkConstant = true) :
+        IInferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
         _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
-        _graphDesc(graphDesc) {
+        _graphDesc(graphDesc), _constDatas(constDatas), _isNetworkConstant(isNetworkConstant) {
     VPU_PROFILE(MyriadInferRequest);
 
-    const auto& ioStrides = _config.compileConfig().ioStrides;
+    const auto& ioStrides = _config.get<TensorStridesOption>();
     // allocate inputs
     for (auto &networkInput : _networkInputs) {
         IE_ASSERT(ioStrides.find(networkInput.first) == ioStrides.end())
@@ -81,7 +88,7 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
     resultBuffer.resize(compilerOutputsInfo.totalSize);
 
     VPU_THROW_UNLESS(
-        !_networkOutputs.empty() && !_networkInputs.empty(),
+        !_networkOutputs.empty() && !(_networkInputs.empty() && !_isNetworkConstant),
         "No information about network's output/input");
 }
 
@@ -91,6 +98,9 @@ void MyriadInferRequest::InferImpl() {
 }
 
 void MyriadInferRequest::InferAsync() {
+    if (_isNetworkConstant) {
+        return;
+    }
     VPU_PROFILE(InferAsync);
 
     // execute input pre-processing
@@ -102,7 +112,7 @@ void MyriadInferRequest::InferAsync() {
     auto getOffset = [&inputInfo] (const std::string& name) {
         const auto offsetIt = inputInfo.offset.find(name);
         IE_ASSERT(offsetIt != inputInfo.offset.end()) << "MyriadInferRequest::InferAsync()\n"
-                                                      << "Input offset [" << name << "] is not provided.";
+                                                    << "Input offset [" << name << "] is not provided.";
         return offsetIt->second;
     };
 
@@ -121,9 +131,9 @@ void MyriadInferRequest::InferAsync() {
         const auto byteSize = blob->byteSize();
         const auto requiredSize = vpu::checked_cast<size_t>(offset) + byteSize;
         IE_ASSERT(requiredSize <= inputBuffer.size())  << "MyriadInferRequest::InferAsync()\n"
-                                                       << "Input offset is too big."
-                                                       << "Required size: " << requiredSize
-                                                       << "Input buffer size: " << inputBuffer.size();
+                                                    << "Input offset is too big. "
+                                                    << "Required size: " << requiredSize
+                                                    << ", Input buffer size: " << inputBuffer.size();
 
         const auto foundBlob = getNetInputInfo(name);
         const auto vpuLayout = foundBlob->second->getTensorDesc().getLayout();
@@ -137,9 +147,8 @@ void MyriadInferRequest::InferAsync() {
     }
 
     _executor->queueInference(_graphDesc, inputBuffer.data(),
-                              _inputInfo.totalSize, nullptr, 0);
+                            _inputInfo.totalSize, nullptr, 0);
 }
-
 static void copyBlobAccordingUpperBound(
     const Blob::Ptr& in,
     const Blob::Ptr& out) {
@@ -197,10 +206,22 @@ void MyriadInferRequest::GetResult() {
     const auto getVpuLayout = [&networkOutputs] (const std::string& name){
         const auto foundBlob = networkOutputs.find(name);
         IE_ASSERT(foundBlob != networkOutputs.end()) << "MyriadInferRequest::InferAsync()\n"
-                                                     << "Output [" << name << "] is not provided.";
+                                                    << "Output [" << name << "] is not provided.";
         return foundBlob->second->getTensorDesc().getLayout();
     };
-
+    if (_isNetworkConstant) {
+        for (const auto& output : _outputs) {
+            const auto& ieBlobName = output.first;
+            const auto& ieBlob = output.second;
+            IE_ASSERT(_constDatas.find(ieBlobName) != _constDatas.end()) <<
+            "Input [" << ieBlobName << "] is not provided.";
+            std::copy_n(
+                _constDatas[ieBlobName]->cbuffer().as<uint8_t *>(),
+                _constDatas[ieBlobName]->byteSize(),
+                ieBlob->buffer().as<uint8_t *>());
+        }
+        return;
+    }
     // For networks with only one output
     if (_outputInfo.offset.size() == 1) {
         const auto& it = _outputs.begin();
@@ -222,12 +243,12 @@ void MyriadInferRequest::GetResult() {
         const auto resultOffset = [&](const std::string& name) {
             const auto offset_it = _outputInfo.offset.find(name);
             IE_ASSERT(offset_it != _outputInfo.offset.end())  << "MyriadInferRequest::InferAsync()\n"
-                                                                       << "Output offset [" << name << "] error.";
+                                                                    << "Output offset [" << name << "] error.";
             const auto offset = vpu::checked_cast<size_t>(offset_it->second);
             IE_ASSERT(offset <= resultBuffer.size())  << "MyriadInferRequest::InferAsync()\n"
-                                                      << "Input offset is too big."
-                                                      << "Required offset: " << offset
-                                                      << "Result buffer size: " << resultBuffer.size();
+                                                    << "Input offset is too big."
+                                                    << "Required offset: " << offset
+                                                    << "Result buffer size: " << resultBuffer.size();
             return offset;
         };
 
@@ -236,8 +257,7 @@ void MyriadInferRequest::GetResult() {
 
         auto ieOutDims = ieOutDesc.getDims();
 
-        // Eject dynamic output shape (suffix "@shape") and copy it to vector of dimensions in reverse order
-        const auto& shapeInfo = _outputInfo.offset.find(ieBlobName + "@shape");
+        const auto& shapeInfo = _outputInfo.offset.find(createIOShapeName(ieBlobName));
         // if (isDynamic)
         if (shapeInfo != _outputInfo.offset.end()) {
             auto outData = networkOutputs[ieBlobName];
@@ -246,7 +266,7 @@ void MyriadInferRequest::GetResult() {
                 "Can not find tensor descriptor by plugin for {} output", ieBlobName);
             const auto& dynOutputDesc = descFromPlugin->second;
 
-            if (ieBlob->getTensorDesc().getLayout() != dynOutputDesc.getLayout()) {
+            if (ieBlob->getTensorDesc().getDims() != dynOutputDesc.getDims()) {
                 ieBlob->deallocate();
                 ieBlob->getTensorDesc().reshape(dynOutputDesc.getDims(), dynOutputDesc.getLayout());
                 ieBlob->allocate();
@@ -280,7 +300,7 @@ void MyriadInferRequest::GetResult() {
     }
 }
 
-void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MyriadInferRequest::GetPerformanceCounts() const {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
 
     if (_log->isActive(LogLevel::Info)) {
@@ -289,8 +309,8 @@ void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEng
         }
     }
 
-    perfMap = vpu::parsePerformanceReport(
+    return vpu::parsePerformanceReport(
         _stagesMetaData,
         perfInfo.data(), static_cast<int>(perfInfo.size()),
-        _config.perfReport(), _config.printReceiveTensorTime());
+        _config.get<PerfReportModeOption>(), _config.get<EnableReceivingTensorTimeOption>());
 }

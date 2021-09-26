@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
@@ -38,8 +26,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, lrn_across_channel)
-{
+NGRAPH_TEST(${BACKEND_NAME}, lrn_across_channel) {
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     double alpha = 3;
@@ -70,8 +57,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_channel)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lrn_across_h)
-{
+NGRAPH_TEST(${BACKEND_NAME}, lrn_across_h) {
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
@@ -103,8 +89,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_h)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lrn_across_hw)
-{
+NGRAPH_TEST(${BACKEND_NAME}, lrn_across_hw) {
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{2, 3});
@@ -136,8 +121,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_hw)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lrn_across_all_dims)
-{
+NGRAPH_TEST(${BACKEND_NAME}, lrn_across_all_dims) {
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 1, 2, 3});
@@ -169,8 +153,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_all_dims)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lrn_across_nw)
-{
+NGRAPH_TEST(${BACKEND_NAME}, lrn_across_nw) {
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 3});
@@ -202,8 +185,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_nw)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lrn_across_empty)
-{
+NGRAPH_TEST(${BACKEND_NAME}, lrn_across_empty) {
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
@@ -235,8 +217,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_empty)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lrn_6D_across_2_axes)
-{
+NGRAPH_TEST(${BACKEND_NAME}, lrn_6D_across_2_axes) {
     Shape shape{2, 3, 2, 2, 1, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{2, 3});
@@ -253,16 +234,15 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_6D_across_2_axes)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(shape, a);
     test_case.add_expected_output<float>(
-        shape, {0.0000000f, 0.4200840f, 0.8401681f, 1.2602521f, 0.6099943f, 0.7624928f,
-                0.9149914f, 1.0674900f, 0.7213357f, 0.8115027f, 0.9016696f, 0.9918366f,
-                0.7656109f, 0.8294119f, 0.8932127f, 0.9570137f, 0.7892218f, 0.8385482f,
-                0.8878745f, 0.9372009f, 0.8038679f, 0.8440613f, 0.8842546f, 0.9244481f});
+        shape,
+        {0.0000000f, 0.4200840f, 0.8401681f, 1.2602521f, 0.6099943f, 0.7624928f, 0.9149914f, 1.0674900f,
+         0.7213357f, 0.8115027f, 0.9016696f, 0.9918366f, 0.7656109f, 0.8294119f, 0.8932127f, 0.9570137f,
+         0.7892218f, 0.8385482f, 0.8878745f, 0.9372009f, 0.8038679f, 0.8440613f, 0.8842546f, 0.9244481f});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lrn_2d_across_empty)
-{
+NGRAPH_TEST(${BACKEND_NAME}, lrn_2d_across_empty) {
     Shape shape{12};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
@@ -293,8 +273,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_2d_across_empty)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lrn_2d_across_outermost_axis)
-{
+NGRAPH_TEST(${BACKEND_NAME}, lrn_2d_across_outermost_axis) {
     Shape shape{6, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{0});

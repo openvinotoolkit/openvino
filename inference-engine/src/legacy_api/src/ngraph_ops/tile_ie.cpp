@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::TileIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::TileIE);
 
 op::TileIE::TileIE(const Output<ngraph::Node>& data1, const int64_t axis, const int64_t tiles)
     : Op({data1}), axis(axis), tiles(tiles) {
@@ -40,4 +40,10 @@ void op::TileIE::validate_and_infer_types() {
     }
 
     set_output_type(0, get_input_element_type(0), output_pshape);
+}
+
+bool op::TileIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("axis", axis);
+    visitor.on_attribute("tiles", tiles);
+    return true;
 }

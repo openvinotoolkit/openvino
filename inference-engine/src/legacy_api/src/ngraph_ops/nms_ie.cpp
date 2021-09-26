@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,9 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::NonMaxSuppressionIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::NonMaxSuppressionIE);
+BWDCMP_RTTI_DEFINITION(op::NonMaxSuppressionIE2);
+BWDCMP_RTTI_DEFINITION(op::NonMaxSuppressionIE3);
 
 op::NonMaxSuppressionIE::NonMaxSuppressionIE(const Output<Node> &boxes,
                                              const Output<Node> &scores,
@@ -61,8 +63,6 @@ bool op::NonMaxSuppressionIE::visit_attributes(AttributeVisitor& visitor) {
 }
 
 // The second version of the operation is different just in the shape infer function (uses v4::NMS)
-constexpr NodeTypeInfo op::NonMaxSuppressionIE2::type_info;
-
 op::NonMaxSuppressionIE2::NonMaxSuppressionIE2(const Output<Node> &boxes,
                                                const Output<Node> &scores,
                                                const Output<Node> &max_output_boxes_per_class,
@@ -102,7 +102,18 @@ void op::NonMaxSuppressionIE2::validate_and_infer_types() {
     set_output_type(0, nms->output(0).get_element_type(), nms->output(0).get_partial_shape());
 }
 
-NGRAPH_RTTI_DEFINITION(op::NonMaxSuppressionIE3, "NonMaxSuppressionIE", 3);
+op::NonMaxSuppressionIE3::NonMaxSuppressionIE3(const Output<Node>& boxes,
+                                               const Output<Node>& scores,
+                                               const Output<Node>& max_output_boxes_per_class,
+                                               const Output<Node>& iou_threshold,
+                                               const Output<Node>& score_threshold,
+                                               int center_point_box,
+                                               bool sort_result_descending,
+                                               const ngraph::element::Type& output_type)
+        : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
+          m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
+    constructor_validate_and_infer_types();
+}
 
 op::NonMaxSuppressionIE3::NonMaxSuppressionIE3(const Output<Node>& boxes,
                                                const Output<Node>& scores,
@@ -119,10 +130,16 @@ op::NonMaxSuppressionIE3::NonMaxSuppressionIE3(const Output<Node>& boxes,
 }
 
 std::shared_ptr<Node> op::NonMaxSuppressionIE3::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
-    check_new_args_count(this, new_args);
-    return make_shared<NonMaxSuppressionIE3>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
+    if (new_args.size() == 6) {
+        return make_shared<NonMaxSuppressionIE3>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
                                              new_args.at(4), new_args.at(5), m_center_point_box, m_sort_result_descending,
                                              m_output_type);
+    } else if (new_args.size() == 5) {
+        return make_shared<NonMaxSuppressionIE3>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
+                                             new_args.at(4), m_center_point_box, m_sort_result_descending,
+                                             m_output_type);
+    }
+    throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
 }
 
 bool op::NonMaxSuppressionIE3::visit_attributes(AttributeVisitor& visitor) {
@@ -139,8 +156,13 @@ static constexpr size_t max_output_boxes_per_class_port = 2;
 int64_t op::NonMaxSuppressionIE3::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
+    size_t num_of_inputs = inputs().size();
+    if (num_of_inputs < 3) {
+        return 0;
+    }
+
     const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
+        ov::as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;

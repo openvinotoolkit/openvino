@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 import re
 from collections import deque
@@ -20,6 +8,7 @@ from collections import deque
 import networkx as nx
 import numpy as np
 
+from mo.front.common.partial_infer.utils import is_fully_defined, compatible_shapes
 from mo.utils.error import Error
 from mo.utils.utils import deprecated_api
 
@@ -119,14 +108,27 @@ def mark_const_producer_nodes(graph):
                 graph.node[input]['is_const_producer'] = False
                 graph.node[output]['is_const_producer'] = False
 
-        if not node.has('value') or node.value is None:
+        if not node.has('value') or node.value is None or not is_fully_defined(node.value):
             for input, _ in graph.in_edges(node.id):
                 graph.node[input]['is_const_producer'] = False
 
 
 def eliminate_dead_nodes(graph):
+    from mo.graph.graph import Node
     nodes_to_remove = set()
     for node_name, node_attrs in graph.nodes(data=True):
+        # The Const operation node may have set an attribute 'nchw_layout' attribute to prevent shape permutation.
+        # During graph clean-up the operation node is removed and the attribute is lost.
+        # This results in permutation of the Const shape in the IR and wrong inference results.
+        # Here we explicitly save the 'nchw_layout' attribute in the data node to prevent permutation."
+        if node_attrs.get('type', None) == 'Const':
+            if node_attrs.get('nchw_layout', False):
+                Node(graph, node_name).out_node()['nchw_layout'] = True
+            if np.all(node_attrs.get('force_shape', False)):
+                Node(graph, node_name).out_node()['force_shape'] = node_attrs['force_shape']
+            if node_attrs.get('force_type', False):
+                Node(graph, node_name).out_node()['force_type'] = node_attrs['force_type']
+
         if not node_attrs['is_output_reachable'] or \
                 (node_attrs['is_const_producer'] and (not node_attrs['is_undead'] or
                                                       node_attrs.get('force_dead_node', False))):
@@ -153,13 +155,6 @@ def add_constant_operations(graph):
             graph.add_edges_from([(const_node.id, node.id, {'out': 0})])
 
 
-def remove_const_ops(graph):
-
-    for node in graph.get_op_nodes(type='Const'):
-        graph.remove_edge(node.id, node.out_node().id)
-        graph.remove_node(node.id)
-
-
 def shape_inference(graph):
     for node in graph.pseudo_topological_sort():
         if node.has_and_set('need_shape_inference'):
@@ -168,7 +163,9 @@ def shape_inference(graph):
             new_out_shapes = [port.data.get_shape() for port in node.out_ports().values() if not port.disconnected()]
             if not node.has_and_set('override_output_shape'):
                 for shape1, shape2 in zip(old_out_shapes, new_out_shapes):
-                    if shape1 is not None and not np.array_equal(shape1, shape2):
+                    # do not use strict shapes comparison because after applying transformation the output shape may be
+                    # specialized and some dynamic dimension become static
+                    if shape1 is not None and not compatible_shapes(shape1, shape2):
                         raise Error("After partial shape inference were found shape collision for node {} (old shape: "
                                     "{}, new shape: {})".format(node.name, shape1, shape2))
             else:
@@ -252,5 +249,3 @@ def remove_edges_for_nodes(graph, node_attrs: dict, edge_attrs: dict):
                 src_node, edge = nodes_edges[port]
                 if all([attr in edge and edge[attr] == edge_attrs[attr] for attr in edge_attrs]):
                     graph.remove_edge(src_node.id, node.id)
-
-

@@ -1,22 +1,10 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value, \
+    compatible_dims
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -60,7 +48,7 @@ class GatherND(Op):
 
         # check that batch dimensions of data and indices are the same
         for batch_dim in range(batch_dims):
-            assert data_shape[batch_dim] == indices_shape[batch_dim], \
+            assert compatible_dims(data_shape[batch_dim], indices_shape[batch_dim]), \
                 "The dimension {} for data and indices tensors must be the same".format(batch_dim)
 
         # check ranks of input tensors
@@ -70,13 +58,19 @@ class GatherND(Op):
             "Length of a tuple with indices must not exceed a rank of data tensor excluding batch dimensions"
 
         # compute output shape
-        number_batches = [np.prod(data_shape[:batch_dims]).tolist()] if batch_dims > 0 else list()
+        if batch_dims > 0:
+            if is_fully_defined(data_shape[:batch_dims]):
+                batch = [np.prod(data_shape[:batch_dims]).tolist()]
+            else:
+                batch = [dynamic_dimension_value]
+        else:
+            batch = []
         slice_shape = list(data_shape[(batch_dims + indices_shape[-1]):])
-        output_shape = number_batches + list(indices_shape[batch_dims:-1]) + slice_shape
-        node.out_port(0).data.set_shape(int64_array(output_shape))
+        output_shape = batch + list(indices_shape[batch_dims:-1]) + slice_shape
+        node.out_port(0).data.set_shape(output_shape)
 
         # compute output value if all input values are defined
-        if data_value is not None and indices_value is not None:
+        if is_fully_defined(indices_value) and is_fully_defined(data_value):
             output_value = np.zeros(output_shape, dtype=data_value.dtype)
             if batch_dims == 0:
                 output_indices_range = int64_array(indices_shape[:-1])

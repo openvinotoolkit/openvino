@@ -1,11 +1,11 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
 #include "low_precision_transformations/fake_quantize_and_avg_pool_transformation.hpp"
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -26,10 +26,10 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizes =
 
 // FakeQuantizeOnData
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizeAndAvgPoolTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeAndAvgPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizes)),

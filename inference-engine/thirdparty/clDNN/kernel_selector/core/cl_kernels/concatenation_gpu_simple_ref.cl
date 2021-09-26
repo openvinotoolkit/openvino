@@ -1,19 +1,9 @@
-// Copyright (c) 2017-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 ///////////////////////// Input Index /////////////////////////
 inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x)
@@ -30,6 +20,8 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x
     return GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(INPUT0, b, f, z, y, x);
 #elif INPUT0_LAYOUT_BS_FS_YX_BSV16_FSV16
     return GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(INPUT0, b, f, y, x);
+#elif INPUT0_LAYOUT_BS_FS_YX_BSV32_FSV32
+    return GET_DATA_BS_FS_YX_BSV32_FSV32_INDEX(INPUT0, b, f, y, x);
 #else
 #error concatenation_gpu_simple_ref.cl: input format - not supported
 #endif
@@ -50,6 +42,8 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
     return GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(OUTPUT, b, f, z, y, x);
 #elif OUTPUT_LAYOUT_BS_FS_YX_BSV16_FSV16
     return GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(OUTPUT, b, f, y, x);
+#elif OUTPUT_LAYOUT_BS_FS_YX_BSV32_FSV32
+    return GET_DATA_BS_FS_YX_BSV32_FSV32_INDEX(OUTPUT, b, f, y, x);
 #else
 #error concatenation_gpu_simple_ref.cl: output format - not supported
 #endif

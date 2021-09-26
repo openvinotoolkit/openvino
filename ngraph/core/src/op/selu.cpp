@@ -1,67 +1,54 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include "ngraph/op/selu.hpp"
 
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/exp.hpp"
-#include "ngraph/op/maximum.hpp"
-#include "ngraph/op/minimum.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/subtract.hpp"
+#include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
-constexpr NodeTypeInfo op::v0::Selu::type_info;
+BWDCMP_RTTI_DEFINITION(op::v0::Selu);
 
 op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Output<Node>& lambda)
-    : FusedOp({data, alpha, lambda})
-{
+    : Op({data, alpha, lambda}) {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Selu::visit_attributes(AttributeVisitor& visitor)
-{
+void op::v0::Selu::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v0_Selu_validate_and_infer_types);
+    auto data_et = get_input_element_type(0);
+    auto alpha_et = get_input_element_type(1);
+    auto lambda_et = get_input_element_type(2);
+    auto result_et = element::dynamic;
+
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, result_et, data_et) &&
+                              element::Type::merge(result_et, result_et, alpha_et) &&
+                              element::Type::merge(result_et, result_et, lambda_et),
+                          "Input element types do not match : ",
+                          data_et,
+                          " and ",
+                          alpha_et,
+                          " and ",
+                          lambda_et);
+
+    NODE_VALIDATION_CHECK(this,
+                          result_et.is_dynamic() || result_et.is_real(),
+                          "Input element types must be floating-point. Got: ",
+                          result_et);
+
+    set_output_type(0, result_et, get_input_partial_shape(0));
+}
+
+bool op::v0::Selu::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v0_Selu_visit_attributes);
     return true;
 }
 
-OutputVector op::v0::Selu::decompose_op() const
-{
-    const auto data = input_value(0);
-    const auto alpha = input_value(1);
-    const auto lambda = input_value(2);
-    const auto zero_node = op::Constant::create(data.get_element_type(), Shape{1}, {0});
-
-    // lambda * ((max(data, 0) + (alpha * exp(min(data, 0)) - alpha))
-    return {std::make_shared<op::v1::Multiply>(
-        lambda,
-        std::make_shared<op::v1::Add>(
-            std::make_shared<op::v1::Maximum>(data, zero_node),
-            std::make_shared<op::v1::Subtract>(
-                std::make_shared<op::v1::Multiply>(
-                    alpha,
-                    std::make_shared<op::Exp>(std::make_shared<op::v1::Minimum>(data, zero_node))),
-                alpha)))};
-}
-
-shared_ptr<Node> op::v0::Selu::clone_with_new_inputs(const OutputVector& new_args) const
-{
+shared_ptr<Node> op::v0::Selu::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v0_Selu_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v0::Selu>(new_args.at(0), new_args.at(1), new_args.at(2));
+    return make_shared<op::v0::Selu>(new_args.at(0), new_args.at(1), new_args.at(2));
 }

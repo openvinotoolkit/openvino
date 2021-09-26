@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph_ops/convolution_ie.hpp"
+#include "itt.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -14,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ConvolutionIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::ConvolutionIE);
 
 op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
@@ -99,10 +100,9 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
 }
 
 void op::ConvolutionIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(ConvolutionIE_validate_and_infer_types);
     PartialShape data_batch_shape = get_input_partial_shape(0);
-    element::Type data_batch_et = get_input_element_type(0);
     PartialShape filters_shape = get_input_partial_shape(1);
-    element::Type filters_et = get_input_element_type(1);
 
     PartialShape result_shape{PartialShape::dynamic()};
 
@@ -147,6 +147,7 @@ void op::ConvolutionIE::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVector & new_args) const {
+    INTERNAL_OP_SCOPE(ConvolutionIE_clone_with_new_inputs);
     if (new_args.size() == 2) {
         return make_shared<ConvolutionIE>(new_args.at(0),
                                           new_args.at(1),
@@ -171,4 +172,15 @@ shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVe
     }
 
     throw ngraph_error("Unsupported number of arguments for ConvolutionIE operation");
+}
+
+bool op::ConvolutionIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(ConvolutionIE_visit_attributes);
+    visitor.on_attribute("strides", m_strides);
+    visitor.on_attribute("dilations", m_dilations);
+    visitor.on_attribute("pads_begin", m_pads_begin);
+    visitor.on_attribute("pads_end", m_pads_end);
+    visitor.on_attribute("auto_pad", m_auto_pad);
+    visitor.on_attribute("group", m_group);
+    return true;
 }

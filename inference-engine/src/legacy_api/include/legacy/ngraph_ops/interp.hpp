@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,12 +30,14 @@ struct InterpolateIEAttrs {
 
 class INFERENCE_ENGINE_API_CLASS(Interp) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"Interp", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("Interp", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     Interp(const Output<Node>& image, const InterpolateIEAttrs& attrs);
 
     void validate_and_infer_types() override;
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -53,8 +55,8 @@ struct ResampleIEAttrs {
 
 class INFERENCE_ENGINE_API_CLASS(ResampleV2) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"ResampleV2", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("ResampleV2", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     ResampleV2(const Output<Node>& image,
                const Output<Node>& output_shape,
@@ -64,6 +66,8 @@ public:
                const ResampleIEAttrs& attrs);
 
     void validate_and_infer_types() override;
+
+    bool visit_attributes(AttributeVisitor &visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
