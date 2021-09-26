@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include "mkldnn/ie_mkldnn.h"
+#include "cpu_types.h"
+
 #include <ie_layouts.h>
 #include <ie_blob.h>
-#include "mkldnn/ie_mkldnn.h"
 
 namespace MKLDNNPlugin {
 
