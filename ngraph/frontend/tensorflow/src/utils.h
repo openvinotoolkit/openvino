@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include <tensorflow_frontend/node_context.hpp>
-#include "node_context_new.hpp"
+#include "node_context.hpp"
 #include "ngraph/ngraph.hpp"
 #include "default_opset.h"
-#include "graph.hpp"
-#include "ngraph_builder.h"
+#include "graph_iterator_proto.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -199,7 +197,7 @@ namespace ngraph_bridge {
     static Status ValidateInputCount(const ngraph::frontend::tf::NodeContext& op, size_t count) {
         if (op.get_ng_input_size() != count) {
             std::ostringstream buf;
-            buf << "\"" << op.get_names()[0] << "\" requires " << count << " input(s), got " << op.get_ng_input_size()
+            buf << "\"" << op.get_name() << "\" requires " << count << " input(s), got " << op.get_ng_input_size()
                 << " instead";
             return errors::InvalidArgument(buf.str());
         }
@@ -557,7 +555,7 @@ static Status GetStaticInputNode(
             std::vector<VecT> const_values;
             ngraph::Shape ng_shape;
 
-            TF_RETURN_IF_ERROR((ValuesFromConstNode<T, VecT>(node._get_decoder(), &ng_shape, &const_values)));
+            TF_RETURN_IF_ERROR((ValuesFromConstNode<T, VecT>(node.get_decoder(), &ng_shape, &const_values)));
 
             ng_node = ConstructNgNode<opset::Constant>(node.get_name(), et, ng_shape, const_values);
             return Status::OK();

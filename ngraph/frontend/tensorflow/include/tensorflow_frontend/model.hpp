@@ -8,26 +8,9 @@
 #include <frontend_manager/place.hpp>
 #include <tensorflow_frontend/utility.hpp>
 #include <tensorflow_frontend/place.hpp>
-#include "node_context_impl.hpp"
 
 namespace ngraph {
 namespace frontend {
-/// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class GraphIterator {
-public:
-    virtual size_t size() const = 0;
-
-    /// Set iterator to the start position
-    virtual void reset() = 0;
-
-    /// Moves to the next node in the graph
-    virtual void next() = 0;
-
-    /// Returns true if iterator goes out of the range of available nodes
-    virtual bool is_end() const = 0;
-
-    virtual std::shared_ptr<::ngraph::frontend::DecoderBase> get_new() const = 0;
-};
 
 class OpPlaceTF;
 class TensorPlaceTF;

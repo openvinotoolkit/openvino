@@ -8,7 +8,7 @@
 #include <ngraph_ops/framework_node.hpp>
 #include <tensorflow_frontend/place.hpp>
 
-#include "graph.hpp"
+#include "graph_iterator_proto.hpp"
 
 namespace ngraph {
 namespace frontend {

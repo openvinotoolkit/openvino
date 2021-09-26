@@ -4,7 +4,6 @@
 
 #include "ngraph_conversions.h"
 
-#include "ngraph_builder.h"
 #include "utils.h"
 
 namespace tensorflow {

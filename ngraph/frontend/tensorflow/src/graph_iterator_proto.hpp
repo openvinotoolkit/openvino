@@ -4,15 +4,13 @@
 
 #pragma once
 
-#include <tensorflow_frontend/model.hpp>
-#include <tensorflow_frontend/place.hpp>
-#include "decoder_new.hpp"
-#include "graph.pb.h"
+#include <tensorflow_frontend/decoder.hpp>
+#include <tensorflow_frontend/graph_iterator.hpp>
 
-namespace tensorflow {
-class GraphDef;
-class NodeDef;
-}  // namespace tensorflow
+#include "decoder_proto.hpp"
+
+#include "graph.pb.h"
+#include "node_def.pb.h"
 
 namespace tensorflow {
 namespace ngraph_bridge {
@@ -54,7 +52,7 @@ public:
     }
 
     /// Return NodeContext for the current node that iterator points to
-    virtual std::shared_ptr<ngraph::frontend::DecoderBase> get_new() const override {
+    virtual std::shared_ptr<ngraph::frontend::DecoderBase> get_decoder() const override {
         return std::make_shared<::ngraph::frontend::DecoderTFProto>(nodes[node_index]);
     }
 };

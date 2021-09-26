@@ -10,8 +10,7 @@
 #include <map>
 #include <ngraph/output_vector.hpp>
 #include <string>
-#include <tensorflow_frontend/node_context.hpp>
-#include "node_context_new.hpp"
+#include "node_context.hpp"
 #include "ngraph_conversions.h"
 #include "utils.h"
 

@@ -10,10 +10,9 @@
 #include <tensorflow_frontend/place.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
-#include "graph.hpp"
-#include "ngraph_builder.h"
+#include "graph_iterator_proto.hpp"
 #include "ngraph_conversions.h"
-#include "node_context_new.hpp"
+#include "node_context.hpp"
 
 using namespace google;
 using namespace ngraph::frontend;
@@ -74,7 +73,7 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
 
     m_inputs.clear();
     for (; !m_graph_impl->is_end(); m_graph_impl->next()) {
-        auto node_decoder = m_graph_impl->get_new();
+        auto node_decoder = m_graph_impl->get_decoder();
         auto op_name = node_decoder->get_op_name();
         auto op_type = node_decoder->get_op_type();
         auto op_place = std::make_shared<OpPlaceTF>(m_input_model, node_decoder);
@@ -152,7 +151,7 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
             FRONT_END_GENERAL_CHECK(output_operation_place,
                                     "There is not operation place in the map: " + operation_name);
             new_ops.push_back(output_operation_place);
-            decoders_queue.push(output_operation_place->get_desc_new());
+            decoders_queue.push(output_operation_place->get_decoder());
         }
     }
     while (!decoders_queue.empty()) {
@@ -204,7 +203,7 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
             if (!is_input && !visited.count(producer_name)) {
                 visited.insert(producer_name);
                 new_ops.push_back(producer_operation_place);
-                decoders_queue.push(producer_operation_place->get_desc_new());
+                decoders_queue.push(producer_operation_place->get_decoder());
             }
         }
     }

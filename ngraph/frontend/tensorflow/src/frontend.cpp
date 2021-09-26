@@ -9,7 +9,6 @@
 #include <ngraph/pass/constant_folding.hpp>
 
 #include "op_table.hpp"
-#include "ngraph_builder.h"
 #include "tf_framework_node.hpp"
 //#include "utils.h"
 
@@ -79,7 +78,7 @@ void TranslateGraph(
 
     // create the nGraph ops from TensorFlow ops
     for (auto& operation_place : operation_places) {
-        auto operation_decoder = operation_place->get_desc_new();
+        auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
 
         // output for parameter nodes has been already generated
@@ -215,7 +214,7 @@ void TranslateGraph(
                 }
             }
             FRONT_END_GENERAL_CHECK(operation_place, "There is no operation place with a name: " + operation_name);
-            auto operation_decoder = operation_place->get_desc_new();
+            auto operation_decoder = operation_place->get_decoder();
 
             // get to know a producer node and by which its output port data is generated
             std::string producer_name;

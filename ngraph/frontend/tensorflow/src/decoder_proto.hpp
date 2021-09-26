@@ -4,21 +4,17 @@
 
 #pragma once
 
-#include <algorithm>
-#include <chrono>
-#include <fstream>
-#include <map>
-#include <memory>
+#include <string>
+#include <vector>
+
+
 #include <ngraph/ngraph.hpp>
+#include <tensorflow_frontend/decoder.hpp>
 #include <tensorflow_frontend/frontend.hpp>
 #include <tensorflow_frontend/place.hpp>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "attr_value.pb.h"
 #include "types.pb.h"
-//#include "node_context_new.hpp"
 #include "node_def.pb.h"
 
 namespace ngraph {
@@ -37,17 +33,9 @@ public:
                                 std::string& producer_name,
                                 size_t& producer_output_port_index) const override;
 
-    std::vector<OutPortName> get_output_names() const override;
-
-    size_t get_output_size() const override;
-
-    ngraph::element::Type get_out_port_type(const size_t& port_index) const override;
-
     std::string get_op_type() const override;
 
     std::string get_op_name() const override;
-
-    std::map<size_t, std::vector<ngraph::element::Type>> get_output_type_map() const;
 
 private:
     std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;

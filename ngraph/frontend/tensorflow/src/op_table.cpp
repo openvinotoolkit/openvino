@@ -3,7 +3,6 @@
 //
 
 #include "op_table.hpp"
-#include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;

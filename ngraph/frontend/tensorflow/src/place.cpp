@@ -5,7 +5,7 @@
 #include <frontend_manager/frontend_exceptions.hpp>
 #include <tensorflow_frontend/place.hpp>
 
-#include "node_context_impl.hpp"
+#include "node_context.hpp"
 #include "op_def.pb.h"
 #include "tensor.pb.h"
 #include "types.pb.h"
@@ -66,7 +66,7 @@ std::shared_ptr<InPortPlaceTF> OpPlaceTF::get_input_port_tf(const std::string& i
     return m_input_ports.at(inputName)[inputPortIndex];
 }
 
-std::shared_ptr<DecoderBase> OpPlaceTF::get_desc_new() const {
+std::shared_ptr<DecoderBase> OpPlaceTF::get_decoder() const {
     return m_op_decoder;
 }
 

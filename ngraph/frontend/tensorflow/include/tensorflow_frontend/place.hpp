@@ -5,47 +5,10 @@
 #pragma once
 
 #include <frontend_manager/frontend.hpp>
+#include <tensorflow_frontend/decoder.hpp>
 
 namespace ngraph {
 namespace frontend {
-using InPortName = size_t;
-using OutPortName = size_t;
-using NamedOutputs = std::map<OutPortName, OutputVector>;
-using NamedInputs = std::map<InPortName, OutputVector>;
-
-class DecoderBase {
-public:
-    /// \brief Get attribute value by name and requested type
-    ///
-    /// \param name Attribute name
-    /// \param type_info Attribute type information
-    /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
-    virtual std::shared_ptr<Variant> get_attribute(const std::string& name, const VariantTypeInfo& type_info) const = 0;
-
-    virtual size_t get_input_size() const = 0;
-
-    virtual void get_input_node(const size_t input_port_idx, std::string& producer_name,
-        size_t& producer_output_port_index) const = 0;
-
-    virtual std::vector<OutPortName> get_output_names() const = 0;
-
-    virtual size_t get_output_size() const = 0;
-
-    /// \brief Get output port type
-    ///
-    /// Current API assumes that output port has only one output type.
-    /// If decoder supports multiple types for specified port, it shall throw general
-    /// exception
-    ///
-    /// \param port_name Port name for the node
-    ///
-    /// \return Type of specified output port
-    virtual ngraph::element::Type get_out_port_type(const size_t& port_index) const = 0;
-
-    virtual std::string get_op_type() const = 0;
-
-    virtual std::string get_op_name() const = 0;
-};
 
 class TensorPlaceTF;
 class OpPlaceTF;
@@ -135,7 +98,7 @@ public:
     const std::vector<std::shared_ptr<OutPortPlaceTF>>& get_output_ports() const;
     const std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>>& get_input_ports() const;
     std::shared_ptr<InPortPlaceTF> get_input_port_tf(const std::string& inputName, int inputPortIndex) const;
-    std::shared_ptr<DecoderBase> get_desc_new() const;
+    std::shared_ptr<DecoderBase> get_decoder() const;
 
     // External API methods
     std::vector<Place::Ptr> get_consuming_ports() const override;

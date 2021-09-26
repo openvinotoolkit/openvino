@@ -6,7 +6,6 @@
 
 #include <numeric>
 #include <op_table.hpp>
-#include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -16,7 +15,7 @@ namespace tensorflow {
 namespace ngraph_bridge {
 
 OutputVector TranslateAddNOp(const NodeContext& node) {
-    OutputVector ng_arg_vec = node.get_ng_inputs();
+    OutputVector ng_arg_vec = node.get_all_ng_inputs();
 
     auto ng_addn = std::accumulate(std::next(ng_arg_vec.begin()),
                                    ng_arg_vec.end(),

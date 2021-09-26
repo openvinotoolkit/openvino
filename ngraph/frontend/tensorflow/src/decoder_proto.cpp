@@ -2,20 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "decoder_new.hpp"
-
-#include <algorithm>
-#include <chrono>
-#include <fstream>
-#include <map>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-
-#include "op_def.pb.h"
-#include "node_def.pb.h"
-#include "node_context_new.hpp"
+#include "decoder_proto.hpp"
+#include "node_context.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -98,7 +86,6 @@ void DecoderTFProto::get_input_node(const size_t input_port_idx,
     std::string& producer_name,
     size_t& producer_output_port_index) const {
     std::string producer_port_name = m_node_def->input(input_port_idx);
-    // TODO: Implement full logic to detect only the last : as a separator, consult with TF
     auto delim_pos = producer_port_name.find(':');
     if (delim_pos != std::string::npos) {
         producer_name = producer_port_name.substr(0, delim_pos);
@@ -107,22 +94,6 @@ void DecoderTFProto::get_input_node(const size_t input_port_idx,
     }
     producer_name = producer_port_name;
     producer_output_port_index = 0;
-}
-
-std::vector<OutPortName> DecoderTFProto::get_output_names() const {
-    FRONT_END_NOT_IMPLEMENTED("DecoderTFProto::get_output_names");
-}
-
-size_t DecoderTFProto::get_output_size() const {
-    FRONT_END_NOT_IMPLEMENTED("DecoderTFProto::get_output_size");
-}
-
-std::map<size_t, std::vector<ngraph::element::Type>> DecoderTFProto::get_output_type_map() const {
-    FRONT_END_NOT_IMPLEMENTED("DecoderTFProto::get_output_type_map");
-}
-
-ngraph::element::Type DecoderTFProto::get_out_port_type(const size_t& port_index) const {
-    FRONT_END_NOT_IMPLEMENTED("DecoderTFProto::get_out_port_type");
 }
 
 std::string DecoderTFProto::get_op_type() const {
