@@ -312,9 +312,9 @@ cdef class IECore:
         return versions
 
     ## Reads a network from Intermediate Representation (IR) or ONNX formats and creates an `IENetwork`.
-    #  @param model: A `.xml` or `.onnx` model file or string with IR.
+    #  @param model: A `.xml`, `.onnx` or `.pdmodel` model file or string with IR.
     #  @param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
-    #                  bytes with file content.
+    #                  bytes with file content. It may also be `.pdiparams` file in case of Paddle.
     #  @param init_from_buffer: Defines the way of how `model` and `weights` attributes are interpreted.
     #                           If  `False`, attributes are interpreted as strings with paths to .xml and .bin files
     #                           of IR. If `True`, they are  interpreted as Python `bytes` object with .xml and .bin files content.
@@ -340,8 +340,8 @@ cdef class IECore:
         else:
             weights_ = "".encode()
             model = os.fspath(model)
-            if not os.path.isfile(model):
-                raise Exception(f"Path to the model {model} doesn't exist or it's a directory")
+            if not os.path.exists(model):
+                raise Exception(f"Path to the model {model} doesn't exist")
             model_ = model.encode()
 
             if not (fnmatch(model, "*.onnx") or fnmatch(model, "*.prototxt")) and weights:

@@ -10,12 +10,12 @@ from time import sleep, time
 from queue import Queue
 
 from openvino.inference_engine import IENetwork, IECore, ExecutableNetwork
-from conftest import model_path, plugins_path, model_onnx_path
+from conftest import model_path, plugins_path, model_onnx_path, model_paddle_path
 import ngraph as ng
-
 
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
+test_net_pdmodel, test_net_pdiparams, test_net_legacy = model_paddle_path()
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 
 
@@ -199,12 +199,39 @@ def test_read_network_from_onnx_as_path():
     net = ie.read_network(model=Path(test_net_onnx))
     assert isinstance(net, IENetwork)
 
+def test_read_network_from_paddle():
+    ie = IECore()
+
+    # compacted model representation (popular since from paddle2.0)
+    net = ie.read_network(model=test_net_pdmodel, weights=test_net_pdiparams)
+    assert isinstance(net, IENetwork)
+
+    net = ie.read_network(model=test_net_pdmodel) # pdiparams infered from model file name
+    assert isinstance(net, IENetwork)
+
+    # scattered model representation (popular in paddle1.8)
+    net = ie.read_network(model=test_net_legacy)
+    assert isinstance(net, IENetwork)
+
+def test_read_network_from_paddle_as_path():
+    ie = IECore()
+
+    # compacted
+    net = ie.read_network(model=Path(test_net_pdmodel), weights=test_net_pdiparams)
+    assert isinstance(net, IENetwork)
+
+    net = ie.read_network(model=Path(test_net_pdmodel))
+    assert isinstance(net, IENetwork)
+
+    # scattered
+    net = ie.read_network(model=Path(test_net_legacy))
+    assert isinstance(net, IENetwork)
 
 def test_incorrect_xml():
     ie = IECore()
     with pytest.raises(Exception) as e:
         ie.read_network(model="./model.xml", weights=Path(test_net_bin))
-    assert "Path to the model ./model.xml doesn't exist or it's a directory" in str(e.value)
+    assert "Path to the model ./model.xml doesn't exist" in str(e.value)
 
 
 def test_incorrect_bin():
