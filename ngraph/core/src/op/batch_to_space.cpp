@@ -23,7 +23,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::BatchToSpace, "BatchToSpace", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::BatchToSpace);
 
 ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& data,
                                            const ngraph::Output<ngraph::Node>& block_shape,

@@ -10,7 +10,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::ReductionBase, "ReductionBase", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::util::ReductionBase);
 
 ov::op::util::ReductionBase::ReductionBase() = default;
 

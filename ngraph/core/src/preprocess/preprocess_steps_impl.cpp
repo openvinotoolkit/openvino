@@ -8,8 +8,8 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 
-using namespace ov;
-using namespace ov::preprocess;
+namespace ov {
+namespace preprocess {
 
 static Shape construct_mean_scale_shape(const std::shared_ptr<Node>& node,
                                         size_t values_size,
@@ -97,3 +97,6 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_impl(const ov::element::T
         },
         true));
 }
+
+}  // namespace preprocess
+}  // namespace ov
