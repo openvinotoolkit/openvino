@@ -15,6 +15,7 @@
 #include "op/horizon_max.hpp"
 #include "op/horizon_sum.hpp"
 #include "op/fill.hpp"
+#include "op/fma.hpp"
 #include "op/kernel.hpp"
 #include "op/load.hpp"
 #include "op/nop.hpp"
