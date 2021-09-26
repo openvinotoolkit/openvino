@@ -293,6 +293,18 @@ public:
         return m_dimensions.crend();
     }
 
+    /// \brief Resizes dimensions container to contain count elements
+    void resize(size_t count) {
+        m_dimensions.resize(count);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
+    /// \brief Returns size of dimension vector. Requires rank to be static
+    size_t size() const {
+        OPENVINO_ASSERT(rank().is_static());
+        return m_dimensions.size();
+    }
+
 private:
     // Private constructor for PartialShape::dynamic().
     PartialShape(bool rank_is_static, std::vector<Dimension> dimensions);

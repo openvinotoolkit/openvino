@@ -4,6 +4,8 @@
 
 #include "ngraph/op/convolution.hpp"
 
+#include <convolution_shape_inference.hpp>
+
 #include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
@@ -45,9 +47,7 @@ bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Convolution::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Convolution_validate_and_infer_types);
-    const ov::PartialShape& data_batch_pshape = get_input_partial_shape(0);
     element::Type data_batch_et = get_input_element_type(0);
-    const ov::PartialShape& filters_pshape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
     element::Type result_et;
@@ -64,24 +64,10 @@ void op::v1::Convolution::validate_and_infer_types() {
                           "Element types must be numeric. Got: ",
                           result_et);
 
-    Rank result_ps_rank;
-    NODE_VALIDATION_CHECK(this,
-                          Rank::merge(result_ps_rank, data_batch_pshape.rank(), filters_pshape.rank()),
-                          "Data batch and filters inputs must have same rank. Got: ",
-                          data_batch_pshape,
-                          " and ",
-                          filters_pshape);
-
-    ov::PartialShape result_shape = validate_and_infer_convolution_forward_output_shape(this,
-                                                                                        result_ps_rank,
-                                                                                        data_batch_pshape,
-                                                                                        filters_pshape,
-                                                                                        m_auto_pad,
-                                                                                        m_strides,
-                                                                                        m_dilations,
-                                                                                        m_pads_begin,
-                                                                                        m_pads_end);
-    set_output_type(0, result_et, result_shape);
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, result_et, output_shapes[0]);
 }
 
 shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& new_args) const {

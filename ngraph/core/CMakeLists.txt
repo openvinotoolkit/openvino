@@ -10,6 +10,7 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 add_subdirectory(builder)
 add_subdirectory(reference)
+add_subdirectory(shape_inference)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -39,7 +40,7 @@ endif()
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
-target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util)
+target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util ov_shape_inference)
 
 ie_mark_target_as_cc(ngraph)
 
