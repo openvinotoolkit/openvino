@@ -31,12 +31,24 @@ void scatter_update(const dataType* input_data,
     const auto updates_axis = updates_shape[axis] == 1 ? axis + 1 : axis;
     const auto updates_axis_dim = updates_shape[updates_axis];
     const auto updates_axis_last_dim = updates_shape.size() - updates_axis == 1;
-    const auto swaps = updates_axis_last_dim ? 1 : updates_shape.back();
+    // const auto swaps = updates_axis_last_dim ? 1 : updates_shape.back();
 
-    const auto updates_size_before_axis = shape_size(Shape(updates_shape.begin(), updates_shape.begin() + updates_axis));
-    const auto updates_size_after_axis = shape_size(Shape(updates_shape.begin() + updates_axis + 1, updates_shape.end()));
+    const auto swaps = [&] {
+        auto curr_swaps = shape_size(Shape(updates_shape.begin() + axis + 1, updates_shape.end()));
+        const auto middle_axis = updates_shape.size() - axis > 2;
+        if (middle_axis)
+            curr_swaps = shape_size(Shape(updates_shape.begin() + axis + 2, updates_shape.end()));
+        else if (updates_axis_last_dim)
+            curr_swaps = 1;
+        return curr_swaps;
+    }();
 
-    const auto updates_jump =  updates_size_after_axis == 1 ? 1 : updates_shape.back();
+    const auto updates_size_before_axis =
+        shape_size(Shape(updates_shape.begin(), updates_shape.begin() + updates_axis));
+    const auto updates_size_after_axis =
+        shape_size(Shape(updates_shape.begin() + updates_axis + 1, updates_shape.end()));
+
+    const auto updates_jump = updates_size_after_axis == 1 ? 1 : updates_shape.back();
     const auto updates_move = updates_axis_last_dim ? updates_shape.back() : 1;
 
     std::vector<int64_t> updates_ids;
