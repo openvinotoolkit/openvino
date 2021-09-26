@@ -48,12 +48,12 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
     CoordinateDiff padding_below;
     CoordinateDiff padding_above;
     MakePadding(tf_padding_type,
-                         ng_image_shape,
-                         ng_kernel_shape,
-                         ng_strides,
-                         ng_dilations,
-                         padding_below,
-                         padding_above);
+                ng_image_shape,
+                ng_kernel_shape,
+                ng_strides,
+                ng_dilations,
+                padding_below,
+                padding_above);
 
     // TODO: remove this once nGraph supports negative padding
     // (CoordinateDiff) for MaxPool

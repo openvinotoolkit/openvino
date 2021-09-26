@@ -6,8 +6,8 @@
 
 #include <frontend_manager/input_model.hpp>
 #include <frontend_manager/place.hpp>
-#include <tensorflow_frontend/utility.hpp>
 #include <tensorflow_frontend/place.hpp>
+#include <tensorflow_frontend/utility.hpp>
 
 namespace ngraph {
 namespace frontend {

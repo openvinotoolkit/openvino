@@ -16,9 +16,8 @@ namespace ngraph_bridge {
 namespace {
 using ConstMap =
     std::map<ngraph::element::Type,
-             std::pair<std::function<Status(const NodeContext&,
-                 ngraph::element::Type,
-                 ngraph::Output<ngraph::Node>&)>, const ngraph::element::Type>>;
+             std::pair<std::function<Status(const NodeContext&, ngraph::element::Type, ngraph::Output<ngraph::Node>&)>,
+                       const ngraph::element::Type>>;
 
 const ConstMap& TF_NGRAPH_CONST_MAP() {
     static const ConstMap the_map = {
@@ -39,7 +38,7 @@ const ConstMap& TF_NGRAPH_CONST_MAP() {
     };
     return the_map;
 }
-}
+}  // namespace
 
 OutputVector TranslateConstOp(const NodeContext& node) {
     auto dt = node.get_attribute<ngraph::element::Type>("dtype");

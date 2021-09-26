@@ -8,7 +8,6 @@
 
 //#include "node_context_new.hpp"
 
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
@@ -23,7 +22,7 @@ public:
 private:
     static std::string get_error_msg_prefix_tf(const NodeContext& node) {
         std::stringstream ss;
-        //ss << "While validating node '" << node.get_op_type() << '\'';
+        // ss << "While validating node '" << node.get_op_type() << '\'';
         return ss.str();
     }
 };

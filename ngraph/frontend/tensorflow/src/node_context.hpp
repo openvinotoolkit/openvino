@@ -5,11 +5,11 @@
 #pragma once
 #include <ngraph/variant.hpp>
 #include <tensorflow_frontend/exceptions.hpp>
-#include <tensorflow_frontend/utility.hpp>
 #include <tensorflow_frontend/place.hpp>
+#include <tensorflow_frontend/utility.hpp>
 
-#include "types.pb.h"
 #include "tensor.pb.h"
+#include "types.pb.h"
 
 #define NGRAPH_VARIANT_DECLARATION(TYPE, info)                                            \
     template <>                                                                           \
@@ -36,7 +36,6 @@ NGRAPH_VARIANT_DECLARATION(::tensorflow::DataType, "Variant::DataType");
 NGRAPH_VARIANT_DECLARATION(::tensorflow::TensorProto, "Variant::TensorProto");
 }  // namespace ov
 
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
@@ -52,10 +51,9 @@ class NodeContext {
     const NamedInputs& m_name_map;
 
 public:
-    NodeContext(const ::ngraph::frontend::DecoderBase& decoder,
-                const NamedInputs& name_map)
+    NodeContext(const ::ngraph::frontend::DecoderBase& decoder, const NamedInputs& name_map)
         : m_decoder(decoder),
-          m_name_map(name_map){}
+          m_name_map(name_map) {}
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <typename T>
@@ -120,7 +118,7 @@ public:
     /// Get a number of inputs
     size_t get_ng_input_size() const {
         return m_name_map.size();
-    }    
+    }
 
     /// Get operation type
     std::string get_op_type() const {

@@ -16,18 +16,17 @@ using namespace google;
 
 using namespace ngraph::frontend;
 using namespace ngraph::frontend::tf;
-//using namespace ngraph::frontend::tensorflow::
+// using namespace ngraph::frontend::tensorflow::
 using namespace ::tensorflow::ngraph_bridge;
 
 using ::tensorflow::GraphDef;
 
 namespace {
-void TranslateGraph(
-    const std::shared_ptr<ngraph::frontend::InputModelTF>& model,
-    const std::string model_name,
-    bool fail_fast,
-    bool no_conversion,
-    std::shared_ptr<ngraph::Function>& ng_function) {
+void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model,
+                    const std::string model_name,
+                    bool fail_fast,
+                    bool no_conversion,
+                    std::shared_ptr<ngraph::Function>& ng_function) {
     using OpMap = std::unordered_map<std::string, std::vector<ngraph::Output<ngraph::Node>>>;
     // a map from operation names to generated nGraph Output<TFNodeDecoder>
     OpMap ng_op_map;
@@ -289,7 +288,7 @@ void TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
         old_output->replace(*new_output);
     }
 }
-}
+}  // namespace
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
 bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {

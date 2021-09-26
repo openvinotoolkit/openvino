@@ -4,18 +4,16 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-
-
 #include <ngraph/ngraph.hpp>
+#include <string>
 #include <tensorflow_frontend/decoder.hpp>
 #include <tensorflow_frontend/frontend.hpp>
 #include <tensorflow_frontend/place.hpp>
+#include <vector>
 
 #include "attr_value.pb.h"
-#include "types.pb.h"
 #include "node_def.pb.h"
+#include "types.pb.h"
 
 namespace ngraph {
 namespace frontend {

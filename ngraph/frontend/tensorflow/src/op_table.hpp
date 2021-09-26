@@ -10,8 +10,9 @@
 #include <map>
 #include <ngraph/output_vector.hpp>
 #include <string>
-#include "node_context.hpp"
+
 #include "ngraph_conversions.h"
+#include "node_context.hpp"
 #include "utils.h"
 
 namespace tensorflow {

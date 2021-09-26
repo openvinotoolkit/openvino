@@ -3,6 +3,7 @@
 //
 
 #include "decoder_proto.hpp"
+
 #include "node_context.hpp"
 
 namespace ngraph {
@@ -20,7 +21,7 @@ std::map<::tensorflow::DataType, ngraph::element::Type> TYPE_MAP{
     {::tensorflow::DataType::DT_BFLOAT16, ngraph::element::bf16}};
 
 std::shared_ptr<Variant> DecoderTFProto::get_attribute(const std::string& name,
-                                                         const VariantTypeInfo& type_info) const {
+                                                       const VariantTypeInfo& type_info) const {
     auto attrs = decode_attribute_helper(name);
     if (attrs.empty()) {
         return nullptr;
@@ -83,8 +84,8 @@ size_t DecoderTFProto::get_input_size() const {
 }
 
 void DecoderTFProto::get_input_node(const size_t input_port_idx,
-    std::string& producer_name,
-    size_t& producer_output_port_index) const {
+                                    std::string& producer_name,
+                                    size_t& producer_output_port_index) const {
     std::string producer_port_name = m_node_def->input(input_port_idx);
     auto delim_pos = producer_port_name.find(':');
     if (delim_pos != std::string::npos) {

@@ -17,9 +17,7 @@ class TFFrameworkNode : public op::FrameworkNode {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    TFFrameworkNode(const std::shared_ptr<DecoderBase>& decoder,
-                    const OutputVector& inputs,
-                    size_t num_outputs)
+    TFFrameworkNode(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs, size_t num_outputs)
         : FrameworkNode(inputs, std::max(num_outputs, size_t(1))),
           m_decoder(decoder) {
         op::FrameworkNodeAttrs attrs;

@@ -55,12 +55,12 @@ OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
     MakePadding(tf_padding_type,
-                         ng_image_shape,
-                         ng_kernel_shape,
-                         ng_strides,
-                         ng_dilations,
-                         ng_padding_below,
-                         ng_padding_above);
+                ng_image_shape,
+                ng_kernel_shape,
+                ng_strides,
+                ng_dilations,
+                ng_padding_below,
+                ng_padding_above);
 
     // H W I M -> H W I 1 M
     auto filter_shape = ConstructNgNode<opset::Constant>(

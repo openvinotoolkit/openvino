@@ -84,7 +84,7 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
             auto pshape = std::dynamic_pointer_cast<VariantWrapper<ngraph::PartialShape>>(
                 node_decoder->get_attribute("shape", VariantWrapper<ngraph::PartialShape>::type_info));
             auto type = std::dynamic_pointer_cast<VariantWrapper<ngraph::element::Type>>(
-                node_decoder->get_attribute("dtype", VariantWrapper<ngraph::element::Type> ::type_info));
+                node_decoder->get_attribute("dtype", VariantWrapper<ngraph::element::Type>::type_info));
             auto tmp = type->get();
             std::vector<std::string> names = {op_name};
             auto tensor_place = std::make_shared<TensorPlaceTF>(m_input_model, pshape->get(), type->get(), names);
@@ -99,7 +99,8 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
                 op_names_with_consumers.insert(producer_op_name);
             } catch (const std::exception& e) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
-                                " for op '" + node_decoder->get_op_name() + "', expected input name: '" + producer_op_name +
+                                " for op '" + node_decoder->get_op_name() + "', expected input name: '" +
+                                producer_op_name +
                                 "', expected input port index: " + std::to_string(producer_output_port_idx));
             }
         }
@@ -132,7 +133,7 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::get_op_p
 }
 
 std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determine_cut_nodes() const {
-    //std::queue<tensorflow::detail::TFNodeDecoder*> decoders_queue;
+    // std::queue<tensorflow::detail::TFNodeDecoder*> decoders_queue;
     std::queue<std::shared_ptr<::ngraph::frontend::DecoderBase>> decoders_queue;
     std::unordered_set<std::string> visited;
     std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> new_ops;
@@ -165,7 +166,8 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
                 operation_decoder->get_input_node(input_port_idx, producer_name, producer_output_port_idx);
             } catch (const std::exception& e) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
-                                " for op '" + operation_decoder->get_op_name() + "', expected input name: '" + producer_name +
+                                " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
+                                producer_name +
                                 "', expected input port index: " + std::to_string(producer_output_port_idx) + '\n');
             }
 
@@ -212,7 +214,7 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
 }
 
 template <typename T>
-InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::basic_string<T>& path, const InputModel& input_model) 
+InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::basic_string<T>& path, const InputModel& input_model)
     : m_input_model(input_model) {
     m_graph_def = std::make_shared<GraphDef>();
     // TODO: convert any format variant to GraphIterator and pass it to the single constuctor
