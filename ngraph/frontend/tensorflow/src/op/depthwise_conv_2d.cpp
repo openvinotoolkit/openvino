@@ -55,7 +55,7 @@ OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
-    Builder::MakePadding(tf_padding_type,
+    MakePadding(tf_padding_type,
                          ng_image_shape,
                          ng_kernel_shape,
                          ng_strides,

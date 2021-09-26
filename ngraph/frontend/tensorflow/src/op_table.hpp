@@ -12,7 +12,7 @@
 #include <string>
 #include <tensorflow_frontend/node_context.hpp>
 #include "node_context_new.hpp"
-
+#include "ngraph_conversions.h"
 #include "utils.h"
 
 namespace tensorflow {

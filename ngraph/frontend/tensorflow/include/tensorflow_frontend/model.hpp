@@ -7,7 +7,7 @@
 #include <frontend_manager/input_model.hpp>
 #include <frontend_manager/place.hpp>
 #include <tensorflow_frontend/utility.hpp>
-
+#include <tensorflow_frontend/place.hpp>
 #include "node_context_impl.hpp"
 
 namespace ngraph {
@@ -25,9 +25,6 @@ public:
 
     /// Returns true if iterator goes out of the range of available nodes
     virtual bool is_end() const = 0;
-
-    /// Return NodeContext for the current node that iterator points to
-    virtual std::shared_ptr<::ngraph::frontend::tensorflow::detail::TFNodeDecoder> get() const = 0;
 
     virtual std::shared_ptr<::ngraph::frontend::DecoderBase> get_new() const = 0;
 };

@@ -11,8 +11,114 @@
 #include "graph.hpp"
 #include "ngraph_builder.h"
 
+namespace ngraph {
+namespace frontend {
+namespace tensorflow {
+
+namespace detail {
+// TODO: avoid using directly:
+using ::tensorflow::DataType;
+using ::tensorflow::TensorProto;
+
+// TODO: separate interface from proto implementation; here is a proto implementation
+class TensorWrapper {
+public:
+    const TensorProto* tensor_def;
+
+    TensorWrapper(const TensorProto* _tensor_def) : tensor_def(_tensor_def) {}
+
+    // a hack to minimize amount of code
+    TensorWrapper& attrs() const {
+        return const_cast<TensorWrapper&>(*this);
+    }
+
+    // virtual void getAttrValue(const char *name, std::vector<int32_t> &x) = 0;
+
+    template <typename T>
+    std::vector<T> flat() const;
+
+    size_t NumElements() const;
+
+    DataType dtype() const;
+};
+
+}  // namespace detail
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ngraph
+
 namespace tensorflow {
 namespace ngraph_bridge {
+    using namespace ::ngraph::frontend::tf;
+
+    using OpMap = std::unordered_map<std::string, std::vector<ngraph::Output<ngraph::Node>>>;
+
+    class Status {
+        public:
+            int status = 0;
+            std::string message;
+
+            static Status OK() {
+                return Status();
+            }
+
+            Status(const std::string& x) : message(x), status(1) {}
+            Status() {}
+        };
+
+        inline bool operator!=(const Status& x, const Status& y) {
+            return x.status != y.status;
+        }
+
+        inline std::ostream& operator<<(std::ostream& out, const Status& s) {
+            return out << s.message;
+        }
+
+    #define TF_RETURN_IF_ERROR(S) \
+        if ((S).status != 0)      \
+            throw S;
+
+    class errors {
+        public:
+            static Status InvalidArgument(const std::string& x) {
+                return Status("InvalidArgument: " + x);
+            }
+
+            static Status Internal(const std::string& x) {
+                return Status("Internal: " + x);
+            }
+
+            static Status Unimplemented(const std::string& x) {
+                return Status("Unimplemented: " + x);
+            }
+        };
+
+    void SetTracingInfo(const std::string& op_name, const ngraph::Output<ngraph::Node> ng_node);
+
+    template <typename T>
+    static void MakePadding(const std::string& tf_padding_type,
+                            const ngraph::Shape& ng_image_shape,
+                            const ngraph::Shape& ng_kernel_shape,
+                            const ngraph::Strides& ng_strides,
+                            const ngraph::Shape& ng_dilations,
+                            T& ng_padding_below,
+                            T& ng_padding_above) {
+        if (tf_padding_type == "SAME") {
+            ngraph::Shape img_shape = {0, 0};
+            img_shape.insert(img_shape.end(), ng_image_shape.begin(), ng_image_shape.end());
+            ngraph::infer_auto_padding(img_shape,
+                                       ng_kernel_shape,
+                                       ng_strides,
+                                       ng_dilations,
+                                       ngraph::op::PadType::SAME_UPPER,
+                                       ng_padding_above,
+                                       ng_padding_below);
+        } else if (tf_padding_type == "VALID") {
+            ng_padding_below.assign(ng_image_shape.size(), 0);
+            ng_padding_above.assign(ng_image_shape.size(), 0);
+        }
+    }
+
 
     template<typename Ttensor, typename Tvector>
     static void ConvertTensorDataToVector(const ngraph::frontend::tensorflow::detail::TensorWrapper &tensor,
@@ -138,7 +244,7 @@ namespace ngraph_bridge {
 //    ngraph::Output<ngraph::Node> output_node - ngraph::Node to store
 //
 
-        static void SaveNgOp(Builder::OpMap& ng_op_map, const std::string& op_name, ngraph::Output<ngraph::Node> output_node) {
+        static void SaveNgOp(OpMap& ng_op_map, const std::string& op_name, ngraph::Output<ngraph::Node> output_node) {
             // no need to try-catch, map[key] will create std::vector object
             // if not exists
             ng_op_map[op_name].push_back(output_node);
@@ -147,7 +253,7 @@ namespace ngraph_bridge {
         template <class TOpType, class... TArg>
         ngraph::Output<ngraph::Node> ConstructNgNode(const std::string& op_name, TArg&&... Args) {
             auto ng_node = std::make_shared<TOpType>(std::forward<TArg>(Args)...);
-            Builder::SetTracingInfo(op_name, ng_node);
+            SetTracingInfo(op_name, ng_node);
             return ng_node;
         }
 
@@ -225,31 +331,6 @@ namespace ngraph_bridge {
             constexpr size_t args_len = sizeof...(Arguments);
             TF_RETURN_IF_ERROR(ValidateInputCount(node, args_len));
             return detail::GetInputNodes(node, 0, remaining...);
-        }
-
-        static Status GetStaticNodeTensor(
-                const TFNodeDecoder* node,
-                const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
-                ngraph::frontend::tensorflow::detail::TensorWrapper* result) {
-            if (node->IsArg()) {
-                int arg_index;
-                TF_RETURN_IF_ERROR(GetNodeAttr(node->attrs(), "index", &arg_index));
-                const ngraph::frontend::tensorflow::detail::TensorWrapper* source_tensor = static_input_map[arg_index];
-                if (source_tensor == nullptr) {
-                    return errors::Internal("GetStaticNodeTensor called on _Arg but input tensor is missing from "
-                                            "static input map");
-                }
-                *result = *source_tensor;
-                return Status::OK();
-            } else if (node->type_string() == "Const") {
-                if (GetNodeAttr(node->attrs(), "value", &result).status != 0) {
-                    return errors::Internal("GetStaticNodeTensor: Const tensor proto parsing failed");
-                }
-                return Status::OK();
-            } else {
-                return errors::Internal("GetStaticNodeTensor called on node with type " + node->type_string() +
-                                        "; _Arg or Const expected");
-            }
         }
 
         template <typename T>

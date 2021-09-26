@@ -13,6 +13,7 @@
 #include "graph.hpp"
 #include "ngraph_builder.h"
 #include "ngraph_conversions.h"
+#include "node_context_new.hpp"
 
 using namespace google;
 using namespace ngraph::frontend;

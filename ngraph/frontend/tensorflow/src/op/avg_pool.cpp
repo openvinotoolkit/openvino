@@ -46,7 +46,7 @@ OutputVector TranslateAvgPoolOp(const NodeContext& node) {
     CoordinateDiff padding_below;
     CoordinateDiff padding_above;
     Shape ng_dilations{1, 1};
-    Builder::MakePadding(tf_padding_type,
+    MakePadding(tf_padding_type,
                          ng_image_shape,
                          ng_kernel_shape,
                          ng_strides,
