@@ -61,5 +61,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
         // Not expected behavior
         R"(.*Behavior.*ExecNetSetPrecision.*canSetInputPrecisionForNetwork.*FP16.*)",
+        R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+        R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+        R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
+        R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
     };
 }
