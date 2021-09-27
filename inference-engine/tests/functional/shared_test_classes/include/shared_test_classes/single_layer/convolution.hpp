@@ -46,6 +46,7 @@ protected:
     void SetUp() override;
     std::shared_ptr<ngraph::Function> makeConvolution(const std::string& name = "");
     void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) override;
+    bool updateFunctionRefs() override;
 
 private:
     InferenceEngine::Precision::ePrecision netPrecision = InferenceEngine::Precision::UNSPECIFIED;
