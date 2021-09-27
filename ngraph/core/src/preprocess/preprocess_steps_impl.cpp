@@ -97,5 +97,6 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_impl(const ov::element::T
         },
         true));
 }
+
 }  // namespace preprocess
 }  // namespace ov
