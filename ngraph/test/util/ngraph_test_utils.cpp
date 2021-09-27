@@ -784,8 +784,6 @@ void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_
     output.get_tensor_ptr()->set_names(names);
 }
 
-NGRAPH_RTTI_DEFINITION(TestOpMultiOut, "TestOp", 0);
-
 namespace attributes {
 namespace detail {
 void ReadAndStoreAttributes::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
