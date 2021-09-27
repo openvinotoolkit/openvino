@@ -9,7 +9,7 @@ using namespace MKLDNNPlugin;
 
 MKLDNNPrimitive::MKLDNNPrimitive() {}
 
-MKLDNNPrimitive::operator bool() {
+MKLDNNPrimitive::operator bool() const {
     return prim ? true : false;
 }
 

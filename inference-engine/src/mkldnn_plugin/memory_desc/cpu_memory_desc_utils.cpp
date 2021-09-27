@@ -141,10 +141,12 @@ std::string MemoryDescUtils::dims2str(const VectorDims& dims) {
     std::stringstream output;
     output << "{";
 
-    auto itr = dims.begin();
-    do {
-        output << dim2str(*itr);
-    } while (++itr != dims.end() && output << ", ");
+    if (!dims.empty()) {
+        auto itr = dims.begin();
+        do {
+            output << dim2str(*itr);
+        } while (++itr != dims.end() && output << ", ");
+    }
 
     output << "}";
     return output.str();

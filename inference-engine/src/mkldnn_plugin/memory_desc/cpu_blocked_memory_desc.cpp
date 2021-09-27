@@ -38,11 +38,7 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
     this->offsetPadding = offsetPadding;
 
     if (offsetPaddingToData.empty() && !order.empty()) {
-        this->offsetPaddingToData.resize(order.size());
-        this->offsetPaddingToData[order.size() - 1] = 0;
-        for (size_t i = 2; i <= order.size(); i++) {
-            this->offsetPaddingToData[order.size() - i] = 0;
-        }
+        this->offsetPaddingToData.resize(order.size(), 0);
     } else {
         this->offsetPaddingToData = offsetPaddingToData;
     }
@@ -256,7 +252,7 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) 
     VectorDims newBlockedDims(order.size());
 
     for (size_t i = 0; i < dims.size(); ++i) {
-        newBlockedDims[order[i]] = dims[i];
+        newBlockedDims[i] = dims[order[i]];
     }
 
     for (size_t i = dims.size(); i < order.size(); ++i) {
