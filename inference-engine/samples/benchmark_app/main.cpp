@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <future>
 #include <gna/gna_config.hpp>
 #include <gpu/gpu_config.hpp>
 #include <inference_engine.hpp>
@@ -18,7 +19,6 @@
 #include <vpu/vpu_plugin_config.hpp>
 
 #include "benchmark_app.hpp"
-#include "infer_request_wrap.hpp"
 #include "inputs_filling.hpp"
 #include "progress_bar.hpp"
 #include "remote_blobs_filling.hpp"
@@ -26,6 +26,10 @@
 #include "utils.hpp"
 
 using namespace InferenceEngine;
+
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
+using Duration = std::chrono::duration<double, std::milli>;
 
 static const size_t progressBarDefaultTotalCount = 1000;
 
@@ -111,11 +115,10 @@ static void next_step(const std::string additional_info = "") {
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
 }
 
-template <typename T>
-T getMedianValue(const std::vector<T>& vec, std::size_t percentile) {
-    std::vector<T> sortedVec(vec);
+double getMedianValue(const std::vector<Duration>& vec, std::size_t percentile) {
+    std::vector<Duration> sortedVec(vec);
     std::sort(sortedVec.begin(), sortedVec.end());
-    return sortedVec[(sortedVec.size() / 100) * percentile];
+    return sortedVec[(sortedVec.size() / 100) * percentile].count();
 }
 
 /**
@@ -595,16 +598,22 @@ int main(int argc, char* argv[]) {
         // ----------------------------------------
         next_step();
 
-        InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
+        std::vector<InferenceEngine::InferRequest> inferRequests;
+
+        for (std::uint32_t i = 0; i < nireq; ++i) {
+            inferRequests.emplace_back(exeNetwork.CreateInferRequest());
+        }
+        std::vector<Time::time_point> inferRequestsStartTime(inferRequests.size());
+
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0)
-                ::gpu::fillRemoteBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests, exeNetwork);
+                ::gpu::fillRemoteBlobs(inputFiles, batchSize, app_inputs_info, inferRequests, exeNetwork);
             else if (device_name.find("CPU") == 0)
-                fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+                fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequests);
             else
                 IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
         } else {
-            fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+            fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequests);
         }
 
         // ----------------- 10. Measuring performance
@@ -647,55 +656,43 @@ int main(int argc, char* argv[]) {
         next_step(ss.str());
 
         // warming up - out of scope
-        auto inferRequest = inferRequestsQueue.getIdleRequest();
-        if (!inferRequest) {
-            IE_THROW() << "No idle Infer Requests!";
-        }
+        auto inferRequest = inferRequests.front();
+
+        auto startTime = Time::now();
         if (FLAGS_api == "sync") {
-            inferRequest->infer();
+            inferRequest.Infer();
         } else {
-            inferRequest->startAsync();
+            inferRequest.StartAsync();
+            inferRequest.Wait();
         }
-        inferRequestsQueue.waitAll();
-        auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
+
+        auto duration_ms = double_to_string(std::chrono::duration_cast<Duration>(Time::now() - startTime).count());
         slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
         if (statistics)
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                       {{"first inference time (ms)", duration_ms}});
-        inferRequestsQueue.resetTimes();
-
-        auto startTime = Time::now();
-        auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
 
         /** Start inference & calculate performance **/
         /** to align number if iterations to guarantee that last infer requests are
          * executed in the same conditions **/
         ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
 
-        while ((niter != 0LL && iteration < niter) ||
-               (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
-               (FLAGS_api == "async" && iteration % nireq != 0)) {
-            inferRequest = inferRequestsQueue.getIdleRequest();
-            if (!inferRequest) {
-                IE_THROW() << "No idle Infer Requests!";
-            }
+        std::vector<Duration> latencies;
+        Duration execTime;
+        startTime = Time::now();
 
-            if (FLAGS_api == "sync") {
-                inferRequest->infer();
-            } else {
-                // As the inference request is currently idle, the wait() adds no
-                // additional overhead (and should return immediately). The primary
-                // reason for calling the method is exception checking/re-throwing.
-                // Callback, that governs the actual execution can handle errors as
-                // well, but as it uses just error codes it has no details like ‘what()’
-                // method of `std::exception` So, rechecking for any exceptions here.
-                inferRequest->wait();
-                inferRequest->startAsync();
-            }
+        auto iterate = [&] {
+            return (niter != 0LL && iteration < niter) ||
+                   (duration_nanoseconds != 0LL &&
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(execTime).count() < duration_nanoseconds) ||
+                   (FLAGS_api == "async" && iteration % nireq != 0);
+        };
+
+        auto addLatency = [&](const Time::time_point& inferStartTime) {
+            auto now = Time::now();
+            latencies.push_back(now - inferStartTime);
+            execTime = now - startTime;
             iteration++;
-
-            execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
-
             if (niter > 0) {
                 progressBar.addProgress(1);
             } else {
@@ -704,17 +701,61 @@ int main(int argc, char* argv[]) {
                 // progress interval. Previously covered progress intervals must be
                 // skipped.
                 auto progressIntervalTime = duration_nanoseconds / progressBarTotalCount;
-                size_t newProgress = execTime / progressIntervalTime - progressCnt;
+                size_t newProgress =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(execTime).count() / progressIntervalTime -
+                    progressCnt;
                 progressBar.addProgress(newProgress);
                 progressCnt += newProgress;
             }
+        };
+
+        if (FLAGS_api == "sync") {
+            while (iterate()) {
+                inferRequestsStartTime[0] = Time::now();
+                inferRequest.Infer();
+                addLatency(inferRequestsStartTime[0]);
+            }
+        } else {
+            std::mutex mutex;
+            std::promise<InferRequest> promise;
+            std::future<InferRequest> futere = promise.get_future();
+
+            for (std::uint32_t i = 0; i < nireq; ++i) {
+                inferRequests[i].SetCompletionCallback(std::function<void(InferRequest, StatusCode)>{
+                    [&, i](InferenceEngine::InferRequest, InferenceEngine::StatusCode statusCode) {
+                        if (statusCode == InferenceEngine::StatusCode::OK) {
+                            std::unique_lock<std::mutex> lock{mutex};
+                            if (iterate()) {
+                                addLatency(inferRequestsStartTime[i]);
+                                lock.unlock();
+                                inferRequestsStartTime[i] = Time::now();
+                                inferRequests[i].StartAsync();
+                            } else {
+                                promise.set_value({});
+                            }
+                        } else {
+                            promise.set_value(inferRequests[i]);
+                        }
+                    }});
+            }
+            for (std::uint32_t i = 0; i < nireq; ++i) {
+                inferRequestsStartTime[i] = Time::now();
+                inferRequests[i].StartAsync();
+            }
+            auto lastInferRequest = futere.get();
+            if (lastInferRequest) {
+                // As the inference request is currently idle, the wait() adds no
+                // additional overhead (and should return immediately). The primary
+                // reason for calling the method is exception checking/re-throwing.
+                // Callback, that governs the actual execution can handle errors as
+                // well, but as it uses just error codes it has no details like ‘what()’
+                // method of `std::exception` So, rechecking for any exceptions here.
+                lastInferRequest.Wait();
+            }
         }
 
-        // wait the latest inference executions
-        inferRequestsQueue.waitAll();
-
-        double latency = getMedianValue<double>(inferRequestsQueue.getLatencies(), FLAGS_latency_percentile);
-        double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
+        double latency = getMedianValue(latencies, FLAGS_latency_percentile);
+        double totalDuration = execTime.count();
         double fps =
             (FLAGS_api == "sync") ? batchSize * 1000.0 / latency : batchSize * 1000.0 * iteration / totalDuration;
 
@@ -766,7 +807,7 @@ int main(int argc, char* argv[]) {
         if (perf_counts) {
             std::vector<std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfCounts;
             for (size_t ireq = 0; ireq < nireq; ireq++) {
-                auto reqPerfCounts = inferRequestsQueue.requests[ireq]->getPerformanceCounts();
+                auto reqPerfCounts = inferRequests[ireq].GetPerformanceCounts();
                 if (FLAGS_pc) {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(ie, FLAGS_d), false);
@@ -793,6 +834,7 @@ int main(int argc, char* argv[]) {
             std::cout << double_to_string(latency) << " ms" << std::endl;
         }
         std::cout << "Throughput: " << double_to_string(fps) << " FPS" << std::endl;
+        inferRequests.clear(); // Force wait for all inference tasks even if they failed.
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
 

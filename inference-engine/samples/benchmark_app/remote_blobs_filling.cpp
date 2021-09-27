@@ -5,6 +5,8 @@
 #include "remote_blobs_filling.hpp"
 
 #include <memory>
+#include <random>
+#include <samples/slog.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -86,7 +88,7 @@ size_t getBytesPerElement(InferenceEngine::Precision precision) {
 void fillRemoteBlobs(const std::vector<std::string>& inputFiles,
                      const size_t& batchSize,
                      benchmark_app::InputsInfo& app_inputs_info,
-                     std::vector<InferReqWrap::Ptr> requests,
+                     std::vector<InferenceEngine::InferRequest>& requests,
                      const InferenceEngine::ExecutableNetwork& exeNetwork) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     slog::info << "Device memory will be used for input and output blobs" << slog::endl;
@@ -122,7 +124,7 @@ void fillRemoteBlobs(const std::vector<std::string>& inputFiles,
 
         InferenceEngine::Blob::Ptr sharedBlob = InferenceEngine::gpu::make_shared_blob(desc, context, sharedBuffer);
 
-        requests.at(requestId)->setBlob(name, sharedBlob);
+        requests.at(requestId).SetBlob(name, sharedBlob);
     };
 
     for (size_t requestId = 0; requestId < requests.size(); requestId++) {

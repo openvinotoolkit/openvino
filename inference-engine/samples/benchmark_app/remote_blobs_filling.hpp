@@ -9,7 +9,6 @@
 
 #include <inference_engine.hpp>
 
-#include "infer_request_wrap.hpp"
 #include "utils.hpp"
 
 namespace gpu {
@@ -58,7 +57,7 @@ struct OpenCL {
 void fillRemoteBlobs(const std::vector<std::string>& inputFiles,
                      const size_t& batchSize,
                      benchmark_app::InputsInfo& app_inputs_info,
-                     std::vector<InferReqWrap::Ptr> requests,
+                     std::vector<InferenceEngine::InferRequest>& requests,
                      const InferenceEngine::ExecutableNetwork& exeNetwork);
 
 }  // namespace gpu

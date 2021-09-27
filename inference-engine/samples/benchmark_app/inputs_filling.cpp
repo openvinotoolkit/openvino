@@ -7,7 +7,9 @@
 #include <format_reader_ptr.h>
 
 #include <algorithm>
+#include <fstream>
 #include <memory>
+#include <random>
 #include <samples/slog.hpp>
 #include <string>
 #include <utility>
@@ -211,7 +213,7 @@ void fillBlobImInfo(Blob::Ptr& inputBlob, const size_t& batchSize, std::pair<siz
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,
                benchmark_app::InputsInfo& app_inputs_info,
-               std::vector<InferReqWrap::Ptr> requests) {
+               std::vector<InferenceEngine::InferRequest>& requests) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
     for (auto& item : app_inputs_info) {
         if (item.second.isImage()) {
@@ -289,7 +291,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
         size_t imageInputId = 0;
         size_t binaryInputId = 0;
         for (auto& item : app_inputs_info) {
-            Blob::Ptr inputBlob = requests.at(requestId)->getBlob(item.first);
+            Blob::Ptr inputBlob = requests.at(requestId).GetBlob(item.first);
             auto app_info = app_inputs_info.at(item.first);
             auto precision = app_info.precision;
             if (app_info.isImage()) {
