@@ -2,11 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <pugixml.hpp>
+
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 #include "common_test_utils/file_utils.hpp"
 
 using namespace LayerTestsUtils;
 
+#ifdef _WIN32
+# define getpid _getpid
+#endif
 
 Summary *Summary::p_instance = nullptr;
 bool Summary::extendReport = false;
@@ -31,6 +36,7 @@ Summary::Summary() {
     opsets.push_back(ngraph::get_opset5());
     opsets.push_back(ngraph::get_opset6());
     opsets.push_back(ngraph::get_opset7());
+    opsets.push_back(ngraph::get_opset8());
 }
 
 Summary &Summary::getInstance() {
@@ -114,30 +120,47 @@ std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
 }
 
 void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status) {
+    bool isFunctionalGraph = false;
     for (const auto &op : function->get_ordered_ops()) {
-        if (ngraph::is_type<ngraph::op::Parameter>(op) ||
+        if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
+            !ngraph::is_type<ngraph::op::Constant>(op) &&
+            !ngraph::is_type<ngraph::op::Result>(op)) {
+            isFunctionalGraph = true;
+            break;
+        }
+    }
+
+    for (const auto &op : function->get_ordered_ops()) {
+        if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
             ngraph::is_type<ngraph::op::Constant>(op) ||
-            ngraph::is_type<ngraph::op::Result>(op)) {
+            ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
             continue;
         } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
             updateOPsStats(op->get_type_info(), status);
             auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
             auto ti_body = ti->get_function();
-            for (const auto &ti_op : ti_body->get_ordered_ops()) {
-                updateOPsStats(ti_op->get_type_info(), status);
-            }
+            updateOPsStats(ti_body, status);
         } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
             updateOPsStats(op->get_type_info(), status);
             auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
             auto loop_body = loop->get_function();
-            for (const auto &loop_op : loop_body->get_ordered_ops()) {
-                updateOPsStats(loop_op->get_type_info(), status);
-            }
+            updateOPsStats(loop_body, status);
         } else {
             updateOPsStats(op->get_type_info(), status);
         }
     }
 }
+
+#ifdef IE_TEST_DEBUG
+void Summary::saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
+                             unsigned long skipped, unsigned long crashed) {
+    std::string outputFilePath = "./part_report.txt";
+    std::ofstream file;
+    file.open(outputFilePath, std::ios_base::app);
+    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << '\n';
+    file.close();
+}
+#endif  //IE_TEST_DEBUG
 
 void Summary::saveReport() {
     if (isReported) {
@@ -168,8 +191,7 @@ void Summary::saveReport() {
 
     pugi::xml_document doc;
 
-    std::ifstream file;
-    file.open(outputFilePath);
+    const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
 
     time_t rawtime;
     struct tm *timeinfo;
@@ -182,7 +204,7 @@ void Summary::saveReport() {
     strftime(timeNow, sizeof(timeNow), "%d-%m-%Y %H:%M:%S", timeinfo);
 
     pugi::xml_node root;
-    if (file) {
+    if (fileExists) {
         doc.load_file(outputFilePath.c_str());
         root = doc.child("report");
         //Ugly but shorter than to write predicate for find_atrribute() to update existing one
@@ -218,7 +240,7 @@ void Summary::saveReport() {
         entry.append_attribute("passrate").set_value(it.second.getPassrate());
     }
 
-    if (extendReport && file) {
+    if (extendReport && fileExists) {
         auto opStataFromReport = summary.getOpStatisticFromReport();
         for (auto &item : opStataFromReport) {
             pugi::xml_node entry;
@@ -258,5 +280,4 @@ void Summary::saveReport() {
     } else {
         isReported = true;
     }
-    file.close();
 }

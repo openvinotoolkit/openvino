@@ -268,7 +268,7 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
 
     auto finalKernelName = GetKernelName(newParams);
     auto cldnnJit = GetJitConstants(newParams, dispatchData);
-    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, options);
+    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
     auto& kernel = kd.kernels[0];
@@ -282,12 +282,12 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
                      true,
                      !newParams.bias.empty(),
                      1);
-    kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
     // eltwise's second input
     if (newParams.second_input_in_output) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     } else {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
 
     kd.autoTuneIndex = autoTuneIndex;

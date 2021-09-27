@@ -8,7 +8,7 @@ Using this class you can read and write memory, get information about the memory
 
 The right way to create <code>Blob</code> objects with a specific layout is to use constructors with <code>InferenceEngine::TensorDesc</code>.
 <pre class="brush:cpp">
-InferenceEngige::TensorDesc tdesc(FP32, {1, 3, 227, 227}, InferenceEngine::Layout::NCHW);
+InferenceEngine::TensorDesc tdesc(FP32, {1, 3, 227, 227}, InferenceEngine::Layout::NCHW);
 InferenceEngine::Blob::Ptr blob = InferenceEngine::make_shared_blob<float>(tdesc);
 </pre>
 

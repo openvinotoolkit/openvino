@@ -101,7 +101,7 @@ TEST_P(DSR_Reduce, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicArithmeticReduce, DSR_Reduce, arithmeticCombinations);
-INSTANTIATE_TEST_CASE_P(smoke_DynamicLogicalReduce, DSR_Reduce, logicalCombinations);
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicArithmeticReduce, DSR_Reduce, arithmeticCombinations);
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicLogicalReduce, DSR_Reduce, logicalCombinations);
 
 }  // namespace

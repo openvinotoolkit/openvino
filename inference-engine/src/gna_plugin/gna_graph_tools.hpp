@@ -155,14 +155,14 @@ inline InferenceEngine::CNNLayerPtr  CNNNetPrevLayerSkipCertain(Layer layer, int
  */
 
 template <class Layer>
-inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCertain(Layer layer, int oidx, int iidx, bool bOnlyCheck,
+inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>  CNNNetCheckNextLayerSkipCertain(Layer layer, int oidx, int iidx, bool bOnlyCheck,
                                                                 const std::function<bool(CNNLayerPtr)> &shouldSkip) {
     if (oidx >= layer->outData.size()) {
-        if (bOnlyCheck) return {nullptr, 0};
+        if (bOnlyCheck) return {nullptr, {}};
         THROW_GNA_LAYER_EXCEPTION(layer) << " no next output layer for outdata: " << oidx;
     }
     if (getInputTo(layer->outData[oidx]).empty() || iidx >= getInputTo(layer->outData[oidx]).size()) {
-        if (bOnlyCheck) return {nullptr, 0};
+        if (bOnlyCheck) return {nullptr, {}};
         THROW_GNA_LAYER_EXCEPTION(layer) << " no next output layer for outdata: " << oidx << " and inputTo index: " << iidx;
     }
 
@@ -174,12 +174,12 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
 
     while (shouldSkip(outLayer->second)) {
         if (outLayer->second->outData.size() <= new_oidx) {
-            if (bOnlyCheck) return { nullptr, 0 };
+            if (bOnlyCheck) return { nullptr, {} };
             THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << new_oidx;
         }
 
         if (getInputTo(outLayer->second->outData[new_oidx]).size() <= new_iidx) {
-            if (bOnlyCheck) return { nullptr, 0 };
+            if (bOnlyCheck) return { nullptr, {} };
             THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << new_oidx << " and inputTo index: " << new_iidx;
         }
 
@@ -188,11 +188,7 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
     }
 
     auto insDataIdx = CNNLayerFindInsDataIdxes(layer->outData[new_oidx], outLayer->second);
-    if (insDataIdx.size() != 1) {
-        if (bOnlyCheck) return { nullptr, 0 };
-        THROW_GNA_LAYER_EXCEPTION(layer) << " has multiple connection to " << new_oidx << " outData";
-    }
-    return { outLayer->second, insDataIdx.front() };
+    return { outLayer->second, insDataIdx };
 }
 
 /**
@@ -256,7 +252,7 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
 
 /// @brief alias for strict checkNextLayer (false)
 template <class Layer>
-inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetGetNextLayerSkipCertain(Layer layer, int oidx, int iidx,
+inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>  CNNNetGetNextLayerSkipCertain(Layer layer, int oidx, int iidx,
                                                                                const std::function<bool(CNNLayerPtr)> &shouldSkip) {
     return CNNNetCheckNextLayerSkipCertain(layer, oidx, iidx, false, shouldSkip);
 }
@@ -805,9 +801,6 @@ inline uint32_t GetDataDimSize(InferenceEngine::DataPtr data, DataDimName dimNam
     std::vector<uint32_t> backOffsets;
     switch (data->getLayout()) {
         case Layout::C:
-            // 1 will be returned for offsets > 1
-            backOffsets = std::vector<uint32_t>{1, 2, 3, 4};
-            break;
         case Layout::NC:
             // 1 will be returned for offsets > 2
             backOffsets = std::vector<uint32_t>{2, 1, 3, 4};

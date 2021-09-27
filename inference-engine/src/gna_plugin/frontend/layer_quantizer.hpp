@@ -232,7 +232,7 @@ inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::
         }
 
         f32Value = f32Value * scale_factor;
-        if (f32Value > std::numeric_limits<T>::max()) {
+        if (f32Value > static_cast<float>(std::numeric_limits<T>::max())) {
             precValue = std::numeric_limits<T>::max();
         } else if (f32Value < std::numeric_limits<T>::min()) {
             precValue = std::numeric_limits<T>::min();
@@ -336,12 +336,7 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
             IE_THROW() << "Unsupported input scale factor value " << input_scale_factor;
         }
     }
-    if (wl->outData[0]->getDims().size() < 2) {
-        IE_THROW() << "Unsupported output dims size for " << wl->name <<", should be > 1, but " << wl->outData[0]->getDims().size();
-    }
-    if (wl->insData[0].lock().get()->getDims().size() < 2) {
-        IE_THROW() << "Unsupported input dims size for " << wl->name << ", should be > 1, but " << wl->insData[0].lock().get()->getDims().size();
-    }
+
     uint32_t num_rows = isDiagonal ? 1 : wl->outData[0]->getDims()[oIdx];
     uint32_t num_columns = isDiagonal ? wl->_weights->size() : wl->insData[0].lock().get()->getDims()[iIdx];
 
@@ -704,5 +699,53 @@ using QuantI8_I8 = frontend::QuantPair<frontend::QuantI8_I8, frontend::QuantI8_I
 using FakeQuantI16 = frontend::QuantPair<frontend::FakeQuantI16, frontend::FakeQuantI16>;
 using FakeQuantI8 = frontend::QuantPair<frontend::FakeQuantI8, frontend::FakeQuantI16>;
 
+enum class QuantizedDataType {
+    input,
+    output,
+    weights,
+    bias
+};
+
+/**
+ * @brief Returns a scale factor for specific layer data
+ * @param layer Layer to be quantized
+ * @param data_type Type of data to be quantized
+ * @return scale factor
+ */
+inline float getScaleFactor(InferenceEngine::CNNLayerPtr layer, QuantizedDataType data_type) {
+    IE_ASSERT(layer != nullptr);
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+    float scale_factor;
+    if (!quantized) {
+        scale_factor = 1.0f;
+    } else {
+        switch (data_type) {
+            case QuantizedDataType::input:
+                scale_factor = quantized->_src_quant.GetScale();
+                break;
+            case QuantizedDataType::output:
+            scale_factor = quantized->_dst_quant.GetScale();
+                break;
+            case QuantizedDataType::weights:
+                scale_factor = quantized->_weights_quant.GetScale();
+                break;
+            case QuantizedDataType::bias:
+                scale_factor = quantized->_bias_quant.GetScale();
+                break;
+            default:
+                THROW_GNA_LAYER_EXCEPTION(layer) << "Unsupported data type for quantization: " << static_cast<int>(data_type);
+        }
+    }
+
+    auto isZero = [](float p1) {
+        return std::abs(p1) <= 0.00001f;
+    };
+
+    if (scale_factor < 0.0 || isZero(scale_factor) || std::isinf(scale_factor)) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Invalid scale factor: " << scale_factor;
+    }
+
+    return scale_factor;
+}
 
 }  // namespace GNAPluginNS

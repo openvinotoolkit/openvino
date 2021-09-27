@@ -23,24 +23,24 @@ size_t MKLDNNDescriptor::outputNumbers() const {
     return 1;
 }
 
-MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::batch_normalization_forward::desc> desc) {
-    this->desc.reset(new DescFwdImpl<mkldnn::batch_normalization_forward::desc>(desc));
-}
-
-MKLDNNDescriptor::operator std::shared_ptr<mkldnn::batch_normalization_forward::desc>() {
-    auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::batch_normalization_forward::desc>>(desc);
-    if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
-    }
-    return typeDesc->getPtr();
-}
-
 MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc> desc) {
     this->desc.reset(new DescFwdImpl<mkldnn::convolution_forward::desc>(desc));
 }
 
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::convolution_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::convolution_forward::desc>>(desc);
+    if (typeDesc == nullptr) {
+        IE_THROW() << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}
+
+MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::deconvolution_forward::desc> desc) {
+    this->desc.reset(new DescFwdImpl<mkldnn::deconvolution_forward::desc>(desc));
+}
+
+MKLDNNDescriptor::operator std::shared_ptr<mkldnn::deconvolution_forward::desc>() {
+    auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::deconvolution_forward::desc>>(desc);
     if (typeDesc == nullptr) {
         IE_THROW() << "Cannot cast descriptor!";
     }

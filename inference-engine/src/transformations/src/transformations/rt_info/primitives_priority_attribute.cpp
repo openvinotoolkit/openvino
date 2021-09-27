@@ -16,15 +16,25 @@
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
 
-namespace ngraph {
-
-template class ngraph::VariantImpl<PrimitivesPriority>;
-
-constexpr VariantTypeInfo VariantWrapper<PrimitivesPriority>::type_info;
+using namespace ov;
+using namespace ngraph;
 
 std::string PrimitivesPriority::getPrimitivesPriority() const {
     return primitives_priority;
 }
+
+std::string ngraph::getPrimitivesPriority(const std::shared_ptr<ngraph::Node> &node) {
+    const auto &rtInfo = node->get_rt_info();
+    using PrimitivesPriorityWrapper = VariantWrapper<PrimitivesPriority>;
+
+    if (!rtInfo.count(PrimitivesPriorityWrapper::get_type_info_static().name)) return "";
+
+    const auto &attr = rtInfo.at(PrimitivesPriorityWrapper::get_type_info_static().name);
+    PrimitivesPriority pp = ov::as_type_ptr<PrimitivesPriorityWrapper>(attr)->get();
+    return pp.getPrimitivesPriority();
+}
+
+template class ov::VariantImpl<PrimitivesPriority>;
 
 std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::merge(const ngraph::NodeVector & nodes) {
     auto isConvolutionBased = [](const std::shared_ptr<Node> & node) -> bool {
@@ -49,7 +59,7 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::merge(const
     }
 
     if (unique_pp.size() > 1) {
-        throw ngraph_error(std::string(type_info.name) + " no rule defined for multiple values.");
+        throw ngraph_error(std::string(get_type_info().name) + " no rule defined for multiple values.");
     }
 
     std::string final_primitives_priority;
@@ -60,18 +70,5 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::merge(const
 }
 
 std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::init(const std::shared_ptr<ngraph::Node> & node) {
-    throw ngraph_error(std::string(type_info.name) + " has no default initialization.");
+    throw ngraph_error(std::string(get_type_info().name) + " has no default initialization.");
 }
-
-std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> &node) {
-    const auto &rtInfo = node->get_rt_info();
-    using PrimitivesPriorityWraper = VariantWrapper<PrimitivesPriority>;
-
-    if (!rtInfo.count(PrimitivesPriorityWraper::type_info.name)) return "";
-
-    const auto &attr = rtInfo.at(PrimitivesPriorityWraper::type_info.name);
-    PrimitivesPriority pp = as_type_ptr<PrimitivesPriorityWraper>(attr)->get();
-    return pp.getPrimitivesPriority();
-}
-
-}  // namespace ngraph

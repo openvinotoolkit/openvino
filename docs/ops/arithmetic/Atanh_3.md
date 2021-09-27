@@ -2,35 +2,29 @@
 
 **Versioned name**: *Atanh-3*
 
-**Category**: Arithmetic unary operation 
+**Category**: *Arithmetic unary*
 
-**Short description**: *Atanh* performs element-wise hyperbolic inverse tangent (arctangenth) operation with given tensor.
+**Short description**: *Atanh* performs element-wise hyperbolic inverse tangent (arctangenth) operation with a given tensor.
 
-**Attributes**:
+**Detailed description**: *Atanh* performs element-wise hyperbolic inverse tangent (arctangenth) operation on a given input tensor, based on the following mathematical formula:
 
-    No attributes available.
+\f[ a_{i} = atanh(a_{i}) \f]
+
+**Attributes**: Atanh operation has no attributes.
 
 **Inputs**
 
-* **1**: A tensor of type T. **Required.**
+* **1**: A tensor of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise atanh operation. A tensor of type T.
+* **1**: The result of element-wise atanh operation applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 
-* *T*: any floating point type.
-
-*Atanh* does the following with the input tensor *a*:
-
-\f[
-a_{i} = atanh(a_{i})
-\f]
+* *T*: any supported numeric type.
 
 **Examples**
-
-*Example 1*
 
 ```xml
 <layer ... type="Atanh">

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <limits>
 #include <memory>
 #include <queue>
 
@@ -12,6 +13,9 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/pass.hpp>
 #include <ngraph/opsets/opset6.hpp>
+
+#include "ie_common.h"
+#include <ngraph_ops/framework_node.hpp>
 
 #include "test_common.hpp"
 
@@ -96,6 +100,10 @@ inline std::pair<bool, std::string> compare_functions(
 }
 
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f);
+
+void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string & name);
+
+void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string> & names);
 
 namespace ngraph {
 namespace pass {
@@ -317,7 +325,9 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<std::vector<std::string>>,
                 private AttributeStorage<std::shared_ptr<ngraph::Function>>,
                 private AttributeStorage<SubGraphOpInputDescription>,
-                private AttributeStorage<SubGraphOpOutputDescription> {
+                private AttributeStorage<SubGraphOpOutputDescription>,
+                private AttributeStorage<ngraph::op::FrameworkNodeAttrs>,
+                private AttributeStorage<std::shared_ptr<ngraph::Variable>> {
 public:
     template <typename AttrValue>
     const AttributeStorage<AttrValue>& storage() const {
@@ -355,7 +365,9 @@ public:
                storage<std::vector<std::string>>().get_attributes_number() +
                storage<std::shared_ptr<ngraph::Function>>().get_attributes_number() +
                storage<SubGraphOpInputDescription>().get_attributes_number() +
-               storage<SubGraphOpOutputDescription>().get_attributes_number();
+               storage<SubGraphOpOutputDescription>().get_attributes_number() +
+               storage<ngraph::op::FrameworkNodeAttrs>().get_attributes_number() +
+               storage<std::shared_ptr<ngraph::Variable>>().get_attributes_number();
     }
 };
 
@@ -489,15 +501,15 @@ struct Equal<SubGraphOpInputDescription::value_type> {
             return false;
         }
         using SubGraphOp = ngraph::op::util::SubGraphOp;
-        if (lhs_type_info == SubGraphOp::SliceInputDescription::type_info) {
+        if (lhs_type_info == SubGraphOp::SliceInputDescription::get_type_info_static()) {
             const auto& l_input = static_cast<const SubGraphOp::SliceInputDescription&>(*lhs);
             const auto& r_input = static_cast<const SubGraphOp::SliceInputDescription&>(*rhs);
             return l_input.m_start == r_input.m_start && l_input.m_stride == r_input.m_stride &&
                    l_input.m_part_size == r_input.m_part_size && l_input.m_end == r_input.m_end &&
                    l_input.m_axis == r_input.m_axis;
-        } else if (lhs_type_info == SubGraphOp::MergedInputDescription::type_info) {
+        } else if (lhs_type_info == SubGraphOp::MergedInputDescription::get_type_info_static()) {
             return true;
-        } else if (lhs_type_info == SubGraphOp::InvariantInputDescription::type_info) {
+        } else if (lhs_type_info == SubGraphOp::InvariantInputDescription::get_type_info_static()) {
             return true;
         }
         return false;
@@ -528,13 +540,13 @@ struct Equal<SubGraphOpOutputDescription::value_type> {
             return false;
         }
         using SubGraphOp = ngraph::op::util::SubGraphOp;
-        if (lhs_type_info == SubGraphOp::ConcatOutputDescription::type_info) {
+        if (lhs_type_info == SubGraphOp::ConcatOutputDescription::get_type_info_static()) {
             const auto& l_output = static_cast<const SubGraphOp::ConcatOutputDescription&>(*lhs);
             const auto& r_output = static_cast<const SubGraphOp::ConcatOutputDescription&>(*rhs);
             return l_output.m_start == r_output.m_start && l_output.m_stride == r_output.m_stride &&
                    l_output.m_part_size == r_output.m_part_size &&
                    l_output.m_end == r_output.m_end && l_output.m_axis == r_output.m_axis;
-        } else if (lhs_type_info == SubGraphOp::BodyOutputDescription::type_info) {
+        } else if (lhs_type_info == SubGraphOp::BodyOutputDescription::get_type_info_static()) {
             const auto& l_output = static_cast<const SubGraphOp::BodyOutputDescription&>(*lhs);
             const auto& r_output = static_cast<const SubGraphOp::BodyOutputDescription&>(*rhs);
             return l_output.m_iteration == r_output.m_iteration;
@@ -557,6 +569,14 @@ struct Equal<SubGraphOpOutputDescription> {
 };
 
 template <>
+struct Equal<std::shared_ptr<ngraph::Variable>> {
+    static bool equal_value(
+            const std::shared_ptr<ngraph::Variable>& lhs, const std::shared_ptr<ngraph::Variable>& rhs) {
+        return lhs->get_info() == rhs->get_info();
+    }
+};
+
+template <>
 struct Equal<uint8_t*> {
     static constexpr uint8_t BITS_IN_BYTE_COUNT = 8;
 
@@ -569,7 +589,11 @@ struct Equal<uint8_t*> {
         if (lhs_bit_size != rhs_bit_size) return false;
 
         for (size_t bit_idx = 0; bit_idx < lhs_bit_size; bit_idx++) {
-            const uint8_t byte_idx = bit_idx / BITS_IN_BYTE_COUNT;
+            const auto byte_idx_result(bit_idx / BITS_IN_BYTE_COUNT);
+            if (byte_idx_result > std::numeric_limits<uint8_t>::max())
+                IE_THROW() << "(bit_idx / BITS_IN_BYTE_COUNT) bigger than uint8_t::max_value";
+
+            const uint8_t byte_idx(static_cast<uint8_t>(byte_idx_result));
             const uint8_t bit_in_byte_idx = 7 - (bit_idx % BITS_IN_BYTE_COUNT);
 
             if (extract_bit(lhs[byte_idx], bit_in_byte_idx) !=
@@ -676,6 +700,36 @@ struct Get<
 
     static std::string value(const T& v) {
         return "[" + join(v) + "]";
+    }
+};
+
+template <>
+struct Get<ngraph::op::FrameworkNodeAttrs, void> {
+    static std::string value(const ngraph::op::FrameworkNodeAttrs& attrs) {
+        std::stringstream oss;
+        const auto & a = attrs;
+        oss << "version=" << attrs.get_opset_name() << ", ";
+        oss << "type=" << attrs.get_type_name() << ", ";
+        oss << "attrs[";
+        for (const auto & item : a) {
+            oss << item.first << "=" << item.second << " ";
+        }
+        oss << "]";
+        return "[" + oss.str() + "]";
+    }
+};
+
+template <>
+struct Get<std::shared_ptr<ngraph::Variable>, void> {
+    static std::string value(const std::shared_ptr<ngraph::Variable>& variable) {
+        std::stringstream oss;
+        const auto variable_info = variable->get_info();
+        oss << "[";
+        oss << "data_shape=" << variable_info.data_shape << ", ";
+        oss << "data_type=" << variable_info.data_type << ", ";
+        oss << "variable_id=" << variable_info.variable_id;
+        oss << "]";
+        return oss.str();
     }
 };
 

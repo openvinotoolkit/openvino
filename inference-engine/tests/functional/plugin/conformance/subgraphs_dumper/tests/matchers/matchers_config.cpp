@@ -12,7 +12,7 @@ using ngraph::element::Type_t;
 
 class MatcherConfigTest : public ::testing::Test {
 protected:
-    void SetUp() {
+    void SetUp() override {
         const auto const1 = std::make_shared<Constant>(Type_t::f32, Shape({5, 5}), 1);
         const auto const2 = std::make_shared<Constant>(Type_t::f32, Shape({5, 5}), 2);
         node = std::make_shared<v1::Add>(const1, const2);

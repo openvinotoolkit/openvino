@@ -12,20 +12,19 @@
 #include <cstdlib>
 #include <fstream>
 #include <memory>
+#include <pugixml.hpp>
 #include <sstream>
 #include <string>
 #include <utility>
 
-#include <pugixml.hpp>
-
-#include "ie_api.h"
-#include "ie_precision.hpp"
-#include "ie_common.h"
 #include "file_utils.h"
+#include "ie_api.h"
+#include "ie_common.h"
+#include "ie_precision.hpp"
 
 /**
  * @ingroup    ie_dev_api_xml
- * @brief      Defines convinient for-each based cycle to iterate over node childs
+ * @brief      Defines convinient for-each based cycle to iterate over node children
  *
  * @param      c     Child node name
  * @param      p     Parent node name
@@ -232,17 +231,18 @@ struct parse_result {
      * @param[in]  error_msg  The error message
      */
     parse_result(std::unique_ptr<pugi::xml_document>&& xml, std::string error_msg)
-        : xml(std::move(xml)), error_msg(std::move(error_msg)) {}
+        : xml(std::move(xml)),
+          error_msg(std::move(error_msg)) {}
 
     /**
-     * @brief A XML document. 
+     * @brief A XML document.
      */
     std::unique_ptr<pugi::xml_document> xml;
 
     /**
      * @brief An error message
      */
-    std::string error_msg {};
+    std::string error_msg{};
 };
 
 /**
@@ -254,22 +254,24 @@ struct parse_result {
  * @return     The parse_result.
  */
 inline parse_result ParseXml(const char* file_path) {
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-    std::wstring wFilePath = FileUtils::multiByteCharToWString(file_path);
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    std::wstring wFilePath = ov::util::string_to_wstring(file_path);
     const wchar_t* resolvedFilepath = wFilePath.c_str();
 #else
     const char* resolvedFilepath = file_path;
 #endif
 
     try {
-        auto xml = std::unique_ptr<pugi::xml_document> {new pugi::xml_document {}};
+        auto xml = std::unique_ptr<pugi::xml_document>{new pugi::xml_document{}};
         const auto load_result = xml->load_file(resolvedFilepath);
 
         const auto error_msg = [&]() -> std::string {
-            if (load_result.status == pugi::status_ok) return {};
+            if (load_result.status == pugi::status_ok)
+                return {};
 
             std::ifstream file_stream(file_path);
-            const auto file = std::string(std::istreambuf_iterator<char> {file_stream}, std::istreambuf_iterator<char> {});
+            const auto file =
+                std::string(std::istreambuf_iterator<char>{file_stream}, std::istreambuf_iterator<char>{});
 
             const auto error_offset = std::next(file.rbegin(), file.size() - load_result.offset);
             const auto line_begin = std::find(error_offset, file.rend(), '\n');
@@ -277,12 +279,13 @@ inline parse_result ParseXml(const char* file_path) {
             const auto pos = std::distance(error_offset, line_begin);
 
             std::stringstream ss;
-            ss << "Error loading XML file: " << file_path << ":" << line << ":" << pos << ": " << load_result.description();
+            ss << "Error loading XML file: " << file_path << ":" << line << ":" << pos << ": "
+               << load_result.description();
             return ss.str();
         }();
 
         return {std::move(xml), error_msg};
-    } catch(std::exception& e) {
+    } catch (std::exception& e) {
         return {std::move(nullptr), std::string("Error loading XML file: ") + e.what()};
     }
 }

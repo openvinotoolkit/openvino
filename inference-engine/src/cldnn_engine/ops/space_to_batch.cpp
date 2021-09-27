@@ -8,7 +8,7 @@
 #include "ngraph/op/space_to_batch.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/space_to_batch.hpp"
+#include "cldnn/primitives/space_to_batch.hpp"
 
 namespace CLDNNPlugin {
 
@@ -42,7 +42,8 @@ void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v1::Spac
                                                   inputs[0],          // block_shape
                                                   inputs[1],          // crops_begin
                                                   inputs[2],          // crops_end
-                                                  out_size);
+                                                  out_size,
+                                                  op->get_friendly_name());
 
     p.AddPrimitive(batchToSpacePrim);
     p.AddPrimitiveToProfiler(op);

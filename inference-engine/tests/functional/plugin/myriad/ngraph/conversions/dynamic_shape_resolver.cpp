@@ -13,7 +13,6 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 #include <gtest/gtest.h>
 
@@ -37,15 +36,19 @@ public:
     }
 
 protected:
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNLayerPtr getDynamicShapeResolverLayer() const {
         return CommonTestUtils::getLayerByName(cnnNetwork, s_FriendlyName);
     }
+    IE_SUPPRESS_DEPRECATED_END
     InferenceEngine::CNNNetwork cnnNetwork;
 
 private:
     void triggerConversionToCNNNetwork() {
+        IE_SUPPRESS_DEPRECATED_START
         cnnNetwork = InferenceEngine::CNNNetwork(
             std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNetwork));
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     static const char s_FriendlyName[];
@@ -58,10 +61,12 @@ TEST_F(DynamicShapeResolverTests, smoke_NGraphFunctionCanBeConvertedToCNNNetwork
     ASSERT_EQ(cnnNetwork.layerCount(), cnnNetwork.getInputsInfo().size() + 1);
     ASSERT_EQ(cnnNetwork.getOutputsInfo().size(), 1);
 
+    IE_SUPPRESS_DEPRECATED_START
     const auto dynamicShapeResolver = getDynamicShapeResolverLayer();
     ASSERT_EQ(dynamicShapeResolver->type, "DynamicShapeResolver");
     ASSERT_EQ(dynamicShapeResolver->insData.size(), 2);
     ASSERT_EQ(dynamicShapeResolver->outData.size(), 1);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace

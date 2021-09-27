@@ -43,7 +43,7 @@ protected:
         ngraph::op::PadType pad_type;
         InferenceEngine::Precision netPrecision;
         std::tie(inputShape, kernel, strides, rates, pad_type, netPrecision, inPrc, outPrc, inLayout, targetDevice) = basicParamsSet;
-        selectedType = std::string("unknown_") + netPrecision.name();
+        selectedType = std::string("ref_any_") + netPrecision.name();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto inputNode = std::make_shared<ngraph::opset6::Parameter>(ngPrc, ngraph::Shape(inputShape));
@@ -84,7 +84,7 @@ const auto Layer_params = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches_CPU, ExtractImagePatchesLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ExtractImagePatches_CPU, ExtractImagePatchesLayerCPUTest,
                         ::testing::Combine(Layer_params, ::testing::Values(CPUParams)),
                         ExtractImagePatchesLayerCPUTest::getTestCaseName);
 

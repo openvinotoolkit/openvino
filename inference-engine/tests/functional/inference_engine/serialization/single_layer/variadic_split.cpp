@@ -24,7 +24,7 @@ namespace {
             {1, 16, 5, 8},
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_VariadicSplitSerialization, VariadicSplitLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitSerialization, VariadicSplitLayerTest,
             ::testing::Combine(
             ::testing::ValuesIn(numSplits),
             ::testing::Values(0, 1, 2, 3),

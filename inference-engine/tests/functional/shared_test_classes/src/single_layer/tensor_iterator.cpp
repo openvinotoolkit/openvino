@@ -9,7 +9,7 @@ namespace LayerTestsDefinitions {
 
     std::string TensorIteratorTest::getTestCaseName(const testing::TestParamInfo<TensorIteratorParams> &obj) {
         bool should_decompose;
-        size_t seq_lenghts;
+        size_t seq_lengths;
         size_t batch;
         size_t hidden_size;
         size_t input_size = 10;
@@ -19,7 +19,7 @@ namespace LayerTestsDefinitions {
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
-        std::tie(should_decompose, seq_lenghts, batch, hidden_size, sequence_axis, clip, ti_body, direction, netPrecision,
+        std::tie(should_decompose, seq_lengths, batch, hidden_size, sequence_axis, clip, ti_body, direction, netPrecision,
                  targetDevice) = obj.param;
         std::vector<std::vector<size_t>> inputShapes = {};
 
@@ -44,7 +44,7 @@ namespace LayerTestsDefinitions {
 
         std::ostringstream result;
         result << "unrolling=" << should_decompose << "_";
-        result << "seq_len=" << seq_lenghts << "_";
+        result << "seq_len=" << seq_lengths << "_";
         result << "seq_len_axis=" << sequence_axis << "_";
         result << "batch=" << batch << "_";
         result << "hidden_size=" << hidden_size << "_";
@@ -59,7 +59,7 @@ namespace LayerTestsDefinitions {
     }
 
     void TensorIteratorTest::SetUp() {
-        size_t seq_lenghts;
+        size_t seq_lengths;
         bool should_decompose;
         size_t batch;
         size_t hidden_size;
@@ -69,7 +69,7 @@ namespace LayerTestsDefinitions {
         float clip;
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
-        std::tie(should_decompose, seq_lenghts, batch, hidden_size, sequence_axis, clip, ti_body, direction, netPrecision,
+        std::tie(should_decompose, seq_lengths, batch, hidden_size, sequence_axis, clip, ti_body, direction, netPrecision,
                  targetDevice) = this->GetParam();
         std::vector<std::vector<size_t>> inputShapes;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -84,7 +84,7 @@ namespace LayerTestsDefinitions {
         switch (ti_body) {
             case ngraph::helpers::TensorIteratorBody::LSTM: {
                 inputShapes = {
-                        {{batch, seq_lenghts, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
+                        {{batch, seq_lengths, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                                 {4 * hidden_size, hidden_size}, {4 * hidden_size}},
                 };
                 if (sequence_axis == 0) {
@@ -130,7 +130,7 @@ namespace LayerTestsDefinitions {
             }
             case ngraph::helpers::TensorIteratorBody::GRU: {
                 inputShapes = {
-                        {{batch, seq_lenghts, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
+                        {{batch, seq_lengths, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
                                 {3 * hidden_size, hidden_size}, {3 * hidden_size}},
                 };
                 if (sequence_axis == 0) {
@@ -172,7 +172,7 @@ namespace LayerTestsDefinitions {
                 break;
             }
             case ngraph::helpers::TensorIteratorBody::RNN: {
-                inputShapes = {{batch, seq_lenghts, input_size},
+                inputShapes = {{batch, seq_lengths, input_size},
                                {batch,       hidden_size},
                                {hidden_size, input_size},
                                {hidden_size, hidden_size},

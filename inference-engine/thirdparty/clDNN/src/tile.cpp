@@ -4,8 +4,8 @@
 
 #include "tile_inst.h"
 #include "primitive_type_base.h"
-#include "memory_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -40,6 +40,6 @@ std::string tile_inst::to_string(tile_node const& node) {
     return primitive_description.str();
 }
 
-tile_inst::typed_primitive_inst(network_impl& network, tile_node const& node) : parent(network, node) {}
+tile_inst::typed_primitive_inst(network& network, tile_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

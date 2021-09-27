@@ -12,13 +12,13 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API EltwiseBaseTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API EltwiseBaseTransformation : public LayerTransformation {
 public:
     EltwiseBaseTransformation(const Params& params) : LayerTransformation(params) {}
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
-    static bool isBroadcasted(const Shape& shape) noexcept;
+    static bool isBroadcasted(const PartialShape& shape) noexcept;
 protected:
     int getNotEmpty(const std::shared_ptr<Node>& eltwise) const;
     // Return indexes:

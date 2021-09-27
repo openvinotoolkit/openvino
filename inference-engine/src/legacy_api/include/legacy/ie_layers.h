@@ -22,6 +22,21 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include <legacy/ie_layers_property.hpp>
+#include <ngraph/node.hpp>
+
+#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+#    define INFERENCE_ENGINE_INTERNAL(msg)
+#else
+#    define INFERENCE_ENGINE_INTERNAL(msg) INFERENCE_ENGINE_DEPRECATED(msg)
+#endif
+
+#ifdef _WIN32
+#    define _IE_SUPPRESS_DEPRECATED_START_MSVC IE_SUPPRESS_DEPRECATED_START
+#    define _IE_SUPPRESS_DEPRECATED_END_MSVC   IE_SUPPRESS_DEPRECATED_END
+#else
+#    define _IE_SUPPRESS_DEPRECATED_START_MSVC
+#    define _IE_SUPPRESS_DEPRECATED_END_MSVC
+#endif
 
 #if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 # define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
@@ -30,12 +45,6 @@
     INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1") \
     INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
 #endif
-
-namespace ngraph {
-
-class Node;
-
-}  // namespace ngraph
 
 namespace InferenceEngine {
 
@@ -1025,7 +1034,8 @@ public:
         Logical_OR,
         Logical_XOR,
         Logical_NOT,
-        Mean
+        Mean,
+        Abs,
     };
 
     /**

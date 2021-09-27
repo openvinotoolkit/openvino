@@ -3,7 +3,6 @@
 //
 
 #include "mkldnn_pad_node.h"
-#include <legacy/ie_layers.h>
 #include <string>
 #include <cmath>
 #include <mkldnn_types.h>
@@ -13,54 +12,107 @@
 #include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNPadNode::MKLDNNPadNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
-
-void MKLDNNPadNode::getSupportedDescriptors() {
-    auto* padLayer = dynamic_cast<PadLayer*>(getCnnLayer().get());
-    if (padLayer == nullptr)
-        IE_THROW() << "Cannot convert Pad layer.";
-
-    padsBegin = padLayer->GetParamAsUInts("pads_begin");
-    padsEnd = padLayer->GetParamAsUInts("pads_end");
-
-    SizeVector srcDims = padLayer->insData[0].lock()->getTensorDesc().getDims();
-    SizeVector dstDims = padLayer->outData[0]->getTensorDesc().getDims();
-    if (srcDims.size() != dstDims.size() || padsBegin.size() != srcDims.size() || padsEnd.size() != srcDims.size())
-        IE_THROW() << padLayer->name << " Incorrect number of input/output dimensions!";
-
-    std::string pad_mode = padLayer->GetParamAsString("pad_mode");
-    if (pad_mode == "constant") {
-        padMode = CONSTANT;
-        padValue = padLayer->GetParamAsFloat("pad_value", 0.f);
-    } else if (pad_mode == "edge") {
-        padMode = EDGE;
-    } else if (pad_mode == "reflect") {
-        padMode = REFLECT;
-        for (size_t i = 0; i < srcDims.size(); i++) {
-            if ((srcDims[i] - 1) < padsBegin[i] || (srcDims[i] - 1) < padsEnd[i])
-                IE_THROW() << padLayer->name << " Incorrect padsBegin or padsEnd for 'reflect' pad mode";
+bool MKLDNNPadNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
         }
-    } else if (pad_mode == "symmetric") {
-        padMode = SYMMETRIC;
-        for (size_t i = 0; i < srcDims.size(); i++) {
-            if (srcDims[i] < padsBegin[i] || srcDims[i] < padsEnd[i])
-                IE_THROW() << padLayer->name << " Incorrect padsBegin or padsEnd for 'symmetric' pad mode";
+
+        const auto pad = std::dynamic_pointer_cast<const ngraph::opset1::Pad>(op);
+        if (!pad) {
+            errorMessage = "Only opset1 Pad operation is supported";
+            return false;
+        }
+        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PADS_BEGIN_ID)) == nullptr ||
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PADS_END_ID)) == nullptr ||
+            (pad->get_pad_mode() == ngraph::op::PadMode::CONSTANT && pad->get_input_size() == 4 &&
+                std::dynamic_pointer_cast<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID)) == nullptr)) {
+            errorMessage = "Only Constant operation on 'pads_begin', 'pads_end', 'pad_value' inpus is supported";
+            return false;
+        }
+        const auto pad_mode = pad->get_pad_mode();
+        if (pad_mode != ngraph::op::PadMode::CONSTANT && pad_mode != ngraph::op::PadMode::EDGE && pad_mode != ngraph::op::PadMode::REFLECT &&
+                pad_mode != ngraph::op::PadMode::SYMMETRIC) {
+            errorMessage = "Has unsupported pad_mode: " + ngraph::as_string(pad_mode);
+            return false;
+        }
+        const auto pb = pad->get_pads_begin();
+        const auto pe = pad->get_pads_end();
+        if (std::count_if(pb.begin(), pb.end(), [](ptrdiff_t x) { return x < 0; }) != 0 ||
+                std::count_if(pe.begin(), pe.end(), [](ptrdiff_t x) { return x < 0; }) != 0) {
+            errorMessage = "Doesn't support 'pads_begin' or 'pads_end' negative value";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNPadNode::MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        errorPrefix = "Pad node with name '" + op->get_friendly_name() + "'";
+        const auto pad = std::dynamic_pointer_cast<const ngraph::opset1::Pad>(op);
+
+        const auto pb = pad->get_pads_begin();
+        const auto pe = pad->get_pads_end();
+        for (size_t i = 0; i < pb.size(); i++)
+            padsBegin.push_back(static_cast<unsigned int>(pb[i]));
+         for (size_t i = 0; i < pe.size(); i++)
+            padsEnd.push_back(static_cast<unsigned int>(pe[i]));
+
+        const auto pad_mode = pad->get_pad_mode();
+        isPadValueSpecified = pad->get_input_size() == 4;
+        if (pad_mode == ngraph::op::PadMode::CONSTANT) {
+            padMode = CONSTANT;
+            if (isPadValueSpecified) {
+                if (!ngraph::is_scalar(pad->get_input_shape(PAD_VALUE_ID)))
+                    IE_THROW() << errorPrefix << " has non scalar 'pad_value' input";
+                padValue = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))->cast_vector<float>()[0];
+            }
+        } else if (pad_mode == ngraph::op::PadMode::EDGE) {
+            padMode = EDGE;
+        } else if (pad_mode == ngraph::op::PadMode::REFLECT) {
+            padMode = REFLECT;
+        } else if (pad_mode == ngraph::op::PadMode::SYMMETRIC) {
+            padMode = SYMMETRIC;
         }
     } else {
-        IE_THROW() << padLayer->name
-                           << " Incorrect pad_mode. Only constants|edge|reflect|symmetric modes are supported!";
+        IE_THROW(NotImplemented) << errorMessage;
     }
+}
 
-    if (getParentEdges().size() != 1)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+void MKLDNNPadNode::getSupportedDescriptors() {
+    if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
+        IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << errorPrefix << "Incorrect number of output edges";
+
+    const auto srcDims = getInputShapeAtPort(DATA_ID).getStaticDims();
+    const auto dstDims = getOutputShapeAtPort(DATA_ID).getStaticDims();
+    if (srcDims.size() != dstDims.size() || padsBegin.size() != srcDims.size() || padsEnd.size() != srcDims.size())
+        IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
+
+    if (padMode == REFLECT) {
+        for (size_t i = 0; i < srcDims.size(); i++) {
+            if ((srcDims[i] - 1) < padsBegin[i] || (srcDims[i] - 1) < padsEnd[i])
+                IE_THROW() << errorPrefix << " has incorrect padsBegin or padsEnd for 'reflect' pad mode";
+        }
+    } else if (padMode == SYMMETRIC) {
+        for (size_t i = 0; i < srcDims.size(); i++) {
+            if (srcDims[i] < padsBegin[i] || srcDims[i] < padsEnd[i])
+                IE_THROW() << errorPrefix << " has incorrect padsBegin or padsEnd for 'symmetric' pad mode";
+        }
+    }
 }
 
 void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
@@ -70,51 +122,45 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
     std::vector<InferenceEngine::Precision> supportedPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I32,
                                                                    InferenceEngine::Precision::BF16, InferenceEngine::Precision::I8,
                                                                    InferenceEngine::Precision::U8};
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
+    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(DATA_ID);
     if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), precision) == supportedPrecisions.end())
         precision = precision.is_float() ? InferenceEngine::Precision::FP32 : InferenceEngine::Precision::I32;
-    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
-    auto srcDims = getParentEdgeAt(0)->getDims();
-    int numOfDims = srcDims.ToSizeVector().size();
+    auto srcDims = getInputShapeAtPort(DATA_ID).getStaticDims();
+    int numOfDims = srcDims.size();
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = false;
-    config.inConfs.resize(1);
+    config.inConfs.resize(isPadValueSpecified ? 4 : 3);
     config.outConfs.resize(1);
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = false;
-    config.outConfs[0].inPlace = -1;
-    config.outConfs[0].constant = false;
 
-    auto pushSupportedPrimitiveDescriptor = [&](memory::format_tag memoryFormat) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), dataType, memoryFormat);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, memoryFormat);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref, memoryFormat});
+    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    auto pushSupportedPrimitiveDescriptor = [&](LayoutType memoryFormat) {
+        config.inConfs[0].desc = creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID));
+        config.inConfs[1].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(PADS_BEGIN_ID));
+        config.inConfs[2].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(PADS_END_ID));
+        if (isPadValueSpecified)
+            config.inConfs[3].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::FP32, getInputShapeAtPort(PAD_VALUE_ID));
+
+        config.outConfs[0].desc = creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID));
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
     };
 
-    if (numOfDims == 4)
-        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nhwc);
-    else if (numOfDims == 5)
-        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::ndhwc);
+    if (numOfDims == 4 || numOfDims == 5)
+        pushSupportedPrimitiveDescriptor(LayoutType::nspc);
 
-    pushSupportedPrimitiveDescriptor(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims()));
+    pushSupportedPrimitiveDescriptor(LayoutType::ncsp);
 
     auto canUseBlocked = [=](const size_t blockSize) {
         return (padMode == CONSTANT && padsBegin[1] % blockSize == 0 && padsEnd[1] % blockSize == 0) ||
                (padMode != CONSTANT && padsBegin[1] == 0 && padsEnd[1] == 0);
     };
 
-    if (numOfDims == 4) {
+    if (numOfDims == 4 || numOfDims == 5) {
         if (srcDims[1] % 8 == 0 && canUseBlocked(8))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw8c);
+            pushSupportedPrimitiveDescriptor(LayoutType::nCsp8c);
         if (srcDims[1] % 16 == 0 && canUseBlocked(16))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw16c);
-    } else if (numOfDims == 5) {
-        if (srcDims[1] % 8 == 0 && canUseBlocked(8))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw8c);
-        if (srcDims[1] % 16 == 0 && canUseBlocked(16))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw16c);
+            pushSupportedPrimitiveDescriptor(LayoutType::nCsp16c);
     }
 }
 
@@ -128,10 +174,11 @@ void MKLDNNPadNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor for Pad " << getName() << " is not set.";
 
-    params.sizeData = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
+    params.sizeData = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
 
-    params.srcDims = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
-    params.dstDims = getChildEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
+    const auto inBlkDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    params.srcDims = inBlkDesc->getBlockDims();
+    params.dstDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     size_t nDims = params.srcDims.size();
     params.srcStrides.resize(nDims, 1);
@@ -141,13 +188,14 @@ void MKLDNNPadNode::createPrimitive() {
         params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
     }
 
-    if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
+    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c) ||
+            getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c)) {
         padsBegin[1] /= params.srcDims[params.srcDims.size() - 1];
         padsEnd[1] /= params.srcDims[params.srcDims.size() - 1];
         padsBegin.push_back(0);
         padsEnd.push_back(0);
     } else {
-        auto order = getParentEdgeAt(0)->getDesc().getBlockingDesc().getOrder();
+        auto order = inBlkDesc->getOrder();
         std::vector<unsigned int> newPadsBegin(padsBegin.size(), 0), newPadsEnd(padsEnd.size(), 0);
         for (size_t i = 0; i < padsBegin.size(); ++i) {
             newPadsBegin[i] = padsBegin[order[i]];
@@ -257,7 +305,7 @@ void MKLDNNPadNode::padConstant() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU Pad node with name '" << getName() << "' doesn't have primitive descriptors.";
-    InferenceEngine::Precision precision = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc.getPrecision();
+    InferenceEngine::Precision precision = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc->getPrecision();
     OV_SWITCH(MKLDNNPlugin, PadConstantEmitter, this, precision,
               OV_CASE(InferenceEngine::Precision::FP32, float),
               OV_CASE(InferenceEngine::Precision::I32, int32_t),

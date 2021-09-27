@@ -57,7 +57,7 @@ public:
 
 TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, Single) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddFCLayer();
@@ -67,11 +67,11 @@ TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, Single) {
 
 TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, Single_NC) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     if (p.in.h != 1 || p.in.w != 1) {
-        SKIP() << "Non NC case";
+        GTEST_SKIP() << "Non NC case";
     }
 
     in_tensor.clear();
@@ -84,7 +84,7 @@ TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, Single_NC) {
 
 TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, WithReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddFCLayer();
@@ -95,7 +95,7 @@ TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, WithReLU) {
 
 TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, MultipleInfer) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     AddFCLayer();
@@ -103,38 +103,38 @@ TEST_P(MyriadX_HW_FullyConnected_Tests_nightly, MultipleInfer) {
     CompareWithItself(100);
 }
 
-INSTANTIATE_TEST_CASE_P(fc_1024to1000, MyriadX_HW_FullyConnected_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(fc_1024to1000, MyriadX_HW_FullyConnected_Tests_nightly,
                         ::testing::Values(MAKE_STRUCT(fcon_test_params, {1, 1024, 1, 1}, 1000, 0.25f))
 );
 
-INSTANTIATE_TEST_CASE_P(fc_4096to1000, MyriadX_HW_FullyConnected_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(fc_4096to1000, MyriadX_HW_FullyConnected_Tests_nightly,
                         ::testing::Values(MAKE_STRUCT(fcon_test_params, {1, 4096, 1, 1}, 1000, 0.82f))
 );
 
-INSTANTIATE_TEST_CASE_P(fc_4096to4096, MyriadX_HW_FullyConnected_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(fc_4096to4096, MyriadX_HW_FullyConnected_Tests_nightly,
                         ::testing::Values(MAKE_STRUCT(fcon_test_params, {1, 4096, 1, 1}, 4096, 0.9f))
 );
 
-INSTANTIATE_TEST_CASE_P(fc_16x16x16to16, MyriadX_HW_FullyConnected_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(fc_16x16x16to16, MyriadX_HW_FullyConnected_Tests_nightly,
                         ::testing::Values(MAKE_STRUCT(fcon_test_params, {1, 16, 16, 16}, 16, 0.71f))
 );
 
-INSTANTIATE_TEST_CASE_P(fc_512x7x7to4096, MyriadX_HW_FullyConnected_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(fc_512x7x7to4096, MyriadX_HW_FullyConnected_Tests_nightly,
                         ::testing::Values(MAKE_STRUCT(fcon_test_params, {1, 512, 7, 7}, 4096, 4.38f))
 );
 
-INSTANTIATE_TEST_CASE_P(fc_256x7x7to1470, MyriadX_HW_FullyConnected_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(fc_256x7x7to1470, MyriadX_HW_FullyConnected_Tests_nightly,
                         ::testing::Values(MAKE_STRUCT(fcon_test_params, {1, 256, 7, 7}, 1470, 2.375f))
 );
 
-INSTANTIATE_TEST_CASE_P(fc_576to128, MyriadX_HW_FullyConnected_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(fc_576to128, MyriadX_HW_FullyConnected_Tests_nightly,
                         ::testing::Values(MAKE_STRUCT(fcon_test_params, {1, 576, 1, 1}, 128, 0.76f))
 );
 
-INSTANTIATE_TEST_CASE_P(fc_1152to128, MyriadX_HW_FullyConnected_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(fc_1152to128, MyriadX_HW_FullyConnected_Tests_nightly,
                         ::testing::Values(MAKE_STRUCT(fcon_test_params, {1, 1152, 1, 1}, 128, 0.76f))
 );
 
-INSTANTIATE_TEST_CASE_P(fc_batch, MyriadX_HW_FullyConnected_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(fc_batch, MyriadX_HW_FullyConnected_Tests_nightly,
                         ::testing::Values(MAKE_STRUCT(fcon_test_params, {100, 256, 1, 1}, 1024, 0.1f))
 );

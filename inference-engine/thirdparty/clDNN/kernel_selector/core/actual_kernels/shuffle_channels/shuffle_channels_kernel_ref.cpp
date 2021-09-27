@@ -89,7 +89,7 @@ KernelsData ShuffleChannelsKernelRef::GetKernelsData(const Params& params, const
     assert(params.GetType() == KernelType::SHUFFLE_CHANNELS);
 
     auto dispatchData = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

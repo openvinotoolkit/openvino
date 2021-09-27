@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 KERNEL (reorder_weights_image_2d_c4_fyx_b)(const __global INPUT0_TYPE* input, write_only image2d_t output)
 {
@@ -16,7 +17,7 @@ KERNEL (reorder_weights_image_2d_c4_fyx_b)(const __global INPUT0_TYPE* input, wr
 
     const int2 coord = (int2)(iyx, o);
     uint input_idx = o * INPUT0_OFM_PITCH + iyx*4;
-    
+
     input_val.s0 = TO_OUTPUT_TYPE(input[input_idx]);
     if(iyx*4 + 1 < INPUT0_OFM_PITCH)
         input_val.s1 = TO_OUTPUT_TYPE(input[input_idx+1]);

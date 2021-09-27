@@ -9,17 +9,63 @@
 
 #include <ie_metric_helpers.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <legacy/ie_util_internal.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
-#include <vpu/parsed_config.hpp>
+#include <vpu/private_plugin_config.hpp>
+#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/frontend/frontend.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
 #include <vpu/ngraph/query_network.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <ngraph/pass/manager.hpp>
+
+#include <vpu/configuration/options/log_level.hpp>
+#include <vpu/configuration/options/copy_optimization.hpp>
+#include <vpu/configuration/options/power_config.hpp>
+#include <vpu/configuration/options/protocol.hpp>
+#include <vpu/configuration/options/hw_acceleration.hpp>
+#include <vpu/configuration/options/hw_extra_split.hpp>
+#include <vpu/configuration/options/hw_pool_conv_merge.hpp>
+#include <vpu/configuration/options/hw_black_list.hpp>
+#include <vpu/configuration/options/hw_inject_stages.hpp>
+#include <vpu/configuration/options/hw_dilation.hpp>
+#include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
+#include <vpu/configuration/options/watchdog_interval.hpp>
+#include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
+#include <vpu/configuration/options/perf_report_mode.hpp>
+#include <vpu/configuration/options/perf_count.hpp>
+#include <vpu/configuration/options/pack_data_in_cmx.hpp>
+#include <vpu/configuration/options/number_of_shaves.hpp>
+#include <vpu/configuration/options/number_of_cmx_slices.hpp>
+#include <vpu/configuration/options/throughput_streams.hpp>
+#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/tensor_strides.hpp>
+#include <vpu/configuration/options/ignore_unknown_layers.hpp>
+#include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
+#include <vpu/configuration/options/enable_tensor_iterator_unrolling.hpp>
+#include <vpu/configuration/options/exclusive_async_requests.hpp>
+#include <vpu/configuration/options/enable_weights_analysis.hpp>
+#include <vpu/configuration/options/enable_repl_with_screlu.hpp>
+#include <vpu/configuration/options/enable_permute_merging.hpp>
+#include <vpu/configuration/options/enable_memory_types_annotation.hpp>
+#include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
+#include <vpu/configuration/options/dump_all_passes_directory.hpp>
+#include <vpu/configuration/options/dump_all_passes.hpp>
+#include <vpu/configuration/options/disable_convert_stages.hpp>
+#include <vpu/configuration/options/disable_reorder.hpp>
+#include <vpu/configuration/options/device_id.hpp>
+#include <vpu/configuration/options/device_connect_timeout.hpp>
+#include <vpu/configuration/options/detect_network_batch.hpp>
+#include <vpu/configuration/options/custom_layers.hpp>
+#include <vpu/configuration/options/config_file.hpp>
+#include <vpu/configuration/options/memory_type.hpp>
+#include <vpu/configuration/options/enable_force_reset.hpp>
+#include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
+#include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
+#include <vpu/configuration/options/enable_custom_reshape_param.hpp>
+#include <vpu/configuration/options/none_layers.hpp>
+#include <vpu/configuration/options/enable_async_dma.hpp>
 
 #include "myriad_plugin.h"
 
@@ -29,36 +75,69 @@ using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
+IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         const CNNNetwork& network,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
-    auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config);
+    auto executableNetworkConfiguration = _parsedConfig;
+    executableNetworkConfiguration.from(config);
+    executableNetworkConfiguration.validate();
 
-    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
-    _parsedConfig.update(config);
+    _parsedConfig.from(config);
 
+    // TODO: remove once all options are migrated
     for (const auto& entry : config) {
         _config[entry.first] = entry.second;
     }
+
+#ifndef NDEBUG
+    if (const auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {
+        _parsedConfig.set(LogLevelOption::key(), envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_TILING_CMX_LIMIT_KB")) {
+        _parsedConfig.set(TilingCMXLimitKBOption::key(), envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_MYRIAD_WATCHDOG_INTERVAL")) {
+        _parsedConfig.set(WatchdogIntervalOption::key(), envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_NUMBER_OF_SHAVES_AND_CMX_SLICES")) {
+        _parsedConfig.set(NumberOfSHAVEsOption::key(), envVar);
+        _parsedConfig.set(NumberOfCMXSlicesOption::key(), envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_FILE_NAME")) {
+        _parsedConfig.set(DumpInternalGraphFileNameOption::key(), envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_DIRECTORY")) {
+        _parsedConfig.set(DumpAllPassesDirectoryOption::key(), envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_DUMP_ALL_PASSES")) {
+        _parsedConfig.set(DumpAllPassesOption::key(), std::stoi(envVar) != 0
+            ? InferenceEngine::PluginConfigParams::YES : InferenceEngine::PluginConfigParams::NO);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_MYRIAD_FORCE_RESET")) {
+        _parsedConfig.set(EnableForceResetOption::key(), std::stoi(envVar) != 0
+            ? InferenceEngine::PluginConfigParams::YES : InferenceEngine::PluginConfigParams::NO);
+    }
+#endif
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
-    auto supported_keys = _metrics->SupportedConfigKeys();
-    if (std::find(supported_keys.begin(),
-        supported_keys.end(), name) == supported_keys.end()) {
-        IE_THROW() << "Unsupported config key : " << name;
-    }
+    // TODO: remove once all options are migrated
+    const auto& supportedKeys = _metrics->SupportedConfigKeys();
+    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(supportedKeys.count(name) == 1 || _parsedConfig.supports(name), "Unsupported configuration key: {}", name);
 
     Parameter result;
-    auto option = _config.find(name);
-    if (option != _config.end())
-        result = option->second;
+    if (_parsedConfig.supports(name)) {
+        result = _parsedConfig.asParameter(name);
+    } else if (_config.count(name)) {
+        // TODO: remove once all options are migrated
+        result = _config.at(name);
+    }
 
     return result;
 }
@@ -70,9 +149,9 @@ QueryNetworkResult Engine::QueryNetwork(
     QueryNetworkResult res;
 
     auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config);
+    parsedConfigCopy.from(config);
 
-    const auto deviceName = parsedConfigCopy.deviceName();
+    const auto deviceName = parsedConfigCopy.get<DeviceIDOption>();
     if (!deviceName.empty()) {
         const auto deviceIDs = GetMetric(METRIC_KEY(AVAILABLE_DEVICES), {}).as<std::vector<std::string>>();
         VPU_THROW_UNLESS(!(std::find(deviceIDs.begin(), deviceIDs.end(), deviceName) == deviceIDs.end()), "Myriad device: {} not found.", deviceName);
@@ -80,13 +159,12 @@ QueryNetworkResult Engine::QueryNetwork(
 
     const auto log = std::make_shared<Logger>(
             "GraphCompiler",
-            parsedConfigCopy.logLevel(),
-            defaultOutput(parsedConfigCopy.compilerLogFilePath()));
+            _parsedConfig.get<LogLevelOption>(),
+            consoleOutput());
 
     const auto supportedLayers = getSupportedLayers(
             network,
-            static_cast<Platform>(parsedConfigCopy.platform()),
-            parsedConfigCopy.compileConfig(),
+            parsedConfigCopy,
             log,
             GetCore());
 
@@ -111,27 +189,62 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
 
     _pluginName = "MYRIAD";
 
+    _parsedConfig.registerOption<LogLevelOption>();
+    _parsedConfig.registerOption<CopyOptimizationOption>();
+    _parsedConfig.registerOption<PowerConfigOption>();
+    _parsedConfig.registerOption<ProtocolOption>();
+    _parsedConfig.registerOption<HwAccelerationOption>();
+    _parsedConfig.registerOption<HwExtraSplitOption>();
+    _parsedConfig.registerOption<HwPoolConvMergeOption>();
+    _parsedConfig.registerOption<HwBlackListOption>();
+    _parsedConfig.registerOption<HwInjectStagesOption>();
+    _parsedConfig.registerOption<HwDilationOption>();
+    _parsedConfig.registerOption<TilingCMXLimitKBOption>();
+    _parsedConfig.registerOption<WatchdogIntervalOption>();
+    _parsedConfig.registerOption<EnableReceivingTensorTimeOption>();
+    _parsedConfig.registerOption<PerfReportModeOption>();
+    _parsedConfig.registerOption<PerfCountOption>();
+    _parsedConfig.registerOption<PackDataInCMXOption>();
+    _parsedConfig.registerOption<NumberOfSHAVEsOption>();
+    _parsedConfig.registerOption<NumberOfCMXSlicesOption>();
+    _parsedConfig.registerOption<ThroughputStreamsOption>();
+    _parsedConfig.registerOption<IRWithScalesDirectoryOption>();
+    _parsedConfig.registerOption<TensorStridesOption>();
+    _parsedConfig.registerOption<IgnoreUnknownLayersOption>();
+    _parsedConfig.registerOption<ForcePureTensorIteratorOption>();
+    _parsedConfig.registerOption<EnableTensorIteratorUnrollingOption>();
+    _parsedConfig.registerOption<ExclusiveAsyncRequestsOption>();
+    _parsedConfig.registerOption<EnableWeightsAnalysisOption>();
+    _parsedConfig.registerOption<EnableReplWithSCReluOption>();
+    _parsedConfig.registerOption<EnablePermuteMergingOption>();
+    _parsedConfig.registerOption<EnableMemoryTypesAnnotationOption>();
+    _parsedConfig.registerOption<DumpInternalGraphFileNameOption>();
+    _parsedConfig.registerOption<DumpAllPassesDirectoryOption>();
+    _parsedConfig.registerOption<DumpAllPassesOption>();
+    _parsedConfig.registerOption<DeviceIDOption>();
+    _parsedConfig.registerOption<DeviceConnectTimeoutOption>();
+    _parsedConfig.registerOption<DetectNetworkBatchOption>();
+    _parsedConfig.registerOption<CustomLayersOption>();
+    _parsedConfig.registerOption<ConfigFileOption>();
+    _parsedConfig.registerOption<MemoryTypeOption>();
+    _parsedConfig.registerOption<EnableForceResetOption>();
+    _parsedConfig.registerOption<CheckPreprocessingInsideModelOption>();
+    _parsedConfig.registerOption<EnableEarlyEltwiseReluFusionOption>();
+    _parsedConfig.registerOption<EnableCustomReshapeParamOption>();
+    _parsedConfig.registerOption<NoneLayersOption>();
+    _parsedConfig.registerOption<EnableAsyncDMAOption>();
+
 IE_SUPPRESS_DEPRECATED_START
-    _config = {
-        { MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES) },
-        { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO) },
-        { MYRIAD_CUSTOM_LAYERS, "" },
-        { MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO) },
-        { MYRIAD_THROUGHPUT_STREAMS, "-1" },
-
-        // Deprecated
-        { KEY_VPU_HW_STAGES_OPTIMIZATION, CONFIG_VALUE(YES) },
-        { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, CONFIG_VALUE(NO) },
-        { KEY_VPU_CUSTOM_LAYERS, "" },
-        { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
-        { KEY_VPU_MYRIAD_PLATFORM, "" },
-
-        { KEY_LOG_LEVEL, CONFIG_VALUE(LOG_NONE) },
-        { KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(NO) },
-        { KEY_PERF_COUNT, CONFIG_VALUE(NO) },
-        { KEY_CONFIG_FILE, "" },
-        { KEY_DEVICE_ID, "" },
-    };
+    _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
+    _parsedConfig.registerDeprecatedOption<DisableReorderOption>(InferenceEngine::MYRIAD_DISABLE_REORDER);
+    _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
+    _parsedConfig.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
+    _parsedConfig.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
+    _parsedConfig.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
+    _parsedConfig.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
+    _parsedConfig.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
+    _parsedConfig.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
+    _parsedConfig.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
 IE_SUPPRESS_DEPRECATED_END
 }
 
@@ -140,29 +253,13 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(ImportNetwork);
 
-    auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config, ConfigMode::RunTime);
+    auto executableNetworkConfiguration = _parsedConfig;
+    executableNetworkConfiguration.fromAtRuntime(config);
+    executableNetworkConfiguration.validate();
 
-    const auto executableNetwork =
-            std::make_shared<ExecutableNetwork>(
-                model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(model, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
     executableNetwork->SetPointerToPlugin(shared_from_this());
-
     return executableNetwork;
-}
-
-InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
-        const std::string& modelFileName,
-        const std::map<std::string, std::string>& config) {
-    VPU_PROFILE(ImportNetwork);
-
-    std::ifstream blobFile(modelFileName, std::ios::binary);
-
-    if (!blobFile.is_open()) {
-        IE_THROW(NetworkNotRead);
-    }
-
-    return ImportNetwork(blobFile, config);
 }
 
 InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
@@ -200,7 +297,10 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
         const auto& supportedMetrics = _metrics->SupportedMetrics();
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{supportedMetrics.cbegin(), supportedMetrics.cend()});
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        const auto& supportedConfigKeys = _metrics->SupportedConfigKeys();
+        // TODO: remove once all options are migrated
+        auto supportedConfigKeys = _metrics->SupportedConfigKeys();
+        const auto& publicKeys = _parsedConfig.getPublicKeys();
+        supportedConfigKeys.insert(publicKeys.cbegin(), publicKeys.cend());
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{supportedConfigKeys.cbegin(), supportedConfigKeys.cend()});
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         const auto& optimizationCapabilities = _metrics->OptimizationCapabilities();

@@ -5,8 +5,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "reshape_inst.h"
 #include "primitive_type_base.h"
-#include "memory_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -63,7 +63,7 @@ std::string reshape_inst::to_string(reshape_node const& node) {
     return primitive_description.str();
 }
 
-reshape_inst::typed_primitive_inst(network_impl& network, reshape_node const& node) : parent(network, node, false) {
+reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) : parent(network, node, false) {
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
     CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),

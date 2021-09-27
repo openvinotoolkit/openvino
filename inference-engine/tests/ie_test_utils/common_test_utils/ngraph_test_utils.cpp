@@ -22,8 +22,7 @@
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
-
-#include "details/ie_exception.hpp"
+#include <ngraph_ops/type_relaxed.hpp>
 
 namespace {
 inline namespace tools {
@@ -46,20 +45,29 @@ bool compareTypeInfo(const ngraph::DiscreteTypeInfo &info1, const ngraph::Discre
 
 template<typename Node>
 bool compare_rt_keys(const Node &node1, const Node &node2) {
+    // The "opset" parameter in RT info is optional
+    // and mandatory only for TypeRelaxed operations.
+    // Therefore, we ignore this key when comparing RT keys.
+
     const auto &first_node_rt_info = node1->get_rt_info();
     const auto &second_node_rt_info = node2->get_rt_info();
 
-    if (first_node_rt_info.empty() && second_node_rt_info.empty()) {
-        return true;
-    }
-
-    if (first_node_rt_info.size() != second_node_rt_info.size()) {
-        return false;
-    }
-
     auto first_node_rt_info_it = first_node_rt_info.begin();
     auto second_node_rt_info_it = second_node_rt_info.begin();
-    while (first_node_rt_info_it != first_node_rt_info.end()) {
+
+    while (first_node_rt_info_it != first_node_rt_info.end()
+        && second_node_rt_info_it != second_node_rt_info.end()) {
+        bool is_continue = false;
+        if (first_node_rt_info_it->first == "opset") {
+            ++first_node_rt_info_it;
+            is_continue = true;
+        }
+        if (second_node_rt_info_it->first == "opset") {
+            ++second_node_rt_info_it;
+            is_continue = true;
+        }
+        if (is_continue)
+            continue;
         if (first_node_rt_info_it->first != second_node_rt_info_it->first) {
             return false;
         }
@@ -67,7 +75,16 @@ bool compare_rt_keys(const Node &node1, const Node &node2) {
         ++second_node_rt_info_it;
     }
 
-    return true;
+    if (first_node_rt_info_it != first_node_rt_info.end()
+        && first_node_rt_info_it->first == "opset") {
+        ++first_node_rt_info_it;
+    }
+    if (second_node_rt_info_it != second_node_rt_info.end()
+        && second_node_rt_info_it->first == "opset") {
+        ++second_node_rt_info_it;
+    }
+    return first_node_rt_info_it == first_node_rt_info.end()
+        && second_node_rt_info_it == second_node_rt_info.end();
 }
 
 bool less_by_name(
@@ -76,7 +93,11 @@ bool less_by_name(
     return l->get_friendly_name() < r->get_friendly_name();
 }
 
-
+bool less_by_parent_name(
+        const std::shared_ptr<ngraph::op::v0::Result> &l,
+        const std::shared_ptr<ngraph::op::v0::Result> &r) {
+    return l->get_input_node_shared_ptr(0)->get_friendly_name() < r->get_input_node_shared_ptr(0)->get_friendly_name();
+}
 
 std::string typeInfoToStr(const ngraph::Node::type_info_t &typeInfo) {
     return std::string(typeInfo.name) + "/" + to_str(typeInfo.version);
@@ -128,16 +149,16 @@ public:
             return false;
         }
 
-        if (lhs->get_type_info() == SubGraphOp::SliceInputDescription::type_info) {
+        if (lhs->get_type_info() == SubGraphOp::SliceInputDescription::get_type_info_static()) {
             using InDesc = SubGraphOp::SliceInputDescription;
             const InDesc *l_input = static_cast<const InDesc *>(lhs);
             const InDesc *r_input = static_cast<const InDesc *>(rhs);
             return l_input->m_start == r_input->m_start && l_input->m_stride == r_input->m_stride &&
                    l_input->m_part_size == r_input->m_part_size &&
                    l_input->m_end == r_input->m_end && l_input->m_axis == r_input->m_axis;
-        } else if (lhs->get_type_info() == SubGraphOp::MergedInputDescription::type_info) {
+        } else if (lhs->get_type_info() == SubGraphOp::MergedInputDescription::get_type_info_static()) {
             return true;  // noting extra to check
-        } else if (lhs->get_type_info() == SubGraphOp::InvariantInputDescription::type_info) {
+        } else if (lhs->get_type_info() == SubGraphOp::InvariantInputDescription::get_type_info_static()) {
             return true;  // noting extra to check
         }
 
@@ -178,8 +199,8 @@ public:
             }
             return true;
         } else if (
-                m_description->get_type_info() == SubGraphOp::MergedInputDescription::type_info ||
-                m_description->get_type_info() == SubGraphOp::InvariantInputDescription::type_info) {
+                m_description->get_type_info() == SubGraphOp::MergedInputDescription::get_type_info_static() ||
+                m_description->get_type_info() == SubGraphOp::InvariantInputDescription::get_type_info_static()) {
             return equal_type_and_partial_shape(*m_parameter, m_input);
         }
 
@@ -222,7 +243,7 @@ public:
             return false;
         }
 
-        if (lhs->get_type_info() == SubGraphOp::ConcatOutputDescription::type_info) {
+        if (lhs->get_type_info() == SubGraphOp::ConcatOutputDescription::get_type_info_static()) {
             using OutDesc = SubGraphOp::ConcatOutputDescription;
             const OutDesc *l_output = static_cast<const OutDesc *>(lhs);
             const OutDesc *r_output = static_cast<const OutDesc *>(rhs);
@@ -230,7 +251,7 @@ public:
                    l_output->m_stride == r_output->m_stride &&
                    l_output->m_part_size == r_output->m_part_size &&
                    l_output->m_end == r_output->m_end && l_output->m_axis == r_output->m_axis;
-        } else if (lhs->get_type_info() == SubGraphOp::BodyOutputDescription::type_info) {
+        } else if (lhs->get_type_info() == SubGraphOp::BodyOutputDescription::get_type_info_static()) {
             using OutDesc = SubGraphOp::BodyOutputDescription;
             const OutDesc *l_output = static_cast<const OutDesc *>(lhs);
             const OutDesc *r_output = static_cast<const OutDesc *>(rhs);
@@ -269,7 +290,7 @@ public:
                 }
             }
             return true;
-        } else if (m_description->get_type_info() == SubGraphOp::BodyOutputDescription::type_info) {
+        } else if (m_description->get_type_info() == SubGraphOp::BodyOutputDescription::get_type_info_static()) {
             return equal_type_and_partial_shape(m_result->output(0), m_output);
         }
 
@@ -550,8 +571,21 @@ Comparator::Result Comparator::compare(
     auto f1_results = f1->get_results();
     auto f2_results = f2->get_results();
 
-    std::sort(f1_results.begin(), f1_results.end(), less_by_name);
-    std::sort(f2_results.begin(), f2_results.end(), less_by_name);
+    auto cmp = less_by_name;
+    // In case if Result source output has more than one name so the Result may have any of this names as a friendly name
+    // And in case of multiple names we sort Result operation using their parent node names
+    if (std::any_of(f1_results.begin(), f1_results.end(), [](const std::shared_ptr<ngraph::Node> & node) {
+        const auto & t = node->input_value(0).get_tensor_ptr();
+        return t->get_names().size() > 1;
+    }) || std::any_of(f2_results.begin(), f2_results.end(), [](const std::shared_ptr<ngraph::Node> & node) {
+        const auto & t = node->input_value(0).get_tensor_ptr();
+        return t->get_names().size() > 1;
+    })) {
+        cmp = less_by_parent_name;
+    }
+
+    std::sort(f1_results.begin(), f1_results.end(), cmp);
+    std::sort(f2_results.begin(), f2_results.end(), cmp);
 
     if (f1_results.size() != f2_results.size()) {
         return Result::error(
@@ -707,11 +741,19 @@ void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::o
 }
 
 void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
+    // Some transformations creates new tensors with autogenerated names
+    const auto& autogenerated_names = [](const std::unordered_set<std::string>& names) {
+        for (const auto& name : names) {
+            if (name.rfind("Tensor_", 0) != 0)
+                return false;
+        }
+        return true;
+    };
     for (int i = 0; i < node1->outputs().size(); ++i) {
         const auto& tensor1 = node1->output(i).get_tensor();
         const auto& tensor2 = node2->output(i).get_tensor();
 
-        if (tensor1.get_names() != tensor2.get_names()) {
+        if (tensor1.get_names() != tensor2.get_names() && (!autogenerated_names(tensor1.get_names()) || !autogenerated_names(tensor2.get_names()))) {
             err_log << "Output tensors names " << tensor_names(tensor1) << " and "
                     << tensor_names(tensor2)
                     << " are different for nodes: " << node1->get_friendly_name() << " and "
@@ -765,6 +807,14 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
     }
 }
 
+void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string & name) {
+    output.get_tensor_ptr()->set_names({name});
+}
+
+void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string> & names) {
+    output.get_tensor_ptr()->set_names(names);
+}
+
 NGRAPH_RTTI_DEFINITION(TestOpMultiOut, "TestOp", 0);
 
 namespace attributes {
@@ -784,9 +834,13 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ngraph::ValueAc
             auto a = ngraph::as_type<
                     ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
                     &adapter)) {
-        const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
+        const auto beg = static_cast<unsigned char *>(a->get()->get_ptr());
         const auto end = beg + a->get()->size();
         insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
+    } else if (auto framework_node_attr = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
+        insert(name, framework_node_attr->get());
+    } else if (auto variable_ptr = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        insert(name, variable_ptr->get());
     } else {
         m_read_result += "store   attr [ ERR ]: " + name +
                          " [drop `void` comparison which is '" + adapter.get_type_info().name +
@@ -864,6 +918,10 @@ void ReadAndCompareAttributes::verify_others(const std::string &name, ngraph::Va
                     ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
                     &adapter)) {
         verify_mem_buf(name, a->get());
+    } else if (auto attrs = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
+        verify(name, attrs->get());
+    } else if (auto variable_ptr = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        verify(name, variable_ptr->get());
     } else {
         m_cmp_result += "compare attr [ ERR ]: " + name +
                         " [drop `void` comparison which is '" + adapter.get_type_info().name +

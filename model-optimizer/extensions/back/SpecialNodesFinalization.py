@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+import re
 from collections import defaultdict
 
 import numpy as np
 
 from extensions.back.pass_separator import BackFinish
-from extensions.ops.tensor_iterator import TensorIterator, get_internal_node_by_layer_id
+from extensions.ops.tensor_iterator import TensorIterator
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
 from mo.ops.const import Const
@@ -77,7 +78,8 @@ class CreateConstNodesReplacement(BackReplacementPattern):
 
         if self._check_bin_attrs(node):
             if node.has_valid('value'):
-                const_node_name = graph.unique_id(node.id + '_const')
+                const_node_name = node.soft_get('name', node.id)
+                const_node_name = graph.unique_id(re.sub(r'\/Output_\d+\/Data_(.?)+', '', const_node_name))
                 log.debug("Added Const node '{}'".format(const_node_name))
                 const_node = Const(graph, {'name': const_node_name, 'value': node.value,
                                            'force_shape': node.soft_get('force_shape', None),
@@ -99,53 +101,6 @@ class CreateConstNodesReplacement(BackReplacementPattern):
                     node.soft_get('name'),
                     node.out_node().soft_get('name') if len(node.out_nodes()) else "<no consumer>"
                 )
-
-
-class RemoveConstToResult(BackReplacementPattern):
-    """
-    Transformation looks for a constant sub-graph followed by Result operation.
-    If sub-graph is Const->data->Result -- then all three nodes are removed.
-    If there is more complex constant sub-graph -- then only Result node is removed.
-    If Result node has keep_output_port attribute True the node will not to be removed from graph but
-    the Result node will not to be saved to IR. Only port will be kept in IR.
-
-    Currently IE is unable to handle such graph so this transformation is a work around for such case.
-    For instance, this case appears for Wide and Deep model.
-    """
-    enabled = True
-    force_clean_up = True
-    # TODO: remove this transformation once all plugins support constant value network.
-    # Do not run recursively since Const->Result sub-graph can be encountered in a body graph of Loop node
-    # and this sub-graph is needed to avoid dynamism created by Loop node
-    # in case using axis in output port map
-    run_not_recursively = True
-
-    @staticmethod
-    def pattern():
-        return dict(
-            nodes=[
-                ('const_data', {'kind': 'data', 'value': lambda value: value is not None}),
-                ('result_node', {'type': 'Result', 'kind': 'op',
-                                 'keep_output_port': lambda attr: not attr}),
-            ],
-            edges=[
-                ('const_data', 'result_node')
-            ]
-        )
-
-    @staticmethod
-    def replace_pattern(graph: Graph, match: dict):
-        const_data_node = match['const_data']
-        result_node = match['result_node']
-        nodes_to_remove = [result_node.id]
-
-        # in case only const data consumer that is the result node, remove the whole sub-graph
-        parent_node = result_node.in_port(0).get_source().node
-        if parent_node.soft_get('type') == 'Const' and len(parent_node.out_port(0).get_destinations()) == 1:
-            nodes_to_remove.append(parent_node.id)
-            nodes_to_remove.append(const_data_node.id)
-
-        graph.remove_nodes_from(nodes_to_remove)
 
 
 class NormalizeTI(BackReplacementPattern):

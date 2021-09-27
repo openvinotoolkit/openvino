@@ -5,12 +5,14 @@ graph {
     input: "in1"
     output: "relu1"
     op_type: "Relu"
+    name: "relu1_name"
   }
   node {
     input: "relu1"
     input: "in2"
     output: "add1"
     op_type: "Add"
+    name: "add_ambiguous_name"
   }
   node {
     input: "in3"
@@ -23,12 +25,14 @@ graph {
     input: "add1"
     output: "add2"
     op_type: "Add"
+    name: "add_ambiguous_name"
   }
   node {
     input: "add1"
     input: "conv1"
     output: "mul2"
     op_type: "Mul"
+    name: ""
   }
   node {
     input: "add2"
@@ -40,6 +44,7 @@ graph {
       i: 1
       type: INT
     }
+    name: "split_name"
   }
   node {
     input: "relu1"

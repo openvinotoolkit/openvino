@@ -4,26 +4,27 @@
 
 #include <ie_metric_helpers.hpp>
 #include <precision_utils.h>
-#include <legacy/net_pass.h>
 #include "mkldnn_exec_network.h"
 
 #include "mkldnn_async_infer_request.h"
 #include "mkldnn_infer_request.h"
 #include "mkldnn_memory_state.h"
 #include "mkldnn_itt.h"
+#include "mkldnn_serialize.h"
 #include "nodes/mkldnn_memory_node.hpp"
-#include <legacy/ie_util_internal.hpp>
-#include <legacy/graph_tools.hpp>
 #include <threading/ie_executor_manager.hpp>
-
+#define FIX_62820 0
+#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#include <threading/ie_tbb_streams_executor.hpp>
+#endif
 #include <threading/ie_cpu_streams_executor.hpp>
 #include <ie_system_conf.h>
-#include <threading/ie_thread_affinity.hpp>
 #include <algorithm>
 #include <unordered_set>
 #include <utility>
 #include <cstring>
-#include <legacy/details/ie_cnn_network_tools.h>
+#include <ngraph/opsets/opset1.hpp>
+#include <transformations/utils/utils.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -35,6 +36,14 @@ MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap network
     return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
 }
 
+struct ImmediateSerialExecutor : public ITaskExecutor {
+    void run(InferenceEngine::Task task) override {
+        std::lock_guard<std::mutex> l{_mutex};
+        task();
+    }
+    std::mutex _mutex;
+};
+
 MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
                                      const Config &cfg,
                                      const MKLDNNExtensionManager::Ptr& extMgr,
@@ -43,184 +52,17 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()},
-    _numaNodesWeights(numaNodesWeights) {
-    OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "MKLDNNExecNetwork", "cloneNet");
-
-    // we are cloning network if we have statistics and we can transform network.
-    _clonedNetwork = cloneNetwork(network);
-
-    if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
-        // Check if network is INT8 or Binary.
-        // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
-        // BF16 + INT8 or BF16 + BIN.
-        bool isFloatModel = true;
-        CNNNetworkIterator iter(network);
-        while (iter != CNNNetworkIterator()) {
-            if (CaselessEq<std::string>()((*iter)->type, "FakeQuantize")) {
-                isFloatModel = false;
-                break;
-            }
-            iter++;
-        }
-
-        auto changePrecisionBF16 = [&](Precision current, Precision target) {
-            InputsDataMap inputs = _clonedNetwork.getInputsInfo();
-            OutputsDataMap outputs = _clonedNetwork.getOutputsInfo();
-            CNNNetworkIterator iter(_clonedNetwork);
-            while (iter != CNNNetworkIterator()) {
-                //  check, if memory output node needs to be transformed
-                if (current == Precision::FP32 &&
-                    (*iter)->type == "Memory" && (*iter)->outData.size() == 0 &&
-                    (*iter)->insData[0].lock()->getPrecision() == current) {
-                    (*iter)->insData[0].lock()->setPrecision(target);
-                }
-
-                for (size_t o = 0; o < (*iter)->outData.size(); o++) {
-                    if (inputs.find((*iter)->outData[o]->getName()) == inputs.end()
-                        && outputs.find((*iter)->outData[o]->getName()) == outputs.end()
-                        && !CaselessEq<std::string>()((*iter)->type, "const")
-                        && (*iter)->outData[o]->getPrecision() == current) {
-                        (*iter)->outData[o]->setPrecision(target);
-                    }
-                }
-                iter++;
-            }
-        };
-
-        if (with_cpu_x86_avx512_core() && isFloatModel) {
-            // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
-            // Otherwise, only layers marked as BF16 in '_clonedNetwork' will be performed in bfloat16 mode.
-            // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
-            if (cfg.enforceBF16 == true)
-                changePrecisionBF16(Precision::FP32, Precision::BF16);
-        } else {
-            changePrecisionBF16(Precision::BF16, Precision::FP32);
-        }
+    _numaNodesWeights(numaNodesWeights),
+        _network(network) {
+    auto function = network.getFunction();
+    if (function == nullptr) {
+        IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
     }
-
-    OV_ITT_TASK_NEXT(taskChain, "createConstInputs");
-    auto createConstInputTo = [&](CNNLayerPtr layer, Blob::Ptr blob, const std::vector<size_t>& shape, const std::string& name) {
-        LayerParams attrs = {layer->name + "_const_" + name, "Const", blob->getTensorDesc().getPrecision()};
-        auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);
-        constLayer->blobs["custom"] = blob;
-
-        const TensorDesc& td = {blob->getTensorDesc().getPrecision(), shape, TensorDesc::getLayoutByDims(shape)};
-
-        DataPtr newEdgeAfterLayer(new Data(constLayer->name, td));
-        newEdgeAfterLayer->setName(constLayer->name);
-        getCreatorLayer(newEdgeAfterLayer) = constLayer;
-        getInputTo(newEdgeAfterLayer).clear();
-
-        IE_SUPPRESS_DEPRECATED_START
-        auto icnnnet = static_cast<ICNNNetwork::Ptr>(_clonedNetwork);
-        IE_SUPPRESS_DEPRECATED_END
-        auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(icnnnet);
-        IE_ASSERT(implNetwork != nullptr);
-        implNetwork->addData(constLayer->name.c_str(), newEdgeAfterLayer);
-        implNetwork->addLayer(constLayer);
-
-        constLayer->outData.push_back(newEdgeAfterLayer);
-        getInputTo(newEdgeAfterLayer)[layer->name] = layer;
-        layer->insData.push_back(newEdgeAfterLayer);
-    };
-
-    // The code block below transforms legacy layers to the form more compatible with opset1 in order to simplify future migration
-    // TODO: remove after plug-in is migrated on opset1
-    auto all_layers = details::CNNNetSortTopologically(_clonedNetwork);
-    for (auto &layer : all_layers) {
-        if (layer->type == "ScaleShift" && layer->insData.size() == 1) {
-            auto constDimsRank = layer->insData[0].lock()->getDims().size();
-
-            Blob::Ptr scalesBlob = layer->blobs["weights"];
-            if (scalesBlob != nullptr) {
-                std::vector<size_t> shape(constDimsRank, 1);
-                shape[shape.size() > 1 ? 1 : 0] = scalesBlob->size();
-
-                createConstInputTo(layer, scalesBlob, shape, "weights");
-            }
-
-            Blob::Ptr shiftBlob = layer->blobs["biases"];
-            if (shiftBlob != nullptr) {
-                std::vector<size_t> shape(constDimsRank, 1);
-                shape[shape.size() > 1 ? 1 : 0] = shiftBlob->size();
-
-                createConstInputTo(layer, shiftBlob, shape, "biases");
-            } else if (scalesBlob != nullptr) {
-                Blob::Ptr biases = make_shared_blob<float>(scalesBlob->getTensorDesc());
-                if (biases == nullptr)
-                    IE_THROW() << "Cannot make 'biases' shared blob";
-                biases->allocate();
-                auto biasesPtr = biases->buffer().as<float*>();
-                for (size_t i = 0; i < biases->size(); i++)
-                    biasesPtr[i] = 0;
-
-                std::vector<size_t> shape(constDimsRank, 1);
-                shape[shape.size() > 1 ? 1 : 0] = biases->size();
-
-                createConstInputTo(layer, biases, shape, "biases");
-            }
-        } else if (layer->type == "PReLU" && layer->insData.size() == 1) {
-            Blob::Ptr scalesBlob = layer->blobs["weights"];
-            if (scalesBlob != nullptr) {
-                std::vector<size_t> shape(layer->insData[0].lock()->getDims().size(), 1);
-                shape[shape.size() > 1 ? 1 : 0] = scalesBlob->size();
-
-                createConstInputTo(layer, scalesBlob, shape, "weights");
-            }
-        } else if (layer->type == "DeformableConvolution") {
-            auto * defConvLayer = dynamic_cast<DeformableConvolutionLayer*>(layer.get());
-            if (defConvLayer == nullptr)
-                IE_THROW() << "Cannot convert deformable convolution layer.";
-
-            Blob::Ptr weightsBlob = defConvLayer->blobs["weights"];
-            if (weightsBlob != nullptr) {
-                std::vector<size_t> shape;
-
-                if (defConvLayer->_group != 1) {
-                    shape.push_back(defConvLayer->_group);
-                }
-                shape.push_back(defConvLayer->_out_depth);
-                shape.push_back(defConvLayer->input()->getDims()[1]);
-                for (int i = 1; i <= defConvLayer->_kernel.size(); i++) {
-                    shape.push_back(defConvLayer->_kernel[defConvLayer->_kernel.size() - i]);
-                }
-
-                createConstInputTo(layer, weightsBlob, shape, "weights");
-
-                defConvLayer->blobs.clear();
-                defConvLayer->_weights = nullptr;
-            }
-        } else if (layer->type == "BinaryConvolution") {
-            auto * binConvLayer = dynamic_cast<BinaryConvolutionLayer*>(layer.get());
-            if (binConvLayer == nullptr)
-                IE_THROW() << "Cannot convert binary convolution layer.";
-
-            Blob::Ptr weightsBlob = binConvLayer->blobs["weights"];
-            if (weightsBlob != nullptr) {
-                std::vector<size_t> shape;
-
-                if (binConvLayer->_group != 1) {
-                    shape.push_back(binConvLayer->_group);
-                }
-                shape.push_back(binConvLayer->_out_depth);
-                shape.push_back(binConvLayer->input()->getDims()[1]);
-                for (int i = 1; i <= binConvLayer->_kernel.size(); i++) {
-                    shape.push_back(binConvLayer->_kernel[binConvLayer->_kernel.size() - i]);
-                }
-
-                createConstInputTo(layer, weightsBlob, shape, "weights");
-
-                binConvLayer->blobs.clear();
-                binConvLayer->_weights = nullptr;
-            }
-        }
-    }
-
-    OV_ITT_TASK_SKIP(taskChain);
+    bool isFloatModel = !ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
 
     if (_cfg.batchLimit > 1) {
         // check topology for applicability
-        if (!CanProcessDynBatch(_clonedNetwork)) {
+        if (!CanProcessDynBatch(_network)) {
             IE_THROW() << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
         }
     }
@@ -229,15 +71,31 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getExecutor("CPU");
     } else {
-        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig);
+        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
-        _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+        _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
+#else
+        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+#endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-        _callbackExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
-            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+        // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
+        _callbackExecutor = std::make_shared<ImmediateSerialExecutor>();
+#else
+        _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+                                IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+#endif
     } else {
         _callbackExecutor = _taskExecutor;
+    }
+
+    // Workaround for initializing friendly names for all the OPs
+    // Otherwise they are initialized concurrently without thread safety.
+    // TODO: Can be removed after 57069 is done.
+    for (const auto& op : _network.getFunction()->get_ops()) {
+        op->get_friendly_name();
     }
 
     int streams = std::max(1, _cfg.streamExecutorConfig._streams);
@@ -275,7 +133,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     }
 }
 
-MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() {
+MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
     int streamId = 0;
     int numaNodeId = 0;
     auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
@@ -288,12 +146,11 @@ MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() {
         std::exception_ptr exception;
         auto makeGraph = [&] {
             try {
-                auto localNetwork = cloneNetwork(_clonedNetwork);
                 {
                     std::lock_guard<std::mutex> lock{_cfgMutex};
                     graphLock._graph.setConfig(_cfg);
                 }
-                graphLock._graph.CreateGraph(localNetwork, extensionManager, _numaNodesWeights[numaNodeId]);
+                graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId]);
             } catch(...) {
                 exception = std::current_exception();
             }
@@ -327,7 +184,7 @@ InferenceEngine::IInferRequestInternal::Ptr MKLDNNExecNetwork::CreateInferReques
     return CreateAsyncInferRequestFromSync<MKLDNNAsyncInferRequest>();
 }
 
-InferenceEngine::CNNNetwork MKLDNNExecNetwork::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> MKLDNNExecNetwork::GetExecGraphInfo() {
     if (_graphs.size() == 0)
         IE_THROW() << "No graph was found";
 
@@ -335,9 +192,8 @@ InferenceEngine::CNNNetwork MKLDNNExecNetwork::GetExecGraphInfo() {
 }
 
 Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
-    if (_graphs.size() == 0)
-        IE_THROW() << "No graph was found";
-    Config engConfig = const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.getProperty();
+    if (_graphs.size() == 0) IE_THROW() << "No graph was found";
+    Config engConfig = GetGraph()._graph.getProperty();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         return option->second;
@@ -351,8 +207,7 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         IE_THROW() << "No graph was found";
 
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME,
-                               const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.dump().getName());
+        IE_SET_METRIC_RETURN(NETWORK_NAME, GetGraph()._graph.dump()->get_friendly_name());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
@@ -362,12 +217,12 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && key : const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.getProperty()._config) {
+        for (auto && key : GetGraph()._graph.getProperty()._config) {
             configKeys.push_back(key.first);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.getProperty();
+        Config engConfig = GetGraph()._graph.getProperty();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
@@ -381,53 +236,48 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
 bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const {
     InputsDataMap inputs = network.getInputsInfo();
 
-    CNNLayerSet inputLayers;
-    std::unordered_set<CNNLayer *> allLayers;
-
     if (inputs.empty())
         return false;
 
-    auto & secondLayers = getInputTo(inputs.begin()->second->getInputData());
-    if (secondLayers.empty())
-        return false;
+    auto function = network.getFunction();
+    if (function == nullptr) {
+        IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
+    }
 
-    bool check_result = true;
-    details::UnorderedDFS(allLayers, secondLayers.begin()->second, [&](CNNLayerPtr layer) {
-        auto type = TypeFromName(layer->type);
-        // This is WA for Tile layer
-        auto tileLayer = dynamic_cast<TileLayer *>(layer.get());
-        if (tileLayer && tileLayer->axis)
-            return;
+    auto ops = function->get_ordered_ops();
+    for (auto op : ops) {
+        auto type = TypeFromName(op->get_type_name());
+        if (type == Tile) {
+            const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
+            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(1));
+            if (!repeatsNode)
+                return false;
+            if (tile && repeatsNode->cast_vector<int64_t>()[0] == 1)
+                continue;
+        }
 
-        auto reshapeLayer = dynamic_cast<ReshapeLayer *>(layer.get());
-        if (reshapeLayer &&
-            type == Reshape &&
-            (reshapeLayer->outData[0]->getTensorDesc().getDims()[0] ==
-             reshapeLayer->insData[0].lock()->getTensorDesc().getDims()[0])) {
-            return;
+        if (type == Reshape) {
+            if (op->get_input_shape(0)[0] == op->get_output_shape(0)[0])
+                continue;
         }
 
         if (type != Input &&
             type != Output &&
             type != Convolution &&
             type != Deconvolution &&
-            type != Activation &&
-            type != Depthwise &&
             type != Lrn &&
             type != Pooling &&
             type != FullyConnected &&
-            type != Gemm &&
-            type != SoftMax &&
+            type != MatMul &&
+            type != Softmax &&
             type != Split &&
             type != Concatenation &&
-            type != Eltwise &&
-            type != BatchNormalization &&
-            type != Copy) {
-            check_result = false;
+                type != Eltwise) {
+            return false;
         }
-    }, false);
+    }
 
-    return check_result;
+    return true;
 }
 
 IE_SUPPRESS_DEPRECATED_START
@@ -435,3 +285,8 @@ std::vector<IVariableStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
     return memoryStates;
 }
 IE_SUPPRESS_DEPRECATED_END
+
+void MKLDNNExecNetwork::Export(std::ostream& modelStream) {
+    CNNNetworkSerializer serializer(modelStream, extensionManager);
+    serializer <<_network;
+}

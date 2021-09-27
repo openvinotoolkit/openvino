@@ -74,7 +74,7 @@ public:
                      const int tuneIndex);
     void RemoveKernel(const std::string& cacheFilePath,
                       const Params& params);
-    std::tuple<std::string, int> LoadKernelOffline(std::shared_ptr<TuningCache> cache,
+    std::tuple<std::string, int> LoadKernelOffline(TuningCache* cache,
                                                    const Params& params);
 
 private:

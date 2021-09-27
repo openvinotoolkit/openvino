@@ -11,7 +11,6 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "common_test_utils/common_layers_params.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -31,7 +30,7 @@ typedef std::tuple<
 class ReduceOpsLayerTest : public testing::WithParamInterface<reduceMeanParams>,
                            virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<reduceMeanParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<reduceMeanParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:

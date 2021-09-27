@@ -3,31 +3,26 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/engine.hpp>
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/concatenation.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/pooling.hpp>
-#include <api/condition.hpp>
-#include <api/softmax.hpp>
-#include <api/scale.hpp>
-#include <api/data.hpp>
-#include "test_utils/test_utils.h"
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/concatenation.hpp>
+#include <cldnn/primitives/pooling.hpp>
+#include <cldnn/primitives/condition.hpp>
+#include <cldnn/primitives/softmax.hpp>
+#include <cldnn/primitives/scale.hpp>
+#include <cldnn/primitives/data.hpp>
 
 #include <cstddef>
 
 using namespace cldnn;
 using namespace ::tests;
 
-bool is_output_equal(const cldnn::memory& mem, const std::vector<float>& ref)
+bool is_output_equal(const cldnn::memory::ptr mem, const std::vector<float>& ref)
 {
-    auto ptr = mem.pointer<float>();
-    for (size_t i = 0; i < mem.get_layout().count(); i++)
-    {
+    cldnn::mem_lock<float> ptr(mem, get_test_stream());
+    for (size_t i = 0; i < mem->get_layout().count(); i++) {
         if (!are_equal(ptr[i], ref[i])) return false;
     }
     return true;
@@ -36,14 +31,11 @@ bool is_output_equal(const cldnn::memory& mem, const std::vector<float>& ref)
 topology generate_simple_branch (bool branch_true_false, const primitive_id& input_id)
 {
     topology branch;
-    if (branch_true_false)
-    {
+    if (branch_true_false) {
         branch.add(
             pooling(input_id + "_when_true", input_id, cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
         );
-    }
-    else
-    {
+    } else {
         branch.add(
             pooling(input_id + "_when_false", input_id, cldnn::pooling_mode::average, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
         );
@@ -52,29 +44,29 @@ topology generate_simple_branch (bool branch_true_false, const primitive_id& inp
 }
 
 TEST(DISABLED_condition_gpu, basic_equal_comp) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto scale_mem = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+
     topology branch_true = generate_simple_branch(true, "condi");
     topology branch_false = generate_simple_branch(false, "condi");
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
-        input_layout("compare", compare.get_layout())
-    );    
+        input_layout("compare", compare->get_layout())
+    );
     topology.add(
-        input_layout("scale_data", scale_mem.get_layout())
+        input_layout("scale_data", scale_mem->get_layout())
     );
     topology.add(
         condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
-    );  
+    );
     topology.add(
         scale("output", "condi", "scale_data")
     );
@@ -104,32 +96,31 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
 }
 
 TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
-
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input0 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
 
-    auto compare = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });
 
     topology branch_true = generate_simple_branch(true, "condi");
     topology branch_false = generate_simple_branch(false, "condi");
 
     topology topology;
     topology.add(
-        input_layout("input0", input0.get_layout())
+        input_layout("input0", input0->get_layout())
     );
     topology.add(
-        input_layout("input1", input1.get_layout())
+        input_layout("input1", input1->get_layout())
     );
     topology.add(
-        input_layout("compare", compare.get_layout())
+        input_layout("compare", compare->get_layout())
     );
     topology.add(
         concatenation("concat", { "input0", "input1" }, concatenation::along_x)
     );
-    topology.add( 
+    topology.add(
         condition("condi", "concat", branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
 
@@ -182,14 +173,10 @@ std::pair<std::vector<float>, std::vector<float>> get_values_to_compare(const cl
     std::vector<float> ret_true;
     std::vector<float> ret_false;
     auto mem_desc = generic_test::get_linear_memory_desc(input_lay);
-    for (int32_t b = 0; b < range.batch[0]; b++)
-    {
-        for (int32_t f = 0; f < range.feature[0]; f++)
-        {
-            for (int32_t y = 0; y < range.spatial[1]; y++)
-            {
-                for (int32_t x = 0; x < range.spatial[0]; x++)
-                {
+    for (int32_t b = 0; b < range.batch[0]; b++) {
+        for (int32_t f = 0; f < range.feature[0]; f++) {
+            for (int32_t y = 0; y < range.spatial[1]; y++) {
+                for (int32_t x = 0; x < range.spatial[0]; x++) {
                     auto linear_idx = generic_test::get_linear_index(
                         input_lay,
                         offset.batch[0] + b,
@@ -198,17 +185,16 @@ std::pair<std::vector<float>, std::vector<float>> get_values_to_compare(const cl
                         offset.spatial[0] + x,
                         mem_desc);
 
-                    switch (func)
-                    {
+                    switch (func) {
                     case cond_functions::EQUAL:
                         ret_true.push_back(values.at(linear_idx));
                         ret_false.push_back(-1.0f);
                         break;
-                    case cond_functions::GREATER: 
+                    case cond_functions::GREATER:
                         ret_true.push_back(values.at(linear_idx) - 1.0f);
                         ret_false.push_back(99.0f);
                         break;
-                    case cond_functions::LESS: 
+                    case cond_functions::LESS:
                         ret_true.push_back(values.at(linear_idx) + 1.0f);
                         ret_false.push_back(-1.0f);
                         break;
@@ -222,10 +208,10 @@ std::pair<std::vector<float>, std::vector<float>> get_values_to_compare(const cl
 
 TEST(DISABLED_condition_gpu, generic_test_true_false) {
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 5, 2, 5, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 5, 2, 5, 1 } });
     std::vector<float> input_data(50);
     std::iota(input_data.begin(), input_data.end(), 0.0f);
 
@@ -263,17 +249,14 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
         33, 36, 38, 41, 43, 46, 48
     };
 
-    for (auto const& func : functions)
-    {
-        for (auto const& range : ranges)
-        {
-            for (auto const& offset : offsets)
-            {
-                auto comp_values = get_values_to_compare(offset, range, input_data, input.get_layout(), func);
+    for (auto const& func : functions) {
+        for (auto const& range : ranges) {
+            for (auto const& offset : offsets) {
+                auto comp_values = get_values_to_compare(offset, range, input_data, input->get_layout(), func);
                 auto comp_values_true = comp_values.first;
                 auto comp_values_false = comp_values.second;
 
-                auto compare = memory::allocate(engine, { data_types::f32, format::bfyx, range });
+                auto compare = engine.allocate_memory({ data_types::f32, format::bfyx, range });
 
                 topology branch_true;
                 topology branch_false;
@@ -286,10 +269,10 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
 
                 topology topology;
                 topology.add(
-                    input_layout("input", input.get_layout())
+                    input_layout("input", input->get_layout())
                 );
                 topology.add(
-                    input_layout("compare", compare.get_layout())
+                    input_layout("compare", compare->get_layout())
                 );
                 topology.add(
                     condition("condi", "input", branch_true, branch_false, "compare", func, offset)
@@ -324,7 +307,7 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
 
 TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
 
-    /*   
+    /*
         <prims...>
         <if>
         <...>
@@ -333,14 +316,14 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
         <if>
         <...>
         <end_if>
-        <prims...>    
+        <prims...>
     */
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto compare2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto compare2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
 
     topology condi_1_true = generate_simple_branch(true, "condi");
     topology condi_1_false = generate_simple_branch(false, "condi");
@@ -355,16 +338,16 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
-        input_layout("compare", compare.get_layout())
+        input_layout("compare", compare->get_layout())
     );
     topology.add(
         condition("condi", "input", condi_1_true, condi_1_false, "compare", cond_functions::EQUAL)
     );
     topology.add(
-        input_layout("compare2", compare2.get_layout())
+        input_layout("compare2", compare2->get_layout())
     );
     topology.add(
         condition("condi2", "condi", condi_2_true, condi_2_false, "compare2", cond_functions::GREATER)
@@ -406,15 +389,15 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
     <end_if 0>
     <prims...>
     */
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto compare2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
-    auto scale_5_mem = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto compare2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto scale_5_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
     set_values(scale_5_mem, { 5.0f });
-    auto scale_10_mem = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto scale_10_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
     set_values(scale_10_mem, { 10.0f });
 
     topology nested_true;
@@ -433,7 +416,7 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
         pooling("pooling_when_true", "condi", cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
     );
     branch_true.add(
-        input_layout("compare2", compare2.get_layout())
+        input_layout("compare2", compare2->get_layout())
     );
 
     branch_true.add(
@@ -453,11 +436,11 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
 
     topology.add(
-        input_layout("compare", compare.get_layout())
+        input_layout("compare", compare->get_layout())
     );
 
     topology.add(
@@ -488,21 +471,21 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
 }
 
 TEST(DISABLED_condition_gpu, negative_compare_wrong_layout) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 5, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 5, 1 } });
 
     topology branch_true = generate_simple_branch(true, "condi");
     topology branch_false = generate_simple_branch(false, "condi");
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
-        input_layout("compare", compare.get_layout())
+        input_layout("compare", compare->get_layout())
     );
     topology.add(
         condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
@@ -512,21 +495,21 @@ TEST(DISABLED_condition_gpu, negative_compare_wrong_layout) {
 }
 
 TEST(DISABLED_condition_gpu, negative_too_big_offset) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });
 
     topology branch_true = generate_simple_branch(true, "condi");
     topology branch_false = generate_simple_branch(false, "condi");
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
-        input_layout("compare", compare.get_layout())
+        input_layout("compare", compare->get_layout())
     );
     topology.add(
         condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL, {1, 1, 2, 1})
@@ -536,12 +519,12 @@ TEST(DISABLED_condition_gpu, negative_too_big_offset) {
 }
 
 TEST(DISABLED_condition_gpu, negative_not_same_layouts) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+
     topology branch_true;
     branch_true.add(
         pooling("pooling_when_true", "condi", cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
@@ -554,10 +537,10 @@ TEST(DISABLED_condition_gpu, negative_not_same_layouts) {
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
-        input_layout("compare", compare.get_layout())
+        input_layout("compare", compare->get_layout())
     );
     topology.add(
         condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
@@ -567,11 +550,11 @@ TEST(DISABLED_condition_gpu, negative_not_same_layouts) {
 }
 
 TEST(DISABLED_condition_gpu, negative_same_names_within_different_networks) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
 
     topology branch_true;
     branch_true.add(
@@ -585,10 +568,10 @@ TEST(DISABLED_condition_gpu, negative_same_names_within_different_networks) {
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
-        input_layout("compare", compare.get_layout())
+        input_layout("compare", compare->get_layout())
     );
     topology.add(
         condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
@@ -596,6 +579,6 @@ TEST(DISABLED_condition_gpu, negative_same_names_within_different_networks) {
     topology.add(
         pooling("pooling_check_name", "condi", cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
     );
-    
+
     EXPECT_ANY_THROW(network net(engine, topology, bs););
 }

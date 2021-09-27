@@ -134,7 +134,7 @@ std::vector<ConcatParam> concatParams = {
         {DataShapes{DataShape{3, 64, 128}, DataShape{3, 64, 256}, DataShape{3, 64, 512}}, -1},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeConcatTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeConcatTests, testing::Combine(
         testing::ValuesIn(dataTypes),
         testing::ValuesIn(concatParams)));
 

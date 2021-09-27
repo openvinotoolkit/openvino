@@ -20,17 +20,15 @@ namespace subgraph {
 using namespace ngraph::pass;
 
 std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::element::Type precisionBeforeAdd,
     const Add& add,
     const ngraph::element::Type precisionBeforeDequantization,
     const DequantizationOperations& dequantization,
     const ngraph::element::Type precisionAfterDequantization,
     const ngraph::element::Type precisionFqOnData,
-    const FakeQuantizeOnData& fqOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(
-        add.empty() ? precisionBeforeDequantization : precisionBeforeAdd,
-        ngraph::Shape(inputShape));
+    const FakeQuantizeOnDataWithConstant& fqOnData) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(add.empty() ? precisionBeforeDequantization : precisionBeforeAdd, inputShape);
     input->set_friendly_name("input");
 
     std::shared_ptr<Node> parent = input;
@@ -50,17 +48,15 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
 }
 
     std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getReference(
-            const ngraph::Shape& inputShape,
-            const ngraph::element::Type precisionBeforeAdd,
-            const Add& add,
-            const ngraph::element::Type precisionBeforeDequantization,
-            const DequantizationOperations& dequantization,
-            const ngraph::element::Type precisionAfterDequantization,
-            const ngraph::element::Type precisionFqOnData,
-            const FakeQuantizeOnData& fqOnData) {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(
-                add.empty() ? precisionBeforeDequantization : precisionBeforeAdd,
-                ngraph::Shape(inputShape));
+        const ngraph::PartialShape& inputShape,
+        const ngraph::element::Type precisionBeforeAdd,
+        const Add& add,
+        const ngraph::element::Type precisionBeforeDequantization,
+        const DequantizationOperations& dequantization,
+        const ngraph::element::Type precisionAfterDequantization,
+        const ngraph::element::Type precisionFqOnData,
+        const FakeQuantizeOnDataWithConstant& fqOnData) {
+        const auto input = std::make_shared<ngraph::opset1::Parameter>(add.empty() ? precisionBeforeDequantization : precisionBeforeAdd, inputShape);
         input->set_friendly_name("input");
 
         std::shared_ptr<Node> parent = input;
@@ -90,7 +86,7 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
     }
 
 std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const std::vector<Branch>& branches,
     const ngraph::element::Type precisionFqOnData,
     const FakeQuantizeOnData& fqOnData) {
@@ -105,7 +101,7 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
     ngraph::ParameterVector inputs;
     std::vector<std::shared_ptr<Node>> lastDequantizations;
     for (const Branch& branch : branches) {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(branch.precisionBeforeDequantization, ngraph::Shape(inputShape));
+        const auto input = std::make_shared<ngraph::opset1::Parameter>(branch.precisionBeforeDequantization, inputShape);
         inputs.push_back(input);
 
         const std::shared_ptr<Node> lastDequantization = makeDequantization(input, branch.dequantization);

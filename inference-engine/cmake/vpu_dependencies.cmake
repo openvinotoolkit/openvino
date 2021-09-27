@@ -6,14 +6,14 @@ include_guard(GLOBAL)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "11a6db07d3a17c9c0fc4247fce47c942e0dcd59f8d70665a96bae0d7b7121fe9"
-    "43f3dc0f0a8114ca34226167970aafdc869600929d6e3761c1eaa6eec71f2237")
+    "54a732b5fb17a0124652bc5113fa628c718a5af40621bca309471cb5ffd9271b"
+    "5750b2831c77ef54b8e243d3840c5ed1c9509681d55aee7e369d558cef628735")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1658)
+set(FIRMWARE_PACKAGE_VERSION 1717)
 set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #
@@ -81,8 +81,16 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         VERBATIM)
 
     install(FILES ${${var_name}}
-        DESTINATION ${IE_CPACK_RUNTIME_PATH}
-        COMPONENT myriad)
+            DESTINATION ${IE_CPACK_RUNTIME_PATH}
+            COMPONENT myriad)
+
+    if(ENABLE_MYRIAD AND ENABLE_BEH_TESTS)
+        # for MyriadBehaviorTests
+        install(FILES ${${var_name}}
+                DESTINATION tests
+                COMPONENT tests
+                EXCLUDE_FROM_ALL)
+    endif()
 endforeach()
 
 add_custom_target(vpu_copy_firmware
@@ -102,8 +110,6 @@ if(ANDROID)
 
     set(LIBUSB_INCLUDE_DIR "${LIBUSB}/include")
     set(LIBUSB_LIBRARY "${LIBUSB}/libs/${ANDROID_ABI}/libusb1.0.so")
-
-    log_rpath_from_dir(LIBUSB "${LIBUSB}/libs/${ANDROID_ABI}")
 endif()
 
 #

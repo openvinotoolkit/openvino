@@ -100,5 +100,7 @@ void ProposalBehTest::Run() {
 }
 
 TEST_P(ProposalBehTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     ASSERT_THROW(Run(), InferenceEngine::Exception);
 }

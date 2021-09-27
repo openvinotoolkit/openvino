@@ -26,27 +26,27 @@ public:
     };
 
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type precisionBeforeAdd,
         const Add& add,
         const ngraph::element::Type precisionBeforeDequantization,
         const DequantizationOperations& dequantization,
         const ngraph::element::Type precisionAfterDequantization,
         const ngraph::element::Type precisionFqOnData,
-        const FakeQuantizeOnData& fqOnData);
+        const FakeQuantizeOnDataWithConstant& fqOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
-            const ngraph::Shape& inputShape,
+            const ngraph::PartialShape& inputShape,
             const ngraph::element::Type precisionBeforeAdd,
             const Add& add,
             const ngraph::element::Type precisionBeforeDequantization,
             const DequantizationOperations& dequantization,
             const ngraph::element::Type precisionAfterDequantization,
             const ngraph::element::Type precisionFqOnData,
-            const FakeQuantizeOnData& fqOnData);
+            const FakeQuantizeOnDataWithConstant& fqOnData);
 
     static std::shared_ptr<ngraph::Function> get(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const std::vector<Branch>& branches,
         const ngraph::element::Type precisionFqOnData,
         const FakeQuantizeOnData& fqOnData);

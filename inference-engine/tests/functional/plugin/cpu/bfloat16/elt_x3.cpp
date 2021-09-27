@@ -171,10 +171,10 @@ protected:
         // threshold = 0.6f;  // Max in fp32 network by output: 12.0983
 
         // 3 channels, 4 x 4 size
-        threshold = 20.6f;  // Max in fp32 network by output: 879.077
+        threshold = 30.6f;  // Max in fp32 network by output: 879.077
 
         // STAGE3:
-        // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
+        // filling of expected precision of layer execution defined by precision of input tensor to the primitive and reflected in
         // performance counters
         expectedPrecisions["Convolution_1"] = "BF16";
         expectedPrecisions["Convolution_2"] = "BF16";
@@ -184,10 +184,12 @@ protected:
 };
 
 TEST_P(Elt_x3, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Elt_x3,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_NoReshape, Elt_x3,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -196,7 +198,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Elt_x3,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Elt_x3::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Elt_x3,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, Elt_x3,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::BF16),

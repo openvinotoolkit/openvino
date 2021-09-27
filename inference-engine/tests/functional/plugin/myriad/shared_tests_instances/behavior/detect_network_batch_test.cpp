@@ -13,7 +13,7 @@ const std::vector<unsigned int> batchSizes = {
 };
 
 namespace {
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, DetectNetworkBatch,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, DetectNetworkBatch,
                             ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                 ::testing::ValuesIn(batchSizes)),

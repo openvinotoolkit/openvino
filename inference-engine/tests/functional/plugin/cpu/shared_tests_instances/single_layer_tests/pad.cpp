@@ -43,7 +43,7 @@ const auto pad1DConstparams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Pad1DConst,
         PadLayerTest,
         pad1DConstparams,
@@ -63,7 +63,7 @@ const auto pad1Dparams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Pad1D,
         PadLayerTest,
         pad1Dparams,
@@ -86,7 +86,7 @@ const auto pad2DConstparams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Pad2DConst,
         PadLayerTest,
         pad2DConstparams,
@@ -106,7 +106,7 @@ const auto pad2Dparams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Pad2D,
         PadLayerTest,
         pad2Dparams,
@@ -129,7 +129,7 @@ const auto pad4DConstparams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Pad4DConst,
         PadLayerTest,
         pad4DConstparams,
@@ -149,7 +149,7 @@ const auto pad4Dparams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Pad4D,
         PadLayerTest,
         pad4Dparams,

@@ -19,9 +19,9 @@ using namespace InferenceEngine::details;
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatWithChildAndOutputTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithChildAndOutputTransformationParams> obj) {
+std::string ConcatWithChildAndOutputTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithChildAndOutputTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithChildAndOutputTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -47,7 +47,7 @@ std::string ConcatWithChildAndOutputTransformation::getTestCaseName(testing::Tes
 
 void ConcatWithChildAndOutputTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     ConcatWithChildAndOutputTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();

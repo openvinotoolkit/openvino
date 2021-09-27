@@ -19,7 +19,7 @@ class TransposeAfterMatMulFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape);
+        const ngraph::PartialShape& inputShape);
 };
 
 }  // namespace subgraph

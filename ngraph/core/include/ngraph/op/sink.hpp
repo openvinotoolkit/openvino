@@ -7,29 +7,11 @@
 #include <vector>
 
 #include "ngraph/op/op.hpp"
+#include "openvino/op/sink.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        /// Root of nodes that can be sink nodes
-        class NGRAPH_API Sink : public Op
-        {
-        public:
-            virtual ~Sink() = 0;
-            NGRAPH_RTTI_DECLARATION;
-
-        protected:
-            Sink()
-                : Op()
-            {
-            }
-
-            explicit Sink(const OutputVector& arguments)
-                : Op(arguments)
-            {
-            }
-        };
-    } // namespace op
-    using SinkVector = std::vector<std::shared_ptr<op::Sink>>;
-} // namespace ngraph
+namespace ngraph {
+namespace op {
+using ov::op::Sink;
+}  // namespace op
+using SinkVector = std::vector<std::shared_ptr<op::Sink>>;
+}  // namespace ngraph

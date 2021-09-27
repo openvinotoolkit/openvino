@@ -29,44 +29,6 @@ nodes = {
 
 
 class SliceReplacerTest(unittest.TestCase):
-    # test case when input goes besides from TFSlice to other nodes
-    def test_slice_replacer_begin_with_2_inputs(self):
-        graph = build_graph(nodes_attrs=nodes, edges=[
-            ('input', 'tfslice'),
-            *connect_front('begin:0', '1:tfslice'),
-            *connect_front('begin:0', '0:john_doe'),
-            *connect_front('size:0', '2:tfslice'),
-            *connect_front('tfslice:0', 'output'),
-        ], nodes_with_edges_only=True)
-        graph.stage = 'front'
-
-        TFSliceToSliceReplacer().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph(nodes_attrs=nodes, edges=[
-            *connect_front('input:0', 'slice'),
-            *connect_front('input:0', 'shapeof'),
-            *connect_front('begin:0', 'slice:1'),
-            *connect_front('begin:0', 'john_doe:1'),
-
-            *connect_front('begin:0', 'end_const:0'),
-            *connect_front('size:0', 'end_const:1'),
-            *connect_front('size:0', 'equal:0'),
-
-            *connect_front('shapeof:0', 'select:1'),
-            *connect_front('minus_one:0', 'equal:1'),
-
-            *connect_front('equal:0', 'select:0'),
-
-            *connect_front('end_const:0', 'cast:0'),
-            *connect_front('cast:0', 'select:2'),
-            *connect_front('select:0', 'slice:2'),
-
-            *connect_front('slice:0', 'output'),
-        ], nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-
     def test_slice_replacer(self):
         graph = build_graph(nodes_attrs=nodes, edges=[
             *connect_front('input:0', '0:tfslice'),

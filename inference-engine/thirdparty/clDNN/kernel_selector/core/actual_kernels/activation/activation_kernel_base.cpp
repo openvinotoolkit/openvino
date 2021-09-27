@@ -16,9 +16,12 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
     if (out.GetLayout() == DataLayout::yxfb) {
         dispatchData.gws = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
-    } else if (out.GetLayout() == DataLayout::b_fs_yx_fsv16) {
+    } else if (out.GetLayout() == DataLayout::b_fs_yx_fsv16 || out.GetLayout() == DataLayout::b_fs_yx_fsv32) {
         dispatchData.gws = {Align(out.Feature().v, 16) * out.Batch().v, out.X().v, out.Y().v};
         dispatchData.lws = {16, 1, 1};
+    } else if (out.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || out.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
+        dispatchData.gws = {out.X().v * out.Y().v, Align(out.Feature().v, 16), Align(out.Batch().v, 16)};
+        dispatchData.lws = {1, 16, 16};
     } else {
         dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
@@ -69,11 +72,10 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
     KernelData kd = KernelData::Default<activation_params>(params);
 
     activation_params& newParams = *static_cast<activation_params*>(kd.params.get());
-    const std::string kernel_id = GetEntryPoint(kernelName, params.layerID, options);
 
     auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -81,7 +83,7 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     if (!newParams.inputActivationParams.empty()) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});
     }
 
     return {kd};

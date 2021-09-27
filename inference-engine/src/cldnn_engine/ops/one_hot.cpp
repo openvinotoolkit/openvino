@@ -8,7 +8,7 @@
 
 #include "ngraph/op/one_hot.hpp"
 
-#include "api/one_hot.hpp"
+#include "cldnn/primitives/one_hot.hpp"
 
 namespace CLDNNPlugin {
 
@@ -53,7 +53,8 @@ void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::OneHot>& o
                                      DataTypeFromPrecision(op->get_output_element_type(0)),
                                      static_cast<uint16_t>(axis),
                                      on_value,
-                                     off_value);
+                                     off_value,
+                                     op->get_friendly_name());
 
     p.AddPrimitive(oneHotPrim);
     p.AddPrimitiveToProfiler(op);

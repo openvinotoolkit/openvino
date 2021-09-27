@@ -8,7 +8,7 @@
 #include "ngraph/op/split.hpp"
 #include "ngraph/op/variadic_split.hpp"
 
-#include "api/crop.hpp"
+#include "cldnn/primitives/crop.hpp"
 
 namespace CLDNNPlugin {
 
@@ -40,8 +40,7 @@ void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
         auto outTensor = CldnnTensorFromIEDims(outLayerDims, 1);
         auto offsetTensor = CldnnTensorFromIEDims(startOffset, 0);
 
-        auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor);
-        p.primitivesToIRLayersMap[outLayerName] = { op->get_friendly_name() };
+        auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor, op->get_friendly_name());
         p.primitiveIDs[outLayerName] = outLayerName;
 
         p.AddPrimitive(cropPrim);

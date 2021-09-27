@@ -162,7 +162,7 @@ protected:
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["Convolution_1"] = "FP32";
+        expectedPrecisions["Convolution_1"] = "BF16";
         expectedPrecisions["ReLU_1"] = "ndef";
         expectedPrecisions["AvgPool_1"] = "BF16";
         expectedPrecisions["Convolution_2"] = "BF16";
@@ -173,11 +173,13 @@ protected:
 };
 
 TEST_P(ConvReLUPoolConvReLUPool, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ConvReLUPoolConvReLUPool,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_NoReshape, ConvReLUPoolConvReLUPool,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::FP32),
@@ -186,7 +188,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ConvReLUPoolConvReLUPool,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvReLUPoolConvReLUPool::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, ConvReLUPoolConvReLUPool,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, ConvReLUPoolConvReLUPool,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

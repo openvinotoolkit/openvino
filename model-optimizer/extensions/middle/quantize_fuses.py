@@ -6,6 +6,7 @@ import numpy as np
 from extensions.middle.BinarizeWeightsM1P1 import BinarizeWeightsM1P1
 from extensions.middle.DeleteControlFlowEdges import DeleteControlFlowEdges
 from extensions.middle.EltwiseChecker import EltwiseChecker
+from extensions.middle.quantize_linear_resolver import QuantizeLinearResolver
 from mo.graph.graph import Graph
 from mo.middle.passes.fusing.helpers import get_value_in_port
 from mo.middle.replacement import MiddleReplacementPattern
@@ -75,7 +76,7 @@ class FakeQuantizeFuse(MiddleReplacementPattern):
     graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_fusing]
 
     def run_after(self):
-        return [MarkNodesToFuseUpToFakeQuantize]
+        return [QuantizeLinearResolver]
 
     def run_before(self):
         return [BinarizeWeightsM1P1]

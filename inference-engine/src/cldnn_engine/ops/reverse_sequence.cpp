@@ -7,7 +7,7 @@
 
 #include "ngraph/op/reverse_sequence.hpp"
 
-#include "api/reverse_sequence.hpp"
+#include "cldnn/primitives/reverse_sequence.hpp"
 
 namespace CLDNNPlugin {
 
@@ -22,7 +22,8 @@ void CreateReverseSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v0::R
                                                        inputPrimitives[0],
                                                        inputPrimitives[1],
                                                        seq_axis,
-                                                       batch_axis);
+                                                       batch_axis,
+                                                       op->get_friendly_name());
 
     p.AddPrimitive(reverseSequencePrim);
     p.AddPrimitiveToProfiler(op);

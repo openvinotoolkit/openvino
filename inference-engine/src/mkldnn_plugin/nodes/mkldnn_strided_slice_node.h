@@ -13,8 +13,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNStridedSliceNode : public MKLDNNNode {
 public:
-    MKLDNNStridedSliceNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNStridedSliceNode() override = default;
+    MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -25,15 +24,17 @@ public:
         return false;
     }
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
-    void stridedSliceV();
-    void stridedSlice();
+    inline void stridedSlice();
 
     void addHiddenDims(const size_t nSrcDims);
     void orderParametersByLayouts();
     void dimsNormalization(InferenceEngine::SizeVector& newSrcDims, InferenceEngine::SizeVector& newDstDims);
     void dimsGluing(const size_t realNDims, const InferenceEngine::SizeVector& newSrcDims, const InferenceEngine::SizeVector& newDstDims);
     void indicesCalculation();
+    void indicesCalculationForOptimized();
 
     const size_t DATA_ID = 0;
     const size_t BEGIN_ID = 1;
@@ -55,6 +56,8 @@ private:
     InferenceEngine::SizeVector strideDims;
 
     struct {
+        MKLDNNMemoryPtr srcMemPtr = nullptr;
+        MKLDNNMemoryPtr dstMemPtr = nullptr;
         InferenceEngine::SizeVector srcDims;
         InferenceEngine::SizeVector dstDims;
         InferenceEngine::SizeVector srcStrides;
@@ -68,6 +71,8 @@ private:
         size_t workAmount = 0;
         size_t lastDstDim = 0;
         size_t dataSize = 0;
+        size_t srcShift = 0;
+        bool isOptimized = false;
         bool equalDims = false;
         bool parametersAreConstant = true;
     } params;

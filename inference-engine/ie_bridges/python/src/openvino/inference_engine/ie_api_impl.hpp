@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <ie_extension.h>
-
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
-#include <ie_core.hpp>
 #include <iostream>
 #include <iterator>
 #include <list>
@@ -23,6 +20,7 @@
 #include <vector>
 
 #include "Python.h"
+#include "ie_core.hpp"
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -36,6 +34,14 @@ struct ProfileInfo {
     int64_t real_time;
     int64_t cpu_time;
     unsigned execution_index;
+};
+
+struct CVariableState {
+    InferenceEngine::VariableState variableState;
+    void reset();
+    std::string getName();
+    InferenceEngine::Blob::Ptr getState();
+    void setState(InferenceEngine::Blob::Ptr state);
 };
 
 struct IENetwork {
@@ -52,17 +58,11 @@ struct IENetwork {
 
     const std::map<std::string, InferenceEngine::InputInfo::Ptr> getInputsInfo();
 
-    const std::map<std::string, InferenceEngine::DataPtr> getInputs();
-
     const std::map<std::string, InferenceEngine::DataPtr> getOutputs();
 
-    void reshape(const std::map<std::string, std::vector<size_t>>& input_shapes);
+    void reshape(const std::map<std::string, std::vector<std::vector<int64_t>>>& input_shapes);
 
     void serialize(const std::string& path_to_xml, const std::string& path_to_bin);
-
-    void load_from_buffer(const char* xml, size_t xml_size, uint8_t* bin, size_t bin_size);
-
-    IENetwork(const std::string& model, const std::string& weights);
 
     IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>& cnn_network);
 
@@ -94,7 +94,7 @@ struct InferRequestWrap {
     int index;
     using cy_callback = void (*)(void*, int);
 
-    InferenceEngine::IInferRequest::Ptr request_ptr;
+    InferenceEngine::InferRequest request_ptr;
     Time::time_point start_time;
     double exec_time;
     cy_callback user_callback;
@@ -109,21 +109,25 @@ struct InferRequestWrap {
 
     void setCyCallback(cy_callback callback, void* data);
 
-    void getBlobPtr(const std::string& blob_name, InferenceEngine::Blob::Ptr& blob_ptr);
+    InferenceEngine::Blob::Ptr getBlobPtr(const std::string& blob_name);
 
     void setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr);
 
-    void setBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data, const InferenceEngine::PreProcessInfo& info);
+    void setBlob(const std::string& name,
+                 const InferenceEngine::Blob::Ptr& data,
+                 const InferenceEngine::PreProcessInfo& info);
 
     void setBatch(int size);
 
-    void getPreProcess(const std::string& blob_name, const InferenceEngine::PreProcessInfo** info);
+    const InferenceEngine::PreProcessInfo& getPreProcess(const std::string& blob_name);
 
     std::map<std::string, InferenceEnginePython::ProfileInfo> getPerformanceCounts();
+
+    std::vector<InferenceEnginePython::CVariableState> queryState();
 };
 
 struct IEExecNetwork {
-    InferenceEngine::ExecutableNetwork actual;
+    std::shared_ptr<InferenceEngine::ExecutableNetwork> actual;
     std::vector<InferRequestWrap> infer_requests;
     std::string name;
     IdleInferRequestQueue::Ptr request_queue_ptr;
@@ -136,7 +140,6 @@ struct IEExecNetwork {
     void exportNetwork(const std::string& model_file);
 
     std::map<std::string, InferenceEngine::InputInfo::CPtr> getInputsInfo();
-    std::map<std::string, InferenceEngine::DataPtr> getInputs();
     std::map<std::string, InferenceEngine::CDataPtr> getOutputs();
 
     PyObject* getMetric(const std::string& metric_name);
@@ -146,6 +149,9 @@ struct IEExecNetwork {
     int getIdleRequestId();
 
     void createInferRequests(int num_requests);
+
+    // binds plugin to InputInfo and Data, so that they can be destroyed before plugin (ussue 28996)
+    std::shared_ptr<InferenceEngine::ExecutableNetwork> getPluginLink();
 };
 
 struct IECore {
@@ -154,13 +160,23 @@ struct IECore {
     std::map<std::string, InferenceEngine::Version> getVersions(const std::string& deviceName);
     InferenceEnginePython::IENetwork readNetwork(const std::string& modelPath, const std::string& binPath);
     InferenceEnginePython::IENetwork readNetwork(const std::string& model, const uint8_t* bin, size_t bin_size);
-    std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetwork(IENetwork network, const std::string& deviceName,
-                                                                      const std::map<std::string, std::string>& config, int num_requests);
-    std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetworkFromFile(const std::string& modelPath, const std::string& deviceName,
-                                                                              const std::map<std::string, std::string>& config, int num_requests);
-    std::unique_ptr<InferenceEnginePython::IEExecNetwork> importNetwork(const std::string& modelFIle, const std::string& deviceName,
-                                                                        const std::map<std::string, std::string>& config, int num_requests);
-    std::map<std::string, std::string> queryNetwork(IENetwork network, const std::string& deviceName, const std::map<std::string, std::string>& config);
+    std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetwork(IENetwork network,
+                                                                      const std::string& deviceName,
+                                                                      const std::map<std::string, std::string>& config,
+                                                                      int num_requests);
+    std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetworkFromFile(
+        const std::string& modelPath,
+        const std::string& deviceName,
+        const std::map<std::string, std::string>& config,
+        int num_requests);
+    std::unique_ptr<InferenceEnginePython::IEExecNetwork> importNetwork(
+        const std::string& modelFIle,
+        const std::string& deviceName,
+        const std::map<std::string, std::string>& config,
+        int num_requests);
+    std::map<std::string, std::string> queryNetwork(IENetwork network,
+                                                    const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config);
     void setConfig(const std::map<std::string, std::string>& config, const std::string& deviceName = std::string());
     void registerPlugin(const std::string& pluginName, const std::string& deviceName);
     void unregisterPlugin(const std::string& deviceName);
@@ -182,4 +198,9 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 }
 
 std::string get_version();
+
+InferenceEnginePython::IENetwork read_network(std::string path_to_xml, std::string path_to_bin);
+
+PyObject* getPartialShape_capsule(InferenceEngine::CDataPtr data);
+
 };  // namespace InferenceEnginePython

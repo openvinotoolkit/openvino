@@ -4,8 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-
-#include "api/extract_image_patches.hpp"
+#include "cldnn/primitives/extract_image_patches.hpp"
 #include "primitive_inst.h"
 
 namespace cldnn {
@@ -30,7 +29,7 @@ public:
     static std::string to_string(extract_image_patches_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, extract_image_patches_node const& desc);
+    typed_primitive_inst(network& network, extract_image_patches_node const& desc);
 };
 
 using extract_image_patches_inst = typed_primitive_inst<extract_image_patches>;

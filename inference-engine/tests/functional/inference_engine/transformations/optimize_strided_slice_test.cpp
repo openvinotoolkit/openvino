@@ -16,8 +16,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <legacy/ngraph_ops/fully_connected.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <transformations/utils/utils.hpp>
 

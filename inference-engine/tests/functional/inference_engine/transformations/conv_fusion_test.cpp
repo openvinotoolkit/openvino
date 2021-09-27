@@ -67,9 +67,9 @@ private:
 
         auto const_node = ngraph::opset5::Constant::create(ngraph::element::f32, eltwise_shape, {1.1});
         ngraph::Output<ngraph::Node> eltwise;
-        if (eltwise_type == ngraph::opset5::Add::type_info) {
+        if (eltwise_type == ngraph::opset5::Add::get_type_info_static()) {
             eltwise = std::make_shared<ngraph::opset5::Add>(conv, const_node);
-        } else if (eltwise_type == ngraph::opset5::Multiply::type_info) {
+        } else if (eltwise_type == ngraph::opset5::Multiply::get_type_info_static()) {
             eltwise = std::make_shared<ngraph::opset5::Multiply>(conv, const_node);
         } else {
             throw ngraph::ngraph_error("Unsupported element type");
@@ -91,12 +91,12 @@ private:
 
         ngraph::Output<ngraph::Node> const_node;
         const_node = ngraph::opset5::Constant::create(ngraph::element::f32, eltwise_shape, {1.1});
-        if (eltwise_type == ngraph::opset5::Add::type_info) {
+        if (eltwise_type == ngraph::opset5::Add::get_type_info_static()) {
             if (eltwise_shape.size() != 1) {
                 const_node = ngraph::op::util::reshapeTo(const_node, ngraph::Shape{ngraph::shape_size(eltwise_shape)});
             }
             conv = conv.get_node_shared_ptr()->copy_with_new_inputs({input, weights, const_node});
-        } else if (eltwise_type == ngraph::opset5::Multiply::type_info) {
+        } else if (eltwise_type == ngraph::opset5::Multiply::get_type_info_static()) {
             if (eltwise_shape.size() > 1) {
                 const_node = ngraph::op::util::reshapeTo(const_node, ngraph::Shape{ngraph::shape_size(eltwise_shape)});
             }
@@ -125,51 +125,89 @@ TEST_P(ConvFusionTests, CompareFunctions) {
 using add = ngraph::opset5::Add;
 using mul = ngraph::opset5::Multiply;
 
-INSTANTIATE_TEST_CASE_P(ConvAddFusion, ConvFusionTests,
-        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}, add::type_info, EltwiseShape{8, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, add::type_info, EltwiseShape{8, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, add::type_info, EltwiseShape{9, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN, 64, 64},  WeightsShape{6, 3, 3, 4, 2}, add::type_info, EltwiseShape{6, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, DYN, 64},  WeightsShape{5, 3, 3, 4, 3}, add::type_info, EltwiseShape{5, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, 64, DYN},  WeightsShape{5, 3, 3, 4, 3}, add::type_info, EltwiseShape{5, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{1, 3, 64, 64},       WeightsShape{6, 3, 1, 1},    add::type_info, EltwiseShape{6, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN}, WeightsShape{7, 3, 1, 1},    add::type_info, EltwiseShape{7, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64},     WeightsShape{8, 3, 1, 2},    add::type_info, EltwiseShape{8, 1, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 64, 64},     WeightsShape{9, 3, 2, 3},    add::type_info, EltwiseShape{9, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN, 64},      WeightsShape{6, 3, 3, 4},    add::type_info, EltwiseShape{6, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, DYN},      WeightsShape{5, 3, 3, 4},    add::type_info, EltwiseShape{5, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, DYN, DYN},      WeightsShape{5, 3, 1},       add::type_info, EltwiseShape{5, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 10},         WeightsShape{3, 3, 1},       add::type_info, EltwiseShape{3, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 9},          WeightsShape{2, 3, 2},       add::type_info, EltwiseShape{2, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},       add::type_info, EltwiseShape{1, 1}, false)));
+INSTANTIATE_TEST_SUITE_P(ConvAddFusion, ConvFusionTests,
+        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3},
+                                        add::get_type_info_static(), EltwiseShape{8, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3},
+                                        add::get_type_info_static(), EltwiseShape{8, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1},
+                                        add::get_type_info_static(), EltwiseShape{9, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{3, 3, DYN, 64, 64},  WeightsShape{6, 3, 3, 4, 2},
+                                        add::get_type_info_static(), EltwiseShape{6, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{3, 3, 64, DYN, 64},  WeightsShape{5, 3, 3, 4, 3},
+                                        add::get_type_info_static(), EltwiseShape{5, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{3, 3, 64, 64, DYN},  WeightsShape{5, 3, 3, 4, 3},
+                                        add::get_type_info_static(), EltwiseShape{5, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{1, 3, 64, 64},       WeightsShape{6, 3, 1, 1},
+                                        add::get_type_info_static(), EltwiseShape{6, 1, 1}, false),
+                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN}, WeightsShape{7, 3, 1, 1},
+                                        add::get_type_info_static(), EltwiseShape{7, 1, 1}, false),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64},     WeightsShape{8, 3, 1, 2},
+                                        add::get_type_info_static(), EltwiseShape{8, 1, 1}, false),
+                        std::make_tuple(InputShape{2, DYN, 64, 64},     WeightsShape{9, 3, 2, 3},
+                                        add::get_type_info_static(), EltwiseShape{9, 1, 1}, false),
+                        std::make_tuple(InputShape{3, 3, DYN, 64},      WeightsShape{6, 3, 3, 4},
+                                        add::get_type_info_static(), EltwiseShape{6, 1, 1}, false),
+                        std::make_tuple(InputShape{3, 3, 64, DYN},      WeightsShape{5, 3, 3, 4},
+                                        add::get_type_info_static(), EltwiseShape{5, 1, 1}, false),
+                        std::make_tuple(InputShape{DYN, DYN, DYN},      WeightsShape{5, 3, 1},
+                                        add::get_type_info_static(), EltwiseShape{5, 1}, false),
+                        std::make_tuple(InputShape{DYN, 3, 10},         WeightsShape{3, 3, 1},
+                                        add::get_type_info_static(), EltwiseShape{3, 1}, false),
+                        std::make_tuple(InputShape{2, DYN, 9},          WeightsShape{2, 3, 2},
+                                        add::get_type_info_static(), EltwiseShape{2, 1}, false),
+                        std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},
+                                        add::get_type_info_static(), EltwiseShape{1, 1}, false)));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_ConvAddFusionNegative, ConvFusionTests,
-        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}, add::type_info, EltwiseShape{2, 1}, true),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, add::type_info, EltwiseShape{8, 1, 1}, true),
-                        std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, add::type_info, EltwiseShape{9, 1, 1, 1, 1}, true)));
+INSTANTIATE_TEST_SUITE_P(DISABLED_ConvAddFusionNegative, ConvFusionTests,
+        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3},
+                                        add::get_type_info_static(), EltwiseShape{2, 1}, true),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3},
+                                        add::get_type_info_static(), EltwiseShape{8, 1, 1}, true),
+                        std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1},
+                                        add::get_type_info_static(), EltwiseShape{9, 1, 1, 1, 1}, true)));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_ConvMulFusion, ConvFusionTests,
-        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{8, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{8, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, mul::type_info, EltwiseShape{9, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN, 64, 64},  WeightsShape{6, 3, 3, 4, 2}, mul::type_info, EltwiseShape{6, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, DYN, 64},  WeightsShape{5, 3, 3, 4, 3}, mul::type_info, EltwiseShape{5, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, 64, DYN},  WeightsShape{5, 3, 3, 4, 3}, mul::type_info, EltwiseShape{5, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{1, 3, 64, 64},       WeightsShape{6, 3, 1, 1},    mul::type_info, EltwiseShape{6, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN}, WeightsShape{7, 3, 1, 1},    mul::type_info, EltwiseShape{7, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64},     WeightsShape{8, 3, 1, 2},    mul::type_info, EltwiseShape{8, 1, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 64, 64},     WeightsShape{9, 3, 2, 3},    mul::type_info, EltwiseShape{9, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN, 64},      WeightsShape{6, 3, 3, 4},    mul::type_info, EltwiseShape{6, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, DYN},      WeightsShape{5, 3, 3, 4},    mul::type_info, EltwiseShape{5, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, DYN, DYN},      WeightsShape{5, 3, 1},       mul::type_info, EltwiseShape{5, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 10},         WeightsShape{3, 3, 1},       mul::type_info, EltwiseShape{3, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 9},          WeightsShape{2, 3, 2},       mul::type_info, EltwiseShape{2, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},       mul::type_info, EltwiseShape{1, 1}, false)));
+INSTANTIATE_TEST_SUITE_P(DISABLED_ConvMulFusion, ConvFusionTests,
+        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3},
+                                        mul::get_type_info_static(), EltwiseShape{8, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3},
+                                        mul::get_type_info_static(), EltwiseShape{8, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1},
+                                        mul::get_type_info_static(), EltwiseShape{9, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{3, 3, DYN, 64, 64},  WeightsShape{6, 3, 3, 4, 2},
+                                        mul::get_type_info_static(), EltwiseShape{6, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{3, 3, 64, DYN, 64},  WeightsShape{5, 3, 3, 4, 3},
+                                        mul::get_type_info_static(), EltwiseShape{5, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{3, 3, 64, 64, DYN},  WeightsShape{5, 3, 3, 4, 3},
+                                        mul::get_type_info_static(), EltwiseShape{5, 1, 1, 1}, false),
+                        std::make_tuple(InputShape{1, 3, 64, 64},       WeightsShape{6, 3, 1, 1},
+                                        mul::get_type_info_static(), EltwiseShape{6, 1, 1}, false),
+                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN}, WeightsShape{7, 3, 1, 1},
+                                        mul::get_type_info_static(), EltwiseShape{7, 1, 1}, false),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64},     WeightsShape{8, 3, 1, 2},
+                                        mul::get_type_info_static(), EltwiseShape{8, 1, 1}, false),
+                        std::make_tuple(InputShape{2, DYN, 64, 64},     WeightsShape{9, 3, 2, 3},
+                                        mul::get_type_info_static(), EltwiseShape{9, 1, 1}, false),
+                        std::make_tuple(InputShape{3, 3, DYN, 64},      WeightsShape{6, 3, 3, 4},
+                                        mul::get_type_info_static(), EltwiseShape{6, 1, 1}, false),
+                        std::make_tuple(InputShape{3, 3, 64, DYN},      WeightsShape{5, 3, 3, 4},
+                                        mul::get_type_info_static(), EltwiseShape{5, 1, 1}, false),
+                        std::make_tuple(InputShape{DYN, DYN, DYN},      WeightsShape{5, 3, 1},
+                                        mul::get_type_info_static(), EltwiseShape{5, 1}, false),
+                        std::make_tuple(InputShape{DYN, 3, 10},         WeightsShape{3, 3, 1},
+                                        mul::get_type_info_static(), EltwiseShape{3, 1}, false),
+                        std::make_tuple(InputShape{2, DYN, 9},          WeightsShape{2, 3, 2},
+                                        mul::get_type_info_static(), EltwiseShape{2, 1}, false),
+                        std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},
+                                        mul::get_type_info_static(), EltwiseShape{1, 1}, false)));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_ConvMulFusionNegative, ConvFusionTests,
-        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{2, 1}, true),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{8, 1, 1}, true),
-                        std::make_tuple(InputShape{2, DYN, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, mul::type_info, EltwiseShape{9, 1, 1, 1, 1}, true)));
+INSTANTIATE_TEST_SUITE_P(DISABLED_ConvMulFusionNegative, ConvFusionTests,
+        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3},
+                                        mul::get_type_info_static(), EltwiseShape{2, 1}, true),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64}, WeightsShape{8, 3, 1, 2, 3},
+                                        mul::get_type_info_static(), EltwiseShape{8, 1, 1}, true),
+                        std::make_tuple(InputShape{2, DYN, 64, 64}, WeightsShape{9, 3, 2, 3, 1},
+                                        mul::get_type_info_static(), EltwiseShape{9, 1, 1, 1, 1}, true)));
 
 
 TEST(GroupConvMulFusion, WeightsWithReshape) {

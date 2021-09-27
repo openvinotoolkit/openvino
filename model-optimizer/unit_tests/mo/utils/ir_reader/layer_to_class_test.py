@@ -102,9 +102,9 @@ class TestFunction(unittest.TestCase):
         nodes_attributes = {
             'input': {'kind': 'op', 'type': 'Parameter', 'ports': {0: (shape, 'abc,def')}},
             'input_data': {'shape': shape, 'kind': 'data'},
-            'add': {'kind': 'op', 'type': 'Add', 'ports': {2: (shape, 'ghi\,jkl')}},
+            'add': {'kind': 'op', 'type': 'Add', 'ports': {2: (shape, r'ghi\,jkl')}},
             'add_data': {'shape': shape, 'kind': 'data'},
-            'add_const': {'kind': 'op', 'type': 'Const', 'ports': {0: (shape, 'mno,pqr\,stu')}},
+            'add_const': {'kind': 'op', 'type': 'Const', 'ports': {0: (shape, r'mno,pqr\,stu')}},
             'add_const_data': {'shape': shape, 'kind': 'data'},
             'result': {'kind': 'op', 'type': 'Result', 'ports': {0: (shape, None)}}
         }
@@ -126,7 +126,7 @@ class TestFunction(unittest.TestCase):
         node_2 = Node(graph, 'add_data')
         node_3 = Node(graph, 'add_const_data')
 
-        assert node_1['fw_tensor_debug_info'] == [('abc', 0, 'abc'), ('def', 0, 'def')], 'Restored debug info is wrong!'
-        assert node_2['fw_tensor_debug_info'] == [('ghi,jkl', 0, 'ghi,jkl')], 'Restored debug info is wrong!'
-        assert node_3['fw_tensor_debug_info'] == [('mno', 0, 'mno'), ('pqr,stu', 0, 'pqr,stu')],\
+        assert node_1['fw_tensor_debug_info'] == [('abc', 'abc'), ('def', 'def')], 'Restored debug info is wrong!'
+        assert node_2['fw_tensor_debug_info'] == [('ghi,jkl', 'ghi,jkl')], 'Restored debug info is wrong!'
+        assert node_3['fw_tensor_debug_info'] == [('mno', 'mno'), ('pqr,stu', 'pqr,stu')],\
             'Restored debug info is wrong!'

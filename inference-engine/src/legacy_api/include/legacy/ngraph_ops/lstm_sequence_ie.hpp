@@ -17,14 +17,15 @@ namespace ngraph {
 namespace op {
 class INFERENCE_ENGINE_API_CLASS(LSTMSequenceIE) : public ngraph::op::util::RNNCellBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("LSTMSequenceIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     LSTMSequenceIE() = delete;
 
     LSTMSequenceIE(const Output <Node> &X,
                    const Output <Node> &H_t,
                    const Output <Node> &C_t,
-                   const Output <Node> &seq_lenghts,
+                   const Output <Node> &seq_lengths,
                    const Output <Node> &WR,
                    const Output <Node> &B,
                    size_t hidden_size,

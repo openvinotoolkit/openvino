@@ -3,17 +3,16 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class LookupTableInsert(Op):
-    '''
+    """
     This operation has only output control flow edges and no output data edges in some models.
     And for these cases implementation of the shape inference is needed since the shape inference is executed
     before control flow edges resolving. This operation has non-tensor output so the output shape is empty.
-    '''
+    """
     enabled = False
     op = 'LookupTableInsert'
 
@@ -42,4 +41,4 @@ class LookupTableInsert(Op):
 
         # set output shape that must be empty
         # since output is not a tensor
-        node.out_port(0).data.set_shape(int64_array([]))
+        node.out_port(0).data.set_shape([])

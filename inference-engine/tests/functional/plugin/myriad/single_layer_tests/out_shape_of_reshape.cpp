@@ -111,7 +111,7 @@ std::vector<OutShapeOfReshapeParam> shapeParams = {
         std::make_tuple(InputShape{ 2, 5,   5,   0 }, ShapeDescriptor{ 0,  4          }, false),
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_accuracy, OutShapeOfReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_accuracy, OutShapeOfReshapeLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shapeParams),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),

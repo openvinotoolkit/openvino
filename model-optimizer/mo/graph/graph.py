@@ -147,7 +147,7 @@ class Node:
         for idx in self._in_ports:
             if control_flow or 'control_flow' not in self._in_ports[idx] or not self._in_ports[idx]['control_flow']:
                 ports.update({idx: self.in_port(idx, control_flow=control_flow)})
-        return dict_to_ordered_dict(ports, func=lambda t: str(t))
+        return dict_to_ordered_dict(ports, func=lambda t: int(str(t).replace('control_flow_', '')))
 
     def out_port(self, idx=None, control_flow=False) -> Port:
         if not self.has_valid('_out_ports'):
@@ -165,7 +165,7 @@ class Node:
         for idx in self._out_ports:
             if control_flow or 'control_flow' not in self._out_ports[idx] or not self._out_ports[idx]['control_flow']:
                 ports.update({idx: self.out_port(idx, control_flow=control_flow)})
-        return dict_to_ordered_dict(ports, func=lambda t: str(t))
+        return dict_to_ordered_dict(ports, func=lambda t: int(str(t).replace('control_flow_', '')))
 
     def has_port(self, port_type, idx, control_flow=False):
         assert port_type in ['in', 'out'], "Invalid usage of has_port method"
@@ -195,14 +195,14 @@ class Node:
 
     def in_nodes_edges(self, control_flow: bool = False):
         return dict_to_ordered_dict({x[1]['in']: (Node(self.graph, x[0]), x[1]) for x in
-                                     self.get_inputs(control_flow=control_flow)})
+                                     self.get_inputs(control_flow=control_flow)},
+                                    func=lambda t: int(str(t).replace('control_flow_', '')))
 
     def in_nodes(self, control_flow: bool = False):
-        assert self.has('kind')  # TODO: remove as it always exists
-        assert self.kind in ['op', 'data']  # TODO: remove as it always exists
         if self.kind == 'op':
             return dict_to_ordered_dict({x[1]['in']: Node(self.graph, x[0]) for x in
-                                         self.get_inputs(control_flow=control_flow)})
+                                         self.get_inputs(control_flow=control_flow)},
+                                        func=lambda t: int(str(t).replace('control_flow_', '')))
         elif self.kind == 'data':
             return [Node(self.graph, n) for n, d in self.get_inputs(control_flow=control_flow)]
 
@@ -213,20 +213,23 @@ class Node:
         assert self.has('kind')
         assert self.kind in ['op', 'data']
         if self.kind == 'op':
-            return dict_to_ordered_dict({x[1]['in']: x[1] for x in self.get_inputs(control_flow=control_flow)})
+            return dict_to_ordered_dict({x[1]['in']: x[1] for x in self.get_inputs(control_flow=control_flow)},
+                                        func=lambda t: int(str(t).replace('control_flow_', '')))
         elif self.kind == 'data':
             return [d for n, d in self.get_inputs(control_flow=control_flow)]
 
     def out_nodes_edges(self, control_flow: bool = False):
         return dict_to_ordered_dict({x[1]['out']: (Node(self.graph, x[0]), x[1]) for x in
-                                     self.get_outputs(control_flow=control_flow)})
+                                     self.get_outputs(control_flow=control_flow)},
+                                    func=lambda t: int(str(t).replace('control_flow_', '')))
 
     def out_nodes(self, control_flow: bool = False):
         assert self.has('kind')
         assert self.kind in ['op', 'data']
         if self.kind == 'op':
             return dict_to_ordered_dict({x[1]['out']: Node(self.graph, x[0]) for x in
-                                         self.get_outputs(control_flow=control_flow)})
+                                         self.get_outputs(control_flow=control_flow)},
+                                        func=lambda t: int(str(t).replace('control_flow_', '')))
         elif self.kind == 'data':
             return [Node(self.graph, n) for n, d in self.get_outputs(control_flow=control_flow)]
 
@@ -234,7 +237,8 @@ class Node:
         assert self.has('kind')
         assert self.kind in ['op', 'data']
         if self.kind == 'op':
-            return dict_to_ordered_dict({x[1]['out']: x[1] for x in self.get_outputs(control_flow=control_flow)})
+            return dict_to_ordered_dict({x[1]['out']: x[1] for x in self.get_outputs(control_flow=control_flow)},
+                                        func=lambda t: int(str(t).replace('control_flow_', '')))
         elif self.kind == 'data':
             return [d for n, d in self.get_outputs(control_flow=control_flow)]
 
@@ -561,6 +565,7 @@ class Graph(nx.MultiDiGraph):
             self.node = self.nodes
 
     unique_id_count = 0
+    op_names_statistic = collections.Counter()
 
     # SAFE API DESCRIPTION
     # all provided methods below are designed to be more safe and convenient
@@ -1031,21 +1036,24 @@ def dict_includes(big: dict, sub_dict: dict, skip_attr_names=[]):
     )
 
 
-def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True):
+def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep_output_port: bool = False):
     """
     Creates and connects Result node to node_name port. Cuts existing port if requested.
     :param graph: graph to operate with
     :param node_name: name of existing node in the graph that we want to add Result to
     :param port: output port of node to connect Result to
     :param cut: determines way of operating with edge specified by node_name and port
+    :param keep_output_port: special attribute determines if this operation is saved in IR or not
     """
     # we import it here because Op imports add_attrs_props and update_ie_fields from this file
     from mo.ops.result import Result
     node = Node(graph, node_name)
     if cut and len(node.out_edges()) != 0:
-        opoutput_node = Result(graph).create_node_on_port(node, port, {'name': node_name + '/sink_port_' + str(port)})
+        opoutput_node = Result(graph).create_node_on_port(node, port, {'name': node_name + '/sink_port_' + str(port),
+                                                                       'keep_output_port': keep_output_port})
     else:
-        opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port)})
+        opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port),
+                                                                   'keep_output_port': keep_output_port})
         opoutput_node.in_edge()['data_attrs'] = ['fw_tensor_debug_info']
 
     log.debug('Sink: {} for node {}'.format(opoutput_node.id, node_name))

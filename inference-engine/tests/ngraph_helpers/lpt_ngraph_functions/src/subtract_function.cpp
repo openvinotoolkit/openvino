@@ -16,18 +16,19 @@ namespace builder {
 namespace subgraph {
     std::shared_ptr<ngraph::Function> SubtractFunction::getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape) {
+        const ngraph::PartialShape& inputShape) {
         const float k = 50.f;
 
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+        const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
         const auto fakeQuantizeOnActivations = ngraph::builder::makeFakeQuantize(
             input, precision, 256ul, { 1ul },
             { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
 
+        const size_t channelsValue = inputShape[1].get_length();
         const auto weights = ngraph::opset1::Constant::create(
             precision,
-            ngraph::Shape{ inputShape[1], inputShape[1], 1, 1 },
-            std::vector<float>(inputShape[1] * inputShape[1], 1));
+            ngraph::Shape{ channelsValue, channelsValue, 1, 1 },
+            std::vector<float>(channelsValue * channelsValue, 1));
 
         const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
             fakeQuantizeOnActivations == nullptr ? input : fakeQuantizeOnActivations,

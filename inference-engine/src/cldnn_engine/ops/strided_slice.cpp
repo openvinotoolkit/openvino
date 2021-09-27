@@ -8,9 +8,9 @@
 #include "ngraph/op/strided_slice.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/strided_slice.hpp"
-#include "api/reshape.hpp"
-#include "api/crop.hpp"
+#include "cldnn/primitives/strided_slice.hpp"
+#include "cldnn/primitives/reshape.hpp"
+#include "cldnn/primitives/crop.hpp"
 
 namespace CLDNNPlugin {
 
@@ -189,7 +189,7 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
         if (!new_axis_mask.empty()) {
             auto targetShape = CldnnTensorFromIEDims(reshape_pattern);
             auto reshapeInName = op->get_friendly_name() + "/Reshape_before";
-            auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape);
+            auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
             p.AddInnerPrimitiveToProfiler(reshapeInName, layerName, op);
             inPrimitive = reshapeInName;
@@ -215,7 +215,7 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
         cldnn::tensor offSize = CldnnTensorFromIEDims(offset, 0);
 
 
-        auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize);
+        auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize, op->get_friendly_name());
         p.AddPrimitive(cropPrim);
         p.AddPrimitiveToProfiler(layerName, op);
 
@@ -223,7 +223,7 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
         if (!shrink_axis_mask.empty()) {
             auto targetShape = CldnnTensorFromIEDims(output_shape);
             auto reshapeOutName = op->get_friendly_name() + "/Crop";
-            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape);
+            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
             p.AddInnerPrimitiveToProfiler(reshapeOutName, layerName, op);
         }
@@ -258,7 +258,8 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
                                                  end_mask,
                                                  new_axis_mask,
                                                  shrink_axis_mask,
-                                                 out_size);
+                                                 out_size,
+                                                 op->get_friendly_name());
 
     p.AddPrimitive(stridedSlicePrim);
     p.AddPrimitiveToProfiler(op);

@@ -31,13 +31,10 @@ if (NOT BIN_FOLDER)
     endif()
 endif()
 
-if(IE_MAIN_SOURCE_DIR)
+if(OpenVINO_SOURCE_DIR)
     # in case if samples are built from IE repo
-    set(IE_MAIN_SAMPLES_DIR ${OpenVINO_MAIN_SOURCE_DIR})
-    # hint for find_package(InferenceEngine in the samples folder)
-    set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
-    # hint for find_package(ngraph in the samples folder)
-    set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
+    set(IE_MAIN_SAMPLES_DIR "${OpenVINO_SOURCE_DIR}")
+    set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
 else()
     # in case if samples are built out of IE repo
     set(IE_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -56,40 +53,44 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 
 if (WIN32)
     set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS -DNOMINMAX")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") #no asynchronous structured exception handling
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") # no asynchronous structured exception handling
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
 
     if (TREAT_WARNING_AS_ERROR)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX") #treating warnings as errors
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX") # treating warnings as errors
     endif ()
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
     endif()
 
+    # disable some noisy warnings
     if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819") #disable some warnings
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
     endif()
 else()
+    # treating warnings as errors
     if(TREAT_WARNING_AS_ERROR)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror") #treating warnings as errors
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
     endif()
 
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-    if (APPLE)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-command-line-argument")
-    elseif(UNIX)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self")
-        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmaybe-uninitialized")
-        endif()
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
     endif()
 endif()
 
 if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
+endif()
+
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*)")
+  set(AARCH64 ON)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
+  set(ARM ON)
+endif()
+if(ARM AND NOT CMAKE_CROSSCOMPILING)
+    add_compile_options(-march=armv7-a)
 endif()
 
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
@@ -104,59 +105,36 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
     set (CMAKE_CXX_STANDARD 11)
     set (CMAKE_CXX_EXTENSIONS OFF)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
-    endif()
 endif()
 ####################################
 
-set (GFLAGS_IS_SUBPROJECT TRUE)
-set (HAVE_SYS_STAT_H 1)
-set (HAVE_INTTYPES_H 1)
-set (INTTYPES_FORMAT C99)
-set (BUILD_TESTING OFF)
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
-    function(add_gflags)
-        if(NOT WIN32)
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-all")
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
-        endif()
-        set(BUILD_SHARED_LIBS OFF)
-        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
-    endfunction()
-    add_gflags()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
+    NOT DEFINED OpenVINO_SOURCE_DIR)
+    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
+    add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
 endif()
 
-if(IE_NOT_FOUND_MESSAGE)
-    # the flag is used to throw a custom message in case if the IE package is not found.
-    find_package(InferenceEngine 2.1 QUIET)
-    if (NOT(InferenceEngine_FOUND))
-        message(FATAL_ERROR ${IE_NOT_FOUND_MESSAGE})
-    endif()
-else()
-    find_package(InferenceEngine 2.1 REQUIRED)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
+    add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     add_subdirectory(common/utils)
 endif()
 
-# format reader must be added after find_package(InferenceEngine) to get
-# exactly the same OpenCV_DIR path which was used for the InferenceEngine build
+# format reader must be added after find_package(OpenVINO) to get
+# exactly the same OpenCV_DIR path which was used for the OpenVINO build
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader")
     add_subdirectory(common/format_reader)
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wraper")
-    add_subdirectory(common/opencv_c_wraper)
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wrapper")
+    add_subdirectory(common/opencv_c_wrapper)
 endif()
 
 # samples build can be switched off during whole IE build
-if (IE_MAIN_SOURCE_DIR AND NOT ENABLE_SAMPLES)
+if (DEFINED OpenVINO_SOURCE_DIR AND NOT ENABLE_SAMPLES)
     return()
 endif()
 
@@ -228,6 +206,13 @@ macro(ie_add_sample)
         set(folder_name c_samples)
     endif()
 
+    find_package(OpenVINO REQUIRED COMPONENTS Runtime)
+    if(c_sample)
+        set(ov_link_libraries openvino::runtime::c)
+    else()
+        set(ov_link_libraries openvino::runtime)
+    endif()
+
     set_target_properties(${IE_SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
                                                        COMPILE_PDB_NAME ${IE_SAMPLE_NAME})
 
@@ -236,7 +221,7 @@ macro(ie_add_sample)
     endif()
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
-    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${InferenceEngine_LIBRARIES}
+    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${ov_link_libraries}
                                                     ${IE_SAMPLE_DEPENDENCIES})
     if(NOT c_sample)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)

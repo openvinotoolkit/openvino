@@ -2,24 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
 #include <ngraph/except.hpp>
 
+#include "gtest/gtest.h"
+
 #ifdef SELECTIVE_BUILD_ANALYZER
-#define SELECTIVE_BUILD_ANALYZER_ON
-#undef SELECTIVE_BUILD_ANALYZER
+#    define SELECTIVE_BUILD_ANALYZER_ON
+#    undef SELECTIVE_BUILD_ANALYZER
 #elif defined(SELECTIVE_BUILD)
-#define SELECTIVE_BUILD_ON
-#undef SELECTIVE_BUILD
+#    define SELECTIVE_BUILD_ON
+#    undef SELECTIVE_BUILD
 #endif
 
 #include "../core/src/itt.hpp"
 
 using namespace std;
 
-TEST(conditional_compilation, op_scope_with_disabled_cc)
-{
+TEST(conditional_compilation, op_scope_with_disabled_cc) {
     int n = 0;
 
     // Simple scope is enabled
@@ -34,7 +33,7 @@ TEST(conditional_compilation, op_scope_with_disabled_cc)
 }
 
 #ifdef SELECTIVE_BUILD_ANALYZER_ON
-#define SELECTIVE_BUILD_ANALYZER
+#    define SELECTIVE_BUILD_ANALYZER
 #elif defined(SELECTIVE_BUILD_ON)
-#define SELECTIVE_BUILD
+#    define SELECTIVE_BUILD
 #endif

@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include "ie_parallel.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "config.h"
 #include "mkldnn_memory.h"
-#include "mean_image.h"
+#include "normalize_preprocess.h"
 #include "mkldnn_node.h"
 #include "mkldnn_edge.h"
-#include "threading/ie_thread_local.hpp"
 #include <map>
 #include <string>
 #include <vector>
@@ -41,25 +39,31 @@ public:
     }
 
     void setConfig(const Config &cfg);
+    const Config& getConfig() const;
+
     void setProperty(const std::map<std::string, std::string> &properties);
     Config getProperty() const;
 
-    void getInputBlobs(InferenceEngine::BlobMap &in_map);
-    void getOutputBlobs(InferenceEngine::BlobMap &out_map);
+    InferenceEngine::Blob::Ptr getInputBlob(const std::string& name);
+    InferenceEngine::Blob::Ptr getOutputBlob(const std::string& name);
 
     template<typename NET>
-    void CreateGraph(const NET &network,
+    void CreateGraph(NET &network,
                      const MKLDNNExtensionManager::Ptr& extMgr,
                      MKLDNNWeightsSharing::Ptr &w_cache);
 
     bool hasMeanImageFor(const std::string& name) {
-        return _meanImages.find(name) != _meanImages.end();
+        return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
     }
 
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
     void PullOutputData(InferenceEngine::BlobMap &out);
 
     void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
+
+    const std::vector<MKLDNNNodePtr>& GetNodes() const {
+        return graphNodes;
+    }
 
     std::vector<MKLDNNNodePtr>& GetNodes() {
         return graphNodes;
@@ -73,14 +77,35 @@ public:
         return graphEdges;
     }
 
-    std::vector<MKLDNNNodePtr>& GetOutputNodes() {
-        return outputNodes;
+    std::map<std::string, MKLDNNNodePtr>& GetInputNodesMap() {
+        return inputNodesMap;
     }
 
-    std::map<std::string, MKLDNNNodePtr>& GetInputNodes() {
-        return inputNodes;
+    std::map<std::string, MKLDNNNodePtr>& GetOutputNodesMap() {
+        return outputNodesMap;
     }
 
+    MKLDNNNodePtr getInputNodeByName(const std::string &name) {
+        auto input = inputNodesMap.find(name);
+        if (input == inputNodesMap.end())
+            IE_THROW() << "CPU execution graph doesn't contain input node with name: " << name;
+        return input->second;
+    }
+
+    MKLDNNNodePtr getOutputNodeByName(const std::string &name) {
+        auto output = outputNodesMap.find(name);
+        if (output == outputNodesMap.end())
+            IE_THROW() << "CPU execution graph doesn't contain output node with name: " << name;
+        return output->second;
+    }
+
+    bool hasInputWithName(const std::string& name) const {
+        return inputNodesMap.count(name);
+    }
+
+    bool hasOutputWithName(const std::string& name) const {
+        return outputNodesMap.count(name);
+    }
 
     mkldnn::engine getEngine() const {
         return eng;
@@ -90,6 +115,7 @@ public:
 
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
+    void RemoveEdge(MKLDNNEdgePtr& edge);
     void DropNode(const MKLDNNNodePtr& node);
     void DropDWConvNode(const MKLDNNNodePtr& node);
 
@@ -103,17 +129,17 @@ public:
      * @param layerName
      * Reorder layer name
      * @param inDesc
-     * input tensor descriptor
+     * input memory descriptor
      * @param outDesc
-     * output tensor descriptor
+     * output memory descriptor
      * @param isOptimized
      * optimization flag; if isOptimized is true then Reorder node does nothing
      * @param scales
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
-    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const InferenceEngine::TensorDesc& inDesc,
-            const InferenceEngine::TensorDesc& outDesc, bool isOptimized = false, InferenceEngine::Blob::Ptr scales = nullptr);
+    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const MemoryDesc& inDesc,
+            const MemoryDesc& outDesc, bool isOptimized = false);
 
     /**
      * @brief Insert MKLDNNNode at the edge-specified location.
@@ -150,14 +176,19 @@ public:
      */
     bool InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort, bool initNode = false);
 
-    InferenceEngine::CNNNetwork dump() const;
-
-    template<typename NET>
-    static void ApplyUnrollPasses(NET &net);
+    std::shared_ptr<ngraph::Function> dump() const;
 
     void ResetInferCount() { infer_count = 0; }
 
     void SortTopologically();
+
+    bool isQuantized() const {
+        return isQuantizedFlag;
+    }
+
+    bool hasDynamicInput() const {
+        return graphHasDynamicInput;
+    }
 
 protected:
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
@@ -166,11 +197,11 @@ protected:
         status = NotReady;
         eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0);
 
-        inputNodes.clear();
-        outputNodes.clear();
+        inputNodesMap.clear();
+        outputNodesMap.clear();
         graphNodes.clear();
         graphEdges.clear();
-        _meanImages.clear();
+        _normalizePreprocMap.clear();
     }
     Status status { NotReady };
     Config config;
@@ -183,18 +214,19 @@ protected:
 
     MKLDNNMemoryPtr memWorkspace;
 
-    std::map<std::string, MKLDNNNodePtr> inputNodes;
-    std::vector<MKLDNNNodePtr> outputNodes;
     std::vector<MKLDNNNodePtr> graphNodes;
     std::vector<MKLDNNEdgePtr> graphEdges;
 
-    std::map<std::string, MeanImage> _meanImages;
+    std::map<std::string, NormalizePreprocess> _normalizePreprocMap;
     std::string _name;
+
+    bool isQuantizedFlag = false;
+    bool graphHasDynamicInput = false;
 
     static mkldnn::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
-    void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const std::shared_ptr<const ngraph::Function> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
@@ -203,24 +235,26 @@ protected:
     void Allocate();
     void AllocateWithReuse();
     void CreatePrimitives();
-    void ExecuteConstantNodesOnly();
-    void SetOriginalLayerNames();
-
-    void do_before(const std::string &dir, const MKLDNNNodePtr &node);
-    void do_after(const std::string &dir, const MKLDNNNodePtr &node);
+    void ExtractConstantAndExecutableNodes();
+    void ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::stream& stream) const;
+    void ExecuteConstantNodesOnly() const;
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
-    friend InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph);
-    friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
+    friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
-    void dumpToDotFile(std::string file) const;
-    struct ParsedLayer {
-        MKLDNNNodePtr parent;
-        InferenceEngine::CNNLayerPtr cnnLayer;
-        size_t outIdx;
-    };
+    // TODO: change std::map to std::unordered_map
+    std::map<std::string, MKLDNNNodePtr> inputNodesMap;
+    std::map<std::string, MKLDNNNodePtr> outputNodesMap;
+
+    // these node pointers (from graphNodes) are to avoid regular checking for
+    // constantness of nodes in ExecuteConstantNodesOnly, Infer methods and calls of
+    // non-executable (optimized out) nodes, such as Input, Reshape, etc.
+    std::vector<MKLDNNNodePtr> constantGraphNodes;
+    std::vector<MKLDNNNodePtr> executableGraphNodes;
+
+    void EnforceBF16();
 };
 
 }  // namespace MKLDNNPlugin

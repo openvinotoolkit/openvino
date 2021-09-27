@@ -28,8 +28,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_single_indices)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_single_indices) {
     Shape params_shape{3, 3};
     Shape indices_shape{2};
     Shape out_shape{};
@@ -49,19 +48,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_single_indices)
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.5f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{1.5f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 
     auto G5 = make_shared<op::v5::GatherND>(P, I);
     auto f5 = make_shared<Function>(G5, ParameterVector{P, I});
     auto c5 = backend->compile(f5);
     c5->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.5f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{1.5f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_2d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_2d) {
     Shape params_shape{2, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2};
@@ -81,19 +77,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_2d)
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.0f, 1.3f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{1.0f, 1.3f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 
     auto G5 = make_shared<op::v5::GatherND>(P, I);
     auto f5 = make_shared<Function>(G5, ParameterVector{P, I});
     auto c5 = backend->compile(f5);
     c5->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.0f, 1.3f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{1.0f, 1.3f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_2d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_2d) {
     Shape params_shape{2, 2};
     Shape indices_shape{2, 1};
     Shape out_shape{2, 2};
@@ -126,8 +119,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_2d)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_3d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_3d) {
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 3};
     Shape out_shape{2};
@@ -147,19 +139,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_3d)
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.1f, 2.1f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{1.1f, 2.1f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 
     auto G5 = make_shared<op::v5::GatherND>(P, I);
     auto f5 = make_shared<Function>(G5, ParameterVector{P, I});
     auto c5 = backend->compile(f5);
     c5->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.1f, 2.1f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{1.1f, 2.1f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_3d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_3d) {
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2};
@@ -192,8 +181,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_3d)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_2d_from_3d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_2d_from_3d) {
     Shape params_shape{2, 2, 2};
     Shape indices_shape{1, 1};
     Shape out_shape{1, 2, 2};
@@ -226,8 +214,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_2d_from_3d)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_2d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_2d) {
     Shape params_shape{2, 2};
     Shape indices_shape{2, 1, 2};
     Shape out_shape{2, 1};
@@ -247,19 +234,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_2d)
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.0f, 1.1f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{1.0f, 1.1f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 
     auto G5 = make_shared<op::v5::GatherND>(P, I);
     auto f5 = make_shared<Function>(G5, ParameterVector{P, I});
     auto c5 = backend->compile(f5);
     c5->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.0f, 1.1f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{1.0f, 1.1f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_2d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_2d) {
     Shape params_shape{2, 2};
     Shape indices_shape{2, 1, 1};
     Shape out_shape{2, 1, 2};
@@ -292,8 +276,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_2d)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_3d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_3d) {
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 2, 3};
     Shape out_shape{2, 2};
@@ -326,8 +309,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_3d)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_3d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_3d) {
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 2, 2};
     Shape out_shape{2, 2, 2};
@@ -360,8 +342,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_3d)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_3d_negative)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_3d_negative) {
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 2, 2};
     Shape out_shape{2, 2, 2};
@@ -386,8 +367,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_3d_negative)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_2d_from_3d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_2d_from_3d) {
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 1, 1};
     Shape out_shape{2, 1, 2, 2};
@@ -420,8 +400,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_2d_from_3d)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims1) {
     Shape params_shape{2, 3, 4};
     Shape indices_shape{2, 1};
     Shape out_shape{2, 4};
@@ -435,8 +414,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims1)
 
     // Create some tensors for input/output
     auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
-                               13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24});
+    copy_data(p, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24});
     auto i = backend->create_tensor(element::i32, indices_shape);
     copy_data(i, vector<int32_t>{1, 0});
     auto result = backend->create_tensor(element::f32, out_shape);
@@ -448,8 +426,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims1)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims2) {
     Shape params_shape{2, 3, 4, 2};
     Shape indices_shape{2, 3, 3, 2};
     Shape out_shape{6, 3};
@@ -473,14 +450,12 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims2)
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{3, 8, 6, 10, 12, 13, 23, 24, 22, 29, 28, 32, 36, 37, 37, 41, 48, 48}),
-        read_vector<float>(result),
-        MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{3, 8, 6, 10, 12, 13, 23, 24, 22, 29, 28, 32, 36, 37, 37, 41, 48, 48}),
+                                  read_vector<float>(result),
+                                  MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims2_lead_dims)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims2_lead_dims) {
     Shape params_shape{2, 3, 4};
     Shape indices_shape{2, 3, 1, 1};
     Shape out_shape{6, 1};
@@ -494,15 +469,13 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims2_lead_dims)
 
     // Create some tensors for input/output
     auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
-                               13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24});
+    copy_data(p, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24});
     auto i = backend->create_tensor(element::i32, indices_shape);
     copy_data(i, vector<int32_t>{1, 0, 2, 0, 2, 2});
     auto result = backend->create_tensor(element::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f((vector<float>{2, 5, 11, 13, 19, 23}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(
+        test::all_close_f((vector<float>{2, 5, 11, 13, 19, 23}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }

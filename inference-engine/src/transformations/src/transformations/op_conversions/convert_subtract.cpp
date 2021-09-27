@@ -37,12 +37,16 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
             if (subChildren.size() == 1ul) {
                 const std::shared_ptr<Node> child = subChildren.begin()->get_node()->shared_from_this();
                 if (child != nullptr) {
-                    if (is_type<opset1::Convolution>(child) ||
-                        is_type<opset1::GroupConvolution>(child) ||
-                        is_type<opset1::MatMul>(child) ||
-                            (is_type<opset1::Reshape>(child) &&
+                    if (ov::is_type<opset1::Convolution>(child) ||
+                        ov::is_type<opset1::ConvolutionBackpropData>(child) ||
+                        ov::is_type<opset1::GroupConvolution>(child) ||
+                        ov::is_type<opset1::GroupConvolutionBackpropData>(child) ||
+                        ov::is_type<opset1::MatMul>(child) ||
+                        (ov::is_type<opset1::Reshape>(child) &&
                             (child->output(0).get_target_inputs().size() == 1ul) &&
-                            is_type<opset1::GroupConvolution>(child->output(0).get_target_inputs().begin()->get_node()->shared_from_this()))) {
+                            (ov::is_type<opset1::GroupConvolution>(child->output(0).get_target_inputs().begin()->get_node()->shared_from_this()) ||
+                             ov::is_type<opset1::GroupConvolutionBackpropData>(child->output(0).get_target_inputs().begin()
+                                                                               ->get_node()->shared_from_this())))) {
                         const auto input1Type = sub->input(0).get_element_type();
                         const auto input2Type = sub->input(1).get_element_type();
                         if (((input1Type == element::u8) && (input2Type == element::u8)) ||
@@ -58,7 +62,7 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         }
 
         auto neg = std::make_shared<ngraph::opset1::Multiply>(sub->input(1).get_source_output(),
-                                                              opset1::Constant::create(sub->get_input_element_type(1), Shape{1}, {-1}));
+                                                              opset1::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
 
         auto add = std::make_shared<ngraph::opset1::Add>(sub->input(0).get_source_output(), neg);
 

@@ -8,6 +8,8 @@
 
 using namespace vpu;
 
+IE_SUPPRESS_DEPRECATED_START
+
 class VPU_SplitLargeKernelConvTest : public GraphTransformerTest {
  protected:
     PassSet pipeline;

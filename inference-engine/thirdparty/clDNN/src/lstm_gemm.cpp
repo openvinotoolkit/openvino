@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "lstm_gemm_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -56,7 +56,7 @@ std::string lstm_gemm_inst::to_string(lstm_gemm_node const& node) {
     return primitive_description.str();
 }
 
-lstm_gemm_inst::typed_primitive_inst(network_impl& network, lstm_gemm_node const& node) : parent(network, node) {
+lstm_gemm_inst::typed_primitive_inst(network& network, lstm_gemm_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "input format",

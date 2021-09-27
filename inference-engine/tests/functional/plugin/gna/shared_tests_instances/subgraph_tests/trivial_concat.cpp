@@ -27,7 +27,7 @@ std::map<std::string, std::string> additional_config = {
     {"GNA_SCALE_FACTOR_0", "2000.0"},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_trivial_concat_Basic, TrivialConcatLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_trivial_concat_Basic, TrivialConcatLayerTest,
     ::testing::Combine(
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(netPrecisions),

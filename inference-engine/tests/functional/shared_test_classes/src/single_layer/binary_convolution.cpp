@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string BinaryConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<binaryConvolutionTestParamsSet> obj) {
+std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<binaryConvolutionTestParamsSet>& obj) {
     binConvSpecificParams binConvParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;

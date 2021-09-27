@@ -48,7 +48,7 @@ const std::vector<ngraph::helpers::PadMode> padMode = {
         ngraph::helpers::PadMode::SYMMETRIC
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_CPU, VariadicSplitPad,
+INSTANTIATE_TEST_SUITE_P(smoke_CPU, VariadicSplitPad,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shapes),
                                 ::testing::Values(1),

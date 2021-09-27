@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #if MAX_POOLING
     #define INIT_VAL ACCUMULATOR_VAL_MIN
@@ -74,7 +75,7 @@ KERNEL(pooling_gpu_int8_ref)(
     const uint f    = bf / INPUT0_BATCH_NUM;
     const uint b    = bf % INPUT0_BATCH_NUM;
     const uint z    = 0;
-#elif OUTPUT_LAYOUT_B_FS_YX_FSV16
+#elif OUTPUT_LAYOUT_B_FS_YX_FSV16 || OUTPUT_LAYOUT_BS_FS_YX_BSV32_FSV32
     const uint x = get_global_id(1);
     const uint y = get_global_id(2);
     const uint bf = (uint)get_global_id(0);

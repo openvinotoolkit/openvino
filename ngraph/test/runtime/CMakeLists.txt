@@ -14,31 +14,11 @@ set (SRC
     performance_counter.hpp
     dynamic/dynamic_backend.cpp
     dynamic/dynamic_backend.hpp
-    op/avg_pool.cpp
-    op/avg_pool.hpp
-    op/convolution.cpp
-    op/convolution.hpp
-    op/group_conv.cpp
-    op/group_conv.hpp
     pass/dyn_elimination.cpp
     pass/dyn_elimination.hpp
-    pass/fused_op_decomposition.cpp
-    pass/fused_op_decomposition.hpp
-    pass/implicit_broadcast_elimination.cpp
-    pass/implicit_broadcast_elimination.hpp
-    pass/liveness.cpp
-    pass/liveness.hpp
-    pass/opset0_downgrade.cpp
-    pass/opset0_downgrade.hpp
-    pass/opset1_downgrade.cpp
-    pass/opset1_downgrade.hpp
-    pass/opset1_upgrade.cpp
-    pass/opset1_upgrade.hpp
     pass/shape_relevance.cpp
     pass/shape_relevance.hpp
     )
-
-disable_deprecated_warnings()
 
 add_library(ngraph_backend SHARED ${SRC})
 
@@ -65,6 +45,10 @@ if (NOT WIN32)
     target_link_libraries(ngraph_backend PRIVATE ${CMAKE_DL_LIBS})
 endif()
 target_include_directories(ngraph_backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+install(TARGETS ngraph_backend
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 
 add_subdirectory(interpreter)
 add_subdirectory(ie)

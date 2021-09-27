@@ -5,7 +5,6 @@ from mo.front.tf.extractors.concat import tf_concat_ext
 from mo.front.tf.extractors.fused_bn import tf_fused_bn_extractor
 from mo.front.tf.extractors.native_tf import native_tf_node_extractor
 from mo.front.tf.extractors.pack import tf_pack_ext
-from mo.front.tf.extractors.random_uniform import tf_random_uniform_ext
 from mo.front.tf.extractors.utils import get_tf_node_port
 from mo.graph.graph import Node
 
@@ -38,7 +37,7 @@ def create_tf_edge(src_node_id: str, dst_node_id: str, in_port: int):
         'in': in_port,
         'out': src_port,
         # debug anchor for a framework name, out port and tensor name
-        'fw_tensor_debug_info': [(src_node_id, src_port, tensor_name)],
+        'fw_tensor_debug_info': [(src_node_id, tensor_name)],
         'in_attrs': ['in', 'control_flow_edge', 'permutation'],
         'out_attrs': ['out', 'permutation'],
         'data_attrs': ['fw_tensor_debug_info'],
@@ -57,7 +56,6 @@ tf_op_extractors = {
     'FusedBatchNormV3': node_pb_arg(tf_fused_bn_extractor),
     'ConcatV2': node_pb_arg(tf_concat_ext),
     'Pack': node_pb_arg(tf_pack_ext),
-    'RandomUniform': node_pb_arg(tf_random_uniform_ext),
 }
 
 

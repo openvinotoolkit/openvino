@@ -38,7 +38,7 @@ TEST_P(DSR_Clamp, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicClamp, DSR_Clamp,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicClamp, DSR_Clamp,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32),
         ::testing::Values(DataShapeWithUpperBound{DataShape{1, 800}, DataShape{2, 1000}}),

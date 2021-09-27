@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
 #include "include/data_types.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 
 #ifdef PARAMETERIZED
 #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_SAFE)(idx_order)
@@ -16,11 +15,11 @@
 KERNEL(activation)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
-#ifdef PARAMETERIZED
-    , __global ADDITIONAL_PARAMS_TYPE* params
-#endif
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
+#endif
+#ifdef PARAMETERIZED
+    , __global ADDITIONAL_PARAMS_TYPE* params
 #endif
     )
 {

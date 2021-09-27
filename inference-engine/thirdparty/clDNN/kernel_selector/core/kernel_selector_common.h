@@ -5,6 +5,7 @@
 #pragma once
 
 #include "kernel_selector_params.h"
+#include "cldnn/runtime/kernel_args.hpp"
 
 #include <cfloat>
 #include <cstdint>
@@ -41,118 +42,28 @@ namespace kernel_selector {
 
 std::string GetStringEnv(const char* varName);
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// KernelString
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct KernelString {
-    std::string str;
-    std::string jit;
-    std::string undefs;
-    std::string options;
-    std::string entry_point;
-    bool batch_compilation;
+using KernelString = cldnn::kernel_string;
+using WorkGroupSizes = cldnn::work_group_sizes;
+using ScalarDescriptor = cldnn::scalar_desc;
+using Scalars = cldnn::scalars_desc;
+using ArgumentDescriptor = cldnn::argument_desc;
+using Arguments = cldnn::arguments_desc;
+using KernelParams = cldnn::kernel_arguments_desc;
 
-    KernelString() : str(""), jit(""), undefs(""), options(""), entry_point(""), batch_compilation(false) {}
 
-    std::string get_hash() { return str + jit + undefs + options + entry_point; }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// KernelCode
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct KernelCode {
+    std::shared_ptr<KernelString> kernelString;
 };
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// WorkGroupSizes
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct WorkGroupSizes {
-    std::vector<size_t> global;
-    std::vector<size_t> local;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Scalar
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct ScalarDescriptor {
-    union ValueT {
-        uint8_t u8;
-        uint16_t u16;
-        uint32_t u32;
-        uint64_t u64;
-        int8_t s8;
-        int16_t s16;
-        int32_t s32;
-        int64_t s64;
-        float f32;
-        double f64;
-    };
-
-    enum class Types {
-        UINT8,
-        UINT16,
-        UINT32,
-        UINT64,
-        INT8,
-        INT16,
-        INT32,
-        INT64,
-        FLOAT32,
-        FLOAT64,
-    };
-
-    Types t;
-    ValueT v;
-};
-
-using Scalars = std::vector<ScalarDescriptor>;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ArgumentDescpirtor
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct ArgumentDescriptor {
-    enum class Types {
-        INPUT,
-        OUTPUT,
-        WEIGHTS,
-        BIAS,
-        SCALE_TABLE,
-        SLOPE,
-        SPLIT,
-        INTERNAL_BUFFER,
-        SCALAR,
-        RECURRENT,  // RNN/LSTM/GRU recurrent weights
-        HIDDEN,     // RNN/LSTM/GRU hidden input
-        CELL,       // LSTM cell input
-        LSTM_PACK,  // LSTM packed output
-        WEIGHTS_ZERO_POINTS,
-        ACTIVATIONS_ZERO_POINTS,
-        COMPENSATION,
-        INPUT_OF_FUSED_PRIMITIVE
-    };
-
-    enum class ScalarTypes {
-        UINT8,
-        UINT16,
-        UINT32,
-        UINT64,
-        INT8,
-        INT16,
-        INT32,
-        INT64,
-        FLOAT32,
-        FLOAT64,
-    };
-
-    Types t;
-    uint32_t index;
-};
-
-using Arguments = std::vector<ArgumentDescriptor>;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // clKernelData
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct clKernelData {
-    std::shared_ptr<KernelString> kernelString;
-    WorkGroupSizes workGroups;
-    Arguments arguments;
-    Scalars scalars;
-    std::string layerID;  // TODO: in order to support run single layer. think about more appropriate place
+    KernelCode code;
+    KernelParams params;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

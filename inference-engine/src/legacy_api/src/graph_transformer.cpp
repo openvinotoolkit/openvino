@@ -221,6 +221,7 @@ static std::vector<std::string> skipConstInfer = {
     "Squeeze",
     "TensorIterator",
     "LSTMSequence",
+    "MVN"
 };
 
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {

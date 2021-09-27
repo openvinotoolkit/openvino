@@ -32,7 +32,7 @@ const auto oneHotParams_IC = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_OneHotIntConst,
         OneHotLayerTest,
         oneHotParams_IC,
@@ -60,7 +60,7 @@ const auto oneHotParams_Ax = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_OneHotAxrng,
         OneHotLayerTest,
         oneHotParams_Ax,
@@ -89,7 +89,7 @@ const auto oneHotParams_T = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_OneHotArgType,
         OneHotLayerTest,
         oneHotParams_T,

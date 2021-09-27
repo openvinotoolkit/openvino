@@ -6,7 +6,6 @@
 
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "pass/opset1_upgrade.hpp"
 #include "shared_utils.hpp"
 
 using namespace ngraph;
@@ -25,14 +24,97 @@ namespace
         const auto expected_data = expected->rmap();
 
         const auto* computed_data_buffer = computed_data.template as<const T*>();
-        const auto* expected_data_buffer = expected_data.template as<const T*>();
-
         std::vector<T> computed_values(computed_data_buffer,
                                        computed_data_buffer + computed->size());
-        std::vector<T> expected_values(expected_data_buffer,
-                                       expected_data_buffer + computed->size());
 
-        return std::make_pair(std::move(computed_values), std::move(expected_values));
+        switch (static_cast<InferenceEngine::Precision::ePrecision>(expected->getTensorDesc().getPrecision()))
+        {
+            case InferenceEngine::Precision::FP32: {
+                const auto* expected_data_buffer = expected_data.template as<const float *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::FP64: {
+                const auto *expected_data_buffer = expected_data.template as<const double *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I8: {
+                const auto *expected_data_buffer = expected_data.template as<const int8_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I16: {
+                const auto *expected_data_buffer = expected_data.template as<const int16_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I32: {
+                const auto *expected_data_buffer = expected_data.template as<const int32_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::I64: {
+                const auto *expected_data_buffer = expected_data.template as<const int64_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U8: {
+                const auto *expected_data_buffer = expected_data.template as<const uint8_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U16: {
+                const auto *expected_data_buffer = expected_data.template as<const uint16_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U32: {
+                const auto *expected_data_buffer = expected_data.template as<const uint32_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::U64: {
+                const auto *expected_data_buffer = expected_data.template as<const uint64_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::BOOL: {
+                const auto *expected_data_buffer = expected_data.template as<const uint8_t *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            case InferenceEngine::Precision::BF16: {
+                const auto *expected_data_buffer = expected_data.template as<const bfloat16 *>();
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
+                break;
+            }
+            default: THROW_IE_EXCEPTION << "Not implemented yet";
+        }
     }
 
     /// Compares two blobs containing floating point elements.
@@ -88,12 +170,6 @@ namespace
                                                   const size_t tolerance_bits)
     {
         const auto& computed_precision = computed->getTensorDesc().getPrecision();
-        const auto& expected_precision = expected->getTensorDesc().getPrecision();
-
-        if (computed_precision != expected_precision)
-        {
-            return testing::AssertionFailure();
-        }
 
         switch (static_cast<InferenceEngine::Precision::ePrecision>(computed_precision))
         {
@@ -178,7 +254,6 @@ namespace
 test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char* device)
     : m_function{function}
 {
-    upgrade_and_validate_function(m_function);
     const auto cnn_network = InferenceEngine::CNNNetwork(m_function);
     m_network_inputs = cnn_network.getInputsInfo();
     m_network_outputs = cnn_network.getOutputsInfo();
@@ -200,7 +275,7 @@ void test::IE_Engine::infer()
     if (m_network_inputs.size() != m_allocated_inputs)
     {
         IE_THROW() << "The tested graph has " << m_network_inputs.size() << " inputs, but "
-                           << m_allocated_inputs << " were passed.";
+                   << m_allocated_inputs << " were passed.";
     }
     else
     {
@@ -294,26 +369,6 @@ testing::AssertionResult
     return comparison_result;
 }
 
-std::shared_ptr<Function>
-    test::IE_Engine::upgrade_and_validate_function(const std::shared_ptr<Function> function) const
-{
-    pass::Manager passes;
-    passes.register_pass<pass::Opset1Upgrade>();
-    passes.run_passes(function);
-
-    static std::set<NodeTypeInfo> ie_ops = get_ie_ops();
-    for (const auto& node : function->get_ops())
-    {
-        if (ie_ops.find(node->get_type_info()) == ie_ops.end())
-        {
-            IE_THROW() << "Unsupported operator detected in the graph: "
-                               << node->get_type_info().name;
-        }
-    }
-
-    return function;
-}
-
 std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
 {
     std::set<NodeTypeInfo> ie_ops = get_opset1().get_type_info_set();
@@ -329,6 +384,8 @@ std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
     ie_ops.insert(opset6.begin(), opset6.end());
     const auto& opset7 = get_opset7().get_type_info_set();
     ie_ops.insert(opset7.begin(), opset7.end());
+    const auto& opset8 = get_opset8().get_type_info_set();
+    ie_ops.insert(opset8.begin(), opset8.end());
     return ie_ops;
 }
 
@@ -341,8 +398,8 @@ void test::IE_Engine::reset()
 
 namespace InferenceEngine
 {
-// Without this section the linker is not able to find destructors for missing TBlob specializations
-// which are instantiated in the unit tests that use TestCase and this engine
+    // Without this section the linker is not able to find destructors for missing TBlob
+    // specializations which are instantiated in the unit tests that use TestCase and this engine
     template <typename T, typename U>
     TBlob<T, U>::~TBlob()
     {

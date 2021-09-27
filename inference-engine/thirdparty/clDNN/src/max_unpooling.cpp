@@ -5,7 +5,7 @@
 #include "max_unpooling_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <memory>
@@ -16,7 +16,7 @@ primitive_type_id max_unpooling::type_id() {
     return &instance;
 }
 
-max_unpooling_node::typed_program_node(const std::shared_ptr<max_unpooling> prim, program_impl& prog)
+max_unpooling_node::typed_program_node(const std::shared_ptr<max_unpooling> prim, program& prog)
     : parent(prim, prog) {
     can_share_buffer(false);  // for max_unpooling initial zero values are significant
 }
@@ -142,7 +142,7 @@ std::string max_unpooling_inst::to_string(max_unpooling_node const& node) {
     return primitive_description.str();
 }
 
-max_unpooling_inst::typed_primitive_inst(network_impl& network, max_unpooling_node const& node)
+max_unpooling_inst::typed_primitive_inst(network& network, max_unpooling_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 
 // Required JIT definitions:
 // TRANSPOSE_INPUT0 [1/0]      - whether to tranpose first input.

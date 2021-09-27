@@ -16,8 +16,6 @@ struct reverse_sequence_params : public base_params {
 
     int32_t seq_axis;
     int32_t batch_axis;
-
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

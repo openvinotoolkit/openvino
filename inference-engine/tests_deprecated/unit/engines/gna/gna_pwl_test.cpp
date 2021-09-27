@@ -147,7 +147,7 @@ TEST_F(PWLAproximationTest, forReLUonRecursiveAlgoWithSegmentThresholdIsSuccess)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActRelu)
-                                .pwl_quantization_segments_threshold(2);
+                                .pwl_quantization_segments_threshold(4);
 }
 
 TEST_F(PWLAproximationTest, forLeakyReLUonRecursiveAlgoWithSegmentThresholdIsSuccess) {
@@ -157,7 +157,7 @@ TEST_F(PWLAproximationTest, forLeakyReLUonRecursiveAlgoWithSegmentThresholdIsSuc
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActLeakyRelu)
-                                .pwl_quantization_segments_threshold(2);
+                                .pwl_quantization_segments_threshold(4);
 }
 
 TEST_F(PWLAproximationTest, DISABLED_forIdentityOnRecursiveAlgoWithSegmentThresholdIsSuccess) {

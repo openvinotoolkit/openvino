@@ -46,10 +46,16 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             return std::make_shared<ngraph::op::Negative>(in);
         case ngraph::helpers::ActivationTypes::Acos:
             return std::make_shared<ngraph::op::Acos>(in);
+        case ngraph::helpers::ActivationTypes::Acosh:
+            return std::make_shared<ngraph::op::Acosh>(in);
         case ngraph::helpers::ActivationTypes::Asin:
             return std::make_shared<ngraph::op::Asin>(in);
+        case ngraph::helpers::ActivationTypes::Asinh:
+            return std::make_shared<ngraph::op::Asinh>(in);
         case ngraph::helpers::ActivationTypes::Atan:
             return std::make_shared<ngraph::op::Atan>(in);
+        case ngraph::helpers::ActivationTypes::Atanh:
+            return std::make_shared<ngraph::op::Atanh>(in);
         case ngraph::helpers::ActivationTypes::Cos:
             return std::make_shared<ngraph::op::Cos>(in);
         case ngraph::helpers::ActivationTypes::Cosh:

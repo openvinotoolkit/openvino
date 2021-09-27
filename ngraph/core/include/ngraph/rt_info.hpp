@@ -10,17 +10,18 @@
 #include "ngraph/node.hpp"
 #include "ngraph/type.hpp"
 
-namespace ngraph
-{
-    NGRAPH_API
-    void copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to);
+namespace ngraph {
+NGRAPH_API
+void copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to);
 
-    NGRAPH_API
-    void copy_runtime_info(std::shared_ptr<ngraph::Node> from, ngraph::NodeVector to);
+NGRAPH_API
+void copy_runtime_info(std::shared_ptr<ngraph::Node> from, ngraph::NodeVector to);
 
-    NGRAPH_API
-    void copy_runtime_info(const ngraph::NodeVector& from, std::shared_ptr<ngraph::Node> to);
+NGRAPH_API
+void copy_runtime_info(const ngraph::NodeVector& from, std::shared_ptr<ngraph::Node> to);
 
-    NGRAPH_API
-    void copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVector to);
-} // namespace ngraph
+NGRAPH_API
+void copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVector to);
+}  // namespace ngraph
+
+using ngraph::copy_runtime_info;
