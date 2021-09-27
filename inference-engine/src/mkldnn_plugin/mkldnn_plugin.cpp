@@ -176,6 +176,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
     manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
     manager.register_pass<ngraph::pass::TransposeMatMul>();
+    manager.register_pass<ngraph::pass::OptimizeBTransposeBeforeMatMul>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     if (useLpt) {

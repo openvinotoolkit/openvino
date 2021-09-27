@@ -141,3 +141,68 @@ ngraph::pass::TransposeMatMul::TransposeMatMul() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, matcher_name);
     register_matcher(m, callback);
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::OptimizeBTransposeBeforeMatMul, "TransposeMatMul2", 0);
+
+ngraph::pass::OptimizeBTransposeBeforeMatMul::OptimizeBTransposeBeforeMatMul() {
+    MATCHER_SCOPE(OptimizeBTransposeBeforeMatMul);
+    auto a_input = pattern::any_input();
+    auto a_transpose_constant_m = pattern::wrap_type<opset4::Constant>();
+    auto a_transpose_m = pattern::wrap_type<opset4::Transpose>({ a_input, a_transpose_constant_m });
+
+    auto b_input = pattern::any_input();
+    auto b_transpose_constant_m = pattern::wrap_type<opset4::Constant>();
+    auto b_transpose_m = pattern::wrap_type<opset4::Transpose>({ b_input, b_transpose_constant_m }, pattern::consumers_count(1));
+
+    auto b_mul_const_m = pattern::wrap_type<opset4::Constant>();
+    auto b_mul_m = pattern::wrap_type<opset4::Multiply>({ b_transpose_m, b_mul_const_m }, pattern::consumers_count(1));
+    auto matmul_label = pattern::wrap_type<opset4::MatMul>({ a_transpose_m, b_mul_m });
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+
+        auto a_transpose_const = std::dynamic_pointer_cast<opset4::Constant>(pattern_to_output.at(a_transpose_constant_m).get_node_shared_ptr());
+        auto a_transpose = std::dynamic_pointer_cast<opset4::Transpose>(pattern_to_output.at(a_transpose_m).get_node_shared_ptr());
+        auto b_transpose_const = std::dynamic_pointer_cast<opset4::Constant>(pattern_to_output.at(b_transpose_constant_m).get_node_shared_ptr());
+        auto b_transpose = std::dynamic_pointer_cast<opset4::Transpose>(pattern_to_output.at(b_transpose_m).get_node_shared_ptr());
+
+        auto b_mul = std::dynamic_pointer_cast<opset4::Multiply>(pattern_to_output.at(b_mul_m).get_node_shared_ptr());
+        auto b_mul_const = std::dynamic_pointer_cast<opset4::Constant>(pattern_to_output.at(b_mul_const_m).get_node_shared_ptr());
+        auto matmul = std::dynamic_pointer_cast<opset4::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
+
+        if (!a_transpose || !a_transpose_const || !b_transpose || !b_transpose_const || !matmul || !b_mul || !b_mul_const) {
+            return false;
+        }
+
+        auto a_transpose_vals = a_transpose_const->cast_vector<std::int64_t>();
+        auto b_transpose_vals = b_transpose_const->cast_vector<std::int64_t>();
+        std::swap(b_transpose_vals[b_transpose_vals.size() - 1], b_transpose_vals[b_transpose_vals.size() - 2]);
+        if (a_transpose_vals != b_transpose_vals) {
+            return false;
+        }
+
+        const auto transpose_out_rank = b_transpose_vals.size();
+        const auto b_mul_const_shape = b_mul_const->get_shape();
+        if (ngraph::shape_size(b_mul_const_shape) > 1) {
+            // check that mul not by last/prelast dimension
+        }
+
+        auto new_b_transpose_const = opset4::Constant::create(element::i64, { b_transpose_vals.size() }, b_transpose_vals);
+        auto new_b_transpose = b_transpose->clone_with_new_inputs({ b_transpose->input_value(0), new_b_transpose_const });
+        new_b_transpose->set_friendly_name(b_transpose->get_friendly_name());
+        copy_runtime_info(b_transpose, new_b_transpose);
+
+        auto new_b_mul = b_mul->clone_with_new_inputs({ new_b_transpose, b_mul->input_value(1) });
+        new_b_mul->set_friendly_name(b_mul->get_friendly_name());
+        copy_runtime_info(b_mul, new_b_mul);
+
+        auto new_matmul = std::make_shared<opset4::MatMul>(a_transpose, new_b_mul, matmul->get_transpose_a(), !matmul->get_transpose_b());
+        new_matmul->set_friendly_name(matmul->get_friendly_name());
+        copy_runtime_info(matmul, new_matmul);
+        replace_node(matmul, new_matmul);
+
+        return true;
+    };
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, matcher_name);
+    register_matcher(m, callback);
+}
