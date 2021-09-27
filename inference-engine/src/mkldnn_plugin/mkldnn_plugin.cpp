@@ -289,6 +289,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 return MKLDNNNormalizeL2Node::isSupportedOperation(node, errorMsg);
             });
 
+    pass_config->enable<ngraph::pass::SoftmaxDecomposition>();
     pass_config->set_callback<ngraph::pass::SoftmaxDecomposition>(
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
