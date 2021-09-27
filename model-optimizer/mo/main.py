@@ -11,7 +11,6 @@ import sys
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
-from typing import List, Optional
 
 import numpy as np
 
@@ -99,7 +98,6 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 
 def get_moc_frontends(argv: argparse.Namespace):
     fem = argv.feManager
-    moc_front_end = None
 
     # Read user flags:
     use_legacy_frontend = argv.use_legacy_frontend
@@ -110,13 +108,15 @@ def get_moc_frontends(argv: argparse.Namespace):
 
     available_moc_front_ends = fem.get_available_front_ends()
 
-    if argv.input_model and not argv.framework:
+    if not argv.framework:
         moc_front_end = fem.load_by_model(argv.input_model)
         if not moc_front_end:
             return None, available_moc_front_ends
         argv.framework = moc_front_end.get_name()
     elif argv.framework in available_moc_front_ends:
         moc_front_end = fem.load_by_framework(argv.framework)
+    else:
+        return None, []
 
     # Set which frontend to use by default, values should be 'new' or 'legacy'
     frontend_defaults = {
@@ -139,8 +139,13 @@ def arguments_post_parsing(argv: argparse.Namespace):
         frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
         frameworks = list(set(frameworks + available_moc_front_ends))
         if argv.framework not in frameworks:
-            raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
-                        refer_to_faq_msg(15), argv.framework, frameworks)
+            if argv.use_legacy_frontend:
+                raise Error('Framework {} is not a valid target when using the --use_legacy_frontend flag. '
+                            'Please use --framework with one from the list: {}. ' +
+                            refer_to_faq_msg(15), argv.framework, frameworks)
+            else:
+                raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
+                            refer_to_faq_msg(15), argv.framework, frameworks)
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
