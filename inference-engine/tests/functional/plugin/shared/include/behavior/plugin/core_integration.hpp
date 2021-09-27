@@ -63,8 +63,6 @@ using IEClassGetMetricTest_RANGE_FOR_STREAMS = BehaviorTestsUtils::IEClassBaseTe
 
 using IEClassLoadNetworkAfterCoreRecreateTest = BehaviorTestsUtils::IEClassBaseTestP;
 
-
-
 bool supportsAvaliableDevices(InferenceEngine::Core  &ie, const std::string &deviceName) {
     auto supportedMetricKeys = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
     return supportedMetricKeys.end() != std::find(std::begin(supportedMetricKeys),

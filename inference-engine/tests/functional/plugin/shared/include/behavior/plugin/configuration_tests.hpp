@@ -41,18 +41,14 @@ struct DefaultConfigurationTest : public CommonTestUtils::TestsCommon, public ::
 
     static std::string getTestCaseName(const ::testing::TestParamInfo<DefaultConfigurationParameters> &obj);
 
-protected:
-    ~DefaultConfigurationTest() override = default;
-
-    std::unique_ptr<InferenceEngine::Core> _core;
-
     void SetUp() override {
-        _core.reset(new InferenceEngine::Core);
+        _core = PluginCache::get().ie();
     }
 
-    void TearDown() override {
-        _core.reset();
-    }
+protected:
+    std::shared_ptr<InferenceEngine::Core> _core;
+    std::string targetDevice;
+    DefaultParameter defaultParameter;
 };
 
 class ConfigBase : public CommonTestUtils::TestsCommon {

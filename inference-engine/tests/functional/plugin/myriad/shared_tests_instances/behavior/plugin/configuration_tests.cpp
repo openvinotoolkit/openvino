@@ -566,7 +566,6 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectSingleOptionCustomValueConfigTests,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         ::testing::ValuesIn(getCustomEntries())));
 
