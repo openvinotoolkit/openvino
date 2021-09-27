@@ -9,8 +9,8 @@ set (SRC
     engine/shared_utils.cpp
     test_common.cpp
     test_common.hpp
-    ngraph_test_utils.cpp
-    ngraph_test_utils.hpp
+    comparator_test_utils.cpp
+    comparator_test_utils.hpp
     float_util.cpp
     test_tools.cpp
     test_case.cpp
@@ -36,3 +36,4 @@ target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend gtest gmock 
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     target_link_libraries(ngraph_test_util PRIVATE onnx_common)
 endif()
+target_include_directories(ngraph_test_util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

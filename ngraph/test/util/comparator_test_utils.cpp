@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_test_utils.hpp"
+#include "comparator_test_utils.hpp"
 
 #include <algorithm>
 #include <cassert>

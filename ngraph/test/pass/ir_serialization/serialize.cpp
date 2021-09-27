@@ -8,7 +8,7 @@
 
 #include "gtest/gtest.h"
 #include "openvino/util/file_util.hpp"
-#include "util/ngraph_test_utils.hpp"
+#include "util/comparator_test_utils.hpp"
 #include "util/test_common.hpp"
 
 using SerializationParams = std::tuple<std::string, std::string>;

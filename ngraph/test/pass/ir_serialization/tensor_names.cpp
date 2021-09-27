@@ -10,7 +10,7 @@
 #include <openvino/pass/serialize.hpp>
 
 #include "ngraph/ngraph.hpp"
-#include "util/ngraph_test_utils.hpp"
+#include "util/comparator_test_utils.hpp"
 #include "util/test_common.hpp"
 
 class TensorNameSerializationTest : virtual public ov::test::TestsCommon {

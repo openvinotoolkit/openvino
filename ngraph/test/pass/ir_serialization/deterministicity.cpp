@@ -8,7 +8,7 @@
 #include "ie_core.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
-#include "util/ngraph_test_utils.hpp"
+#include "util/comparator_test_utils.hpp"
 #include "util/test_common.hpp"
 
 class SerializationDeterministicityTest : public ov::test::TestsCommon {
