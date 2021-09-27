@@ -142,7 +142,8 @@ Engine::~Engine() {
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
 
-static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT) {
+static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT,
+                                               const bool _enforceBF16) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -500,10 +501,11 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     postLPTPassManager.run_passes(nGraphFunc);
     // bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
-    bool enableInt8 = _enableLPT &&
-                      ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
-    if (enableInt8) {
-        //if (conf.enforceBF16 == true || enableInt8) {
+    const bool enableInt8 = _enableLPT && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
+    // todo: implement a more precise check for BF16? Traverse graph and check precisions?
+    const bool enableBF16  = _enforceBF16 && with_cpu_x86_avx512_core();
+
+     if (enableBF16 || enableInt8) {
         // forse disable subgraph tokenization. SS doesn't support bf16 & int8 yet.
         tokenizeSubgraphs = Config::TokenizationMode::Disabled;
     }
@@ -571,9 +573,9 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     }
 }
 
-static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT) {
+static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enforceBF16) {
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enforceBF16);
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
@@ -608,8 +610,11 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
+    const auto& BF16Prop = config.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
+    const bool enforceBF16 = (BF16Prop != config.end() && BF16Prop->second == PluginConfigParams::YES)
+            || engConfig.enforceBF16;
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enforceBF16);
 
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
     const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
@@ -818,7 +823,10 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-        Transformation(clonedNetwork, enableLPT);
+        const auto& BF16Prop = config.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
+        const bool enforceBF16 = (BF16Prop != config.end() && BF16Prop->second == PluginConfigParams::YES)
+                                 || engConfig.enforceBF16;
+        Transformation(clonedNetwork, enableLPT, enforceBF16);
         auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
