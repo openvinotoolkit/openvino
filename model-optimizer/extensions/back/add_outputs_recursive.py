@@ -63,17 +63,24 @@ class AddOutputRecursive(BackReplacementPattern):
                 unsq_node['internal_layer_id'] = cur_max_layer_id + 1
                 res_node['internal_layer_id'] = cur_max_layer_id + 2
                 cur_max_layer_id += 2
+                # infer shapes for new nodes
+                step_node.infer(step_node)
+                unsq_node.infer(unsq_node)
+                res_node.infer(res_node)
                 new_port_id = len(cur_loop_node.in_ports()) + len(cur_loop_node.out_ports())
                 cur_loop_node.output_port_map.append({'axis': 0, 'stride': 1, 'part_size': 1, 'start': 0,
                                                       'end': -1, 'external_port_id': new_port_id,
                                                       'internal_layer_id': res_node['internal_layer_id']})
                 cur_loop_node.add_output_port(new_port_id)
-                step_node = cur_loop_node
                 new_out_ports.append(new_port_id)
             ports_to_add_nodes = new_out_ports
+            step_node = cur_loop_node
 
         for p_num in ports_to_add_nodes:
             port = step_node.out_port(p_num)
             out_name = port.node.soft_get('name', step_node.id) + ":" + str(p_num)
             res_node = Result(graph, {'name': out_name}).create_node()
             port.connect(res_node.in_port(0))
+            res_node.infer(res_node)
+
+        step_node.infer(step_node)
