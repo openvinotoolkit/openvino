@@ -221,9 +221,6 @@ int main(int argc, char* argv[]) {
         bool perf_counts = false;
         // Update config per device according to command line parameters
         for (auto& device : devices) {
-            if (device == "AUTO") {
-                continue;
-            }
             if (!config.count(device))
                 config[device] = {};
             std::map<std::string, std::string>& device_config = config.at(device);
@@ -391,6 +388,12 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
+            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
+                                                             FLAGS_layout,
+                                                             FLAGS_b,
+                                                             FLAGS_iscale,
+                                                             FLAGS_imean,
+                                                             exeNetwork.GetInputsInfo());
             if (batchSize == 0) {
                 batchSize = 1;
             }

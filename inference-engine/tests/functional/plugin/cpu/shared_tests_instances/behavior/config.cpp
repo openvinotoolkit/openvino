@@ -162,10 +162,10 @@ namespace {
             IncorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
-                            ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(multiinconfigs)),
-                            IncorrectConfigAPITests::getTestCaseName);
+            ::testing::Combine(
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+            ::testing::ValuesIn(multiinconfigs)),
+            IncorrectConfigAPITests::getTestCaseName);
 
 } // namespace
