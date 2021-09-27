@@ -195,6 +195,46 @@ template <>
 Type from<ov::bfloat16>() {
     return Type_t::bf16;
 }
+
+Type fundamental_type_for(const Type& type) {
+    switch (type) {
+    case Type_t::boolean:
+        return from<element_type_traits<Type_t::boolean>::value_type>();
+    case Type_t::bf16:
+        return from<element_type_traits<Type_t::bf16>::value_type>();
+    case Type_t::f16:
+        return from<element_type_traits<Type_t::f16>::value_type>();
+    case Type_t::f32:
+        return from<element_type_traits<Type_t::f32>::value_type>();
+    case Type_t::f64:
+        return from<element_type_traits<Type_t::f64>::value_type>();
+    case Type_t::i4:
+        return from<element_type_traits<Type_t::i4>::value_type>();
+    case Type_t::i8:
+        return from<element_type_traits<Type_t::i8>::value_type>();
+    case Type_t::i16:
+        return from<element_type_traits<Type_t::i16>::value_type>();
+    case Type_t::i32:
+        return from<element_type_traits<Type_t::i32>::value_type>();
+    case Type_t::i64:
+        return from<element_type_traits<Type_t::i64>::value_type>();
+    case Type_t::u1:
+        return from<element_type_traits<Type_t::u1>::value_type>();
+    case Type_t::u4:
+        return from<element_type_traits<Type_t::u4>::value_type>();
+    case Type_t::u8:
+        return from<element_type_traits<Type_t::u8>::value_type>();
+    case Type_t::u16:
+        return from<element_type_traits<Type_t::u16>::value_type>();
+    case Type_t::u32:
+        return from<element_type_traits<Type_t::u32>::value_type>();
+    case Type_t::u64:
+        return from<element_type_traits<Type_t::u64>::value_type>();
+    default:
+        OPENVINO_UNREACHABLE("Unsupported Data type: ", type);
+    }
+}
+
 }  // namespace element
 }  // namespace ov
 

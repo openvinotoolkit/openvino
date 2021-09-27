@@ -50,7 +50,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_MemoryTest.*iteration_count=3.*IS=\(1.10\).*)",
         R"(.*smoke_MemoryTest.*iteration_count=4.*IS=\(1.10\).*)",
         R"(.*smoke_MemoryTest.*iteration_count=10.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",
+        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",/**/
         // CVS-58963: Not implemented yet
         R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
         // Not implemented yet
@@ -65,5 +65,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
+        // TODO: Issue: 29577
+        R"(.*QueryNetwork.*)",
     };
 }
