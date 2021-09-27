@@ -20,7 +20,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/visibility.hpp>
-#include <ngraph_ops/framework_node.hpp>
+#include <openvino/op/util/framework_node.hpp>
 #include <onnx_import/core/node.hpp>
 
 namespace ONNX_NAMESPACE {
@@ -34,7 +34,7 @@ class Model;
 }
 
 namespace frontend {
-class ONNXFrameworkNode : public op::FrameworkNode {
+class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     NGRAPH_RTTI_DECLARATION;
 

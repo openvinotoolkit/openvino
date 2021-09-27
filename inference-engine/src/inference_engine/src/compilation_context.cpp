@@ -20,7 +20,7 @@
 #include "ngraph/variant.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-#include "transformations/serialize.hpp"
+#include "openvino/pass/serialize.hpp"
 
 #ifdef _WIN32
 #    define stat _stat
@@ -97,7 +97,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
 
     // 1. Serialize
     CNNNetwork net(network);
-    ngraph::pass::Serialize serializer(xml, bin, ngraph::pass::Serialize::Version::IR_V10);
+    ov::pass::Serialize serializer(xml, bin, ov::pass::Serialize::Version::IR_V10);
     serializer.run_on_function(net.getFunction());
 
     // 2. Compute hash on serialized data and options

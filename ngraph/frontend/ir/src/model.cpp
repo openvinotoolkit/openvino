@@ -8,7 +8,7 @@
 
 #include <ie_ngraph_utils.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph_ops/framework_node.hpp>
+#include <openvino/op/util/framework_node.hpp>
 #include <pugixml.hpp>
 
 using namespace ngraph;
@@ -545,11 +545,11 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
                 std::make_shared<runtime::SharedBuffer<std::shared_ptr<runtime::AlignedBuffer>>>(data, size, m_weights);
             a->set(buffer);
         }
-    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
         const auto& type = XMLParseUtils::GetStrAttr(m_node, "type");
         const auto& version = XMLParseUtils::GetStrAttr(m_node, "version");
 
-        ngraph::op::FrameworkNodeAttrs node_attrs;
+        ov::op::util::FrameworkNodeAttrs node_attrs;
         node_attrs.set_opset_name(version);
         node_attrs.set_type_name(type);
 
@@ -863,7 +863,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
     }
 
     if (!ngraphNode && m_use_framework_node) {
-        ngraphNode = std::make_shared<ngraph::op::FrameworkNode>(inputs);
+        ngraphNode = std::make_shared<ov::op::util::FrameworkNode>(inputs);
         XmlDeserializer visitor(node, weights, m_opsets, m_variables);
         ngraphNode->visit_attributes(visitor);
 

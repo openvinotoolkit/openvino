@@ -8,7 +8,7 @@
 #include <process.h>
 #endif
 
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <ngraph/opsets/opset.hpp>
@@ -73,7 +73,7 @@ void LayerTestsCommon::Serialize() {
     std::string out_bin_path = output_name + ".bin";
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
+    manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path);
     manager.run_passes(function);
 
     auto result = getCore()->ReadNetwork(out_xml_path, out_bin_path);

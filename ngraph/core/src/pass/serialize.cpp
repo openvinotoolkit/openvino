@@ -14,27 +14,15 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "ngraph_ops/framework_node.hpp"
-#include "ngraph_ops/type_relaxed.hpp"
-#include "pugixml.hpp"
-#include "transformations/serialize.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/util/common_util.hpp"
+#include <pugixml.hpp>
+#include "openvino/pass/serialize.hpp"
 
-using namespace ngraph;
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Serialize, "Serialize", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::StreamSerialize, "StreamSerialize", 0);
+// NGRAPH_RTTI_DEFINITION(ov::pass::Serialize, "Serialize", 0);
+// NGRAPH_RTTI_DEFINITION(ov::pass::StreamSerialize, "StreamSerialize", 0);
 
 namespace {  // helpers
-template <typename Container>
-std::string join(const Container& c, const char* glue = ", ") {
-    std::stringstream oss;
-    const char* s = "";
-    for (const auto& v : c) {
-        oss << s << v;
-        s = glue;
-    }
-    return oss.str();
-}
 
 struct Edge {
     int from_layer = 0;
@@ -123,7 +111,7 @@ private:
 
 void ngfunction_2_irv10(pugi::xml_node& node,
                         const ngraph::Function& f,
-                        const std::map<std::string, ngraph::OpSet>& custom_opsets,
+                        const std::map<std::string, ov::OpSet>& custom_opsets,
                         ConstantWriter& constant_write_handler);
 
 // Some of the operators were added to wrong opsets. This is a mapping
@@ -180,13 +168,13 @@ private:
 class XmlSerializer : public ngraph::AttributeVisitor {
     pugi::xml_node& m_xml_node;
     const std::string& m_node_type_name;
-    const std::map<std::string, ngraph::OpSet>& m_custom_opsets;
+    const std::map<std::string, ov::OpSet>& m_custom_opsets;
     ConstantWriter& m_constant_write_handler;
 
     template <typename T>
     std::string create_atribute_list(
         ngraph::ValueAccessor<std::vector<T>>& adapter) {
-        return join(adapter.get());
+        return ov::util::join(adapter.get());
     }
 
     std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
@@ -288,7 +276,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 public:
     XmlSerializer(pugi::xml_node& data,
                   const std::string& node_type_name,
-                  const std::map<std::string, ngraph::OpSet>& custom_opsets,
+                  const std::map<std::string, ov::OpSet>& custom_opsets,
                   ConstantWriter& constant_write_handler)
         : m_xml_node(data)
         , m_node_type_name(node_type_name)
@@ -330,7 +318,7 @@ public:
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
             }
-        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             const auto & attrs = a->get();
 
             // Update type and version attributes
@@ -353,9 +341,9 @@ public:
             }
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
             const auto & attrs = a->get();
-            m_xml_node.append_attribute(name.c_str()).set_value(join(attrs).c_str());
+            m_xml_node.append_attribute(name.c_str()).set_value(ov::util::join(attrs).c_str());
         } else {
-            throw ngraph_error("Unsupported attribute type for serialization: " + name);
+            throw ov::Exception("Unsupported attribute type for serialization: " + name);
         }
     }
 
@@ -408,7 +396,7 @@ public:
     }
     void on_adapter(
         const std::string& name,
-        ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
+        ngraph::ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override {
         if (name == "body") {
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "body"
             // to layer above (m_xml_node.parent()) as in ngfunction_2_irv10() layer (m_xml_node) with empty attributes
@@ -472,7 +460,7 @@ const std::vector<Edge> create_edge_mapping(
 
 std::string get_opset_name(
     const ngraph::Node* n,
-    const std::map<std::string, ngraph::OpSet>& custom_opsets) {
+    const std::map<std::string, ov::OpSet>& custom_opsets) {
     // Try to find opset name from RT info
     auto opset_it = n->get_rt_info().find("opset");
     if (opset_it != n->get_rt_info().end()) {
@@ -484,7 +472,7 @@ std::string get_opset_name(
         }
     }
 
-    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 8>{
+    auto opsets = std::array<std::reference_wrapper<const ov::OpSet>, 8>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
         ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6(),
         ngraph::get_opset7(), ngraph::get_opset8()};
@@ -502,7 +490,7 @@ std::string get_opset_name(
 
     for (const auto& custom_opset : custom_opsets) {
         std::string name = custom_opset.first;
-        ngraph::OpSet opset = custom_opset.second;
+        ov::OpSet opset = custom_opset.second;
         if (opset.contains_op_type(n)) {
             return name;
         }
@@ -551,7 +539,7 @@ std::string get_precision_name(const ngraph::element::Type & elem_type) {
     default:
         std::stringstream msg;
         msg << "Unsupported precision: " << elem_type;
-        throw ngraph_error(msg.str());
+        throw ov::Exception(msg.str());
     }
 }
 
@@ -617,7 +605,7 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
-bool has_dynamic_output(std::shared_ptr<Node> n) {
+bool has_dynamic_output(std::shared_ptr<ov::Node> n) {
     for (size_t i = 0; i < n->get_output_size(); i++) {
         if (n->get_output_partial_shape(i).is_dynamic()) {
             return true;
@@ -629,7 +617,7 @@ bool has_dynamic_output(std::shared_ptr<Node> n) {
 bool resolve_dynamic_shapes(const ngraph::Function& f) {
     const auto & f_ops = f.get_ordered_ops();
     if (std::all_of(f_ops.begin(), f_ops.end(),
-            [](std::shared_ptr<Node> results) {
+            [](std::shared_ptr<ov::Node> results) {
                 return !results->is_dynamic() && !has_dynamic_output(results); })) {
         return false;
     }
@@ -651,20 +639,20 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
 
         // dynamic_to_static function converts dynamic dimensions to static using
         // upperbound (get_max_length) dimension value.
-        auto dynamic_to_static = [&op](const PartialShape & shape) -> PartialShape {
+        auto dynamic_to_static = [&op](const ov::PartialShape & shape) -> ov::PartialShape {
             if (shape.is_static() || shape.rank().is_dynamic()) {
                 return shape;
             }
-            std::vector<Dimension> out_shape;
+            std::vector<ov::Dimension> out_shape;
             std::transform(std::begin(shape), std::end(shape),
                            std::back_inserter(out_shape),
-                           [](const Dimension& d) -> Dimension {
+                           [](const ov::Dimension& d) -> ov::Dimension {
                                return d.get_max_length();
                            });
             return out_shape;
         };
 
-        OutputVector replacements(clone_op->get_output_size());
+        ov::OutputVector replacements(clone_op->get_output_size());
         if (!clone_op->constant_fold(replacements, clone_op->input_values())) {
             for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
                 clone_op->set_output_type(output_id, clone_op->output(output_id).get_element_type(),
@@ -692,7 +680,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
 
 void ngfunction_2_irv10(pugi::xml_node& netXml,
                         const ngraph::Function& f,
-                        const std::map<std::string, ngraph::OpSet>& custom_opsets,
+                        const std::map<std::string, ov::OpSet>& custom_opsets,
                         ConstantWriter& constant_node_write_handler) {
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
     netXml.append_attribute("version").set_value("10");
@@ -730,7 +718,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
             pugi::xml_node input = layer.append_child("input");
             for (const auto & i : node->inputs()) {
                 // WA for LSTMCellv0, peephole input shall not be serialized
-                if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell *>(node)) {
+                if (i.get_index() == 6 && dynamic_cast<ov::op::v0::LSTMCell *>(node)) {
                     port_id++;
                     continue;
                 }
@@ -867,13 +855,11 @@ std::string provide_bin_path(const std::string &xmlPath, const std::string &binP
 
 }  // namespace
 
-namespace ngraph {
+namespace ov {
 
 // ! [function_pass:serialize_cpp]
 // serialize.cpp
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    RUN_ON_FUNCTION_SCOPE(Serialize);
-
     auto serializeFunc = [&] (std::ostream & xml_file, std::ostream & bin_file) {
         switch (m_version) {
         case Version::IR_V10:
@@ -950,19 +936,19 @@ pass::Serialize::Serialize(const std::string& xmlPath,
 {
 }
 
-ngraph::pass::StreamSerialize::StreamSerialize(std::ostream & stream,
-                                               std::map<std::string, ngraph::OpSet> && custom_opsets,
+ov::pass::StreamSerialize::StreamSerialize(std::ostream & stream,
+                                               std::map<std::string, ov::OpSet> && custom_opsets,
                                                const std::function<void(std::ostream &)> & custom_data_serializer,
                                                Serialize::Version version)
     : m_stream(stream)
     , m_custom_opsets(std::move(custom_opsets))
     , m_custom_data_serializer(custom_data_serializer) {
     if (version != Serialize::Version::IR_V10) {
-        throw ngraph_error("Unsupported version");
+        throw ov::Exception("Unsupported version");
     }
 }
 
-bool ngraph::pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     /*
         Format:
         [ DataHeader  ]

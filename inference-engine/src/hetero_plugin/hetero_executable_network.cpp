@@ -21,7 +21,7 @@
 #include <array>
 #include <cstdint>
 
-#include "transformations/serialize.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_algorithm.hpp"
@@ -625,8 +625,8 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
 
             // Note: custom ngraph extensions are not supported
             std::stringstream xmlFile, binFile;
-            ngraph::pass::Serialize serializer(xmlFile, binFile,
-                ngraph::pass::Serialize::Version::IR_V10);
+            ov::pass::Serialize serializer(xmlFile, binFile,
+                ov::pass::Serialize::Version::IR_V10);
             serializer.run_on_function(subnet.getFunction());
 
             auto m_constants = binFile.str();

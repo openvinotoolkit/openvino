@@ -12,7 +12,7 @@
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
-#include "transformations/serialize.hpp"
+#include "openvino/pass/serialize.hpp"
 
 using namespace TemplatePlugin;
 
@@ -201,9 +201,9 @@ void TemplatePlugin::ExecutableNetwork::Export(std::ostream& modelStream) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "ExecutableNetwork::Export");
 
     // Note: custom ngraph extensions are not supported
-    std::map<std::string, ngraph::OpSet> custom_opsets;
+    std::map<std::string, ov::OpSet> custom_opsets;
     std::stringstream xmlFile, binFile;
-    ngraph::pass::Serialize serializer(xmlFile, binFile, ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+    ov::pass::Serialize serializer(xmlFile, binFile, ov::pass::Serialize::Version::IR_V10, custom_opsets);
     serializer.run_on_function(_function);
 
     auto m_constants = binFile.str();

@@ -14,7 +14,6 @@
 #include <ngraph/pass/constant_folding.hpp>
 
 #include <disable_shapeof_constant_folding.hpp>
-#include <transformations/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

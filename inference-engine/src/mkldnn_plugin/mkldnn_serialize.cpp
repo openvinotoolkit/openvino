@@ -3,7 +3,7 @@
 //
 #include "mkldnn_serialize.h"
 
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include <pugixml.hpp>
 
@@ -73,7 +73,7 @@ CNNNetworkSerializer::CNNNetworkSerializer(std::ostream & ostream, MKLDNNExtensi
 
 void CNNNetworkSerializer::operator << (const CNNNetwork & network) {
     auto getCustomOpSets = [this]() {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
+        std::map<std::string, ov::OpSet> custom_opsets;
 
         if (_extensionManager) {
             auto extensions = _extensionManager->Extensions();
@@ -117,7 +117,7 @@ void CNNNetworkSerializer::operator << (const CNNNetwork & network) {
         xml_doc.save(stream);
     };
 
-    ngraph::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInputsAndOutputs);
+    ov::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInputsAndOutputs);
     serializer.run_on_function(std::const_pointer_cast<ngraph::Function>(network.getFunction()));
 }
 
@@ -127,12 +127,10 @@ CNNNetworkDeserializer::CNNNetworkDeserializer(std::istream & istream, cnn_netwo
 }
 
 void CNNNetworkDeserializer::operator >> (InferenceEngine::CNNNetwork & network) {
-    using namespace ngraph::pass;
-
     std::string xmlString, xmlInOutString;
     InferenceEngine::Blob::Ptr dataBlob;
 
-    StreamSerialize::DataHeader hdr = {};
+    ov::pass::StreamSerialize::DataHeader hdr = {};
     _istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
 
     // read CNNNetwork input/output precisions

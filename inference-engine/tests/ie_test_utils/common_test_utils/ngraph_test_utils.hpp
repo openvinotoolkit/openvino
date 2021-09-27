@@ -15,7 +15,7 @@
 #include <ngraph/opsets/opset6.hpp>
 
 #include "ie_common.h"
-#include <ngraph_ops/framework_node.hpp>
+#include <openvino/op/util/framework_node.hpp>
 
 #include "test_common.hpp"
 
@@ -326,7 +326,7 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<std::shared_ptr<ngraph::Function>>,
                 private AttributeStorage<SubGraphOpInputDescription>,
                 private AttributeStorage<SubGraphOpOutputDescription>,
-                private AttributeStorage<ngraph::op::FrameworkNodeAttrs>,
+                private AttributeStorage<ov::op::util::FrameworkNodeAttrs>,
                 private AttributeStorage<std::shared_ptr<ngraph::Variable>> {
 public:
     template <typename AttrValue>
@@ -366,7 +366,7 @@ public:
                storage<std::shared_ptr<ngraph::Function>>().get_attributes_number() +
                storage<SubGraphOpInputDescription>().get_attributes_number() +
                storage<SubGraphOpOutputDescription>().get_attributes_number() +
-               storage<ngraph::op::FrameworkNodeAttrs>().get_attributes_number() +
+               storage<ov::op::util::FrameworkNodeAttrs>().get_attributes_number() +
                storage<std::shared_ptr<ngraph::Variable>>().get_attributes_number();
     }
 };
@@ -704,8 +704,8 @@ struct Get<
 };
 
 template <>
-struct Get<ngraph::op::FrameworkNodeAttrs, void> {
-    static std::string value(const ngraph::op::FrameworkNodeAttrs& attrs) {
+struct Get<ov::op::util::FrameworkNodeAttrs, void> {
+    static std::string value(const ov::op::util::FrameworkNodeAttrs& attrs) {
         std::stringstream oss;
         const auto & a = attrs;
         oss << "version=" << attrs.get_opset_name() << ", ";
