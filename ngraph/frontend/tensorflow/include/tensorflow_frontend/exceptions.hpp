@@ -6,8 +6,6 @@
 #include <frontend_manager/frontend_exceptions.hpp>
 #include <ngraph/node.hpp>
 
-//#include "node_context_new.hpp"
-
 namespace ngraph {
 namespace frontend {
 namespace tf {

@@ -133,7 +133,6 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::get_op_p
 }
 
 std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determine_cut_nodes() const {
-    // std::queue<tensorflow::detail::TFNodeDecoder*> decoders_queue;
     std::queue<std::shared_ptr<::ngraph::frontend::DecoderBase>> decoders_queue;
     std::unordered_set<std::string> visited;
     std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> new_ops;

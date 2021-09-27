@@ -10,13 +10,11 @@
 
 #include "op_table.hpp"
 #include "tf_framework_node.hpp"
-//#include "utils.h"
 
 using namespace google;
 
 using namespace ngraph::frontend;
 using namespace ngraph::frontend::tf;
-// using namespace ngraph::frontend::tensorflow::
 using namespace ::tensorflow::ngraph_bridge;
 
 using ::tensorflow::GraphDef;

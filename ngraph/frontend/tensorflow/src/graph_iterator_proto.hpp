@@ -15,21 +15,20 @@ namespace tensorflow {
 namespace ngraph_bridge {
 
 class GraphIteratorProto : public ::ngraph::frontend::GraphIterator {
-    std::vector<const ::tensorflow::NodeDef*> nodes;
+    std::vector<const ::tensorflow::NodeDef*> m_nodes;
     size_t node_index = 0;
 
 public:
     GraphIteratorProto(const ::tensorflow::GraphDef* _graph) {
-        // TODO: Sort topologicaly nodes from the graph
-        nodes.resize(_graph->node_size());
-        for (size_t i = 0; i < nodes.size(); ++i)
-            nodes[i] = &_graph->node(i);
+        m_nodes.resize(_graph->node_size());
+        for (size_t i = 0; i < m_nodes.size(); ++i)
+            m_nodes[i] = &_graph->node(i);
     }
 
     GraphIteratorProto(const std::vector<std::shared_ptr<::tensorflow::NodeDef>>& _sorted_nodes) {
-        nodes.resize(_sorted_nodes.size());
-        for (size_t i = 0; i < nodes.size(); ++i)
-            nodes[i] = _sorted_nodes[i].get();
+        m_nodes.resize(_sorted_nodes.size());
+        for (size_t i = 0; i < m_nodes.size(); ++i)
+            m_nodes[i] = _sorted_nodes[i].get();
     }
 
     /// Set iterator to the start position
@@ -38,7 +37,7 @@ public:
     }
 
     virtual size_t size() const override {
-        return nodes.size();
+        return m_nodes.size();
     }
 
     /// Moves to the next node in the graph
@@ -47,12 +46,12 @@ public:
     }
 
     virtual bool is_end() const override {
-        return node_index >= nodes.size();
+        return node_index >= m_nodes.size();
     }
 
     /// Return NodeContext for the current node that iterator points to
     virtual std::shared_ptr<ngraph::frontend::DecoderBase> get_decoder() const override {
-        return std::make_shared<::ngraph::frontend::DecoderTFProto>(nodes[node_index]);
+        return std::make_shared<::ngraph::frontend::DecoderTFProto>(m_nodes[node_index]);
     }
 };
 
