@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT ENABLE_CLDNN)
-    return()
-endif()
-
 function(get_lib_name TARGET_NAME LIBRARY_NAME)
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(BUILD_SUFFIX ${IE_DEBUG_POSTFIX})
@@ -53,6 +49,7 @@ add_subdirectory(icd_loader)
 target_include_directories(OpenCL SYSTEM PUBLIC ${OPENCL_HEADERS_DIR})
 
 # The following varables are needed to make find_package(OpenCL) work
+set(OPENCL_VERSION_2_2 ON CACHE BOOL "" FORCE)
 set(OpenCL_VERSION_STRING "2.2" CACHE STRING "" FORCE)
 set(OpenCL_INCLUDE_DIR "${OPENCL_HEADERS_DIR}" CACHE PATH "" FORCE)
 set(OPENCLROOT "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" CACHE PATH "" FORCE)

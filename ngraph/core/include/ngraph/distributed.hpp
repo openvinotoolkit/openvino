@@ -36,10 +36,8 @@ class NGRAPH_API AttributeAdapter<ngraph::reduction::Type> : public EnumAttribut
 public:
     AttributeAdapter(ngraph::reduction::Type& value) : EnumAttributeAdapterBase<ngraph::reduction::Type>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<reduction::Type>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<reduction::Type>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

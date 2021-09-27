@@ -148,8 +148,7 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
 
     shared_ptr<Node> reshape;
     auto input = node->input_value(0).get_node_shared_ptr();
-    auto pat =
-        opset3::Constant::create<int64_t>(element::i64, Shape{target_shape.size()}, target_shape);
+    auto pat = opset3::Constant::create<int64_t>(element::i64, Shape{target_shape.size()}, target_shape);
 
     if (ov::is_type<opset3::Reshape>(input) || ov::is_type<opset3::Squeeze>(input) ||
         ov::is_type<opset3::Unsqueeze>(input)) {
@@ -160,6 +159,7 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
 
     // skip if reshape is nop
     if (reshape->get_input_partial_shape(0).same_scheme(shape_ps)) {
+        copy_runtime_info({input, node->output(0).get_node_shared_ptr()}, node->output(0).get_node_shared_ptr());
         return replace_output_update_name(node->output(0), reshape->input_value(0));
     } else {
         return replace_node_update_name(node, reshape);

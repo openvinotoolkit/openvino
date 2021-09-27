@@ -18,6 +18,15 @@ size_t ResampleKernelOpt::GetOptimalBlockSize(const resample_params& params) con
     return 1;
 }
 
+static size_t GetOptimalDivisor(const size_t input_size, size_t max_val = 16) {
+    for (size_t s = max_val; s > 0; --s) {
+        if (input_size % s == 0) {
+            return s;
+        }
+    }
+    return 1;
+}
+
 ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -29,8 +38,14 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableDifferentTypes();
     k.EnableTensorOffset();
@@ -56,6 +71,11 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
 
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
     } else {
+        auto opt_x_block_size = GetOptimalBlockSize(arg);
+        if (out.X().v > 32 && opt_x_block_size == 1) {
+            opt_x_block_size = GetOptimalDivisor(out.X().v, 32);
+        }
+
         dispatchData.gws[0] = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
         dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
         dispatchData.gws[2] = arg.output.Batch().v;
@@ -63,6 +83,11 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = sub_group_size;
         dispatchData.lws[2] = 1;
+
+        if (arg.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16
+            || arg.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
+            dispatchData.lws[2] = GetOptimalDivisor(dispatchData.gws[2]);
+        }
     }
 
     return dispatchData;
@@ -91,7 +116,11 @@ bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) cons
         params.resampleType != ResampleType::BILINEAR_INTERP)
         return false;
 
-    if (input.GetLayout() != DataLayout::fs_b_yx_fsv32 && input.GetLayout() != DataLayout::b_fs_yx_fsv16)
+    if (input.GetLayout() != DataLayout::fs_b_yx_fsv32 &&
+        input.GetLayout() != DataLayout::b_fs_yx_fsv16 &&
+        input.GetLayout() != DataLayout::b_fs_yx_fsv32 &&
+        input.GetLayout() != DataLayout::bs_fs_yx_bsv32_fsv16 &&
+        input.GetLayout() != DataLayout::bs_fs_yx_bsv32_fsv32)
         return false;
 
     return true;
@@ -100,9 +129,15 @@ bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) cons
 JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) const {
     auto jit = Parent::GetJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", GetOptimalBlockSize(params)));
+    auto opt_x_block_size = GetOptimalBlockSize(params);
+    if (params.output.X().v > 32 && opt_x_block_size == 1) {
+        opt_x_block_size = GetOptimalDivisor(params.output.X().v, 32);
+    }
+
+    jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", opt_x_block_size));
+    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.output.X().v, opt_x_block_size)));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
-    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.output.X().v, GetOptimalBlockSize(params))));
+
     size_t vec_size = 0;
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         vec_size = 2;

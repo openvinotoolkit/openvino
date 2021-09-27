@@ -64,6 +64,9 @@
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "impls/onednn/register.hpp"
+#endif
 
 #include "kernel_base.h"
 
@@ -130,6 +133,9 @@ void program::init_primitives() {
         common::register_implementations();
         cpu::register_implementations();
         ocl::register_implementations();
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        onednn::register_implementations();
+#endif
         is_initialized = true;
     }
 }
@@ -602,6 +608,10 @@ void program::transfer_memory_to_device() {
 
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
+                GPU_DEBUG_GET_INSTANCE(debug_config);
+                GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
+                }
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
