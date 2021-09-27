@@ -34,7 +34,7 @@ public:
      */
     SharedObjectLoader() = default;
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Loads a library with the wide char name specified.
      * @param pluginName Full or relative path to the plugin library
