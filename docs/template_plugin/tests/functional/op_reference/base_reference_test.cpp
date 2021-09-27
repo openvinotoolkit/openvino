@@ -31,13 +31,13 @@ void CommonReferenceTest::LoadNetwork() {
 }
 
 void CommonReferenceTest::FillInputs() {
-    const auto& inputs = function->inputs();
-    ASSERT_EQ(inputs.size(), inputData.size());
+    const auto& functionParams = function->get_parameters();
+    ASSERT_EQ(functionParams.size(), inputData.size());
 
-    for (size_t i = 0; i < inputs.size(); i++) {
-        const auto& param = inputs[i];
+    for (size_t i = 0; i < functionParams.size(); i++) {
+        const auto& param = functionParams[i];
 
-        ov::runtime::Tensor blob(param.get_element_type(), param.get_shape());
+        ov::runtime::Tensor blob(param->get_element_type(), param->get_shape());
         ASSERT_EQ(blob.get_byte_size(), inputData[i].get_byte_size());
 
         std::memcpy(blob.data(), inputData[i].data(), inputData[i].get_byte_size());
@@ -47,12 +47,10 @@ void CommonReferenceTest::FillInputs() {
 
 void CommonReferenceTest::Infer() {
     inferRequest = executableNetwork.create_infer_request();
-    const auto& execParams = executableNetwork.get_parameters();
+    const auto& functionParams = function->get_parameters();
 
-    for (size_t i = 0; i < execParams.size(); ++i) {
-        const auto& param = execParams[i];
-        std::cout << "param type " << i << " " << param->get_element_type() << std::endl;
-        std::cout << "data type " << i << " " << inputData[i].get_element_type() << std::endl;
+    for (size_t i = 0; i < functionParams.size(); ++i) {
+        const auto& param = functionParams[i];
         inferRequest.set_tensor(param->get_friendly_name(), inputData[i]);
     }
     inferRequest.infer();
@@ -114,6 +112,10 @@ void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, cons
             refBlob.get_size(), threshold);
         break;
     case ov::element::boolean:
+        LayerTestsUtils::LayerTestsCommon::Compare<bool, bool>(
+            refBlob.data<const bool>(), outBlob.data<const bool>(),
+            refBlob.get_size(), threshold);
+        break;
     case ov::element::u8:
         LayerTestsUtils::LayerTestsCommon::Compare<uint8_t, uint8_t>(
             refBlob.data<const uint8_t>(), outBlob.data<const uint8_t>(),
@@ -136,13 +138,13 @@ void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, cons
         break;
     case ov::element::i4:
     case ov::element::u4:
-        LayerTestsUtils::LayerTestsCommon::Compare<uint8_t, uint8_t>(
-            refBlob.data<const uint8_t>(), outBlob.data<const uint8_t>(),
+        LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(
+            refBlob.data<const int8_t>(), outBlob.data<const int8_t>(),
             refBlob.get_size() / 2, threshold);
         break;
     case ov::element::u1:
-        LayerTestsUtils::LayerTestsCommon::Compare<uint8_t, uint8_t>(
-            refBlob.data<const uint8_t>(), outBlob.data<const uint8_t>(),
+        LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(
+            refBlob.data<const int8_t>(), outBlob.data<const int8_t>(),
             refBlob.get_size() / 8, threshold);
         break;
     default:

@@ -186,7 +186,7 @@ private:
                                                     const ngraph::op::MVNEpsMode epsMode) {
         std::vector<int64_t> dataVector(reductionAxes.shape[0]);
         const auto in = std::make_shared<op::Parameter>(input.type, input.shape);
-        const auto refBuffer = reductionAxes.data.data<const std::uint64_t>();
+        const auto refBuffer = reductionAxes.data.data<const std::int64_t>();
         for (size_t i = 0; i < dataVector.size(); ++i) {
             dataVector[i] = refBuffer[i];
         }

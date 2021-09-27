@@ -40,8 +40,8 @@ IE_SUPPRESS_DEPRECATED_START
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl) final : public ICNNNetwork {
 public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph,
-                         const std::vector<IExtensionPtr>& exts = {});
-    CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph, bool newAPI);
+                         const std::vector<IExtensionPtr>& exts = {},
+                         bool newAPI = false);
     CNNNetworkNGraphImpl(const CNNNetwork& nGraph);
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;

@@ -106,21 +106,27 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
 }
 
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph,
-                                           const std::vector<IExtensionPtr>& exts)
+                                           const std::vector<IExtensionPtr>& exts,
+                                           bool newAPI)
     : _ngraph_function(nGraph),
-      _ie_extensions(exts) {
+      _ie_extensions(exts),
+      _new_api(newAPI) {
     // Restore usual attributes for CNNNetwork
-    auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
+    auto keep_input_info = [=](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
         InputInfo::Ptr info(new InputInfo());
         info->setInputData(inData);
-        Precision prc = info->getPrecision();
 
-        // Convert precision into native format (keep element size)
-        prc = prc == Precision::Q78
-                  ? Precision::I16
-                  : prc == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(prc);
+        if (!_new_api) {
+            Precision prc = info->getPrecision();
 
-        info->setPrecision(prc);
+            // Convert precision into native format (keep element size)
+            prc = prc == Precision::Q78
+                      ? Precision::I16
+                      : prc == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(prc);
+
+            info->setPrecision(prc);
+        }
+
         network.setInputInfo(info);
     };
 
@@ -141,43 +147,17 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
 
         keep_input_info(*this, ptr);
     }
-    for (auto& output : _outputData) {
-        // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
-        if (output.second->getPrecision() == Precision::I64) {
-            output.second->setPrecision(Precision::I32);
-        } else if (output.second->getPrecision() != Precision::FP32 &&
-                   output.second->getPrecision() != Precision::I32) {
-            output.second->setPrecision(Precision::FP32);
+
+    if (!_new_api) {
+        for (auto& output : _outputData) {
+            // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
+            if (output.second->getPrecision() == Precision::I64) {
+                output.second->setPrecision(Precision::I32);
+            } else if (output.second->getPrecision() != Precision::FP32 &&
+                       output.second->getPrecision() != Precision::I32) {
+                output.second->setPrecision(Precision::FP32);
+            }
         }
-    }
-}
-
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph, bool new_api)
-    : _ngraph_function(nGraph),
-      _new_api(new_api) {
-    // Restore usual attributes for CNNNetwork
-    auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
-        InputInfo::Ptr info(new InputInfo());
-        info->setInputData(inData);
-        network.setInputInfo(info);
-    };
-
-    validateFunctionNames();
-
-    reshape();
-    for (const auto& layer : _ngraph_function->get_parameters()) {
-        std::string outName = layer->get_friendly_name();
-        IE_ASSERT(layer->get_output_size() == 1);  // Parameter as only singly output port
-
-        // map original names to OpenVINO name
-        for (const auto& name : layer->get_output_tensor(0).get_names()) {
-            _tensorNames[name] = outName;
-        }
-
-        DataPtr& ptr = _data[outName];
-        IE_ASSERT(ptr);  // Data must be allocated after the reshape method
-
-        keep_input_info(*this, ptr);
     }
 }
 

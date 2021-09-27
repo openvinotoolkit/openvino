@@ -1282,7 +1282,9 @@ namespace {
 
 ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
     return ie::CNNNetwork(
-        std::make_shared<ie::details::CNNNetworkNGraphImpl>(std::const_pointer_cast<ngraph::Function>(model), true));
+        std::make_shared<ie::details::CNNNetworkNGraphImpl>(std::const_pointer_cast<ngraph::Function>(model),
+                                                            std::vector<ie::IExtensionPtr>{},
+                                                            true));
 }
 
 }  // namespace
