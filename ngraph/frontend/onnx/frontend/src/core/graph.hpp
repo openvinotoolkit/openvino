@@ -46,7 +46,7 @@ public:
 protected:
     Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model, std::unique_ptr<GraphCache>&& cache);
 
-    void set_friendly_names(const Node& onnx_node, const OutputVector& ng_node_vector) const;
+    void set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const;
 
 protected:
     virtual void decode_to_framework_nodes();

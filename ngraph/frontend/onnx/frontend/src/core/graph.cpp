@@ -105,17 +105,15 @@ Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::uniqu
                 throw;
             } catch (const ngraph::ngraph_error& exc) {
                 NGRAPH_WARN << "\nCould not create an nGraph Constant for initializer '" << initializer_tensor.name()
-                            << "'. \n"
-                            << "Constant with a 0 value was created, make sure connected input is "
-                               "optional.\n"
+                            << "'. Constant with a 0 value was created, make sure connected input is optional.\n"
                             << "Otherwise verify if the initializer contains a correct number of "
-                               "elements matching the initializer's shape. \n"
-                            << "Detailed error:\n"
+                               "elements matching the initializer's shape. \nDetailed error:\n"
                             << exc.what();
                 ng_constant = default_opset::Constant::create(tensor.get_ng_type(), Shape{}, {0});
             }
 
             initializers.emplace(initializer_tensor.name(), tensor);
+            ng_constant->get_output_tensor(0).set_names({initializer_tensor.name()});
             detail::add_provenance_tag_to_initializer(tensor, ng_constant);
             m_cache->emplace_node(initializer_tensor.name(), std::move(ng_constant));
         }
@@ -273,9 +271,10 @@ OutputVector Graph::get_ng_outputs() const {
 
 OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
     const auto ng_node_factory = m_model->get_operator(onnx_node.op_type(), onnx_node.domain());
-    OutputVector ng_node_vector;
+    // contains outputs of nG subgraph implementing a particular ONNX node (possibly a single output of a single node)
+    OutputVector ng_subgraph_outputs;
     try {
-        ng_node_vector = ng_node_factory(onnx_node);
+        ng_subgraph_outputs = ng_node_factory(onnx_node);
     } catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure&) {
         // Do nothing OnnxNodeValidationFailure exception already has ONNX node information.
         throw;
@@ -289,30 +288,37 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
         NGRAPH_ERR << msg_prefix + "Unhandled exception type. \n";
         std::rethrow_exception(std::current_exception());
     }
-    set_friendly_names(onnx_node, ng_node_vector);
-    detail::add_provenance_tags(onnx_node, ng_node_vector);
+    set_friendly_names(onnx_node, ng_subgraph_outputs);
+    detail::add_provenance_tags(onnx_node, ng_subgraph_outputs);
 
     for (std::size_t i{0}; i < onnx_node.get_outputs_size(); ++i) {
-        auto ng_node = ng_node_vector.at(i);
-        m_cache->emplace_node(onnx_node.output(i), std::move(ng_node));
+        auto ng_node_output = ng_subgraph_outputs.at(i);
+        m_cache->emplace_node(onnx_node.output(i), std::move(ng_node_output));
     }
 
-    return ng_node_vector;
+    return ng_subgraph_outputs;
 }
 
-void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_node_vector) const {
-    for (size_t i = 0; i < ng_node_vector.size(); ++i) {
+void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const {
+    for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
         // Trailing optional outputs may not be specified in the ONNX model.
         // Other optional outputs should have name set to an empty string.
         if (i >= onnx_node.get_outputs_size()) {
             break;
         }
 
-        ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
+        const auto& onnx_node_name = onnx_node.get_name();
+        if (onnx_node_name.empty()) {
+            // for multioutput nodes, their friendly name is always set to the last ONNX output's name
+            // this is because this setter is called in a loop and the last call is ultimate for a given node
+            ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
+        } else {
+            ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name());
+        }
 
         // null node does not have tensor
-        if (!ngraph::op::is_null(ng_node_vector[i])) {
-            ng_node_vector[i].get_tensor().set_names({onnx_node.output(i)});
+        if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
+            ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(i)});
         }
     }
 }
