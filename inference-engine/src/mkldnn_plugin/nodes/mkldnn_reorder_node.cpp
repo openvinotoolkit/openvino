@@ -346,7 +346,7 @@ void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemor
                             outPrc, input.GetSize() / input.getDesc().getPrecision().size());
 
                 MKLDNNMemory tmpMem(output.getEngine());
-                auto tmpDesc = MemoryDescUtils::cloneWithNewPrecision(input.getDesc(), outPrc);
+                auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
                 tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
 
                 pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));

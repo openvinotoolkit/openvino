@@ -1772,7 +1772,7 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
         auto outPrec = outDesc->getPrecision();
 
         auto reorderInDesc = inDesc;
-        auto reorderOutDesc = MemoryDescUtils::cloneWithNewPrecision(*outDesc, inPrec);
+        auto reorderOutDesc = outDesc->cloneWithNewPrecision(inPrec);
 
         std::string reorderlayerName = parentParentNode->getName() + "_" +
                 MKLDNNReorderNode::getReorderArgs(*reorderInDesc, *reorderOutDesc) + "_" + "fake";
