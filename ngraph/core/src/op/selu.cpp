@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Selu, "Selu", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Selu);
 
 op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Output<Node>& lambda)
     : Op({data, alpha, lambda}) {

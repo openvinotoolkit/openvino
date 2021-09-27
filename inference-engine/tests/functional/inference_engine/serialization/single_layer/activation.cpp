@@ -40,6 +40,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Asin,                  {}},
         {Asinh,                  {}},
         {Atan,                  {}},
+        {Atanh,                  {}},
         {Cos,                   {}},
         {Cosh,                  {}},
         {Floor,                 {}},
