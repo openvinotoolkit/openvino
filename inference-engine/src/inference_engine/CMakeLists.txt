@@ -20,7 +20,7 @@ file (GLOB LIBRARY_SRC
       )
 
 # TODO: WA for OneHot pass usage in reshape
-set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src/")
+set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
 set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
