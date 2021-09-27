@@ -35,7 +35,7 @@ namespace pass {
  */
 class OPENVINO_API LowLatency2 : public FunctionPass {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_RTTI("LowLatency2");
 
     explicit LowLatency2(bool use_const_initializer = true) : m_use_const_initializer(use_const_initializer) {}
 
