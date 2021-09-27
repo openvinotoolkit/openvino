@@ -12,7 +12,7 @@ MKLDNNPlugin::PowerStaticNode::PowerStaticNode(const ngraph::Output<Node> &data,
                                                const float &shift,
                                                const ngraph::element::Type output_type)
     : Op({data}), scale(scale), power(power), shift(shift), m_output_type(output_type) {
-    constructor_validate_and_infer_types();
+    validate_and_infer_types();
 }
 
 std::shared_ptr<ngraph::Node> MKLDNNPlugin::PowerStaticNode::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
@@ -31,5 +31,6 @@ bool MKLDNNPlugin::PowerStaticNode::visit_attributes(ngraph::AttributeVisitor &v
     visitor.on_attribute("scale", scale);
     visitor.on_attribute("power", power);
     visitor.on_attribute("shift", shift);
+    visitor.on_attribute("out-type", m_output_type);
     return true;
 }
