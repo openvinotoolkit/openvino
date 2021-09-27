@@ -234,6 +234,7 @@ set(SRC
     type_prop/squeeze.cpp
     type_prop/swish.cpp
     type_prop/tan.cpp
+    type_prop/tanh.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
@@ -250,6 +251,7 @@ set(SRC
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
     visitors/op/add.cpp
+    visitors/op/asin.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
@@ -345,6 +347,7 @@ set(SRC
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/sign.cpp
+    visitors/op/sin.cpp
     visitors/op/sinh.cpp
     visitors/op/slice.cpp
     visitors/op/softmax.cpp
@@ -418,8 +421,6 @@ set(MULTI_TEST_SRC
     backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
-    backend/asin.in.cpp
-    backend/asinh.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
@@ -434,8 +435,6 @@ set(MULTI_TEST_SRC
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
-    backend/cos.in.cpp
-    backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/deformable_psroi_pooling.in.cpp
@@ -510,8 +509,6 @@ set(MULTI_TEST_SRC
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
-    backend/sin.in.cpp
-    backend/sinh.in.cpp
     backend/softmax.in.cpp
     backend/softplus.in.cpp
     backend/space_to_batch.in.cpp
@@ -521,7 +518,6 @@ set(MULTI_TEST_SRC
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
     backend/swish.in.cpp
-    backend/tanh.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
     backend/transpose.in.cpp
