@@ -5,7 +5,6 @@
 #include <default_opset.h>
 
 #include <op_table.hpp>
-#include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -46,7 +45,7 @@ OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
     auto axis_to_remove =
         ConstructNgNode<opset::Constant>(node.get_name(), element::i64, Shape{1}, std::vector<int64_t>({axis}));
     auto reshaped_indices = ConstructNgNode<opset::Squeeze>(node.get_name(), ng_indices, axis_to_remove);
-    Builder::SetTracingInfo(node.get_name(), reshaped_indices);
+    SetTracingInfo(node.get_name(), reshaped_indices);
     return {reshaped_indices};
 }
 

@@ -4,11 +4,10 @@
 
 #include "op_table.hpp"
 
-#include <tensorflow_frontend/node_context.hpp>
-
 using namespace std;
 using namespace ngraph;
 using namespace frontend::tensorflow::detail;
+using namespace ngraph::frontend::tf;
 
 namespace tensorflow {
 namespace ngraph_bridge {
@@ -87,6 +86,12 @@ OP_CONVERTER(TranslateSqueezeOp);
 
 namespace tensorflow {
 namespace ngraph_bridge {
+void SetTracingInfo(const std::string& op_name, const ngraph::Output<ngraph::Node> ng_node) {
+    auto node = ng_node.get_node_shared_ptr();
+    node->set_friendly_name(op_name);
+    node->add_provenance_tag(op_name);
+}
+
 const std::map<const std::string, const CreatorFunction> get_supported_ops() {
     return {
         // note: UnaryOp translator declaration for each op must to be added in unary_op.cpp file

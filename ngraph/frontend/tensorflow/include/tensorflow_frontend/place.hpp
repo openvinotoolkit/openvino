@@ -5,22 +5,13 @@
 #pragma once
 
 #include <frontend_manager/frontend.hpp>
-
-namespace tensorflow {
-class OpDef;
-class TensorProto;
-}  // namespace tensorflow
+#include <tensorflow_frontend/decoder.hpp>
 
 namespace ngraph {
 namespace frontend {
+
 class TensorPlaceTF;
 class OpPlaceTF;
-
-namespace tensorflow {
-namespace detail {
-class TFNodeDecoder;
-}  // namespace detail
-}  // namespace tensorflow
 
 class PlaceTF : public Place {
 public:
@@ -98,12 +89,7 @@ private:
 
 class OpPlaceTF : public PlaceTF {
 public:
-    OpPlaceTF(const InputModel& input_model,
-              std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def,
-              const std::vector<std::string>& names);
-
-    OpPlaceTF(const InputModel& input_model,
-              std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def);
+    OpPlaceTF(const InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder);
 
     void add_in_port(const std::shared_ptr<InPortPlaceTF>& input, const std::string& name);
     void add_out_port(const std::shared_ptr<OutPortPlaceTF>& output, int idx);
@@ -112,7 +98,7 @@ public:
     const std::vector<std::shared_ptr<OutPortPlaceTF>>& get_output_ports() const;
     const std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>>& get_input_ports() const;
     std::shared_ptr<InPortPlaceTF> get_input_port_tf(const std::string& inputName, int inputPortIndex) const;
-    std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> get_desc() const;
+    std::shared_ptr<DecoderBase> get_decoder() const;
 
     // External API methods
     std::vector<Place::Ptr> get_consuming_ports() const override;
@@ -148,7 +134,7 @@ public:
     // Ptr get_target_tensor(int outputPortIndex) const override;
 
 private:
-    std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> m_op_def;
+    std::shared_ptr<DecoderBase> m_op_decoder;
     std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>> m_input_ports;
     std::vector<std::shared_ptr<OutPortPlaceTF>> m_output_ports;
 };
@@ -185,7 +171,6 @@ public:
     bool is_equal_data(Ptr another) const override;
 
 private:
-    // const ::tensorflow::TensorProto& m_tensor;
     PartialShape m_pshape;
     element::Type m_type;
 

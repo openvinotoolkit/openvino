@@ -5,7 +5,6 @@
 #include <default_opset.h>
 
 #include <op_table.hpp>
-#include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -60,19 +59,19 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
         ng_kernel_shape[0] = ng_filter_shape[0];
         ng_kernel_shape[1] = ng_filter_shape[1];
         Transpose<3, 2, 0, 1>(ng_filter);
-        Builder::SetTracingInfo(node.get_name(), ng_filter);
+        SetTracingInfo(node.get_name(), ng_filter);
 
         NGRAPH_VLOG(3) << "ng_kernel_shape: " << join(ng_kernel_shape);
 
         CoordinateDiff ng_padding_below;
         CoordinateDiff ng_padding_above;
-        Builder::MakePadding(tf_padding_type,
-                             ng_image_shape,
-                             ng_kernel_shape,
-                             ng_strides,
-                             ng_dilations,
-                             ng_padding_below,
-                             ng_padding_above);
+        MakePadding(tf_padding_type,
+                    ng_image_shape,
+                    ng_kernel_shape,
+                    ng_strides,
+                    ng_dilations,
+                    ng_padding_below,
+                    ng_padding_above);
 
         return ConstructNgNode<opset::Convolution>(node.get_name() + "_FusedConv2D_Conv",
                                                    ng_input,
@@ -152,7 +151,7 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
             return {ng_batch_norm};
         }
     } else {
-        throw errors::Unimplemented("Unsupported _FusedConv2D " + StrJoin(fused_ops, ","));
+        FRONT_END_THROW("Unsupported _FusedConv2D ");
     }
 }
 }  // namespace ngraph_bridge

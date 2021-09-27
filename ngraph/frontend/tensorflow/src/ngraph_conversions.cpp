@@ -4,7 +4,7 @@
 
 #include "ngraph_conversions.h"
 
-#include "ngraph_builder.h"
+#include "utils.h"
 
 namespace tensorflow {
 namespace ngraph_bridge {
@@ -17,7 +17,7 @@ void NHWCtoNCHW(const std::string& op_name, bool is_nhwc, ngraph::Output<ngraph:
         } else if (rank == 5) {
             Transpose3D<0, 4, 1, 2, 3>(node);
         }
-        Builder::SetTracingInfo(op_name, node);
+        SetTracingInfo(op_name, node);
     }
 }
 
@@ -29,7 +29,7 @@ void NCHWtoNHWC(const std::string& op_name, bool is_nhwc, ngraph::Output<ngraph:
         } else if (rank == 5) {
             Transpose3D<0, 2, 3, 4, 1>(node);
         }
-        Builder::SetTracingInfo(op_name, node);
+        SetTracingInfo(op_name, node);
     }
 }
 

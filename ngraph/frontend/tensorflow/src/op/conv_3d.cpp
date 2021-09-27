@@ -5,7 +5,6 @@
 #include <default_opset.h>
 
 #include <op_table.hpp>
-#include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -62,19 +61,19 @@ OutputVector TranslateConv3DOp(const NodeContext& node) {
     ng_kernel_shape[1] = ng_filter_shape[1];
     ng_kernel_shape[2] = ng_filter_shape[2];
     Transpose3D<4, 3, 0, 1, 2>(ng_filter);
-    Builder::SetTracingInfo(node.get_name(), ng_filter);
+    SetTracingInfo(node.get_name(), ng_filter);
 
     NGRAPH_VLOG(3) << "ng_kernel_shape: " << join(ng_kernel_shape);
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
-    Builder::MakePadding(tf_padding_type,
-                         ng_image_shape,
-                         ng_kernel_shape,
-                         ng_strides,
-                         ng_dilations,
-                         ng_padding_below,
-                         ng_padding_above);
+    MakePadding(tf_padding_type,
+                ng_image_shape,
+                ng_kernel_shape,
+                ng_strides,
+                ng_dilations,
+                ng_padding_below,
+                ng_padding_above);
 
     Output<Node> ng_conv = ConstructNgNode<opset::Convolution>(node.get_name(),
                                                                ng_input,

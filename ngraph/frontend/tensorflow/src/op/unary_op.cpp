@@ -5,7 +5,6 @@
 #include <default_opset.h>
 
 #include <op_table.hpp>
-#include <tensorflow_frontend/node_context.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -41,7 +40,7 @@ OutputVector TranslateUnaryOp(const NodeContext& op, std::function<Output<Node>(
     Output<Node> ng_input = op.get_ng_input(0);
     auto ng_node = create_unary_op(ng_input);
     if (ng_node != ng_input) {
-        Builder::SetTracingInfo(op.get_name(), ng_node);
+        SetTracingInfo(op.get_name(), ng_node);
     }
     // SaveNgOp(ng_op_map, node.get_name(), ng_node);
     // return Status::OK();

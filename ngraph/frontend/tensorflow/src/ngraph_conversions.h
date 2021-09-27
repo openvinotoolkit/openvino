@@ -8,17 +8,17 @@
 
 #include <string>
 
-//#include "logging/ngraph_log.h"
 #include "default_opset.h"
-//#include "ngraph_builder.h"
-#include "node_context_impl.hpp"
 #include <tensorflow_frontend/utility.hpp>
-
+#include "graph.pb.h"
+#include "types.pb.h"
 
 namespace tensorflow {
 namespace ngraph_bridge {
 
-    // Converts a TensorFlow DataType to an nGraph element::Type. Returns
+using ::tensorflow::DataType;
+
+// Converts a TensorFlow DataType to an nGraph element::Type. Returns
 // errors::Unimplemented if the element type is not supported by nGraph
 // Core. Otherwise returns Status::OK().
     void TFDataTypeToNGraphElementType(DataType tf_dt,

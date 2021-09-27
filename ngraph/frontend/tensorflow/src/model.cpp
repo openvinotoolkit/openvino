@@ -6,13 +6,14 @@
 #include <fstream>
 #include <ngraph/opsets/opset7.hpp>
 #include <queue>
+#include <tensorflow_frontend/graph_iterator.hpp>
 #include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/place.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
-#include "graph.hpp"
-#include "ngraph_builder.h"
+#include "graph_iterator_proto.hpp"
 #include "ngraph_conversions.h"
+#include "node_context.hpp"
 
 using namespace google;
 using namespace ngraph::frontend;
@@ -60,7 +61,7 @@ private:
     std::map<std::string, Output<Node>> m_tensor_values;
 
     std::shared_ptr<::tensorflow::GraphDef> m_graph_def;
-    std::shared_ptr<::tensorflow::ngraph_bridge::GraphIteratorProto> m_graph_impl;
+    std::shared_ptr<::ngraph::frontend::GraphIterator> m_graph_iterator;
     const InputModel& m_input_model;
 
     // shows if some nodes might be deleted from graph
@@ -72,32 +73,35 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
     std::set<std::string> op_names_with_consumers;
 
     m_inputs.clear();
-    for (; !m_graph_impl->is_end(); m_graph_impl->next()) {
-        auto node_decoder = m_graph_impl->get();
-        auto op_name = node_decoder->name();
+    for (; !m_graph_iterator->is_end(); m_graph_iterator->next()) {
+        auto node_decoder = m_graph_iterator->get_decoder();
+        auto op_name = node_decoder->get_op_name();
+        auto op_type = node_decoder->get_op_type();
         auto op_place = std::make_shared<OpPlaceTF>(m_input_model, node_decoder);
         all_op_names.insert(op_name);
         m_op_places.push_back(op_place);
-        m_op_places_map[node_decoder->name()] = op_place;
-        if (node_decoder->op() == "Placeholder") {
-            ngraph::PartialShape pshape;
-            ngraph::element::Type type;
-            node_decoder->getAttrValue2("shape", &pshape);
-            node_decoder->getAttrValue2("dtype", &type);
+        m_op_places_map[op_name] = op_place;
+        if (op_type == "Placeholder") {
+            auto pshape = std::dynamic_pointer_cast<VariantWrapper<ngraph::PartialShape>>(
+                node_decoder->get_attribute("shape", VariantWrapper<ngraph::PartialShape>::type_info));
+            auto type = std::dynamic_pointer_cast<VariantWrapper<ngraph::element::Type>>(
+                node_decoder->get_attribute("dtype", VariantWrapper<ngraph::element::Type>::type_info));
+            auto tmp = type->get();
             std::vector<std::string> names = {op_name};
-            auto tensor_place = std::make_shared<TensorPlaceTF>(m_input_model, pshape, type, names);
+            auto tensor_place = std::make_shared<TensorPlaceTF>(m_input_model, pshape->get(), type->get(), names);
             m_tensor_places[op_name] = tensor_place;
             m_inputs.push_back(tensor_place);
         }
-        for (size_t input_port_idx = 0; input_port_idx < node_decoder->num_inputs(); ++input_port_idx) {
+        for (size_t input_port_idx = 0; input_port_idx < node_decoder->get_input_size(); ++input_port_idx) {
             std::string producer_op_name;
             size_t producer_output_port_idx;
             try {
-                node_decoder->input_node(input_port_idx, &producer_op_name, &producer_output_port_idx);
+                node_decoder->get_input_node(input_port_idx, producer_op_name, producer_output_port_idx);
                 op_names_with_consumers.insert(producer_op_name);
             } catch (const std::exception& e) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
-                                " for op '" + node_decoder->name() + "', expected input name: '" + producer_op_name +
+                                " for op '" + node_decoder->get_op_name() + "', expected input name: '" +
+                                producer_op_name +
                                 "', expected input port index: " + std::to_string(producer_output_port_idx));
             }
         }
@@ -108,7 +112,7 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
                         op_names_with_consumers.begin(),
                         op_names_with_consumers.end(),
                         std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
-    m_graph_impl->reset();
+    m_graph_iterator->reset();
 
     m_outputs.clear();
     for (auto& output_name : op_names_without_consumers) {
@@ -130,7 +134,7 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::get_op_p
 }
 
 std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determine_cut_nodes() const {
-    std::queue<tensorflow::detail::TFNodeDecoder*> decoders_queue;
+    std::queue<std::shared_ptr<::ngraph::frontend::DecoderBase>> decoders_queue;
     std::unordered_set<std::string> visited;
     std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> new_ops;
     for (const auto& output_place : m_outputs) {
@@ -148,21 +152,22 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
             FRONT_END_GENERAL_CHECK(output_operation_place,
                                     "There is not operation place in the map: " + operation_name);
             new_ops.push_back(output_operation_place);
-            decoders_queue.push(output_operation_place->get_desc().get());
+            decoders_queue.push(output_operation_place->get_decoder());
         }
     }
     while (!decoders_queue.empty()) {
         auto operation_decoder = decoders_queue.front();
         decoders_queue.pop();
-        auto current_operation_name = operation_decoder->name();
-        for (size_t input_port_idx = 0; input_port_idx < operation_decoder->num_inputs(); ++input_port_idx) {
+        auto current_operation_name = operation_decoder->get_op_name();
+        for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
             std::string producer_name;
             size_t producer_output_port_idx;
             try {
-                operation_decoder->input_node(input_port_idx, &producer_name, &producer_output_port_idx);
+                operation_decoder->get_input_node(input_port_idx, producer_name, producer_output_port_idx);
             } catch (const std::exception& e) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
-                                " for op '" + operation_decoder->name() + "', expected input name: '" + producer_name +
+                                " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
+                                producer_name +
                                 "', expected input port index: " + std::to_string(producer_output_port_idx) + '\n');
             }
 
@@ -200,7 +205,7 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
             if (!is_input && !visited.count(producer_name)) {
                 visited.insert(producer_name);
                 new_ops.push_back(producer_operation_place);
-                decoders_queue.push(producer_operation_place->get_desc().get());
+                decoders_queue.push(producer_operation_place->get_decoder());
             }
         }
     }
@@ -210,29 +215,27 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
 
 template <typename T>
 InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::basic_string<T>& path, const InputModel& input_model)
-    : m_graph_def{std::make_shared<GraphDef>()},
-      m_input_model(input_model) {
-    // TODO: convert any format variant to GraphIterator and pass it to the single constuctor
-    // InputModelTF with GraphIterator
-
+    : m_input_model(input_model),
+      m_graph_def(std::make_shared<GraphDef>()) {
     std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
 
     FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
     FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
 
-    m_graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(m_graph_def.get());
+    m_graph_iterator = std::make_shared<::ngraph::frontend::tf::GraphIteratorProto>(m_graph_def.get());
     loadPlaces();
 }
 
 InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::vector<std::istream*>& streams,
                                                  const InputModel& input_model)
-    : m_graph_def{std::make_shared<GraphDef>()},
-      m_input_model(input_model) {
+    : m_input_model(input_model),
+      m_graph_def(std::make_shared<GraphDef>()) {
     // TODO: convert any format variant to GraphIterator and pass it to the single constuctor
     // InputModelTF with GraphIterator
 
     FRONT_END_GENERAL_CHECK(streams.size() == 1, "One stream is needed to load a model in .pb format");
     FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(streams[0]), "Model can't be parsed");
+    m_graph_iterator = std::make_shared<::ngraph::frontend::tf::GraphIteratorProto>(m_graph_def.get());
     loadPlaces();
 }
 
