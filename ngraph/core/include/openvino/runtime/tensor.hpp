@@ -67,15 +67,12 @@ public:
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param host_ptr Pointer to pre-allocated host memory
-     * @param size Optional size of allocated host memory in elements. If it is not set (default is `0`), the size of
-     * memory supposed to be not less then ov::shape_size(shape) * type.size() in bytes.
      * @param strides Optional strides parameters in elements. Strides are supposed to be equal to shape if they are not
      * set
      */
     Tensor(const element::Type type,
            const Shape& shape,
            void* host_ptr,
-           const size_t size = 0,
            const Strides& strides = {});
 
     /**
