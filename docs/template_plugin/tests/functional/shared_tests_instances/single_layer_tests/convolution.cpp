@@ -66,8 +66,8 @@ INSTANTIATE_TEST_SUITE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::pair<size_t, size_t>>(NULL_RANGE)),
-                                ::testing::Values(std::vector<std::vector<size_t>>({{1, 3, 30, 30}})),
+                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+                                ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 30, 30}}})),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -79,10 +79,12 @@ INSTANTIATE_TEST_SUITE_P(Convolution2D_ExplicitPaddingDynamicShape, ConvolutionL
                                  ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
-                                 ::testing::Values(std::vector<std::pair<size_t, size_t>>({{1, 10}, {3, 30}, {30, 300}, {30, 300}})),
-                                 ::testing::Values(std::vector<std::vector<size_t>>({{1, 3, 30, 30}}),
-                                                   std::vector<std::vector<size_t>>({{2, 4, 31, 31}}),
-                                                   std::vector<std::vector<size_t>>({{1, 3, 30, 30}, {2, 4, 31, 31}})),
+                                 ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(
+                                         {{{1, 10}, {3, 30}, {30, 300}, {30, 300}}})),
+                                 ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 30, 30}}}),
+                                                   std::vector<std::vector<std::vector<size_t>>>({{{2, 4, 31, 31}}}),
+                                                   std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 30, 30}},
+                                                                                                  {{2, 4, 31, 31}}})),
                                  ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                          ConvolutionLayerTest::getTestCaseName);
 // ! [test_convolution:instantiate]
@@ -95,8 +97,8 @@ INSTANTIATE_TEST_SUITE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::pair<size_t, size_t>>(NULL_RANGE)),
-                                ::testing::Values(std::vector<std::vector<size_t>>({{1, 3, 30, 30}})),
+                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+                                ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 30, 30}}})),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -139,8 +141,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D_ExplicitPadding, ConvolutionLayerTe
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::pair<size_t, size_t>>(NULL_RANGE)),
-                                ::testing::Values(std::vector<std::vector<size_t> >({{1, 3, 10, 10, 10}})),
+                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+                                ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 10, 10, 10}}})),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -152,8 +154,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_Convolution3D_AutoPadValid, ConvolutionLayerTes
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::pair<size_t, size_t>>(NULL_RANGE)),
-                                ::testing::Values(std::vector<std::vector<size_t> >({{1, 3, 10, 10, 10}})),
+                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+                                ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 10, 10, 10}}})),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         ConvolutionLayerTest::getTestCaseName);
 

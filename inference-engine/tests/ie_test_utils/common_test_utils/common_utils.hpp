@@ -61,8 +61,25 @@ inline std::string vec2str(const std::vector<std::pair<size_t, size_t>> &vec) {
     return result.str();
 }
 
+inline std::string vec2str(const std::vector<std::vector<std::pair<size_t, size_t>>> &vec) {
+    std::ostringstream result;
+    for (const auto &v : vec) {
+        result << vec2str(v);
+    }
+    return result.str();
+}
+
 template<typename vecElementType>
 inline std::string vec2str(const std::vector<std::vector<vecElementType>> &vec) {
+    std::ostringstream result;
+    for (const auto &v : vec) {
+        result << vec2str<vecElementType>(v);
+    }
+    return result.str();
+}
+
+template<typename vecElementType>
+inline std::string vec2str(const std::vector<std::vector<std::vector<vecElementType>>> &vec) {
     std::ostringstream result;
     for (const auto &v : vec) {
         result << vec2str<vecElementType>(v);

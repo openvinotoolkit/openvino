@@ -94,11 +94,12 @@ void LayerTestsCommon::Serialize() {
 }
 
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo& info) const {
-    return FuncTestUtils::createAndFillBlob(
-           targetStaticShape.empty() ? info.getTensorDesc()
-                                         : InferenceEngine::TensorDesc(info.getPrecision(),
-                                                                       targetStaticShape,
-                                                                       const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
+    return FuncTestUtils::createAndFillBlob(targetStaticShape.empty() || targetStaticShape[0].empty() ?
+                                            info.getTensorDesc() :
+                                            InferenceEngine::TensorDesc(
+                                                    info.getPrecision(),
+                                                    targetStaticShape[0],
+                                                    const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
 }
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
@@ -319,13 +320,21 @@ void LayerTestsCommon::ConfigureNetwork() {
         }
     }
 
-    if (inputDynamicShape.is_dynamic()) {
-        std::map<std::string, ngraph::PartialShape> inputShapes;
-        auto inputsDataMap = cnnNetwork.getInputsInfo();
-        for (auto&& inputDataMap : inputsDataMap) {
-            inputShapes[inputDataMap.first] = std::vector<ngraph::Dimension>(inputDynamicShape);
+    if (!inputDynamicShape.empty()) {
+        if (inputDynamicShape.size() == 1) {
+            if (inputDynamicShape.front().is_dynamic()) {
+                std::map<std::string, ngraph::PartialShape> inputShapes;
+                auto inputsDataMap = cnnNetwork.getInputsInfo();
+                for (auto&& inputDataMap : inputsDataMap) {
+                    inputShapes[inputDataMap.first] = std::vector<ngraph::Dimension>(inputDynamicShape.front());
+                }
+                cnnNetwork.reshape(inputShapes);
+            }
+        } else if (inputDynamicShape.size() == 2) {
+            ConfigureNetwork_Secondary();
+        } else {
+            IE_THROW() << "Incorrect number of input shapes";
         }
-        cnnNetwork.reshape(inputShapes);
     }
 }
 
@@ -339,7 +348,7 @@ void LayerTestsCommon::LoadNetwork() {
 void LayerTestsCommon::GenerateInputs() {
     inputs.clear();
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
-    const auto& functionParams = function->get_parameters();
+    const auto& functionParams = functionRefs->get_parameters();
     for (int i = 0; i < functionParams.size(); ++i) {
         const auto& param = functionParams[i];
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
@@ -527,10 +536,6 @@ std::shared_ptr<ngraph::Function> LayerTestsCommon::GetFunction() {
 
 std::map<std::string, std::string> &LayerTestsCommon::GetConfiguration() {
     return configuration;
-}
-
-void LayerTestsCommon::setTargetStaticShape(ngraph::Shape& desiredTargetStaticShape) {
-    targetStaticShape = desiredTargetStaticShape;
 }
 
 }  // namespace LayerTestsUtils

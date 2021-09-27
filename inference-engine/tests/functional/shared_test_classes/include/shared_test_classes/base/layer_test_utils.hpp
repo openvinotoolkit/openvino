@@ -125,6 +125,8 @@ protected:
 
     virtual void ConfigureNetwork();
 
+    virtual void ConfigureNetwork_Secondary() {}
+
     virtual void LoadNetwork();
 
     virtual void GenerateInputs();
@@ -145,11 +147,11 @@ protected:
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
-    ngraph::PartialShape inputDynamicShape;
-    ngraph::Shape targetStaticShape;
-    std::vector<ngraph::Shape> targetStaticShapes;
+    std::vector<ngraph::PartialShape> inputDynamicShape;
+    std::vector<ngraph::Shape> targetStaticShape;
+    std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
 
-    virtual void setTargetStaticShape(ngraph::Shape& targetStaticShape);
+    virtual void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) {}
 
     virtual void Validate();
 
