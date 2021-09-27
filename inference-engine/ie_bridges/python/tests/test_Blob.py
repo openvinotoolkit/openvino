@@ -132,9 +132,9 @@ def test_set_shape():
 
     array = np.ones([1, 3, 127, 127], dtype=np.float32)
     blob = Blob(tensor_desc, array)
-    blob.set_shape([1, 4, 128, 128])
-    assert blob.tensor_desc.dims == [1, 4, 128, 128]
-    assert blob.buffer.shape == (1, 4, 128, 128)
+    with pytest.raises(ValueError) as e:
+        blob.set_shape([1, 4, 128, 128])
+    assert "Cannot call setShape for Blobs created on top of preallocated memory." in str(e.value)
 
 
 @pytest.mark.ngraph_dependent_test
