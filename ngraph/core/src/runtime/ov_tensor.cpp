@@ -38,10 +38,7 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, const Alloc
     _impl->allocate();
 }
 
-Tensor::Tensor(const element::Type element_type,
-               const Shape& shape,
-               void* host_ptr,
-               const Strides& strides) {
+Tensor::Tensor(const element::Type element_type, const Shape& shape, void* host_ptr, const Strides& strides) {
     ie::SizeVector blk_order(shape.size());
     std::iota(blk_order.begin(), blk_order.end(), 0);
     ie::SizeVector dim_offset(shape.size(), 0);

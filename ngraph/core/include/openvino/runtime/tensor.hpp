@@ -70,10 +70,7 @@ public:
      * @param strides Optional strides parameters in elements. Strides are supposed to be equal to shape if they are not
      * set
      */
-    Tensor(const element::Type type,
-           const Shape& shape,
-           void* host_ptr,
-           const Strides& strides = {});
+    Tensor(const element::Type type, const Shape& shape, void* host_ptr, const Strides& strides = {});
 
     /**
      * @brief Constructs region of interest (ROI) tensor form another tensor.
