@@ -402,7 +402,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 dataConfig.constant = false;
                 auto desc = getSrcMemDesc(itpd, i);
                 if (desc->getType() & MemoryDescType::Blocked && !isGrouped) {
-                    dataConfig.desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(*desc);
+                    dataConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
                 } else {
                     dataConfig.desc = std::move(desc);
                 }
@@ -436,7 +436,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 dataConfig.constant = false;
                 auto desc = getDstMemDesc(itpd, i);
                 if (desc->getType() & MemoryDescType::Blocked && !isGrouped) {
-                    dataConfig.desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(*desc);
+                    dataConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
                 } else {
                     dataConfig.desc = std::move(desc);
                 }
@@ -445,7 +445,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
 
                 if (withSum) {
                     dataConfig.inPlace = -1;
-                    dataConfig.desc = MemoryDescUtils::cloneWithNewPrecision(*dataConfig.desc, dataConfig.desc->getPrecision());
+                    dataConfig.desc = dataConfig.desc->cloneWithNewPrecision(dataConfig.desc->getPrecision());
                     config.inConfs.push_back(dataConfig);
                 }
             }
@@ -614,7 +614,7 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
                 dataConfig.desc = getDstMemDesc(itpd, j);
                 if (withSum) {
                     auto eltwiseConfig = dataConfig;
-                    eltwiseConfig.desc = MemoryDescUtils::cloneWithNewPrecision(*eltwiseConfig.desc, eltwisePrecision);
+                    eltwiseConfig.desc = eltwiseConfig.desc->cloneWithNewPrecision(eltwisePrecision);
                     cfg.inConfs.push_back(eltwiseConfig);
                     dataConfig.inPlace = getParentEdges().size() - 1;
                 }

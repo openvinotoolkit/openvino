@@ -274,7 +274,7 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
                 dataConfig.constant = false;
                 auto desc = getSrcMemDesc(itpd, i);
                 if (desc->getType() & MemoryDescType::Blocked) {
-                    dataConfig.desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(*desc);
+                    dataConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
                 } else {
                     dataConfig.desc = std::move(desc);
                 }
@@ -287,7 +287,7 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
                 dataConfig.constant = false;
                 auto desc = getDstMemDesc(itpd, i);
                 if (desc->getType() & MemoryDescType::Blocked) {
-                    dataConfig.desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(*desc);
+                    dataConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
                 } else {
                     dataConfig.desc = std::move(desc);
                 }

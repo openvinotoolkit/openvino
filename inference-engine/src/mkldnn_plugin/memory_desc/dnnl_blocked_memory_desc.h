@@ -57,10 +57,16 @@ public:
 
     size_t getPaddedElementsCount() const override;
 
+    MemoryDescPtr cloneWithUndefStridesAndOffset() const override;
+
+    MemoryDescPtr cloneWithDefaultStridesAndOffset() const override;
+
+    MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
+
 private:
     DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
-                            const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
-                            const VectorDims& strides = {});
+                          const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
+                          const VectorDims& strides = {});
 
     DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc);
 
@@ -81,6 +87,8 @@ private:
     void initBlockDims();
     void initStrides();
     void initOffsetPadding();
+
+    void recomputeDefaultStrides();
 
     /**
      * Try to define original format tag use on creation

@@ -61,6 +61,20 @@ public:
      */
     virtual size_t getPaddedElementsCount() const = 0;
 
+    /**
+     * @brief Creates MemoryDesc with offsetPadding and strides of UNDEFINED_DIM size
+     *
+     * @return pointer to the new MemoryDesc
+     */
+    virtual MemoryDescPtr cloneWithUndefStridesAndOffset() const = 0;
+
+    /**
+     * @brief Creates MemoryDesc with offsetPadding of 0 size and default strides
+     *
+     * @return pointer to the new MemoryDesc
+     */
+    virtual MemoryDescPtr cloneWithDefaultStridesAndOffset() const = 0;
+
 protected:
     /**
      * @brief Check descs on compatibility

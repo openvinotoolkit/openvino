@@ -153,7 +153,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < getParentEdges().size(); ++i) {
             config.inConfs[i].inPlace = -1;
             config.inConfs[i].constant = false;
-            config.inConfs[i].desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(itr->second->createDesc(inputPrecision, getInputShapeAtPort(i)));
+            config.inConfs[i].desc = itr->second->createDesc(inputPrecision, getInputShapeAtPort(i)).cloneWithUndefStridesAndOffset();
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
         if (itr->first != LayoutType::nspc) {
@@ -396,11 +396,11 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         if (!isConfigDefined(config)) {
             for (size_t i = 0; i < config.inConfs.size(); i++) {
                 // Concat doesn't support different precision on inputs
-                config.inConfs[i].desc = MemoryDescUtils::cloneWithNewPrecision(*getDefinedInputDesc(config, i), inputPrecision);
+                config.inConfs[i].desc = getDefinedInputDesc(config, i)->cloneWithNewPrecision(inputPrecision);
             }
 
             for (size_t i = 0; i < config.outConfs.size(); i++) {
-                config.outConfs[i].desc = MemoryDescUtils::cloneWithNewPrecision(*getDefinedOutputDesc(config, i), outputPrecision);
+                config.outConfs[i].desc = getDefinedOutputDesc(config, i)->cloneWithNewPrecision(outputPrecision);
             }
 
             initDescriptor(config);
@@ -418,7 +418,7 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         int num = getChildEdgeAt(i)->getOutputNum();
         if (num >= 0) {
             auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-            childConf.desc = MemoryDescUtils::cloneWithNewPrecision(*childConf.desc, config.outConfs[i].desc->getPrecision());
+            childConf.desc = childConf.desc->cloneWithNewPrecision(config.outConfs[i].desc->getPrecision());
 
             if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
                 if (!childConf.desc->isDefined() && childConf.inPlace >= 0)
@@ -432,7 +432,7 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         }
 
         // reset undefined offsets
-        config.outConfs[i].desc = MemoryDescUtils::cloneWithDefaultStridesAndOffset(*config.outConfs[i].desc);
+        config.outConfs[i].desc = config.outConfs[i].desc->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset();
     }
     auto firstOutBlockingDesc = config.outConfs[0].desc->as<BlockedMemoryDesc>();
     size_t offset = 0;
