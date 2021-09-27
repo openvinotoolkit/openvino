@@ -4,231 +4,177 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from extensions.ops.select import Select
+from mo.front.common.partial_infer.utils import strict_compare_tensors, int64_array
 from mo.graph.graph import Node
-from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.utils.graph import build_graph_with_attrs
+from unit_tests.utils.graph import build_graph, valued_const_with_data, result, regular_op_with_empty_data, \
+    connect
 
 
-@generator
 class TestSelect(unittest.TestCase):
-    nodes = [
-        ('then', {'kind': 'op'}),
-        ('then_data', {'value': np.ones((2, 2)), 'kind': 'data', 'executable': True, 'shape': np.array([2, 2])}),
-        ('else', {'kind': 'op'}),
-        ('else_data', {'value': np.zeros((2, 2)), 'kind': 'data', 'executable': True, 'shape': np.array([2, 2])}),
-        ('condition', {'value': None, 'kind': 'op'}),
-        ('condition_data', {'value': None, 'kind': 'data', 'executable': True, 'shape': np.array([2, 2])}),
-        ('select', {'type': 'Select', 'kind': 'op', 'op': 'Select', 'infer': Select.infer}),
-        ('select_output', {'value': None, 'kind': 'data', 'executable': True, 'shape': None}),
-    ]
-    edges = [
-        ('condition', 'condition_data'),
-        ('condition_data', 'select', {'in': 0}),
-        ('then', 'then_data'),
-        ('then_data', 'select', {'in': 1}),
-        ('else', 'else_data'),
-        ('else_data', 'select', {'in': 2}),
-        ('select', 'select_output', {'out': 0}),
-    ]
+
+    @staticmethod
+    def build_select_graph_and_infer(condition_value, then_value, else_value, out_value,
+                                     condition_shape=None, then_shape=None, else_shape=None, out_shape=None):
+        if then_value is not None:
+            then_shape = int64_array(then_value.shape)
+        if else_value is not None:
+            else_shape = int64_array(else_value.shape)
+
+        nodes = {
+            **valued_const_with_data('then', then_value, then_shape),
+            **valued_const_with_data('else', else_value, else_shape),
+            **valued_const_with_data('condition', condition_value, condition_shape),
+            **regular_op_with_empty_data('select', {'op': 'Select'}),
+            **result('out'),
+        }
+        edges = [
+            *connect('condition', '0:select'),
+            *connect('then', '1:select'),
+            *connect('else', '2:select'),
+            *connect('select', 'out'),
+        ]
+        graph = build_graph(nodes, edges)
+
+        select_node = Node(graph, 'select')
+        Select.infer(select_node)
+
+        select_out_node = Node(graph, 'select_d')
+
+        value_desc = 'values'
+        ref_val = out_value
+        actual_val = select_out_node['value']
+        if out_shape is not None:
+            value_desc = 'shapes'
+            ref_val = out_shape
+            actual_val = select_out_node['shape']
+            assert select_out_node['value'] is None, "if 'out_shape' is defined manually 'value' must be None"
+
+        flag = strict_compare_tensors(actual_val, ref_val)
+        msg = '' if flag else 'reference {} and actual {} {} do not match\n'.format(ref_val, actual_val, value_desc)
+        return flag, msg
+
+    def test_1(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ones([5, 6], dtype=bool),
+                                                      then_value=np.ones([5, 6], dtype=np.float),
+                                                      else_value=np.zeros([5, 6], dtype=np.float),
+                                                      out_value=np.ones([5, 6], dtype=np.float))
+        self.assertTrue(flag, msg)
+
+    def test_2(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ones([15, 3, 5], dtype=bool),
+                                                      then_value=np.ones([15, 3, 5], dtype=np.float),
+                                                      else_value=np.zeros([15, 1, 5], dtype=np.float),
+                                                      out_value=np.ones([15, 3, 5], dtype=np.float))
+        self.assertTrue(flag, msg)
 
     def test_select_infer_no_condition(self):
-        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges)
-
-        # We should propagate only shapes
-        graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes,
-                                           edges_with_attrs=self.edges,
-                                           update_nodes_attributes=[('select_output', {'shape': np.array([2, 2])})])
-
-        node = Node(graph, 'select')
-        node.infer(node)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'select_output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        flag, msg = self.build_select_graph_and_infer(condition_value=None, condition_shape=[2],
+                                                      then_value=None, then_shape=[2],
+                                                      else_value=None, else_shape=[2],
+                                                      out_value=None, out_shape=[2])
+        self.assertTrue(flag, msg)
 
     def test_select_infer_condition_true(self):
-        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
-                                       update_nodes_attributes=[('condition_data', {'value': np.array([True])}),
-                                                                ('select_output', {'shape': np.array([2, 2]),
-                                                                                   'value': np.ones((2, 2))})
-                                                                ])
-
-        # We should propagate shapes and values
-        graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes,
-                                           edges_with_attrs=self.edges,
-                                           update_nodes_attributes=[('select_output', {'shape': np.array([2, 2]),
-                                                                                       'value': np.ones((2, 2))})])
-
-        node = Node(graph, 'select')
-        node.infer(node)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'select_output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.array([True, True], dtype=bool),
+                                                      then_value=np.array([1, 1], dtype=np.int8),
+                                                      else_value=np.array([2, 2], dtype=np.int8),
+                                                      out_value=np.array([1, 1], dtype=np.int8))
+        self.assertTrue(flag, msg)
 
     def test_select_infer_condition_false(self):
-        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
-                                       update_nodes_attributes=[('condition', {'value': np.array([False])}),
-                                                                ('select_output', {'shape': np.array([2, 2]),
-                                                                                   'value': np.zeros((2, 2))})
-                                                                ])
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.array([False, False], dtype=bool),
+                                                      then_value=np.array([1, 1], dtype=np.int8),
+                                                      else_value=np.array([2, 2], dtype=np.int8),
+                                                      out_value=np.array([2, 2], dtype=np.int8))
+        self.assertTrue(flag, msg)
 
-        # We should propagate shapes and values
-        graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes,
-                                           edges_with_attrs=self.edges,
-                                           update_nodes_attributes=[('select_output', {'shape': np.array([2, 2]),
-                                                                                       'value': np.zeros((2, 2))})])
-        node = Node(graph, 'select')
-        node.infer(node)
+    def test_select_infer_condition_true_2(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.array([True], dtype=bool),
+                                                      then_value=np.ones([15, 3, 5], dtype=np.float),
+                                                      else_value=np.zeros([15, 1, 5], dtype=np.float),
+                                                      out_value=np.ones([15, 3, 5], dtype=np.float))
+        self.assertTrue(flag, msg)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'select_output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-
-    # if one of the branches is None then np.where shouldn't be used to avoid object dtype in output
-    # res = np.where(condition, None, numpy_array_of_int[float]_dtype)
-    # print(res.dtype) => object which is not compatible with other numeric dtypes, will fail further without
-    # clear explanation, need to catch such cases as soon as possible
-    def test_select_infer_None_then_branch(self):
-        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
-                                       update_nodes_attributes=[('condition_data', {'value': np.array([False])}),
-                                                                ('select_output', {'shape': np.array([2, 2]),
-                                                                                   'value': np.zeros((2, 2))}),
-                                                                ('then_data', {'value': None, 'shape': np.array([2, 2])})
-                                                                ])
-
-        # We should propagate shapes and values
-        graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes,
-                                           edges_with_attrs=self.edges,
-                                           update_nodes_attributes=[('select_output', {'shape': np.array([2, 2]),
-                                                                                       'value': np.zeros((2, 2))}),
-                                                                    ('then_data',
-                                                                     {'value': None, 'shape': np.array([2, 2])})])
-        node = Node(graph, 'select')
-        node.infer(node)
-        (flag, resp) = compare_graphs(graph, graph_ref, 'select_output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+    def test_select_infer_condition_false_2(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.array([False], dtype=bool),
+                                                      then_value=np.ones([15, 3, 5], dtype=np.float),
+                                                      else_value=np.zeros([15, 1, 5], dtype=np.float),
+                                                      out_value=np.zeros([15, 3, 5], dtype=np.float))
+        self.assertTrue(flag, msg)
 
     # if one of the branches is None then np.where shouldn't be used to avoid object dtype in output
     # res = np.where(condition, numpy_array_of_int[float]_dtype, None)
     # print(res.dtype) => object which is not compatible with other numeric dtypes, will fail further without
     # clear explanation, need to catch such cases as soon as possible
-    def test_select_infer_None_else_branch(self):
-        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
-                                       update_nodes_attributes=[('condition_data', {'value': np.array([True])}),
-                                                                ('select_output', {'shape': np.array([2, 2]),
-                                                                                   'value': np.ones((2, 2))}),
-                                                                (
-                                                                'else_data', {'value': None, 'shape': np.array([2, 2])})
-                                                                ])
+    def test_select_infer_None_then_branch_1(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.zeros([15, 3, 5], dtype=bool),
+                                                      then_value=None, then_shape=[15, 3, 5],
+                                                      else_value=np.ones([15, 1, 5], dtype=np.float),
+                                                      out_value=np.ones([15, 3, 5], dtype=np.float))
+        self.assertTrue(flag, msg)
 
-        # We should propagate shapes and values
-        graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes,
-                                           edges_with_attrs=self.edges,
-                                           update_nodes_attributes=[('select_output', {'shape': np.array([2, 2]),
-                                                                                       'value': np.ones((2, 2))}),
-                                                                    ('else_data',
-                                                                     {'value': None, 'shape': np.array([2, 2])})])
+    def test_select_infer_None_then_branch_2(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ones([15, 3, 5], dtype=bool),
+                                                      then_value=None, then_shape=[15, 3, 5],
+                                                      else_value=np.ones([15, 1, 5], dtype=np.float),
+                                                      out_value=None)
+        self.assertTrue(flag, msg)
 
-        node = Node(graph, 'select')
-        node.infer(node)
+    def test_select_infer_None_else_branch_1(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ones([15, 3, 5], dtype=bool),
+                                                      then_value=np.ones([15, 1, 5], dtype=np.float),
+                                                      else_value=None, else_shape=[15, 3, 5],
+                                                      out_value=np.ones([15, 3, 5], dtype=np.float))
+        self.assertTrue(flag, msg)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'select_output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+    def test_select_infer_None_else_branch_2(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.zeros([15, 3, 5], dtype=bool),
+                                                      then_value=np.ones([15, 1, 5], dtype=np.float),
+                                                      else_value=None, else_shape=[15, 3, 5],
+                                                      out_value=None)
+        self.assertTrue(flag, msg)
+
+    def test_select_broadcast_1(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ones([2, 3, 4, 5], dtype=bool),
+                                                      then_value= np.ones([], dtype=np.float),
+                                                      else_value=np.zeros([2, 3, 4, 5], dtype=np.float),
+                                                      out_value=np.ones([2, 3, 4, 5], dtype=np.float))
+        self.assertTrue(flag, msg)
+
+    def test_select_broadcast_2(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ones([2, 3, 4, 1], dtype=bool),
+                                                      then_value= np.ones([1, 3, 1, 5], dtype=np.float),
+                                                      else_value=np.zeros([2, 1, 1, 5], dtype=np.float),
+                                                      out_value=np.ones([2, 3, 4, 5], dtype=np.float))
+        self.assertTrue(flag, msg)
+
+    def test_select_broadcast_3(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ones([2, 3, 1, 1], dtype=bool),
+                                                      then_value= np.ones([2, 3, 4, 5], dtype=np.float),
+                                                      else_value=np.zeros([2, 1, 1, 5], dtype=np.float),
+                                                      out_value=np.ones([2, 3, 4, 5], dtype=np.float))
+        self.assertTrue(flag, msg)
+
+    def test_select_broadcast_4(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ones([2, 3, 4, 5], dtype=bool),
+                                                      then_value= np.ones([5], dtype=np.float),
+                                                      else_value=np.zeros([2, 3, 4, 5], dtype=np.float),
+                                                      out_value=np.ones([2, 3, 4, 5], dtype=np.float))
+        self.assertTrue(flag, msg)
 
     def test_select_infer_assert_shapes(self):
-        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
-                                       update_nodes_attributes=[('else_data', {'shape': np.array([3, 3]),
-                                                                               'value':np.zeros((3, 3))})])
-
-        tested_class = Select(graph=graph, attrs={})
-
-        node = Node(graph, 'select')
         with self.assertRaisesRegex(AssertionError, "Input shapes for node select are not broadcast-able"):
-            tested_class.infer(node)
+            self.build_select_graph_and_infer(condition_value=None, condition_shape=[2, 2],
+                                              then_value=None, then_shape=[2, 2],
+                                              else_value=None, else_shape=[3, 3],
+                                              out_value=None, out_shape=[42, 42])
 
-    @generate(*[
-        ([5, 6], [1], [5, 6]),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5]),
-        ([2, 3, 4, 5], [], [2, 3, 4, 5]),
-        ([2, 3, 4, 5], [5], [2, 3, 4, 5]),
-        ([2, 3, 4, 5], [2, 1, 1, 5], [2, 3, 4, 5]),
-        ([2, 3, 4, 5], [1, 3, 1, 5], [2, 3, 4, 5]),
-    ])
-    def test_select_infer_condition_shapes_broadcast(self, else_data_shape, then_data_shape, select_output_shape):
-        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
-                                       update_nodes_attributes=
-                                       [('else_data', {'shape': np.array(else_data_shape),
-                                                       'value': np.zeros(else_data_shape, dtype=np.float)}),
-                                        ('then_data', {'shape': np.array(then_data_shape),
-                                                       'value': np.zeros(then_data_shape, dtype=np.float)}),
-                                        ('select_output', {'shape': None, 'value': None})
-                                        ])
+    def test_select_infer_masked(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ma.array([True, True], mask=[1, 1]),
+                                                      then_value=None, then_shape=[2],
+                                                      else_value=np.zeros((2, 2), dtype=np.int64), else_shape=[2],
+                                                      out_value=np.ma.array([[1, 1], [1, 1]], mask=[[1, 1], [1, 1]]))
+        self.assertTrue(flag, msg)
 
-        node = Node(graph, 'select')
-        node.infer(node)
-
-        self.assertTrue(np.array_equal(graph.nodes['select_output']['shape'], np.array(select_output_shape)))
-
-    @generate(*[
-        ([5, 6], [5, 6], [5, 6], [5, 6], lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.ones(x, dtype=np.float)),
-        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.ones(x, dtype=np.float)),
-        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
-         lambda x: None, lambda x: np.ones(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float)),
-        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.ones(x, dtype=np.float), lambda x: None, lambda x: None),
-        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.zeros(x, dtype=np.float),
-         lambda x: None, lambda x: np.ones(x, dtype=np.float), lambda x: None),
-        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.zeros(x, dtype=np.float),
-         lambda x: np.ones(x, dtype=np.float), lambda x: None, lambda x: np.ones(x, dtype=np.float)),
-        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.array([True], np.bool),
-         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.ones(x, dtype=np.float)),
-        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.array([False], np.bool),
-         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.zeros(x, dtype=np.float)),
-        ([2, 3, 4, 5], [2, 3, 4, 5], [], [2, 3, 4, 5], lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.ones(x, dtype=np.float)),
-        ([2, 3, 4, 5], [2, 3, 4, 5], [5], [2, 3, 4, 5], lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.ones(x, dtype=np.float)),
-        ([2, 3, 1, 1], [2, 1, 1, 5], [2, 3, 4, 5], [2, 3, 4, 5], lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.ones(x, dtype=np.float)),
-        ([2, 3, 4, 1], [2, 1, 1, 5], [1, 3, 1, 5], [2, 3, 4, 5], lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
-         lambda x: np.ones(x, dtype=np.float)),
-    ])
-    def test_select_infer_condition_with_value(self, condition_shape, else_data_shape, then_data_shape,
-                                               select_output_shape, condition_value, else_value, then_value,
-                                               output_value):
-        """
-        Unit tests generator can sporadic throw exception if we try
-        to run generator with call numpy array generation functions.
-        So we need to use lambda function for escape the problem.
-        """
-        condition_value = condition_value(condition_shape)
-        else_value = else_value(else_data_shape)
-        then_value = then_value(then_data_shape)
-        output_value = output_value(select_output_shape)
-        graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
-                                       update_nodes_attributes=[('condition_data', {'shape': np.array(condition_shape),
-                                                                                    'value': condition_value}),
-                                                                ('else_data', {'shape': np.array(else_data_shape),
-                                                                               'value': else_value}),
-                                                                ('then_data', {'shape': np.array(then_data_shape),
-                                                                               'value': then_value}),
-                                                                ('select_output',
-                                                                 {'shape': np.array(select_output_shape),
-                                                                  'value': None})
-                                                                ])
-
-        node = Node(graph, 'select')
-        node.infer(node)
-
-        self.assertTrue(np.array_equal(graph.nodes['select_output']['value'], output_value))

@@ -57,7 +57,7 @@ class Select(Op):
         node.out_port(0).data.set_shape(output_shape)
 
         if condition_value is not None:
-            if resulting_tensors[0] is None or resulting_tensors[1] is None:
+            if (resulting_tensors[0] is None or resulting_tensors[1] is None) and np.all(np.ma.getmask(condition_value) == False):
                 assert np.all(condition_value == condition_value.item(0))
                 # in some graphs Select condition is always True[False] and
                 # one of the branches is None (which is not selected)
@@ -79,7 +79,10 @@ class Select(Op):
                 # 'else' tensor which is not defined, this means that we cannot perform value propagation.
                 if np.any(output_value == None):
                     return
-                node.out_port(0).data.set_value(output_value)
+                # todo: check this
+                output_value_dtype = resulting_tensors[0].dtype if resulting_tensors[0] is not None else resulting_tensors[1].dtype
+                node.out_port(0).data.set_value(output_value.astype(output_value_dtype))
+                # node.out_port(0).data.set_value(output_value)
 
     @staticmethod
     def type_infer(node: Node):
