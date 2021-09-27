@@ -38,32 +38,32 @@ public:
         return m_layout;
     }
 
-    bool is_spacial_shape_set() const {
-        return m_spacial_shape_set;
+    bool is_spatial_shape_set() const {
+        return m_spatial_shape_set;
     }
 
-    int get_spacial_width() const {
-        return m_spacial_width;
+    int get_spatial_width() const {
+        return m_spatial_width;
     }
 
-    int get_spacial_height() const {
-        return m_spacial_height;
+    int get_spatial_height() const {
+        return m_spatial_height;
     }
 
-    bool is_spacial_shape_dynamic() const {
-        return m_spacial_shape_set && m_spacial_width == -1 && m_spacial_height == -1;
+    bool is_spatial_shape_dynamic() const {
+        return m_spatial_shape_set && m_spatial_width == -1 && m_spatial_height == -1;
     }
 
-    void set_spacial_dynamic_shape() {
-        m_spacial_shape_set = true;
-        m_spacial_width = -1;
-        m_spacial_height = -1;
+    void set_spatial_dynamic_shape() {
+        m_spatial_shape_set = true;
+        m_spatial_width = -1;
+        m_spatial_height = -1;
     }
 
-    void set_spacial_static_shape(size_t height, size_t width) & {
-        m_spacial_shape_set = true;
-        m_spacial_height = static_cast<int>(height);
-        m_spacial_width = static_cast<int>(width);
+    void set_spatial_static_shape(size_t height, size_t width) & {
+        m_spatial_shape_set = true;
+        m_spatial_height = static_cast<int>(height);
+        m_spatial_width = static_cast<int>(width);
     }
 
 private:
@@ -73,9 +73,9 @@ private:
     Layout m_layout = Layout();
     bool m_layout_set = false;
 
-    int m_spacial_width = -1;
-    int m_spacial_height = -1;
-    bool m_spacial_shape_set = false;
+    int m_spatial_width = -1;
+    int m_spatial_height = -1;
+    bool m_spatial_shape_set = false;
 };
 
 /// \brief InputNetworkInfoImpl - internal data structure
@@ -211,14 +211,18 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             input->m_tensor_data->set_element_type(param->get_element_type());
         }
         auto new_param_shape = param->get_partial_shape();
-        if (input->m_tensor_data->is_spacial_shape_dynamic()) {
-            // Use dynamic spacial dimensions
-            OPENVINO_ASSERT(input->m_tensor_data->is_layout_set(),
-                            "Can't set spacial dynamic dimensions when tensor or network layout are not specified");
+        if (input->m_tensor_data->is_spatial_shape_set()) {
             auto height_idx = get_and_check_height_idx(input->m_tensor_data->get_layout(), new_param_shape);
             auto width_idx = get_and_check_width_idx(input->m_tensor_data->get_layout(), new_param_shape);
-            new_param_shape[height_idx] = Dimension::dynamic();
-            new_param_shape[width_idx] = Dimension::dynamic();
+            if (input->m_tensor_data->is_spatial_shape_dynamic()) {
+                // Use dynamic spatial dimensions
+                new_param_shape[height_idx] = Dimension::dynamic();
+                new_param_shape[width_idx] = Dimension::dynamic();
+            } else {
+                // Use static spatial dimensions
+                new_param_shape[height_idx] = input->m_tensor_data->get_spatial_height();
+                new_param_shape[width_idx] = input->m_tensor_data->get_spatial_width();
+            }
         }
         auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->get_element_type(), new_param_shape);
         if (input->m_tensor_data->is_layout_set()) {
@@ -287,23 +291,23 @@ InputTensorInfo&& InputTensorInfo::set_layout(const Layout& layout) && {
     return std::move(*this);
 }
 
-InputTensorInfo& InputTensorInfo::set_spacial_dynamic_shape() & {
-    m_impl->set_spacial_dynamic_shape();
+InputTensorInfo& InputTensorInfo::set_spatial_dynamic_shape() & {
+    m_impl->set_spatial_dynamic_shape();
     return *this;
 }
 
-InputTensorInfo&& InputTensorInfo::set_spacial_dynamic_shape() && {
-    m_impl->set_spacial_dynamic_shape();
+InputTensorInfo&& InputTensorInfo::set_spatial_dynamic_shape() && {
+    m_impl->set_spatial_dynamic_shape();
     return std::move(*this);
 }
 
-InputTensorInfo& InputTensorInfo::set_spacial_static_shape(size_t height, size_t width) & {
-    m_impl->set_spacial_static_shape(height, width);
+InputTensorInfo& InputTensorInfo::set_spatial_static_shape(size_t height, size_t width) & {
+    m_impl->set_spatial_static_shape(height, width);
     return *this;
 }
 
-InputTensorInfo&& InputTensorInfo::set_spacial_static_shape(size_t height, size_t width) && {
-    m_impl->set_spacial_static_shape(height, width);
+InputTensorInfo&& InputTensorInfo::set_spatial_static_shape(size_t height, size_t width) && {
+    m_impl->set_spatial_static_shape(height, width);
     return std::move(*this);
 }
 

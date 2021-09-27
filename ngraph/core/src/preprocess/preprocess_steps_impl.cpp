@@ -101,18 +101,17 @@ void PreProcessSteps::PreProcessStepsImpl::add_resize_impl(ResizeAlgorithm alg, 
                             "RGB/BGR color format using 'PreProcessSteps::convert_color'");
             auto to_mode = [](ResizeAlgorithm alg) -> InterpolateMode {
                 switch (alg) {
-                case ResizeAlgorithm::RESIZE_LINEAR:
-                    return InterpolateMode::LINEAR;
                 case ResizeAlgorithm::RESIZE_NEAREST:
                     return InterpolateMode::NEAREST;
                 case ResizeAlgorithm::RESIZE_CUBIC:
                     return InterpolateMode::CUBIC;
+                case ResizeAlgorithm::RESIZE_LINEAR:
+                default:
+                    return InterpolateMode::LINEAR;
                 }
-                OPENVINO_ASSERT(false, "Internal error: Unsupported resize mode");
             };
             auto node = nodes.front();
             auto layout = ctxt.layout();
-            // TODO: shall we also check layout of node manually set from user?
             OPENVINO_ASSERT(ov::layout::has_height(layout) && ov::layout::has_width(layout),
                             "Can't add resize for layout without W/H specified. Use 'set_layout' API to define layout "
                             "of image data, like `NCHW`");
