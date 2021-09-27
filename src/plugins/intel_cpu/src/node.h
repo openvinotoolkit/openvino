@@ -41,6 +41,8 @@ namespace intel_cpu {
 using NodePtr = std::shared_ptr<Node>;
 using NodeConstPtr = std::shared_ptr<const Node>;
 using NodeWeakPtr = std::weak_ptr<Node>;
+using NodesUnorderedMap = std::unordered_map<std::string, NodePtr>;
+using NodesUnorderedMapPtr = std::shared_ptr<NodesUnorderedMap>;
 
 class PortConfigurator {
 public:
@@ -95,7 +97,7 @@ private:
     impl_desc_type implementationType;
 };
 
-class Node {
+class Node : public std::enable_shared_from_this<Node> {
 public:
     Node(const Node &) = delete;
     Node & operator = (const Node &) = delete;

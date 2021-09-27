@@ -23,8 +23,9 @@
 #include "itt.h"
 #include "infer_request.h"
 #include "nodes/input.h"
-#include <nodes/reorder.h>
+#include "nodes/reorder.h"
 #include "nodes/convert.h"
+#include "nodes/memory.hpp"
 
 #include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
@@ -123,6 +124,35 @@ template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
 template void Graph::CreateGraph(const CNNNetwork&,
         const ExtensionManager::Ptr&, WeightsSharing::Ptr&);
 
+NodePtr Graph::CreateNode(const std::shared_ptr<ngraph::Node>& op, const ExtensionManager::Ptr& extMgr) {
+    NodePtr node {Node::factory().create(op, getEngine(), extMgr, weightsCache)};
+
+    if (isQuantized()) {
+        node->setQuantizedGraphFlag(true);
+    }
+
+    node->setRuntimeCache(rtParamsCache);
+
+    graphNodes.push_back(node);
+
+    switch (node->getType()) {
+        case Type::MemoryInput: {
+            auto inputNode = std::static_pointer_cast<node::MemoryInput>(node);
+            inputNode->registerThis(MemoryNodes());
+            break;
+        }
+        case Type::MemoryOutput: {
+            auto outputNode = std::static_pointer_cast<node::MemoryOutput>(node);
+            outputNode->registerThis(MemoryNodes());
+            break;
+        }
+        default:
+            break;
+    }
+
+    return node;
+}
+
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const ExtensionManager::Ptr& extMgr) {
     this->_name = "subgraph";
     this->reuse_io_tensors = false;
@@ -149,22 +179,15 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const Ex
     };
 
     for (const auto op : subgraph->get_ordered_ops()) {
-        const NodePtr node {Node::factory().create(op, getEngine(), extMgr, weightsCache)};
-        if (isQuantized()) {
-            node->setQuantizedGraphFlag(true);
-        }
-        node->setRuntimeCache(rtParamsCache);
+        const NodePtr node = CreateNode(op, extMgr);
 
-        graphNodes.push_back(node);
-
-        if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
+        if (ngraph::op::is_parameter(op)) {
             inputNodesMap[node->getName()] = node;
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
+        if (ngraph::op::is_output(op)) {
             const auto prev = op->input_value(0);
             const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
-
             outputNodesMap[inputID] = node;
         }
 
@@ -261,14 +284,9 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
 
     // Replicate All Nodes in topological order
     for (const auto& op : orderedOps) {
-        const NodePtr node(Node::factory().create(op, getEngine(), extMgr, weightsCache));
-        if (isQuantized()) {
-            node->setQuantizedGraphFlag(true);
-        }
-        node->setRuntimeCache(rtParamsCache);
-        graphNodes.push_back(node);
+        const NodePtr node = CreateNode(op, extMgr);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
+        if (ngraph::op::is_parameter(op)) {
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
@@ -278,7 +296,7 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
             }
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
+        if (ngraph::op::is_output(op)) {
             const auto &input = op->input_value(0);
             const auto name = ngraph::op::util::get_ie_output_name(input);
 
@@ -1434,6 +1452,13 @@ void Graph::EnforceBF16() {
 
 std::shared_ptr<ngraph::Function> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
+}
+
+NodesUnorderedMapPtr Graph::MemoryNodes() {
+    if (!memoryNodes) {
+        memoryNodes = std::make_shared<NodesUnorderedMap>();
+    }
+    return memoryNodes;
 }
 
 }   // namespace intel_cpu

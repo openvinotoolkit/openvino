@@ -18,45 +18,35 @@ namespace intel_cpu {
 namespace node {
 
 class MemoryNode {
+protected:
     std::string _id;
- public:
-    explicit MemoryNode(std::string id) : _id(id) {}
+    std::weak_ptr<NodesUnorderedMap> _memoryNodes;
+
+public:
+    explicit MemoryNode(const std::string & id);
     explicit MemoryNode(const std::shared_ptr<ngraph::Node>& op);
     virtual ~MemoryNode() = default;
-    std::string getId() {
-        return _id;
-    }
-    virtual void setInputNode(Node *) = 0;
+    const std::string & getId() const;
+    virtual void registerThis(const NodesUnorderedMapPtr & memoryNodes) = 0;
+    virtual void unregisterThis() = 0;
 };
 
-class MemoryOutput;
-class MemoryInput;
-
-/**
- * @brief
- * TODO: ATTENTION: this is a temporary solution, this connection should be keep in graph
- * WARNING: thread_local and holderMutex are not needed if moved into graph
- */
-class MemoryNodeVirtualEdge {
+class MemoryInput : public Input, public MemoryNode {
 public:
-    using Holder = std::map<std::string, MemoryNode*>;
-    static Holder & getExisted() {
-        thread_local static Holder existed;
-        return existed;
-    }
+    MemoryInput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ~MemoryInput() override;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    bool created() const override;
+    bool isExecutable() const override;
+    void execute(dnnl::stream strm) override;
+    void createPrimitive() override;
+    void storeState(const Memory& mem);
+    MemoryPtr getStore();
+    void registerThis(const NodesUnorderedMapPtr & memoryNodes) override;
+    void unregisterThis() override;
 
-    static MemoryNode * getByName(Holder& holder, std::string name) {
-        auto result = holder.find(name);
-        if (result != holder.end()) {
-            return result->second;
-        }
-        return nullptr;
-    }
-
-    static Holder* registerOutput(MemoryOutput * node);
-    static Holder* registerInput(MemoryInput * node);
-    static void remove(MemoryNode * node, Holder* holder);
-    static std::mutex holderMutex;
+ private:
+    MemoryPtr dataStore;
 };
 
 class MemoryOutput : public Node, public MemoryNode {
@@ -68,44 +58,16 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override {}
     void execute(dnnl::stream strm) override;
-    bool created() const override {
-        return getType() == Type::MemoryOutput;
-    }
+    bool created() const override;
+    void setInputNode(const std::weak_ptr<MemoryInput> & node);
+    void registerThis(const NodesUnorderedMapPtr & memoryNodes) override;
+    void unregisterThis() override;
 
-    void setInputNode(Node* node) override {
-        inputNode = node;
-    }
-
- private:
+private:
     /**
      * @brief keeps reference to input sibling node
      */
-    Node* inputNode = nullptr;
-    MemoryNodeVirtualEdge::Holder* holder = nullptr;
-};
-
-class MemoryInput : public Input, public MemoryNode {
-public:
-    MemoryInput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
-    ~MemoryInput() override;
-
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-    bool created() const override {
-        return getType() == Type::MemoryInput;
-    }
-    bool isExecutable() const override {
-        return true;
-    }
-    void execute(dnnl::stream strm) override;
-
-    void createPrimitive() override;
-
-    void setInputNode(Node* node) override {}
-    void storeState(const Memory& mem);
-    MemoryPtr getStore();
- private:
-    MemoryPtr dataStore;
-    MemoryNodeVirtualEdge::Holder* holder = nullptr;
+    std::weak_ptr<MemoryInput> _inputNode;
 };
 
 }   // namespace node
