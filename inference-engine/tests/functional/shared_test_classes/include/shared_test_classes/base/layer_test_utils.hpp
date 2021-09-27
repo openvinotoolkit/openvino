@@ -57,6 +57,8 @@ public:
 
     virtual void Serialize();
 
+    virtual void QueryNetwork();
+
     static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
                         float threshold);
