@@ -6,6 +6,7 @@
 #include <fstream>
 #include <ngraph/opsets/opset7.hpp>
 #include <queue>
+#include <tensorflow_frontend/graph_iterator.hpp>
 #include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/place.hpp>
 #include <tensorflow_frontend/utility.hpp>
@@ -60,7 +61,7 @@ private:
     std::map<std::string, Output<Node>> m_tensor_values;
 
     std::shared_ptr<::tensorflow::GraphDef> m_graph_def;
-    std::shared_ptr<::tensorflow::ngraph_bridge::GraphIteratorProto> m_graph_impl;
+    std::shared_ptr<::ngraph::frontend::GraphIterator> m_graph_iterator;
     const InputModel& m_input_model;
 
     // shows if some nodes might be deleted from graph
@@ -72,8 +73,8 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
     std::set<std::string> op_names_with_consumers;
 
     m_inputs.clear();
-    for (; !m_graph_impl->is_end(); m_graph_impl->next()) {
-        auto node_decoder = m_graph_impl->get_decoder();
+    for (; !m_graph_iterator->is_end(); m_graph_iterator->next()) {
+        auto node_decoder = m_graph_iterator->get_decoder();
         auto op_name = node_decoder->get_op_name();
         auto op_type = node_decoder->get_op_type();
         auto op_place = std::make_shared<OpPlaceTF>(m_input_model, node_decoder);
@@ -111,7 +112,7 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
                         op_names_with_consumers.begin(),
                         op_names_with_consumers.end(),
                         std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
-    m_graph_impl->reset();
+    m_graph_iterator->reset();
 
     m_outputs.clear();
     for (auto& output_name : op_names_without_consumers) {
@@ -214,29 +215,27 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
 
 template <typename T>
 InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::basic_string<T>& path, const InputModel& input_model)
-    : m_input_model(input_model) {
-    m_graph_def = std::make_shared<GraphDef>();
-    // TODO: convert any format variant to GraphIterator and pass it to the single constuctor
-    // InputModelTF with GraphIterator
-
+    : m_input_model(input_model),
+      m_graph_def(std::make_shared<GraphDef>()) {
     std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
 
     FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
     FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
 
-    m_graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(m_graph_def.get());
+    m_graph_iterator = std::make_shared<::ngraph::frontend::tf::GraphIteratorProto>(m_graph_def.get());
     loadPlaces();
 }
 
 InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::vector<std::istream*>& streams,
                                                  const InputModel& input_model)
-    : m_input_model(input_model) {
-    m_graph_def = std::make_shared<GraphDef>();
+    : m_input_model(input_model),
+      m_graph_def(std::make_shared<GraphDef>()) {
     // TODO: convert any format variant to GraphIterator and pass it to the single constuctor
     // InputModelTF with GraphIterator
 
     FRONT_END_GENERAL_CHECK(streams.size() == 1, "One stream is needed to load a model in .pb format");
     FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(streams[0]), "Model can't be parsed");
+    m_graph_iterator = std::make_shared<::ngraph::frontend::tf::GraphIteratorProto>(m_graph_def.get());
     loadPlaces();
 }
 

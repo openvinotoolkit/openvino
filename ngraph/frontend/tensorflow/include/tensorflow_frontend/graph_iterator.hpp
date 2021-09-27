@@ -11,19 +11,19 @@ namespace frontend {
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
 class GraphIterator {
 public:
-    /// Get a number of operation nodes in the graph
+    /// \brief Get a number of operation nodes in the graph
     virtual size_t size() const = 0;
 
-    /// Set iterator to the start position
+    /// \brief Set iterator to the start position
     virtual void reset() = 0;
 
-    /// Move to the next node in the graph
+    /// \brief Move to the next node in the graph
     virtual void next() = 0;
 
-    /// Returns true if iterator goes out of the range of available nodes
+    /// \brief Returns true if iterator goes out of the range of available nodes
     virtual bool is_end() const = 0;
 
-    /// Return a pointer to a decoder of the current node
+    /// \brief Return a pointer to a decoder of the current node
     virtual std::shared_ptr<::ngraph::frontend::DecoderBase> get_decoder() const = 0;
 };
 

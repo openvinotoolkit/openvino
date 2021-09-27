@@ -18,11 +18,7 @@ public:
         : OpValidationFailure(check_loc_info, get_error_msg_prefix_tf(node), explanation) {}
 
 private:
-    static std::string get_error_msg_prefix_tf(const NodeContext& node) {
-        std::stringstream ss;
-        // ss << "While validating node '" << node.get_op_type() << '\'';
-        return ss.str();
-    }
+    static std::string get_error_msg_prefix_tf(const NodeContext& node);
 };
 }  // namespace tf
 }  // namespace frontend

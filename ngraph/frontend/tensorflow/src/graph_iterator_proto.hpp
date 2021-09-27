@@ -11,9 +11,9 @@
 #include "graph.pb.h"
 #include "node_def.pb.h"
 
-namespace tensorflow {
-namespace ngraph_bridge {
-
+namespace ngraph {
+namespace frontend {
+namespace tf {
 class GraphIteratorProto : public ::ngraph::frontend::GraphIterator {
     std::vector<const ::tensorflow::NodeDef*> m_nodes;
     size_t node_index = 0;
@@ -54,6 +54,6 @@ public:
         return std::make_shared<::ngraph::frontend::DecoderTFProto>(m_nodes[node_index]);
     }
 };
-
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

@@ -83,13 +83,6 @@ void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model
             continue;
         }
 
-#if 0
-    // TODO: Investigate why do we need it
-      if (n->IsSink() || n->IsSource()) {
-      continue;
-    }
-#endif
-
         // prepare a list of nGraph node inputs for each node
         ngraph::OutputVector ng_inputs;
         ::ngraph::frontend::tf::NamedInputs named_inputs;
