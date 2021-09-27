@@ -22,6 +22,15 @@ void color_convert_nv12(const T* arg_y,
                         size_t stride_y,
                         size_t stride_uv,
                         ov::op::util::ConvertColorNV12Base::ColorConversion color_format) {
+    // With C++20 - std::endian can be used at compile time
+    auto little_endian = []() -> int {
+        union {
+            int32_t i;
+            char c[4];
+        } u = {0x00000001};
+        return static_cast<int>(u.c[0]);
+    };
+    auto is_little_endian = little_endian();
     for (int batch = 0; batch < batch_size; batch++) {
         T* out = out_ptr + batch * image_w * image_h;
         auto y_ptr = arg_y + batch * stride_y;
@@ -30,18 +39,18 @@ void color_convert_nv12(const T* arg_y,
             for (int w = 0; w < image_w; w++) {
                 auto y_index = h * image_w + w;
                 auto y_val = static_cast<float>(y_ptr[y_index]);
-                auto v_index = (h / 2) * image_w + (w / 2) * 2;
-                auto v_val = static_cast<float>(uv_ptr[v_index]);
-                auto u_val = static_cast<float>(uv_ptr[v_index + 1]);
+                auto uv_index = (h / 2) * image_w + (w / 2) * 2;
+                auto u_val = static_cast<float>(uv_ptr[uv_index + is_little_endian]);
+                auto v_val = static_cast<float>(uv_ptr[uv_index + 1 - is_little_endian]);
                 auto c = y_val - 16.f;
                 auto d = u_val - 128.f;
                 auto e = v_val - 128.f;
-                auto clip = [](float a) -> float {
-                    return a < 0.f ? 0.f : (a > 255.f ? 255.f : a);
+                auto clip = [](float a) -> T {
+                    return a < 0.f ? static_cast<T>(0) : (a > 255.f ? static_cast<T>(255) : static_cast<T>(a));
                 };
-                auto b = static_cast<T>(clip(1.164f * c + 2.018f * d));
-                auto g = static_cast<T>(clip(1.164f * c - 0.391f * d - 0.813f * e));
-                auto r = static_cast<T>(clip(1.164f * c + 1.596f * e));
+                auto b = clip(1.164f * c + 2.018f * d);
+                auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);
+                auto r = clip(1.164f * c + 1.596f * e);
                 if (color_format == ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_RGB) {
                     out[y_index * 3] = r;
                     out[y_index * 3 + 1] = g;
