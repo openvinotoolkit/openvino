@@ -16,6 +16,7 @@ public:
     explicit RTInfoDeserializer(const pugi::xml_node& node) : m_node(node) {}
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
+        check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
             return;
@@ -23,6 +24,7 @@ public:
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& value) override {
+        check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
             return;
@@ -43,12 +45,14 @@ public:
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override;
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
+        check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
             return;
         adapter.set(stringToType<double>(val));
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
+        check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
             return;
@@ -57,10 +61,11 @@ public:
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override {
-        IR_THROW("Not implemented");
+        throw ngraph::ngraph_error("Function type is unsupported for rt info deserialization");
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
+        check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
             return;
@@ -70,6 +75,7 @@ public:
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+        check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
             return;
@@ -79,6 +85,7 @@ public:
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+        check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
             return;
@@ -88,12 +95,19 @@ public:
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+        check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
             return;
         std::vector<std::string> value;
         str_to_container(val, value);
         adapter.set(value);
+    }
+
+    void check_attribute_name(const std::string& name) const {
+        if (name == "name" || name == "version") {
+            throw ngraph::ngraph_error("Attribute key with name: " + name + " is not allowed. Please use another name");
+        }
     }
 
 private:

@@ -8,6 +8,7 @@
 #include <ngraph/rt_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
+#include <transformations/rt_info/disable_constant_folding.hpp>
 #include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::WeightsDequantizeToFakeQuantize, "WeightsDequantizeToFakeQuantize", 0);
@@ -62,8 +63,8 @@ ngraph::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize()
         ngraph::copy_runtime_info(nodes_to_copy_RT_info_from, fq);
         multiply_node->output(0).replace(fq->output(0));
 
-        if (convert_node->get_rt_info().count("disabled_constant_folding_0"))
-            convert_node->get_rt_info().erase("disabled_constant_folding_0");
+        if (ov::constant_folding_is_disabled(convert_node))
+            ov::enable_constant_folding(convert_node);
         return true;
     };
 

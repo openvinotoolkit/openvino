@@ -10,6 +10,7 @@
 using namespace ov;
 
 void RTInfoDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
+    check_attribute_name(name);
     std::string val;
     if (!getStrAttribute(m_node, name, val))
         return;

@@ -686,29 +686,23 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
             ngraphNode->get_output_tensor(i).set_names(params.outputPorts[i].names);
     }
 
-    auto parse_type_info = [](const std::string& value) {
-        std::string name, version;
-        auto pos = value.rfind('_');
-        if (pos == value.npos) {
-            IE_THROW() << "Can not parse attribute version from: " << value;
-        }
-        name = value.substr(0, pos);
-        version = value.substr(pos + 1, std::string::npos);
-        return std::tuple<std::string, std::string>(name, version);
-    };
-
     ov::pass::Attributes attrs_factory;
-    auto set_runtime_info = [&attrs_factory, &parse_type_info](RTMap& rt_info, const pugi::xml_node& rt_attrs) {
+    auto set_runtime_info = [&attrs_factory](RTMap& rt_info, const pugi::xml_node& rt_attrs) {
         if (!rt_attrs)
             return;
         for (const auto& item : rt_attrs) {
             std::string attribute_name, attribute_version;
-            std::tie(attribute_name, attribute_version) = parse_type_info(item.name());
+            if (!getStrAttribute(item, "name", attribute_name)) {
+                IE_THROW() << "rt_info attribute has no \"name\" field";
+            }
+            if (!getStrAttribute(item, "version", attribute_version)) {
+                IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field";
+            }
             const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), 0, attribute_version.c_str());
             if (auto attr = attrs_factory.create_by_type_info(type_info)) {
                 RTInfoDeserializer attribute_visitor(item);
                 if (attr->visit_attributes(attribute_visitor)) {
-                    rt_info[item.name()] = std::shared_ptr<Variant>(attr);
+                    rt_info[type_info] = std::shared_ptr<Variant>(attr);
                 } else {
                     IE_THROW() << "VisitAttributes is not supported for: " << item.name() << " attribute";
                 }

@@ -183,6 +183,7 @@ public:
     RTInfoSerializer(const pugi::xml_node node) : m_node(node) {}
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<void> &adapter) override {
+        check_attribute_name(name);
         if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::set<std::string>>>(&adapter)) {
             const auto & value = join(a->get());
             m_node.append_attribute(name.c_str()).set_value(value.c_str());
@@ -192,48 +193,63 @@ public:
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<bool> &adapter) override {
+        check_attribute_name(name);
         m_node.append_attribute(name.c_str()).set_value(adapter.get());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::string> &adapter) override {
+        check_attribute_name(name);
         m_node.append_attribute(name.c_str()).set_value(adapter.get().c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<int64_t> &adapter) override {
+        check_attribute_name(name);
         m_node.append_attribute(name.c_str()).set_value(adapter.get());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<double> &adapter) override {
+        check_attribute_name(name);
         m_node.append_attribute(name.c_str()).set_value(adapter.get());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<int>> &adapter) override {
+        check_attribute_name(name);
         const auto & value = join(adapter.get());
         m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<int64_t>> &adapter) override {
+        check_attribute_name(name);
         const auto & value = join(adapter.get());
         m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<uint64_t>> &adapter) override {
+        check_attribute_name(name);
         const auto & value = join(adapter.get());
         m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<float>> &adapter) override {
+        check_attribute_name(name);
         const auto & value = join(adapter.get());
         m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::vector<std::string>> &adapter) override {
+        check_attribute_name(name);
         const auto & value = join(adapter.get());
         m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
     void on_adapter(const std::string &name, ngraph::ValueAccessor<std::shared_ptr<Function>> &adapter) override {
         throw ngraph_error("Function type is unsupported for rt info serialization");
+    }
+
+    void check_attribute_name(const std::string & name) const {
+        if (name == "name" || name == "version") {
+            throw ngraph_error("Attribute key with name: " + name + " is not allowed. Please use another name");
+        }
     }
 };
 } // namespace rt_info
@@ -789,7 +805,9 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
             for (const auto &item : attributes) {
-                auto attribute_node = rt_node.append_child(item.first.c_str());
+                auto attribute_node = rt_node.append_child("attribute");
+                attribute_node.append_attribute("name").set_value(item.second->get_type_info().name);
+                attribute_node.append_attribute("version").set_value(item.second->get_type_info().get_version().c_str());
                 rt_info::RTInfoSerializer serializer(attribute_node);
                 if (!item.second->visit_attributes(serializer)) {
                     rt_node.remove_child(attribute_node);

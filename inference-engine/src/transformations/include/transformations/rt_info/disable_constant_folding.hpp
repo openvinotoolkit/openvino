@@ -28,6 +28,10 @@ public:
 
 TRANSFORMATIONS_API void disable_constant_folding(const std::shared_ptr<Node>& node);
 
+TRANSFORMATIONS_API void enable_constant_folding(const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API bool constant_folding_is_disabled(const std::shared_ptr<Node>& node);
+
 extern template class TRANSFORMATIONS_API VariantImpl<DisableConstantFolding>;
 
 template<>
