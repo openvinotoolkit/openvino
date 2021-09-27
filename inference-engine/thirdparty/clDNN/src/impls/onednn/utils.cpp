@@ -252,5 +252,28 @@ cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped) {
     }
 }
 
+template <typename T>
+void make_per_tensor_if_possible(cldnn::data_node& node) {
+    auto ptr = node.get_attached_memory_ptr();
+    auto engine = ptr->get_engine();
+    auto& stream = engine->get_program_stream();
+    auto num_elems = node.get_output_layout().count();
+    mem_lock<T, mem_lock_type::read> old_data {ptr, stream};
+    auto val = old_data[0];
+    for (size_t i = 1; i < num_elems; i++) {
+        if (val != old_data[i])
+            return;
+    }
+
+    auto l = layout {node.get_output_layout().data_type, node.get_output_layout().format, tensor{1, 1, 1, 1}};
+    auto new_mem = engine->allocate_memory(l);
+    mem_lock<T, mem_lock_type::write> new_data{new_mem, stream};
+    new_data[0] = val;
+    node.attach_memory(new_mem, false);
+}
+
+template void make_per_tensor_if_possible<int8_t>(cldnn::data_node& node);
+template void make_per_tensor_if_possible<uint8_t>(cldnn::data_node& node);
+
 }  // namespace onednn
 }  // namespace cldnn

@@ -10,6 +10,7 @@
 #include <cldnn/runtime/engine.hpp>
 #include <cldnn/runtime/memory.hpp>
 #include <cldnn/primitives/activation.hpp>
+#include <data_inst.h>
 
 namespace cldnn {
 namespace onednn {
@@ -31,6 +32,10 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func);
 
 // onednn -> cldnn
 cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped = false);
+
+// If the values in the tensor are identical, make it as per-tensor value
+template <typename T>
+void make_per_tensor_if_possible(cldnn::data_node& node);
 
 }  // namespace onednn
 }  // namespace cldnn
