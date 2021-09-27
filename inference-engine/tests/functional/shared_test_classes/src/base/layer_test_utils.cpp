@@ -90,6 +90,23 @@ void LayerTestsCommon::Serialize() {
     CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
+void LayerTestsCommon::QueryNetwork() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    cnnNetwork = InferenceEngine::CNNNetwork(function);
+
+    auto queryNetworkResult = PluginCache::get().ie()->QueryNetwork(cnnNetwork, targetDevice);
+    std::set<std::string> expected;
+    for (auto&& node : function->get_ops()) {
+        expected.insert(node->get_friendly_name());
+    }
+
+    std::set<std::string> actual;
+    for (auto&& res : queryNetworkResult.supportedLayersMap) {
+        actual.insert(res.first);
+    }
+    ASSERT_EQ(expected, actual);
+}
+
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 }

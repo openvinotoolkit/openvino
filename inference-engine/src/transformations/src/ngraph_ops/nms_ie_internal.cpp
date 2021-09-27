@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::internal::NonMaxSuppressionIEInternal::type_info;
+BWDCMP_RTTI_DEFINITION(op::internal::NonMaxSuppressionIEInternal);
 
 op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Output<Node>& boxes,
                                                                        const Output<Node>& scores,

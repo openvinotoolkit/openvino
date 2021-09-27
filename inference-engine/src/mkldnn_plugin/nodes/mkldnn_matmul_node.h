@@ -21,7 +21,7 @@ public:
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
-    size_t getMaxBatch() override;
+    size_t getMaxBatch() const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 

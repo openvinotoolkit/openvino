@@ -108,6 +108,19 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         return GetSupportedConfig(tconfig, deviceName);
     };
 
+    auto getDefaultDeviceID = [this](std::string deviceName) -> std::string {
+        std::vector<std::string> supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+        if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)) != supportedMetrics.end()) {
+            std::vector<std::string> supportKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+
+            if (std::find(supportKeys.begin(), supportKeys.end(), CONFIG_KEY(DEVICE_ID)) != supportKeys.end()) {
+                return GetCore()->GetConfig(deviceName, CONFIG_KEY(DEVICE_ID)).as<std::string>();
+            }
+        }
+
+        return "";
+    };
+
     for (auto && d : devicesWithRequests) {
         auto openingBracket = d.find_first_of('(');
         auto closingBracket = d.find_first_of(')', openingBracket);
@@ -123,8 +136,13 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
         }
 
+        std::string defaultDeviceID = "";
+        DeviceIDParser parsed{deviceName};
+        if (parsed.getDeviceID().empty())
+            defaultDeviceID = getDefaultDeviceID(deviceName);
+
         // create meta device
-        metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests });
+        metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID });
     }
 
     return metaDevices;
@@ -235,11 +253,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         }
         // replace the configure with configure that auto want to pass to device
         // and reset the strDevices to support devices
-        std::vector<std::string> validConfigKey;
+        auto validConfigKey = PerfHintsConfig::SupportedKeys();
         validConfigKey.push_back(PluginConfigParams::KEY_PERF_COUNT);
         validConfigKey.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
-        validConfigKey.push_back(PluginConfigParams::KEY_PERFORMANCE_HINT);
-        validConfigKey.push_back(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
         strDevices = "";
         for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
              std::map<std::string, std::string> deviceConfig;
@@ -250,7 +266,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                  }
              }
              iter->config = deviceConfig;
-             strDevices = iter->deviceName;
+             strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
         }
 
