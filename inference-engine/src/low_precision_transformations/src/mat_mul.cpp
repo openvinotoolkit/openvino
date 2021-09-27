@@ -108,7 +108,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
         // multiply by weights: [1, ..., 1, Y] x [Y, Z] => [1, ..., 1, Z]
         const auto newSubConst = NetworkHelper::toScalarIfPossible(fold<opset1::MatMul>(
-            broadcastedConst,
+            foldConvert(broadcastedConst, newMatMul->get_element_type()),
             foldConvert(newMatMul->get_input_node_shared_ptr(1), newMatMul->get_element_type()),
             newMatMul->get_transpose_a(),
             newMatMul->get_transpose_b()));
