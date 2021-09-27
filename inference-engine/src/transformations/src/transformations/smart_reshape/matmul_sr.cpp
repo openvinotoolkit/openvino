@@ -181,7 +181,6 @@ ngraph::pass::OptimizeBTransposeBeforeMatMul::OptimizeBTransposeBeforeMatMul() {
             return false;
         }
 
-        const auto transpose_out_rank = b_transpose_vals.size();
         const auto b_mul_const_shape = b_mul_const->get_shape();
         if (ngraph::shape_size(b_mul_const_shape) > 1) {
             // check that mul not by last/prelast dimension
