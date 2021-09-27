@@ -116,7 +116,7 @@ MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>
 void MKLDNNMemoryInputNode::createPrimitive() {
     MKLDNNInputNode::createPrimitive();
 
-    dataStore->Create(getChildEdgeAt(0)->getMemory().getDesc());
+    dataStore->Create(getChildEdgeAt(0)->getMemory().getDescPtr());
 
     // default memory state is zero filled
     if (dataStore->getDesc().hasDefinedMaxSize())

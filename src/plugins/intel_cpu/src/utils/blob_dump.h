@@ -29,7 +29,7 @@ public:
     BlobDumper(const DnnlBlockedMemoryDesc &desc) {
         mkldnn::engine eng(mkldnn::engine::kind::cpu, 0);
         memory = std::make_shared<MKLDNNMemory>(eng);
-        memory->Create(desc);
+        memory->Create(std::make_shared<DnnlBlockedMemoryDesc>(desc));
     }
     BlobDumper(const BlobDumper&) = default;
     BlobDumper& operator = (BlobDumper&&) = default;

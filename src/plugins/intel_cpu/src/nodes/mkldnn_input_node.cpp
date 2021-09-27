@@ -254,10 +254,10 @@ void MKLDNNInputNode::cloneBlobIfRequired() {
 
     auto cloneBlob = [&, this] () {
         MKLDNNMemory memory{ getEngine() };
-        memory.Create(memDesc, constOp->get_data_ptr());
+        memory.Create(std::make_shared<DnnlBlockedMemoryDesc>(memDesc), constOp->get_data_ptr());
 
         MKLDNNMemoryPtr ptr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
-        ptr->Create(memDesc);
+        ptr->Create(std::make_shared<DnnlBlockedMemoryDesc>(memDesc));
         ptr->SetData(memory);
 
         return ptr;
@@ -343,7 +343,7 @@ void MKLDNNInputNode::cloneBlobIfRequired() {
         memoryPtr = std::const_pointer_cast<const MKLDNNMemory>(ptr);
     } else if (isBlobAligned() && !hasSubnormals() && !isWA()) {
         auto ptr = new MKLDNNMemory(getEngine());
-        ptr->Create(memDesc, constOp->get_data_ptr());
+        ptr->Create(std::make_shared<DnnlBlockedMemoryDesc>(memDesc), constOp->get_data_ptr());
         memoryPtr = MKLDNNMemoryCPtr(ptr);
     } else {
         memoryPtr = std::const_pointer_cast<const MKLDNNMemory>(cloneBlob());

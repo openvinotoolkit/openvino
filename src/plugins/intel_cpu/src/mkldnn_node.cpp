@@ -336,7 +336,7 @@ void MKLDNNNode::resolveInPlaceEdges() {
 
         auto * memPtr = reinterpret_cast<char*>(parentEdge->getMemory().GetData());
         parentEdge->getMemoryPtr().reset(new MKLDNNMemory(getEngine()));
-        parentEdge->getMemoryPtr()->Create(*selected_pd->getConfig().inConfs[i].desc, memPtr);
+        parentEdge->getMemoryPtr()->Create(selected_pd->getConfig().inConfs[i].desc, memPtr);
 
         parentEdge->changeStatus(MKLDNNEdge::Status::Allocated);
     }
@@ -348,7 +348,7 @@ void MKLDNNNode::resolveInPlaceEdges() {
 
         auto * memPtr = reinterpret_cast<char*>(childEdge->getMemory().GetData());
         childEdge->getMemoryPtr().reset(new MKLDNNMemory(getEngine()));
-        childEdge->getMemoryPtr()->Create(*selected_pd->getConfig().outConfs[i].desc, memPtr);
+        childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].desc, memPtr);
 
         childEdge->changeStatus(MKLDNNEdge::Status::Allocated);
     }
@@ -559,12 +559,12 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputSh
                 break;
             }
         }
-        edges[sharedEdgeNum]->getMemoryPtr()->redefineDesc(*memDesc);
+        edges[sharedEdgeNum]->getMemoryPtr()->redefineDesc(memDesc);
         void *data = edges[sharedEdgeNum]->getMemoryPtr()->GetData();
         for (size_t j = 0; j < edges.size(); j++) {
             if (j == sharedEdgeNum)
                 continue;
-            edges[j]->getMemoryPtr()->redefineDesc(*memDesc, data);
+            edges[j]->getMemoryPtr()->redefineDesc(memDesc, data);
         }
     }
 }
@@ -754,10 +754,10 @@ void MKLDNNNode::prepareMemory(mkldnn::primitive_desc_iterator& itpd) {
             auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
 
             MKLDNNMemory memory{ engine };
-            memory.Create(newDesc, internalBlob->buffer());
+            memory.Create(std::make_shared<DnnlBlockedMemoryDesc>(newDesc), internalBlob->buffer());
 
             MKLDNNMemoryPtr _ptr = MKLDNNMemoryPtr(new MKLDNNMemory(engine));
-            _ptr->Create(*intDescs[i]);
+            _ptr->Create(intDescs[i]);
             _ptr->SetData(memory);
 
             return _ptr;

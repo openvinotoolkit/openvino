@@ -17,10 +17,6 @@ public:
 
     DnnlBlockedMemoryDesc(const Shape& shape, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
 
-    MemoryDescPtr clone() const override {
-        return std::make_shared<DnnlBlockedMemoryDesc>(*this);
-    }
-
     bool isCompatible(const MemoryDesc& rhs) const override;
     bool isCompatible(const DnnlBlockedMemoryDesc& rhs) const;
     bool isCompatible(const CpuBlockedMemoryDesc& rhs) const;

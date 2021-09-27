@@ -56,8 +56,6 @@ public:
 
     virtual InferenceEngine::Precision getPrecision() const = 0;
 
-    virtual MemoryDescPtr clone() const = 0;
-
     // clone descriptor with new dims. Throws an exception if some of the new dims conflicts with the internal shape (i.e. its defined dims ,rank, upper bounds)
     MemoryDescPtr cloneWithNewDims(const VectorDims& dims) const {
         if (!getShape().isCompatible(dims)) {

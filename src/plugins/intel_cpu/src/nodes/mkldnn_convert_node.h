@@ -7,6 +7,7 @@
 #include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace MKLDNNPlugin {
@@ -30,9 +31,9 @@ public:
     // In that case the Convert node is instantiated with default CNNLayer and inp/out tensor descriptors are set via this method.
     // This is useful if the Convert node is added to the graph as an auxiliary operation at the MKLDNNGraph
     // initialization stage.
-    void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
-        this->input = input.clone();
-        this->output = output.clone();
+    void setDescs(MemoryDescPtr input, MemoryDescPtr output) {
+        this->input = std::move(input);
+        this->output = std::move(output);
     }
 
     const MemoryDesc& getInput() const { return *input; }

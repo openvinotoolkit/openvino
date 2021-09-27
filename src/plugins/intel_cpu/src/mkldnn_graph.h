@@ -131,8 +131,8 @@ public:
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
-    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const MemoryDesc& inDesc,
-            const MemoryDesc& outDesc, bool isOptimized = false);
+    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, MemoryDescPtr inDesc,
+                                MemoryDescPtr outDesc, bool isOptimized = false);
 
     /**
      * @brief Insert MKLDNNNode at the edge-specified location.

@@ -8,6 +8,7 @@
 #include <mkldnn_node.h>
 #include <string>
 #include <memory>
+#include <utility>
 #include <vector>
 #include <utils/general_utils.h>
 
@@ -34,12 +35,12 @@ public:
 
     void executeDynamicImpl(mkldnn::stream strm) override;
 
-    void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
-        this->input = input.clone();
+    void setDescs(MemoryDescPtr input, MemoryDescPtr output) {
+        this->input = std::move(input);
         inputShapes.clear();
         inputShapes.push_back(this->input->getShape());
 
-        this->output = output.clone();
+        this->output = std::move(output);
         outputShapes.clear();
         outputShapes.push_back(this->output->getShape());
     }
@@ -53,6 +54,9 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
+
+    MemoryDescPtr getInputPtr() { return input; }
+    MemoryDescPtr getOutputPtr() { return output; }
 
     const MemoryDesc& getInput() { return *input; }
     const MemoryDesc& getOutput() { return *output; }

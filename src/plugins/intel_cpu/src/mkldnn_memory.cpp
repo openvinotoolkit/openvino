@@ -88,10 +88,6 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
     }
 }
 
-void MKLDNNMemory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
-    Create(desc.clone(), data, pads_zeroing);
-}
-
 void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     pMemDesc = std::move(desc);
     if (nullptr != data) {
@@ -141,10 +137,6 @@ void *MKLDNNMemory::GetPtr() const  {
     mkldnn::impl::memory_desc_wrapper wrapper(md);
     ptr += wrapper.offset0() * wrapper.data_type_size();
     return ptr;
-}
-
-void MKLDNNMemory::redefineDesc(const MemoryDesc& desc, void *data) {
-    redefineDesc(desc.clone(), data);
 }
 
 void MKLDNNMemory::redefineDesc(MemoryDescPtr desc, void *data) {

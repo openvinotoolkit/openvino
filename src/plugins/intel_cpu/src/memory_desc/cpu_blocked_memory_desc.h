@@ -17,10 +17,6 @@ public:
                          const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
                          const VectorDims& strides = {});
 
-    MemoryDescPtr clone() const override {
-        return std::make_shared<CpuBlockedMemoryDesc>(*this);
-    }
-
     bool isCompatible(const MemoryDesc& rhs) const override;
     bool isCompatible(const CpuBlockedMemoryDesc &rhs) const;
     bool isCompatible(const DnnlBlockedMemoryDesc &rhs) const;

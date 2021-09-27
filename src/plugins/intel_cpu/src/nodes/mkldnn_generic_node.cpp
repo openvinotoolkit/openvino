@@ -31,13 +31,13 @@ NodeConfig MKLDNNGenericNode::convertLayerToNodeConfig(const InferenceEngine::La
     for (size_t i = 0; i < layerConfig.inConfs.size(); i++) {
         config.inConfs[i].inPlace = layerConfig.inConfs[i].inPlace;
         config.inConfs[i].constant = layerConfig.inConfs[i].constant;
-        config.inConfs[i].desc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(layerConfig.inConfs[i].desc).clone();
+        config.inConfs[i].desc = std::make_shared<DnnlBlockedMemoryDesc>(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(layerConfig.inConfs[i].desc));
     }
     config.outConfs.resize(layerConfig.outConfs.size());
     for (size_t i = 0; i < layerConfig.outConfs.size(); i++) {
         config.outConfs[i].inPlace = layerConfig.outConfs[i].inPlace;
         config.outConfs[i].constant = layerConfig.outConfs[i].constant;
-        config.outConfs[i].desc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(layerConfig.outConfs[i].desc).clone();
+        config.outConfs[i].desc = std::make_shared<DnnlBlockedMemoryDesc>(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(layerConfig.outConfs[i].desc));
     }
     return config;
 }

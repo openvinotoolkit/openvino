@@ -49,6 +49,10 @@ public:
         return prim;
     }
 
+    MemoryDescPtr getDescPtr() const {
+        return pMemDesc;
+    }
+
     const MemoryDesc& getDesc() const {
         return *pMemDesc;
     }
@@ -86,13 +90,11 @@ public:
         return getDesc().getShape();
     }
 
-    void Create(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
     void Create(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
 
     // Redefines descriptor. The memory descriptor will be replaced with the new one.
     // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
-    void redefineDesc(const MemoryDesc& desc, void *data = nullptr);
     void redefineDesc(MemoryDescPtr desc, void *data = nullptr);
 
     void SetData(const MKLDNNMemory& memory, size_t size = 0, bool ftz = true) const;

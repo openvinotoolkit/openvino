@@ -24,10 +24,6 @@ public:
         return desc.data.format_kind;
     }
 
-    MemoryDescPtr clone() const override {
-        return std::make_shared<DnnlMemoryDesc>(*this);
-    }
-
     std::string serializeFormat() const override;
 
     InferenceEngine::Precision getPrecision() const override;
