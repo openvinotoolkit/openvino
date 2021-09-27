@@ -257,8 +257,7 @@ TEST(MemDescTest, ConversionSpecialCases) {
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             blk_desc_ptr = MemoryDescUtils::convertToBlockedMemoryDesc(desc_extra_ptr);
-            // TODO [DS]: Should be uncommented after correcting copying data.extra
-            // ASSERT_TRUE(blk_desc_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
+            ASSERT_TRUE(blk_desc_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
         }
     };
 
@@ -287,7 +286,7 @@ TEST(MemDescTest, ConversionSpecialCases) {
 TEST(MemDescTest, cloneWithNewPrecision) {
     Shape dynamicShape(ngraph::PartialShape{{16}, {7, 15}, {-1, -1}, {-1, -1}});
 
-    auto cloneWithNewPrecision = [] (dnnl::memory::format_tag fmt, const Shape& shape, InferenceEngine::Precision pr) {
+    auto cloneWithNewPrecision = [] (dnnl::memory::format_tag fmt, const Shape& shape, InferenceEngine::Precision pr, dnnl::memory::data_type newPr) {
         const DnnlBlockedMemoryDesc dnnl_blk_desc(shape, dnnl::memory::data_type::u8, fmt);
 
         // CpuBlockedMemoryDesc
@@ -356,11 +355,14 @@ TEST(MemDescTest, cloneWithNewPrecision) {
             orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
             orig_desc_extra.data.extra.compensation_mask = 1;
             orig_desc_extra.data.extra.scale_adjust = 2.0f;
+            dnnl::memory::desc orig_desc_extra_new_pr{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), newPr, fmt};
+            orig_desc_extra_new_pr.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+            orig_desc_extra_new_pr.data.extra.compensation_mask = 1;
+            orig_desc_extra_new_pr.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             MemoryDescPtr clone = desc_extra_ptr->cloneWithNewPrecision(pr);
-            // TODO [DS]: Should be uncommented after correcting copying data.extra
-            // ASSERT_TRUE(clone->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
+            ASSERT_TRUE(clone->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra_new_pr);
         }
     };
 
@@ -379,16 +381,16 @@ TEST(MemDescTest, cloneWithNewPrecision) {
             { dnnl::memory::format_tag::Acdb16a,     dynamicShape },  // same strides but not default order
     };
 
-    std::vector<InferenceEngine::Precision> precision = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::BF16,
-            InferenceEngine::Precision::I8,
-            InferenceEngine::Precision::I32
+    std::pair<InferenceEngine::Precision, dnnl::memory::data_type> precision[] = {
+            { InferenceEngine::Precision::FP32, dnnl::memory::data_type::f32  },
+            { InferenceEngine::Precision::BF16, dnnl::memory::data_type::bf16 },
+            { InferenceEngine::Precision::I8,   dnnl::memory::data_type::s8   },
+            { InferenceEngine::Precision::I32,  dnnl::memory::data_type::s32  },
     };
 
     for (const auto &p : payload) {
         for (const auto &pr : precision) {
-            cloneWithNewPrecision(p.first, p.second, pr);
+            cloneWithNewPrecision(p.first, p.second, pr.first, pr.second);
         }
     }
 }
