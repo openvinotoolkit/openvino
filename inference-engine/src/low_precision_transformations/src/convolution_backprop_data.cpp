@@ -181,7 +181,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
                 zeroPointShape[1] = static_cast<size_t>(weightsPShape[1].get_length());
 
                 auto zeroPointConstant = fold<opset1::Broadcast>(
-                        subtractFromWeights->get_input_node_shared_ptr(1),
+                        subtractFromWeights->input_value(1),
                         std::make_shared<opset1::Constant>(element::i32, Shape{zeroPointShape.size()}, zeroPointShape));
                 replace_node(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
             }
