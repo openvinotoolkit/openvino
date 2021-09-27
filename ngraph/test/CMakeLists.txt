@@ -456,10 +456,8 @@ set(MULTI_TEST_SRC
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
-    backend/gelu.in.cpp
     backend/group_convolution.in.cpp
     backend/group_convolution_backprop_data.in.cpp
-    backend/hard_sigmoid.in.cpp
     backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
