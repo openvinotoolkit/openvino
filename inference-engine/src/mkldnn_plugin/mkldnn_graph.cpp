@@ -39,6 +39,7 @@
 #include "utils/node_dumper.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/cpu_utils.hpp"
+#include "utils/verbose.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
 #include <ngraph/node.hpp>
@@ -828,7 +829,9 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
     mkldnn::stream stream(eng);
 
     for (const auto& node : executableGraphNodes) {
-        PERF(config.collectPerfCounters, node);
+        VERBOSE(node, config.debugCaps.verbose);
+        PERF(node, config.collectPerfCounters);
+
         if (request)
             request->ThrowIfCanceled();
 
