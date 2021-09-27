@@ -206,6 +206,9 @@ public:
     Gna2DeviceVersion parseDeclaredTarget(std::string target, const bool execTarget) const;
     Gna2DeviceVersion getDefaultTarget() const;
     Gna2DeviceVersion getTargetDevice(bool execTarget) const;
+
+    void createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose);
+    void detectGnaDeviceVersion();
 #endif
     void setOMPThreads(uint8_t const n_threads);
 
