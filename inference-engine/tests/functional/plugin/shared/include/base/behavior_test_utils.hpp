@@ -67,7 +67,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ie->SetConfig({});
         }
         function.reset();
     }
@@ -113,7 +113,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ie->SetConfig({});
         }
     }
 
@@ -152,7 +152,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            core->set_config({});
         }
     }
 
@@ -165,11 +165,11 @@ protected:
 };
 
 inline ov::runtime::Core createCoreWithTemplate() {
-    ov::runtime::Core ie;
+    ov::runtime::Core core;
     std::string pluginName = "templatePlugin";
     pluginName += IE_BUILD_POSTFIX;
-    ie.register_plugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
-    return ie;
+    core.register_plugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
+    return core;
 }
 
 inline InferenceEngine::Core createIECoreWithTemplate() {
@@ -187,21 +187,13 @@ public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         // Generic network
-        {
-            actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
-        }
+        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
         // Quite simple network
-        {
-            simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
-        }
+        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
         // Multinput to substruct network
-        {
-            multinputNetwork = ngraph::builder::subgraph::make2InputSubtract();
-        }
+        multinputNetwork = ngraph::builder::subgraph::make2InputSubtract();
         // Network with KSO
-        {
-            ksoNetwork = ngraph::builder::subgraph::makeKSOFunction();
-        }
+        ksoNetwork = ngraph::builder::subgraph::makeKSOFunction();
     }
 
     virtual void setHeteroNetworkAffinity(const std::string &targetDevice) {
@@ -240,39 +232,13 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVClassNetworkTest::SetUp();
         // Generic network
-        {
-            ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
-        }
+        ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
         // Quite simple network
-        {
-            ASSERT_NO_THROW(simpleCnnNetwork = InferenceEngine::CNNNetwork(simpleNetwork));
-        }
+        ASSERT_NO_THROW(simpleCnnNetwork = InferenceEngine::CNNNetwork(simpleNetwork));
         // Multinput to substruct network
-        {
-            ASSERT_NO_THROW(multinputCnnNetwork = InferenceEngine::CNNNetwork(multinputNetwork));
-        }
+        ASSERT_NO_THROW(multinputCnnNetwork = InferenceEngine::CNNNetwork(multinputNetwork));
         // Network with KSO
-        {
-            ASSERT_NO_THROW(ksoCnnNetwork = InferenceEngine::CNNNetwork(ksoNetwork));
-        }
-    }
-    void setHeteroNetworkAffinity(const std::string& targetDevice) override {
-        const std::map<std::string, std::string> deviceMapping = {
-                {"Split_2",         targetDevice},
-                {"Convolution_4",   targetDevice},
-                {"Convolution_7",   CommonTestUtils::DEVICE_CPU},
-                {"Relu_5",          CommonTestUtils::DEVICE_CPU},
-                {"Relu_8",          targetDevice},
-                {"Concat_9",        CommonTestUtils::DEVICE_CPU}
-        };
-
-        for (const auto & op : actualCnnNetwork.getFunction()->get_ops()) {
-            auto it = deviceMapping.find(op->get_friendly_name());
-            if (it != deviceMapping.end()) {
-                std::string affinity = it->second;
-                op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
-            }
-        }
+        ASSERT_NO_THROW(ksoCnnNetwork = InferenceEngine::CNNNetwork(ksoNetwork));
     }
 };
 

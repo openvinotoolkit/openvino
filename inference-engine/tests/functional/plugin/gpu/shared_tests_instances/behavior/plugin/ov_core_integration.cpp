@@ -108,16 +108,15 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
 
 using OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT = BehaviorTestsUtils::OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow) {
-SKIP_IF_CURRENT_TEST_IS_DISABLED()
-ov::runtime::Core ie;
-ov::runtime::Parameter p;
+    ov::runtime::Core ie;
+    ov::runtime::Parameter p;
 
-ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
-int t = p;
+    ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
+    int t = p;
 
-std::cout << "GPU EUs count: " << t << std::endl;
+    std::cout << "GPU EUs count: " << t << std::endl;
 
-ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
+    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
