@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "base_reference_test.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
 
 #include <gtest/gtest.h>
 
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "transformations/utils/utils.hpp"
@@ -14,8 +16,7 @@ using namespace InferenceEngine;
 namespace reference_tests {
 
 CommonReferenceTest::CommonReferenceTest(): targetDevice("TEMPLATE") {
-    // TODO
-    // core = PluginCache::get().ie(targetDevice);
+    core = ov::test::PluginCache::get().core(targetDevice);
 }
 
 void CommonReferenceTest::Exec() {
@@ -36,7 +37,7 @@ void CommonReferenceTest::FillInputs() {
     for (size_t i = 0; i < inputs.size(); i++) {
         const auto& param = inputs[i];
 
-        ov::runtime::Tensor blob(param->get_element_type(), param->get_shape());
+        ov::runtime::Tensor blob(param.get_element_type(), param.get_shape());
         ASSERT_EQ(blob.get_byte_size(), inputData[i].get_byte_size());
 
         std::memcpy(blob.data(), inputData[i].data(), inputData[i].get_byte_size());
@@ -57,9 +58,9 @@ void CommonReferenceTest::Infer() {
 
 void CommonReferenceTest::Validate() {
     ASSERT_EQ(executableNetwork.get_parameters().size(), refOutData.size());
-    std::vector<InferenceEngine::Blob::Ptr> outputs;
+    std::vector<ov::runtime::Tensor> outputs;
     for (const auto& result : function->get_results()) {
-        auto name = ov::op::util::create_ie_output_name(result->input_value(0));
+        auto name = ngraph::op::util::create_ie_output_name(result->input_value(0));
         outputs.emplace_back(inferRequest.get_tensor(name));
     }
 
@@ -73,80 +74,77 @@ void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, cons
     ASSERT_EQ(refBlob.get_element_type(), outBlob.get_element_type());
     ASSERT_EQ(refBlob.get_byte_size(), outBlob.get_byte_size());
 
-    auto mRef = as<InferenceEngine::MemoryBlob>(refBlob);
-    IE_ASSERT(mRef);
-    const auto refLockMemory = mRef->rmap();
-    const auto refBuffer = refBlob.data();
-
-    auto mOut = as<InferenceEngine::MemoryBlob>(outBlob);
-    IE_ASSERT(mOut);
-    const auto outLockMemory = mOut->rmap();
-    const auto outBuffer = outLockMemory.as<const std::uint8_t*>();
-
-    const auto& precision = refBlob->getTensorDesc().getPrecision();
-    switch (precision) {
-    case InferenceEngine::Precision::BF16:
+    const auto& element_type = refBlob.get_element_type();
+    switch (element_type) {
+    case ov::element::bf16:
         LayerTestsUtils::LayerTestsCommon::Compare<ov::bfloat16, ov::bfloat16>(
-            refBlob.data<const ov::bfloat16>(), outBlob.data<const ov::bfloat16>(), refBlob.get_size(), threshold);
+            refBlob.data<const ov::bfloat16>(), outBlob.data<const ov::bfloat16>(),
+            refBlob.get_size(), threshold);
         break;
-    case InferenceEngine::Precision::FP16:
+    case ov::element::f16:
         LayerTestsUtils::LayerTestsCommon::Compare<ov::float16, ov::float16>(
-            refBlob.data<const ov::float16>(), outBlob.data<const ov::float16>(), refBlob.get_size(), threshold);
+            refBlob.data<const ov::float16>(), outBlob.data<const ov::float16>(),
+            refBlob.get_size(), threshold);
         break;
-    case InferenceEngine::Precision::FP32:
-        LayerTestsUtils::LayerTestsCommon::Compare<ov::float16, ov::float16>(
-            refBlob.data<const float>(), outBlob.data<const float>(), refBlob.get_size(), threshold);
+    case ov::element::f32:
+        LayerTestsUtils::LayerTestsCommon::Compare<float, float>(
+            refBlob.data<const float>(), outBlob.data<const float>(),
+            refBlob.get_size(), threshold);
         break;
-    case InferenceEngine::Precision::I8:
+    case ov::element::i8:
         LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(
-            refBlob.data<const int8_t>(), outBlob.data<const int8_t>(), refBlob.get_size(), threshold);
+            refBlob.data<const int8_t>(), outBlob.data<const int8_t>(),
+            refBlob.get_size(), threshold);
         break;
-    case InferenceEngine::Precision::I16:
+    case ov::element::i16:
         LayerTestsUtils::LayerTestsCommon::Compare<int16_t, int16_t>(
             refBlob.data<const int16_t>(), outBlob.data<const int16_t>(),
-                                                                     refBlob.get_size(), threshold);
+            refBlob.get_size(), threshold);
         break;
-    case InferenceEngine::Precision::I32:
+    case ov::element::i32:
         LayerTestsUtils::LayerTestsCommon::Compare<int32_t, int32_t>(
             refBlob.data<const int32_t>(), outBlob.data<const int32_t>(),
-                                                                     refBlob.get_size(), threshold);
+            refBlob.get_size(), threshold);
         break;
-    case InferenceEngine::Precision::I64:
+    case ov::element::i64:
         LayerTestsUtils::LayerTestsCommon::Compare<int64_t, int64_t>(
             refBlob.data<const int64_t>(), outBlob.data<const int64_t>(),
-                                                                     refBlob.get_size(), threshold);
+            refBlob.get_size(), threshold);
         break;
-    case InferenceEngine::Precision::BOOL:
-    case InferenceEngine::Precision::U8:
+    case ov::element::boolean:
+    case ov::element::u8:
         LayerTestsUtils::LayerTestsCommon::Compare<uint8_t, uint8_t>(
             refBlob.data<const uint8_t>(), outBlob.data<const uint8_t>(),
-                                                                     refBlob.get_size(), threshold);
+            refBlob.get_size(), threshold);
         break;
-    case InferenceEngine::Precision::U16:
+    case ov::element::u16:
         LayerTestsUtils::LayerTestsCommon::Compare<uint16_t, uint16_t>(
-            refBlob.data<const uint16_t>(), outBlob.data<const uint16_t>(), refBlob.get_size(), threshold);
+            refBlob.data<const uint16_t>(), outBlob.data<const uint16_t>(),
+            refBlob.get_size(), threshold);
         break;
-    case InferenceEngine::Precision::U32:
+    case ov::element::u32:
         LayerTestsUtils::LayerTestsCommon::Compare<uint32_t, uint32_t>(
-            refBlob.data<const uint32_t>(), outBlob.data<const uint32_t>(), refBlob.get_size(), threshold);
+            refBlob.data<const uint32_t>(), outBlob.data<const uint32_t>(),
+            refBlob.get_size(), threshold);
         break;
-    case InferenceEngine::Precision::U64:
+    case ov::element::u64:
         LayerTestsUtils::LayerTestsCommon::Compare<uint64_t, uint64_t>(
-            refBlob.data<const uint64_t>(), outBlob.data<const uint64_t>(), refBlob.get_size(), threshold);
+            refBlob.data<const uint64_t>(), outBlob.data<const uint64_t>(),
+            refBlob.get_size(), threshold);
         break;
-    case InferenceEngine::Precision::I4:
-    case InferenceEngine::Precision::U4:
+    case ov::element::i4:
+    case ov::element::u4:
         LayerTestsUtils::LayerTestsCommon::Compare<uint8_t, uint8_t>(
             refBlob.data<const uint8_t>(), outBlob.data<const uint8_t>(),
-                                                                     refBlob.get_size() / 2, threshold);
+            refBlob.get_size() / 2, threshold);
         break;
-    case InferenceEngine::Precision::BIN:
+    case ov::element::u1:
         LayerTestsUtils::LayerTestsCommon::Compare<uint8_t, uint8_t>(
             refBlob.data<const uint8_t>(), outBlob.data<const uint8_t>(),
-                                                                     refBlob.get_size() / 8, threshold);
+            refBlob.get_size() / 8, threshold);
         break;
     default:
-        FAIL() << "Comparator for " << precision << " precision isn't supported";
+        FAIL() << "Comparator for " << element_type << " element type isn't supported";
     }
 }
 

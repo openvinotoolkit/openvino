@@ -41,6 +41,7 @@ class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl) final : public ICNNNetwor
 public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph,
                          const std::vector<IExtensionPtr>& exts = {});
+    CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph, bool newAPI);
     CNNNetworkNGraphImpl(const CNNNetwork& nGraph);
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
@@ -98,6 +99,7 @@ private:
     std::map<std::string, DataPtr> _outputData;
     const std::vector<IExtensionPtr> _ie_extensions;
     std::unordered_map<std::string, std::string> _tensorNames;
+    bool _new_api = false;
 
     /**
      * @brief Create DataPtr for nGraph operation

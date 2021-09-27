@@ -152,6 +152,35 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     }
 }
 
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph, bool new_api)
+    : _ngraph_function(nGraph),
+      _new_api(new_api) {
+    // Restore usual attributes for CNNNetwork
+    auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
+        InputInfo::Ptr info(new InputInfo());
+        info->setInputData(inData);
+        network.setInputInfo(info);
+    };
+
+    validateFunctionNames();
+
+    reshape();
+    for (const auto& layer : _ngraph_function->get_parameters()) {
+        std::string outName = layer->get_friendly_name();
+        IE_ASSERT(layer->get_output_size() == 1);  // Parameter as only singly output port
+
+        // map original names to OpenVINO name
+        for (const auto& name : layer->get_output_tensor(0).get_names()) {
+            _tensorNames[name] = outName;
+        }
+
+        DataPtr& ptr = _data[outName];
+        IE_ASSERT(ptr);  // Data must be allocated after the reshape method
+
+        keep_input_info(*this, ptr);
+    }
+}
+
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     IE_SUPPRESS_DEPRECATED_START
     const ICNNNetwork& iNetwork = network;

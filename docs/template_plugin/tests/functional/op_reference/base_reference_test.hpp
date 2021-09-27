@@ -57,7 +57,7 @@ ov::runtime::Tensor CreateBlob(const ov::element::Type& element_type, const std:
 struct Tensor {
     Tensor() = default;
 
-    Tensor(const ov::Shape& shape, ov::element::Type type, const InferenceEngine::Blob::Ptr& data): shape {shape}, type {type}, data {data} {}
+    Tensor(const ov::Shape& shape, ov::element::Type type, const ov::runtime::Tensor& data): shape {shape}, type {type}, data {data} {}
 
     template <typename T>
     Tensor(const ov::Shape& shape, ov::element::Type type, const std::vector<T>& data_elements)
