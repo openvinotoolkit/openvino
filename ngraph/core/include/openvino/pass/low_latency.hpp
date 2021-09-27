@@ -33,11 +33,11 @@ namespace pass {
  * After applying the transformation, the resulting network can be inferred
  * step by step, the states will store between inferences.
  */
-class OPENVINO_API LowLatency2 : public FunctionPass {
+class OPENVINO_API LowLatency : public FunctionPass {
 public:
-    OPENVINO_RTTI("LowLatency2");
+    OPENVINO_RTTI("LowLatency");
 
-    explicit LowLatency2(bool use_const_initializer = true) : m_use_const_initializer(use_const_initializer) {}
+    explicit LowLatency(bool use_const_initializer = true) : m_use_const_initializer(use_const_initializer) {}
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 

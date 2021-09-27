@@ -144,7 +144,7 @@ ngraph::Output<ngraph::Node> create_init_subgraph(const shared_ptr<ngraph::op::u
     return broadcast->output(0);
 }
 
-bool ov::pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
+bool ov::pass::LowLatency::run_on_function(shared_ptr<Function> f) {
     using namespace ngraph::opset7;
 
     ngraph::SinkVector assigns;

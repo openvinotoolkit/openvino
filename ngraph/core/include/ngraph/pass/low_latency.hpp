@@ -48,6 +48,6 @@ public:
     LowLatency();
 };
 
-using ov::pass::LowLatency2;
+using LowLatency2 = ov::pass::LowLatency;
 }  // namespace pass
 }  // namespace ngraph
