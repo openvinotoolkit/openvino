@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::ReverseSequence, "ReverseSequence", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::ReverseSequence);
 
 op::ReverseSequence::ReverseSequence(const Output<Node>& arg,
                                      const Output<Node>& seq_indices,

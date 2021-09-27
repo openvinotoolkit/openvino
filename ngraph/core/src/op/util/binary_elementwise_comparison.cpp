@@ -10,7 +10,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::BinaryElementwiseComparison, "BinaryElementwiseComparison", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::util::BinaryElementwiseComparison);
 
 ov::op::util::BinaryElementwiseComparison::BinaryElementwiseComparison(const AutoBroadcastSpec& autob)
     : m_autob(autob) {}

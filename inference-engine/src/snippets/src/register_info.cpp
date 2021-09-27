@@ -6,4 +6,4 @@
 
 template class ngraph::VariantImpl<std::vector<size_t>>;
 
-constexpr ngraph::VariantTypeInfo ngraph::VariantWrapper<std::vector<size_t>>::type_info;
+BWDCMP_RTTI_DEFINITION(ngraph::VariantWrapper<std::vector<size_t>>);

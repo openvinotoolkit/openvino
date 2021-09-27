@@ -87,14 +87,10 @@ namespace ov {
 template <>
 class VariantWrapper<Ship> : public VariantImpl<Ship> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::Ship", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("VariantWrapper<Ship>");
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
-constexpr VariantTypeInfo VariantWrapper<Ship>::type_info;
 }  // namespace ov
 
 TEST(op, variant) {
