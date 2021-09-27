@@ -426,7 +426,7 @@ void GNAPlugin::InitGNADevice() {
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
-void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network, bool& fake_quantized) {
+void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputScaleFromNetwork");
     // fp32 emulation mode dont need any modifications to configuration
     if (config.gnaFlags.sw_fp32) return;
@@ -441,8 +441,6 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
             if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
                 continue;
             }
-
-            fake_quantized = true;
 
             // replacing scale factor from this fq layer
             GNAFakeQuantizeLayer fqLayer(nextToInputLayer.second);
@@ -673,12 +671,13 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     bool isNgraphPassesUsed = false;
-
+    bool fake_quantized = false;
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
@@ -744,8 +743,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
-    bool fake_quantized = false;
-    UpdateInputScaleFromNetwork(network, fake_quantized);
+    if (fake_quantized) {
+        UpdateInputScaleFromNetwork(network);
+    }
 
     // Set input and output information from orginal network
     UpdateInputsAndOutputsInfoFromNetwork(network);

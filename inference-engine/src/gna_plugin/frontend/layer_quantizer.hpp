@@ -39,14 +39,12 @@ struct QuantDescTmpl {
     InferenceEngine::TPrecision<Op> _Op;
     InferenceEngine::TPrecision<Wp> _Wp;
     InferenceEngine::TPrecision<Bp> _Bp;
-    InferenceEngine::TPrecision<Np> _Np;
 
     QuantDescTmpl() = default;
     QuantDescTmpl(InferenceEngine::TPrecision<Ip> _Ip,
               InferenceEngine::TPrecision<Op> _Op,
               InferenceEngine::TPrecision<Wp> _Wp,
-              InferenceEngine::TPrecision<Bp> _Bp,
-              InferenceEngine::TPrecision<Np> _Np) : _Op(_Op), _Ip(_Ip), _Wp(_Wp), _Bp(_Bp), _Np(_Np) {
+              InferenceEngine::TPrecision<Bp> _Bp) : _Op(_Op), _Ip(_Ip), _Wp(_Wp), _Bp(_Bp) {
     }
 
     InferenceEngine::Precision getInputPrecision() const {
@@ -57,9 +55,6 @@ struct QuantDescTmpl {
     }
     InferenceEngine::Precision getBiasesPrecision() const {
         return _Bp;
-    }
-    InferenceEngine::Precision getNetPrecision() const {
-        return _Np;
     }
     InferenceEngine::Precision getOutputPrecision() const {
         return _Op;
@@ -74,27 +69,15 @@ typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::X>::value_t
 
 
 struct QuantI16 : public QuantDescTmpl<PRECISION_TYPE(I16, I32, I16, I32, MIXED)> {
-    QuantI16() {
-        _Np = InferenceEngine::Precision::MIXED;
-    }
 };
 struct QuantI8  : public QuantDescTmpl<P_TYPE(I16), P_TYPE(I32), P_TYPE(I8), gna_compound_bias_t, P_TYPE(MIXED)> {
-    QuantI8() {
-        _Np = InferenceEngine::Precision::MIXED;
-    }
 };
 // Low precision path quantizer (I8 inputs, weights, biases)
 struct QuantI8_I8 : public QuantDescTmpl<PRECISION_TYPE(I8, I32, I8, I8, MIXED)> {
-    QuantI8_I8() {
-        _Np = InferenceEngine::Precision::MIXED;
-    }
 };
 
 // for support proper trait instantiation for quantization function callback
 struct FakeQuant : public QuantDescTmpl<P_TYPE(I16), P_TYPE(I32), P_TYPE(MIXED), P_TYPE(MIXED), P_TYPE(MIXED)> {
-    FakeQuant() {
-        _Np = InferenceEngine::Precision::MIXED;
-    }
 };
 struct FakeQuantI16 : public QuantI16 {};
 struct FakeQuantI8 : public QuantI8 {};
@@ -711,6 +694,13 @@ class LayersQuantizer : public frontend::DataQuantizerBase {
     }
 };
 
+/*
+ * Major of layers will be executed in I16 mode
+ *  most of auto generated primitives like one for aligning support
+ *  GNA 1.0, 2.0 doesn’t support I8 for convolution layer.
+ * Some layers will be switched into I16 mode to not lose accuracy while memory and
+ * runtime performance of layers like scaleshifts still OK since it is O(N).
+ */
 using QuantI16 = frontend::QuantPair<frontend::QuantI16, frontend::QuantI16>;
 using QuantI8 = frontend::QuantPair<frontend::QuantI8, frontend::QuantI16>;
 using QuantI8_I8 = frontend::QuantPair<frontend::QuantI8_I8, frontend::QuantI8_I8>;

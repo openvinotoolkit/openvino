@@ -211,7 +211,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                     int idx = 0);
 
     void UpdateFieldsFromConfig();
-    void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network, bool& fake_quantized);
+    void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
     void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork &);
     /**
      * @brief Tries to init an output on the base of a layer data
