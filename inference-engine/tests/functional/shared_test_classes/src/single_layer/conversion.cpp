@@ -5,6 +5,7 @@
 #include "shared_test_classes/single_layer/conversion.hpp"
 
 #include "ngraph_functions/builders.hpp"
+#include <ie_ngraph_utils.hpp>
 
 namespace LayerTestsDefinitions {
 
@@ -41,5 +42,6 @@ void ConversionLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(conversion)};
     function = std::make_shared<ngraph::Function>(results, params, "Conversion");
+    outPrc = InferenceEngine::details::convertPrecision(function->get_output_element_type(0));
 }
 }  // namespace LayerTestsDefinitions
