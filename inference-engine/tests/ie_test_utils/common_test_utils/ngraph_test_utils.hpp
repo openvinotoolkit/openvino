@@ -19,7 +19,14 @@
 
 #include "test_common.hpp"
 
-#define DYN ngraph::Dimension::dynamic()
+template <typename T>
+size_t count_ops_of_type(std::shared_ptr<ngraph::Function> f) {
+    size_t count = 0;
+    for (auto op : f->get_ops()) {
+        if (ngraph::is_type<T>(op)) {
+            count++;
+        }
+    }
 
-using TransformationTests = CommonTestUtils::TestsCommon;
-
+    return count;
+}
