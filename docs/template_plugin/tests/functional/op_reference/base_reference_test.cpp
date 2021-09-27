@@ -51,13 +51,15 @@ void CommonReferenceTest::Infer() {
 
     for (size_t i = 0; i < execParams.size(); ++i) {
         const auto& param = execParams[i];
+        std::cout << "param type " << i << " " << param->get_element_type() << std::endl;
+        std::cout << "data type " << i << " " << inputData[i].get_element_type() << std::endl;
         inferRequest.set_tensor(param->get_friendly_name(), inputData[i]);
     }
     inferRequest.infer();
 }
 
 void CommonReferenceTest::Validate() {
-    ASSERT_EQ(executableNetwork.get_parameters().size(), refOutData.size());
+    ASSERT_EQ(executableNetwork.get_results().size(), refOutData.size());
     std::vector<ov::runtime::Tensor> outputs;
     for (const auto& result : function->get_results()) {
         auto name = ngraph::op::util::create_ie_output_name(result->input_value(0));
