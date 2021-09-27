@@ -122,6 +122,12 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
                                           'different values \n{} \nand \n{}'.format(
                                 node.id, cur_node_type, node_ref.id, ref_node_type, node.value, node_ref.value))
                         continue
+                    if attr == 'rt_info':
+                        if not node.rt_info.info == node_ref.rt_info.info:
+                            stderr.append('Current node "{}" with type {} and reference node "{}" with type have '
+                                          'different rt_info \n{} \nand \n{}'.format(
+                                node.id, cur_node_type, node_ref.id, ref_node_type, node.rt_info.info, node_ref.rt_info.info))
+                        continue
                     compare_node(node_ref, node, graph_ref.node[node_ref.id][attr], graph.node[node.id][attr], attr,
                                  stderr)
         else:
