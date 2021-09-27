@@ -506,10 +506,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
             custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
-        manager.register_pass<ov::pass::Serialize>(xmlBuf,
-                                                   binBuf,
-                                                   ov::pass::Serialize::Version::IR_V10,
-                                                   custom_opsets);
+        manager.register_pass<ov::pass::Serialize>(xmlBuf, binBuf, ov::pass::Serialize::Version::IR_V10, custom_opsets);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -532,10 +529,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
 
         std::stringstream binBuf;
         ngraph::pass::Manager manager;
-        manager.register_pass<ov::pass::Serialize>(xmlBuf,
-                                                   binBuf,
-                                                   ov::pass::Serialize::Version::IR_V10,
-                                                   custom_opsets);
+        manager.register_pass<ov::pass::Serialize>(xmlBuf, binBuf, ov::pass::Serialize::Version::IR_V10, custom_opsets);
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();

@@ -20,8 +20,8 @@
 #include <ngraph/function.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/visibility.hpp>
-#include <openvino/op/util/framework_node.hpp>
 #include <onnx_import/core/node.hpp>
+#include <openvino/op/util/framework_node.hpp>
 
 namespace ONNX_NAMESPACE {
 // forward declaration

@@ -18,9 +18,9 @@
 #include "ie_itt.hpp"
 #include "ngraph/opsets/opset6.hpp"
 #include "ngraph/variant.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-#include "openvino/pass/serialize.hpp"
 
 #ifdef _WIN32
 #    define stat _stat
