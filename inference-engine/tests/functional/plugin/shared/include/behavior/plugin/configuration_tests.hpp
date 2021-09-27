@@ -144,13 +144,12 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            ie->SetConfig({});
+            ie->SetConfig({}, targetDevice);
         }
     }
 };
 
 using BehaviorParamsSingleOptionCustom = std::tuple<
-        InferenceEngine::Precision,                                      // Network precision
         std::string,                                                     // Device name
         std::tuple<std::string, std::string, InferenceEngine::Parameter> // Configuration key, value and reference
 >;
@@ -161,13 +160,12 @@ public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tuple<std::string, std::string, InferenceEngine::Parameter> entry;
-        std::tie(netPrecision, targetDevice, entry) = this->GetParam();
+        std::tie(targetDevice, entry) = this->GetParam();
         std::tie(key, value, reference) = entry;
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
-    InferenceEngine::Precision netPrecision;
     std::string key;
     std::string value;
     InferenceEngine::Parameter reference;

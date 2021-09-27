@@ -45,7 +45,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ie->SetConfig({}, targetDevice);
         }
     }
 

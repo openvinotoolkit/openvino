@@ -67,7 +67,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            ie->SetConfig({});
+            ie->SetConfig({}, targetDevice);
         }
         function.reset();
     }
@@ -113,8 +113,9 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            ie->SetConfig({});
+            ie->SetConfig({}, targetDevice);
         }
+        execNet = InferenceEngine::ExecutableNetwork();
     }
 
 protected:
@@ -154,6 +155,7 @@ public:
         if (!configuration.empty()) {
             core->set_config({});
         }
+        execNet = ov::runtime::ExecutableNetwork();
     }
 
 protected:
@@ -260,5 +262,4 @@ public:
         GTEST_SKIP();                                  \
     }                                                  \
 }
-
 } // namespace BehaviorTestsUtils

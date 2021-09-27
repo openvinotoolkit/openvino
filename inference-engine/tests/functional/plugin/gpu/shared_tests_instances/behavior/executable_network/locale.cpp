@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/locale.hpp"
+#include "behavior/executable_network/locale.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {

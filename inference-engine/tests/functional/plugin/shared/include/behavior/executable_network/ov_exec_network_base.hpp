@@ -13,42 +13,70 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVExecutableNetworkBaseTest : public BehaviorTestsUtils::OVInferRequestTests {
+class OVExecutableNetworkBaseTest : public testing::WithParamInterface<BehaviorTestsUtils::InferRequestParams>,
+                                    public CommonTestUtils::TestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<BehaviorTestsUtils::InferRequestParams> obj) {
+        std::string targetDevice;
+        std::map<std::string, std::string> configuration;
+        std::tie(targetDevice, configuration) = obj.param;
+        std::ostringstream result;
+        result << "targetDevice=" << targetDevice << "_";
+        if (!configuration.empty()) {
+            for (auto &configItem : configuration) {
+                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+            }
+        }
+        return result.str();
+    }
+
     void SetUp() override {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            core->set_config({});
+        }
+    }
+
+protected:
+    std::shared_ptr<ov::runtime::Core> core = ov::test::PluginCache::get().core();
+    std::string targetDevice;
+    std::map<std::string, std::string> configuration;
+    std::shared_ptr<ov::Function> function;
 };
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
-    ASSERT_NO_THROW(execNet = core->compile_model(function, targetDevice, configuration));
+    ASSERT_NO_THROW(auto execNet = core->compile_model(function, targetDevice, configuration));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
     std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
-    ASSERT_ANY_THROW(execNet = core->compile_model(function, targetDevice, configuration));
+    ASSERT_ANY_THROW(auto execNet = core->compile_model(function, targetDevice, configuration));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCreateInferRequest) {
-    execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, targetDevice, configuration);
     ASSERT_NO_THROW(auto req = execNet.create_infer_request());
 }
 
 TEST_P(OVExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
-    execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, targetDevice, configuration);
     auto execGraph = execNet.get_runtime_function();
     ASSERT_NE(execGraph, nullptr);
 }
 
 TEST_P(OVExecutableNetworkBaseTest, checkGetMetric) {
-    execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, targetDevice, configuration);
     ASSERT_NO_THROW(execNet.get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
-    execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, targetDevice, configuration);
     for (const auto &configItem : configuration) {
         InferenceEngine::Parameter param;
         ASSERT_NO_THROW(param = execNet.get_config(configItem.first));
@@ -58,7 +86,7 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheck
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNet) {
-    execNet = core->compile_model(function, targetDevice);
+    auto execNet = core->compile_model(function, targetDevice);
     std::map<std::string, InferenceEngine::Parameter> config;
     for (const auto &confItem : configuration) {
         config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
@@ -67,7 +95,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNet) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
-    execNet = core->compile_model(function, targetDevice);
+    auto execNet = core->compile_model(function, targetDevice);
     std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
     std::map<std::string, InferenceEngine::Parameter> config;
     for (const auto &confItem : incorrectConfig) {
@@ -77,7 +105,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetAndCheckConfigAndCheck) {
-    execNet = core->compile_model(function, targetDevice);
+    auto execNet = core->compile_model(function, targetDevice);
     std::map<std::string, InferenceEngine::Parameter> config;
     for (const auto &confItem : configuration) {
         config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
@@ -109,17 +137,17 @@ TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfo) {
-    execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, targetDevice, configuration);
     ASSERT_NO_THROW(auto inInfo = execNet.get_parameters());
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfo) {
-    execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, targetDevice, configuration);
     ASSERT_NO_THROW(auto outInfo = execNet.get_results());
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfoAndCheck) {
-    execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, targetDevice, configuration);
     auto inInfo = execNet.get_parameters();
     auto inCnnInfo = function->get_parameters();
     for (const auto &itemInInfo : inCnnInfo) {
@@ -128,7 +156,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfoAndCheck) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfoAndCheck) {
-    execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, targetDevice, configuration);
     auto outInfo = execNet.get_results();
     auto outCnnInfo = function->get_results();
     for (const auto &itemOutInfo : outCnnInfo) {
@@ -192,7 +220,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
 TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     std::shared_ptr<const ov::Function> execGraph;
     // Load CNNNetwork to target plugins
-    execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, targetDevice, configuration);
     ASSERT_NO_THROW(execGraph = execNet.get_runtime_function());
     std::map<std::string, int> originalLayersMap;
     for (const auto &layer : function->get_ops()) {

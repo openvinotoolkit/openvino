@@ -8,8 +8,23 @@
 #include "common_test_utils/file_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
+class ExecutableNetworkBaseTest : public testing::WithParamInterface<BehaviorTestsUtils::InferRequestParams>,
+                                  public CommonTestUtils::TestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<BehaviorTestsUtils::InferRequestParams> obj) {
+        std::string targetDevice;
+        std::map<std::string, std::string> configuration;
+        std::tie(targetDevice, configuration) = obj.param;
+        std::ostringstream result;
+        result << "targetDevice=" << targetDevice << "_";
+        if (!configuration.empty()) {
+            for (auto &configItem : configuration) {
+                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+            }
+        }
+        return result.str();
+    }
 
-class ExecutableNetworkBaseTest : public BehaviorTestsUtils::InferRequestTests {
     void SetUp() override {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -17,35 +32,48 @@ class ExecutableNetworkBaseTest : public BehaviorTestsUtils::InferRequestTests {
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            ie->SetConfig({}, targetDevice);
+        }
+    }
+
+protected:
+    InferenceEngine::CNNNetwork cnnNet;
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::shared_ptr<ngraph::Function> function;
+    std::string targetDevice;
+    std::map<std::string, std::string> configuration;
 };
 
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
-    ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
+    ASSERT_NO_THROW(auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
 }
 
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
     std::map<std::string, std::string> incorrectConfig = {{ "abc", "def" }};
-    ASSERT_ANY_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, incorrectConfig));
+    ASSERT_ANY_THROW(auto execNet = ie->LoadNetwork(cnnNet, targetDevice, incorrectConfig));
 }
 
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCreateInferRequest) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     ASSERT_NO_THROW(auto req = execNet.CreateInferRequest());
 }
 
 TEST_P(ExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     InferenceEngine::CNNNetwork execGraph = execNet.GetExecGraphInfo();
     ASSERT_NE(execGraph.getFunction(), nullptr);
 }
 
 TEST_P(ExecutableNetworkBaseTest, checkGetMetric) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     ASSERT_NO_THROW(execNet.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
 }
 
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
         ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
@@ -55,7 +83,7 @@ TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckCo
 }
 
 TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNet) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
     std::map<std::string, InferenceEngine::Parameter> config;
     for (const auto& confItem : configuration) {
         config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
@@ -64,7 +92,7 @@ TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNet) {
 }
 
 TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNetWithIncorrectConfig) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
     std::map<std::string, std::string> incorrectConfig = {{ "abc", "def" }};
     std::map<std::string, InferenceEngine::Parameter> config;
     for (const auto& confItem : incorrectConfig) {
@@ -74,7 +102,7 @@ TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNetWithIncorrectConfig) {
 }
 
 TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNetAndCheckConfigAndCheck) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
     std::map<std::string, InferenceEngine::Parameter> config;
     for (const auto& confItem : configuration) {
         config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
@@ -106,17 +134,17 @@ TEST_P(ExecutableNetworkBaseTest,  CanCreateTwoExeNetworksAndCheckFunction) {
 }
 
 TEST_P(ExecutableNetworkBaseTest,  CanGetInputsInfo) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     ASSERT_NO_THROW(auto inInfo = execNet.GetInputsInfo());
 }
 
 TEST_P(ExecutableNetworkBaseTest,  CanGetOutputsInfo) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     ASSERT_NO_THROW(auto outInfo = execNet.GetOutputsInfo());
 }
 
 TEST_P(ExecutableNetworkBaseTest,  CanGetInputsInfoAndCheck) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     auto inInfo = execNet.GetInputsInfo();
     auto inCnnInfo = cnnNet.getInputsInfo();
     for (const auto& itemInInfo : inCnnInfo) {
@@ -125,7 +153,7 @@ TEST_P(ExecutableNetworkBaseTest,  CanGetInputsInfoAndCheck) {
 }
 
 TEST_P(ExecutableNetworkBaseTest,  CanGetOutputsInfoAndCheck) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     auto outInfo = execNet.GetOutputsInfo();
     auto outCnnInfo = cnnNet.getOutputsInfo();
     for (const auto& itemOutInfo : outCnnInfo) {
@@ -189,7 +217,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
 TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     InferenceEngine::CNNNetwork execGraph;
     // Load CNNNetwork to target plugins
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
     std::map<std::string, int> originalLayersMap;
     for (const auto &layer : function->get_ops()) {
