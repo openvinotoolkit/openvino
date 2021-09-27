@@ -928,7 +928,12 @@ void MKLDNNConvolutionNode::prepareParams() {
     if (withBiases) {
         auto biasMemoryDesc = getParentEdgesAtPort(2).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
         // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
-        auto dnnlBiasDesc = biasMemoryDesc->getDnnlDesc().reshape({biasMemoryDesc->getDnnlDesc().dims()[1]});
+        mkldnn::memory::desc dnnlBiasDesc;
+        if (biasMemoryDesc->getShape().getRank() == 1) {
+            dnnlBiasDesc = biasMemoryDesc->getDnnlDesc();
+        } else {
+            dnnlBiasDesc = biasMemoryDesc->getDnnlDesc().reshape({biasMemoryDesc->getDnnlDesc().dims()[1]});
+        }
         dnnlConvDesc = createDescriptorInternal(inMemoryDesc->getDnnlDesc(),
                                                 weightMemoryDesc->getDnnlDesc(),
                                                 dnnlBiasDesc,
