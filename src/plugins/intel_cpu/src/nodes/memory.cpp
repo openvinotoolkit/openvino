@@ -18,7 +18,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-std::mutex MemoryNodeVirtualEdge::holderMutex;
+MemoryNode::MemoryNode(const std::string & id) : _id(id) {}
 
 MemoryNode::MemoryNode(const std::shared_ptr<ngraph::Node>& op) {
     if (auto assignOp = std::dynamic_pointer_cast<ngraph::op::AssignBase>(op)) {
@@ -26,6 +26,10 @@ MemoryNode::MemoryNode(const std::shared_ptr<ngraph::Node>& op) {
     } else if (auto readValueOp = std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
         _id = readValueOp->get_variable_id();
     }
+}
+
+const std::string & MemoryNode::getId() const {
+    return _id;
 }
 
 bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -53,13 +57,10 @@ MemoryOutput::MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const mkldnn
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    if (created()) {
-        holder = MemoryNodeVirtualEdge::registerOutput(this);
-    }
 }
 
 MemoryOutput::~MemoryOutput() {
-    MemoryNodeVirtualEdge::remove(this, holder);
+    unregisterThis();
 }
 
 void MemoryOutput::getSupportedDescriptors() {}
@@ -81,9 +82,44 @@ void MemoryOutput::initSupportedPrimitiveDescriptors() {
 void MemoryOutput::execute(mkldnn::stream strm)  {
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
 
-    auto inputMemoryNode = dynamic_cast<MemoryInput*>(inputNode);
-    IE_ASSERT(inputMemoryNode != nullptr);
-    inputMemoryNode->storeState(srcMemory);
+    if (auto inputMemoryNode = _inputNode.lock()) {
+        inputMemoryNode->storeState(srcMemory);
+    } else {
+        IE_THROW(GeneralError) << "Input memory node is null";
+    }
+}
+
+bool MemoryOutput::created() const {
+    return getType() == Type::MemoryOutput;
+}
+
+void MemoryOutput::setInputNode(const std::weak_ptr<MemoryInput> & node) {
+    _inputNode = node;
+}
+
+void MemoryOutput::registerThis(const NodesUnorderedMapPtr & memoryNodes) {
+    _memoryNodes = memoryNodes;
+
+    if (auto memoryNodes = _memoryNodes.lock()) {
+        auto it = memoryNodes->find(getId());
+        if (it != memoryNodes->end()) {
+            auto inputNode = std::dynamic_pointer_cast<MemoryInput>(it->second);
+            IE_ASSERT(inputNode != nullptr);
+            setInputNode(inputNode);
+        } else {
+            auto outputNode = std::static_pointer_cast<MemoryOutput>(shared_from_this());
+            memoryNodes->emplace(getId(), std::static_pointer_cast<Node>(outputNode));
+        }
+    }
+}
+
+void MemoryOutput::unregisterThis() {
+    if (auto memoryNodes = _memoryNodes.lock()) {
+        auto it = memoryNodes->find(getId());
+        if (it->second.get() == this) {
+            memoryNodes->erase(it);
+        }
+    }
 }
 
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -110,9 +146,6 @@ MemoryInput::MemoryInput(const std::shared_ptr<ngraph::Node>& op, const mkldnn::
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
-    }
-    if (created()) {
-        holder = MemoryNodeVirtualEdge::registerInput(this);
     }
 }
 
@@ -145,7 +178,7 @@ static void simple_copy(const Memory& dst, const Memory& src) {
 }
 
 MemoryInput::~MemoryInput() {
-    MemoryNodeVirtualEdge::remove(this, holder);
+    unregisterThis();
 }
 
 MemoryPtr MemoryInput::getStore() {
@@ -166,42 +199,36 @@ void MemoryInput::execute(mkldnn::stream strm) {
     simple_copy(getChildEdgeAt(0)->getMemory(), *dataStore);
 }
 
-MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInput * node) {
-    std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
-    // in case of output already registered
-    auto& holder = MemoryNodeVirtualEdge::getExisted();
-    auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
-    if (sibling != nullptr) {
-        auto outputNode = dynamic_cast<MemoryOutput*>(sibling);
-        IE_ASSERT(outputNode != nullptr);
-        outputNode->setInputNode(node);
-    } else {
-        holder[node->getId()] = node;
-    }
-    return &holder;
+bool MemoryInput::created() const {
+    return getType() == Type::MemoryInput;
 }
 
-MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutput * node) {
-    std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
-    // in case of output layer
-    auto& holder = MemoryNodeVirtualEdge::getExisted();
-    auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
-    if (sibling != nullptr) {
-        auto inputNode = dynamic_cast<MemoryInput*>(sibling);
-        IE_ASSERT(inputNode != nullptr);
-        node->setInputNode(inputNode);
-    } else {
-        holder[node->getId()] = node;
-    }
-    return &holder;
+bool MemoryInput::isExecutable() const {
+    return true;
 }
 
-void MemoryNodeVirtualEdge::remove(MemoryNode * node, Holder* holder) {
-    std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
-    if (nullptr != holder) {
-        InferenceEngine::details::erase_if(*holder, [&](const Holder::value_type & it){
-            return it.second == node;
-        });
+void MemoryInput::registerThis(const NodesUnorderedMapPtr & memoryNodes) {
+    _memoryNodes = memoryNodes;
+
+    if (auto memoryNodes = _memoryNodes.lock()) {
+        auto inputNode = std::static_pointer_cast<MemoryInput>(shared_from_this());
+        auto it = memoryNodes->find(getId());
+        if (it != memoryNodes->end()) {
+            auto outputNode = std::dynamic_pointer_cast<MemoryOutput>(it->second);
+            IE_ASSERT(outputNode != nullptr);
+            outputNode->setInputNode(inputNode);
+        } else {
+            memoryNodes->emplace(getId(), std::static_pointer_cast<Node>(inputNode));
+        }
+    }
+}
+
+void MemoryInput::unregisterThis() {
+    if (auto memoryNodes = _memoryNodes.lock()) {
+        auto it = memoryNodes->find(getId());
+        if (it->second.get() == this) {
+            memoryNodes->erase(it);
+        }
     }
 }
 

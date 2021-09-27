@@ -198,7 +198,7 @@ protected:
 
     void ForgetGraphData() {
         status = NotReady;
-        eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0);
+        eng = dnnl::engine(dnnl::engine::kind::cpu, 0);
 
         inputNodesMap.clear();
         outputNodesMap.clear();
@@ -228,6 +228,7 @@ protected:
 
     static mkldnn::engine eng;
 
+    NodePtr CreateNode(const std::shared_ptr<ngraph::Node>& op, const ExtensionManager::Ptr& extMgr);
     void Replicate(const InferenceEngine::CNNNetwork &network, const ExtensionManager::Ptr& extMgr);
     void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const ExtensionManager::Ptr& extMgr);
     void InitGraph();
@@ -241,6 +242,7 @@ protected:
     void ExtractConstantAndExecutableNodes();
     void ExecuteNode(const NodePtr& node, const mkldnn::stream& stream) const;
     void ExecuteConstantNodesOnly() const;
+    NodesUnorderedMapPtr MemoryNodes();
 
     friend class LegacyInferRequest;
     friend class intel_cpu::InferRequest;
@@ -251,6 +253,7 @@ private:
     // TODO: change std::map to std::unordered_map
     std::map<std::string, NodePtr> inputNodesMap;
     std::map<std::string, NodePtr> outputNodesMap;
+    NodesUnorderedMapPtr memoryNodes;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in ExecuteConstantNodesOnly, Infer methods and calls of
