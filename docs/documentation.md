@@ -40,14 +40,4 @@
 
    omz_tools_downloader
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Trained Models
-   
-   omz_models_group_intel
-   omz_models_group_public
-   omz_data_datasets
-   omz_demos
-
 @endsphinxdirective

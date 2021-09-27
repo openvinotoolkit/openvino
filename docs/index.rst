@@ -13,3 +13,5 @@ Welcome to OpenVINO Toolkit's documentation!
    documentation
    tutorials
    api/api_reference
+   model_zoo
+   resources
