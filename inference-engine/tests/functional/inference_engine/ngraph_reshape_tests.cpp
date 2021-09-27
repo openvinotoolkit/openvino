@@ -364,14 +364,17 @@ public:
     }
 
     void validate_and_infer_types() override {
-        auto input_shape = get_input_partial_shape(0).to_shape();
-
-        ngraph::Shape output_shape(input_shape);
-        for (int i = 0; i < input_shape.size(); ++i) {
-            output_shape[i] = input_shape[i] * test2 + (test1 ? 0 : 1);
+        auto input_pshape = get_input_partial_shape(0);
+        if (input_pshape.is_static()) {
+            auto input_shape = input_pshape.to_shape();
+            ngraph::Shape output_shape(input_shape);
+            for (int i = 0; i < input_shape.size(); ++i) {
+                output_shape[i] = input_shape[i] * test2 + (test1 ? 0 : 1);
+            }
+            set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
+        } else {
+            set_output_type(0, get_input_element_type(0), ngraph::PartialShape::dynamic());
         }
-
-        set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
     }
 
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {

@@ -15,7 +15,8 @@ namespace v1 {
 ///
 class OPENVINO_API Convolution : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Convolution", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched convolution operation.
     Convolution() = default;
@@ -97,12 +98,18 @@ protected:
     CoordinateDiff m_pads_begin;
     CoordinateDiff m_pads_end;
     PadType m_auto_pad;
+    int64_t m_num_spatial = -1;
+
+private:
+    template <class T>
+    friend void shape_infer(Convolution* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 
 /// \brief Data batch backprop for batched convolution operation.
 class OPENVINO_API ConvolutionBackpropData : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ConvolutionBackpropData", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched-convolution data batch-backprop operation.
     ConvolutionBackpropData() = default;

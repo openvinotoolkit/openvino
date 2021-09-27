@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v7::Einsum, "Einsum", 7);
+BWDCMP_RTTI_DEFINITION(op::v7::Einsum);
 
 op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation) : Op(inputs), m_equation(equation) {
     // normalize input equation by removing extra white-spaces from the equation
