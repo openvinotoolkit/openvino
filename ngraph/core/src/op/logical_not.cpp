@@ -13,7 +13,7 @@
 using namespace ngraph;
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(op::v1::LogicalNot, "LogicalNot", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::LogicalNot);
 
 op::v1::LogicalNot::LogicalNot(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();

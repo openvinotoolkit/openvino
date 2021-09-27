@@ -19,16 +19,16 @@ struct SharedObjectLoader::Impl : public ov::util::SharedObjectLoader {
 
     explicit Impl(const char* pluginName) : SharedObjectLoader(pluginName) {}
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     explicit Impl(const wchar_t* pluginName) : Impl(ov::util::wstring_to_string(pluginName).c_str()) {}
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 };
 
 SharedObjectLoader::SharedObjectLoader(const std::shared_ptr<void>& shared_object) {
     _impl.reset(new Impl(shared_object));
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
     _impl.reset(new Impl(pluginName));
 }

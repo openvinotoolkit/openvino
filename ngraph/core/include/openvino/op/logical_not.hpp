@@ -12,7 +12,8 @@ namespace v1 {
 /// \brief Elementwise logical negation operation.
 class OPENVINO_API LogicalNot : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("LogicalNot", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a logical negation operation.
     LogicalNot() = default;
     /// \brief Constructs a logical negation operation.

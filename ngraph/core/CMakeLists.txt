@@ -10,14 +10,13 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 add_subdirectory(builder)
 add_subdirectory(reference)
+add_subdirectory(shape_inference)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
-
-configure_file(include/ngraph/version.in.hpp include/ngraph/version.hpp)
 
 # Create static or shared library depending on BUILD_SHARED_LIBS
 add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS})
@@ -39,7 +38,9 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph library")
 endif()
 
-target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util)
+addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
+
+target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util ov_shape_inference)
 
 ie_mark_target_as_cc(ngraph)
 
@@ -71,8 +72,7 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
-                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
-                                          ${CMAKE_CURRENT_BINARY_DIR}/include)
+                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::ngraph ALIAS ngraph)
@@ -103,12 +103,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         COMPONENT ngraph_dev
         FILES_MATCHING
             PATTERN "*.hpp"
-            PATTERN "*.h"
-            PATTERN "*version.in.hpp" EXCLUDE)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/ngraph/version.hpp
-        DESTINATION "runtime/include/ngraph"
-        COMPONENT ngraph_dev)
+            PATTERN "*.h")
 
 configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
     ${ngraph_BINARY_DIR}/ngraphConfig.cmake

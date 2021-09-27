@@ -68,7 +68,7 @@ struct FileTraits<wchar_t> {
     }
 };
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
  * @brief Conversion from wide character string to a single-byte chain.
  * @param wstr A wide-char string
@@ -120,7 +120,7 @@ bool directory_exists(const std::string& path);
  * @return     file size
  */
 inline uint64_t file_size(const char* path) {
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = ov::util::string_to_wstring(path);
     const wchar_t* file_name = widefilename.c_str();
 #elif defined(__ANDROID__) || defined(ANDROID)
@@ -136,7 +136,7 @@ inline uint64_t file_size(const char* path) {
     return in.tellg();
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief      Returns file size for file
@@ -147,7 +147,7 @@ inline uint64_t file_size(const std::wstring& path) {
     return file_size(wstring_to_string(path).c_str());
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief      Returns file size for file
@@ -182,7 +182,7 @@ void convert_path_win_style(std::string& path);
 
 std::string get_ov_lib_path();
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 using FilePath = std::wstring;
 
@@ -206,9 +206,9 @@ inline FilePath to_file_path(const std::string& path) {
     return path;
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief   Returns a unicode path to openvino libraries
@@ -226,7 +226,7 @@ inline std::string get_ov_library_path() {
     return get_ov_lib_path();
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 template <typename C,
           typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>

@@ -80,7 +80,7 @@ struct SharedObjectLoader::Impl : public ov::util::SharedObjectLoader {
 
     explicit Impl(const char* pluginName) : SharedObjectLoader(pluginName) {}
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     explicit Impl(const wchar_t* pluginName) : SharedObjectLoader(pluginName) {}
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
 };
@@ -94,7 +94,7 @@ SharedObjectLoader::~SharedObjectLoader() {}
 SharedObjectLoader::SharedObjectLoader(const char* pluginName) {
     _impl = std::make_shared<Impl>(pluginName);
 }
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
     _impl = std::make_shared<Impl>(pluginName);
 }
