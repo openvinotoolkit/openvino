@@ -11,6 +11,5 @@ namespace op {
 namespace v8 {
 using ov::op::v8::NV12toBGR;
 }  // namespace v8
-using v8::NV12toBGR;
 }  // namespace op
 }  // namespace ngraph
