@@ -33,6 +33,7 @@ typedef cl_bitfield         cl_device_feature_capabilities_intel;
 /* For GPU devices, version 1.0.0: */
 
 #define CL_DEVICE_FEATURE_FLAG_DP4A_INTEL         (1 << 0)
+#define CL_DEVICE_FEATURE_FLAG_DPAS_INTEL         (1 << 1)
 
 
 namespace cl {

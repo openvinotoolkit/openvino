@@ -27,6 +27,7 @@ public:
     int verbose;                    // Verbose execution
     int print_multi_kernel_perf;    // Print execution time of each kernel in multi-kernel primitimive
     int disable_usm;                // Disable usm usage
+    int disable_onednn;             // Disable onednn for discrete GPU (no effect for integrated GPU)
     std::string dump_graphs;        // Dump optimized graph
     std::string dump_sources;       // Dump opencl sources
     std::string dump_layers_path;   // Enable dumping intermediate buffers and set the dest path
