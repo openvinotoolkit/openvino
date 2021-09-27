@@ -62,9 +62,9 @@ std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
 
     const auto result = fold<ngraph::opset1::StridedSlice>(
         constant,
-        stridedSlice->get_input_node_shared_ptr(1),
-        stridedSlice->get_input_node_shared_ptr(2),
-        stridedSlice->get_input_node_shared_ptr(3),
+        stridedSlice->input_value(1),
+        stridedSlice->input_value(2),
+        stridedSlice->input_value(3),
         beginMask,
         endMask,
         stridedSlice->get_new_axis_mask(),

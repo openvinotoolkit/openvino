@@ -47,8 +47,8 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
     if (NetworkHelper::checkConstantValuePrecision(precisionBeforeConvert, subtract->get_input_node_shared_ptr(1))) {
         newSubtract = std::make_shared<ngraph::op::TypeRelaxed<opset1::Subtract>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
-            ngraph::op::TemporaryReplaceOutputType(convert->get_input_source_output(0), element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(subtract->get_input_node_shared_ptr(1), element::f32).get());
+            ngraph::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(subtract->input_value(1), element::f32).get());
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(newSubtract, subtract->get_output_element_type(0));
         replace_node(subtract, newSubtract);
     }
@@ -63,11 +63,11 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
     }
 
     const auto convert = ov::as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
-    std::shared_ptr<Node> parent = convert->get_input_node_shared_ptr(0);
+    auto parent = convert->input_value(0);
 
-    if (ov::is_type<opset1::Constant>(parent)) {
+    if (ov::is_type<opset1::Constant>(parent.get_node_shared_ptr())) {
         auto convertedConstant = foldConvert(parent, convert->get_convert_element_type());
-        NetworkHelper::copyInfo(parent, convertedConstant);
+        NetworkHelper::copyInfo(parent.get_node_shared_ptr(), convertedConstant);
         replace_node(convert, convertedConstant);
     } else {
         std::shared_ptr<Node> newOp;
@@ -77,15 +77,15 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
         } else if (ov::is_type<opset1::Multiply>(op)) {
             newOp = std::make_shared<ngraph::op::TypeRelaxed<opset1::Multiply>>(
                     std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
-                    ngraph::op::TemporaryReplaceOutputType(convert->get_input_source_output(0), element::f32).get(),
-                    ngraph::op::TemporaryReplaceOutputType(op->get_input_node_shared_ptr(1), element::f32).get());
+                    ngraph::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
+                    ngraph::op::TemporaryReplaceOutputType(op->input_value(1), element::f32).get());
             NetworkHelper::setOutDataPrecisionForTypeRelaxed(newOp, op->get_output_element_type(0));
             replace_node(op, newOp);
         } else if (ov::is_type<opset1::Add>(op)) {
             newOp = std::make_shared<ngraph::op::TypeRelaxed<opset1::Add>>(
                     std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
-                    ngraph::op::TemporaryReplaceOutputType(convert->get_input_source_output(0), element::f32).get(),
-                    ngraph::op::TemporaryReplaceOutputType(op->get_input_node_shared_ptr(1), element::f32).get());
+                    ngraph::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
+                    ngraph::op::TemporaryReplaceOutputType(op->input_value(1), element::f32).get());
             NetworkHelper::setOutDataPrecisionForTypeRelaxed(newOp, op->get_output_element_type(0));
             replace_node(op, newOp);
         }

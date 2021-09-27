@@ -49,7 +49,7 @@ bool ConvertTransformation::transform(TransformationContext& context, ngraph::pa
     const ngraph::element::Type precisionBefore = convert->get_input_element_type(0);
 
     std::shared_ptr<opset1::Subtract> subtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
-        convert->get_input_node_shared_ptr(0),
+        convert->input_value(0),
         std::make_shared<opset1::Constant>(precisionBefore, Shape{}, std::vector<size_t>({ 0 })));
     NetworkHelper::setOutDataPrecision(subtract, convert->get_output_element_type(0));
 
