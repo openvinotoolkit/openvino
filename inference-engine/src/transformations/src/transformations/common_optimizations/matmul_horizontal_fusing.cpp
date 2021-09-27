@@ -155,8 +155,7 @@ std::shared_ptr<T> fuse_elwise(const std::shared_ptr<ngraph::Node>& last_fused_n
 
         if (constant_shape.empty() && validate_constant(constant)) {
             constant_shape = eltwise->get_input_shape(1);
-        }
-        else if (eltwise->get_input_shape(1) != constant_shape) {
+        } else if (eltwise->get_input_shape(1) != constant_shape) {
             return nullptr;
         }
 
