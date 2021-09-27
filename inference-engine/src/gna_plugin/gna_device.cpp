@@ -173,6 +173,18 @@ bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
     return (isGnaLibVersion3_0 || isGnaLibVersion2_1) && isUpTo20HwGnaDevice(compileTargetDevice);
 }
 
+Gna2DeviceVersion GNADeviceHelper::parseTarget(std::string target) {
+    const std::map<std::string, Gna2DeviceVersion> targetMap {
+        {InferenceEngine::GNAConfigParams::GNA_TARGET_2_0, Gna2DeviceVersion2_0},
+        {InferenceEngine::GNAConfigParams::GNA_TARGET_3_0, Gna2DeviceVersion3_0},
+    };
+    const auto f = targetMap.find(target);
+    if (f != targetMap.end()) {
+        return f->second;
+    }
+    THROW_GNA_EXCEPTION << "Unsupported " << "GNAConfigParams::GNA_TARGET = \"" << target << "\"\n";
+}
+
 Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const bool execTarget) const {
     auto parsed = Gna2DeviceVersion2_0;
     auto throwUnsupportedGnaTarget = [&](std::string extraSuffix) {
@@ -498,6 +510,9 @@ void GNADeviceHelper::open(uint8_t n_threads) {
     if (useDeviceEmbeddedExport) {
         status = Gna2DeviceCreateForExport(exportGeneration, &nGnaDeviceIndex);
         GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport");
+    } else if (!executionTarget.empty() && parseTarget(executionTarget) != detectedGnaDevVersion) {
+        status = Gna2DeviceCreateForExport(parseTarget(executionTarget), &nGnaDeviceIndex);
+        GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport(" + executionTarget + ")");
     } else {
         status = Gna2DeviceOpen(nGnaDeviceIndex);
         checkGna2Status(status, "Gna2DeviceOpen");

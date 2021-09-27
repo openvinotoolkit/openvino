@@ -202,6 +202,7 @@ public:
 
     static void enforceLegacyCnns(Gna2Model& gnaModel);
     static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
+    static Gna2DeviceVersion parseTarget(std::string target);
     Gna2DeviceVersion parseDeclaredTarget(std::string target, const bool execTarget) const;
     Gna2DeviceVersion getDefaultTarget() const;
     Gna2DeviceVersion getTargetDevice(bool execTarget) const;
