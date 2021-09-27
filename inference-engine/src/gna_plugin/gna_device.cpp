@@ -173,7 +173,7 @@ bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
     return (isGnaLibVersion3_0 || isGnaLibVersion2_1) && isUpTo20HwGnaDevice(execTargetDevice);
 }
 
-Gna2DeviceVersion GNADeviceHelper::parseTarget(std::string target) {
+Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
     const std::map<std::string, Gna2DeviceVersion> targetMap {
         {InferenceEngine::GNAConfigParams::GNA_TARGET_2_0, Gna2DeviceVersion2_0},
         {InferenceEngine::GNAConfigParams::GNA_TARGET_3_0, Gna2DeviceVersion3_0},
@@ -495,7 +495,7 @@ void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion, std::str
     GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport(" + std::to_string(devVersion) + ")" + purpose);
 }
 
-void GNADeviceHelper::detectGnaDeviceVersion() {
+void GNADeviceHelper::updateGnaDeviceVersion() {
     const auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
     checkGna2Status(status, "Gna2DeviceGetVersion");
 }
@@ -515,14 +515,16 @@ void GNADeviceHelper::open(uint8_t n_threads) {
     nGNAHandle = GNADeviceOpenSetThreads(&nGNAStatus, n_threads);
     checkStatus();
 #else
-    detectGnaDeviceVersion();
+    updateGnaDeviceVersion();
     const auto gnaExecTarget = parseTarget(executionTarget);
     if (useDeviceEmbeddedExport) {
         createVirtualDevice(exportGeneration, "export");
     } else if (!executionTarget.empty() && gnaExecTarget != detectedGnaDevVersion) {
         createVirtualDevice(gnaExecTarget, "execution");
-        detectGnaDeviceVersion();
-        IE_ASSERT(detectedGnaDevVersion == gnaExecTarget);
+        updateGnaDeviceVersion();
+        if (detectedGnaDevVersion != gnaExecTarget) {
+            THROW_GNA_EXCEPTION << "Wrong virtual GNA device version reported: " << detectedGnaDevVersion << " instead of: " << gnaExecTarget;
+        }
     } else {
         const auto status = Gna2DeviceOpen(nGnaDeviceIndex);
         checkGna2Status(status, "Gna2DeviceOpen");
