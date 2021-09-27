@@ -13,7 +13,7 @@
 #include <string>
 #include <utility>
 
-/** @ingroup ie_cpp_api
+/** @ingroup ie_dev_profiling
  * @brief openvino namespace
  */
 namespace openvino

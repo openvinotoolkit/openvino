@@ -52,6 +52,7 @@ autosummary_generate = True
 autosummary_imported_members = True
 
 html_logo = '_static/logo.svg'
+html_copy_source = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

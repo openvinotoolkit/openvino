@@ -3,11 +3,6 @@
 //
 
 /**
- *  @defgroup api_ref API Reference
- *  Inference Engine API
- */
-
-/**
  *  @defgroup ie_cpp_api Inference Engine C++ API
  *  Inference Engine C++ API
  */

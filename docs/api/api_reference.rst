@@ -13,3 +13,4 @@ API Reference
    ../group_ie_dev_api
    ngraph_python_api/api
    ../group_ngraph_cpp_api
+   ../deprecated
