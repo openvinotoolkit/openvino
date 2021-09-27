@@ -78,6 +78,13 @@ set(SRC
     op_eval/variadic_split.cpp
     opset1.cpp
     partial_shape.cpp
+    pass/ir_serialization/cleanup.cpp
+    pass/ir_serialization/const_compression.cpp
+    pass/ir_serialization/custom_ops.cpp
+    pass/ir_serialization/deterministicity.cpp
+    pass/ir_serialization/serialize.cpp
+    pass/ir_serialization/tensor_names.cpp
+    pass/ir_serialization/transformation.cpp
     pass_config.cpp
     pass_manager.cpp
     pattern.cpp
@@ -594,12 +601,14 @@ target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
 
+add_dependencies(unit-test template_extension)
 if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph::builder
+                                        openvino::util
                                         ${CMAKE_DL_LIBS}
                                         ie_backend
                                         interpreter_backend
@@ -619,6 +628,8 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(unit-test
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+    target_compile_definitions(unit-test PRIVATE
+        NGRAPH_ONNX_FRONTEND_ENABLE)
 endif()
 
 if (OV_COMPILER_IS_CLANG)

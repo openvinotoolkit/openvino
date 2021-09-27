@@ -3,17 +3,17 @@
 //
 
 #include <gtest/gtest.h>
-
-#include <file_utils.h>
 #include <ie_api.h>
 #include <ie_iextension.h>
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ie_core.hpp"
-#include "ngraph/ngraph.hpp"
-#include "transformations/serialize.hpp"
-#include <ngraph/opsets/opset6.hpp>
 
-class TensorNameSerializationTest : public CommonTestUtils::TestsCommon {
+#include <ngraph/opsets/opset6.hpp>
+#include <openvino/pass/serialize.hpp>
+
+#include "ngraph/ngraph.hpp"
+#include "util/ngraph_test_utils.hpp"
+#include "util/test_common.hpp"
+
+class TensorNameSerializationTest : virtual public ov::test::TestsCommon {
 protected:
     std::string test_name = GetTestName() + "_" + GetTimestamp();
     std::string m_out_xml_path = test_name + ".xml";
@@ -26,11 +26,10 @@ protected:
 };
 
 TEST_F(TensorNameSerializationTest, SerializeFunctionWithTensorNames) {
-    InferenceEngine::Core ie;
-
     std::shared_ptr<ngraph::Function> function;
     {
-        auto parameter = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+        auto parameter =
+            std::make_shared<ngraph::opset6::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
         parameter->set_friendly_name("parameter");
         parameter->get_output_tensor(0).set_names({"input"});
         auto relu_prev = std::make_shared<ngraph::opset6::Relu>(parameter);
@@ -45,13 +44,15 @@ TEST_F(TensorNameSerializationTest, SerializeFunctionWithTensorNames) {
         function = std::make_shared<ngraph::Function>(results, params, "TensorNames");
     }
 
-    InferenceEngine::CNNNetwork expected(function);
-    expected.serialize(m_out_xml_path, m_out_bin_path);
-    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+    // serialize
+    ov::pass::Serialize serializer(m_out_xml_path, m_out_bin_path);
+    serializer.run_on_function(function);
+
+    auto result = read(m_out_xml_path, m_out_bin_path);
 
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::ATTRIBUTES)
-            .enable(FunctionsComparator::CONST_VALUES);
-    const auto res = fc.compare(result.getFunction(), expected.getFunction());
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(result, function);
     EXPECT_TRUE(res.valid) << res.message;
 }

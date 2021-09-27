@@ -6,22 +6,13 @@
 
 #include <limits>
 #include <memory>
-#include <queue>
-
 #include <ngraph/dimension.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/pass.hpp>
 #include <ngraph/opsets/opset6.hpp>
-
-#include "ie_common.h"
+#include <ngraph/pass/pass.hpp>
 #include <openvino/op/util/framework_node.hpp>
-
-#include "test_common.hpp"
-
-#define DYN ngraph::Dimension::dynamic()
-
-using TransformationTests = CommonTestUtils::TestsCommon;
+#include <queue>
 
 class FunctionsComparator {
 public:
@@ -59,13 +50,9 @@ public:
     constexpr bool should_compare(CmpValues f) const noexcept {
         return m_comparition_flags & f;
     }
-    Result compare(
-        const std::shared_ptr<ngraph::Function>& f1,
-        const std::shared_ptr<ngraph::Function>& f2) const;
+    Result compare(const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2) const;
 
-    Result operator()(
-        const std::shared_ptr<ngraph::Function>& f1,
-        const std::shared_ptr<ngraph::Function>& f2) const {
+    Result operator()(const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2) const {
         return compare(f1, f2);
     }
 
@@ -78,22 +65,26 @@ private:
 /// \deprecated
 /// \brief compare_functions is obsolete function use FunctionsComparator instead.
 ///
-inline std::pair<bool, std::string> compare_functions(
-    const std::shared_ptr<ngraph::Function>& f1,
-    const std::shared_ptr<ngraph::Function>& f2,
-    const bool compareConstValues = false,
-    const bool compareNames = false,
-    const bool compareRuntimeKeys = false,
-    const bool comparePrecisions = true,
-    const bool compareAttributes = false) {
+inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Function>& f1,
+                                                      const std::shared_ptr<ngraph::Function>& f2,
+                                                      const bool compareConstValues = false,
+                                                      const bool compareNames = false,
+                                                      const bool compareRuntimeKeys = false,
+                                                      const bool comparePrecisions = true,
+                                                      const bool compareAttributes = false) {
     auto fc = FunctionsComparator::no_default();
 
     using Cmp = FunctionsComparator::CmpValues;
-    if (compareConstValues) fc.enable(Cmp::CONST_VALUES);
-    if (compareNames) fc.enable(Cmp::NAMES);
-    if (compareRuntimeKeys) fc.enable(Cmp::RUNTIME_KEYS);
-    if (comparePrecisions) fc.enable(Cmp::PRECISIONS);
-    if (compareAttributes) fc.enable(Cmp::ATTRIBUTES);
+    if (compareConstValues)
+        fc.enable(Cmp::CONST_VALUES);
+    if (compareNames)
+        fc.enable(Cmp::NAMES);
+    if (compareRuntimeKeys)
+        fc.enable(Cmp::RUNTIME_KEYS);
+    if (comparePrecisions)
+        fc.enable(Cmp::PRECISIONS);
+    if (compareAttributes)
+        fc.enable(Cmp::ATTRIBUTES);
 
     const auto r = fc(f1, f2);
     return {r.valid, r.message};
@@ -101,14 +92,13 @@ inline std::pair<bool, std::string> compare_functions(
 
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f);
 
-void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string & name);
+void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string& name);
 
-void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string> & names);
+void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string>& names);
 
 namespace ngraph {
 namespace pass {
 class InjectionPass;
-
 }  // namespace pass
 }  // namespace ngraph
 
@@ -116,8 +106,7 @@ class ngraph::pass::InjectionPass : public ngraph::pass::FunctionPass {
 public:
     using injection_callback = std::function<void(std::shared_ptr<ngraph::Function>)>;
 
-    explicit InjectionPass(injection_callback callback)
-        : FunctionPass(), m_callback(std::move(callback)) {}
+    explicit InjectionPass(injection_callback callback) : FunctionPass(), m_callback(std::move(callback)) {}
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
         m_callback(f);
@@ -155,8 +144,7 @@ public:
         set_output_type(1, get_input_element_type(1), get_input_partial_shape(1));
     }
 
-    std::shared_ptr<Node> clone_with_new_inputs(
-        const ngraph::OutputVector& new_args) const override {
+    std::shared_ptr<Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         return std::make_shared<TestOpMultiOut>(new_args.at(0), new_args.at(1));
     }
 };
@@ -168,8 +156,7 @@ public:
 
     explicit Comparator(CmpValues f) : m_comparition_flags(f) {}
 
-    Result compare(
-            const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2);
+    Result compare(const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2);
 
     Result compare(ngraph::Node* node1, ngraph::Node* node2) {
         std::stringstream errors;
@@ -210,16 +197,16 @@ private:
 };
 
 inline namespace tools {
-template<typename T>
-std::string to_str(const T &v) {
+template <typename T>
+std::string to_str(const T& v) {
     using std::to_string;
     return to_string(v);
 }
-template<typename Node>
-std::string name(const Node &n) {
+template <typename Node>
+std::string name(const Node& n) {
     return n->get_friendly_name();
 }
-}
+}  // namespace tools
 namespace attributes {
 
 namespace detail {
@@ -249,11 +236,9 @@ private:
     int m_break_line_no{0};
 };
 
-using SubGraphOpInputDescription =
-std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>;
+using SubGraphOpInputDescription = std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>;
 
-using SubGraphOpOutputDescription =
-std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>;
+using SubGraphOpOutputDescription = std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>;
 
 using SpecialBodyPorts = ngraph::opset6::Loop::SpecialBodyPorts;
 
@@ -339,20 +324,13 @@ public:
     }
 
     size_t stored_attributes_number() const {
-        return storage<MemoryChunk>().get_attributes_number() +
-               storage<bool>().get_attributes_number() +
-               storage<std::string>().get_attributes_number() +
-               storage<int8_t>().get_attributes_number() +
-               storage<int16_t>().get_attributes_number() +
-               storage<int32_t>().get_attributes_number() +
-               storage<int64_t>().get_attributes_number() +
-               storage<uint8_t>().get_attributes_number() +
-               storage<uint16_t>().get_attributes_number() +
-               storage<uint32_t>().get_attributes_number() +
-               storage<uint64_t>().get_attributes_number() +
-               storage<float>().get_attributes_number() +
-               storage<double>().get_attributes_number() +
-               storage<std::vector<int8_t>>().get_attributes_number() +
+        return storage<MemoryChunk>().get_attributes_number() + storage<bool>().get_attributes_number() +
+               storage<std::string>().get_attributes_number() + storage<int8_t>().get_attributes_number() +
+               storage<int16_t>().get_attributes_number() + storage<int32_t>().get_attributes_number() +
+               storage<int64_t>().get_attributes_number() + storage<uint8_t>().get_attributes_number() +
+               storage<uint16_t>().get_attributes_number() + storage<uint32_t>().get_attributes_number() +
+               storage<uint64_t>().get_attributes_number() + storage<float>().get_attributes_number() +
+               storage<double>().get_attributes_number() + storage<std::vector<int8_t>>().get_attributes_number() +
                storage<std::vector<int16_t>>().get_attributes_number() +
                storage<std::vector<int32_t>>().get_attributes_number() +
                storage<std::vector<int64_t>>().get_attributes_number() +
@@ -466,8 +444,7 @@ struct Equal<float> {
         if (std::isfinite(lhs) && std::isfinite(rhs)) {
             return std::abs(lhs - rhs) < 1e-4;
         }
-        return (std::isinf(lhs) && std::isinf(rhs)) ||
-               (std::isnan(lhs) && std::isnan(rhs));
+        return (std::isinf(lhs) && std::isinf(rhs)) || (std::isnan(lhs) && std::isnan(rhs));
     }
 };
 
@@ -477,24 +454,21 @@ struct Equal<double> {
         if (std::isfinite(lhs) && std::isfinite(rhs)) {
             return std::abs(lhs - rhs) < 1e-5;
         }
-        return (std::isinf(lhs) && std::isinf(rhs)) ||
-               (std::isnan(lhs) && std::isnan(rhs));
+        return (std::isinf(lhs) && std::isinf(rhs)) || (std::isnan(lhs) && std::isnan(rhs));
     }
 };
 
 template <typename T>
 struct Equal<std::vector<T>> {
     static bool equal_value(const std::vector<T>& lhs, const std::vector<T>& rhs) {
-        return lhs.size() == rhs.size() &&
-               std::equal(begin(lhs), end(lhs), begin(rhs), Equal<T>::equal_value);
+        return lhs.size() == rhs.size() && std::equal(begin(lhs), end(lhs), begin(rhs), Equal<T>::equal_value);
     }
 };
 
 template <>
 struct Equal<SubGraphOpInputDescription::value_type> {
-    static bool equal_value(
-            SubGraphOpInputDescription::const_reference lhs,
-            SubGraphOpInputDescription::const_reference rhs) {
+    static bool equal_value(SubGraphOpInputDescription::const_reference lhs,
+                            SubGraphOpInputDescription::const_reference rhs) {
         const auto& lhs_type_info = lhs->get_type_info();
         const auto& rhs_type_info = rhs->get_type_info();
         if (lhs_type_info != rhs_type_info) {
@@ -518,22 +492,21 @@ struct Equal<SubGraphOpInputDescription::value_type> {
 
 template <>
 struct Equal<SubGraphOpInputDescription> {
-    static bool equal_value(
-            const SubGraphOpInputDescription& lhs, const SubGraphOpInputDescription& rhs) {
+    static bool equal_value(const SubGraphOpInputDescription& lhs, const SubGraphOpInputDescription& rhs) {
         if (lhs.size() != rhs.size()) {
             return false;
         }
-        return std::is_permutation(
-                begin(lhs), end(lhs), begin(rhs),
-                Equal<SubGraphOpInputDescription::value_type>::equal_value);
+        return std::is_permutation(begin(lhs),
+                                   end(lhs),
+                                   begin(rhs),
+                                   Equal<SubGraphOpInputDescription::value_type>::equal_value);
     }
 };
 
 template <>
 struct Equal<SubGraphOpOutputDescription::value_type> {
-    static bool equal_value(
-            SubGraphOpOutputDescription::const_reference lhs,
-            SubGraphOpOutputDescription::const_reference rhs) {
+    static bool equal_value(SubGraphOpOutputDescription::const_reference lhs,
+                            SubGraphOpOutputDescription::const_reference rhs) {
         const auto& lhs_type_info = lhs->get_type_info();
         const auto& rhs_type_info = rhs->get_type_info();
         if (lhs_type_info != rhs_type_info) {
@@ -544,8 +517,8 @@ struct Equal<SubGraphOpOutputDescription::value_type> {
             const auto& l_output = static_cast<const SubGraphOp::ConcatOutputDescription&>(*lhs);
             const auto& r_output = static_cast<const SubGraphOp::ConcatOutputDescription&>(*rhs);
             return l_output.m_start == r_output.m_start && l_output.m_stride == r_output.m_stride &&
-                   l_output.m_part_size == r_output.m_part_size &&
-                   l_output.m_end == r_output.m_end && l_output.m_axis == r_output.m_axis;
+                   l_output.m_part_size == r_output.m_part_size && l_output.m_end == r_output.m_end &&
+                   l_output.m_axis == r_output.m_axis;
         } else if (lhs_type_info == SubGraphOp::BodyOutputDescription::get_type_info_static()) {
             const auto& l_output = static_cast<const SubGraphOp::BodyOutputDescription&>(*lhs);
             const auto& r_output = static_cast<const SubGraphOp::BodyOutputDescription&>(*rhs);
@@ -557,21 +530,21 @@ struct Equal<SubGraphOpOutputDescription::value_type> {
 
 template <>
 struct Equal<SubGraphOpOutputDescription> {
-    static bool equal_value(
-            const SubGraphOpOutputDescription& lhs, const SubGraphOpOutputDescription& rhs) {
+    static bool equal_value(const SubGraphOpOutputDescription& lhs, const SubGraphOpOutputDescription& rhs) {
         if (lhs.size() != rhs.size()) {
             return false;
         }
-        return std::is_permutation(
-                begin(lhs), end(lhs), begin(rhs),
-                Equal<SubGraphOpOutputDescription::value_type>::equal_value);
+        return std::is_permutation(begin(lhs),
+                                   end(lhs),
+                                   begin(rhs),
+                                   Equal<SubGraphOpOutputDescription::value_type>::equal_value);
     }
 };
 
 template <>
 struct Equal<std::shared_ptr<ngraph::Variable>> {
-    static bool equal_value(
-            const std::shared_ptr<ngraph::Variable>& lhs, const std::shared_ptr<ngraph::Variable>& rhs) {
+    static bool equal_value(const std::shared_ptr<ngraph::Variable>& lhs,
+                            const std::shared_ptr<ngraph::Variable>& rhs) {
         return lhs->get_info() == rhs->get_info();
     }
 };
@@ -584,20 +557,19 @@ struct Equal<uint8_t*> {
         return (val >> bit) & 0x01;
     }
 
-    static bool equal_value(const uint8_t* lhs, const uint8_t* rhs,
-                            size_t lhs_bit_size, size_t rhs_bit_size) {
-        if (lhs_bit_size != rhs_bit_size) return false;
+    static bool equal_value(const uint8_t* lhs, const uint8_t* rhs, size_t lhs_bit_size, size_t rhs_bit_size) {
+        if (lhs_bit_size != rhs_bit_size)
+            return false;
 
         for (size_t bit_idx = 0; bit_idx < lhs_bit_size; bit_idx++) {
             const auto byte_idx_result(bit_idx / BITS_IN_BYTE_COUNT);
             if (byte_idx_result > std::numeric_limits<uint8_t>::max())
-                IE_THROW() << "(bit_idx / BITS_IN_BYTE_COUNT) bigger than uint8_t::max_value";
+                ov::Exception("(bit_idx / BITS_IN_BYTE_COUNT) bigger than uint8_t::max_value");
 
             const uint8_t byte_idx(static_cast<uint8_t>(byte_idx_result));
             const uint8_t bit_in_byte_idx = 7 - (bit_idx % BITS_IN_BYTE_COUNT);
 
-            if (extract_bit(lhs[byte_idx], bit_in_byte_idx) !=
-                extract_bit(rhs[byte_idx], bit_in_byte_idx)) {
+            if (extract_bit(lhs[byte_idx], bit_in_byte_idx) != extract_bit(rhs[byte_idx], bit_in_byte_idx)) {
                 return false;
             }
         }
@@ -609,8 +581,7 @@ struct Equal<uint8_t*> {
 using Constant = ngraph::opset1::Constant;
 template <>
 struct Equal<std::shared_ptr<Constant>> {
-    static bool equal_value(
-            const std::shared_ptr<Constant>& lhs, const std::shared_ptr<Constant>& rhs) {
+    static bool equal_value(const std::shared_ptr<Constant>& lhs, const std::shared_ptr<Constant>& rhs) {
         const auto lhs_t = lhs->get_element_type();
         const auto rhs_t = rhs->get_element_type();
         if (lhs_t != rhs_t) {
@@ -618,38 +589,37 @@ struct Equal<std::shared_ptr<Constant>> {
         }
 
         switch (lhs_t) {
-            case ngraph::element::Type_t::u1: {
-                const auto lhs_v = static_cast<const uint8_t*>(lhs->get_data_ptr());
-                const auto rhs_v = static_cast<const uint8_t*>(rhs->get_data_ptr());
-                const auto lhs_bit_size = shape_size(lhs->get_shape());
-                const auto rhs_bit_size = shape_size(rhs->get_shape());
-                return Equal<uint8_t*>::equal_value(lhs_v, rhs_v, lhs_bit_size,
-                                                    rhs_bit_size);
-            }
-            case ngraph::element::Type_t::bf16: {
-                auto lhs_v = lhs->cast_vector<ngraph::bfloat16>();
-                auto rhs_v = rhs->cast_vector<ngraph::bfloat16>();
-                return Equal<std::vector<ngraph::bfloat16>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
-            case ngraph::element::Type_t::f16: {
-                const auto& lhs_v = lhs->cast_vector<ngraph::float16>();
-                const auto& rhs_v = rhs->cast_vector<ngraph::float16>();
-                return Equal<std::vector<ngraph::float16>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
-            case ngraph::element::Type_t::f32: {
-                const auto& lhs_v = lhs->cast_vector<float>();
-                const auto& rhs_v = rhs->cast_vector<float>();
-                return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
-            default: {
-                const auto& lhs_v = lhs->cast_vector<double>();
-                const auto& rhs_v = rhs->cast_vector<double>();
-                return Equal<std::vector<double>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
+        case ngraph::element::Type_t::u1: {
+            const auto lhs_v = static_cast<const uint8_t*>(lhs->get_data_ptr());
+            const auto rhs_v = static_cast<const uint8_t*>(rhs->get_data_ptr());
+            const auto lhs_bit_size = shape_size(lhs->get_shape());
+            const auto rhs_bit_size = shape_size(rhs->get_shape());
+            return Equal<uint8_t*>::equal_value(lhs_v, rhs_v, lhs_bit_size, rhs_bit_size);
+        }
+        case ngraph::element::Type_t::bf16: {
+            auto lhs_v = lhs->cast_vector<ngraph::bfloat16>();
+            auto rhs_v = rhs->cast_vector<ngraph::bfloat16>();
+            return Equal<std::vector<ngraph::bfloat16>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        case ngraph::element::Type_t::f16: {
+            const auto& lhs_v = lhs->cast_vector<ngraph::float16>();
+            const auto& rhs_v = rhs->cast_vector<ngraph::float16>();
+            return Equal<std::vector<ngraph::float16>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        case ngraph::element::Type_t::f32: {
+            const auto& lhs_v = lhs->cast_vector<float>();
+            const auto& rhs_v = rhs->cast_vector<float>();
+            return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        default: {
+            const auto& lhs_v = lhs->cast_vector<double>();
+            const auto& rhs_v = rhs->cast_vector<double>();
+            return Equal<std::vector<double>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
         }
         return false;
     }
@@ -684,9 +654,7 @@ struct Get<std::string, void> {
 };
 
 template <typename T>
-struct Get<
-        T,
-        typename Void_t<decltype(begin(std::declval<T>())), decltype(end(std::declval<T>()))>::type> {
+struct Get<T, typename Void_t<decltype(begin(std::declval<T>())), decltype(end(std::declval<T>()))>::type> {
     template <typename Container>
     static std::string join(const Container& c, const char* glue = ", ") {
         std::stringstream oss;
@@ -707,11 +675,11 @@ template <>
 struct Get<ov::op::util::FrameworkNodeAttrs, void> {
     static std::string value(const ov::op::util::FrameworkNodeAttrs& attrs) {
         std::stringstream oss;
-        const auto & a = attrs;
+        const auto& a = attrs;
         oss << "version=" << attrs.get_opset_name() << ", ";
         oss << "type=" << attrs.get_type_name() << ", ";
         oss << "attrs[";
-        for (const auto & item : a) {
+        for (const auto& item : a) {
             oss << item.first << "=" << item.second << " ";
         }
         oss << "]";
@@ -738,7 +706,9 @@ struct Get<std::shared_ptr<ngraph::Variable>, void> {
 class ReadAndCompareAttributes : public ngraph::AttributeVisitor {
 public:
     ReadAndCompareAttributes(const ReadAndStoreAttributes& ref, Comparator::CmpValues check_flags)
-            : m_attr_ref(ref), m_cmp_result{ref.read_result()}, m_check_flags(check_flags) {}
+        : m_attr_ref(ref),
+          m_cmp_result{ref.read_result()},
+          m_check_flags(check_flags) {}
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
         verify_others(name, adapter);
@@ -775,9 +745,8 @@ public:
 
 #undef ON_ADAPTER
 
-    void on_adapter(
-            const std::string& name,
-            ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override {
+    void on_adapter(const std::string& name,
+                    ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override {
         verify_function(name, adapter);
     }
 
@@ -801,8 +770,7 @@ private:
     template <typename AttrValue>
     void verify(const std::string& name, const AttrValue& attr_value);
 
-    void verify_mem_buf(
-            const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
+    void verify_mem_buf(const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
 
     using FunctionAccessor = ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>;
 
@@ -821,8 +789,7 @@ public:
     using ReadAndStoreAttributes = detail::ReadAndStoreAttributes;
     using ReadAndCompareAttributes = detail::ReadAndCompareAttributes;
 
-    CompareNodesAttributes(Comparator::CmpValues m_compare_flags)
-            : m_compare_attr(m_store_attr, m_compare_flags) {}
+    CompareNodesAttributes(Comparator::CmpValues m_compare_flags) : m_compare_attr(m_store_attr, m_compare_flags) {}
 
     ReadAndStoreAttributes& get_ref_reader() {
         return m_store_attr;
@@ -842,12 +809,10 @@ public:
             return result.message();
         }
         if (!c.m_compare_attr.all_attr_was_compared()) {
-            return "not all of attr was compared: " +
-                   to_str(c.m_compare_attr.compared_attr_number()) + " vs " +
+            return "not all of attr was compared: " + to_str(c.m_compare_attr.compared_attr_number()) + " vs " +
                    to_str(c.m_store_attr.attributes_number());
         }
-        return "looks good [compared " + to_str(c.m_compare_attr.compared_attr_number()) +
-               " attributes]";
+        return "looks good [compared " + to_str(c.m_compare_attr.compared_attr_number()) + " attributes]";
     }
 
 private:
