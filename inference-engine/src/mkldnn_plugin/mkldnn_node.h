@@ -36,9 +36,6 @@ using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
 using MKLDNNNodeConstPtr = std::shared_ptr<const MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
-Type TypeFromName(const std::string & type);
-std::string NameFromType(Type type);
-
 class PortConfigurator {
 public:
     PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
@@ -629,7 +626,7 @@ protected:
 
     MKLDNNWeightsSharing::Ptr weightCache;
 
-    Algorithm algorithm = Algorithm::Undefined;
+    Algorithm algorithm = Algorithm::Default;
 
     bool isInQuantizedGraph = false;
 
@@ -744,6 +741,10 @@ private:
     void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
+
+#ifdef CPU_DEBUG_CAPS
+    friend class Verbose;
+#endif
 };
 
 class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,
