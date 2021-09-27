@@ -7,21 +7,21 @@
 #include <cpp/ie_infer_request.hpp>
 #include <openvino/core/except.hpp>
 #include <openvino/runtime/infer_request.hpp>
+#include <openvino/runtime/remote_tensor.hpp>
 
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-
-TEST(InferRequestOVTests, throwsOnUninitializedSetBlob) {
+TEST(InferRequestOVTests, throwsOnUninitializedSetTensor) {
     ov::runtime::InferRequest req;
-    ASSERT_THROW(req.set_blob({}, {}), ov::Exception);
+    ASSERT_THROW(req.set_tensor({}, {}), ov::Exception);
 }
 
-TEST(InferRequestOVTests, throwsOnUninitializedGetBlob) {
+TEST(InferRequestOVTests, throwsOnUninitializedGetTensor) {
     ov::runtime::InferRequest req;
-    ASSERT_THROW(req.get_blob({}), ov::Exception);
+    ASSERT_THROW(req.get_tensor({}), ov::Exception);
 }
 
 TEST(InferRequestOVTests, throwsOnUninitializedInfer) {
@@ -32,21 +32,6 @@ TEST(InferRequestOVTests, throwsOnUninitializedInfer) {
 TEST(InferRequestOVTests, throwsOnUninitializedGetPerformanceCounts) {
     ov::runtime::InferRequest req;
     ASSERT_THROW(req.get_profiling_info(), ov::Exception);
-}
-
-TEST(InferRequestOVTests, throwsOnUninitializedSetInput) {
-    ov::runtime::InferRequest req;
-    ASSERT_THROW(req.set_input({{}}), ov::Exception);
-}
-
-TEST(InferRequestOVTests, throwsOnUninitializedSetOutput) {
-    ov::runtime::InferRequest req;
-    ASSERT_THROW(req.set_output({{}}), ov::Exception);
-}
-
-TEST(InferRequestOVTests, throwsOnUninitializedSetBatch) {
-    ov::runtime::InferRequest req;
-    ASSERT_THROW(req.set_batch({}), ov::Exception);
 }
 
 TEST(InferRequestOVTests, throwsOnUninitializedStartAsync) {
@@ -73,4 +58,11 @@ TEST(InferRequestOVTests, throwsOnUninitializedSetCompletionCallback) {
 TEST(InferRequestOVTests, throwsOnUninitializedQueryState) {
     ov::runtime::InferRequest req;
     ASSERT_THROW(req.query_state(), ov::Exception);
+}
+
+
+TEST(InferRequestOVTests, throwsOnUninitializedSetRemoteTensor) {
+    ov::runtime::InferRequest req;
+    ov::runtime::RemoteTensor remote_tensor;
+    ASSERT_THROW(req.set_tensor({}, remote_tensor), ov::Exception);
 }

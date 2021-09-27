@@ -8,13 +8,13 @@
 #include <memory>
 #include <string>
 
-#include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
-#include "details/ie_so_loader.h"
 #include "ie_infer_async_request_base.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/infer_request.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
 
@@ -213,20 +213,23 @@ InferRequest::InferRequest(const std::shared_ptr<void>& so, const ie::IInferRequ
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
 }
 
-void InferRequest::set_blob(const std::string& name, const ie::Blob::Ptr& data) {
-    OV_INFER_REQ_CALL_STATEMENT(_impl->SetBlob(name, data);)
-}
+void InferRequest::set_tensor(const std::string& name, const Tensor& tensor){
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(name, tensor._impl); })}
 
-ie::Blob::Ptr InferRequest::get_blob(const std::string& name) {
-    ie::Blob::Ptr blobPtr;
-    OV_INFER_REQ_CALL_STATEMENT(blobPtr = _impl->GetBlob(name);)
-    std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
-    const bool remoteBlobPassed = blobPtr->is<ie::RemoteBlob>();
-    if (blobPtr == nullptr)
-        IE_THROW() << error;
-    if (!remoteBlobPassed && blobPtr->buffer() == nullptr)
-        IE_THROW() << error;
-    return blobPtr;
+Tensor InferRequest::get_tensor(const std::string& name) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        auto blob = _impl->GetBlob(name);
+        const bool remoteBlobPassed = blob->is<ie::RemoteBlob>();
+        if (blob == nullptr) {
+            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
+        }
+        if (!remoteBlobPassed && blob->buffer() == nullptr) {
+            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
+        }
+        auto tensorDesc = blob->getTensorDesc();
+        auto dims = tensorDesc.getDims();
+        return {_so, blob};
+    })
 }
 
 void InferRequest::infer() {
@@ -273,18 +276,6 @@ std::vector<ProfilingInfo> InferRequest::get_profiling_info() const {
         }
         return infos;
     })
-}
-
-void InferRequest::set_input(const ie::BlobMap& inputs) {
-    OV_INFER_REQ_CALL_STATEMENT(for (auto&& input : inputs) { _impl->SetBlob(input.first, input.second); })
-}
-
-void InferRequest::set_output(const ie::BlobMap& results) {
-    OV_INFER_REQ_CALL_STATEMENT(for (auto&& result : results) { _impl->SetBlob(result.first, result.second); })
-}
-
-void InferRequest::set_batch(const int batch) {
-    OV_INFER_REQ_CALL_STATEMENT(_impl->SetBatch(batch);)
 }
 
 void InferRequest::start_async() {

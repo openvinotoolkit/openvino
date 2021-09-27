@@ -16,6 +16,7 @@
 #include "ngraph/function.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_metric_helpers.hpp"
+#include "openvino/op/logical_not.hpp"
 
 #include "ie_remote_context.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
@@ -226,11 +227,11 @@ public:
         EXPECT_CALL(*mock, GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))).Times(AnyNumber()).WillRepeatedly(Return(Parameter{1u}));
         EXPECT_CALL(*mock, GetExecGraphInfo()).Times(AnyNumber()).WillRepeatedly(Return([] {
                     ngraph::ParameterVector parameters;
-                    parameters.push_back(std::make_shared<ngraph::op::v0::Parameter>(
+                    parameters.push_back(std::make_shared<ov::op::v0::Parameter>(
                         ov::element::f32, ov::Shape{1, 3, 8, 8}));
-                    auto notOp = std::make_shared<ngraph::op::v1::LogicalNot>(parameters.back());
+                    auto notOp = std::make_shared<ov::op::v1::LogicalNot>(parameters.back());
                     ngraph::ResultVector results;
-                    results.push_back(std::make_shared<ngraph::op::v0::Result>(notOp));
+                    results.push_back(std::make_shared<ov::op::v0::Result>(notOp));
                     return std::make_shared<ov::Function>(results, parameters, "empty_function");
                 } ()));
         auto ptr = std::make_shared<MockIInferRequestInternal>();

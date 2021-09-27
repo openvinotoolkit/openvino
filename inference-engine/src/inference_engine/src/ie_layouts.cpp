@@ -500,7 +500,9 @@ TensorDesc InferenceEngine::make_roi_desc(const TensorDesc& origDesc,
                                           const std::vector<size_t>& begin,
                                           const std::vector<size_t>& end,
                                           bool useOrigMemDesc) {
-    IE_ASSERT(begin.size() == end.size());
+    if (begin.size() != end.size()) {
+        IE_THROW() << "`begin` vector size must match `end` vector size";
+    }
     TensorSlice slice;
     for (size_t i = 0; i < begin.size(); ++i) {
         IE_ASSERT(end[i] >= begin[i]);
