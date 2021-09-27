@@ -8,8 +8,8 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 
-using namespace ov;
-using namespace ov::preprocess;
+namespace ov {
+namespace preprocess {
 
 static Shape construct_mean_scale_shape(const std::shared_ptr<Node>& node,
                                         size_t values_size,
@@ -98,7 +98,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_resize_impl(ResizeAlgorithm alg, 
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't add resize for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't resize multi-plane input. Suggesting to convert current image to "
-                            "RGB/BGR color format using 'convert_color'");
+                            "RGB/BGR color format using 'PreProcessSteps::convert_color'");
             auto to_mode = [](ResizeAlgorithm alg) -> InterpolateMode {
                 switch (alg) {
                 case ResizeAlgorithm::RESIZE_LINEAR:
@@ -112,24 +112,15 @@ void PreProcessSteps::PreProcessStepsImpl::add_resize_impl(ResizeAlgorithm alg, 
             };
             auto node = nodes.front();
             auto layout = ctxt.layout();
+            // TODO: shall we also check layout of node manually set from user?
             OPENVINO_ASSERT(ov::layout::has_height(layout) && ov::layout::has_width(layout),
                             "Can't add resize for layout without W/H specified. Use 'set_layout' API to define layout "
                             "of image data, like `NCHW`");
             auto node_rank = node->get_output_partial_shape(0).rank();
             OPENVINO_ASSERT(node_rank.is_static(), "Resize operation is not supported for fully dynamic shape");
 
-            auto height_idx = ov::layout::height(layout);
-            if (height_idx < 0) {  // E.g. height_idx = -1 means last dimension
-                height_idx = node_rank.get_length() + height_idx;
-            }
-            OPENVINO_ASSERT(height_idx >= 0 && height_idx < node_rank.get_length(),
-                            "Height dimension is out of bounds");
-
-            auto width_idx = ov::layout::width(layout);
-            if (width_idx < 0) {  // E.g. width_idx = -1 means last dimension
-                width_idx = node_rank.get_length() + width_idx;
-            }
-            OPENVINO_ASSERT(width_idx >= 0 && node_rank.get_length() > width_idx, "Width dimension is out of bounds");
+            auto height_idx = static_cast<int64_t>(get_and_check_height_idx(layout, node->get_output_partial_shape(0)));
+            auto width_idx = static_cast<int64_t>(get_and_check_width_idx(layout, node->get_output_partial_shape(0)));
             if (dst_height < 0 || dst_width < 0) {
                 OPENVINO_ASSERT(ctxt.network_shape().rank().is_static(),
                                 "Resize is not fully specified while target network shape is dynamic");
@@ -139,7 +130,9 @@ void PreProcessSteps::PreProcessStepsImpl::add_resize_impl(ResizeAlgorithm alg, 
 
             auto target_spatial_shape =
                 op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {new_image_height, new_image_width});
-            auto scales = op::v0::Constant::create<float>(element::f32, Shape{2}, {1, 1});  // TODO
+            auto scales = op::v0::Constant::create<float>(element::f32, Shape{2}, {1, 1});
+            // In future consider replacing this to set of new OV operations like `getDimByName(node, "H")`
+            // This is to allow specifying layout on 'evaluation' stage
             auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {height_idx, width_idx});
 
             op::v4::Interpolate::InterpolateAttrs attrs(to_mode(alg),
@@ -153,3 +146,6 @@ void PreProcessSteps::PreProcessStepsImpl::add_resize_impl(ResizeAlgorithm alg, 
         },
         true));
 }
+
+}  // namespace preprocess
+}  // namespace ov
