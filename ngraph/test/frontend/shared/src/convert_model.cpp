@@ -4,7 +4,7 @@
 
 #include "convert_model.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "util/ngraph_test_utils.hpp"
 #include "utils.hpp"
 
 using namespace ngraph;
