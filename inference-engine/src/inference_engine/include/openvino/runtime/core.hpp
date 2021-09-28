@@ -19,6 +19,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/executable_network.hpp"
+#include "openvino/runtime/parameter.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
 namespace InferenceEngine {
@@ -292,7 +293,7 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    RemoteContext create_context(const std::string& deviceName, const ParamMap& params);
+    RemoteContext create_context(const std::string& deviceName, const ConfigMap& params);
 
     /**
      * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.

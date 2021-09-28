@@ -96,7 +96,7 @@ public:
      *
      * @param config Map of pairs: (config parameter name, config parameter value)
      */
-    void set_config(const ParamMap& config);
+    void set_config(const ConfigMap& config);
 
     /** @brief Gets configuration for current executable network.
      *

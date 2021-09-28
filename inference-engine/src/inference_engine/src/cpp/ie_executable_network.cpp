@@ -4,6 +4,7 @@
 
 #include "cpp/ie_executable_network.hpp"
 
+#include "any_copy.hpp"
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_common.h"
@@ -149,16 +150,16 @@ void ExecutableNetwork::export_model(std::ostream& networkModel) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
 }
 
-void ExecutableNetwork::set_config(const ie::ParamMap& config) {
-    OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
+void ExecutableNetwork::set_config(const ConfigMap& config) {
+    OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(any_copy(config)));
 }
 
-ie::Parameter ExecutableNetwork::get_config(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetConfig(name));
+Parameter ExecutableNetwork::get_config(const std::string& name) const {
+    OV_EXEC_NET_CALL_STATEMENT(return {_so, any_copy(_impl->GetConfig(name))});
 }
 
-ie::Parameter ExecutableNetwork::get_metric(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
+Parameter ExecutableNetwork::get_metric(const std::string& name) const {
+    OV_EXEC_NET_CALL_STATEMENT(return {_so, any_copy(_impl->GetMetric(name))});
 }
 
 std::shared_ptr<ie::RemoteContext> ExecutableNetwork::get_context() const {

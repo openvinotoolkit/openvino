@@ -89,6 +89,7 @@ set(SRC
     reshape_opt_kernel.cpp
     shape.cpp
     span.cpp
+    shared_any.cpp
     specialize_function.cpp
     tensor.cpp
     threading.cpp

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "cnn_network_ngraph_impl.hpp"
+#include "any_copy.hpp"
 #include "compilation_context.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "cpp/ie_plugin.hpp"
@@ -1293,7 +1294,7 @@ ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Functi
                                       const std::string& deviceName,
                                       const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model), deviceName, config);
+        auto exec = _impl->LoadNetwork(toCNN(model), deviceName, any_copy(config));
         return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
                 exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
     });
@@ -1304,7 +1305,7 @@ ExecutableNetwork Core::compile_model(const std::string& modelPath,
                                       const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         // TODO: need to pass newAPI flag to preserve conversions of precisions
-        auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
+        auto exec = _impl->LoadNetwork(modelPath, deviceName, any_copy(config));
         return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
                 exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
     });
@@ -1314,7 +1315,7 @@ ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Functi
                                       const RemoteContext& context,
                                       const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model), context._impl, config);
+        auto exec = _impl->LoadNetwork(toCNN(model), context._impl, any_copy(config));
         return {exec._so, exec._ptr};
     });
 }
@@ -1328,7 +1329,7 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
                                      const ConfigMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->ImportNetwork(modelStream, deviceName, config);
+        auto exec = _impl->ImportNetwork(networkModel, deviceName, any_copy(config));
         return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
                 exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
     });
@@ -1363,7 +1364,7 @@ SupportedOpsMap Core::query_model(const std::shared_ptr<const ngraph::Function>&
                                   const std::string& deviceName,
                                   const ConfigMap& config) const {
     OV_CORE_CALL_STATEMENT({
-        auto qnResult = _impl->QueryNetwork(toCNN(model), deviceName, config);
+        auto qnResult = _impl->QueryNetwork(toCNN(model), deviceName, any_copy(config));
         return qnResult.supportedLayersMap;
     });
 }
@@ -1386,10 +1387,10 @@ void Core::set_config(const ConfigMap& config, const std::string& deviceName) {
 
     OV_CORE_CALL_STATEMENT({
         if (deviceName.empty()) {
-            _impl->SetConfigForPlugins(config, std::string());
+            _impl->SetConfigForPlugins(any_copy(config), std::string());
         } else {
             auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-            _impl->SetConfigForPlugins(parsed._config, parsed._deviceName);
+            _impl->SetConfigForPlugins(any_copy(parsed._config), parsed._deviceName);
         }
     });
 }
@@ -1440,14 +1441,14 @@ void Core::register_plugins(const std::string& xmlConfigFile) {
     OV_CORE_CALL_STATEMENT(_impl->RegisterPluginsInRegistry(xmlConfigFile););
 }
 
-RemoteContext Core::create_context(const std::string& deviceName, const ParamMap& params) {
+RemoteContext Core::create_context(const std::string& deviceName, const ConfigMap& params) {
     OPENVINO_ASSERT(deviceName.find("HETERO") != 0, "HETERO device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, params);
-        auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
+        auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(any_copy(parsed._config));
         return {remoteContext._so, remoteContext._ptr};
     });
 }
@@ -1458,8 +1459,9 @@ RemoteContext Core::get_default_context(const std::string& deviceName) {
     OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
-        auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
+        auto parsed = parseDeviceNameIntoConfig(deviceName, ConfigMap{});
+        auto remoteContext =
+            _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(any_copy(parsed._config));
         return {remoteContext._so, remoteContext._ptr};
     });
 }

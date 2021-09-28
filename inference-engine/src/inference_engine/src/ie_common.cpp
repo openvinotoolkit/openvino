@@ -121,11 +121,6 @@ StatusCode InferenceEngineException::getStatus() const {
 }  // namespace details
 IE_SUPPRESS_DEPRECATED_END
 
-}  // namespace InferenceEngine
-
-namespace ov {
-
-namespace runtime {
 
 //
 // openvino/runtime/parameter.hpp
@@ -152,7 +147,4 @@ template struct Parameter::RealData<std::vector<unsigned long>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
 #endif
-
-}  // namespace runtime
-
-}  // namespace ov
+}  // namespace InferenceEngine
