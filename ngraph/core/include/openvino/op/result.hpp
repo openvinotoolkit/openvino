@@ -21,6 +21,9 @@ public:
     /// \param arg Node that produces the input tensor.
     Result(const Output<Node>& arg);
 
+    OPENVINO_DEPRECATED("This constructor is redundant, use Result(const Output<Node>& arg) instead.")
+    Result(const Output<Node>& arg, bool);
+
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 

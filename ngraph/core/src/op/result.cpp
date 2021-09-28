@@ -21,6 +21,10 @@ op::Result::Result(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
+op::Result::Result(const Output<Node>& arg, bool) : Op({arg}) {
+    constructor_validate_and_infer_types();
+}
+
 bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_Result_visit_attributes);
     return true;
