@@ -321,6 +321,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                         TO_ACC_VEC_TYPE(dx2 * dy1 * bottom_left) +
                         TO_ACC_VEC_TYPE(dx1 * dy1 * bottom_right);
 #endif
+
 #if HAS_FUSED_OPS
         FUSED_OPS;
         OUT_VEC_TYPE out = FUSED_OPS_RESULT;
