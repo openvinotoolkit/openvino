@@ -6,16 +6,18 @@
 
 #include <chrono>
 #include <future>
+#include <gtest/gtest.h>
 #include <tuple>
 #include <vector>
 #include <string>
 #include <memory>
+#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "ie_extension.h"
 #include <condition_variable>
+#include "openvino/core/shape.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
-#include <ngraph/opsets/opset6.hpp>
 #include <string>
 #include <ie_core.hpp>
 #include <thread>
@@ -30,7 +32,7 @@
 namespace BehaviorTestsDefinitions {
 
 typedef std::tuple<
-        std::shared_ptr<ngraph::Function>,                                 // ngraph function
+        std::shared_ptr<ov::Function>,                                     // ov function
         std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>,  // input/expected output shapes per inference
         std::string,                                                       // Device name
         std::map<std::string, std::string>                                 // Config
@@ -40,7 +42,7 @@ class InferRequestDynamicTests : public testing::WithParamInterface<InferRequest
                                  public CommonTestUtils::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestDynamicParams> obj) {
-        std::shared_ptr<ngraph::Function> func;
+        std::shared_ptr<ov::Function> func;
         std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
@@ -69,13 +71,13 @@ protected:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ov::test::PluginCache::get().reset();
         }
         function.reset();
     }
 
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::runtime::Core> ie = ov::test::PluginCache::get().core();
+    std::shared_ptr<ov::Function> function;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
@@ -83,262 +85,237 @@ protected:
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
     const std::string param_name = "Param_1";
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension::dynamic(), 4, 20, 20};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[param_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    // TODO: function->reshape
+    // function->reshape(shapes);
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor;
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_parameters().back()->get_friendly_name()));
 }
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
     const std::string param_name = "Param_1";
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension(0, 5), 4, 20, 20};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[param_name] = {ov::Dimension(0, 5), 4, 20, 20};
+    // TODO: ov::Function->reshape
+    // cnnNet.reshape(shapes);
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor;
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_parameters().back()->get_friendly_name()));
 }
 
 
-TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetBlob) {
+TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
     const std::string param_name = "Param_1";
-    const InferenceEngine::SizeVector refShape = inOutShapes[0].first;
-    const InferenceEngine::SizeVector refOutShape = inOutShapes[0].second;
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension::dynamic(), 4, 20, 20};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[param_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    // TODO: reshape
+    // cnnNet.reshape(shapes);
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor;
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
     //ASSERT_NO_THROW(req.SetShape(param_name, {1, 4, 20, 20}));
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_NO_THROW(blob->setShape({1, 4, 20, 20}));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
-    req.Infer();
-    req.StartAsync();
-    InferenceEngine::StatusCode sts;
-    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_parameters().back()->get_friendly_name()));
+    ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
+    ASSERT_EQ(tensor.get_shape(), refShape);
+    ASSERT_NO_THROW(req.infer());
+    ASSERT_NO_THROW(req.start_async());
+    req.wait();
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_results().back()->get_friendly_name()));
+    ASSERT_EQ(tensor.get_shape(), refOutShape);
 }
 
-TEST_P(InferRequestDynamicTests, InferUpperBoundNetworkWithGetBlob) {
+TEST_P(InferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     const std::string param_name = "Param_1";
-    const InferenceEngine::SizeVector refShape = inOutShapes[0].first;
-    const InferenceEngine::SizeVector refOutShape = inOutShapes[0].second;
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension(0, 19), 4, 20, 20};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[param_name] = {ov::Dimension(0, 19), 4, 20, 20};
+    // TODO: reshape
+    // cnnNet.reshape(shapes);
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor;
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
     //ASSERT_NO_THROW(req.SetShape(param_name, {1, 4, 20, 20}));
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_NO_THROW(blob->setShape({1, 4, 20, 20}));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
-    req.Infer();
-    req.StartAsync();
-    InferenceEngine::StatusCode sts;
-    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_parameters().back()->get_friendly_name()));
+    ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
+    ASSERT_EQ(tensor.get_shape(), refShape);
+    ASSERT_NO_THROW(req.infer());
+    ASSERT_NO_THROW(req.start_async());
+    req.wait();
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_results().back()->get_friendly_name()));
+    ASSERT_EQ(tensor.get_shape(), refOutShape);
 }
 
-TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetBlobLower) {
+TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorLower) {
     const std::string param_name = "Param_1";
-    const InferenceEngine::SizeVector refShape = inOutShapes[0].first;
-    const InferenceEngine::SizeVector refOutShape = inOutShapes[0].second;
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension(2, 3), 4, 20, 20};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[param_name] = {ov::Dimension(2, 3), 4, 20, 20};
+    // TODO: reshape
+    // cnnNet.reshape(shapes);
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_NO_THROW(blob->setShape({1, 4, 20, 20}));
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor;
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_parameters().back()->get_friendly_name()));
+    ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     // Plugin may or may not throw in case if input tensor has dimensions that are out of bounds
-    //ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
+    //ASSERT_THROW(req.infer(), ov::Exception);
 }
 
-TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetBlobUpper) {
+TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorUpper) {
     const std::string param_name = "Param_1";
-    const InferenceEngine::SizeVector refShape = inOutShapes[0].first;
-    const InferenceEngine::SizeVector refOutShape = inOutShapes[0].second;
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension(1, 2), 4, 20, 20};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[param_name] = {ov::Dimension(1, 2), 4, 20, 20};
+    // TODO: reshape
+    // cnnNet.reshape(shapes);
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_NO_THROW(blob->setShape({3, 4, 20, 20}));
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor;
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_parameters().back()->get_friendly_name()));
+    ASSERT_NO_THROW(tensor.set_shape({3, 4, 20, 20}));
     // Plugin may or may not throw in case if input tensor has dimensions that are out of bounds
-    // ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
+    // ASSERT_THROW(req.infer(), ov::Exception);
 }
 
-TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetBlob2times) {
+TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
     const std::string param_name = "Param_1";
-    const InferenceEngine::SizeVector refShape = inOutShapes[0].first;
-    const InferenceEngine::SizeVector refShape2 = inOutShapes[1].first;
-    const InferenceEngine::SizeVector refOutShape = inOutShapes[0].second;
-    const InferenceEngine::SizeVector refOutShape2 = inOutShapes[1].second;
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension::dynamic(), 4, 20, 20};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refShape2 = inOutShapes[1].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    const ov::Shape refOutShape2 = inOutShapes[1].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[param_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    // TODO: reshape
+    // cnnNet.reshape(shapes);
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_NO_THROW(blob->setShape(refShape));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
-    req.Infer();
-    req.StartAsync();
-    InferenceEngine::StatusCode sts;
-    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor;
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_parameters().back()->get_friendly_name()));
+    ASSERT_NO_THROW(tensor.set_shape(refShape));
+    ASSERT_EQ(tensor.get_shape(), refShape);
+    ASSERT_NO_THROW(req.infer());
+    ASSERT_NO_THROW(req.start_async());
+    req.wait();
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_results().back()->get_friendly_name()));
+    ASSERT_EQ(tensor.get_shape(), refOutShape);
 
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_NO_THROW(blob->setShape(refShape2));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape2);
-    req.Infer();
-    req.StartAsync();
-    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape2);
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_parameters().back()->get_friendly_name()));
+    ASSERT_NO_THROW(tensor.set_shape(refShape2));
+    ASSERT_EQ(tensor.get_shape(), refShape2);
+    ASSERT_NO_THROW(req.infer());
+    ASSERT_NO_THROW(req.start_async());
+    req.wait();
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_results().back()->get_friendly_name()));
+    ASSERT_EQ(tensor.get_shape(), refOutShape2);
 }
 
 
-TEST_P(InferRequestDynamicTests, GetSameBlob2times) {
+TEST_P(InferRequestDynamicTests, GetSameTensor2times) {
     const std::string param_name = "Param_1";
-    const InferenceEngine::SizeVector refShape = inOutShapes[0].first;
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension::dynamic(), 4, 20, 20};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    const ov::Shape refShape = inOutShapes[0].first;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[param_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    // TODO: reshape
+    // cnnNet.reshape(shapes);
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_NO_THROW(blob->setShape(refShape));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor;
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_parameters().back()->get_friendly_name()));
+    ASSERT_NO_THROW(tensor.set_shape(refShape));
+    ASSERT_EQ(tensor.get_shape(), refShape);
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_parameters().back()->get_friendly_name()));
+    ASSERT_EQ(tensor.get_shape(), refShape);
 }
 
-TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetBlob) {
+TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetTensor) {
     const std::string param_name = "Param_1";
-    const InferenceEngine::SizeVector refShape = inOutShapes[0].first;
-    const InferenceEngine::SizeVector refOutShape = inOutShapes[0].second;
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension::dynamic(), 4, 20, 20};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[param_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    // TODO: reshape
+    // cnnNet.reshape(shapes);
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob = make_blob_with_precision({InferenceEngine::Precision::FP32, refShape, InferenceEngine::Layout::NCHW});
-    blob->allocate();
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
-    req.Infer();
-    req.StartAsync();
-    InferenceEngine::StatusCode sts;
-    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor(ov::element::f32, refShape);
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
+    ASSERT_NO_THROW(req.set_tensor(function->get_parameters().back()->get_friendly_name(), tensor));
+    ASSERT_EQ(tensor.get_shape(), refShape);
+    ASSERT_NO_THROW(req.infer());
+    ASSERT_NO_THROW(req.start_async());
+    ASSERT_NO_THROW(req.wait());
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_results().back()->get_friendly_name()));
+    ASSERT_EQ(tensor.get_shape(), refOutShape);
 }
 
-TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetBlob2times) {
+TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     const std::string param_name = "Param_1";
-    const InferenceEngine::SizeVector refShape = inOutShapes[0].first;
-    const InferenceEngine::SizeVector refShape2 = inOutShapes[1].first;
-    const InferenceEngine::SizeVector refOutShape = inOutShapes[0].second;
-    const InferenceEngine::SizeVector refOutShape2 = inOutShapes[1].second;
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension::dynamic(), 4, 20, 20};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refShape2 = inOutShapes[1].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    const ov::Shape refOutShape2 = inOutShapes[1].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[param_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    // TODO: reshape
+    // cnnNet.reshape(shapes);
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob = make_blob_with_precision({InferenceEngine::Precision::FP32, refShape, InferenceEngine::Layout::NCHW});
-    blob->allocate();
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor(ov::element::f32, refShape);
 
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
-    req.Infer();
-    req.StartAsync();
-    InferenceEngine::StatusCode sts;
-    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
+    ASSERT_NO_THROW(req.set_tensor(function->get_parameters().back()->get_friendly_name(), tensor));
+    ASSERT_EQ(tensor.get_shape(), refShape);
+    ASSERT_NO_THROW(req.infer());
+    ASSERT_NO_THROW(req.start_async());
+    ASSERT_NO_THROW(req.wait());
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_results().back()->get_friendly_name()));
+    ASSERT_EQ(tensor.get_shape(), refOutShape);
 
-    blob = make_blob_with_precision({InferenceEngine::Precision::FP32, refShape2, InferenceEngine::Layout::NCHW});
-    blob->allocate();
-    ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape2);
-    req.Infer();
-    req.StartAsync();
-    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape2);
+    tensor = ov::runtime::Tensor(ov::element::f32, refShape2);
+    ASSERT_NO_THROW(req.set_tensor(function->get_parameters().back()->get_friendly_name(), tensor));
+    ASSERT_EQ(tensor.get_shape(), refShape2);
+    ASSERT_NO_THROW(req.infer());
+    ASSERT_NO_THROW(req.start_async());
+    ASSERT_NO_THROW(req.wait());
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_results().back()->get_friendly_name()));
+    ASSERT_EQ(tensor.get_shape(), refOutShape2);
 }
 
 }  // namespace BehaviorTestsDefinitions
