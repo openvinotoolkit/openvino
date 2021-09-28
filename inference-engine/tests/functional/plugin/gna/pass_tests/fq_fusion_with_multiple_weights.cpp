@@ -99,6 +99,7 @@ protected:
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset7::Result>(add3)};
         function = std::make_shared<ngraph::Function>(results, params, "FQFusionWithMultipleWeights");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

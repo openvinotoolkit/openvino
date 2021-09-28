@@ -39,27 +39,30 @@ void LayerTestsCommon::Run() {
     s.setDeviceName(targetDevice);
 
     if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-        s.updateOPsStats(function, PassRate::Statuses::SKIPPED);
+        s.updateOPsStats(functionRefs, PassRate::Statuses::SKIPPED);
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
     } else {
-        s.updateOPsStats(function, PassRate::Statuses::CRASHED);
+        s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
     }
 
     try {
         LoadNetwork();
-        GenerateInputs();
-        Infer();
-        Validate();
-        s.updateOPsStats(function, PassRate::Statuses::PASSED);
+        for (auto&& tss : targetStaticShapes) {
+            setTargetStaticShape(tss);
+            GenerateInputs();
+            Infer();
+            Validate();
+            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
+        }
     }
     catch (const std::runtime_error &re) {
-        s.updateOPsStats(function, PassRate::Statuses::FAILED);
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_(re.what());
     } catch (const std::exception &ex) {
-        s.updateOPsStats(function, PassRate::Statuses::FAILED);
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_(ex.what());
     } catch (...) {
-        s.updateOPsStats(function, PassRate::Statuses::FAILED);
+        s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
 }
@@ -107,8 +110,13 @@ void LayerTestsCommon::QueryNetwork() {
     ASSERT_EQ(expected, actual);
 }
 
-InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo& info) const {
+    return FuncTestUtils::createAndFillBlob(targetStaticShape.empty() || targetStaticShape[0].empty() ?
+                                            info.getTensorDesc() :
+                                            InferenceEngine::TensorDesc(
+                                                    info.getPrecision(),
+                                                    targetStaticShape[0],
+                                                    const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
 }
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
@@ -328,6 +336,23 @@ void LayerTestsCommon::ConfigureNetwork() {
             out.second->setPrecision(outPrc);
         }
     }
+
+    if (!inputDynamicShape.empty()) {
+        if (inputDynamicShape.size() == 1) {
+            if (inputDynamicShape.front().is_dynamic()) {
+                std::map<std::string, ngraph::PartialShape> inputShapes;
+                auto inputsDataMap = cnnNetwork.getInputsInfo();
+                for (auto&& inputDataMap : inputsDataMap) {
+                    inputShapes[inputDataMap.first] = std::vector<ngraph::Dimension>(inputDynamicShape.front());
+                }
+                cnnNetwork.reshape(inputShapes);
+            }
+        } else if (inputDynamicShape.size() == 2) {
+            ConfigureNetwork_Secondary();
+        } else {
+            IE_THROW() << "Incorrect number of input shapes";
+        }
+    }
 }
 
 void LayerTestsCommon::LoadNetwork() {
@@ -340,7 +365,7 @@ void LayerTestsCommon::LoadNetwork() {
 void LayerTestsCommon::GenerateInputs() {
     inputs.clear();
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
-    const auto& functionParams = function->get_parameters();
+    const auto& functionParams = functionRefs->get_parameters();
     for (int i = 0; i < functionParams.size(); ++i) {
         const auto& param = functionParams[i];
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
@@ -376,10 +401,10 @@ void LayerTestsCommon::Infer() {
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
     // nGraph interpreter does not support f16/bf16
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
 
-    function->validate_nodes_and_infer_types();
+    functionRefs->validate_nodes_and_infer_types();
 
     auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
     auto refInputsTypes = std::vector<ngraph::element::Type>(inputs.size());
@@ -411,11 +436,11 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
-            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, refInputsTypes);
+            expectedOutputs = ngraph::helpers::interpreterFunction(functionRefs, referenceInputs, refInputsTypes);
             break;
         }
         case CONSTANT_FOLDING: {
-            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs, refInputsTypes);
+            const auto &foldedFunc = ngraph::helpers::foldFunction(functionRefs, referenceInputs, refInputsTypes);
             expectedOutputs = ngraph::helpers::getConstData(foldedFunc);
             break;
         }

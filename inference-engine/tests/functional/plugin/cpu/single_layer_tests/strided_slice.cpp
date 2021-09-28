@@ -71,6 +71,7 @@ protected:
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
         function = std::make_shared<ngraph::Function>(results, params, "StridedSlice");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

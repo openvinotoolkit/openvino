@@ -31,6 +31,7 @@ void PrePostProcessTest::SetUp() {
     function = (std::get<0>(func))();
     outPrc = InferenceEngine::details::convertPrecision(function->get_output_element_type(0));
     threshold = std::get<2>(func);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(PrePostProcessTest, CompareWithRefs) {

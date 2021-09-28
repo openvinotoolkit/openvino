@@ -19,10 +19,14 @@ const std::vector<InferenceEngine::Layout> inputLayouts2D = {
     InferenceEngine::Layout::NC,
 };
 
-const std::vector<InferenceEngine::SizeVector> inputShapes2D = {
-    InferenceEngine::SizeVector {1, 100},
-    InferenceEngine::SizeVector {100, 1},
-    InferenceEngine::SizeVector {10, 10},
+const std::vector<std::vector<std::vector<std::pair<size_t, size_t>>>> inputStaticShape2D = {
+    {NULL_RANGE}
+};
+
+const std::vector<std::vector<std::vector<InferenceEngine::SizeVector>>> inputShapes2D = {
+    {{InferenceEngine::SizeVector{1, 100}}},
+    {{InferenceEngine::SizeVector{100, 1}}},
+    {{InferenceEngine::SizeVector{10, 10}}},
 };
 
 const std::vector<size_t> axis2D = {
@@ -35,6 +39,7 @@ const auto params2D = testing::Combine(
     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::ValuesIn(inputLayouts2D),
     testing::Values(InferenceEngine::Layout::ANY),
+    testing::ValuesIn(inputStaticShape2D),
     testing::ValuesIn(inputShapes2D),
     testing::ValuesIn(axis2D),
     testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -48,10 +53,14 @@ INSTANTIATE_TEST_SUITE_P(
         SoftMaxLayerTest::getTestCaseName
 );
 
-const std::vector<InferenceEngine::SizeVector> inputShapes4D = {
-    InferenceEngine::SizeVector {1, 100, 1, 1},
-    InferenceEngine::SizeVector {1, 3, 4, 3},
-    InferenceEngine::SizeVector {2, 3, 4, 5},
+const std::vector<std::vector<std::vector<std::pair<size_t, size_t>>>> inputStaticShape4D = {
+    {NULL_RANGE}
+};
+
+const std::vector<std::vector<std::vector<InferenceEngine::SizeVector>>> inputShapes4D = {
+    {{InferenceEngine::SizeVector{1, 100, 1, 1}}},
+    {{InferenceEngine::SizeVector{1, 3, 4, 3}}},
+    {{InferenceEngine::SizeVector{2, 3, 4, 5}}},
 };
 
 const std::vector<size_t> axis4D = {0, 1, 2, 3};
@@ -62,6 +71,7 @@ const auto params4D = testing::Combine(
     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::Values(InferenceEngine::Layout::NCHW),
     testing::Values(InferenceEngine::Layout::ANY),
+    testing::ValuesIn(inputStaticShape4D),
     testing::ValuesIn(inputShapes4D),
     testing::ValuesIn(axis4D),
     testing::Values(CommonTestUtils::DEVICE_CPU),

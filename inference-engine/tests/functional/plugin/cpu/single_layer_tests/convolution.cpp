@@ -93,9 +93,10 @@ protected:
             isBias = (postOpMgrPtr->getFusedOpsNames() == "Add(PerChannel)" && selectedType != "jit_avx512_winograd");
 
         convSpecificParams convParams;
-        std::vector<size_t> inputShape;
+        std::vector<std::vector<std::pair<size_t, size_t>>> inputDynamicShape;
+        std::vector<std::vector<std::vector<size_t>>> inputShape;
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = basicParamsSet;
+        std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputDynamicShape, inputShape, targetDevice) = basicParamsSet;
 
         if (inPrc == Precision::UNSPECIFIED) {
             selectedType += std::string("_") + Precision(Precision::FP32).name();
@@ -112,13 +113,14 @@ protected:
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, { inputShape });
+        auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, { inputShape[0].front() });
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
         auto convolutionNode = ngraph::builder::makeConvolution(paramOuts.front(), ngPrc, kernel, stride, padBegin,
             padEnd, dilation, padType, convOutChannels);
 
         function = makeNgraphFunction(ngPrc, inputParams, convolutionNode, "Convolution");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -190,8 +192,10 @@ const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0}, {1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
 const std::vector<SizeVector> dilations2d = { {1, 1}, {2, 2} };
-const std::vector<SizeVector> inputShapes2d = { {1, 64, 7, 7}, {1, 67, 7, 7} };
-const std::vector<SizeVector> inputShapesPlain2Blocked2d = { {1, 1, 7, 7}, {1, 2, 7, 7},  {1, 3, 7, 7} };
+const std::vector<std::vector<std::vector<SizeVector>>> inputShapes2d = { { { {1, 64, 7, 7}, {1, 67, 7, 7} } } };
+const std::vector<std::vector<std::vector<SizeVector>>> inputShapesPlain2Blocked2d = {
+    { { {1, 1, 7, 7}, {1, 2, 7, 7}, {1, 3, 7, 7} } }
+};
 
 /* ============= Convolution params (3D) ============= */
 const std::vector<SizeVector> kernels3d = { {3, 3, 3}, {1, 1, 1} };
@@ -199,8 +203,10 @@ const std::vector<SizeVector> strides3d = { {1, 1, 1}, {2, 2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = { {0, 0, 0}, {1, 1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = { {0, 0, 0} };
 const std::vector<SizeVector> dilations3d = { {1, 1, 1}, {2, 2, 2} };
-const std::vector<SizeVector> inputShapes3d = { {1, 64, 7, 7, 7}, {1, 67, 7, 7, 7} };
-const std::vector<SizeVector> inputShapesPlain2Blocked3d = { {1, 1, 7, 7, 7}, {1, 2, 7, 7, 7},  {1, 3, 7, 7, 7} };
+const std::vector<std::vector<std::vector<SizeVector>>> inputShapes3d = { { { {1, 64, 7, 7, 7}, {1, 67, 7, 7, 7} } } };
+const std::vector<std::vector<std::vector<SizeVector>>> inputShapesPlain2Blocked3d = {
+    { { {1, 1, 7, 7, 7}, {1, 2, 7, 7, 7}, {1, 3, 7, 7, 7} } }
+};
 /* ============= */
 
 /* INSTANCES */
@@ -229,7 +235,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+            ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{2, 12, 7, 7}}})),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
         ::testing::ValuesIn(fusingParamsSet),
@@ -245,7 +252,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_BF16, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::BF16),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+            ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{2, 12, 7, 7}}})),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
         ::testing::ValuesIn(fusingParamsSetBF16),
@@ -261,7 +269,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_I8, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+            ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{2, 12, 7, 7}}})),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
         ::testing::Values(fusingSum),
@@ -293,7 +302,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_FP32, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+            ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{2, 12, 7, 7, 7}}})),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_3D)),
         ::testing::ValuesIn(fusingParamsSet),
@@ -309,7 +319,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_BF16, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::BF16),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+            ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{2, 12, 7, 7, 7}}})),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_3D)),
         ::testing::ValuesIn(fusingParamsSetBF16),
@@ -325,7 +336,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_I8, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+            ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{2, 12, 7, 7, 7}}})),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_3D)),
         ::testing::Values(fusingSum),
@@ -361,6 +373,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapes2d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
@@ -377,6 +390,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_BF16, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::BF16),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapes2d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D, conv_avx512_2D_nspc})),
@@ -393,6 +407,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_I8, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapes2d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
@@ -415,6 +430,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_2D_FP32, ConvolutionLayerCPUT
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapesPlain2Blocked2d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D_plain_to_blocked)),
@@ -431,6 +447,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_2D_BF16, ConvolutionLayerCPUT
             ::testing::Values(Precision::BF16, Precision::FP32),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapesPlain2Blocked2d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_plain_to_blocked_2D})),
@@ -466,6 +483,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_FP32, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapes3d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D)),
@@ -482,6 +500,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_BF16, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::BF16),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapes3d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D, conv_avx512_3D_nspc})),
@@ -498,6 +517,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_I8, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapes3d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D)),
@@ -519,6 +539,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_3D_FP32, ConvolutionLayerCPUT
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapesPlain2Blocked3d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D_plain_to_blocked)),
@@ -535,6 +556,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_3D_BF16, ConvolutionLayerCPUT
             ::testing::Values(Precision::BF16, Precision::FP32),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapesPlain2Blocked3d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_plain_to_blocked_3D})),
@@ -572,6 +594,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_FP32, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapes2d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1x1_2D)),
@@ -588,6 +611,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_BF16, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::BF16),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapes2d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1, conv_avx512_2D_1x1_nspc})),
@@ -604,6 +628,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_I8, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapes2d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1x1_2D)),
@@ -644,7 +669,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 64, 7})),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+            ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{2, 64, 7}}})),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1D)),
         ::testing::Values(fusingAddPerChannel),
@@ -679,6 +705,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Jit_Planar_2D_FP32, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapes2d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Jit_Planar_2D)),
@@ -712,6 +739,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Jit_Planar_3D_FP32, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
             ::testing::ValuesIn(inputShapes3d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Jit_Planar_3D)),
@@ -761,7 +789,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 1, 16, 10, 10 })),
+            ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+            ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 16, 10, 10}}})),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(std::vector<CPUSpecificParams>{conv_winograd})),
         ::testing::ValuesIn(fusingParamsSet),

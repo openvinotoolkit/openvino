@@ -72,6 +72,7 @@ void MatMulTransformation::SetUp() {
         testValues.fqOnData2);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void MatMulTransformation::Run() {

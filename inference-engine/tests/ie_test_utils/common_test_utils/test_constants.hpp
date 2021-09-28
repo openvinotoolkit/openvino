@@ -22,6 +22,9 @@ const char REPORT_EXTENSION[] = ".xml";
 
 const unsigned int maxFileNameLength = 140;
 
+#define UNDEFINED_RANGE {-1, -1}
+#define NULL_RANGE {}
+
 #ifdef _WIN32
     #ifdef __MINGW32__
         const char pre[] = "lib";

@@ -127,6 +127,8 @@ protected:
 
     virtual void ConfigureNetwork();
 
+    virtual void ConfigureNetwork_Secondary() {}
+
     virtual void LoadNetwork();
 
     virtual void GenerateInputs();
@@ -135,6 +137,7 @@ protected:
 
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ngraph::Function> functionRefs;
     std::map<std::string, std::string> configuration;
     // Non default values of layouts/precisions will be set to CNNNetwork
     InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
@@ -146,6 +149,11 @@ protected:
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
+    std::vector<ngraph::PartialShape> inputDynamicShape;
+    std::vector<ngraph::Shape> targetStaticShape;
+    std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
+
+    virtual void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) {}
 
     virtual void Validate();
 
