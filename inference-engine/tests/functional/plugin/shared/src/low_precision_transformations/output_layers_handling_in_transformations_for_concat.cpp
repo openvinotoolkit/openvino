@@ -119,6 +119,7 @@ void OutputLayersHandlingInTransformationsForConcat::SetUp() {
     };
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "OutputLayersHandling");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(OutputLayersHandlingInTransformationsForConcat, CompareWithRefImpl) {
