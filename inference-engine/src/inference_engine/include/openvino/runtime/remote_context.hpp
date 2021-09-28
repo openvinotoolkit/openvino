@@ -3,9 +3,9 @@
 //
 
 /**
- * @brief This is a header file for the IE RemoteContext and RemoteBlob classes
+ * @brief This is a header file for the OpenVINO Runtime RemoteContext class
  *
- * @file ie_remote_context.hpp
+ * @file openvino/runtime/remote_context.hpp
  */
 #pragma once
 
@@ -13,10 +13,12 @@
 #include <memory>
 #include <string>
 
-#include "common.hpp"
-#include "details/ie_so_loader.h"
-#include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/parameter.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
 
 namespace InferenceEngine {
 class RemoteBlob;
@@ -33,7 +35,7 @@ class Core;
  * Such context represents a scope on the device within which executable
  * networks and remote memory blobs can exist, function and exchange data.
  */
-class INFERENCE_ENGINE_API_CLASS(RemoteContext) {
+class OPENVINO_RUNTIME_API RemoteContext {
     std::shared_ptr<void> _so;
     std::shared_ptr<ie::RemoteContext> _impl;
 
@@ -107,31 +109,32 @@ public:
     /**
      * @brief Returns name of the device on which underlying object is allocated.
      * Abstract method.
-     * @return A device name string in the same format as that in plugin metric.
+     * @return A device name string in fully specified format `<device_name>[.<device_id>[.<tile_id>]]`.
      */
     std::string get_device_name() const;
 
     /**
-     * @brief Allocates memory blob in device memory or wraps user-supplied memory handle
+     * @brief Allocates memory tensor in device memory or wraps user-supplied memory handle
      * using the specified tensor description and low-level device-specific parameters.
-     * Returns a pointer to the object which implements RemoteBlob interface.
-     * @param tensorDesc Defines the layout and dims of the blob
-     * @param params Map of the low-level blob object parameters.
+     * Returns a pointer to the object which implements RemoteTensor interface.
+     * @param type Defines the element type of the tensor
+     * @param shape Defines the shape of the tensor
+     * @param params Map of the low-level tensor object parameters.
      * Abstract method.
-     * @return A pointer to plugin object that implements RemoteBlob interface.
+     * @return A pointer to plugin object that implements RemoteTensor interface.
      */
-    std::shared_ptr<ie::RemoteBlob> create_blob(const ie::TensorDesc& tensorDesc, const ie::ParamMap& params = {});
+    RemoteTensor create_tensor(const element::Type& type, const Shape& shape, const ParamMap& params = {});
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
      * operations with underlying object.
      * Parameters include device/context handles, access flags,
-     * etc. Contents of the map returned depend on remote execution context that is
+     * etc. Content of the returned map depends on remote execution context that is
      * currently set on the device (working scenario).
      * Abstract method.
      * @return A map of name/parameter elements.
      */
-    ie::ParamMap get_params() const;
+    ParamMap get_params() const;
 };
 
 }  // namespace runtime

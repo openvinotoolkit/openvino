@@ -11,7 +11,7 @@
 
 #include <map>
 #include <memory>
-#include <ngraph/ngraph.hpp>
+#include <ngraph/partial_shape.hpp>
 #include <string>
 #include <vector>
 

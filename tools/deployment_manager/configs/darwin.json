@@ -19,7 +19,6 @@
         "runtime/lib/intel64/libinference_engine.dylib",
         "runtime/lib/intel64/libinference_engine_transformations.dylib",
         "runtime/lib/intel64/libinference_engine_preproc.so",
-        "runtime/lib/intel64/libinference_engine_ir_reader.so",
         "runtime/lib/intel64/libinference_engine_c_api.dylib",
         "runtime/lib/intel64/libHeteroPlugin.so",
         "runtime/lib/intel64/libMultiDevicePlugin.so",

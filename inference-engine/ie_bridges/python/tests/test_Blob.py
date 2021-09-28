@@ -130,20 +130,24 @@ def test_set_shape():
     assert blob.tensor_desc.dims == [1, 4, 128, 128]
     assert blob.buffer.shape == (1, 4, 128, 128)
 
+
+def test_cannot_set_shape_preallocated_memory():
+    tensor_desc = TensorDesc("FP32", [1, 3, 127, 127], "NHWC")
     array = np.ones([1, 3, 127, 127], dtype=np.float32)
     blob = Blob(tensor_desc, array)
-    blob.set_shape([1, 4, 128, 128])
-    assert blob.tensor_desc.dims == [1, 4, 128, 128]
-    assert blob.buffer.shape == (1, 4, 128, 128)
+    with pytest.raises(RuntimeError) as e:
+        blob.set_shape([1, 4, 128, 128])
+    assert "Cannot call setShape for Blobs created on top of preallocated memory" in str(e.value)
 
 
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_blob_set_shape_after_async_infer():
-    from conftest import create_ngraph_function
+    from conftest import create_encoder
     import ngraph as ng
-    function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
+    function = create_encoder([1, 4, 20, 20])
     net = ng.function_to_cnn(function)
+    net.reshape({"data": [(1, 5), 4, 20, 20]})
     ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
@@ -152,3 +156,4 @@ def test_blob_set_shape_after_async_infer():
     with pytest.raises(RuntimeError) as e:
         request.input_blobs['data'].set_shape([3, 4, 20, 20])
     assert "REQUEST_BUSY" in str(e.value)
+    request.wait()

@@ -28,6 +28,10 @@
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl_ocl.hpp>
+#endif
+
 namespace cldnn {
 namespace ocl {
 
@@ -272,8 +276,25 @@ ocl_stream::ocl_stream(const ocl_engine& engine) : stream(engine.configuration()
     bool throttle_extensions = engine.extension_supported("cl_khr_throttle_hints") && engine.extension_supported("cl_khr_create_command_queue");
     queue_builder.set_throttle_mode(config.throttle_mode, throttle_extensions);
 
+    bool queue_families_extension = engine.get_device_info().supports_queue_families;
+    queue_builder.set_supports_queue_families(queue_families_extension);
+
     _command_queue = queue_builder.build(context, device);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    if (config.queue_type == queue_types::in_order) {
+        auto onednn_engine = engine.get_onednn_engine();
+        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));
+    }
+#endif
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::stream& ocl_stream::get_onednn_stream() {
+    if (!_onednn_stream)
+        throw std::runtime_error("[GPU] onednn stream is nullptr");
+    return *_onednn_stream;
+}
+#endif
 
 void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
     static std::mutex m;
