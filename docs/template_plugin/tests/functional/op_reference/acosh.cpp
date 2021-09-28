@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <vector>
 
 #include "openvino/op/acosh.hpp"
 #include "base_reference_test.hpp"

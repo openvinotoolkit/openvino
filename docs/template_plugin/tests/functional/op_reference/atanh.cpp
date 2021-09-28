@@ -7,6 +7,7 @@
 
 #include "openvino/op/atanh.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/runtime/allocator.hpp"
 
 using namespace reference_tests;
 using namespace ov;

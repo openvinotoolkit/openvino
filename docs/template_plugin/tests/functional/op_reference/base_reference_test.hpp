@@ -8,8 +8,6 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-
 namespace reference_tests {
 
 class CommonReferenceTest {
