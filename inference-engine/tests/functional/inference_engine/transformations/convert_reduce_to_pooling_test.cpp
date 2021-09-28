@@ -104,8 +104,7 @@ public:
 
         //Convert std::vector<int64_t> -> ov::Shape
         ov::Shape _reshape_end;
-        for (auto v : params.reshape_end)
-        {
+        for (auto v : params.reshape_end) {
             _reshape_end.push_back(v);
         }
 
@@ -142,8 +141,7 @@ INSTANTIATE_TEST_SUITE_P(ReduceToReshapePoolReshape, ConvertReduceToPoolingTests
         testing::Values(std::make_tuple(MAX, InputShape{2, 3, 3},    ReduceAxes{1, 2},    KeepDims{false}, ReduceToPoolParams({1, 1, 9, 1}, {9, 1}, {1})),
                         std::make_tuple(MAX, InputShape{2, 9},       ReduceAxes{-1},      KeepDims{true},  ReduceToPoolParams({1, 1, 9, 1}, {9, 1}, {1, 1})),
                         std::make_tuple(MAX, InputShape{2, 3, 4, 1}, ReduceAxes{1, 3, 2}, KeepDims{false}, ReduceToPoolParams({1, 1, 12, 1}, {12, 1}, {1})),
-                        std::make_tuple(MAX, InputShape{ 20, 4},     ReduceAxes{ 0,1 },   KeepDims{false}, ReduceToPoolParams({ 1, 1, 40, 1 }, { 40, 1 }, {}))
-            ));
+                        std::make_tuple(MAX, InputShape{ 20, 4},     ReduceAxes{ 0,1 },   KeepDims{false}, ReduceToPoolParams({ 1, 1, 40, 1 }, { 40, 1 }, {}))));
 
 TEST(ConvertReduceToPooling, Negative) {
     auto f = ConvertReduceToPoolingTests::get_initial_function(
