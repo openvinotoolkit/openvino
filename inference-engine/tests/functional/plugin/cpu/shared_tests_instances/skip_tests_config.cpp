@@ -73,7 +73,9 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
         // need to implement Export / Import
-        R"(.*IEClassImportExportTestP.*)"
+        R"(.*IEClassImportExportTestP.*)",
+        // TODO: CVS-51680
+        R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)"
     };
 #ifdef __APPLE__
         // TODO: Issue 55717
