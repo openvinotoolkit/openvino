@@ -138,4 +138,5 @@ TEST(op_eval, roi_align_max_pool) {
 
     EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), expected_shape);
+    ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_vec, 6, 0.001));
 }
