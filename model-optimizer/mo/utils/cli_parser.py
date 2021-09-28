@@ -104,7 +104,7 @@ def readable_file(path: str):
     :return: path if the file is readable
     """
     if not os.path.isfile(path):
-        raise Error('The "{}" is not existing file'.format(path))
+        raise Error('The "{}" file does not exist'.format(path))
     elif not os.access(path, os.R_OK):
         raise Error('The "{}" is not readable'.format(path))
     else:
@@ -118,7 +118,7 @@ def readable_file_or_dir(path: str):
     :return: path if the file/directory is readable
     """
     if not os.path.isfile(path) and not os.path.isdir(path):
-        raise Error('The "{}" is not existing file or directory'.format(path))
+        raise Error('The "{}" file or directory does not exist'.format(path))
     elif not os.access(path, os.R_OK):
         raise Error('The "{}" is not readable'.format(path))
     else:
@@ -153,7 +153,7 @@ def readable_dir(path: str):
     :return: path if the directory is readable
     """
     if not os.path.isdir(path):
-        raise Error('The "{}" is not existing directory'.format(path))
+        raise Error('The "{}" directory does not exist'.format(path))
     elif not os.access(path, os.R_OK):
         raise Error('The "{}" is not readable'.format(path))
     else:
