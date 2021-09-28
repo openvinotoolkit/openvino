@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/shape.hpp>
-#include <ngraph/type/element_type.hpp>
+#include "openvino/core/shape.hpp"
+#include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/core/type/element_type.hpp"
+
 #include <shared_test_classes/base/layer_test_utils.hpp>
 
 namespace reference_tests {
@@ -26,33 +28,27 @@ public:
     void Validate();
 
 private:
-    void ValidateBlobs(const InferenceEngine::Blob::Ptr& refBlob, const InferenceEngine::Blob::Ptr& outBlob);
+    void ValidateBlobs(const ov::runtime::Tensor& refBlob, const ov::runtime::Tensor& outBlob);
 
 protected:
     const std::string targetDevice;
-    std::shared_ptr<InferenceEngine::Core> core;
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::runtime::Core> core;
+    std::shared_ptr<ov::Function> function;
 
-    InferenceEngine::ExecutableNetwork executableNetwork;
-    InferenceEngine::InferRequest inferRequest;
-    std::vector<InferenceEngine::Blob::Ptr> inputData;
-    std::vector<InferenceEngine::Blob::Ptr> refOutData;
+    ov::runtime::ExecutableNetwork executableNetwork;
+    ov::runtime::InferRequest inferRequest;
+    std::vector<ov::runtime::Tensor> inputData;
+    std::vector<ov::runtime::Tensor> refOutData;
     float threshold = 1e-2f;
 };
 
 template <class T>
-InferenceEngine::Blob::Ptr CreateBlob(const ngraph::element::Type& element_type, const std::vector<T>& values, size_t size = 0) {
+ov::runtime::Tensor CreateBlob(const ov::element::Type& element_type, const std::vector<T>& values, size_t size = 0) {
     size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
-    auto blob = make_blob_with_precision(
-        InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(element_type), {real_size}, InferenceEngine::Layout::C));
-    blob->allocate();
-    InferenceEngine::MemoryBlob::Ptr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-    IE_ASSERT(minput);
-    auto minputHolder = minput->wmap();
+    ov::runtime::Tensor tensor { element_type, {real_size} };
+    std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
 
-    std::memcpy(minputHolder.as<void*>(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
-
-    return blob;
+    return tensor;
 }
 
 template <class T>
@@ -79,20 +75,20 @@ InferenceEngine::Blob::Ptr CreateBlob(const ov::PartialShape& partial_shape,
 struct Tensor {
     Tensor() = default;
 
-    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const InferenceEngine::Blob::Ptr& data): shape {shape}, type {type}, data {data} {}
+    Tensor(const ov::Shape& shape, ov::element::Type type, const ov::runtime::Tensor& data): shape {shape}, type {type}, data {data} {}
 
     template <typename T>
-    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const std::vector<T>& data_elements)
+    Tensor(const ov::Shape& shape, ov::element::Type type, const std::vector<T>& data_elements)
         : Tensor {shape, type, CreateBlob(type, data_elements)} {}
 
-    // Use this constructor of dynamic network inputs
-    template <typename T>
-    Tensor(ngraph::element::Type type, const ngraph::Shape& shape, const std::vector<T>& data_elements)
-            : Tensor {shape, type, CreateBlob(shape, type, data_elements)} {}
+//    // Use this constructor of dynamic network inputs
+//    template <typename T>
+//    Tensor(ngraph::element::Type type, const ngraph::Shape& shape, const std::vector<T>& data_elements)
+//            : Tensor {shape, type, CreateBlob(shape, type, data_elements)} {}
 
-    ngraph::Shape shape;
-    ngraph::element::Type type;
-    InferenceEngine::Blob::Ptr data;
+    ov::Shape shape;
+    ov::element::Type type;
+    ov::runtime::Tensor data;
 };
 
 ///
