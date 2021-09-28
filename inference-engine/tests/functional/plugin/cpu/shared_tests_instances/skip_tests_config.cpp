@@ -75,7 +75,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NonZeroLayerTest.*)",
         // need to implement Export / Import
         R"(.*IEClassImportExportTestP.*)",
-
         // CVS-58963: Not implemented yet
         R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
         // Not expected behavior
