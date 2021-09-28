@@ -4,16 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
+#include "openvino/op/logical_or.hpp"
 #include "logical.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 using LogicalTypes = ngraph::helpers::LogicalTypes;
 
 namespace reference_tests {

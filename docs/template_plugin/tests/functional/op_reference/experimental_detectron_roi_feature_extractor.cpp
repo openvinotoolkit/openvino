@@ -4,16 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
 #include "base_reference_test.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 using namespace reference_tests;
 
 struct ExperimentalROIParams {
@@ -62,13 +56,13 @@ private:
         ParameterVector parameter_vector(num_of_inputs);
         for (size_t i = 0; i < num_of_inputs; ++i) {
             const auto& current_input = inputs[i];
-            auto current_parameter = std::make_shared<op::Parameter>(current_input.type, current_input.shape);
+            auto current_parameter = std::make_shared<op::v0::Parameter>(current_input.type, current_input.shape);
             node_vector[i] = current_parameter;
             parameter_vector[i] = current_parameter;
         }
 
         auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(node_vector, attrs);
-        auto fun = std::make_shared<Function>(OutputVector{roi->output(0), roi->output(1)}, parameter_vector);
+        auto fun = std::make_shared<ov::Function>(OutputVector{roi->output(0), roi->output(1)}, parameter_vector);
         return fun;
     }
 };
@@ -83,13 +77,13 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         ExperimentalROIParams(
             std::vector<Tensor>{Tensor(Shape{2, 4},
-                                       ngraph::element::f32,
+                                       ov::element::f32,
                                        std::vector<float>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}),
                                 Tensor(Shape{1, 2, 2, 3},
-                                       ngraph::element::f32,
+                                       ov::element::f32,
                                        std::vector<float>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0})},
             std::vector<Tensor>{Tensor(Shape{2, 2, 3, 3},
-                                       ngraph::element::f32,
+                                       ov::element::f32,
                                        std::vector<float>{1.416667,
                                                           1.75,
                                                           2.083333,
@@ -127,18 +121,18 @@ INSTANTIATE_TEST_SUITE_P(
                                                           5.25,
                                                           5.416667}),
                                 Tensor(Shape{2, 4},
-                                       ngraph::element::f32,
+                                       ov::element::f32,
                                        std::vector<float>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0})},
             "experimental_detectron_roi_feature_eval_f32"),
         ExperimentalROIParams(
             std::vector<Tensor>{Tensor(Shape{2, 4},
-                                       ngraph::element::f16,
+                                       ov::element::f16,
                                        std::vector<ngraph::float16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}),
                                 Tensor(Shape{1, 2, 2, 3},
-                                       ngraph::element::f16,
+                                       ov::element::f16,
                                        std::vector<ngraph::float16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0})},
             std::vector<Tensor>{Tensor(Shape{2, 2, 3, 3},
-                                       ngraph::element::f16,
+                                       ov::element::f16,
                                        std::vector<ngraph::float16>{1.416667,
                                                                     1.75,
                                                                     2.083333,
@@ -176,18 +170,18 @@ INSTANTIATE_TEST_SUITE_P(
                                                                     5.25,
                                                                     5.416667}),
                                 Tensor(Shape{2, 4},
-                                       ngraph::element::f16,
+                                       ov::element::f16,
                                        std::vector<ngraph::float16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0})},
             "experimental_detectron_roi_feature_eval_f16"),
         ExperimentalROIParams(
             std::vector<Tensor>{Tensor(Shape{2, 4},
-                                       ngraph::element::bf16,
+                                       ov::element::bf16,
                                        std::vector<ngraph::bfloat16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0}),
                                 Tensor(Shape{1, 2, 2, 3},
-                                       ngraph::element::bf16,
+                                       ov::element::bf16,
                                        std::vector<ngraph::bfloat16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0})},
             std::vector<Tensor>{Tensor(Shape{2, 2, 3, 3},
-                                       ngraph::element::bf16,
+                                       ov::element::bf16,
                                        std::vector<ngraph::bfloat16>{1.416667,
                                                                      1.75,
                                                                      2.083333,
@@ -225,6 +219,6 @@ INSTANTIATE_TEST_SUITE_P(
                                                                      5.25,
                                                                      5.416667}),
                                 Tensor(Shape{2, 4},
-                                       ngraph::element::bf16,
+                                       ov::element::bf16,
                                        std::vector<ngraph::bfloat16>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0})},
             "experimental_detectron_roi_feature_eval_bf16")));

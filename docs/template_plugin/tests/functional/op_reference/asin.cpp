@@ -4,15 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <vector>
-
+#include "openvino/op/asin.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "base_reference_test.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace reference_tests {
 namespace {
@@ -45,9 +41,9 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const Shape& shape, const element::Type& type) {
-        const auto in = std::make_shared<op::Parameter>(type, shape);
-        const auto Asin = std::make_shared<op::Asin>(in);
-        return std::make_shared<Function>(NodeVector {Asin}, ParameterVector {in});
+        const auto in = std::make_shared<op::v0::Parameter>(type, shape);
+        const auto Asin = std::make_shared<op::v0::Asin>(in);
+        return std::make_shared<ov::Function>(NodeVector {Asin}, ParameterVector {in});
     }
 };
 

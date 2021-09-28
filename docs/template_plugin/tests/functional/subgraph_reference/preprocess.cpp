@@ -59,7 +59,7 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     data1->get_output_tensor(0).set_names({"tensor_input1"});
     auto res = std::make_shared<op::v0::Result>(data1);
     res->set_friendly_name("Result");
-    return std::make_shared<Function>(ResultVector{res}, ParameterVector{data1});
+    return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
 }
 
 static std::shared_ptr<Function> create_2inputs(element::Type type, const PartialShape& shape) {
@@ -73,7 +73,7 @@ static std::shared_ptr<Function> create_2inputs(element::Type type, const Partia
     res1->set_friendly_name("Result1");
     auto res2 = std::make_shared<op::v0::Result>(data2);
     res2->set_friendly_name("Result2");
-    return std::make_shared<Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
+    return std::make_shared<ov::Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
 }
 
 static RefPreprocessParams simple_mean_scale() {

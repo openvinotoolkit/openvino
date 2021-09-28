@@ -4,15 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/reduce_sum.hpp"
 #include "reduction.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 using ReductionType = ngraph::helpers::ReductionType;
 
 static std::mt19937_64 random_generator;
@@ -36,17 +31,17 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
     std::vector<ReductionParams> params = {
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{0, 1},
                         Tensor({2, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4}),
-                        Tensor(reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{10})),
+                        Tensor(ngraph::reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{10})),
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{0},
                         Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{9, 12})),
+                        Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{9, 12})),
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{1},
                         Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{3, 7, 11})),
+                        Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{3, 7, 11})),
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{0},
                         Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}),
-                        Tensor(reduce(Shape{3, 3, 3}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{1 + 10 + 19,
+                        Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{1 + 10 + 19,
                                                                                                                    2 + 11 + 20,
                                                                                                                    3 + 12 + 21,
                                                                                                                    4 + 13 + 22,
@@ -58,7 +53,7 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{2},
                         Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}),
-                        Tensor(reduce(Shape{3, 3, 3}, AxisSet{2}, keep_dims), element::Type(IN_ET), std::vector<T>{1 + 2 + 3,
+                        Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{2}, keep_dims), element::Type(IN_ET), std::vector<T>{1 + 2 + 3,
                                                                                                                    4 + 5 + 6,
                                                                                                                    7 + 8 + 9,
                                                                                                                    10 + 11 + 12,
@@ -70,18 +65,19 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{0, 1},
                         Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}),
-                        Tensor(reduce(Shape{3, 3, 3}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{1 + 10 + 19 + 4 + 13 + 22 + 7 + 16 + 25,
+                        Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{0, 1}, keep_dims),
+                               element::Type(IN_ET), std::vector<T>{1 + 10 + 19 + 4 + 13 + 22 + 7 + 16 + 25,
                                                                                2 + 11 + 20 + 5 + 14 + 23 + 8 + 17 + 26,
                                                                                3 + 12 + 21 + 6 + 15 + 24 + 9 + 18 + 27})),
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{0, 1, 2},
                         Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}),
-                        Tensor(reduce(Shape{3, 3, 3}, AxisSet{0, 1, 2}, keep_dims), element::Type(IN_ET),
+                        Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{0, 1, 2}, keep_dims), element::Type(IN_ET),
                             std::vector<T>{1 + 10 + 19 + 4 + 13 + 22 + 7 + 16 + 25 + 2 + 11 + 20 + 5 + 14 + 23 + 8 +
                                            17 + 26 + 3 + 12 + 21 + 6 + 15 + 24 + 9 + 18 + 27})),
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{0, 1, 2, 3, 4},
                         Tensor({3, 3, 3, 3, 3}, element::Type(IN_ET), std::vector<T>(std::pow(3, 5), 1)),
-                        Tensor(reduce(Shape{3, 3, 3, 3, 3}, AxisSet{0, 1, 2, 3, 4}, keep_dims), element::Type(IN_ET), std::vector<T>{243}))
+                        Tensor(ngraph::reduce(Shape{3, 3, 3, 3, 3}, AxisSet{0, 1, 2, 3, 4}, keep_dims), element::Type(IN_ET), std::vector<T>{243}))
     };
     return params;
 }
@@ -92,12 +88,12 @@ std::vector<ReductionParams> generateReductionParamsFloat(const bool keep_dims) 
     std::vector<ReductionParams> params = {
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{0},
                         Tensor({1000000}, element::f32, in),
-                        Tensor(reduce(Shape{1000000}, AxisSet{0}, keep_dims), element::f32, std::vector<float>{res})),
+                        Tensor(ngraph::reduce(Shape{1000000}, AxisSet{0}, keep_dims), element::f32, std::vector<float>{res})),
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{0},
                         Tensor({20}, element::f32, std::vector<float>{10000000.0f, 0.9f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f,
                                                                       0.8f,        0.1f, 0.9f, 0.5f, 0.2f, 0.3f, 0.4f,
                                                                       0.5f,        0.6f, 0.7f, 0.8f, 0.9f, 0.1f}),
-                        Tensor(reduce(Shape{20}, AxisSet{0}, keep_dims), element::f32, std::vector<float>{10000010.2f}))
+                        Tensor(ngraph::reduce(Shape{20}, AxisSet{0}, keep_dims), element::f32, std::vector<float>{10000010.2f}))
     };
     return params;
 }

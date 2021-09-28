@@ -4,16 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
+#include "openvino/op/minimum.hpp"
 #include "base_reference_test.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 using namespace reference_tests;
 
 struct MinimumParams {
@@ -25,9 +19,9 @@ struct MinimumParams {
         : pshape(s),
           inType(iType),
           outType(oType),
-          inputData1(CreateBlob(iType, iValues1)),
-          inputData2(CreateBlob(iType, iValues2)),
-          refData(CreateBlob(oType, oValues)) {}
+          inputData1(CreateTensor(iType, iValues1)),
+          inputData2(CreateTensor(iType, iValues2)),
+          refData(CreateTensor(oType, oValues)) {}
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
@@ -55,9 +49,9 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& shape, const element::Type& data_type) {
-        auto A = std::make_shared<op::Parameter>(data_type, shape);
-        auto B = std::make_shared<op::Parameter>(data_type, shape);
-        return std::make_shared<Function>(std::make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
+        auto A = std::make_shared<op::v0::Parameter>(data_type, shape);
+        auto B = std::make_shared<op::v0::Parameter>(data_type, shape);
+        return std::make_shared<ov::Function>(std::make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
     }
 };
 
