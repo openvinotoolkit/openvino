@@ -9,23 +9,15 @@ if(NOT ENABLE_DOCKER)
 
     add_subdirectory(snippets)
 
-    # Detect nGraph
-    find_package(ngraph QUIET
-                 PATHS "${CMAKE_BINARY_DIR}/ngraph"
-                 NO_DEFAULT_PATH)
-    if(NOT ngraph_FOUND)
-        set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
-    endif()
-
-    # Detect InferenceEngine
-    find_package(InferenceEngine QUIET
+    # Detect OpenVINO
+    find_package(OpenVINO QUIET
                  PATHS "${CMAKE_BINARY_DIR}"
                  NO_DEFAULT_PATH)
-    if(NOT InferenceEngine_FOUND)
-        set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
+    if(NOT OpenVINO_FOUND)
+        set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
     endif()
 
-    if(NGRAPH_ONNX_IMPORT_ENABLE)
+    if(NGRAPH_ONNX_FRONTEND_ENABLE)
         add_subdirectory(onnx_custom_op)
     endif()
     add_subdirectory(template_extension)
@@ -72,7 +64,7 @@ function(build_docs)
     set(C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
     set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
     set(NGRAPH_DIR "${OpenVINO_SOURCE_DIR}/ngraph")
-    set(NGRAPH_PY_DIR "${NGRAPH_DIR}/python/src/ngraph/")
+    set(NGRAPH_PY_DIR "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/src/compatibility/ngraph/")
     set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/" "${NGRAPH_DIR}/frontend/onnx_import/include")
 
     # Preprocessing scripts
@@ -223,7 +215,11 @@ function(build_docs)
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.md"
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.png"
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.gif"
-        "${OpenVINO_SOURCE_DIR}/inference-engine/*.jpg")
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/tools/*.md"
+        "${OpenVINO_SOURCE_DIR}/tools/*.png"
+        "${OpenVINO_SOURCE_DIR}/tools/*.gif"
+        "${OpenVINO_SOURCE_DIR}/tools/*.jpg")
 
     foreach(source_file ${ovino_doc_files})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E copy

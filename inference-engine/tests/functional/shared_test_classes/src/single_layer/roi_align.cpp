@@ -12,7 +12,7 @@ using namespace FuncTestUtils::PrecisionUtils;
 
 namespace LayerTestsDefinitions {
 
-std::string ROIAlignLayerTest::getTestCaseName(testing::TestParamInfo<roialignParams> obj) {
+std::string ROIAlignLayerTest::getTestCaseName(const testing::TestParamInfo<roialignParams>& obj) {
     std::vector<size_t> inputShape;
     std::vector<size_t> coordsShape;
 

@@ -11,6 +11,10 @@
 #include <stdexcept>
 #include <vector>
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl_ocl.hpp>
+#endif
+
 namespace cldnn {
 namespace ocl {
 
@@ -73,8 +77,14 @@ shared_mem_params gpu_buffer::get_internal_params() const {
         0};
 }
 
-event::ptr gpu_buffer::copy_from(stream& /* stream */, const memory& /* other */) {
-    throw std::runtime_error("[clDNN] copy_from is not implemented for gpu_buffer");
+event::ptr gpu_buffer::copy_from(stream& stream, const memory& other) {
+    auto& cl_stream = downcast<ocl_stream>(stream);
+    auto& mem_inst = downcast<const gpu_buffer>(other);
+    auto ev = stream.create_base_event();
+    cl::Event ev_ocl = std::dynamic_pointer_cast<ocl_event>(ev)->get();
+    cl_stream.get_cl_queue().enqueueCopyBuffer(mem_inst.get_buffer(), get_buffer(), 0, 0, other.size(), nullptr, &ev_ocl);
+
+    return ev;
 }
 
 event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr) {
@@ -85,6 +95,15 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr) {
 
     return ev;
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc) {
+    auto onednn_engine = _engine->get_onednn_engine();
+    dnnl::memory dnnl_mem(desc, onednn_engine, DNNL_MEMORY_NONE);
+    dnnl::ocl_interop::set_mem_object(dnnl_mem, _buffer.get());
+    return dnnl_mem;
+}
+#endif
 
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
     : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, false), _row_pitch(0), _slice_pitch(0) {
@@ -324,17 +343,34 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
     return stream.create_user_event(true);
 }
 
-event::ptr gpu_usm::copy_from(stream& /* stream */, const void* /* host_ptr */) {
-    throw std::runtime_error("[clDNN] copy_from is not implemented for gpu_usm");
+event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr) {
+    auto& cl_stream = downcast<ocl_stream>(stream);
+    auto ev = stream.create_base_event();
+    auto dst_ptr = get_buffer().get();
+    cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(),
+                                              dst_ptr,
+                                              host_ptr,
+                                              _bytes_count,
+                                              true);
+
+    return ev;
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc) {
+    auto onednn_engine = _engine->get_onednn_engine();
+    dnnl::memory dnnl_mem = dnnl::ocl_interop::make_memory(desc, onednn_engine, dnnl::ocl_interop::memory_kind::usm, _buffer.get());
+    return dnnl_mem;
+}
+#endif
 
 shared_mem_params gpu_usm::get_internal_params() const {
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {
-        shared_mem_type::shared_mem_empty,  // shared_mem_type
+        shared_mem_type::shared_mem_usm,  // shared_mem_type
         static_cast<shared_handle>(cl_engine->get_cl_context().get()),  // context handle
-        nullptr,  // user_device handle
-        nullptr,  // mem handle
+        nullptr,        // user_device handle
+        _buffer.get(),  // mem handle
 #ifdef _WIN32
         nullptr,  // surface handle
 #else

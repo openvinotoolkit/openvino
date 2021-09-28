@@ -6,23 +6,23 @@
 #include <stdio.h>
 
 #ifdef __cplusplus
-    #define OPENCV_C_EXTERN extern "C"
+#    define OPENCV_C_EXTERN extern "C"
 #else
-    #define OPENCV_C_EXTERN
+#    define OPENCV_C_EXTERN
 #endif
 
 #if defined(__GNUC__) && (__GNUC__ < 4)
-    #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __VA_ARGS__
+#    define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __VA_ARGS__
 #else
-    #if defined(_WIN32)
-        #ifdef opencv_c_wrapper_EXPORTS
-            #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
-        #else
-            #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
-        #endif
-    #else
-        #define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
-    #endif
+#    if defined(_WIN32)
+#        ifdef opencv_c_wrapper_EXPORTS
+#            define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
+#        else
+#            define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
+#        endif
+#    else
+#        define OPENCV_C_WRAPPER(...) OPENCV_C_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
+#    endif
 #endif
 
 /**

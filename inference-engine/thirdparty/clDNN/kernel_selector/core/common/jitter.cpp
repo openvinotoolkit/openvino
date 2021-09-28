@@ -11,6 +11,7 @@
 #include <quantize/quantize_kernel_params.h>
 #include <eltwise/eltwise_kernel_base.h>
 #include <activation/activation_kernel_base.h>
+#include <inttypes.h>
 
 namespace {
 class JitTerm {
@@ -161,43 +162,38 @@ std::string getMeanOpString(MeanOp op) {
             return "";
     }
 }
+// Longest notation for value represented by double type has 24 chars
+static thread_local char buf[24 + 24 + 18] = "";
 
 std::string toCodeString(uint8_t val) {
-    std::stringstream ss;
-    ss.imbue(std::locale("C"));
-    ss << static_cast<int>(val);
-    return ss.str();
+    snprintf(buf, sizeof(buf), "%d", static_cast<int>(val));
+    return buf;
 }
 
 std::string toCodeString(int8_t val) {
-    std::stringstream ss;
-    ss.imbue(std::locale("C"));
-    ss << static_cast<int>(val);
-    return ss.str();
+    snprintf(buf, sizeof(buf), "%d", static_cast<int>(val));
+    return buf;
+}
+
+std::string toCodeString(size_t val) {
+    snprintf(buf, sizeof(buf), "%zu", val);
+    return buf;
 }
 
 std::string toCodeString(float val) {
     if (std::isinf(val))
         return std::signbit(val) ? "-INFINITY" : "INFINITY";
-    std::stringstream ss;
-    ss.imbue(std::locale("C"));
     // Workaround GCC compiler/STL bug
-    ss << "as_float(0x" << std::hex << *reinterpret_cast<uint32_t*>(&val) << ")";
-
-    ss << " /*" << std::scientific << val << "*/";
-    return ss.str();
+    snprintf(buf, sizeof(buf), "as_float(0x%" PRIx32 ")/*%.6e*/", *reinterpret_cast<uint32_t*>(&val), val);
+    return buf;
 }
 
 std::string toCodeString(double val) {
     if (std::isinf(val))
         return std::signbit(val) ? "-INFINITY" : "INFINITY";
-    std::stringstream ss;
-    ss.imbue(std::locale("C"));
     // Workaround GCC compiler/STL bug
-    ss << "as_double(0x" << std::hex << *reinterpret_cast<uint64_t*>(&val) << ")";
-
-    ss << " /*" << std::scientific << val << "*/";
-    return ss.str();
+    snprintf(buf, sizeof(buf), "as_double(0x%" PRIx64 ")/*%.6e*/", *reinterpret_cast<uint64_t*>(&val), val);
+    return buf;
 }
 
 JitDefinitions JitConstants::GetDefinitions() const {
@@ -336,13 +332,21 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                        layout == DataLayout::b_fs_yx_fsv32 ||
                        layout == DataLayout::b_fs_yx_fsv4 ||
                        layout == DataLayout::fs_b_yx_fsv32 ||
-                       layout == DataLayout::bs_fs_yx_bsv16_fsv16) {
+                       layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                       layout == DataLayout::bs_fs_yx_bsv4_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv4_fsv2 ||
+                       layout == DataLayout::bs_fs_yx_bsv32_fsv16 ||
+                       layout == DataLayout::bs_fs_yx_bsv32_fsv32) {
                 auto layout_str = toString(layout);
                 index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
                 raw_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
                 if (layout == DataLayout::b_fs_yx_fsv16 ||
                     layout == DataLayout::b_fs_yx_fsv32 ||
                     layout == DataLayout::b_fs_yx_fsv4  ||
+                    layout == DataLayout::bs_fs_yx_bsv32_fsv32  ||
+                    layout == DataLayout::bs_fs_yx_bsv32_fsv16  ||
+                    layout == DataLayout::bs_fs_yx_bsv4_fsv4  ||
+                    layout == DataLayout::bs_fs_yx_bsv4_fsv2  ||
                     layout == DataLayout::bs_fs_yx_bsv16_fsv16)
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
                 else
@@ -1741,8 +1745,10 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
 
     // Eltwise fused op can't have full tensor argument when requested vec_size > 1, since it might require
     // splitting load into several parts and some kind of index recalculation which is not supported
+    DataLayout orig_output_layout = conf.IsPostReorderFused() ? conf.orig_output_layout : prim_output.GetLayout();
+
     if (desc.GetType() == KernelType::ELTWISE && !valid_broadcast_case &&
-        input_tensor.GetLayout() != prim_output.GetLayout() && conf.vec_size > 1) {
+        input_tensor.GetLayout() != orig_output_layout && conf.vec_size > 1) {
         throw std::runtime_error("[clDNN] Mixed layouts of input tensors are not supported in fused eltwise:"
                                  "\nfused_input: " + toString_v2(input_tensor) +
                                  "\noutput: " + toString_v2(prim_output));

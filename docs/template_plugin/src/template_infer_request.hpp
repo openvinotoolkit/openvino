@@ -26,7 +26,8 @@ class TemplateInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     typedef std::shared_ptr<TemplateInferRequest> Ptr;
 
-    TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs, const InferenceEngine::OutputsDataMap& networkOutputs,
+    TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+                         const InferenceEngine::OutputsDataMap& networkOutputs,
                          const std::shared_ptr<ExecutableNetwork>& executableNetwork);
     ~TemplateInferRequest();
 
@@ -38,6 +39,9 @@ public:
     void startPipeline();
     void waitPipeline();
     void inferPostprocess();
+
+    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& userBlob) override;
 
 private:
     void allocateDeviceBuffers();
@@ -51,8 +55,6 @@ private:
     std::array<std::chrono::duration<float, std::micro>, numOfStages> _durations;
 
     InferenceEngine::BlobMap _networkOutputBlobs;
-    ngraph::ParameterVector _parameters;
-    ngraph::ResultVector _results;
 
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>> _inputTensors;
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>> _outputTensors;

@@ -2,7 +2,7 @@
 
 **Versioned name**: *Convolution-1*
 
-**Category**: Convolution
+**Category**: *Convolution*
 
 **Short description**: Computes 1D, 2D or 3D convolution (cross-correlation to be precise) of input and kernel tensors.
 
@@ -16,15 +16,15 @@ n_{out} = \left ( \frac{n_{in} + 2p - k}{s} \right ) + 1
 The receptive field in each layer is calculated using the formulas:
 *   Jump in the output feature map:
   \f[
-  j_{out} = j_{in} * s
+  j_{out} = j_{in} \cdot s
   \f]
 *   Size of the receptive field of output feature:
   \f[
-  r_{out} = r_{in} + ( k - 1 ) * j_{in}
+  r_{out} = r_{in} + ( k - 1 ) \cdot j_{in}
   \f]
 *   Center position of the receptive field of the first output feature:
   \f[
-  start_{out} = start_{in} + ( \frac{k - 1}{2} - p ) * j_{in}
+  start_{out} = start_{in} + ( \frac{k - 1}{2} - p ) \cdot j_{in}
   \f]
 *   Output is calculated using the following formula:
   \f[

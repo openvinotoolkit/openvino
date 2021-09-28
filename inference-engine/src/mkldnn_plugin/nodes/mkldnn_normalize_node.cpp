@@ -21,6 +21,7 @@
 #include <mkldnn_selective_build.h>
 
 #include <ngraph/opsets/opset1.hpp>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -662,6 +663,11 @@ MKLDNNNormalizeL2Node::MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>
 
 bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto norm = std::dynamic_pointer_cast<const ngraph::op::v0::NormalizeL2>(op);
         if (!norm) {
             errorMessage = "Only opset1 NormalizeL2 operation is supported";
@@ -682,8 +688,10 @@ bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<const ngr
             if (axes.size() == 1 && axes[0] == 1) {
                 return true;
             } else if (axes.size() == dataDims.size() - 1) {
-                for (size_t i = 0; i < axes.size(); i++) {
-                    if (axes[i] != i + 1)
+                auto sortAxes = axes;
+                std::sort(sortAxes.begin(), sortAxes.end());
+                for (size_t i = 0; i < sortAxes.size(); i++) {
+                    if (sortAxes[i] != i + 1)
                         return false;
                 }
                 return true;
@@ -715,7 +723,7 @@ void MKLDNNNormalizeL2Node::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << " has incorrect number of output edges: " << getChildEdges().size();
 
-    if (getParentEdgeAt(0)->getDims().ndims() > 4 || getParentEdgeAt(0)->getDims().ndims() < 2) {
+    if (getInputShapeAtPort(0).getRank() > 4 || getInputShapeAtPort(0).getRank() < 2) {
         IE_THROW() << errorPrefix << "has invalid input shape. Normalize supports from 2D to 4D blobs.";
     }
 }
@@ -747,43 +755,44 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
         IE_THROW() << errorPrefix << "has unsupported output precision. " << getName();
     }
 
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
-
     input_prec = inputPrecision;
     output_prec = outputPrecision;
-    src_data_size = MKLDNNExtensionUtils::sizeOfDataType(inputDataType);
-    dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(outputDataType);
+    src_data_size = inputPrecision.size();
+    dst_data_size = outputPrecision.size();
 
     bool canBeInplace = src_data_size == dst_data_size && getParentEdgeAt(DATA)->getParent()->getChildEdges().size() == 1;
 
-    LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
 
-    auto pushDesc = [&](memory::format_tag format) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA)->getDims(), inputDataType, format);
-        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(AXES)->getDims(), memory::data_type::s32, memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA)->getDims(), outputDataType, format);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, format});
+    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    auto pushDesc = [&](LayoutType format) {
+        auto a = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA));
+        config.inConfs[0].desc = std::move(a);
+        a = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(AXES));
+        config.inConfs[1].desc = std::move(a);
+        a = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(DATA));
+        config.outConfs[0].desc = std::move(a);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     };
 
     // only plain layout support when w/o sse42
-    if (getParentEdgeAt(DATA)->getDims().ndims() == 4 && !cornerCase) {
+    if (getInputShapeAtPort(DATA).getRank() == 4 && !cornerCase) {
         if (mayiuse(cpu::x64::sse41)) {
-            pushDesc(memory::format_tag::nhwc);
+            pushDesc(LayoutType::nspc);
             if (mayiuse(cpu::x64::avx512_common)) {
-                pushDesc(memory::format_tag::nChw16c);
+                pushDesc(LayoutType::nCsp16c);
             } else {
-                pushDesc(memory::format_tag::nChw8c);
+                pushDesc(LayoutType::nCsp8c);
             }
         }
     }
     if (canBeInplace)
         config.inConfs[0].inPlace = 0;
-    pushDesc(MKLDNNMemory::GetPlainFormat(getChildEdgeAt(DATA)->getDims()));
+    pushDesc(LayoutType::ncsp);
 }
 
 bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
@@ -824,22 +833,23 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
 
     if (!cornerCase) {
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[0].desc.getPrecision());
-        jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc.getPrecision());
+        jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[0].desc->getPrecision());
+        jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc->getPrecision());
         jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
         jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
 
         jcp.is_nchw = jcp.is_nhwc = jcp.is_blk = false;
-        if (getParentEdgeAt(0)->getMemory().GetDesc().isPlainFormat()) {
+        if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
             jcp.is_nchw = true;
-        } else if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
+        } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c) ||
+                  getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c)) {
             jcp.is_blk = true;
         } else {
             jcp.is_nhwc = true;
         }
 
         jcp.across_spatial = across_spatial;
-        auto dims = getParentEdgeAt(0)->getDesc().getDims();
+        auto dims = getParentEdgeAt(0)->getMemory().getStaticDims();
         size_t dims_size = dims.size();
         jcp.n = (dims_size > 0) ? dims[0] : 1lu;
         jcp.c = (dims_size > 1) ? dims[1] : 1lu;
@@ -905,7 +915,7 @@ void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {
     const uint8_t *src_ptr = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     uint8_t *dst_ptr = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
 
-    auto dims = getParentEdgeAt(DATA)->getDesc().getDims();
+    auto dims = getParentEdgeAt(DATA)->getMemory().getStaticDims();
 
     NormalizeContext ctx = {
         *this,

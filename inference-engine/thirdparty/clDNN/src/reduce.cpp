@@ -96,6 +96,6 @@ std::string reduce_inst::to_string(reduce_node const& node) {
     return primitive_description.str();
 }
 
-reduce_inst::typed_primitive_inst(network_impl& network, reduce_node const& node) : parent(network, node) {}
+reduce_inst::typed_primitive_inst(network& network, reduce_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

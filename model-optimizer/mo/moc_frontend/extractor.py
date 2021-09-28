@@ -1,35 +1,75 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import logging as log
 import re
-from collections import defaultdict
-from copy import copy
 
-import numpy as np
-
+from mo.front.extractor import raise_no_node, raise_node_name_collision
 from mo.utils.error import Error
 
 from ngraph.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
+
+import numpy as np
 
 
 def decode_name_with_port(input_model: InputModel, node_name: str):
     """
     Decode name with optional port specification w/o traversing all the nodes in the graph
-    TODO: in future node_name can specify input/output port groups and indices (58562)
+    TODO: in future node_name can specify input/output port groups as well as indices (58562)
     :param input_model: Input Model
     :param node_name: user provided node name
     :return: decoded place in the graph
     """
-    # Check exact match with one of the names in the graph first
+    found_nodes = []
+    found_node_names = []
+
     node = input_model.get_place_by_tensor_name(node_name)
     if node:
-        return node
+        found_node_names.append('Tensor:' + node_name)
+        found_nodes.append(node)
+
+    node = input_model.get_place_by_operation_name(node_name)
+    if node:
+        found_node_names.append('Operation:' + node_name)
+        found_nodes.append(node)
+
+    regexp_post = r'(.+):(\d+)'
+    match_post = re.search(regexp_post, node_name)
+    if match_post:
+        node_post = input_model.get_place_by_operation_name(match_post.group(1))
+        if node_post:
+            node_post = node_post.get_output_port(
+                outputPortIndex=int(match_post.group(2)))
+            if node_post:
+                found_node_names.append(match_post.group(1))
+                found_nodes.append(node_post)
+
+    regexp_pre = r'(\d+):(.+)'
+    match_pre = re.search(regexp_pre, node_name)
+    if match_pre:
+        node_pre = input_model.get_place_by_operation_name(match_pre.group(2))
+        if node_pre:
+            node_pre = node_pre.get_input_port(
+                inputPortIndex=int(match_pre.group(1)))
+            if node_pre:
+                found_node_names.append(match_pre.group(2))
+                found_nodes.append(node_pre)
+
+    if len(found_nodes) == 0:
+        raise_no_node(node_name)
+
+    # Check that there is no collision, all found places shall point to same data
+    if not all([n.is_equal_data(found_nodes[0]) for n in found_nodes]):
+        raise_node_name_collision(node_name, found_node_names)
+
+    # TODO: ONNX specific (59408)
+    # To comply with legacy behavior, for ONNX-only there shall be considered additional 2 possibilities
+    # 1) "abc:1" - get_place_by_tensor_name("abc").get_producing_operation().get_output_port(1)
+    # 2) "1:abc" - get_place_by_tensor_name("abc").get_producing_operation().get_input_port(1)
+    # This logic is not going to work with other frontends
 
     # TODO: Add support for input/output group name and port index here (58562)
-    # Legacy frontends use format "number:name:number" to specify input and output port indices
-    # For new frontends this logic shall be extended to additionally support input and output group names
-    raise Error('There is no node with name {}'.format(node_name))
+    # For new frontends logic shall be extended to additionally support input and output group names
+    return found_nodes[0]
 
 
 def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None, list, dict, np.ndarray],

@@ -147,7 +147,7 @@ class Node:
         for idx in self._in_ports:
             if control_flow or 'control_flow' not in self._in_ports[idx] or not self._in_ports[idx]['control_flow']:
                 ports.update({idx: self.in_port(idx, control_flow=control_flow)})
-        return dict_to_ordered_dict(ports, func=lambda t: str(t))
+        return dict_to_ordered_dict(ports, func=lambda t: int(str(t).replace('control_flow_', '')))
 
     def out_port(self, idx=None, control_flow=False) -> Port:
         if not self.has_valid('_out_ports'):
@@ -165,7 +165,7 @@ class Node:
         for idx in self._out_ports:
             if control_flow or 'control_flow' not in self._out_ports[idx] or not self._out_ports[idx]['control_flow']:
                 ports.update({idx: self.out_port(idx, control_flow=control_flow)})
-        return dict_to_ordered_dict(ports, func=lambda t: str(t))
+        return dict_to_ordered_dict(ports, func=lambda t: int(str(t).replace('control_flow_', '')))
 
     def has_port(self, port_type, idx, control_flow=False):
         assert port_type in ['in', 'out'], "Invalid usage of has_port method"
@@ -195,14 +195,14 @@ class Node:
 
     def in_nodes_edges(self, control_flow: bool = False):
         return dict_to_ordered_dict({x[1]['in']: (Node(self.graph, x[0]), x[1]) for x in
-                                     self.get_inputs(control_flow=control_flow)})
+                                     self.get_inputs(control_flow=control_flow)},
+                                    func=lambda t: int(str(t).replace('control_flow_', '')))
 
     def in_nodes(self, control_flow: bool = False):
-        assert self.has('kind')  # TODO: remove as it always exists
-        assert self.kind in ['op', 'data']  # TODO: remove as it always exists
         if self.kind == 'op':
             return dict_to_ordered_dict({x[1]['in']: Node(self.graph, x[0]) for x in
-                                         self.get_inputs(control_flow=control_flow)})
+                                         self.get_inputs(control_flow=control_flow)},
+                                        func=lambda t: int(str(t).replace('control_flow_', '')))
         elif self.kind == 'data':
             return [Node(self.graph, n) for n, d in self.get_inputs(control_flow=control_flow)]
 
@@ -213,20 +213,23 @@ class Node:
         assert self.has('kind')
         assert self.kind in ['op', 'data']
         if self.kind == 'op':
-            return dict_to_ordered_dict({x[1]['in']: x[1] for x in self.get_inputs(control_flow=control_flow)})
+            return dict_to_ordered_dict({x[1]['in']: x[1] for x in self.get_inputs(control_flow=control_flow)},
+                                        func=lambda t: int(str(t).replace('control_flow_', '')))
         elif self.kind == 'data':
             return [d for n, d in self.get_inputs(control_flow=control_flow)]
 
     def out_nodes_edges(self, control_flow: bool = False):
         return dict_to_ordered_dict({x[1]['out']: (Node(self.graph, x[0]), x[1]) for x in
-                                     self.get_outputs(control_flow=control_flow)})
+                                     self.get_outputs(control_flow=control_flow)},
+                                    func=lambda t: int(str(t).replace('control_flow_', '')))
 
     def out_nodes(self, control_flow: bool = False):
         assert self.has('kind')
         assert self.kind in ['op', 'data']
         if self.kind == 'op':
             return dict_to_ordered_dict({x[1]['out']: Node(self.graph, x[0]) for x in
-                                         self.get_outputs(control_flow=control_flow)})
+                                         self.get_outputs(control_flow=control_flow)},
+                                        func=lambda t: int(str(t).replace('control_flow_', '')))
         elif self.kind == 'data':
             return [Node(self.graph, n) for n, d in self.get_outputs(control_flow=control_flow)]
 
@@ -234,7 +237,8 @@ class Node:
         assert self.has('kind')
         assert self.kind in ['op', 'data']
         if self.kind == 'op':
-            return dict_to_ordered_dict({x[1]['out']: x[1] for x in self.get_outputs(control_flow=control_flow)})
+            return dict_to_ordered_dict({x[1]['out']: x[1] for x in self.get_outputs(control_flow=control_flow)},
+                                        func=lambda t: int(str(t).replace('control_flow_', '')))
         elif self.kind == 'data':
             return [d for n, d in self.get_outputs(control_flow=control_flow)]
 

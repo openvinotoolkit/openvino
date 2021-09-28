@@ -47,33 +47,6 @@ struct TestTransformationParams {
     bool deconvolutionSpecificChannelsRatio;
 };
 
-/*
-TestTransformationParams& setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization) {
-        this->supportAsymmetricQuantization = supportAsymmetricQuantization;
-        return *this;
-    }
-
-    TestTransformationParams& setPrecisionsOnActivations(const std::vector<element::Type>& precisionsOnActivations) {
-        this->precisionsOnActivations = precisionsOnActivations;
-        return *this;
-    }
-
-    TestTransformationParams& setPrecisionsOnWeights(const std::vector<element::Type>& precisionsOnWeights) {
-        this->precisionsOnWeights = precisionsOnWeights;
-        return *this;
-    }
-
-    TestTransformationParams& setSupport3DTensorOnActivations(const bool support3DTensorOnActivations) {
-        this->support3DTensorOnActivations = support3DTensorOnActivations;
-        return *this;
-    }
-
-    TestTransformationParams& setDeconvolutionSpecificChannelsRatio(const bool deconvolutionSpecificChannelsRatio) {
-        this->deconvolutionSpecificChannelsRatio = deconvolutionSpecificChannelsRatio;
-        return *this;
-    }
-*/
-
 class LayerTransformation : public CommonTestUtils::TestsCommon {
 public:
     static TestTransformationParams createParamsU8U8();
@@ -90,6 +63,8 @@ public:
 
     static builder::subgraph::DequantizationOperations toDequantizationOperations(
         const pass::low_precision::FakeQuantizeDequantization& dequantization);
+
+    static bool allNamesAreUnique(const std::shared_ptr<ngraph::Function>& function);
 
     template <class Operation>
     static NodeVector get(std::shared_ptr<ngraph::Function> function) {
@@ -249,3 +224,16 @@ protected:
     std::shared_ptr<Function> actualFunction;
     std::shared_ptr<Function> referenceFunction;
 };
+
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
+    os << "{ ";
+    for (size_t i = 0; i < values.size(); ++i) {
+        os << values[i];
+        if (i != (values.size() - 1ul)) {
+            os << ", ";
+        }
+    }
+    os << " }";
+    return os;
+}

@@ -6,7 +6,6 @@
 
 #include "transformations/init_node_info.hpp"
 #include "itt.hpp"
-#include "transformations/common_optimizations/algebraic_simplification.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -15,18 +14,22 @@
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
 #include "transformations/common_optimizations/gelu_fusion.hpp"
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
+#include "transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
 #include "transformations/common_optimizations/softplus_fusion.hpp"
 #include "transformations/common_optimizations/softplus_to_mish_fusion.hpp"
 #include "transformations/common_optimizations/swish_fusion.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
+#include "transformations/common_optimizations/leaky_relu_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
 #include "transformations/common_optimizations/hswish_fusion.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
+#include "transformations/common_optimizations/random_uniform_fusion.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
@@ -44,11 +47,13 @@
 #include "transformations/common_optimizations/split_squeeze_concat_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/common_optimizations/strides_optimization.hpp"
+#include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
+#include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
-#include "transformations/op_conversions/convert_gather_v7_to_gather_v1.hpp"
-#include "transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp"
+#include "transformations/op_conversions/convert_gather_downgrade.hpp"
+#include "transformations/op_conversions/convert_gather_upgrade.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_negative.hpp"
@@ -66,7 +71,6 @@
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
-#include "transformations/op_conversions/convert_previous_nms_to_nms_5.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
 #include "transformations/op_conversions/mvn6_decomposition.hpp"
@@ -78,6 +82,8 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
+#include <transformations/op_conversions/normalize_l2_decomposition.hpp>
+#include <transformations/op_conversions/softmax_decomposition.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
@@ -87,9 +93,11 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
+    manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>(); // workaround until dynamism in NMS is not supported
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
@@ -108,7 +116,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
     eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
-    eliminations->add_matcher<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
     eliminations->add_matcher<ngraph::pass::NopElimination>(); // may introduce fake dynamism
     eliminations->set_name("ngraph::pass::CommonEliminations");
 
@@ -133,6 +140,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
+    common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
+    common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
@@ -160,9 +169,12 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
+    decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
     decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
+    decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
     decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+    decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions
@@ -176,11 +188,17 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
     conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
     conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
     conv_fusions->set_name("ngraph::pass::ConvFusions");
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+    manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();  // not plugins implemented gather8
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();  // not plugins implemented gather7
     manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -188,6 +206,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::AddFakeQuantizeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::MulFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     // StridesOptimization should be at the very end

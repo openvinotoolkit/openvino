@@ -30,15 +30,15 @@ public:
     MOCK_CONST_METHOD2(GetMetric, InferenceEngine::Parameter(
                 const std::string&, const std::map<std::string, InferenceEngine::Parameter>&));
     MOCK_METHOD1(CreateContext,
-                InferenceEngine::RemoteContext::Ptr(const InferenceEngine::ParamMap&));
-    MOCK_METHOD1(GetDefaultContext, InferenceEngine::RemoteContext::Ptr(const InferenceEngine::ParamMap&));
+                std::shared_ptr<InferenceEngine::RemoteContext>(const InferenceEngine::ParamMap&));
+    MOCK_METHOD1(GetDefaultContext, std::shared_ptr<InferenceEngine::RemoteContext>(const InferenceEngine::ParamMap&));
     MOCK_METHOD3(LoadNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
                 const InferenceEngine::CNNNetwork&, const std::map<std::string, std::string>&,
-                InferenceEngine::RemoteContext::Ptr));
+                std::shared_ptr<InferenceEngine::RemoteContext>));
     MOCK_METHOD2(ImportNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
                 std::istream&, const std::map<std::string, std::string>&));
     MOCK_METHOD3(ImportNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
-                std::istream&, const InferenceEngine::RemoteContext::Ptr&,
+                std::istream&, const std::shared_ptr<InferenceEngine::RemoteContext>&,
                 const std::map<std::string, std::string>&));
     MOCK_CONST_METHOD2(QueryNetwork,
                        InferenceEngine::QueryNetworkResult(const InferenceEngine::CNNNetwork&,

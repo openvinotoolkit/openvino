@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 
 #include <ngraph/opsets/opset1.hpp>
@@ -13,8 +11,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNGRNNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNGRNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
         if (!grn) {
             errorMessage = "Only opset1 GRN operation is supported";
@@ -35,6 +37,9 @@ MKLDNNGRNNode::MKLDNNGRNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
 
     errorPrefix = "GRN layer with name '" + op->get_friendly_name() + "'";
     const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
+    if (grn == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of GRN from opset1.";
 
     if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
@@ -46,8 +51,8 @@ void MKLDNNGRNNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32, false, 0}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32, false, 0}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32, false, 0}},
+                         {{LayoutType::ncsp, Precision::FP32, false, 0}},
                          impl_desc_type::ref_any);
 }
 
@@ -55,7 +60,7 @@ void MKLDNNGRNNode::execute(mkldnn::stream strm) {
     const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    SizeVector dims = getParentEdgeAt(0)->getDims().ToSizeVector();
+    const auto &dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 
     int N = static_cast<int>((dims.size() > 0) ? dims[0] : 1);
     int C = static_cast<int>((dims.size() > 1) ? dims[1] : 1);

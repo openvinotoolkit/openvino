@@ -67,7 +67,7 @@ Options:
 
 To run the sample, you need specify a model and image:
 
-- you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
@@ -79,7 +79,7 @@ To run the sample, you need specify a model and image:
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
 ```
 python <path_to_omz_tools>/downloader.py --name mobilenet-ssd
 ```
@@ -117,7 +117,7 @@ The sample application logs each step in a standard output stream and creates an
 
 - [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
 - [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-- [Model Downloader](@ref omz_tools_downloader_README)
+- [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html

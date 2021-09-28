@@ -12,6 +12,8 @@
 #include <mutex>
 
 #include <cpp/ie_cnn_network.h>
+#include <ngraph/ngraph.hpp>
+#include <ngraph/compatibility.hpp>
 
 #include "cldnn_config.h"
 
@@ -25,12 +27,6 @@ struct activation_additional_params;
 enum class reduce_mode : uint16_t;
 enum class eltwise_mode : int32_t;
 }  // namespace cldnn
-
-// Forward declarations for ngraph part
-namespace ngraph {
-class Node;
-class DiscreteTypeInfo;
-}  // namespace ngraph
 
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
 void __register ## _ ## op_name ## _ ## op_version() {                                            \
@@ -81,8 +77,6 @@ public:
     static const cldnn::primitive_id m_postCustomLayerTag;
 
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
-    std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;
-    std::map<cldnn::primitive_id, std::string> IRToNgraphLayersMap;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
 
@@ -128,12 +122,24 @@ public:
     using factory_t = std::function<void(Program&, const std::shared_ptr<ngraph::Node>&)>;
     using factories_map_t = std::map<ngraph::DiscreteTypeInfo, factory_t>;
 
-    template<typename OpType, typename std::enable_if<std::is_base_of<ngraph::Node, OpType>::value, int>::type = 0>
+    template<typename OpType,
+        typename std::enable_if<std::is_base_of<ngraph::Node, OpType>::value && ngraph::HasTypeInfoMember<OpType>::value, int>::type = 0>
     static void RegisterFactory(factory_t func) {
         static std::mutex m;
         std::lock_guard<std::mutex> lock(m);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (Program::factories_map.find(OpType::type_info) == Program::factories_map.end())
             Program::factories_map.insert({OpType::type_info, func});
+        OPENVINO_SUPPRESS_DEPRECATED_END
+    }
+
+    template<typename OpType,
+        typename std::enable_if<std::is_base_of<ngraph::Node, OpType>::value && !ngraph::HasTypeInfoMember<OpType>::value, int>::type = 0>
+    static void RegisterFactory(factory_t func) {
+        static std::mutex m;
+        std::lock_guard<std::mutex> lock(m);
+        if (Program::factories_map.find(OpType::get_type_info_static()) == Program::factories_map.end())
+            Program::factories_map.insert({OpType::get_type_info_static(), func});
     }
 
     template<typename PType>

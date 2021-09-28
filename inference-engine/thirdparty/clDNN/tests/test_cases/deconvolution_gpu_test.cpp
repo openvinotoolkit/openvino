@@ -2558,7 +2558,7 @@ public:
             build_opts.set_option(cldnn::build_option::force_implementations({ { "deconv", params.deconv_desc } }));
         }
 
-        auto net = cldnn::network(eng, topo, build_opts);
+        cldnn::network net(eng, topo, build_opts);
         net.set_input_data("input", in_mem);
 
         auto result = net.execute();

@@ -8,6 +8,7 @@
 #include <cldnn/runtime/engine.hpp>
 #include <ie_parameter.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <ie_remote_context.hpp>
 #include "cldnn_config.h"
 #include "cldnn_common_utils.h"
 
@@ -44,8 +45,8 @@ public:
     explicit CLDNNRemoteBlobImpl(InferenceEngine::gpu::ClContext::Ptr context,
                                  cldnn::stream& stream,
                                  const cldnn::layout& layout,
-                                 cldnn::shared_handle mem,
-                                 cldnn::shared_surface surf,
+                                 cldnn::shared_handle mem = nullptr,
+                                 cldnn::shared_surface surf = 0,
                                  uint32_t plane = 0,
                                  BlobType mem_type = BT_BUF_INTERNAL);
 
@@ -64,7 +65,6 @@ public:
 
     bool is_allocated() const noexcept;
     bool is_locked() const noexcept;
-    void allocate_if_needed();
     cldnn::memory::ptr getMemory() { return m_memObject; }
 
 protected:
@@ -99,10 +99,10 @@ public:
                                   cldnn::stream& stream,
                                   const InferenceEngine::TensorDesc& desc,
                                   const cldnn::layout& layout,
-                                  cldnn::shared_handle mem,
-                                  cldnn::shared_surface surf,
-                                  uint32_t plane,
-                                  CLDNNRemoteBlobImpl::BlobType mem_type)
+                                  cldnn::shared_handle mem = nullptr,
+                                  cldnn::shared_surface surf = 0,
+                                  uint32_t plane = 0,
+                                  CLDNNRemoteBlobImpl::BlobType mem_type = CLDNNRemoteBlobImpl::BlobType::BT_BUF_INTERNAL)
         : _impl(context, stream, layout, mem, surf, plane, mem_type)
         , TpublicAPI(desc) {}
 
@@ -184,7 +184,7 @@ public:
     * @brief Maps handle to heap memory accessible by any memory manipulation routines.
     * @return Generic pointer to memory
     */
-    void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE)  noexcept override { return nullptr; };
+    void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE)  noexcept override { return handle; };
     /**
     * @brief Unmaps memory by handle with multiple sequential mappings of the same handle.
     * The multiple sequential mappings of the same handle are suppose to get the same
@@ -246,8 +246,7 @@ protected:
 };
 
 template<typename TpublicContextAPI>
-class typedCLDNNExecutionContext : public TpublicContextAPI,
-    public std::enable_shared_from_this<typedCLDNNExecutionContext<TpublicContextAPI>> {
+class typedCLDNNExecutionContext : public TpublicContextAPI {
     template<typename T1, typename T2>
     struct _Key {
         T1 _surf;
@@ -293,8 +292,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
                 ImageFormatFromLayout(tensorDesc.getLayout()),
                 CldnnTensorFromIEDims(tensorDesc.getDims()));
             auto smart_this =
-                std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>
-                (std::enable_shared_from_this<typedCLDNNExecutionContext<TpublicContextAPI>>::shared_from_this());
+                std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
 #ifdef _WIN32
             ret = std::make_shared<CLDNNRemoteD3DSurface>(smart_this, stream,
                 tensorDesc, layout, mem, 0, plane,
@@ -329,8 +327,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
                                  FormatFromLayout(tensorDesc.getLayout()),
                                  CldnnTensorFromIEDims(tensorDesc.getDims()));
             auto smart_this =
-                std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>
-                (std::enable_shared_from_this<typedCLDNNExecutionContext<TpublicContextAPI>>::shared_from_this());
+                std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
 
             switch (blob_type) {
             case CLDNNRemoteBlobImpl::BlobType::BT_BUF_SHARED:
@@ -359,8 +356,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
         cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
                              FormatFromLayout(tensorDesc.getLayout()),
                              CldnnTensorFromIEDims(tensorDesc.getDims()));
-        auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>
-            (std::enable_shared_from_this<typedCLDNNExecutionContext<TpublicContextAPI>>::shared_from_this());
+        auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
         auto& stream = _impl.GetEngine()->get_program_stream();
         return std::make_shared<CLDNNRemoteCLbuffer>(smart_this,
                                                      stream,
@@ -374,6 +370,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
         if (GetType() != CLDNNExecutionContextImpl::ContextType::DEV_SHARED)
             IE_THROW() << "Shared context is required to to share this type of memory";
     }
+
 public:
     using Ptr = std::shared_ptr<typedCLDNNExecutionContext>;
     using CPtr = std::shared_ptr<const typedCLDNNExecutionContext>;
@@ -428,6 +425,7 @@ public:
     CLDNNExecutionContextImpl::ContextType GetType() const { return _impl.GetType(); }
 
     CLDNNExecutionContextImpl* getImpl() { return &_impl; }
+
 protected:
     CLDNNExecutionContextImpl _impl;
 };

@@ -25,10 +25,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 
 template <element::Type_t Type, typename T = fundamental_type_for<Type>>
-static void mish_test(const PartialShape& dynamic_shape,
-                      const Shape& static_shape,
-                      const double fp_tolerance = 1e-5)
-{
+static void mish_test(const PartialShape& dynamic_shape, const Shape& static_shape, const double fp_tolerance = 1e-5) {
     bool must_support_dynamic = dynamic_shape.is_dynamic();
     auto data = make_shared<op::Parameter>(Type, dynamic_shape);
     auto f = make_shared<Function>(make_shared<op::v4::Mish>(data), ParameterVector{data});
@@ -49,14 +46,12 @@ static void mish_test(const PartialShape& dynamic_shape,
     std::vector<T> expected;
     std::vector<T> input;
     {
-        std::mt19937 gen{0}; // use fixed seed for reproducibility of the test
+        std::mt19937 gen{0};  // use fixed seed for reproducibility of the test
         std::normal_distribution<> d{0.0, 20.0};
 
-        for (auto i = static_size; i > 0; i--)
-        {
+        for (auto i = static_size; i > 0; i--) {
             auto x = static_cast<T>(d(gen));
-            auto y =
-                static_cast<T>(static_cast<double>(x) * std::tanh(std::log(1.0 + std::exp(x))));
+            auto y = static_cast<T>(static_cast<double>(x) * std::tanh(std::log(1.0 + std::exp(x))));
             input.push_back(x);
             expected.push_back(y);
         }
@@ -78,20 +73,17 @@ static void mish_test(const PartialShape& dynamic_shape,
         EXPECT_NEAR(actual[i], expected[i], fp_tolerance) << "input[i] is " << input[i];
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, mish_f32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, mish_f32) {
     mish_test<element::f32>({2, 5}, {2, 5});
     mish_test<element::f32>({2, 3, 4, 5}, {2, 3, 4, 5});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, mish_f16)
-{
+NGRAPH_TEST(${BACKEND_NAME}, mish_f16) {
     mish_test<element::f16>({2, 5}, {2, 5});
     mish_test<element::f16>({2, 3, 4, 5}, {2, 3, 4, 5});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, mish_dynamic)
-{
+NGRAPH_TEST(${BACKEND_NAME}, mish_dynamic) {
     mish_test<element::f32>(PartialShape::dynamic(), {2, 3, 4, 5});
     mish_test<element::f32>({2, Dimension::dynamic(), 4, 5}, {2, 3, 4, 5});
 }

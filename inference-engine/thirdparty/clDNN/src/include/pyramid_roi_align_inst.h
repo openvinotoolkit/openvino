@@ -15,7 +15,7 @@ struct typed_program_node<pyramid_roi_align> : public typed_program_node_base<py
     using parent = typed_program_node_base<pyramid_roi_align>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog) : parent(prim, prog) {}
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
 
     program_node& input() const { return get_dependency(0); }
     // program_node& boxes() const { return get_dependency(0); }
@@ -34,7 +34,7 @@ class typed_primitive_inst<pyramid_roi_align> : public typed_primitive_inst_base
 public:
     static layout calc_output_layout(pyramid_roi_align_node const& node);
     static std::string to_string(pyramid_roi_align_node const& node);
-    typed_primitive_inst(network_impl& network, pyramid_roi_align_node const& node);
+    typed_primitive_inst(network& network, pyramid_roi_align_node const& node);
 
     memory& input() const { return dep_memory(0); }
     memory& P2() const { return dep_memory(1); }

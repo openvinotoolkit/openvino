@@ -21,7 +21,7 @@
 #include <vector>
 
 template<typename T>
-bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, program_impl& p) {
+bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, program& p) {
     bool is_binarization = true;
     const auto& stream = p.get_stream();
     mem_lock<T> data_input_low_lock{mem_input_low, stream};
@@ -39,7 +39,7 @@ bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, p
 }
 
 
-void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_node& quantize_node) {
+void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& quantize_node) {
     const auto& stream = p.get_stream();
     program_node &input_low_node = quantize_node.get_dependency(1);
     program_node &input_high_node = quantize_node.get_dependency(2);
@@ -286,7 +286,7 @@ void  prepare_quantization::prepare_scale_shift_opt(program_impl &p, quantize_no
     }
 }
 
-void prepare_quantization::handle_quantize_node(program_impl& p, quantize_node& quantize_node) {
+void prepare_quantization::handle_quantize_node(program& p, quantize_node& quantize_node) {
     if (quantize_node.get_primitive()->levels == 2) {
         prepare_packed_quantize(p, quantize_node);
     } else if (quantize_node.get_primitive()->levels <= 256 && !quantize_node.get_scale_shift_opt() && !quantize_node.is_constant()) {
@@ -294,7 +294,7 @@ void prepare_quantization::handle_quantize_node(program_impl& p, quantize_node& 
     }
 }
 
-void prepare_quantization::prepare_packed_quantize(program_impl& p, quantize_node& quantize_node) {
+void prepare_quantization::prepare_packed_quantize(program& p, quantize_node& quantize_node) {
     program_node &input_low_node = quantize_node.get_dependency(1);
     program_node &input_high_node = quantize_node.get_dependency(2);
 
@@ -331,7 +331,7 @@ void prepare_quantization::prepare_packed_quantize(program_impl& p, quantize_nod
     quantize_node.recalc_output_layout();
 }
 
-void prepare_quantization::prepare_dequantize_merge(program_impl& p, eltwise_node& eltwise_node) {
+void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& eltwise_node) {
     for (size_t i = 1; i < eltwise_node.get_dependencies().size(); i++) {
         if (!eltwise_node.get_dependency(i).is_type<data>()) {
             return;
@@ -403,7 +403,7 @@ void prepare_quantization::prepare_dequantize_merge(program_impl& p, eltwise_nod
     }
 }
 
-void prepare_quantization::remove_fake_reorders(program_impl& p, reorder_node& reorder_node) {
+void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorder_node) {
     if (!reorder_node.is_in_data_flow() || reorder_node.get_users().size() != 1 || reorder_node.get_dependencies().size() != 1) {
         return;
     }
@@ -447,7 +447,7 @@ void fill_compensation_typed(W_T* w, AZP_T* azp, W_T* wzp, float* comp, const in
     }
 }
 
-void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, convolution_node& convolution_node) {
+void prepare_quantization::prepare_asymmetric_quantization(program &p, convolution_node& convolution_node) {
     // Detects if given eltwise node performs zero point subtraction
     auto is_zero_point_node = [](const eltwise_node& node) -> bool {
         auto prim = node.get_primitive();
@@ -657,6 +657,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, conv
                 old_conv_prim->dilation,
                 output_size,
                 old_conv_prim->grouped_weights_shape,
+                "",
                 old_conv_prim->output_padding);
 
     auto& new_conv_node = p.get_or_create(new_conv_prim);
@@ -718,7 +719,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p, conv
     new_conv_node.recalc_output_layout();
 }
 
-void prepare_quantization::run(program_impl& p) {
+void prepare_quantization::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto &node = (*itr++);

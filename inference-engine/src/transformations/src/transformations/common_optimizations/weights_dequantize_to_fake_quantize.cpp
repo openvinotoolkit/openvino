@@ -29,7 +29,7 @@ ngraph::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize()
     callback = [=](ngraph::pattern::Matcher &m) {
         const auto &pattern_map = m.get_pattern_map();
 
-        const auto &weights_node = as_type_ptr<opset6::Constant>(pattern_map.at(weights));
+        const auto &weights_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(weights));
         const auto &convert_node = pattern_map.at(convert);
         const auto &multiply_node = pattern_map.at(mul);
         const auto &scale_node = pattern_map.at(mul_c);

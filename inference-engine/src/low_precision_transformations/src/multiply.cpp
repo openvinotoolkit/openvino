@@ -15,7 +15,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/common/ie_lpt_exception.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -41,7 +40,7 @@ MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBa
 
 bool MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     auto multiply = m.get_match_root();
-    if (!LayerTransformation::canBeTransformed(context, multiply)) {
+    if (!canBeTransformed(context, multiply)) {
         return false;
     }
 
@@ -52,10 +51,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     auto newMultiply = multiply;
 
     auto fold_fake_quantizes = [](std::shared_ptr<Node>& multiply, const size_t index) {
-        auto fakeQuantizeOnWeights = as_type_ptr<opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
+        auto fakeQuantizeOnWeights = ov::as_type_ptr<opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
         if (fakeQuantizeOnWeights != nullptr) {
             auto result = NetworkHelper::fold_fake_quantize(fakeQuantizeOnWeights);
-            if (is_type<opset1::Constant>(result)) {
+            if (ov::is_type<opset1::Constant>(result)) {
                 replace_node(fakeQuantizeOnWeights, result);
             }
         }
@@ -78,10 +77,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             return false;
         }
 
-        auto multiplyParent = multiply->get_input_source_output(multiplyBranch.first);
-        auto constParent = multiply->get_input_source_output(multiplyBranch.first == 0 ? 1 : 0);
-        auto multiplyParentParent = multiplyParent.get_node_shared_ptr()->get_input_source_output(multiplyBranch.second);
-        auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->get_input_source_output(multiplyBranch.second == 0 ? 1 : 0);
+        auto multiplyParent = multiply->input_value(multiplyBranch.first);
+        auto constParent = multiply->input_value(multiplyBranch.first == 0 ? 1 : 0);
+        auto multiplyParentParent = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second);
+        auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second == 0 ? 1 : 0);
 
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 },
@@ -95,10 +94,6 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
         NetworkHelper::copyInfo(multiplyParent.get_node_shared_ptr(), newMultiply);
         NetworkHelper::copyInfo(multiply, newMultiply);
-
-        if (!FakeQuantizeDequantization::checkElementwise(newMultiply)) {
-            NetworkHelper::cleanRunTimeInfo(newMultiply);
-        }
     } else {
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
 
@@ -116,7 +111,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         dequantizationEmptyPath = NetworkHelper::foldDequantization(multiply, emptyPathIndex);
         std::shared_ptr<Node> subtractValuesEmptyPath;
         std::shared_ptr<Node> multiplyValuesEmptyPath;
-        std::tie(subtractValuesEmptyPath, multiplyValuesEmptyPath) = NetworkHelper::createEmptyValues(dequantizationEmptyPath);
+        std::tie(subtractValuesEmptyPath, multiplyValuesEmptyPath) = NetworkHelper::createEmptyValues(dequantizationEmptyPath, deqPrecision);
 
         // check if empty path shifts are not zero
         if (!NetworkHelper::isZeroConst(subtractValuesEmptyPath)) {
@@ -126,16 +121,16 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         dequantizationFullPath = NetworkHelper::foldDequantization(multiply, fullPathIndex);
         std::shared_ptr<Node> subtractValuesFullPath;
         std::shared_ptr<Node> multiplyValuesFullPath;
-        std::tie(subtractValuesFullPath, multiplyValuesFullPath) = NetworkHelper::createEmptyValues(dequantizationFullPath);
+        std::tie(subtractValuesFullPath, multiplyValuesFullPath) = NetworkHelper::createEmptyValues(dequantizationFullPath, deqPrecision);
 
 
         // before: Y = (SC1 * (X1 - SH1)) * (SC2 * X2)
         // after : Y = (SC1' * (X1 - SH1)) * (X2) , where :
         //         SC1' = SC1 * SC2
-        std::shared_ptr<Node> newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
+        auto newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         OutputVector inputs{ {}, {} };
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
-        inputs[fullPathIndex] = std::make_shared<DequantizationMultiply>(
+        inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
             dequantizationFullPath.subtract == nullptr ?
                 (dequantizationFullPath.convert == nullptr ?
                     dequantizationFullPath.data : dequantizationFullPath.convert) :
@@ -158,6 +153,24 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     }
 
     return true;
+}
+
+bool MultiplyTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, 0ul);
+    FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
+
+    if (dequantization1.data.get_node() == nullptr || dequantization2.data.get_node() == nullptr) {
+        return false;
+    }
+
+    const bool nonConstantData = !ov::is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
+                                 !ov::is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr());
+
+    if (((dequantization1.empty() || dequantization2.empty()) && nonConstantData)) {
+        return false;
+    }
+
+    return EltwiseBaseTransformation::canBeTransformed(context, layer);
 }
 
 } // namespace low_precision

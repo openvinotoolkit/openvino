@@ -28,7 +28,7 @@ class typed_primitive_inst<cum_sum> : public typed_primitive_inst_base<cum_sum> 
 public:
     static layout calc_output_layout(cum_sum_node const& node);
     static std::string to_string(cum_sum_node const& node);
-    typed_primitive_inst(network_impl& network, cum_sum_node const& desc);
+    typed_primitive_inst(network& network, cum_sum_node const& desc);
 };
 
 using cum_sum_inst = typed_primitive_inst<cum_sum>;

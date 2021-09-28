@@ -4,13 +4,13 @@
 
 #include <vector>
 
-#include "shared_test_classes/single_layer/convolution_backprop.hpp"
+#include "shared_test_classes/single_layer/convolution_backprop_data.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
 
-TEST_P(ConvolutionBackpropLayerTest, Serialize) {
+TEST_P(ConvolutionBackpropDataLayerTest, Serialize) {
     Serialize();
 }
 
@@ -42,7 +42,7 @@ const auto convolutionBackpropData2DParams = ::testing::Combine(
     ::testing::ValuesIn(pad_types), ::testing::ValuesIn(outPadding));
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_convolutionBackpropData2D_Serialization, ConvolutionBackpropLayerTest,
+    smoke_convolutionBackpropData2D_Serialization, ConvolutionBackpropDataLayerTest,
     ::testing::Combine(
         convolutionBackpropData2DParams,
         ::testing::ValuesIn(precisions),
@@ -53,6 +53,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(inputShapes),
         ::testing::ValuesIn(emptyOutputShape),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-    ConvolutionBackpropLayerTest::getTestCaseName);
+    ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 }   // namespace

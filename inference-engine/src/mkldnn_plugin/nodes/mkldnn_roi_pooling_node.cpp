@@ -306,8 +306,12 @@ private:
     }
 };
 
-bool MKLDNNROIPoolingNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNROIPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto roiPooling = std::dynamic_pointer_cast<const ngraph::opset2::ROIPooling>(op);
         if (!roiPooling) {
             errorMessage = "Only opset2 ROIPooling operation is supported";
@@ -354,21 +358,21 @@ void MKLDNNROIPoolingNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 
-    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+    if (getInputShapeAtPort(0).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
     }
 
-    if (getParentEdgeAt(1)->getDims().ndims() != 2) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+    if (getInputShapeAtPort(1).getRank() != 2) {
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
     }
 
-    if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+    if (getOutputShapeAtPort(0).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
     }
 
-    if (getParentEdgeAt(1)->getDims()[1] != 5) {
+    if (getInputShapeAtPort(1).getStaticDims()[1] != 5) {
         IE_THROW() << errorPrefix << "has invalid shape on 1st input: ["
-                                          << getParentEdgeAt(1)->getDims()[0] << "," << getParentEdgeAt(1)->getDims()[1] << "]";
+                                  << getInputShapeAtPort(1).getStaticDims()[0] << "," << getInputShapeAtPort(1).getStaticDims()[1] << "]";
     }
 }
 
@@ -383,25 +387,10 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
             runtimePrecision = Precision::FP32;
     }
 
-    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
+    src_data_size = dst_data_size = runtimePrecision.size();
 
-    src_data_size = MKLDNNExtensionUtils::sizeOfDataType(dataType);
-    dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(dataType);
-
-    InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = false;
-    config.inConfs.resize(2);
-    config.inConfs[0].constant = false;
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[1].constant = false;
-    config.inConfs[1].inPlace = -1;
-
-    config.outConfs.resize(1);
-    config.outConfs[0].constant = false;
-    config.outConfs[0].inPlace = -1;
-
-    auto parentDims = getParentEdgeAt(0)->getDims();
-    auto format = mayiuse(avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
+    auto parentDims = getInputShapeAtPort(0).getStaticDims();
+    auto format = mayiuse(avx512_common) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_common)) {
         impl_type = impl_desc_type::jit_avx512;
@@ -413,10 +402,10 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
-    config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), dataType, format);
-    config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), dataType, memory::format_tag::nc);
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, format);
-    supportedPrimitiveDescriptors.push_back({config, impl_type, format});
+    addSupportedPrimDesc({{format, runtimePrecision},
+                          {LayoutType::ncsp, runtimePrecision}},
+                         {{format, runtimePrecision}},
+                          impl_type);
 }
 
 void MKLDNNROIPoolingNode::createPrimitive() {
@@ -428,8 +417,8 @@ void MKLDNNROIPoolingNode::createPrimitive() {
     const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
     jpp.c_block = simd_w;
 
-    auto inDims = config.inConfs[0].desc.getDims();
-    auto outDims = config.outConfs[0].desc.getDims();
+    auto inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
+    auto outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
     jpp.mb = outDims[0];
     jpp.c = rnd_up(inDims[1], simd_w);
@@ -447,8 +436,8 @@ void MKLDNNROIPoolingNode::createPrimitive() {
     jpp.nb_c_blocking = mayiuse(cpu::x64::avx512_common) ? 15 : 7;
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    jpp.src_prc = selectedPD->getConfig().inConfs[0].desc.getPrecision();
-    jpp.dst_prc = selectedPD->getConfig().outConfs[0].desc.getPrecision();
+    jpp.src_prc = selectedPD->getConfig().inConfs[0].desc->getPrecision();
+    jpp.dst_prc = selectedPD->getConfig().outConfs[0].desc->getPrecision();
     jpp.src_data_size = jpp.src_prc.size();
     jpp.dst_data_size = jpp.dst_prc.size();
 
@@ -481,9 +470,9 @@ void MKLDNNROIPoolingNode::execute() {
         IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
-    auto src_strides = config.inConfs[0].desc.getBlockingDesc().getStrides();
-    auto dst_strides = config.outConfs[0].desc.getBlockingDesc().getStrides();
-    size_t src_roi_step = config.inConfs[1].desc.getBlockingDesc().getStrides()[0];
+    auto src_strides = srcMemory0.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto dst_strides = dstMemory.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    size_t src_roi_step = srcMemory1.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
 
     int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
     int MB = jpp.mb;

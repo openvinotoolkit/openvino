@@ -6,7 +6,7 @@ import logging as log
 import numpy as np
 
 from extensions.ops.tensor_iterator import TensorIterator
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import shape_array, is_fully_defined, dynamic_dimension_value
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import common_bfs
 from mo.middle.passes.infer import partial_infer
@@ -62,6 +62,27 @@ class Loop(TensorIterator):
         return suitable_nodes[0] if len(suitable_nodes) == 1 else None
 
     @staticmethod
+    def get_external_nodes_by_internal_id(loop_node: Node, internal_layer_id: int) -> list:
+        """
+        Get a list of nodes from the main graph that are connected with a node with internal_layer_id
+        from the body graph
+
+        :param loop_node: The Loop node
+        :param internal_layer_id: Internal layer ID of the node in the body graph
+        :return: A list of external nodes (from the main graph) that are connected with a node with
+        internal_layer_id from the body graph
+        """
+        for map_item in loop_node.input_port_map:
+            if map_item['internal_layer_id'] == internal_layer_id \
+                    and loop_node.is_in_port_connected(map_item['external_port_id']):
+                return [loop_node.in_port(map_item['external_port_id']).get_source().node]
+        for map_item in loop_node.output_port_map:
+            if map_item['internal_layer_id'] == internal_layer_id \
+                    and loop_node.is_out_port_connected(map_item['external_port_id']):
+                return [dest.node for dest in loop_node.out_port(map_item['external_port_id']).get_destinations()]
+        return []
+
+    @staticmethod
     def updated_body_parameters_shape(loop_node: Node):
         """
         Update shape for Loop body parameters.
@@ -78,7 +99,7 @@ class Loop(TensorIterator):
             if body_node is not None:
                 assert body_node.soft_get('type') == 'Parameter'
 
-                input_shape = int64_array([])  # this is a current iteration number input shape
+                input_shape = shape_array([])  # this is a current iteration number input shape
                 loop_port_idx = record['external_port_id']
                 if loop_port_idx != -1:
                     input_shape = loop_node.in_port(loop_port_idx).get_connection().get_source().data.get_shape()
@@ -114,12 +135,7 @@ class Loop(TensorIterator):
                     assert output_shape[concat_axis] == 1, 'Dimension for concatenation is not equal to 1 for scan ' \
                                                            'output for Loop node "{}" for loop output port "{}"'.\
                         format(loop_name, loop_port_idx)
-                    num_iters = Loop.iterations_count(loop_node)
-                    if num_iters is None:
-                        log.error('Dynamic number of iterations for Loop node "{}". Consider number to be 1 to be able'
-                                  ' to generate the IR.'.format(loop_name), extra={'is_warning': True})
-                        num_iters = 1
-                    output_shape[concat_axis] = num_iters
+                    output_shape[concat_axis] = Loop.iterations_count(loop_node)
                 # MO does not support evaluation of Loop scan outputs with const values
                 if concat_axis is None and output_value is not None:
                     loop_node.out_port(loop_port_idx).data.set_value(output_value)
@@ -132,22 +148,25 @@ class Loop(TensorIterator):
         Try to determine the number of loop iterations. If we detect that the number is dynamic then return None.
 
         :param loop_node: Loop operation node
-        :return: number of iterations or None if the number depends on runtime values.
+        :return: number of iterations or dynamic_dimensions if the number depends on runtime values.
         """
         assert loop_node.soft_get('type') == 'Loop'
 
         if loop_node.is_in_port_connected(1):
             execution_condition = loop_node.in_port(1).data.get_value()
-            if execution_condition is None:  # dynamic execution condition
-                return None
+            if not is_fully_defined(execution_condition):  # dynamic execution condition
+                return dynamic_dimension_value
             execution_condition = execution_condition.item()
             if not execution_condition:  # 0 iterations
                 return 0
         num_iterations = loop_node.in_port(0).data.get_value()
+        if not is_fully_defined(num_iterations):
+            return dynamic_dimension_value
         if num_iterations is not None:
             num_iterations = num_iterations.item(0)
-            if num_iterations < 0:
-                return None
+            # in some ONNX models the num_iterations input is equal to max(int64) meaning dynamic number of iterations
+            if num_iterations < 0 or num_iterations == np.iinfo(np.int64).max:
+                return dynamic_dimension_value
         return num_iterations
 
     @staticmethod
@@ -490,7 +509,8 @@ class Loop(TensorIterator):
                 port_to_remove = port_map[record_id_to_remove]['external_port_id']
                 if port_to_remove != -1:
                     if dir == 'in':
-                        if port_to_remove not in [0, 1] and port_to_remove in loop_node.in_ports().keys():  # input port 0 and 1 are mandatory for the Loop node
+                        # input port 0 and 1 are mandatory for the Loop node
+                        if port_to_remove not in [0, 1] and port_to_remove in loop_node.in_ports().keys():
                             loop_node.delete_input_port(port_to_remove)
                     elif dir == 'out' and port_to_remove in loop_node.out_ports():
                         loop_node.delete_output_port(port_to_remove)

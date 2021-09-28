@@ -2,7 +2,7 @@
 
 **Versioned name**: *NonZero-3*
 
-**Category**: Condition operation
+**Category**: *Condition*
 
 **Short description**: *NonZero* returns the indices of the non-zero elements of the input tensor.
 

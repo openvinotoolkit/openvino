@@ -5,67 +5,23 @@
 #pragma once
 
 #include <memory>
+
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/node.hpp"
+#include "openvino/op/util/op_types.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        NGRAPH_API
-        bool is_unary_elementwise_arithmetic(const ngraph::Node* node);
-        NGRAPH_API
-        bool is_binary_elementwise_arithmetic(const ngraph::Node* node);
-        NGRAPH_API
-        bool is_binary_elementwise_comparison(const ngraph::Node* node);
-        NGRAPH_API
-        bool is_binary_elementwise_logical(const ngraph::Node* node);
-
-        NGRAPH_API
-        bool supports_auto_broadcast(const ngraph::Node* node);
-
-        NGRAPH_API
-        bool supports_decompose(const ngraph::Node* node);
-
-        NGRAPH_API
-        bool is_op(const ngraph::Node* node);
-        NGRAPH_API
-        bool is_parameter(const ngraph::Node* node);
-        NGRAPH_API
-        bool is_output(const ngraph::Node* node);
-        NGRAPH_API
-        bool is_sink(const ngraph::Node* node);
-        NGRAPH_API
-        bool is_constant(const ngraph::Node* node);
-        NGRAPH_API
-        bool is_commutative(const ngraph::Node* node);
-
-        NGRAPH_API
-        bool is_unary_elementwise_arithmetic(const std::shared_ptr<ngraph::Node>& node);
-        NGRAPH_API
-        bool is_binary_elementwise_arithmetic(const std::shared_ptr<ngraph::Node>& node);
-        NGRAPH_API
-        bool is_binary_elementwise_comparison(const std::shared_ptr<ngraph::Node>& node);
-        NGRAPH_API
-        bool is_binary_elementwise_logical(const std::shared_ptr<ngraph::Node>& node);
-
-        NGRAPH_API
-        bool supports_auto_broadcast(const std::shared_ptr<ngraph::Node>& node);
-
-        NGRAPH_API
-        bool supports_decompose(const std::shared_ptr<ngraph::Node>& node);
-
-        NGRAPH_API
-        bool is_op(const std::shared_ptr<ngraph::Node>& node);
-        NGRAPH_API
-        bool is_parameter(const std::shared_ptr<ngraph::Node>& node);
-        NGRAPH_API
-        bool is_output(const std::shared_ptr<ngraph::Node>& node);
-        NGRAPH_API
-        bool is_sink(const std::shared_ptr<ngraph::Node>& node);
-        NGRAPH_API
-        bool is_constant(const std::shared_ptr<ngraph::Node>& node);
-        NGRAPH_API
-        bool is_commutative(const std::shared_ptr<ngraph::Node>& node);
-    } // namespace op
-} // namespace ngraph
+namespace ngraph {
+namespace op {
+using ov::op::util::is_binary_elementwise_arithmetic;
+using ov::op::util::is_binary_elementwise_comparison;
+using ov::op::util::is_binary_elementwise_logical;
+using ov::op::util::is_commutative;
+using ov::op::util::is_constant;
+using ov::op::util::is_op;
+using ov::op::util::is_output;
+using ov::op::util::is_parameter;
+using ov::op::util::is_sink;
+using ov::op::util::is_unary_elementwise_arithmetic;
+using ov::op::util::supports_auto_broadcast;
+}  // namespace op
+}  // namespace ngraph

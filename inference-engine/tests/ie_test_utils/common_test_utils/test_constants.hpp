@@ -20,6 +20,8 @@ const char DEVICE_HETERO[] = "HETERO";
 const char REPORT_FILENAME[] = "report";
 const char REPORT_EXTENSION[] = ".xml";
 
+const unsigned int maxFileNameLength = 140;
+
 #ifdef _WIN32
     #ifdef __MINGW32__
         const char pre[] = "lib";

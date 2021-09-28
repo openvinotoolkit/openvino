@@ -8,11 +8,8 @@ cmake_minimum_required (VERSION 3.13)
 # Set the project name
 project (ie_python_api)
 
-if(DEFINED OpenVINO_SOURCE_DIR)
-    set(InferenceEngine_LIBRARIES inference_engine)
-else()
+if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
-    set(InferenceEngine_LIBRARIES IE::inference_engine)
 endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
@@ -37,7 +34,9 @@ else()
 endif()
 
 if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
-    set(PYTHON_VERSION python${CMAKE_MATCH_1}.${CMAKE_MATCH_2})
+    set(PYTHON_VERSION_MAJOR ${CMAKE_MATCH_1})
+    set(PYTHON_VERSION_MINOR ${CMAKE_MATCH_2})
+    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 else()
     message(FATAL_ERROR "Failed to extract python major.minor from ${PYTHONLIBS_VERSION_STRING}")
 endif()
@@ -102,7 +101,8 @@ install(PROGRAMS src/openvino/__init__.py
 ie_cpack_add_component(python_samples)
 
 install(DIRECTORY sample/
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/python
+        DESTINATION samples/python
+        USE_SOURCE_PERMISSIONS
         COMPONENT python_samples)
 
 ie_cpack(${PYTHON_COMPONENT} python_samples)

@@ -3,7 +3,6 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/op/deformable_psroi_pooling.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
@@ -14,12 +13,11 @@ using namespace ngraph;
 static std::string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_00)
-{
+NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_00) {
     const float spatial_scale = 0.0625;
     const int64_t group_size = 2;
     const size_t channels_in = 16;
-    size_t output_dim = channels_in / (group_size * group_size); // 4
+    size_t output_dim = channels_in / (group_size * group_size);  // 4
 
     size_t rois_count = 2;
 
@@ -31,8 +29,12 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_00)
     auto rois_param = std::make_shared<op::Parameter>(element::f32, rois_shape);
     auto offsets_param = std::make_shared<op::Parameter>(element::f32, offsets_shape);
 
-    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(
-        data_param, rois_param, offsets_param, output_dim, spatial_scale, group_size);
+    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(data_param,
+                                                                           rois_param,
+                                                                           offsets_param,
+                                                                           output_dim,
+                                                                           spatial_scale,
+                                                                           group_size);
 
     Shape output_shape{rois_count, output_dim, group_size, group_size};
     // ASSERT_EQ(def_psroi_pool->get_output_shape(0), (output_shape));
@@ -40,7 +42,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_00)
     std::vector<float> data_values(shape_size(data_shape));
     std::iota(data_values.begin(), data_values.end(), 0);
     // std::fill(data_values.begin(), data_values.end(), 0.1);
-    
+
     std::vector<float> rois_data{
         // input_batch_id, x1, y1, x2, y2
         0,
@@ -59,34 +61,48 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_00)
     std::fill(offsets_values.begin(), offsets_values.end(), 0.0);
 
     std::vector<float> expected_output_values{// First ROI
-                                            0, 4, 
-                                            8, 12, 
-                                            
-                                            16, 20, 
-                                            24, 28, 
-                                            
-                                            32, 36, 
-                                            40, 44, 
-                                            
-                                            48, 52, 
-                                            56, 60,
+                                              0,
+                                              4,
+                                              8,
+                                              12,
 
-                                            // Second ROI
-                                            0, 4, 
-                                            8, 12, 
+                                              16,
+                                              20,
+                                              24,
+                                              28,
 
-                                            16, 20, 
-                                            24, 28,
+                                              32,
+                                              36,
+                                              40,
+                                              44,
 
-                                            32, 36, 
-                                            40, 44, 
-                                            
-                                            48, 52, 
-                                            56, 60};
+                                              48,
+                                              52,
+                                              56,
+                                              60,
 
-    auto f =
-        std::make_shared<Function>(def_psroi_pool,
-                                   ParameterVector{data_param, rois_param, offsets_param});
+                                              // Second ROI
+                                              0,
+                                              4,
+                                              8,
+                                              12,
+
+                                              16,
+                                              20,
+                                              24,
+                                              28,
+
+                                              32,
+                                              36,
+                                              40,
+                                              44,
+
+                                              48,
+                                              52,
+                                              56,
+                                              60};
+
+    auto f = std::make_shared<Function>(def_psroi_pool, ParameterVector{data_param, rois_param, offsets_param});
 
     auto test = test::TestCase<TestEngine>(f);
     test.add_input<float>(data_values);
@@ -97,12 +113,11 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_00)
     test.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_0p2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_0p2) {
     const float spatial_scale = 0.0625;
     const int64_t group_size = 2;
     const size_t channels_in = 16;
-    size_t output_dim = channels_in / (group_size * group_size); // 4
+    size_t output_dim = channels_in / (group_size * group_size);  // 4
 
     size_t rois_count = 2;
 
@@ -114,14 +129,18 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_0p2)
     auto rois_param = std::make_shared<op::Parameter>(element::f32, rois_shape);
     auto offsets_param = std::make_shared<op::Parameter>(element::f32, offsets_shape);
 
-    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(
-        data_param, rois_param, offsets_param, output_dim, spatial_scale, group_size);
+    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(data_param,
+                                                                           rois_param,
+                                                                           offsets_param,
+                                                                           output_dim,
+                                                                           spatial_scale,
+                                                                           group_size);
 
     Shape output_shape{rois_count, output_dim, group_size, group_size};
 
     std::vector<float> data_values(shape_size(data_shape));
     std::iota(data_values.begin(), data_values.end(), 0);
-    
+
     std::vector<float> rois_data{
         // input_batch_id, x1, y1, x2, y2
         0,
@@ -140,34 +159,48 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_0p2)
     std::fill(offsets_values.begin(), offsets_values.end(), 0.2);
 
     std::vector<float> expected_output_values{// First ROI
-                                            0, 4, 
-                                            8, 12, 
-                                            
-                                            16, 20, 
-                                            24, 28, 
-                                            
-                                            32, 36, 
-                                            40, 44, 
-                                            
-                                            48, 52, 
-                                            56, 60,
+                                              0,
+                                              4,
+                                              8,
+                                              12,
 
-                                            // Second ROI
-                                            0, 4, 
-                                            8, 12, 
+                                              16,
+                                              20,
+                                              24,
+                                              28,
 
-                                            16, 20, 
-                                            24, 28,
+                                              32,
+                                              36,
+                                              40,
+                                              44,
 
-                                            32, 36, 
-                                            40, 44, 
-                                            
-                                            48, 52, 
-                                            56, 60};
+                                              48,
+                                              52,
+                                              56,
+                                              60,
 
-    auto f =
-        std::make_shared<Function>(def_psroi_pool,
-                                   ParameterVector{data_param, rois_param, offsets_param});
+                                              // Second ROI
+                                              0,
+                                              4,
+                                              8,
+                                              12,
+
+                                              16,
+                                              20,
+                                              24,
+                                              28,
+
+                                              32,
+                                              36,
+                                              40,
+                                              44,
+
+                                              48,
+                                              52,
+                                              56,
+                                              60};
+
+    auto f = std::make_shared<Function>(def_psroi_pool, ParameterVector{data_param, rois_param, offsets_param});
 
     auto test = test::TestCase<TestEngine>(f);
     test.add_input<float>(data_values);
@@ -178,12 +211,11 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_0p2)
     test.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_0p5)
-{
+NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_0p5) {
     const float spatial_scale = 0.0625;
     const int64_t group_size = 2;
     const size_t channels_in = 16;
-    size_t output_dim = channels_in / (group_size * group_size); // 4
+    size_t output_dim = channels_in / (group_size * group_size);  // 4
 
     size_t rois_count = 2;
 
@@ -195,14 +227,18 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_0p5)
     auto rois_param = std::make_shared<op::Parameter>(element::f32, rois_shape);
     auto offsets_param = std::make_shared<op::Parameter>(element::f32, offsets_shape);
 
-    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(
-        data_param, rois_param, offsets_param, output_dim, spatial_scale, group_size);
+    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(data_param,
+                                                                           rois_param,
+                                                                           offsets_param,
+                                                                           output_dim,
+                                                                           spatial_scale,
+                                                                           group_size);
 
     Shape output_shape{rois_count, output_dim, group_size, group_size};
 
     std::vector<float> data_values(shape_size(data_shape));
     std::iota(data_values.begin(), data_values.end(), 0);
-    
+
     std::vector<float> rois_data{
         // input_batch_id, x1, y1, x2, y2
         0,
@@ -220,36 +256,49 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_0p5)
     std::vector<float> offsets_values(shape_size(offsets_shape));
     std::fill(offsets_values.begin(), offsets_values.end(), 0.5);
 
-    std::vector<float> expected_output_values{
-                                            // First ROI
-                                            0, 4, 
-                                            8, 12, 
-                                            
-                                            16, 20, 
-                                            24, 28, 
-                                            
-                                            32, 36, 
-                                            40, 44, 
-                                            
-                                            48, 52, 
-                                            56, 60,
+    std::vector<float> expected_output_values{// First ROI
+                                              0,
+                                              4,
+                                              8,
+                                              12,
 
-                                            // Second ROI
-                                            0, 4.1875, 
-                                            8, 12.1875, 
+                                              16,
+                                              20,
+                                              24,
+                                              28,
 
-                                            16, 20.1875, 
-                                            24, 28.1875,
+                                              32,
+                                              36,
+                                              40,
+                                              44,
 
-                                            32, 36.1875, 
-                                            40, 44.1875, 
-                                            
-                                            48, 52.1875, 
-                                            56, 60.1875};
+                                              48,
+                                              52,
+                                              56,
+                                              60,
 
-    auto f =
-        std::make_shared<Function>(def_psroi_pool,
-                                   ParameterVector{data_param, rois_param, offsets_param});
+                                              // Second ROI
+                                              0,
+                                              4.1875,
+                                              8,
+                                              12.1875,
+
+                                              16,
+                                              20.1875,
+                                              24,
+                                              28.1875,
+
+                                              32,
+                                              36.1875,
+                                              40,
+                                              44.1875,
+
+                                              48,
+                                              52.1875,
+                                              56,
+                                              60.1875};
+
+    auto f = std::make_shared<Function>(def_psroi_pool, ParameterVector{data_param, rois_param, offsets_param});
 
     auto test = test::TestCase<TestEngine>(f);
     test.add_input<float>(data_values);
@@ -260,12 +309,11 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_0p5)
     test.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_roi_oversize)
-{
+NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_roi_oversize) {
     const float spatial_scale = 0.0625;
     const int64_t group_size = 2;
     const size_t channels_in = 16;
-    size_t output_dim = channels_in / (group_size * group_size); // 4
+    size_t output_dim = channels_in / (group_size * group_size);  // 4
 
     size_t rois_count = 2;
 
@@ -277,14 +325,18 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_roi_oversize)
     auto rois_param = std::make_shared<op::Parameter>(element::f32, rois_shape);
     auto offsets_param = std::make_shared<op::Parameter>(element::f32, offsets_shape);
 
-    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(
-        data_param, rois_param, offsets_param, output_dim, spatial_scale, group_size);
+    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(data_param,
+                                                                           rois_param,
+                                                                           offsets_param,
+                                                                           output_dim,
+                                                                           spatial_scale,
+                                                                           group_size);
 
     Shape output_shape{rois_count, output_dim, group_size, group_size};
 
     std::vector<float> data_values(shape_size(data_shape));
     std::iota(data_values.begin(), data_values.end(), 0);
-    
+
     std::vector<float> rois_data{
         // input_batch_id, x1, y1, x2, y2
         0,
@@ -302,19 +354,12 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_roi_oversize)
     std::vector<float> offsets_values(shape_size(offsets_shape));
     std::fill(offsets_values.begin(), offsets_values.end(), 0.0);
 
-    std::vector<float> expected_output_values{
-                    0.375, 4.71875, 9.0625, 13.40625,
-                    16.375, 20.71875, 25.0625, 29.40625, 
-                    32.375, 36.71875, 41.0625, 45.40625, 
-                    48.375, 52.71875, 57.0625, 61.40625, 
-                    0, 0, 0, 0,
-                    0, 0, 0, 0, 
-                    0, 0, 0, 0,
-                    0, 0, 0, 0};
+    std::vector<float> expected_output_values{0.375,  4.71875,  9.0625,  13.40625, 16.375, 20.71875, 25.0625, 29.40625,
+                                              32.375, 36.71875, 41.0625, 45.40625, 48.375, 52.71875, 57.0625, 61.40625,
+                                              0,      0,        0,       0,        0,      0,        0,       0,
+                                              0,      0,        0,       0,        0,      0,        0,       0};
 
-    auto f =
-        std::make_shared<Function>(def_psroi_pool,
-                                   ParameterVector{data_param, rois_param, offsets_param});
+    auto f = std::make_shared<Function>(def_psroi_pool, ParameterVector{data_param, rois_param, offsets_param});
 
     auto test = test::TestCase<TestEngine>(f);
     test.add_input<float>(data_values);
@@ -325,8 +370,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_roi_oversize)
     test.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_no_offset_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_no_offset_input) {
     const float spatial_scale = 1;
     const int64_t group_size = 2;
     const size_t spatial_bins_x = 1;
@@ -339,7 +383,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_no_offset_input)
     const size_t width_in = 3;
     const size_t height_in = 3;
 
-    size_t output_dim = channels_in / (group_size * group_size); // 2
+    size_t output_dim = channels_in / (group_size * group_size);  // 2
 
     const auto rois_dim = 1;
 
@@ -349,8 +393,16 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_no_offset_input)
     auto data_param = std::make_shared<op::Parameter>(element::f32, data_shape);
     auto rois_param = std::make_shared<op::Parameter>(element::f32, rois_shape);
 
-   auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(
-        data_param, rois_param, output_dim, spatial_scale, group_size, "bilinear_deformable", spatial_bins_x, spatial_bins_y, trans_std, part_size);
+    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(data_param,
+                                                                           rois_param,
+                                                                           output_dim,
+                                                                           spatial_scale,
+                                                                           group_size,
+                                                                           "bilinear_deformable",
+                                                                           spatial_bins_x,
+                                                                           spatial_bins_y,
+                                                                           trans_std,
+                                                                           part_size);
 
     Shape output_shape{rois_dim, output_dim, group_size, group_size};
 
@@ -368,9 +420,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_no_offset_input)
 
     std::vector<float> expected_output_values{2.0, 12.0, 23.0, 33.0, 38.0, 48.0, 59.0, 69.0};
 
-    auto f =
-        std::make_shared<Function>(def_psroi_pool,
-                                   ParameterVector{data_param, rois_param});
+    auto f = std::make_shared<Function>(def_psroi_pool, ParameterVector{data_param, rois_param});
 
     auto test = test::TestCase<TestEngine>(f);
     test.add_input<float>(data_values);
@@ -380,8 +430,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_no_offset_input)
     test.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_zero)
-{
+NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_zero) {
     const float spatial_scale = 1;
     const int64_t group_size = 2;
     const size_t spatial_bins_x = 1;
@@ -394,7 +443,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_zero)
     const size_t width_in = 3;
     const size_t height_in = 3;
 
-    size_t output_dim = channels_in / (group_size * group_size); // 2
+    size_t output_dim = channels_in / (group_size * group_size);  // 2
 
     const auto rois_dim = 1;
 
@@ -406,14 +455,23 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_zero)
     auto rois_param = std::make_shared<op::Parameter>(element::f32, rois_shape);
     auto offsets_param = std::make_shared<op::Parameter>(element::f32, offsets_shape);
 
-   auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(
-        data_param, rois_param, offsets_param, output_dim, spatial_scale, group_size, "bilinear_deformable", spatial_bins_x, spatial_bins_y, trans_std, part_size);
+    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(data_param,
+                                                                           rois_param,
+                                                                           offsets_param,
+                                                                           output_dim,
+                                                                           spatial_scale,
+                                                                           group_size,
+                                                                           "bilinear_deformable",
+                                                                           spatial_bins_x,
+                                                                           spatial_bins_y,
+                                                                           trans_std,
+                                                                           part_size);
 
     Shape output_shape{rois_dim, output_dim, group_size, group_size};
 
     std::vector<float> data_values(shape_size(data_shape));
     std::iota(data_values.begin(), data_values.end(), 0);
-    
+
     std::vector<float> rois_data{
         // input_batch_id, x1, y1, x2, y2
         0,
@@ -423,15 +481,12 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_zero)
         2,
     };
 
-    
     std::vector<float> offsets_values(shape_size(offsets_shape));
     std::fill(offsets_values.begin(), offsets_values.end(), 0.0);
 
     std::vector<float> expected_output_values{2.0, 12.0, 23.0, 33.0, 38.0, 48.0, 59.0, 69.0};
 
-    auto f =
-        std::make_shared<Function>(def_psroi_pool,
-                                   ParameterVector{data_param, rois_param, offsets_param});
+    auto f = std::make_shared<Function>(def_psroi_pool, ParameterVector{data_param, rois_param, offsets_param});
 
     auto test = test::TestCase<TestEngine>(f);
     test.add_input<float>(data_values);
@@ -442,8 +497,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_zero)
     test.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_01)
-{
+NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_01) {
     const float spatial_scale = 1;
     const int64_t group_size = 2;
     const size_t spatial_bins_x = 1;
@@ -456,7 +510,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_01)
     const size_t width_in = 3;
     const size_t height_in = 3;
 
-    size_t output_dim = channels_in / (group_size * group_size); // 2
+    size_t output_dim = channels_in / (group_size * group_size);  // 2
 
     const auto rois_dim = 1;
 
@@ -468,15 +522,23 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_01)
     auto rois_param = std::make_shared<op::Parameter>(element::f32, rois_shape);
     auto offsets_param = std::make_shared<op::Parameter>(element::f32, offsets_shape);
 
-   auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(
-        data_param, rois_param, offsets_param, output_dim, spatial_scale, group_size, 
-        "bilinear_deformable", spatial_bins_x, spatial_bins_y, trans_std, part_size);
+    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(data_param,
+                                                                           rois_param,
+                                                                           offsets_param,
+                                                                           output_dim,
+                                                                           spatial_scale,
+                                                                           group_size,
+                                                                           "bilinear_deformable",
+                                                                           spatial_bins_x,
+                                                                           spatial_bins_y,
+                                                                           trans_std,
+                                                                           part_size);
 
     Shape output_shape{rois_dim, output_dim, group_size, group_size};
 
     std::vector<float> data_values(shape_size(data_shape));
     std::iota(data_values.begin(), data_values.end(), 0);
-    
+
     std::vector<float> rois_data{
         // input_batch_id, x1, y1, x2, y2
         0,
@@ -486,15 +548,12 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_01)
         2,
     };
 
-    
     std::vector<float> offsets_values(shape_size(offsets_shape));
     std::fill(offsets_values.begin(), offsets_values.end(), 0.1);
 
     std::vector<float> expected_output_values{2.8, 12.8, 23.8, 33.8, 38.8, 48.8, 59.8, 69.8};
 
-    auto f =
-        std::make_shared<Function>(def_psroi_pool,
-                                   ParameterVector{data_param, rois_param, offsets_param});
+    auto f = std::make_shared<Function>(def_psroi_pool, ParameterVector{data_param, rois_param, offsets_param});
 
     auto test = test::TestCase<TestEngine>(f);
     test.add_input<float>(data_values);
@@ -505,8 +564,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_01)
     test.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_05)
-{
+NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_05) {
     const float spatial_scale = 1;
     const int64_t group_size = 2;
     const size_t spatial_bins_x = 1;
@@ -519,7 +577,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_05)
     const size_t width_in = 3;
     const size_t height_in = 3;
 
-    size_t output_dim = channels_in / (group_size * group_size); // 2
+    size_t output_dim = channels_in / (group_size * group_size);  // 2
 
     const auto rois_dim = 1;
 
@@ -531,14 +589,23 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_05)
     auto rois_param = std::make_shared<op::Parameter>(element::f32, rois_shape);
     auto offsets_param = std::make_shared<op::Parameter>(element::f32, offsets_shape);
 
-   auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(
-        data_param, rois_param, offsets_param, output_dim, spatial_scale, group_size, "bilinear_deformable", spatial_bins_x, spatial_bins_y, trans_std, part_size);
+    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(data_param,
+                                                                           rois_param,
+                                                                           offsets_param,
+                                                                           output_dim,
+                                                                           spatial_scale,
+                                                                           group_size,
+                                                                           "bilinear_deformable",
+                                                                           spatial_bins_x,
+                                                                           spatial_bins_y,
+                                                                           trans_std,
+                                                                           part_size);
 
     Shape output_shape{rois_dim, output_dim, group_size, group_size};
 
     std::vector<float> data_values(shape_size(data_shape));
     std::iota(data_values.begin(), data_values.end(), 0);
-    
+
     std::vector<float> rois_data{
         // input_batch_id, x1, y1, x2, y2
         0,
@@ -548,15 +615,12 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_05)
         2,
     };
 
-    
     std::vector<float> offsets_values(shape_size(offsets_shape));
     std::fill(offsets_values.begin(), offsets_values.end(), 0.5);
 
     std::vector<float> expected_output_values{6., 15.5, 25.5, 35., 42., 51.5, 61.5, 71.};
 
-    auto f =
-        std::make_shared<Function>(def_psroi_pool,
-                                   ParameterVector{data_param, rois_param, offsets_param});
+    auto f = std::make_shared<Function>(def_psroi_pool, ParameterVector{data_param, rois_param, offsets_param});
 
     auto test = test::TestCase<TestEngine>(f);
     test.add_input<float>(data_values);
@@ -567,12 +631,11 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_offset_05)
     test.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_single_value)
-{
+NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_single_value) {
     const float spatial_scale = 0.0625;
     const int64_t group_size = 2;
     const size_t channels_in = 16;
-    size_t output_dim = channels_in / (group_size * group_size); // 4
+    size_t output_dim = channels_in / (group_size * group_size);  // 4
 
     size_t rois_count = 1;
 
@@ -584,8 +647,12 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_single_value)
     auto rois_param = std::make_shared<op::Parameter>(element::f32, rois_shape);
     auto offsets_param = std::make_shared<op::Parameter>(element::f32, offsets_shape);
 
-    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(
-        data_param, rois_param, offsets_param, output_dim, spatial_scale, group_size);
+    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(data_param,
+                                                                           rois_param,
+                                                                           offsets_param,
+                                                                           output_dim,
+                                                                           spatial_scale,
+                                                                           group_size);
 
     Shape output_shape{rois_count, output_dim, group_size, group_size};
 
@@ -601,25 +668,30 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_single_value)
         10,
     };
 
-    
     std::vector<float> offsets_values(shape_size(offsets_shape));
     std::fill(offsets_values.begin(), offsets_values.end(), 0.1);
 
-    std::vector<float> expected_output_values{0.1, 0.1, 
-                                            0.1, 0.1, 
-                                            
-                                            0.1, 0.1, 
-                                            0.1, 0.1, 
-                                            
-                                            0.1, 0.1, 
-                                            0.1, 0.1, 
-                                            
-                                            0.1, 0.1, 
-                                            0.1, 0.1};
+    std::vector<float> expected_output_values{0.1,
+                                              0.1,
+                                              0.1,
+                                              0.1,
 
-    auto f =
-        std::make_shared<Function>(def_psroi_pool,
-                                   ParameterVector{data_param, rois_param, offsets_param});
+                                              0.1,
+                                              0.1,
+                                              0.1,
+                                              0.1,
+
+                                              0.1,
+                                              0.1,
+                                              0.1,
+                                              0.1,
+
+                                              0.1,
+                                              0.1,
+                                              0.1,
+                                              0.1};
+
+    auto f = std::make_shared<Function>(def_psroi_pool, ParameterVector{data_param, rois_param, offsets_param});
 
     auto test = test::TestCase<TestEngine>(f);
     test.add_input<float>(data_values);
@@ -630,9 +702,8 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_single_value)
     test.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_single_value_big_shape)
-{
-const int64_t output_dim = 112;
+NGRAPH_TEST(${BACKEND_NAME}, deformable_psroi_pooling_single_value_big_shape) {
+    const int64_t output_dim = 112;
     const float spatial_scale = 0.0625;
     const int64_t group_size = 3;
 
@@ -646,14 +717,18 @@ const int64_t output_dim = 112;
     auto rois_param = std::make_shared<op::Parameter>(element::f32, rois_shape);
     auto offsets_param = std::make_shared<op::Parameter>(element::f32, offsets_shape);
 
-    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(
-        data_param, rois_param, offsets_param, output_dim, spatial_scale, group_size);
+    auto def_psroi_pool = std::make_shared<op::v1::DeformablePSROIPooling>(data_param,
+                                                                           rois_param,
+                                                                           offsets_param,
+                                                                           output_dim,
+                                                                           spatial_scale,
+                                                                           group_size);
 
     Shape output_shape{rois_count, output_dim, group_size, group_size};
 
     std::vector<float> input_data(shape_size(data_shape));
     std::fill(input_data.begin(), input_data.end(), 0.1);
-    
+
     std::vector<float> input_rois{
         // input_batch_id, x1, y1, x2, y2
         0,
@@ -675,9 +750,7 @@ const int64_t output_dim = 112;
     std::vector<float> expected_output_values(shape_size(output_shape));
     std::fill(expected_output_values.begin(), expected_output_values.end(), 0.1);
 
-    auto f =
-        std::make_shared<Function>(def_psroi_pool,
-                                   ParameterVector{data_param, rois_param, offsets_param});
+    auto f = std::make_shared<Function>(def_psroi_pool, ParameterVector{data_param, rois_param, offsets_param});
 
     auto test = test::TestCase<TestEngine>(f);
     test.add_input<float>(input_data);

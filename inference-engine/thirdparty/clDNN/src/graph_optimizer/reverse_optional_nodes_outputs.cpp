@@ -16,7 +16,7 @@ using namespace cldnn;
     Pass made for nodes, which has optional outputs (and had to reverse connections so
     the processing order was valid).
 */
-void reverse_optional_nodes_outputs::run(program_impl& p) {
+void reverse_optional_nodes_outputs::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (node->is_type<lstm_dynamic_timeloop>()) {
             auto& typed_node = node->as<lstm_dynamic_timeloop>();

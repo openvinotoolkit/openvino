@@ -18,8 +18,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop)
-{
+NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop) {
     auto shape_a = Shape{2, 5};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto relu = make_shared<op::Relu>(A);
@@ -38,8 +37,7 @@ NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop_i32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop_i32) {
     auto shape_a = Shape{2, 5};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
     auto relu = make_shared<op::Relu>(A);
@@ -58,8 +56,7 @@ NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop_i32)
     EXPECT_EQ(expected, read_vector<int32_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, relu_4Dfprop)
-{
+NGRAPH_TEST(${BACKEND_NAME}, relu_4Dfprop) {
     auto shape_a = Shape{2, 2, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto relu = make_shared<op::Relu>(A);
@@ -78,8 +75,7 @@ NGRAPH_TEST(${BACKEND_NAME}, relu_4Dfprop)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, fuse_max_with_constant_zero_input_as_relu)
-{
+NGRAPH_TEST(${BACKEND_NAME}, fuse_max_with_constant_zero_input_as_relu) {
     auto shape_a = Shape{2, 5};
     auto A = op::Constant::create(element::f32, shape_a, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
     auto B = make_shared<op::Parameter>(element::f32, shape_a);

@@ -204,7 +204,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             {
                 { },
                 { },
-                { {0.0003f}, ngraph::element::f32, {1, 1, 1, 1}}
+                { {0.0003f}, ngraph::element::f32, {}}
             }
         },
     }

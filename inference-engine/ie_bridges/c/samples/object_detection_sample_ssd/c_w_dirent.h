@@ -6,43 +6,43 @@
 
 #if defined(_WIN32)
 
-    #ifndef WIN32_LEAN_AND_MEAN
-        #define WIN32_LEAN_AND_MEAN
-        #define WIN32_LEAN_AND_MEAN_UNDEF
-    #endif
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN_UNDEF
+#    endif
 
-    #ifndef NOMINMAX
-        #define NOMINMAX
-        #define NOMINMAX_UNDEF
-    #endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#        define NOMINMAX_UNDEF
+#    endif
 
-    #if defined(_M_IX86) && !defined(_X86_) && !defined(_AMD64_)
-        #define _X86_
-    #endif
+#    if defined(_M_IX86) && !defined(_X86_) && !defined(_AMD64_)
+#        define _X86_
+#    endif
 
-    #if defined(_M_X64) && !defined(_X86_) && !defined(_AMD64_)
-        #define _AMD64_
-    #endif
+#    if defined(_M_X64) && !defined(_X86_) && !defined(_AMD64_)
+#        define _AMD64_
+#    endif
 
-    #if defined(_M_ARM) && !defined(_ARM_) && !defined(_ARM64_)
-        #define _ARM_
-    #endif
+#    if defined(_M_ARM) && !defined(_ARM_) && !defined(_ARM64_)
+#        define _ARM_
+#    endif
 
-    #if defined(_M_ARM64) && !defined(_ARM_) && !defined(_ARM64_)
-        #define _ARM64_
-    #endif
+#    if defined(_M_ARM64) && !defined(_ARM_) && !defined(_ARM64_)
+#        define _ARM64_
+#    endif
 
-    // clang-format off
+// clang-format off
     #include <string.h>
     #include <windef.h>
     #include <fileapi.h>
     #include <Winbase.h>
     #include <sys/stat.h>
-    // clang-format on
+// clang-format on
 
-    // Copied from linux libc sys/stat.h:
-    #define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
-    #define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+// Copied from linux libc sys/stat.h:
+#    define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
+#    define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
 
 /// @brief structure to store directory names
 typedef struct dirent {
@@ -171,19 +171,19 @@ static void closedir(DIR* dp) {
     free(dp);
 }
 
-    #ifdef WIN32_LEAN_AND_MEAN_UNDEF
-        #undef WIN32_LEAN_AND_MEAN
-        #undef WIN32_LEAN_AND_MEAN_UNDEF
-    #endif
+#    ifdef WIN32_LEAN_AND_MEAN_UNDEF
+#        undef WIN32_LEAN_AND_MEAN
+#        undef WIN32_LEAN_AND_MEAN_UNDEF
+#    endif
 
-    #ifdef NOMINMAX_UNDEF
-        #undef NOMINMAX_UNDEF
-        #undef NOMINMAX
-    #endif
+#    ifdef NOMINMAX_UNDEF
+#        undef NOMINMAX_UNDEF
+#        undef NOMINMAX
+#    endif
 
 #else
 
-    #include <dirent.h>
-    #include <sys/types.h>
+#    include <dirent.h>
+#    include <sys/types.h>
 
 #endif

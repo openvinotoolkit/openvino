@@ -53,7 +53,7 @@
 #include <deque>
 #include "cldnn/runtime/error_handler.hpp"
 
-void prepare_primitive_fusing::run(program_impl& p) {
+void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);
     fuse_sigmoid_mul_to_swish(p);
     fuse_bias(p);
@@ -62,7 +62,7 @@ void prepare_primitive_fusing::run(program_impl& p) {
     optimize_fused_ops(p);
 }
 
-void prepare_primitive_fusing::fuse_sigmoid_mul_to_swish(program_impl &p) {
+void prepare_primitive_fusing::fuse_sigmoid_mul_to_swish(program &p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
@@ -127,7 +127,7 @@ void prepare_primitive_fusing::fuse_sigmoid_mul_to_swish(program_impl &p) {
     }
 }
 
-void prepare_primitive_fusing::fuse_reorders(program_impl &p) {
+void prepare_primitive_fusing::fuse_reorders(program &p) {
     // This loop tries fusing several reorders one by one (if present) into one reorder
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
@@ -164,7 +164,7 @@ void prepare_primitive_fusing::fuse_reorders(program_impl &p) {
     }
 }
 
-void prepare_primitive_fusing::fuse_activations(program_impl &p) {
+void prepare_primitive_fusing::fuse_activations(program &p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     std::map<primitive_id, std::vector<primitive_id>> fusing_history;
     auto itr = p.get_processing_order().begin();
@@ -238,7 +238,7 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
     }
 }
 
-void prepare_primitive_fusing::fuse_bias(program_impl &p) {
+void prepare_primitive_fusing::fuse_bias(program &p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
@@ -352,7 +352,7 @@ void prepare_primitive_fusing::fuse_bias(program_impl &p) {
     }
 }
 
-void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
+void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     bool recalc_processing_order = false;
     std::map<primitive_id, std::vector<primitive_id>> fusing_history;
 
@@ -397,6 +397,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             if ((node.get_output_layout().format == format::bs_fs_yx_bsv16_fsv16 ||
                  (_lo.is_format_optimized(node, format::bs_fs_yx_bsv16_fsv16) &&
                   _lo.get_optimization_attributes().bs_fs_yx_bsv16_fsv16_network)) && node.get_primitive()->groups == 1)
+                return true;
+
+            if (node.get_output_layout().format == format::bs_fs_yx_bsv32_fsv32 || _lo.is_format_optimized(node, format::bs_fs_yx_bsv32_fsv32))
+                return true;
+
+            if (node.get_output_layout().format == format::bs_fs_yx_bsv32_fsv16 || _lo.is_format_optimized(node, format::bs_fs_yx_bsv32_fsv16))
                 return true;
 
             auto in_dt = node.get_dependency(0).get_output_layout().data_type;
@@ -476,7 +482,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
         };
 
         auto pooling_supports_fusings = [](pooling_node& node) -> bool {
-            auto pooling_mode = node.as<pooling>().get_primitive()->mode;
+            auto pooling_mode = node.get_primitive()->mode;
 
             if (pooling_mode != cldnn::pooling_mode::max_with_argmax)
                 return true;
@@ -1010,7 +1016,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
         p.get_processing_order().calc_processing_order(p);
 }
 
-void prepare_primitive_fusing::optimize_fused_ops(program_impl& p) {
+void prepare_primitive_fusing::optimize_fused_ops(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
@@ -1070,7 +1076,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program_impl& p) {
     }
 }
 
-void prepare_conv_eltw_fusing::fuse_conv_depth_to_space(program_impl& p, program_node* node) {
+void prepare_conv_eltw_fusing::fuse_conv_depth_to_space(program& p, program_node* node) {
     std::map<primitive_id, std::vector<primitive_id>> fusing_history;
     // make sure this convolution have only 1 user and it's depth_to_space
     // make sure convolution is not an output
@@ -1103,7 +1109,7 @@ void prepare_conv_eltw_fusing::fuse_conv_depth_to_space(program_impl& p, program
     p.fuse_nodes(*conv_node, *d_t_s_node, &fusing_history);
 }
 
-void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* node) {
+void prepare_conv_eltw_fusing::fuse_conv_eltwise(program& p, program_node* node) {
     // make sure this convolution have only 1 user and it's eltwise
     // make sure convolution is not an output
     if (node->get_users().size() != 1 || node->is_output())
@@ -1296,7 +1302,7 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     p.add_optimized_primitive_info(eltw_id, {new_node.id()});
 }
 
-void prepare_conv_eltw_fusing::run(program_impl& p) {
+void prepare_conv_eltw_fusing::run(program& p) {
     std::list<program_node*> conv_nodes;
     // note we need to use iterators since currently processed element can be removed
     auto itr = p.get_processing_order().begin();
@@ -1324,7 +1330,7 @@ void prepare_conv_eltw_fusing::run(program_impl& p) {
     }
 }
 
-void prepare_conv_eltw_read_write_opt::conv_eltwise_read_write_opt(program_impl& p, program_node* node) {
+void prepare_conv_eltw_read_write_opt::conv_eltwise_read_write_opt(program& p, program_node* node) {
     fused_conv_eltwise_node* fused_conv_eltw_node = static_cast<fused_conv_eltwise_node*>(node);
     program_node* second_input_node = &fused_conv_eltw_node->get_dependency(1);
     // output layouts must match
@@ -1383,7 +1389,7 @@ void prepare_conv_eltw_read_write_opt::conv_eltwise_read_write_opt(program_impl&
     prim->second_input_in_output = true;
 }
 
-void prepare_conv_eltw_read_write_opt::run(program_impl& p) {
+void prepare_conv_eltw_read_write_opt::run(program& p) {
     std::list<program_node*> fused_conv_eltw_nodes;
     auto itr = p.get_processing_order()
                    .begin();  // note we need to use iterators since currently processed element can be removed

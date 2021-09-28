@@ -18,9 +18,6 @@ namespace {
     const std::vector<std::map<std::string, std::string>> multiConfigs = {
             {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
     };
-    const std::vector<std::map<std::string, std::string>> autoConfigs = {
-            {{ InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}}
-    };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecGraphTests,
                             ::testing::Combine(
@@ -40,6 +37,6 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoConfigs)),
+                                    ::testing::ValuesIn(multiConfigs)),
                             ExecGraphTests::getTestCaseName);
 }  // namespace

@@ -19,7 +19,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     template <typename dataType>
@@ -34,7 +34,7 @@ private:
 
     inline size_t getStartOffset(const std::vector<size_t> &forStartOffset, const std::vector<size_t>& strides) const;
 
-    size_t getAxis(const InferenceEngine::Blob::CPtr& _axis, const InferenceEngine::Blob::CPtr& _data) const;
+    size_t getAxis(const MKLDNNMemory& _axis, const MKLDNNMemory& _data) const;
 
     enum { CUM_SUM_DATA, AXIS, numOfInputs };
     bool exclusive;

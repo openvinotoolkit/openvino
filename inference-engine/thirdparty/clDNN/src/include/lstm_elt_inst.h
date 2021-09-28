@@ -42,7 +42,7 @@ public:
     static std::string to_string(lstm_elt_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, lstm_elt_node const& node);
+    typed_primitive_inst(network& network, lstm_elt_node const& node);
 
     memory::ptr cell_memory() const { return dep_memory_ptr(1); }
     bool cell_term() const { return !argument.cell.empty(); }

@@ -9,18 +9,22 @@
 
 #pragma once
 
-#include <ie_iextension.h>
-#include <ie_input_info.hpp>
-#include <ie_parameter.hpp>
-#include <cpp/ie_cnn_network.h>
-
-#include <blob_factory.hpp>
-
 #include <istream>
 #include <map>
 #include <memory>
 #include <string>
 
+#include "blob_factory.hpp"
+#include "cpp/ie_cnn_network.h"
+#include "details/ie_so_pointer.hpp"
+#include "ie_iextension.h"
+#include "ie_input_info.hpp"
+#include "ie_parameter.hpp"
+#include "openvino/pp.hpp"
+
+namespace ov {
+class Function;
+}  // namespace ov
 namespace InferenceEngine {
 
 class ICore;
@@ -42,10 +46,11 @@ INFERENCE_ENGINE_API_CPP(PreProcessInfo) copyPreProcess(const PreProcessInfo& fr
  * @param[in]   map map to copy
  * @return      map that contains pointers to constant values
  */
-template<typename T>
+template <typename T>
 std::map<std::string, std::shared_ptr<const T>> constMapCast(const std::map<std::string, std::shared_ptr<T>>& map) {
     std::map<std::string, std::shared_ptr<const T>> res;
-    for (auto&& v : map) res.emplace(v.first, std::const_pointer_cast<const T>(v.second));
+    for (auto&& v : map)
+        res.emplace(v.first, std::const_pointer_cast<const T>(v.second));
     return res;
 }
 
@@ -55,10 +60,11 @@ std::map<std::string, std::shared_ptr<const T>> constMapCast(const std::map<std:
  * @param[in]   map map to copy
  * @return      map that contains pointers to values
  */
-template<typename T>
+template <typename T>
 std::map<std::string, std::shared_ptr<T>> constMapCast(const std::map<std::string, std::shared_ptr<const T>>& map) {
     std::map<std::string, std::shared_ptr<T>> res;
-    for (auto&& v : map) res.emplace(v.first, std::const_pointer_cast<T>(v.second));
+    for (auto&& v : map)
+        res.emplace(v.first, std::const_pointer_cast<T>(v.second));
     return res;
 }
 
@@ -108,7 +114,7 @@ public:
      * @brief Sets a plugin version
      * @param version A version to set
      */
-    void SetVersion(const Version & version);
+    void SetVersion(const Version& version);
 
     /**
      * @brief Gets a plugin version
@@ -252,7 +258,8 @@ public:
      * @param[in]  config   The map of configuration parameters
      * @return     The result of query operator containing supported layers map
      */
-    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const;
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
+                                            const std::map<std::string, std::string>& config) const;
 
 protected:
     ~IInferencePlugin() = default;
@@ -267,23 +274,27 @@ protected:
      * @param config string-string map of config parameters relevant only for this load operation
      * @return Shared pointer to the ExecutableNetwork object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(const CNNNetwork& network,
-                                                                           const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
+        const CNNNetwork& network,
+        const std::map<std::string, std::string>& config);
 
     /**
      * @brief Creates an executable network using remote context from a parsed network object,
-     * users can create as many networks as they need and use them simultaneously (up to the limitation of the HW resources)
+     * users can create as many networks as they need and use them simultaneously (up to the limitation of the HW
+     * resources)
      * @note The function is used in
-     * InferencePluginInternal::LoadNetwork(const CNNNetwork&, const std::map<std::string, std::string>&, RemoteContext::Ptr)
-     * which performs common steps first and calls this plugin-dependent method implementation after.
+     * InferencePluginInternal::LoadNetwork(const CNNNetwork&, const std::map<std::string, std::string>&,
+     * RemoteContext::Ptr) which performs common steps first and calls this plugin-dependent method implementation
+     * after.
      * @param network A network object
      * @param context A remote context
      * @param config string-string map of config parameters relevant only for this load operation
      * @return Shared pointer to the ExecutableNetwork object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(const CNNNetwork& network,
-                                                                           const std::shared_ptr<RemoteContext>& context,
-                                                                           const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
+        const CNNNetwork& network,
+        const std::shared_ptr<RemoteContext>& context,
+        const std::map<std::string, std::string>& config);
 
     /**
      * @brief Set input and output information to executable network. This method is used to
@@ -291,24 +302,34 @@ protected:
      * @param exeNetwork An executable network object to set information to
      * @param inputs An input information to set
      * @param outputs An output information to set
+     * @param function Function with initial execution info
      */
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const ConstInputsDataMap& inputs,
                            const ConstOutputsDataMap& outputs);
 
-    std::string _pluginName;  //!< A device name that plugins enables
+    /**
+     * @brief Set input and output information to executable network. This method is used to
+     * set additional information to InferenceEngine::IExecutableNetworkInternal create by device plugin.
+     * @param function Function with initial execution info
+     */
+    void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+                           const std::shared_ptr<ov::Function>& function);
+
+    std::string _pluginName;                     //!< A device name that plugins enables
     std::map<std::string, std::string> _config;  //!< A map config keys -> values
-    std::weak_ptr<ICore> _core;  //!< A pointer to ICore interface
+    std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
 };
+
+#define IE_CREATE_PLUGIN CreatePluginEngine
 
 namespace details {
 template <>
 class SOCreatorTrait<IInferencePlugin> {
 public:
-    static constexpr auto name = "CreatePluginEngine";
+    static constexpr auto name = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
 };
 }  // namespace details
-
 }  // namespace InferenceEngine
 
 /**
@@ -316,16 +337,16 @@ public:
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                                  \
-    INFERENCE_PLUGIN_API(void) CreatePluginEngine(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) { \
-        try {                                                                                                       \
-            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                   \
-        } catch (const InferenceEngine::Exception&) {                                                               \
-            throw;                                                                                                  \
-        } catch (const std::exception& ex) {                                                                        \
-            IE_THROW() << ex.what();                                                                                \
-        } catch (...) {                                                                                             \
-            IE_THROW(Unexpected);                                                                                   \
-        }                                                                                                           \
-        plugin->SetVersion(version);                                                                                \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                                \
+    INFERENCE_PLUGIN_API(void) IE_CREATE_PLUGIN(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) { \
+        try {                                                                                                     \
+            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                 \
+        } catch (const InferenceEngine::Exception&) {                                                             \
+            throw;                                                                                                \
+        } catch (const std::exception& ex) {                                                                      \
+            IE_THROW() << ex.what();                                                                              \
+        } catch (...) {                                                                                           \
+            IE_THROW(Unexpected);                                                                                 \
+        }                                                                                                         \
+        plugin->SetVersion(version);                                                                              \
     }

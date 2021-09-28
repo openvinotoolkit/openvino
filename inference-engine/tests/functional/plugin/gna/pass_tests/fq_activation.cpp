@@ -25,7 +25,7 @@ typedef std::tuple<
     std::map<std::string, std::string>, // Configuration
     std::vector<size_t>,                // Input Shape
     std::pair<float, float>,            // Input Min and Max
-    size_t                              // Levels
+    std::pair<size_t, size_t>           // Levels for input and output FQs
 > fqActivationParams;
 
 namespace LayerTestsDefinitions {
@@ -43,7 +43,7 @@ public:
         std::map<std::string, std::string> configuration;
         std::vector<size_t> inputShape;
         std::pair<float, float> inputMinMax;
-        size_t levels = 0;
+        std::pair<size_t, size_t> levels;
         std::tie(netPrecision, targetDevice, configuration, inputShape, inputMinMax, levels) = obj.param;
 
         std::ostringstream result;
@@ -54,7 +54,7 @@ public:
         }
         result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
         result << "_inputMinMax=(" << inputMinMax.first << ".." << inputMinMax.second << ")";
-        result << "_levels=" << levels;
+        result << "_levels=" << levels.first << "," << levels.second;
 
         return result.str();
     }
@@ -69,20 +69,21 @@ protected:
 
         std::vector<size_t> inputShape;
         std::pair<float, float> inputMinMax;
-        size_t levels = 0;
+        std::pair<size_t, size_t> levels;
         std::tie(netPrecision, targetDevice, configuration, inputShape, inputMinMax, levels) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
+        std::tie(inputDataMin, inputDataMax) = inputMinMax;
         auto inputLowNode = ngraph::builder::makeConstant<float>(ngPrc, { 1 }, { inputMinMax.first });
         auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, { 1 }, { inputMinMax.second });
 
         auto inputVector = ngraph::builder::makeParams(ngPrc, { inputShape });
         auto inputFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(inputVector[0],
-            inputLowNode, inputHighNode, inputLowNode, inputHighNode, levels);
+            inputLowNode, inputHighNode, inputLowNode, inputHighNode, levels.first);
 
         auto relu = ngraph::builder::makeActivation(inputFQNode, ngraph::element::f32, ngraph::helpers::ActivationTypes::Relu);
         auto reluFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(relu,
-            inputLowNode, inputHighNode, inputLowNode, inputHighNode, levels);
+            inputLowNode, inputHighNode, inputLowNode, inputHighNode, levels.second);
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reluFQNode) };
         function = std::make_shared<ngraph::Function>(results, inputVector, "FQActivation");
@@ -118,8 +119,9 @@ const std::vector<std::pair<float, float>> inputMinMax = {
     {-100, 100},
 };
 
-const std::vector<size_t> levels = {
-    65535,
+const std::vector<std::pair<size_t, size_t>> levels = {
+    {std::numeric_limits<uint16_t>::max(), std::numeric_limits<uint16_t>::max()},
+    {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint16_t>::max()}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_fq_activation, FQActivation,

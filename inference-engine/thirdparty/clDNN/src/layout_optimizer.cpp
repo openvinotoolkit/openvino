@@ -3,8 +3,6 @@
 //
 
 #include "layout_optimizer.h"
-#include "topology_impl.h"
-#include "network_impl.h"
 #include "primitive_inst.h"
 #include "cldnn/runtime/error_handler.hpp"
 
@@ -827,6 +825,65 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node) {
     impl_types preferred_impl = impl_types::any;
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;
+    } else if (node.is_type<detection_output>()) {
+        auto& detection_output_node = node.as<detection_output>();
+        auto confidence_layout = detection_output_node.confidence().get_output_layout();
+        auto prim = detection_output_node.get_primitive();
+        if (confidence_layout.size.batch[0] >= 4 && prim->confidence_threshold >= 0.1 && prim->top_k <= 400 &&
+            prim->num_classes >= 16 && confidence_layout.size.feature[0] > 10000)
+            preferred_impl = impl_types::ocl;
+        else
+            preferred_impl = impl_types::cpu;
+    } else if (node.is_type<non_max_suppression>()) {
+        auto& nms_node = node.as<non_max_suppression>();
+        auto scoresTensor = convert_data_tensor(nms_node.input_scores().get_output_layout());
+        const size_t kBatchNum = scoresTensor.Batch().v;
+        const size_t kClassNum = scoresTensor.Feature().v;
+        const size_t kNStreams = static_cast<size_t>(node.get_program().get_engine().configuration().n_streams);
+        const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
+        preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+    } else if (node.is_type<reorder>()) {
+        if (!node.get_program().get_engine().get_device_info().supports_immad)
+            return impl_types::ocl;
+
+        std::vector<format> onednn_optimized_fmt = {
+            format::bfyx,
+            format::b_fs_zyx_fsv16,
+            format::b_fs_yx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_zyx_bsv16_fsv16,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32,
+        };
+
+        auto input_layout = node.get_dependency(0).get_output_layout();
+        auto output_layout = node.get_output_layout();
+
+        auto input_fmt = input_layout.format;
+        auto output_fmt = output_layout.format;
+
+        preferred_impl = impl_types::onednn;
+
+        if (std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), input_fmt) == onednn_optimized_fmt.end() ||
+            std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), output_fmt) == onednn_optimized_fmt.end()) {
+            preferred_impl = impl_types::ocl;
+        }
+
+        // onednn doesn't support paddings
+        if (input_layout.data_padding || output_layout.data_padding) {
+            preferred_impl = impl_types::ocl;
+        }
+
+        // Native impl works faster for this type of reorder
+        if (input_layout.format == format::bfyx && output_layout.format == format::bfyx) {
+            preferred_impl = impl_types::ocl;
+        }
+
+        // onednn reorder doesn't support different number of dimensions in input and output layouts
+        if (input_layout.format.dimension() != output_layout.format.dimension()) {
+            preferred_impl = impl_types::ocl;
+        }
     }
 
     return preferred_impl;
@@ -940,6 +997,9 @@ bool layout_optimizer::is_format_optimized(const convolution_node& node, const f
             return convolution_fs_b_yx_fsv32_opt(input_layout, output_layout, weights_layout, prim);
         case format::bs_fs_yx_bsv16_fsv16:
             return convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_layout, weights_layout, prim);
+        case format::bs_fs_yx_bsv32_fsv32:
+        case format::bs_fs_yx_bsv32_fsv16:
+            return false;
         default:
             throw std::invalid_argument(
                 "[Layout optimizer] Other formats in is_format_optimized(...) method are not implemented!");

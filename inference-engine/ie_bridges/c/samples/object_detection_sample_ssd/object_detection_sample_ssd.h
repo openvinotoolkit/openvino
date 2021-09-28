@@ -16,14 +16,16 @@ static const char* model_message = "Required. Path to an .xml file with a traine
 static const char* image_message = "Required. Path to one or more images or folder with images.";
 
 /// @brief message for assigning cnn calculation to device
-static const char* target_device_message = "Optional. Specify the target device to infer. "
-                                           "Default value is CPU. Use \"-d HETERO:<comma-separated_devices_list>\" format to specify "
-                                           "HETERO plugin. "
-                                           "Sample will look for a suitable plugin for device specified.";
+static const char* target_device_message =
+    "Optional. Specify the target device to infer. "
+    "Default value is CPU. Use \"-d HETERO:<comma-separated_devices_list>\" format to specify "
+    "HETERO plugin. "
+    "Sample will look for a suitable plugin for device specified.";
 
 /// @brief message for plugin custom kernels desc
-static const char* custom_plugin_config_message = "Required for GPU, MYRIAD, HDDL custom kernels. "
-                                                  "Absolute path to the .xml config file with the kernels descriptions.";
+static const char* custom_plugin_config_message =
+    "Required for GPU, MYRIAD, HDDL custom kernels. "
+    "Absolute path to the .xml config file with the kernels descriptions.";
 
 /// @brief message for user extension library argument
 static const char* custom_ex_library_message = "Required for CPU plugin custom layers. "

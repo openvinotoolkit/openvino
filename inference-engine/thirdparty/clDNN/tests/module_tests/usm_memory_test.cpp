@@ -7,21 +7,21 @@
 #include "cldnn/runtime/engine.hpp"
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/device_query.hpp"
+#include "cldnn/graph/topology.hpp"
 #include "runtime/ocl/ocl_stream.hpp"
 #include "runtime/ocl/ocl_memory.hpp"
 #include "runtime/ocl/ocl_common.hpp"
 #include "runtime/ocl/ocl_base_event.hpp"
 
-#include "program_impl.h"
-#include "topology_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "data_inst.h"
 #include "activation_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "reshape_inst.h"
 #include "pass_manager.h"
-#include "program_impl_wrapper.h"
+#include "program_wrapper.h"
 
 #include <memory>
 
@@ -100,7 +100,7 @@ TEST_P(ctor_test, basic) {
 
 INSTANTIATE_TEST_SUITE_P(cldnn_usm, ctor_test, ::testing::ValuesIn(std::vector<usm_test_params>{
     usm_test_params{ allocation_type::usm_host},
-    usm_test_params{ allocation_type::usm_shared},
+//    usm_test_params{ allocation_type::usm_shared}, // Unsupported
     usm_test_params{ allocation_type::usm_device},
 }));
 
@@ -173,7 +173,7 @@ TEST_P(copy_and_read_buffer, basic) {
 
 INSTANTIATE_TEST_SUITE_P(cldnn_usm, copy_and_read_buffer, ::testing::ValuesIn(std::vector<usm_test_params>{
         usm_test_params{ allocation_type::usm_host },
-        usm_test_params{ allocation_type::usm_shared },
+//        usm_test_params{ allocation_type::usm_shared }, // Unsupported
         usm_test_params{ allocation_type::usm_device },
 }));
 
@@ -256,6 +256,6 @@ TEST_P(fill_buffer, DISABLED_basic) {
 
 INSTANTIATE_TEST_SUITE_P(cldnn_usm, fill_buffer, ::testing::ValuesIn(std::vector<usm_test_params>{
     usm_test_params{ allocation_type::usm_host },
-        usm_test_params{ allocation_type::usm_shared },
+//        usm_test_params{ allocation_type::usm_shared }, // Unsupported
         usm_test_params{ allocation_type::usm_device },
 }));

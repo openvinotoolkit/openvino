@@ -2,7 +2,7 @@
 
 **Versioned name**: *CTCLoss-4*
 
-**Category**: Sequence processing
+**Category**: *Sequence processing*
 
 **Short description**: *CTCLoss* computes the CTC (Connectionist Temporal Classification) Loss.
 

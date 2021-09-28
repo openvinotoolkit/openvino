@@ -18,7 +18,7 @@ struct typed_program_node<deconvolution> : public typed_program_node_base<deconv
     using parent = typed_program_node_base<deconvolution>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog),
           split(this->get_primitive()->split()),
           depthwise_sep_opt(false),
@@ -90,7 +90,7 @@ public:
     static std::string to_string(deconvolution_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, deconvolution_node const& node);
+    typed_primitive_inst(network& network, deconvolution_node const& node);
 
     memory::ptr weights_memory(size_t index) const {
         if (node.get_groups() == 1) {

@@ -83,9 +83,7 @@ class ModelQuantizer {
             scaleIndex++;
         }
 
-        bool isFakeQuantize = std::is_same<T, FakeQuantI8>() || std::is_same<T, FakeQuantI16>();
-        propagateScaleFactor(sortedNewNet, T::mandatory().getWeightsPrecision().size(), T::optional().getWeightsPrecision().size(),
-                             T::mandatory().getInputPrecision().size(), isFakeQuantize);
+        propagateScaleFactor(sortedNewNet);
 
         // sorted order gives possibility for propagate quantisation along depended layers
         for (auto &&layer : sortedNewNet) {
@@ -96,18 +94,98 @@ class ModelQuantizer {
     }
 
  private :
-    void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr> & net, int mandWeightsBytesSize,
-                              int optWeightsBytesSize, int inputsBytesSize, bool fakeQuantize) const {
-        ScaleFactorCalculator sf(net, mandWeightsBytesSize, optWeightsBytesSize, inputsBytesSize, fakeQuantize);
+    void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr> & net) const {
+        ScaleFactorCalculator<T> sf(net);
 
-        while (!sf.allLayersProcessed()) {
-            for (auto &&layer : sf.getStartLayers()) {
+        int infiniteLoopCount = 0;
+        std::vector<std::string> infiniteLoopPattern;
+        std::vector<std::string> infiniteLoopHistory;
+        while (!sf.allLayersProcessed() && infiniteLoopCount <= 2) {
+            auto layers = sf.getStartLayers();
+            infiniteLoopHistory.emplace_back(layers.front()->name);
+            for (auto &&layer : layers) {
                 transformLayer(layer, sf);
                 // transforming until we reached cases where output scale updated due to situation in downstream layer
                 if (sf.needToRestart()) {
+                    infiniteLoopHistory.back() += "#" + layer->name;
                     break;
                 }
             }
+
+            // We are looking for infinite loop by using algorithm of compute prefix function, complexity O(N)
+            // (a part of the Knuth–Morris–Pratt algorithm).
+            std::map<int, int> prefixFunction;
+            int k = infiniteLoopHistory.size();
+            for (int i = infiniteLoopHistory.size() - 2; i >= 0; i--) {
+                while (k < infiniteLoopHistory.size() && infiniteLoopHistory[k - 1] != infiniteLoopHistory[i]) {
+                    auto iter = prefixFunction.find(k);
+                    k = iter == prefixFunction.end() ? infiniteLoopHistory.size() : iter->second;
+                }
+
+                if (infiniteLoopHistory[k - 1] == infiniteLoopHistory[i]) {
+                    k--;
+                }
+
+                // The pattern length is a length of a repeating string sequence (it is 2 in the example below).
+                // concat_14_input_0_reshape#concat_15
+                // concat_15_input_1_reshape#add_12
+                // add_12#Add_16
+                // Reshape_41#add_12
+                // add_12#Add_16
+                // Reshape_41#add_12
+                //
+                // In the case of pattern length is 1, an infinite loop can be found on 2 consecutive strings.
+                // To avoid this, we will expect the appearance of 4 equal strings for the case pattern length is 1.
+                if ((infiniteLoopHistory.size() - i) % 2 == 0 &&
+                    (infiniteLoopHistory.size() - i) / 2 == infiniteLoopHistory.size() - k &&
+                    ((infiniteLoopHistory.size() - i) / 2 > 1 ||
+                        std::distance(infiniteLoopHistory.rbegin(),
+                            std::find_if_not(infiniteLoopHistory.rbegin(), infiniteLoopHistory.rend(),
+                                [&infiniteLoopHistory](const std::string& str) { return str == infiniteLoopHistory.back(); })) > 3)) {
+                    gnalog() << "infiniteLoopPattern:\n";
+                    for (const auto& s : infiniteLoopPattern) {
+                        gnalog() << "\t " << s << '\n';
+                    }
+                    infiniteLoopPattern.clear();
+                    int patternLength = (infiniteLoopHistory.size() - i) / 2;
+                    gnalog() << "patternLength: " << patternLength << '\n';
+                    for (int j = 0; j < patternLength; j++) {
+                        infiniteLoopPattern.emplace_back(infiniteLoopHistory[infiniteLoopHistory.size() - patternLength + j]);
+                    }
+                    gnalog() << "infiniteLoopHistory:\n";
+                    for (const auto& s : infiniteLoopHistory) {
+                        gnalog() << "\t " << s << '\n';
+                    }
+                    infiniteLoopHistory.clear();
+                    gnalog() << "infinite loop detected\n";
+                    break;
+                }
+
+                prefixFunction.emplace(i, k);
+            }
+
+            if (infiniteLoopHistory.empty()) {
+                infiniteLoopCount++;
+            } else {
+                if (infiniteLoopCount > 0 &&
+                    (infiniteLoopHistory.size()%infiniteLoopPattern.size() == 0 || sf.allLayersProcessed()) &&
+                    !std::equal(infiniteLoopHistory.begin() + (infiniteLoopHistory.size() - infiniteLoopPattern.size()),
+                        infiniteLoopHistory.end(), infiniteLoopPattern.begin())) {
+                    infiniteLoopCount = 0;
+                    infiniteLoopPattern.clear();
+                    gnalog() << "infinite loop fixed\n";
+                }
+            }
+
+            sf.SetInfiniteLoopCount(infiniteLoopCount);
+        }
+
+        if (infiniteLoopCount > 0) {
+            std::string additionalInformation;
+            for (const auto& p : infiniteLoopPattern) {
+                additionalInformation += '\n' + p;
+            }
+            THROW_GNA_EXCEPTION << "infinite loop: " + additionalInformation;
         }
     }
 };

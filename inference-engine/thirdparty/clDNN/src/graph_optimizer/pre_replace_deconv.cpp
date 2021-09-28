@@ -18,7 +18,7 @@
 #include <utility>
 #include "cldnn/runtime/error_handler.hpp"
 
-void pre_replace_deconv::run(program_impl& p) {
+void pre_replace_deconv::run(program& p) {
     bool update_processing_order = false;
 
     auto& stream = p.get_stream();
@@ -119,6 +119,7 @@ void pre_replace_deconv::run(program_impl& p) {
                                                               input_offset,
                                                               tensor{ 1, 1, 1, 1 },
                                                               grouped_weights_shape,
+                                                              "",
                                                               output_padding);
                 } else {
                     conv_prim = std::make_shared<convolution>(deconv_node_id,
@@ -129,6 +130,7 @@ void pre_replace_deconv::run(program_impl& p) {
                                                               input_offset,
                                                               tensor{ 1, 1, 1, 1 },
                                                               grouped_weights_shape,
+                                                              "",
                                                               output_padding);
                 }
                 program_node& new_node = p.get_or_create(conv_prim);
@@ -263,6 +265,7 @@ void pre_replace_deconv::run(program_impl& p) {
                                                                input_offset,
                                                                tensor{ 1, 1, 1, 1 },
                                                                grouped_weights_shape,
+                                                               "",
                                                                output_padding);
                 program_node& created_node = p.get_or_create(conv_prim);
 

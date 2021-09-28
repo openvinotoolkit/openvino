@@ -2,17 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
+add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/ngraph/models\")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
 add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
-    message(STATUS "unit tests disabled")
+    message(STATUS "nGraph unit tests disabled")
     return()
 endif()
 
-message(STATUS "unit tests enabled")
+message(STATUS "nGraph unit tests enabled")
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
@@ -39,16 +39,21 @@ set(SRC
     eval.cpp
     file_util.cpp
     float16.cpp
+    function.cpp
     graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
     int4.cpp
     intervals.cpp
+    layout.cpp
     main.cpp
     matcher_pass.cpp
     misc.cpp
+    rtti.cpp
     node_input_output.cpp
+    rtti.cpp
     op.cpp
+    opset.cpp
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/clamp.cpp
@@ -62,10 +67,6 @@ set(SRC
     op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
-    op_eval/reduce_max.cpp
-    op_eval/reduce_min.cpp
-    op_eval/reduce_prod.cpp
-    op_eval/reduce_sum.cpp
     op_eval/roi_align.cpp
     op_eval/roi_pooling.cpp
     op_eval/round.cpp
@@ -76,10 +77,13 @@ set(SRC
     op_eval/transpose.cpp
     op_eval/variadic_split.cpp
     opset1.cpp
+    ov_default_allocator_test.cpp
+    ov_tensor_test.cpp
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
     pattern.cpp
+    preprocess.cpp
     provenance.cpp
     replace_node.cpp
     reshape_opt_kernel.cpp
@@ -87,6 +91,8 @@ set(SRC
     span.cpp
     specialize_function.cpp
     tensor.cpp
+    threading.cpp
+    type_info.cpp
     type_prop/abs.cpp
     type_prop/acos.cpp
     type_prop/adaptive_avg_pool.cpp
@@ -95,6 +101,7 @@ set(SRC
     type_prop/asinh.cpp
     type_prop/assign.cpp
     type_prop/atan.cpp
+    type_prop/atanh.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
@@ -114,6 +121,7 @@ set(SRC
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
+    type_prop/cum_sum.cpp
     type_prop/deformable_convolution.cpp
     type_prop/deformable_convolution_opset8.cpp
     type_prop/deformable_psroi_pooling.cpp
@@ -142,6 +150,7 @@ set(SRC
     type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
+    type_prop/gelu.cpp
     type_prop/grn.cpp
     type_prop/group_convolution.cpp
     type_prop/group_convolution_backprop_data.cpp
@@ -152,6 +161,10 @@ set(SRC
     type_prop/hswish.cpp
     type_prop/idft.cpp
     type_prop/interpolate.cpp
+    type_prop/logical_and.cpp
+    type_prop/logical_not.cpp
+    type_prop/logical_or.cpp
+    type_prop/logical_xor.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
@@ -178,6 +191,7 @@ set(SRC
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
     type_prop/prior_box_clustered.cpp
+    type_prop/random_uniform.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
@@ -211,6 +225,7 @@ set(SRC
     type_prop/sign.cpp
     type_prop/sin.cpp
     type_prop/sinh.cpp
+    type_prop/slice.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
@@ -220,6 +235,8 @@ set(SRC
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/swish.cpp
+    type_prop/tan.cpp
+    type_prop/tanh.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
@@ -231,12 +248,15 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/acos.cpp
     visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
     visitors/op/add.cpp
+    visitors/op/asin.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
+    visitors/op/atanh.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
     visitors/op/broadcast.cpp
@@ -247,6 +267,7 @@ set(SRC
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
+    visitors/op/ctc_loss.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
     visitors/op/deformable_psroi_pooling.cpp
@@ -261,6 +282,7 @@ set(SRC
     visitors/op/floor_mod.cpp
     visitors/op/floor.cpp
     visitors/op/gather.cpp
+    visitors/op/gather_tree.cpp
     visitors/op/gelu.cpp
     visitors/op/greater_equal.cpp
     visitors/op/greater.cpp
@@ -270,7 +292,9 @@ set(SRC
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
+    visitors/op/logical_and.cpp
     visitors/op/logical_or.cpp
+    visitors/op/logical_not.cpp
     visitors/op/logical_xor.cpp
     visitors/op/lrn.cpp
     visitors/op/lstm_cell.cpp
@@ -298,6 +322,7 @@ set(SRC
     visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
+    visitors/op/random_uniform.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
@@ -314,14 +339,19 @@ set(SRC
     visitors/op/reverse.cpp
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
+    visitors/op/rnn_sequence.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/scatter_elements_update.cpp
+    visitors/op/scatter_update.cpp
     visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/sign.cpp
+    visitors/op/sin.cpp
     visitors/op/sinh.cpp
+    visitors/op/slice.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
     visitors/op/space_to_batch.cpp
@@ -333,6 +363,7 @@ set(SRC
     visitors/op/strided_slice.cpp
     visitors/op/subtract.cpp
     visitors/op/swish.cpp
+    visitors/op/tan.cpp
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
@@ -341,6 +372,11 @@ set(SRC
     uint4.cpp
     util.cpp
 )
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set_source_files_properties(ov_tensor_test.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+endif()
 
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
@@ -372,7 +408,7 @@ if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
 endif()
 
-add_definitions("-DTEST_FILES=\"${CMAKE_CURRENT_SOURCE_DIR}/files\"")
+add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
 add_subdirectory(util)
 
 # backend specific test files must meet the following requirements:
@@ -387,16 +423,11 @@ add_subdirectory(util)
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
     backend/abs.in.cpp
-    backend/acos.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
-    backend/asin.in.cpp
-    backend/asinh.in.cpp
-    backend/atan.in.cpp
-    backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
@@ -405,19 +436,14 @@ set(MULTI_TEST_SRC
     backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
-    backend/comparison.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
-    backend/convert_like.in.cpp
     backend/convolution_backprop.in.cpp
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
-    backend/cos.in.cpp
-    backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
-    backend/cum_sum.in.cpp
     backend/deformable_psroi_pooling.in.cpp
     backend/detection_output.in.cpp
     backend/dft.in.cpp
@@ -438,7 +464,6 @@ set(MULTI_TEST_SRC
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
-    backend/fused_op.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
@@ -450,16 +475,11 @@ set(MULTI_TEST_SRC
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
-    backend/logical_and.in.cpp
-    backend/logical_not.in.cpp
-    backend/logical_or.in.cpp
-    backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
-    backend/minimum.in.cpp
     backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiclass_nms.in.cpp
@@ -471,7 +491,6 @@ set(MULTI_TEST_SRC
     backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
     backend/non_zero.in.cpp
-    backend/numeric.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
@@ -483,19 +502,11 @@ set(MULTI_TEST_SRC
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/recurrent_cells.in.cpp
-    backend/reduce_l1.in.cpp
-    backend/reduce_l2.in.cpp
-    backend/reduce_max.in.cpp
-    backend/reduce_mean.in.cpp
-    backend/reduce_min.in.cpp
-    backend/reduce_prod.in.cpp
-    backend/reduce_sum.in.cpp
     backend/region_yolo.in.cpp
     backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
     backend/result.in.cpp
-    backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
     backend/round.in.cpp
@@ -505,8 +516,6 @@ set(MULTI_TEST_SRC
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
-    backend/sin.in.cpp
-    backend/sinh.in.cpp
     backend/softmax.in.cpp
     backend/softplus.in.cpp
     backend/space_to_batch.in.cpp
@@ -516,8 +525,6 @@ set(MULTI_TEST_SRC
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
     backend/swish.in.cpp
-    backend/tan.in.cpp
-    backend/tanh.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
     backend/transpose.in.cpp
@@ -528,12 +535,13 @@ set(MULTI_TEST_SRC
     backend/zero_sized.in.cpp
 )
 
-if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
             onnx/onnx_import_controlflow.in.cpp
             onnx/onnx_import_const_folding.in.cpp
             onnx/onnx_import_convpool.in.cpp
+            onnx/onnx_import_deprecated.in.cpp
             onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
             onnx/onnx_import_org_openvino.in.cpp
@@ -547,7 +555,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_tensor_names.cpp)
 endif()
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND SRC onnx/onnx_editor.cpp)
     list(APPEND MULTI_TEST_SRC
         onnx/onnx_test_utils.in.cpp
@@ -555,31 +563,17 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
 endif()
 
 # SOURCE FOR FRONTEND TESTING
-
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
-set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
-file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
-file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
-set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
-
-add_definitions("-DTEST_MODEL_BUILD_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\"")
-
-# ---- PaddlePaddle FrontEnd testing ------
-if (NGRAPH_PDPD_FRONTEND_ENABLE)
-    ie_check_pip_package(paddlepaddle WARNING)
-
-    if(paddlepaddle_FOUND)
-        file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
-        set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
-        set(PDPD_TEST_MODELS_DIRNAME pdpd_test_models)
-        set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/${PDPD_TEST_MODELS_DIRNAME}/)
-        add_definitions("-DTEST_PDPD_MODELS_DIRNAME=\"${PDPD_TEST_MODELS_DIRNAME}/\"")
+foreach(src IN LISTS SRC MULTI_TEST_SRC)
+    if(IS_ABSOLUTE "${src}")
+        list(APPEND full_src_names ${src})
+    else()
+        list(APPEND full_src_names "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
     endif()
-endif()
-# ---- End PaddlePaddle FrontEnd testing ------
-
-add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${FRONTEND_SHARED_TESTS_HDR})
+endforeach()
+add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
@@ -600,7 +594,9 @@ add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
-target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include)
+
+get_target_property(NGRAPH_SRC_DIR openvino::core SOURCE_DIR)
+target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
 
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
@@ -615,11 +611,12 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ie_backend
                                         interpreter_backend
                                         Threads::Threads
-                                        openvino::conditional_compilation)
+                                        openvino::conditional_compilation
+                                        frontend_manager)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
-if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
     # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
     target_include_directories(unit-test
@@ -635,11 +632,15 @@ if (OV_COMPILER_IS_CLANG)
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
-    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
-
-    target_link_libraries(unit-test PRIVATE onnx_importer)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
+    get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ngraph_frontend SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
+    target_link_libraries(unit-test PRIVATE onnx_ngraph_frontend)
+    if (LINUX)
+        target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
+    elseif(APPLE)
+        target_link_options(unit-test PRIVATE -Wl,-dead_strip)
+    endif()
 endif()
 
 install(TARGETS unit-test
@@ -647,36 +648,7 @@ install(TARGETS unit-test
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
-############ FRONTEND ############
-target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH} frontend/shared/include)
-target_link_libraries(unit-test PRIVATE frontend_manager cnpy)
-
 add_subdirectory(frontend)
-### END FRONTEND ###
 
-#PaddlePaddle - test models generator
-if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
-    file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
-    set(OUT_FILES "")
-    foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
-        get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
-        set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
-        set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
-        add_custom_command(OUTPUT ${OUT_DONE_FILE}
-                COMMAND ${PYTHON_EXECUTABLE}
-                        ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
-                        ${GEN_SCRIPT}
-                        ${TEST_PDPD_MODELS}
-                        ${OUT_DONE_FILE}
-                DEPENDS ${GEN_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
-                )
-    endforeach()
-    add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
-    add_dependencies(unit-test pdpd_test_models)
-    add_dependencies(unit-test paddlepaddle_ngraph_frontend)
-
-    install(DIRECTORY ${TEST_PDPD_MODELS}
-            DESTINATION tests/${PDPD_TEST_MODELS_DIRNAME}
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
-endif()
+# process models
+add_dependencies(unit-test test_model_zoo)

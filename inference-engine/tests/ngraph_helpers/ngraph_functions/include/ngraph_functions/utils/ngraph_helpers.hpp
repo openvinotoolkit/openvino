@@ -103,6 +103,7 @@ enum ActivationTypes {
     Asin,
     Asinh,
     Atan,
+    Atanh,
     Cos,
     Cosh,
     Floor,
@@ -146,6 +147,11 @@ enum ComparisonTypes {
     LESS_EQUAL,
     GREATER,
     GREATER_EQUAL
+};
+
+enum ConversionTypes {
+    CONVERT,
+    CONVERT_LIKE
 };
 
 enum LogicalTypes {

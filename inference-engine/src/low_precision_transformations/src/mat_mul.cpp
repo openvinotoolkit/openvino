@@ -13,7 +13,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -40,18 +39,18 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
 }
 
 bool MatMulTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(m.get_match_root());
+    std::shared_ptr<opset1::MatMul> matMul = ov::as_type_ptr<opset1::MatMul>(m.get_match_root());
     if ((matMul == nullptr) || !canBeTransformed(context, matMul)) {
         return false;
     }
 
-    matMul = as_type_ptr<opset1::MatMul>(NetworkHelper::separateInStandaloneBranch(matMul));
+    matMul = ov::as_type_ptr<opset1::MatMul>(NetworkHelper::separateInStandaloneBranch(matMul));
     const auto dequantization1 = NetworkHelper::getDequantization(matMul, 0);
     auto dequantization2 = NetworkHelper::getDequantization(matMul, 1);
 
     if (dequantization2.empty()) {
         const std::shared_ptr<opset1::FakeQuantize> fakeQuantize =
-            as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
+            ov::as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
         if (fakeQuantize != nullptr) {
             const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
 
@@ -90,11 +89,14 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
     // dequantization with subtract on activations & constant weights
     if (dequantization1.subtract) {
-        auto broadcastShape = NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(dequantization1.subtractConstant)) ?
+        auto broadcastShape = NetworkHelper::isScalarLike(ov::as_type_ptr<opset1::Constant>(dequantization1.subtractConstant)) ?
             Shape(dequantization1.subtract->get_output_partial_shape(0).rank().get_length(), 1) :
             dequantization1.subtractConstant->get_shape();
 
-        const auto weightsShape = newMatMul->get_input_shape(1);
+        const auto weightsPShape = newMatMul->get_input_partial_shape(1);
+        assert(weightsPShape.is_static());
+        const auto weightsShape = weightsPShape.to_shape();
+
         const size_t firstWeightsIdx = matMul->get_transpose_b() ? weightsShape.size() - 1ul : weightsShape.size() - 2ul;
         const size_t lastDataIdx = matMul->get_transpose_a() ? broadcastShape.size() - 2 : broadcastShape.size() - 1;
         broadcastShape[lastDataIdx] = weightsShape[firstWeightsIdx];
@@ -107,19 +109,19 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         // multiply by weights: [1, ..., 1, Y] x [Y, Z] => [1, ..., 1, Z]
         const auto newSubConst = NetworkHelper::toScalarIfPossible(fold<opset1::MatMul>(
             broadcastedConst,
-            foldConvert(newMatMul->get_input_node_shared_ptr(1), newMatMul->get_element_type()),
+            foldConvert(newMatMul->input_value(1), newMatMul->get_element_type()),
             newMatMul->get_transpose_a(),
             newMatMul->get_transpose_b()));
 
-        const auto newSubtract = std::make_shared<DequantizationSubtract>(newMatMul, newSubConst);
+        const auto newSubtract = std::make_shared<opset1::Subtract>(newMatMul, newSubConst);
         newSubtract->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationSubtract");
         copy_runtime_info({ newSubtract, matMul }, newSubtract);
 
         parent = newSubtract;
     }
 
-    auto transpose = [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
-        const Shape outputShape = node->get_output_shape(0);
+    auto transpose = [](const std::shared_ptr<opset1::Constant>& node) -> std::shared_ptr<Node> {
+        const Shape outputShape = node->get_shape();
         if (outputShape.size() < 2ul) {
             return node;
         }
@@ -136,8 +138,8 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     const auto mulConst1 = matMul->get_transpose_a() ? transpose(dequantization1.multiplyConstant) : dequantization1.multiplyConstant;
     auto mulConst2 = matMul->get_transpose_b() ? transpose(dequantization2.multiplyConstant) : dequantization2.multiplyConstant;
 
-    if (NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(mulConst2))) {
-        mulConst2 = NetworkHelper::toScalar(as_type_ptr<opset1::Constant>(mulConst2));
+    if (NetworkHelper::isScalarLike(ov::as_type_ptr<opset1::Constant>(mulConst2))) {
+        mulConst2 = NetworkHelper::toScalar(ov::as_type_ptr<opset1::Constant>(mulConst2));
     } else {
         const auto constShape = mulConst2->get_shape();
         const size_t inputRank = matMul->get_input_partial_shape(0).rank().get_length();
@@ -153,11 +155,11 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         }
     }
 
-    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<ngraph::opset1::Multiply>(
+    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<opset1::Multiply>(
             mulConst1,
             foldConvert(mulConst2, element::f32)));
 
-    const auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+    const auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
         std::vector<element::Type>{ deqPrecision, deqPrecision },
         std::vector<element::Type>{ dequantization1.multiply->get_output_element_type(0) },
         ngraph::op::TemporaryReplaceOutputType(parent, deqPrecision).get(),
@@ -191,7 +193,7 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(layer);
+    std::shared_ptr<opset1::MatMul> matMul = ov::as_type_ptr<opset1::MatMul>(layer);
     if (matMul == nullptr) {
         return false;
     }
@@ -249,7 +251,7 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         }
     }
 
-    const auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
+    const auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
     if (fakeQuantize) {
         if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize)) {
             return false;

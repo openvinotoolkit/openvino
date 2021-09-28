@@ -81,22 +81,13 @@ bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
     return lockedHolder != nullptr;
 }
 
-void CLDNNRemoteBlobImpl::allocate_if_needed() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::AllocateIfNeeded");
-    auto _impl = getContextImpl(m_context.lock());
-    _impl->acquire_lock();
-
-    if (m_memObject == nullptr) {
-        allocate();
-    }
-
-    _impl->release_lock();
-}
-
 void CLDNNRemoteBlobImpl::allocate() noexcept {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::Allocate");
     assert(m_memObject == nullptr);
 
-    std::shared_ptr<cldnn::engine> eng = getContextImpl(m_context.lock())->GetEngine();
+    auto _impl = getContextImpl(m_context.lock());
+    _impl->acquire_lock();
+    std::shared_ptr<cldnn::engine> eng = _impl->GetEngine();
 
     switch (m_mem_type) {
     case BlobType::BT_BUF_INTERNAL: {
@@ -129,6 +120,7 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
     default:
         m_memObject.reset();
     }
+    _impl->release_lock();
 }
 
 const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noexcept {
@@ -139,11 +131,11 @@ const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noe
 };
 
 std::string CLDNNRemoteBlobImpl::getDeviceName() const noexcept {
-    return getContextImpl(m_context.lock())->GetPlugin().lock()->GetName();
+    return getContextImpl(m_context.lock())->getDeviceName();
 };
 
 std::shared_ptr<RemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept {
-    return std::dynamic_pointer_cast<RemoteContext>(m_context.lock());
+    return m_context.lock();
 }
 
 void CLDNNRemoteBlobImpl::lock() const {
@@ -154,7 +146,7 @@ void CLDNNRemoteBlobImpl::lock() const {
 }
 
 void CLDNNRemoteBlobImpl::unlock() const {
-    lockedHolder.release();
+    lockedHolder.reset();
 }
 
 LockedMemory<void> CLDNNRemoteBlobImpl::buffer() noexcept {
@@ -241,7 +233,12 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
         bool enable_profiling = (m_config.useProfiling ||
                 (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
                 (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
-        cldnn::queue_types queue_type = cldnn::queue_types::out_of_order;
+        cldnn::queue_types queue_type;
+        if (dev->get_info().supports_immad)
+            queue_type = cldnn::queue_types::in_order;
+        else
+            queue_type = cldnn::queue_types::out_of_order;
+
         bool use_unified_shared_memory = true;
         m_engine = cldnn::engine::create(engine_type, runtime_type, dev, cldnn::engine_configuration(enable_profiling,
                                                                                                      queue_type,
@@ -274,7 +271,10 @@ ParamMap CLDNNExecutionContextImpl::getParams() const {
 }
 
 std::string CLDNNExecutionContextImpl::getDeviceName() const noexcept {
-    return m_plugin.lock()->GetName();
+    auto devName = m_plugin.lock()->GetName();
+    if (!m_config.device_id.empty())
+        devName += "." + m_config.device_id;
+    return devName;
 }
 
 };  // namespace CLDNNPlugin

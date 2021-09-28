@@ -2,7 +2,7 @@
 
 **Versioned name**: *ExperimentalDetectronPriorGridGenerator-6*
 
-**Category**: Object detection
+**Category**: *Object detection*
 
 **Short description**: The *ExperimentalDetectronPriorGridGenerator* operation generates prior grids of specified sizes.
 

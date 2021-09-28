@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "base.hpp"
 
 #include <string>
 #include <vector>
@@ -15,8 +14,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNGatherTreeNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNGatherTreeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v1::GatherTree>(op);
         if (!gatherElementsOp) {
             errorMessage = "Node is not an instance of the GatherTree operation from operation set v1.";
@@ -66,11 +69,11 @@ void MKLDNNGatherTreeNode::initSupportedPrimitiveDescriptors() {
             IE_THROW() << errorPrefix << " has incorrect input/output data precision. Must be the same.";
     }
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, precision},
-                            {TensorDescCreatorTypes::ncsp, precision},
-                            {TensorDescCreatorTypes::ncsp, precision},
-                            {TensorDescCreatorTypes::ncsp, precision}},
-                         {{TensorDescCreatorTypes::ncsp, precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, precision},
+                          {LayoutType::ncsp, precision},
+                          {LayoutType::ncsp, precision},
+                          {LayoutType::ncsp, precision}},
+                         {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
 }
 
@@ -85,16 +88,17 @@ template<typename DATA_T>
 void MKLDNNGatherTreeNode::gatherTreeKernel() noexcept {
     const auto *step_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr()->GetPtr());
     const auto * const parent_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr()->GetPtr());
-    const size_t parent_idx_size = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getDims().size()
-                                   - getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getDesc().getBlockingDesc().getOffsetPadding();
+    const size_t parent_idx_size = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetShape().getElementsCount()
+                                   - getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding();
     const auto *max_seq_len = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr()->GetPtr());
     auto end_token = (reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_END_TOKEN)->getMemoryPtr()->GetPtr()))[0];
     auto * final_idx = reinterpret_cast<DATA_T *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    SizeVector step_idx_dims = getParentEdgeAt(GATHER_TREE_STEP_IDX)->getDims().ToSizeVector();
-    SizeVector parent_idx_dims = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getDims().ToSizeVector();
-    SizeVector max_seq_len_dims = getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getDims().ToSizeVector();
-    SizeVector final_idx_dims = getChildEdgesAtPort(0)[0]->getDims().ToSizeVector();
+    SizeVector step_idx_dims = getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemory().getStaticDims();
+    SizeVector parent_idx_dims = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().getStaticDims();
+    SizeVector max_seq_len_dims = getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemory().getStaticDims();
+    SizeVector final_idx_dims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+
     int32_t max_time = step_idx_dims[0];
     const size_t batch_size = step_idx_dims[1];
     const size_t beam_width = step_idx_dims[2];

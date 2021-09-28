@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/mish.hpp"
+
 #include <string>
 #include <vector>
 
 #include "gtest/gtest.h"
-
-#include "ngraph/op/mish.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
 #include "runtime/backend.hpp"
@@ -17,8 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(op_eval, mish_0D)
-{
+TEST(op_eval, mish_0D) {
     auto p = make_shared<op::Parameter>(element::f32, Shape{});
     auto mish = make_shared<op::v4::Mish>(p);
     auto fun = make_shared<Function>(OutputVector{mish}, ParameterVector{p});
@@ -26,11 +25,9 @@ TEST(op_eval, mish_0D)
     std::vector<std::vector<float>> inputs{{-1.0}, {1.0}, {20.0}};
     std::vector<std::vector<float>> expected_result{{-0.303401}, {0.86509835720062256}, {20.0}};
 
-    for (size_t i = 0; i < inputs.size(); i++)
-    {
+    for (size_t i = 0; i < inputs.size(); i++) {
         auto result = make_shared<HostTensor>();
-        ASSERT_TRUE(
-            fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{}, inputs[i])}));
+        ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{}, inputs[i])}));
         EXPECT_EQ(result->get_element_type(), element::f32);
         EXPECT_EQ(result->get_shape(), (Shape{}));
         auto result_data = read_vector<float>(result);

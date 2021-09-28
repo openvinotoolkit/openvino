@@ -37,17 +37,20 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
     }
 
     const auto parent = subtract->get_input_node_shared_ptr(0);
-    auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(parent);
-    const auto convert = as_type_ptr<opset1::Convert>(parent);
+    auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(parent);
+    const auto convert = ov::as_type_ptr<opset1::Convert>(parent);
 
     if (convert) {
-        fakeQuantize = as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     const auto subtractConstant = subtract->get_input_node_shared_ptr(1);
+    if (!ov::is_type<opset1::Constant>(subtractConstant)) {
+        return false;
+    }
 
-    auto outputLowConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(3), deqPrecision);
-    auto outputHighConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(4), deqPrecision);
+    auto outputLowConst_f32 = foldConvert(fakeQuantize->input_value(3), deqPrecision);
+    auto outputHighConst_f32 = foldConvert(fakeQuantize->input_value(4), deqPrecision);
 
     const auto value = subtractConstant->get_output_element_type(0) == element::f32 ?
         subtractConstant :
@@ -55,9 +58,6 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
 
     outputLowConst_f32 = fold<opset1::Subtract>(outputLowConst_f32, value);
     outputHighConst_f32 = fold<opset1::Subtract>(outputHighConst_f32, value);
-
-    const auto fakeQuantizeParent = fakeQuantize->get_input_node_shared_ptr(0);
-    const size_t parentIndex = NetworkHelper::getParentOutputIndex(fakeQuantizeParent, fakeQuantize);
 
     const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
     const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
@@ -68,7 +68,7 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
 
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
-            fakeQuantizeParent->output(parentIndex),
+            fakeQuantize->input_value(0),
             inputLow,
             inputHigh,
             outputLowConst_f32,
@@ -84,7 +84,7 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
 }
 
 bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
+    if (!ov::is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
         return false;
     }
 
@@ -95,20 +95,20 @@ bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const Transforma
     const auto children = operation->get_output_target_inputs(0);
 
     for (const auto& target : children) {
-        const auto convolution = is_type<opset1::Convolution>(target.get_node());
-        const auto groupConvolution = is_type<opset1::GroupConvolution>(target.get_node());
-        const auto convolutionBackpropData = is_type<opset1::ConvolutionBackpropData>(target.get_node());
+        const auto convolution = ov::is_type<opset1::Convolution>(target.get_node());
+        const auto groupConvolution = ov::is_type<opset1::GroupConvolution>(target.get_node());
+        const auto convolutionBackpropData = ov::is_type<opset1::ConvolutionBackpropData>(target.get_node());
         if (convolution || groupConvolution || convolutionBackpropData) {
             return false;
         }
     }
 
     const auto parent = operation->get_input_node_shared_ptr(0);
-    auto fq = as_type_ptr<opset1::FakeQuantize>(parent);
-    const auto convert = as_type_ptr<opset1::Convert>(parent);
+    auto fq = ov::as_type_ptr<opset1::FakeQuantize>(parent);
+    const auto convert = ov::as_type_ptr<opset1::Convert>(parent);
 
     if (convert) {
-        fq = as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fq = ov::as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     if (!fq) {

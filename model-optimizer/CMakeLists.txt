@@ -4,7 +4,7 @@
 if(NOT ENABLE_PYTHON)
     message(WARNING "Please enable IE & nGraph Python API (ie_api and offline_transformations_api) targets to enable Model Optimizer target")
 else()
-    add_custom_target(model_optimizer DEPENDS ie_api offline_transformations_api inference_engine_ir_reader)
+    add_custom_target(model_optimizer DEPENDS ie_api offline_transformations_api ir_ngraph_frontend)
     if(ENABLE_TESTS)
             add_subdirectory(unit_tests/mock_mo_frontend/mock_mo_ngraph_frontend)
             add_dependencies(model_optimizer mock_mo_ngraph_frontend)
@@ -23,7 +23,7 @@ configure_file(
     @ONLY)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
-        DESTINATION deployment_tools/model_optimizer
+        DESTINATION tools/model_optimizer
         USE_SOURCE_PERMISSIONS
         COMPONENT model_optimizer
         PATTERN ".*" EXCLUDE
@@ -31,13 +31,13 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         PATTERN "requirements_dev.txt" EXCLUDE
         PATTERN "README.md" EXCLUDE
         PATTERN "CMakeLists.txt" EXCLUDE
-        
+
         PATTERN "extensions/front/caffe/CustomLayersMapping.xml" EXCLUDE
         PATTERN "mo/utils/convert.py" EXCLUDE
         PATTERN "unit_tests" EXCLUDE
         PATTERN "openvino_mo.egg-info" EXCLUDE
         PATTERN "build" EXCLUDE
-        
+
         REGEX ".*__pycache__.*" EXCLUDE
         REGEX ".*\\.pyc$" EXCLUDE
         REGEX ".*\\.swp" EXCLUDE
@@ -45,12 +45,17 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         REGEX ".*_test\.py$" EXCLUDE
         )
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/unit_tests
-        DESTINATION deployment_tools/model_optimizer
+install(FILES requirements_dev.txt
+        DESTINATION tools/model_optimizer
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/automation
-        DESTINATION deployment_tools/model_optimizer
+install(DIRECTORY unit_tests
+        DESTINATION tools/model_optimizer
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
+install(DIRECTORY automation
+        DESTINATION tools/model_optimizer
         COMPONENT tests
         EXCLUDE_FROM_ALL)

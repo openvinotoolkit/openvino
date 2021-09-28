@@ -7,6 +7,7 @@
 #include <common_test_utils/ngraph_test_utils.hpp>
 #include <string>
 
-std::pair<bool, std::string> InferenceEnginePython::CompareNetworks(InferenceEnginePython::IENetwork lhs, InferenceEnginePython::IENetwork rhs) {
+std::pair<bool, std::string> InferenceEnginePython::CompareNetworks(InferenceEnginePython::IENetwork lhs,
+                                                                    InferenceEnginePython::IENetwork rhs) {
     return compare_functions(lhs.actual->getFunction(), rhs.actual->getFunction(), true, true, false, true, true);
 }

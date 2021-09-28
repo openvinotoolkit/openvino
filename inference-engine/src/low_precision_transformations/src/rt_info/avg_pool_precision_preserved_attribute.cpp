@@ -9,6 +9,7 @@
 #include <ngraph/variant.hpp>
 
 using namespace ngraph;
+using namespace ov;
 
 template class ngraph::VariantImpl<AvgPoolPrecisionPreservedAttributePtr>;
 

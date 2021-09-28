@@ -18,8 +18,13 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNPadNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNPadNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto pad = std::dynamic_pointer_cast<const ngraph::opset1::Pad>(op);
         if (!pad) {
             errorMessage = "Only opset1 Pad operation is supported";
@@ -92,8 +97,8 @@ void MKLDNNPadNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "Incorrect number of output edges";
 
-    const SizeVector srcDims = getParentEdgeAt(DATA_ID)->getDims().ToSizeVector();
-    const SizeVector dstDims = getChildEdgeAt(DATA_ID)->getDims().ToSizeVector();
+    const auto srcDims = getInputShapeAtPort(DATA_ID).getStaticDims();
+    const auto dstDims = getOutputShapeAtPort(DATA_ID).getStaticDims();
     if (srcDims.size() != dstDims.size() || padsBegin.size() != srcDims.size() || padsEnd.size() != srcDims.size())
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
 
@@ -120,48 +125,42 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(DATA_ID);
     if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), precision) == supportedPrecisions.end())
         precision = precision.is_float() ? InferenceEngine::Precision::FP32 : InferenceEngine::Precision::I32;
-    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
-    auto srcDims = getParentEdgeAt(DATA_ID)->getDims();
-    int numOfDims = srcDims.ToSizeVector().size();
+    auto srcDims = getInputShapeAtPort(DATA_ID).getStaticDims();
+    int numOfDims = srcDims.size();
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(isPadValueSpecified ? 4 : 3);
     config.outConfs.resize(1);
 
-    auto pushSupportedPrimitiveDescriptor = [&](memory::format_tag memoryFormat) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA_ID)->getDims(), dataType, memoryFormat);
-        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(PADS_BEGIN_ID)->getDims(), memory::data_type::s32, memory::format_tag::x);
-        config.inConfs[2].desc = MKLDNNMemoryDesc(getParentEdgeAt(PADS_END_ID)->getDims(), memory::data_type::s32, memory::format_tag::x);
+    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    auto pushSupportedPrimitiveDescriptor = [&](LayoutType memoryFormat) {
+        config.inConfs[0].desc = creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID));
+        config.inConfs[1].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(PADS_BEGIN_ID));
+        config.inConfs[2].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(PADS_END_ID));
         if (isPadValueSpecified)
-            config.inConfs[3].desc = MKLDNNMemoryDesc(getParentEdgeAt(PAD_VALUE_ID)->getDims(), memory::data_type::f32, memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(DATA_ID)->getDims(), dataType, memoryFormat);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref, memoryFormat});
+            config.inConfs[3].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::FP32, getInputShapeAtPort(PAD_VALUE_ID));
+
+        config.outConfs[0].desc = creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID));
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
     };
 
-    if (numOfDims == 4)
-        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nhwc);
-    else if (numOfDims == 5)
-        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::ndhwc);
+    if (numOfDims == 4 || numOfDims == 5)
+        pushSupportedPrimitiveDescriptor(LayoutType::nspc);
 
-    pushSupportedPrimitiveDescriptor(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims()));
+    pushSupportedPrimitiveDescriptor(LayoutType::ncsp);
 
     auto canUseBlocked = [=](const size_t blockSize) {
         return (padMode == CONSTANT && padsBegin[1] % blockSize == 0 && padsEnd[1] % blockSize == 0) ||
                (padMode != CONSTANT && padsBegin[1] == 0 && padsEnd[1] == 0);
     };
 
-    if (numOfDims == 4) {
+    if (numOfDims == 4 || numOfDims == 5) {
         if (srcDims[1] % 8 == 0 && canUseBlocked(8))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw8c);
+            pushSupportedPrimitiveDescriptor(LayoutType::nCsp8c);
         if (srcDims[1] % 16 == 0 && canUseBlocked(16))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw16c);
-    } else if (numOfDims == 5) {
-        if (srcDims[1] % 8 == 0 && canUseBlocked(8))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw8c);
-        if (srcDims[1] % 16 == 0 && canUseBlocked(16))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw16c);
+            pushSupportedPrimitiveDescriptor(LayoutType::nCsp16c);
     }
 }
 
@@ -175,10 +174,11 @@ void MKLDNNPadNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor for Pad " << getName() << " is not set.";
 
-    params.sizeData = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
+    params.sizeData = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
 
-    params.srcDims = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
-    params.dstDims = getChildEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
+    const auto inBlkDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    params.srcDims = inBlkDesc->getBlockDims();
+    params.dstDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     size_t nDims = params.srcDims.size();
     params.srcStrides.resize(nDims, 1);
@@ -188,13 +188,14 @@ void MKLDNNPadNode::createPrimitive() {
         params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
     }
 
-    if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
+    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c) ||
+            getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c)) {
         padsBegin[1] /= params.srcDims[params.srcDims.size() - 1];
         padsEnd[1] /= params.srcDims[params.srcDims.size() - 1];
         padsBegin.push_back(0);
         padsEnd.push_back(0);
     } else {
-        auto order = getParentEdgeAt(0)->getDesc().getBlockingDesc().getOrder();
+        auto order = inBlkDesc->getOrder();
         std::vector<unsigned int> newPadsBegin(padsBegin.size(), 0), newPadsEnd(padsEnd.size(), 0);
         for (size_t i = 0; i < padsBegin.size(); ++i) {
             newPadsBegin[i] = padsBegin[order[i]];
@@ -304,7 +305,7 @@ void MKLDNNPadNode::padConstant() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU Pad node with name '" << getName() << "' doesn't have primitive descriptors.";
-    InferenceEngine::Precision precision = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc.getPrecision();
+    InferenceEngine::Precision precision = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc->getPrecision();
     OV_SWITCH(MKLDNNPlugin, PadConstantEmitter, this, precision,
               OV_CASE(InferenceEngine::Precision::FP32, float),
               OV_CASE(InferenceEngine::Precision::I32, int32_t),

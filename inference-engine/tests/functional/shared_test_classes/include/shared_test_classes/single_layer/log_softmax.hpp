@@ -31,7 +31,7 @@ using logSoftmaxLayerTestParams = std::tuple<
 class LogSoftmaxLayerTest : public testing::WithParamInterface<logSoftmaxLayerTestParams>,
                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<logSoftmaxLayerTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<logSoftmaxLayerTestParams>& obj);
 
 protected:
     void SetUp() override;

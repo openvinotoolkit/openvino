@@ -5,6 +5,8 @@ import unittest
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, dynamic_dimension, \
+    strict_compare_tensors
 from mo.graph.graph import Node
 from mo.ops.pad import Pad, AttributedPad
 from unit_tests.utils.graph import build_graph
@@ -14,7 +16,8 @@ class TestPadOps(unittest.TestCase):
     node_attrs = {
         'data_in': {
             'kind': 'data',
-            'shape': np.array([1, 3, 100, 200])
+            'shape': np.array([1, 3, 100, 200]),
+            'value': None,
         },
         'pads_begin': {
             'kind': 'data',
@@ -93,3 +96,26 @@ class TestPadOps(unittest.TestCase):
 
         self.assertTrue(np.array_equal(Node(graph, 'data_out').shape, np.array([1, 3, 100 + 1 + 3, 200 + 2 + 4])))
         self.assertTrue(np.array_equal(Node(graph, 'data_out').value, ref_value))
+        self.assertFalse(isinstance(Node(graph, 'data_out').value, np.ma.masked_array))
+
+    def test_two_inputs_dynamic_value_infer(self):
+        in_value = shape_array([dynamic_dimension_value, 3]).reshape((1, 1, 1, 2))
+        graph = build_graph(
+            self.node_attrs,
+            self.edge_attrs + [('pads_begin', 'pad'), ('pads_end', 'pad')],
+            {'data_in': {'value': in_value, 'shape': in_value.shape}},
+            nodes_with_edges_only=True,
+        )
+        out_shape = (1, 1, 5, 8)
+        mask = np.zeros(out_shape, dtype=np.bool)
+        mask[0][0][1][2] = True
+        ref_value = np.ma.masked_array(np.zeros(out_shape, dtype=np.int64), mask=mask, dtype=np.int64)
+        ref_value[0][0][1][3] = 3
+
+        pad_node = Node(graph, 'pad')
+        Pad.infer(pad_node)
+        output_value = Node(graph, 'data_out').value
+        self.assertTrue(np.array_equal(Node(graph, 'data_out').shape, ref_value.shape))
+        self.assertTrue(strict_compare_tensors(output_value, ref_value))
+        self.assertTrue(isinstance(output_value, np.ma.masked_array))
+        self.assertTrue(output_value[0][0][1][2] is dynamic_dimension)

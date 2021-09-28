@@ -35,7 +35,7 @@ def parse_args():
                       help='Optional. '
                            'Path to a folder with images and/or binaries or to specific image or binary file.')
     args.add_argument('-m', '--path_to_model', type=str, required=True,
-                      help='Required. Path to an .xml/.onnx/.prototxt file with a trained model or '
+                      help='Required. Path to an .xml/.onnx file with a trained model or '
                            'to a .blob file with a trained compiled model.')
     args.add_argument('-d', '--target_device', type=str, required=False, default='CPU',
                       help='Optional. Specify a target device to infer on (the list of available devices is shown below). '
@@ -48,6 +48,11 @@ def parse_args():
     args.add_argument('-c', '--path_to_cldnn_config', type=str, required=False,
                       help='Optional. Required for GPU custom kernels. Absolute path to an .xml file with the '
                            'kernels description.')
+    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'latency'],
+                      help='Optional. Performance hint (optimize for latency or throughput). '
+                            'The hint allows the OpenVINO device to select the right network-specific settings, '
+                            'as opposite to accepting specific values like  \'nstreams\' from the command line. '
+                            'So you can specify just the hint without adding explicit device-specific options')
     args.add_argument('-api', '--api_type', type=str, required=False, default='async', choices=['sync', 'async'],
                       help='Optional. Enable using sync/async API. Default value is async.')
     args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,
@@ -96,8 +101,8 @@ def parse_args():
     args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
                       help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '
                            'threads->(NUMA)nodes (\'NUMA\'), '
-                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs)'
-                           'or completely disable (\'NO\')'
+                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs) '
+                           'or completely disable (\'NO\') '
                            'CPU threads pinning for CPU-involved inference.')
     args.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')
@@ -130,6 +135,12 @@ def parse_args():
                       help="Optional. Enable model caching to specified directory")
     args.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,
                       help="Optional. Loads model from file directly without read_network.")
+    args.add_argument('-iscale', '--input_scale', type=str, required=False, default='',
+                      help="Optional. Scale values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
+                           "Example: -iscale data[255,255,255],info[255,255,255]\n")
+    args.add_argument('-imean', '--input_mean', type=str, required=False, default='',
+                      help="Optional. Mean values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
+                           "Example: -imean data[255,255,255],info[255,255,255]\n")
     parsed_args = parser.parse_args()
 
     return parsed_args

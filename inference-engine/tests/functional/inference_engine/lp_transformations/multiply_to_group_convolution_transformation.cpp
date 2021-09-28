@@ -48,19 +48,6 @@ public:
     Expected expected;
 };
 
-template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
-
 class MultiplyToGroupConvolutionTransformation :
     public LayerTransformation,
     public testing::WithParamInterface<MultiplyToGroupConvolutionTransformationTestValues> {
@@ -289,7 +276,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             ngraph::element::u8,
             {
                 {},
-                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32},
+                DequantizationOperations::Subtract{{1.f, 2.f, 3.f, 4.f}, element::f32}.setConstantPrecision(element::f32),
                 {{0.45f, 0.82f, 0.71f, 0.37f}}
             }
         },
@@ -314,7 +301,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             ngraph::element::u8,
             {
                 {},
-                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32},
+                DequantizationOperations::Subtract{{1.f, 2.f, 3.f, 4.f}, element::f32}.setConstantPrecision(element::f32),
                 {{0.45f, 0.82f, 0.71f, 0.37f}}
             }
         },

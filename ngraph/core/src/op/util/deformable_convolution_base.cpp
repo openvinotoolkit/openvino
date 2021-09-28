@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/util/deformable_convolution_base.hpp"
+
 #include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
@@ -11,31 +12,27 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::util::DeformableConvolutionBase, "DeformableConvolutionBase", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::util::DeformableConvolutionBase);
 
-op::util::DeformableConvolutionBase::DeformableConvolutionBase(const OutputVector& arguments,
-                                                               const Strides& strides,
-                                                               const CoordinateDiff& pads_begin,
-                                                               const CoordinateDiff& pads_end,
-                                                               const Strides& dilations,
-                                                               const PadType& auto_pad,
-                                                               const int64_t group,
-                                                               const int64_t deformable_group)
-    : Op(arguments)
-    , m_strides(strides)
-    , m_dilations(dilations)
-    , m_pads_begin(pads_begin)
-    , m_pads_end(pads_end)
-    , m_auto_pad(auto_pad)
-    , m_group(group)
-    , m_deformable_group(deformable_group)
-{
-}
+ov::op::util::DeformableConvolutionBase::DeformableConvolutionBase(const OutputVector& arguments,
+                                                                   const Strides& strides,
+                                                                   const CoordinateDiff& pads_begin,
+                                                                   const CoordinateDiff& pads_end,
+                                                                   const Strides& dilations,
+                                                                   const PadType& auto_pad,
+                                                                   const int64_t group,
+                                                                   const int64_t deformable_group)
+    : Op(arguments),
+      m_strides(strides),
+      m_dilations(dilations),
+      m_pads_begin(pads_begin),
+      m_pads_end(pads_end),
+      m_auto_pad(auto_pad),
+      m_group(group),
+      m_deformable_group(deformable_group) {}
 
-bool op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor& visitor)
-{
+bool ov::op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_DeformableConvolutionBase_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
@@ -47,8 +44,7 @@ bool op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor& vis
     return true;
 }
 
-void op::util::DeformableConvolutionBase::validate_and_infer_types()
-{
+void ov::op::util::DeformableConvolutionBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_DeformableConvolutionBase_validate_and_infer_types);
     const PartialShape& data_batch_pshape = get_input_partial_shape(0);
     const PartialShape& offsets_pshape = get_input_partial_shape(1);
@@ -76,37 +72,30 @@ void op::util::DeformableConvolutionBase::validate_and_infer_types()
                           result_et);
 
     Rank result_ps_rank{};
-    NODE_VALIDATION_CHECK(
-        this,
-        Rank::merge(result_ps_rank, data_batch_pshape.rank(), offsets_pshape.rank()) &&
-            Rank::merge(result_ps_rank, result_ps_rank, filters_pshape.rank()),
-        "Ranks of inputs do not match. Got: data batch shape ",
-        data_batch_pshape,
-        ", offsets shape ",
-        offsets_pshape,
-        ", filters shape ",
-        filters_pshape);
+    NODE_VALIDATION_CHECK(this,
+                          Rank::merge(result_ps_rank, data_batch_pshape.rank(), offsets_pshape.rank()) &&
+                              Rank::merge(result_ps_rank, result_ps_rank, filters_pshape.rank()),
+                          "Ranks of inputs do not match. Got: data batch shape ",
+                          data_batch_pshape,
+                          ", offsets shape ",
+                          offsets_pshape,
+                          ", filters shape ",
+                          filters_pshape);
 
-    NODE_VALIDATION_CHECK(
-        this, result_ps_rank.compatible(4), "Inputs must be of rank 4. Got: ", result_ps_rank);
+    NODE_VALIDATION_CHECK(this, result_ps_rank.compatible(4), "Inputs must be of rank 4. Got: ", result_ps_rank);
 
-    NODE_VALIDATION_CHECK(
-        this, m_group > 0, "Attribute 'group' must be any value starting from 1. Got: ", m_group);
+    NODE_VALIDATION_CHECK(this, m_group > 0, "Attribute 'group' must be any value starting from 1. Got: ", m_group);
 
     NODE_VALIDATION_CHECK(this,
                           m_deformable_group > 0,
                           "Attribute 'deformable group' must be any value starting from 1. Got: ",
                           m_deformable_group);
 
-    if (offsets_pshape.rank().is_static())
-    {
-        if (offsets_pshape[1].is_static())
-        {
-            if (filters_pshape.rank().is_static() && filters_pshape[2].is_static() &&
-                filters_pshape[3].is_static())
-            {
-                auto offsets_channels = m_deformable_group * filters_pshape[2].get_length() *
-                                        filters_pshape[3].get_length() * 2;
+    if (offsets_pshape.rank().is_static()) {
+        if (offsets_pshape[1].is_static()) {
+            if (filters_pshape.rank().is_static() && filters_pshape[2].is_static() && filters_pshape[3].is_static()) {
+                auto offsets_channels =
+                    m_deformable_group * filters_pshape[2].get_length() * filters_pshape[3].get_length() * 2;
                 NODE_VALIDATION_CHECK(this,
                                       offsets_pshape[1].get_length() == offsets_channels,
                                       "The channels dimension of offsets input is not "
@@ -117,9 +106,7 @@ void op::util::DeformableConvolutionBase::validate_and_infer_types()
                                       m_deformable_group,
                                       ", filters shape: ",
                                       filters_pshape);
-            }
-            else
-            {
+            } else {
                 // At least we can check if offsets channels is evenly divisible by deformable
                 // group attribute
                 NODE_VALIDATION_CHECK(this,
@@ -133,20 +120,17 @@ void op::util::DeformableConvolutionBase::validate_and_infer_types()
             }
         }
 
-        if (data_batch_pshape.rank().is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                offsets_pshape[0].compatible(data_batch_pshape[0]),
-                "Data batch and offsets batch dimension must be same value. Got: ",
-                offsets_pshape[0],
-                " and ",
-                data_batch_pshape[0]);
+        if (data_batch_pshape.rank().is_static()) {
+            NODE_VALIDATION_CHECK(this,
+                                  offsets_pshape[0].compatible(data_batch_pshape[0]),
+                                  "Data batch and offsets batch dimension must be same value. Got: ",
+                                  offsets_pshape[0],
+                                  " and ",
+                                  data_batch_pshape[0]);
         }
     }
 
-    if (data_batch_pshape.rank().is_static() && data_batch_pshape[1].is_static())
-    {
+    if (data_batch_pshape.rank().is_static() && data_batch_pshape[1].is_static()) {
         NODE_VALIDATION_CHECK(this,
                               data_batch_pshape[1].get_length() % m_group == 0,
                               "The input data shape must be evenly divisible by the 'group' value "
@@ -156,40 +140,35 @@ void op::util::DeformableConvolutionBase::validate_and_infer_types()
                               m_group);
     }
 
-    if (filters_pshape.rank().is_static() && filters_pshape[0].is_static())
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            filters_pshape[0].get_length() % m_group == 0,
-            "The filters shape must be evenly divisible by the 'group' value along "
-            "the channels axis. Current filters shape: ",
-            filters_pshape,
-            ", 'group' attribute value: ",
-            m_group);
+    if (filters_pshape.rank().is_static() && filters_pshape[0].is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              filters_pshape[0].get_length() % m_group == 0,
+                              "The filters shape must be evenly divisible by the 'group' value along "
+                              "the channels axis. Current filters shape: ",
+                              filters_pshape,
+                              ", 'group' attribute value: ",
+                              m_group);
     }
 
     // adjust filter shape to reuse regular infer_convolution_forward()
     const auto new_filters_pshape = [&](int groups) {
         auto new_shape(filters_pshape);
-        if (new_shape.rank().is_static())
-        {
+        if (new_shape.rank().is_static()) {
             new_shape[1] *= groups;
         }
         return new_shape;
     }(m_group);
-    PartialShape result_shape =
-        validate_and_infer_convolution_forward_output_shape(this,
-                                                            result_ps_rank,
-                                                            data_batch_pshape,
-                                                            new_filters_pshape,
-                                                            m_auto_pad,
-                                                            m_strides,
-                                                            m_dilations,
-                                                            m_pads_begin,
-                                                            m_pads_end);
+    PartialShape result_shape = ngraph::validate_and_infer_convolution_forward_output_shape(this,
+                                                                                            result_ps_rank,
+                                                                                            data_batch_pshape,
+                                                                                            new_filters_pshape,
+                                                                                            m_auto_pad,
+                                                                                            m_strides,
+                                                                                            m_dilations,
+                                                                                            m_pads_begin,
+                                                                                            m_pads_end);
 
-    if (result_shape.rank().is_static() && offsets_pshape.rank().is_static())
-    {
+    if (result_shape.rank().is_static() && offsets_pshape.rank().is_static()) {
         PartialShape result_spatial_shape = [&result_shape]() {
             vector<Dimension> result_spatial_dims{result_shape};
             result_spatial_dims.erase(result_spatial_dims.begin(), result_spatial_dims.begin() + 2);
@@ -198,8 +177,7 @@ void op::util::DeformableConvolutionBase::validate_and_infer_types()
 
         PartialShape offsets_spatial_shape = [&offsets_pshape]() {
             vector<Dimension> offsets_spatial_dims{offsets_pshape};
-            offsets_spatial_dims.erase(offsets_spatial_dims.begin(),
-                                       offsets_spatial_dims.begin() + 2);
+            offsets_spatial_dims.erase(offsets_spatial_dims.begin(), offsets_spatial_dims.begin() + 2);
             return PartialShape{offsets_spatial_dims};
         }();
 
@@ -210,9 +188,8 @@ void op::util::DeformableConvolutionBase::validate_and_infer_types()
                               " and ",
                               result_spatial_shape);
 
-        if (result_shape[0].is_dynamic())
-        {
-            result_shape[0] = offsets_pshape[0]; // batch size
+        if (result_shape[0].is_dynamic()) {
+            result_shape[0] = offsets_pshape[0];  // batch size
         }
     }
     set_output_type(0, result_et, result_shape);

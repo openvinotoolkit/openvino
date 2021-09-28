@@ -13,10 +13,9 @@
 #include <memory>
 #include <string>
 
-#include <ie_parameter.hpp>
-#include <cpp/ie_cnn_network.h>
+#include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-
+#include "ie_parameter.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
@@ -103,7 +102,8 @@ public:
      * @param config Optional map of pairs: (config parameter name, config parameter value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
-    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
+                                            const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) const = 0;
 
     /**
@@ -119,9 +119,20 @@ public:
     virtual Parameter GetMetric(const std::string& deviceName, const std::string& name) const = 0;
 
     /**
+     * @brief Gets configuration dedicated to device behaviour.
+     *
+     * The method is targeted to extract information which can be set via SetConfig method.
+     *
+     * @param deviceName  - A name of a device to get a configuration value.
+     * @param name  - config key.
+     * @return Value of config corresponding to config key.
+     */
+    virtual Parameter GetConfig(const std::string& deviceName, const std::string& name) const = 0;
+
+    /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     virtual std::vector<std::string> GetAvailableDevices() const = 0;
@@ -147,6 +158,7 @@ public:
 class INFERENCE_ENGINE_API_CLASS(DeviceIDParser) {
     std::string deviceName;
     std::string deviceID;
+
 public:
     explicit DeviceIDParser(const std::string& deviceNameWithID);
 

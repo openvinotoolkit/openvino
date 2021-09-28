@@ -7,22 +7,18 @@
 #include <sstream>
 #include <memory>
 #include <vector>
-
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include <low_precision/rt_info/precision_preserved_attribute.hpp>
+#include <low_precision/rt_info/intervals_alignment_attribute.hpp>
+#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
 
-#include <low_precision/low_precision.hpp>
-
+#include <low_precision/common/operation_precision_restriction.hpp>
+#include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
 #include <low_precision/concat.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/rt_info/precision_preserved_attribute.hpp>
-#include <low_precision/align_quantization_parameters.hpp>
 #include <low_precision/fuse_subtract_to_fake_quantize.hpp>
 #include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include <low_precision/markup_can_be_quantized.hpp>
-#include <low_precision/markup_per_tensor_quantization.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
@@ -234,16 +230,18 @@ TEST_P(ConcatTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
-    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
-        "PrecisionsAttribute are not the same";
-
     ConcatTransformationTestValues testValues = std::get<2>(GetParam());
-    if (testValues.checkIntervalsAlignmentAttributes) {
-        auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
-        operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) <<
-            "IntervalsAlignmentAttribute are not the same";
+    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    if (testValues.axis == 1) {
+        ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
+            "PrecisionsAttribute are not the same";
+
+        if (testValues.checkIntervalsAlignmentAttributes) {
+            auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
+            operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
+            ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) <<
+                "IntervalsAlignmentAttribute are not the same";
+        }
     }
 }
 

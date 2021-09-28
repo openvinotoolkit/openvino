@@ -16,7 +16,7 @@ class MKLDNNFullyConnectedNode : public MKLDNNNode {
 public:
     MKLDNNFullyConnectedNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims &dims) const override;
+    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
@@ -27,26 +27,29 @@ public:
     }
 
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
+    void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                          const std::vector<MemoryDescPtr>& outputDesc) override;
 
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 
-    MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr();
 
 private:
+    void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
+                                  const mkldnn::memory::desc &outputDesc);
+
     InferenceEngine::SizeVector weightsDims;
     InferenceEngine::SizeVector biasesDims;
 

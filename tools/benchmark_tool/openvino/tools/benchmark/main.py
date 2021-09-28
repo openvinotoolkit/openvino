@@ -108,6 +108,12 @@ def run(args):
                 config[device]['PERF_COUNT'] = 'YES' if args.perf_counts else 'NO'
             perf_counts = True if config[device]['PERF_COUNT'] == 'YES' else perf_counts
 
+            ## high-level performance hints
+            if is_flag_set_in_command_line('hint'):
+                config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
+                if is_flag_set_in_command_line('nireq'):
+                    config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
+            ## the rest are individual per-device settings (overriding the values the device will deduce from perf hint)
             def set_throughput_streams():
                 key = device + "_THROUGHPUT_STREAMS"
                 if device in device_number_streams.keys():
@@ -117,9 +123,10 @@ def run(args):
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
                     config[device][key] = device_number_streams[device]
-                elif key not in config[device].keys() and args.api_type == "async":
+                elif key not in config[device].keys() and args.api_type == "async" and not is_flag_set_in_command_line('hint'):
+                    ## set the _AUTO value for the #streams
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
-                                   "Although the automatic selection usually provides a reasonable performance,"
+                                   "Although the automatic selection usually provides a reasonable performance, "
                                    "but it still may be non-optimal for some cases, for more information look at README.")
                     if device != MYRIAD_DEVICE_NAME:  ## MYRIAD sets the default number of streams implicitly
                         config[device][key] = device + "_THROUGHPUT_AUTO"
@@ -201,7 +208,7 @@ def run(args):
                                           [
                                               ('load network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, exe_network.input_info)
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.input_info)
             if batch_size == 0:
                 batch_size = 1
         elif not is_network_compiled:
@@ -222,7 +229,7 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, ie_network.input_info)
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean,  ie_network.input_info)
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { k : v.shape for k,v in app_inputs_info.items() }
@@ -280,17 +287,24 @@ def run(args):
                                           [
                                               ('import network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, exe_network.input_info)
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.input_info)
             if batch_size == 0:
                 batch_size = 1
 
-        # --------------------- 8. Setting optimal runtime parameters --------------------------------------------------
+        # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
+        if is_flag_set_in_command_line('hint'):
+            ## actual device-deduced settings for the hint
+            for device in devices:
+                keys = benchmark.ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                logger.info(f'DEVICE: {device}')
+                for k in keys:
+                    logger.info(f'  {k}  , {exe_network.get_config(k)}')
 
         # Update number of streams
         for device in device_number_streams.keys():
             key = device + '_THROUGHPUT_STREAMS'
-            device_number_streams[device] = benchmark.ie.get_config(device, key)
+            device_number_streams[device] = exe_network.get_config(key)
 
         # Number of requests
         infer_requests = exe_network.requests
@@ -328,7 +342,7 @@ def run(args):
 
         # ------------------------------------ 10. Measuring performance -----------------------------------------------
 
-        output_string = process_help_inference_string(benchmark)
+        output_string = process_help_inference_string(benchmark, exe_network)
 
         next_step(additional_info=output_string)
         progress_bar_total_count = 10000

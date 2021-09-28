@@ -42,8 +42,7 @@ static void ConvolutionBackpropTest(const std::vector<float>& inputs,
                                     const Strides& strides,
                                     const CoordinateDiff& padding,
                                     const Strides& dilations,
-                                    const CoordinateDiff& output_padding)
-{
+                                    const CoordinateDiff& output_padding) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};

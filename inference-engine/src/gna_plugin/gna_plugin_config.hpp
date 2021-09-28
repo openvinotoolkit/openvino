@@ -18,6 +18,8 @@
 
 namespace GNAPluginNS {
 
+static const float kScaleFactorDefault = 1.f;
+
 struct Config {
     Config() {
         AdjustKeyMapValues();

@@ -1,4 +1,4 @@
-coverage==4.4.2
+coverage>=4.4.2,<=5.5
 astroid==2.4.2
 pylint==2.5.0
 pyenchant==1.6.11
