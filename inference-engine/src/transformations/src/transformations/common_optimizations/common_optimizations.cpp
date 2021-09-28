@@ -94,62 +94,20 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::MOCTransformations>(true);
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
-    manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
-    manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>(); // workaround until dynamism in NMS is not supported
 
     // TODO: move to KMB
-    manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
 
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
-    manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
-
-    auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
-    transpose_sinking->add_matcher<ngraph::pass::TransposeSinking>();
-    // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
-    // because it replaces pattern that may contain Transposes which must be optimized before
-    // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
-    transpose_sinking->add_matcher<ngraph::pass::SplitSqueezeConcatFusion>();
-
-    auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
-    eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
-    eliminations->add_matcher<ngraph::pass::NopElimination>(); // may introduce fake dynamism
-    eliminations->set_name("ngraph::pass::CommonEliminations");
-
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    common_fusions->add_matcher<ngraph::pass::ConvertScatterElementsToScatter>();
     common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
-    common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
-    common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
-    common_fusions->add_matcher<ngraph::pass::SwishFusion>();
     common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false);
-    common_fusions->add_matcher<ngraph::pass::HSwishFusion>();
-    common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
-    common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
-    common_fusions->add_matcher<ngraph::pass::ClampFusion>();
-    common_fusions->add_matcher<ngraph::pass::PadFusion>();
-    common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>();
-    common_fusions->add_matcher<ngraph::pass::MVNFusion>();
     common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
-    common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
-    common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
-    common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
-    common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
-    manager.register_pass<ngraph::pass::BinarizeWeights>();
-    manager.register_pass<ngraph::pass::ConvToBinaryConv>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();

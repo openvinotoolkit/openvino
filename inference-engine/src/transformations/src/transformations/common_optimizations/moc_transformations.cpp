@@ -82,8 +82,11 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     // workaround until dynamism in NMS is not supported
     manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
 
-    if (m_use_shapes)
+    if (m_use_shapes) {
         manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+    }
+
+    manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
 
     auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
     transpose_sinking->add_matcher<ngraph::pass::TransposeSinking>();
@@ -97,9 +100,10 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     eliminations->add_matcher<ngraph::pass::NopElimination>(m_use_shapes /* do not use shape for elimination */);
     eliminations->set_name("ngraph::pass::CommonEliminations");
 
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     common_fusions->add_matcher<ngraph::pass::ConvertScatterElementsToScatter>();
-    common_fusions->add_matcher<ngraph::pass::BroadcastElementwiseFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
     common_fusions->add_matcher<ngraph::pass::SwishFusion>();
@@ -115,14 +119,6 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
     common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
-
-    if (m_use_shapes) {
-        common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
-        common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false);
-        common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
-        common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
-        common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
-    }
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
     manager.register_pass<ngraph::pass::ConvToBinaryConv>();
