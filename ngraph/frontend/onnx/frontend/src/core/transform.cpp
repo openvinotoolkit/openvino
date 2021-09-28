@@ -30,6 +30,18 @@ ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE
     }
     return ONNX_NAMESPACE::TypeProto();
 }
+
+inline void function_expand_and_remove_original_node(const ONNX_NAMESPACE::NodeProto& node,
+                                                     const ONNX_NAMESPACE::FunctionProto& func_proto,
+                                                     ONNX_NAMESPACE::GraphProto& graph) {
+    const auto before_expand_size = graph.node().size();
+    ONNX_NAMESPACE::FunctionExpandHelper(node, func_proto, graph);
+    const auto added_nodes = graph.node().size() - before_expand_size;
+
+    // Remove the original node which contained the function.
+    graph.mutable_node()->erase(graph.mutable_node()->end() - added_nodes - 1);
+}
+
 }  // namespace detail
 }  // namespace transform
 }  // namespace onnx_import
@@ -62,15 +74,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
         // Check if operation schema contains a function body and expand function
         if (node_op_schema->HasFunction()) {
             const auto* func_proto = node_op_schema->GetFunction();
-            const auto before_expand_size = new_graph.node().size();
-            ONNX_NAMESPACE::FunctionExpandHelper(*node, *func_proto, new_graph);
-            const auto added_nodes = new_graph.node().size() - before_expand_size;
-
-            // Remove the original node which contained the function.
-            std::cout << "removed node: "
-                      << new_graph.mutable_node()->Get(new_graph.mutable_node()->size() - added_nodes - 1).op_type()
-                      << "\n";
-            new_graph.mutable_node()->erase(new_graph.mutable_node()->end() - added_nodes - 1);
+            detail::function_expand_and_remove_original_node(*node, *func_proto, new_graph);
         }
 
         else if (node_op_schema->HasContextDependentFunction()) {
@@ -89,12 +93,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
             ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(*node, input_types);
             ONNX_NAMESPACE::FunctionProto func_proto;
             node_op_schema->BuildContextDependentFunction(ctx, func_proto);
-            const auto before_expand_size = new_graph.node().size();
-            ONNX_NAMESPACE::FunctionExpandHelper(*node, func_proto, new_graph);
-            const auto added_nodes = new_graph.node().size() - before_expand_size;
-
-            // Remove the original node which contained the function.
-            new_graph.mutable_node()->erase(new_graph.mutable_node()->end() - added_nodes - 1);
+            detail::function_expand_and_remove_original_node(*node, func_proto, new_graph);
         }
     }
     graph_proto->mutable_node()->Clear();

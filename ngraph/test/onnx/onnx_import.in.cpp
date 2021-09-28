@@ -393,6 +393,17 @@ NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_function) {
     test_case.run();
 }
 
+NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_function_dependency_to_created_subgraph) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/greater_or_equal.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({3.f, 5.f, 3.f, 3.f, 6.f});
+    test_case.add_input<float>({1.f, 4.f, 3.f, 7.f, 8.f});
+    test_case.add_expected_output<int32_t>(Shape{5}, {1, 1, 1, 0, 0});
+    test_case.run();
+}
+
 // ############################################################################ OPERATOR TESTS
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_addmul_abc) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/addmul_abc.onnx"));
