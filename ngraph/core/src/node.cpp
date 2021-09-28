@@ -10,6 +10,7 @@
 #include <typeindex>
 #include <typeinfo>
 
+#include "atomic_guard.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
@@ -161,7 +162,9 @@ void ov::Node::set_arguments(const OutputVector& arguments) {
     // Add this node as a user of each argument.
     size_t i = 0;
     for (auto& output : arguments) {
-        set_argument(i++, output);
+        auto output_node = output.get_node();
+        auto& output_descriptor = output_node->m_outputs.at(output.get_index());
+        m_inputs.emplace_back(this, i++, output_descriptor);
     }
 }
 
@@ -238,11 +241,9 @@ const std::string& ov::Node::get_friendly_name() const {
 }
 
 const std::string& ov::Node::get_name() const {
-    if (m_unique_name.empty()) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        if (m_unique_name.empty())
-            const_cast<Node*>(this)->m_unique_name = description() + "_" + to_string(m_instance_id);
-    }
+    AtomicGuard lock(m_name_changing);
+    if (m_unique_name.empty())
+        m_unique_name = description() + "_" + to_string(m_instance_id);
     return m_unique_name;
 }
 

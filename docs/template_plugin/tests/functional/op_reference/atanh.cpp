@@ -12,6 +12,7 @@
 #include <shared_test_classes/base/layer_test_utils.hpp>
 
 #include "base_reference_test.hpp"
+#include "openvino/runtime/allocator.hpp"
 
 using namespace reference_tests;
 using namespace ngraph;
@@ -43,8 +44,8 @@ struct AtanhParams {
     ngraph::PartialShape pshape;
     ngraph::element::Type inType;
     ngraph::element::Type outType;
-    InferenceEngine::Blob::Ptr inputData;
-    InferenceEngine::Blob::Ptr refData;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceAtanhLayerTest : public testing::TestWithParam<AtanhParams>, public CommonReferenceTest {
