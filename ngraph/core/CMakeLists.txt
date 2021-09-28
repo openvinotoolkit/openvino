@@ -18,6 +18,7 @@ set(IE_SHARED_SRCS
     "${IE_SRC_ROOT}/system_allocator.cpp"
     "${IE_SRC_ROOT}/blob_factory.cpp"
     "${IE_SRC_ROOT}/ie_blob_common.cpp"
+    "${IE_SRC_ROOT}/system_allocator.cpp"
     "${IE_SRC_ROOT}/ie_layouts.cpp")
 set(MIXED_SRC ${IE_SHARED_SRCS}
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"

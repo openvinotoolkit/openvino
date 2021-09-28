@@ -192,22 +192,7 @@ public:
      *
      * @param dims new shape
      */
-    void setShape(const SizeVector& dims) {
-        if (properProduct(dims) > properProduct(getTensorDesc().getDims())) {
-            // New blob shape requires more memory than old one -- reallocate
-            if (!deallocate())
-                IE_THROW() << "Cannot deallocate blob while an attempt to enlarge blob area in setShape.";
-
-            // Old and new ranks should match as well as layouts
-            getTensorDesc().setDims(dims);
-
-            allocate();
-            // no way to detect if allocation is successful other than map/unmap that we wouldn't like to do here
-        } else {
-            // Don't shrink area when new size fit the existing area
-            getTensorDesc().setDims(dims);
-        }
-    }
+    void setShape(const SizeVector& dims);
 
     /**
      * @deprecated Cast to MemoryBlob and use new wlock/rwlock API instead.

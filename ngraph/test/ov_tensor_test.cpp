@@ -11,6 +11,7 @@
 #include <openvino/core/strides.hpp>
 #include <openvino/core/type/element_type.hpp>
 
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -58,7 +59,7 @@ TEST_F(OVTensorTest, canCreateTensorUsingMockAllocator) {
 TEST_F(OVTensorTest, canAccessExternalData) {
     ov::Shape shape = {1, 1, 3};
     float data[] = {5.f, 6.f, 7.f};
-    ov::runtime::Tensor t{ov::element::f32, shape, data, 3};
+    ov::runtime::Tensor t{ov::element::f32, shape, data};
     {
         float* ptr = t.data<float>();
         ASSERT_EQ(ptr[2], 7);
@@ -74,7 +75,8 @@ TEST_F(OVTensorTest, canAccessExternalData) {
 TEST_F(OVTensorTest, canAccessExternalDataWithStrides) {
     ov::Shape shape = {2, 3};
     float data[] = {5.f, 6.f, 7.f, 0.f, 1.f, 42.f, 3.f, 0.f};
-    ov::runtime::Tensor t{ov::element::f32, shape, data, 8, {4, 1}};
+    ov::runtime::Tensor t{ov::element::f32, shape, data, {4, 1}};
+    ASSERT_EQ(ov::Strides({4, 1}), t.get_strides());
     {
         ASSERT_EQ((ov::Shape{2, 3}), t.get_shape());
         float* ptr = t.data<float>();
@@ -90,7 +92,17 @@ TEST_F(OVTensorTest, cannotCreateTensorWithExternalNullptr) {
 TEST_F(OVTensorTest, cannotCreateTensorWithWrongStrides) {
     ov::Shape shape = {2, 3};
     float data[] = {5.f, 6.f, 7.f, 0.f, 1.f, 42.f, 3.f, 0.f};
-    ASSERT_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, 8, {4, 1, 2}), ov::Exception);
+    {
+        // strides.size() != shape.size()
+        EXPECT_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, {6, 3, 1}), ov::Exception);
+    }
+    {
+        // strides values are element-wise >= ov::row_major_strides(shape) values
+        EXPECT_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, {2, 1}), ov::Exception);
+        EXPECT_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, {3, 0}), ov::Exception);
+        EXPECT_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, {3, 2}), ov::Exception);
+        EXPECT_NO_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, {6, 2}));
+    }
 }
 
 TEST_F(OVTensorTest, saveDimsAndSizeAfterMove) {
@@ -115,34 +127,63 @@ TEST_F(OVTensorTest, saveDimsAndSizeAfterMove) {
 
 // SetShape
 TEST_F(OVTensorTest, canSetShape) {
+    const ov::Shape origShape({1, 2, 3});
     ov::runtime::Tensor t{ov::element::f32, {1, 2, 3}};
     const ov::Shape newShape({4, 5, 6});
-    ASSERT_EQ(t.get_shape(), (ov::Shape{1, 2, 3}));
+
+    const void* orig_data = t.data();
+    ASSERT_EQ(t.get_shape(), origShape);
     ASSERT_NO_THROW(t.set_shape({4, 5, 6}));
     ASSERT_EQ(newShape, t.get_shape());
     ASSERT_EQ(ov::row_major_strides(newShape), t.get_strides());
+    ASSERT_NE(orig_data, t.data());
 
     // check that setShape for copy changes original Tensor
     {
         ov::runtime::Tensor t2 = t;
-        t2.set_shape(newShape);
+        ASSERT_NO_THROW(t2.set_shape(newShape));
         ASSERT_EQ(newShape, t.get_shape());
         ASSERT_EQ(t2.get_shape(), t.get_shape());
+        orig_data = t.data();
+    }
+
+    // set_shape for smaller memory - does not perform reallocation
+    {
+        t.set_shape(origShape);
+        ASSERT_EQ(origShape, t.get_shape());
+        ASSERT_EQ(orig_data, t.data());
     }
 }
 
+TEST_F(OVTensorTest, cannotSetShapeOnPreallocatedMemory) {
+    float data[4 * 5 * 6 * 2];
+    ov::runtime::Tensor t{ov::element::f32, {1, 2, 3}, data};
+    const ov::Shape newShape({4, 5, 6});
+
+    ASSERT_THROW(t.set_shape(newShape), ov::Exception);
+}
+
 TEST_F(OVTensorTest, makeRangeRoiTensor) {
-    ov::runtime::Tensor t{ov::element::i8, {1, 3, 6, 5}};  // RGBp picture of size (WxH) = 5x6
+    ov::runtime::Tensor t{ov::element::i32, {1, 3, 6, 5}};  // RGBp picture of size (WxH) = 5x6
     ov::runtime::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 3, 5, 4}};
     ov::Shape ref_shape = {1, 3, 4, 2};
-    ptrdiff_t ref_offset = 7;
+    ptrdiff_t ref_offset_elems = 7;
+    ptrdiff_t ref_offset_bytes = ref_offset_elems * ov::element::i32.size();
     ov::Strides ref_strides = {90, 30, 5, 1};
     ASSERT_EQ(roi_tensor.get_shape(), ref_shape);
-    ASSERT_EQ(roi_tensor.data<int8_t>() - t.data<int8_t>(), ref_offset);
-    ASSERT_EQ(reinterpret_cast<uint8_t*>(roi_tensor.data()) - reinterpret_cast<uint8_t*>(t.data()), ref_offset);
+    ASSERT_EQ(roi_tensor.data<int32_t>() - t.data<int32_t>(), ref_offset_elems);
+    ASSERT_EQ(reinterpret_cast<uint8_t*>(roi_tensor.data()) - reinterpret_cast<uint8_t*>(t.data()), ref_offset_bytes);
     ASSERT_EQ(roi_tensor.get_strides(), t.get_strides());
     ASSERT_EQ(ref_strides, roi_tensor.get_strides());
     ASSERT_EQ(roi_tensor.get_element_type(), t.get_element_type());
+}
+
+TEST_F(OVTensorTest, cannotSetShapeOnRoiTensor) {
+    ov::runtime::Tensor t{ov::element::i32, {1, 3, 6, 5}};  // RGBp picture of size (WxH) = 5x6
+    ov::runtime::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 3, 5, 4}};
+    const ov::Shape newShape({4, 5, 6});
+
+    ASSERT_THROW(roi_tensor.set_shape(newShape), ov::Exception);
 }
 
 TEST_F(OVTensorTest, makeRangeRoiTensorInt4) {

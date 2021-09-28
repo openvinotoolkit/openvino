@@ -38,11 +38,7 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, const Alloc
     _impl->allocate();
 }
 
-Tensor::Tensor(const element::Type element_type,
-               const Shape& shape,
-               void* host_ptr,
-               const size_t size,
-               const Strides& strides) {
+Tensor::Tensor(const element::Type element_type, const Shape& shape, void* host_ptr, const Strides& strides) {
     ie::SizeVector blk_order(shape.size());
     std::iota(blk_order.begin(), blk_order.end(), 0);
     ie::SizeVector dim_offset(shape.size(), 0);
@@ -50,12 +46,6 @@ Tensor::Tensor(const element::Type element_type,
     if (strides.empty()) {
         blk_strides = ov::row_major_strides(shape);
     } else {
-        OPENVINO_ASSERT(shape.size() == strides.size(),
-                        "shape.size() (",
-                        shape.size(),
-                        ") must be equal to strides.size() (",
-                        strides.size(),
-                        ")");
         blk_strides.assign(strides.begin(), strides.end());
     }
 
@@ -64,8 +54,7 @@ Tensor::Tensor(const element::Type element_type,
                                          ie::TensorDesc{ie::details::convertPrecision(element_type),
                                                         shape,
                                                         ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}},
-                                         host_ptr,
-                                         size);
+                                         host_ptr);
     } catch (const std::exception& ex) {
         throw ov::Exception(ex.what());
     } catch (...) {
