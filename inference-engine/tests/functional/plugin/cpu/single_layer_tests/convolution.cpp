@@ -121,6 +121,7 @@ protected:
 
         function = makeNgraphFunction(ngPrc, inputParams, convolutionNode, "Convolution");
         functionRefs = ngraph::clone_function(*function);
+        functionRefs->set_friendly_name("convolutionRefs");
     }
 };
 

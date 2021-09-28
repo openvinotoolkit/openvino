@@ -68,6 +68,7 @@ protected:
 
         function = makeNgraphFunction(ngPrc, params, softMax, "SoftMax");
         functionRefs = ngraph::clone_function(*function);
+        functionRefs->set_friendly_name("softMaxRefs");
     }
 };
 
