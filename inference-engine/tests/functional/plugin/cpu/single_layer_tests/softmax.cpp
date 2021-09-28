@@ -113,6 +113,15 @@ const std::vector<SoftMaxConfig> notOptimizedConfigsFP32 {
         {InferenceEngine::SizeVector{10, 10, 10}, 1},
 };
 
+const std::vector<SoftMaxConfig> unsupportedConfigsFP32 {
+        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 0},
+        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 1},
+        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 2},
+        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 3},
+        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 4},
+        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 5},
+};
+
 const auto OptimizedParams = testing::Combine(
         testing::Values(Precision::FP32, Precision::BF16),
         testing::ValuesIn(optimizedConfigsFP32),
@@ -128,6 +137,14 @@ const auto NotOptimizedParams = testing::Combine(
         testing::Values(notOptimizedCPUSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU, SoftMaxLayerCPUTest, NotOptimizedParams, SoftMaxLayerCPUTest::getTestCaseName);
+
+const auto UnsupportedParams = testing::Combine(
+        testing::Values(Precision::FP32, Precision::BF16),
+        testing::ValuesIn(unsupportedConfigsFP32),
+        testing::Values(CommonTestUtils::DEVICE_CPU),
+        testing::Values(notOptimizedCPUSpec));
+
+INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Unsupported_CPU, SoftMaxLayerCPUTest, UnsupportedParams, SoftMaxLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
