@@ -186,10 +186,7 @@ private:
                                                     const ngraph::op::MVNEpsMode epsMode) {
         std::vector<int64_t> dataVector(reductionAxes.shape[0]);
         const auto in = std::make_shared<op::Parameter>(input.type, input.shape);
-        auto mRef = as<InferenceEngine::MemoryBlob>(reductionAxes.data);
-        IE_ASSERT(mRef);
-        const auto refLockMemory = mRef->rmap();
-        const auto refBuffer = refLockMemory.as<const std::uint64_t*>();
+        const auto refBuffer = reductionAxes.data.data<const std::int64_t>();
         for (size_t i = 0; i < dataVector.size(); ++i) {
             dataVector[i] = refBuffer[i];
         }

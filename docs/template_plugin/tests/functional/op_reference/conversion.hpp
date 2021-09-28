@@ -31,8 +31,8 @@ struct ConvertParams {
     ngraph::PartialShape pshape;
     ngraph::element::Type inType;
     ngraph::element::Type outType;
-    InferenceEngine::Blob::Ptr inputData;
-    InferenceEngine::Blob::Ptr refData;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceConversionLayerTest : public testing::TestWithParam<ConvertParams>, public CommonReferenceTest {
