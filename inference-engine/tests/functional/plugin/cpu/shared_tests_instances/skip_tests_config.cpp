@@ -92,9 +92,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
 
         // TODO: CVS-66526 overrides i/o precisions in execution graph
-        R"(smoke_BehaviorTests/OVExecNetwork.*type=(i8|i16|i64|u16|u32|u64|f16).*)",
-        R"(smoke_Multi_BehaviorTests/OVExecNetwork.*type=(i8|u32|f16).*)",
-        R"(smoke_Auto_BehaviorTests/OVExecNetwork.*type=(i8|u32|f16).*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(i8|i16|i64|u16|u32|u64|f16).*)",
+        R"(.*smoke_(Multi|Auto)_BehaviorTests.*OVExecNetwork.*type=(i8|u32|f16).*)",
 
         // Issue: 62746
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
