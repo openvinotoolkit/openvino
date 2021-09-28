@@ -55,9 +55,9 @@ struct CumSumParams {
     element::Type axisType;
     element::Type inType;
     element::Type outType;
-    Blob::Ptr axisData;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::runtime::Tensor axisData;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 
     bool testDefaults = false;
 };

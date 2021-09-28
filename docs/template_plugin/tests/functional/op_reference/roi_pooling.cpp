@@ -33,9 +33,9 @@ struct ROIPoolingParams {
     float spatialScale;
     std::string poolingMode;
     ngraph::element::Type dataType;
-    InferenceEngine::Blob::Ptr featureMap;
-    InferenceEngine::Blob::Ptr proposal;
-    InferenceEngine::Blob::Ptr refData;
+    ov::runtime::Tensor featureMap;
+    ov::runtime::Tensor proposal;
+    ov::runtime::Tensor refData;
 
 public:
     template<class T>

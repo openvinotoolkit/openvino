@@ -24,8 +24,8 @@ struct SignParams {
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceSignLayerTest : public testing::TestWithParam<SignParams>, public CommonReferenceTest {

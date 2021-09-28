@@ -47,9 +47,9 @@ struct MaxPoolParams {
     Shape m_input_shape;
     element::Type m_input_type;
     element::Type m_indices_type;
-    InferenceEngine::Blob::Ptr m_input_data;
-    InferenceEngine::Blob::Ptr m_expected_values;
-    InferenceEngine::Blob::Ptr m_expected_indices;
+    ov::runtime::Tensor m_input_data;
+    ov::runtime::Tensor m_expected_values;
+    ov::runtime::Tensor m_expected_indices;
     Strides m_strides;
     Strides m_dilations;
     Shape m_pads_begin;

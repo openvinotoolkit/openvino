@@ -117,7 +117,7 @@ void* Tensor::data(const element::Type element_type) const {
                 element::fundamental_type_for(get_element_type()),
                 ", but it casted to ",
                 element_type,
-                " with fundamental element type",
+                " with fundamental element type ",
                 element::fundamental_type_for(element_type));
         }
         return _impl->getTensorDesc().getBlockingDesc().getOffsetPadding() * get_element_type().size() +
