@@ -51,9 +51,15 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
     auto graph_proto = model_proto.mutable_graph();
 
     ONNX_NAMESPACE::GraphProto new_graph;
-    for (int i = 0; i < graph_proto->node().size(); ++i) {
-        ONNX_NAMESPACE::NodeProto* node = new_graph.add_node();
-        node->Swap(graph_proto->mutable_node(i));
+    for (int i = 0; i < graph_proto->node().size() || i < new_graph.node().size(); ++i) {
+        ONNX_NAMESPACE::NodeProto* node = nullptr;
+        if (i < graph_proto->node().size()) {
+            node = new_graph.add_node();
+            node->Swap(graph_proto->mutable_node(i));
+        } else {
+            // nodes expenaded from function can have another functions
+            node = new_graph.mutable_node(i);
+        }
 
         // Check if node operation is one of the functions we want to expand
         if (std::find(onnx_functions_to_expand.begin(), onnx_functions_to_expand.end(), node->op_type()) ==
@@ -98,7 +104,6 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
     }
     graph_proto->mutable_node()->Clear();
     graph_proto->MergeFrom(new_graph);
-    new_graph.Clear();
 }
 
 void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
