@@ -55,7 +55,8 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/automation
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/.coveragerc
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         DESTINATION deployment_tools/model_optimizer
+        FILES_MATCHING PATTERN ".coveragerc"
         COMPONENT tests
         EXCLUDE_FROM_ALL)
