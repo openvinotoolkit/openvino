@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import os
 import tempfile
 import unittest
@@ -40,9 +41,9 @@ class TestIRReader(unittest.TestCase):
 
 class TestDefineDataType(unittest.TestCase):
     nodes_attributes = {
-        'input': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-        'const_1': {'kind': 'op', 'op': 'Const', 'element_type': None},
-        'const_2': {'kind': 'op', 'op': 'Const', 'element_type': None},
+        'input': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter', 'data_type': None},
+        'const_1': {'kind': 'op', 'op': 'Const', 'data_type': None},
+        'const_2': {'kind': 'op', 'op': 'Const', 'data_type': None},
         'operation_1': {'type': 'fake_op', 'kind': 'op', 'op': 'fake_op'},
         'operation_2': {'type': 'fake_op', 'kind': 'op', 'op': 'fake_op'},
         'output': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
@@ -56,8 +57,8 @@ class TestDefineDataType(unittest.TestCase):
                                 ('operation_1', 'operation_2', {'in': 0}),
                                 ('const_2', 'operation_2', {'in': 1}),
                                 ('operation_2', 'output')
-                            ], {'const_1': {'element_type': 'f16'},
-                                'const_2': {'element_type': 'f32'}},
+                            ], {'const_1': {'data_type': np.float16},
+                                'const_2': {'data_type': np.float32}},
                             nodes_with_edges_only=True, cli=Namespace(static_shape=False, data_type='FP16'))
         data_type = define_data_type(graph)
 
@@ -71,8 +72,32 @@ class TestDefineDataType(unittest.TestCase):
                                 ('operation_1', 'operation_2', {'in': 0}),
                                 ('const_2', 'operation_2', {'in': 1}),
                                 ('operation_2', 'output')
-                            ], {'const_1': {'element_type': 'f32'},
-                                'const_2': {'element_type': 'f32'}},
+                            ], {'const_1': {'data_type': np.float32},
+                                'const_2': {'data_type': np.float32}},
+                            nodes_with_edges_only=True, cli=Namespace(static_shape=False, data_type='FP32'))
+        data_type = define_data_type(graph)
+
+        self.assertEqual(data_type, 'FP32')
+
+    def test_no_const_fp_16(self):
+        graph = build_graph(self.nodes_attributes,
+                            [
+                                ('input', 'operation_1', {'in': 0}),
+                                ('operation_1', 'operation_2', {'in': 0}),
+                                ('operation_2', 'output')
+                            ], {'input': {'data_type': np.float16}},
+                            nodes_with_edges_only=True, cli=Namespace(static_shape=False, data_type='FP16'))
+        data_type = define_data_type(graph)
+
+        self.assertEqual(data_type, 'FP16')
+
+    def test_no_const_fp_32(self):
+        graph = build_graph(self.nodes_attributes,
+                            [
+                                ('input', 'operation_1', {'in': 0}),
+                                ('operation_1', 'operation_2', {'in': 0}),
+                                ('operation_2', 'output')
+                            ], {'input': {'data_type': np.float32}},
                             nodes_with_edges_only=True, cli=Namespace(static_shape=False, data_type='FP32'))
         data_type = define_data_type(graph)
 
