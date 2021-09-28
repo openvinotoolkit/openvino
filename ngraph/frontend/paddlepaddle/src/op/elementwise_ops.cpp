@@ -80,6 +80,10 @@ NamedOutputs elementwise_greater_equal(const NodeContext& node_context) {
     return elementwise_ops<ngraph::opset6::GreaterEqual>(node_context);
 }
 
+NamedOutputs elementwise_not_equal(const NodeContext& node_context) {
+    return elementwise_ops<ngraph::opset6::NotEqual>(node_context);
+}
+
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
