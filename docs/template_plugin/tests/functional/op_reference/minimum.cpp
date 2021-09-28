@@ -31,9 +31,9 @@ struct MinimumParams {
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    Blob::Ptr inputData1;
-    Blob::Ptr inputData2;
-    Blob::Ptr refData;
+    ov::runtime::Tensor inputData1;
+    ov::runtime::Tensor inputData2;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceMinimumLayerTest : public testing::TestWithParam<MinimumParams>, public CommonReferenceTest {
