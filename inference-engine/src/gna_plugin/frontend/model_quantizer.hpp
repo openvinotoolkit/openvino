@@ -83,9 +83,7 @@ class ModelQuantizer {
             scaleIndex++;
         }
 
-        bool isFakeQuantize = std::is_same<T, FakeQuantI8>() || std::is_same<T, FakeQuantI16>();
-        propagateScaleFactor(sortedNewNet, T::mandatory().getWeightsPrecision().size(), T::optional().getWeightsPrecision().size(),
-                             T::mandatory().getInputPrecision().size(), isFakeQuantize);
+        propagateScaleFactor(sortedNewNet);
 
         // sorted order gives possibility for propagate quantisation along depended layers
         for (auto &&layer : sortedNewNet) {
@@ -96,9 +94,8 @@ class ModelQuantizer {
     }
 
  private :
-    void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr> & net, int mandWeightsBytesSize,
-                              int optWeightsBytesSize, int inputsBytesSize, bool fakeQuantize) const {
-        ScaleFactorCalculator sf(net, mandWeightsBytesSize, optWeightsBytesSize, inputsBytesSize, fakeQuantize);
+    void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr> & net) const {
+        ScaleFactorCalculator<T> sf(net);
 
         int infiniteLoopCount = 0;
         std::vector<std::string> infiniteLoopPattern;
