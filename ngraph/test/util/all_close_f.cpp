@@ -28,7 +28,7 @@ constexpr uint32_t FLOAT_MAX_DIFF = UINT_MAX - 1;
 constexpr uint64_t DOUBLE_BELOW_MIN_SIGNAL = ULLONG_MAX;
 constexpr uint64_t DOUBLE_MAX_DIFF = ULLONG_MAX - 1;
 
-uint32_t test::float_distance(float a, float b, float min_signal) {
+uint32_t float_distance(float a, float b, float min_signal) {
     if (std::isnan(a) && std::isnan(b)) {
         return 0;
     } else if (std::isinf(a) && std::isinf(b)) {
@@ -72,7 +72,7 @@ uint32_t test::float_distance(float a, float b, float min_signal) {
     return distance;
 }
 
-uint64_t test::float_distance(double a, double b, double min_signal) {
+uint64_t float_distance(double a, double b, double min_signal) {
     if (std::isnan(a) && std::isnan(b)) {
         return 0;
     } else if (std::isinf(a) && std::isinf(b)) {
@@ -162,7 +162,7 @@ bool test::close_f(double a, double b, int tolerance_bits, double min_signal) {
     return (distance <= tolerance) || (distance == DOUBLE_BELOW_MIN_SIGNAL);
 }
 
-vector<uint32_t> test::float_distances(const vector<float>& a, const vector<float>& b, float min_signal) {
+vector<uint32_t> float_distances(const vector<float>& a, const vector<float>& b, float min_signal) {
     if (a.size() != b.size()) {
         throw ngraph_error("a.size() != b.size() for float_distances comparison.");
     }
@@ -174,7 +174,7 @@ vector<uint32_t> test::float_distances(const vector<float>& a, const vector<floa
     return distances;
 }
 
-vector<uint64_t> test::float_distances(const vector<double>& a, const vector<double>& b, double min_signal) {
+vector<uint64_t> float_distances(const vector<double>& a, const vector<double>& b, double min_signal) {
     if (a.size() != b.size()) {
         throw ngraph_error("a.size() != b.size() for float_distances comparison.");
     }
@@ -186,7 +186,7 @@ vector<uint64_t> test::float_distances(const vector<double>& a, const vector<dou
     return distances;
 }
 
-uint32_t test::matching_mantissa_bits(uint32_t distance) {
+uint32_t matching_mantissa_bits(uint32_t distance) {
     uint32_t tolerance_bit_shift = 0;
     uint32_t num_bits_on = 0;
 
@@ -220,7 +220,7 @@ uint32_t test::matching_mantissa_bits(uint32_t distance) {
     return matching_matissa_bits;
 }
 
-uint32_t test::matching_mantissa_bits(uint64_t distance) {
+uint32_t matching_mantissa_bits(uint64_t distance) {
     uint32_t tolerance_bit_shift = 0;
     uint32_t num_bits_on = 0;
 

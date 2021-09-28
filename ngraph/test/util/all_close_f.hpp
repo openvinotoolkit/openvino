@@ -47,133 +47,53 @@ static_assert((DEFAULT_DOUBLE_TOLERANCE_BITS >= 0) && (DEFAULT_DOUBLE_TOLERANCE_
 
 namespace ngraph {
 namespace test {
-// clang-format off
-        /// \brief Determine distance between two f32 numbers
-        /// \param a First number to compare
-        /// \param b Second number to compare
-        /// \param min_signal Minimum value for comparisons
-        /// \returns Distance
-        ///
-        /// References:
-        /// - https://en.wikipedia.org/wiki/Unit_in_the_last_place
-        /// - https://randomascii.wordpress.com/2012/01/23/stupid-float-tricks-2
-        /// - https://github.com/google/googletest/blob/master/googletest/docs/AdvancedGuide.md#floating-point-comparison
-        ///
-        /// s e e e e e e e e m m m m m m m m m m m m m m m m m m m m m m m
-        /// |------------bfloat-----------|
-        /// |----------------------------float----------------------------|
-        ///
-        /// bfloat (s1, e8, m7) has 7 + 1 = 8 bits of mantissa or bit_precision
-        /// float (s1, e8, m23) has 23 + 1 = 24 bits of mantissa or bit_precision
-        ///
-        /// This function uses hard-coded value of 8 bit exponent_bits, so it's only valid for
-        /// bfloat and f32.
-// clang-format on
-uint32_t float_distance(float a, float b, float min_signal = 0.0f);
 
 // clang-format off
-        /// \brief Determine distance between two f64 numbers
-        /// \param a First number to compare
-        /// \param b Second number to compare
-        /// \param min_signal Minimum value for comparisons
-        /// \returns Distance
-        ///
-        /// References:
-        /// - https://en.wikipedia.org/wiki/Unit_in_the_last_place
-        /// - https://randomascii.wordpress.com/2012/01/23/stupid-float-tricks-2
-        /// - https://github.com/google/googletest/blob/master/googletest/docs/AdvancedGuide.md#floating-point-comparison
-        ///
-        /// s e e e e e e e e e e e m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m
-        /// |----------------------------double-------------------------------------------------------------------------------------------|
-        ///
-        /// double (s1, e11, m52) has 52 + 1 = 53 bits of mantissa or bit_precision
-        ///
-        /// This function uses hard-coded value of 11 bit exponent_bits, so it's only valid for f64.
-// clang-format on
-uint64_t float_distance(double a, double b, double min_signal = 0.0);
-
-// clang-format off
-        /// \brief Check if the two f32 numbers are close
-        /// \param a First number to compare
-        /// \param b Second number to compare
-        /// \param tolerance_bits Bit tolerance error
-        /// \param min_signal Minimum value for comparisons
-        /// \returns True iff the distance between a and b is within 2 ^ tolerance_bits ULP
-        ///
-        /// References:
-        /// - https://en.wikipedia.org/wiki/Unit_in_the_last_place
-        /// - https://randomascii.wordpress.com/2012/01/23/stupid-float-tricks-2
-        /// - https://github.com/abseil/googletest/blob/master/googletest/docs/advanced.md#floating-point-comparison
-        ///
-        /// s e e e e e e e e m m m m m m m m m m m m m m m m m m m m m m m
-        /// |------------bfloat-----------|
-        /// |----------------------------float----------------------------|
-        ///
-        /// bfloat (s1, e8, m7) has 7 + 1 = 8 bits of mantissa or bit_precision
-        /// float (s1, e8, m23) has 23 + 1 = 24 bits of mantissa or bit_precision
-        ///
-        /// This function uses hard-coded value of 8 bit exponent_bits, so it's only valid for
-        /// bfloat and f32.
+/// \brief Check if the two f32 numbers are close
+/// \param a First number to compare
+/// \param b Second number to compare
+/// \param tolerance_bits Bit tolerance error
+/// \param min_signal Minimum value for comparisons
+/// \returns True iff the distance between a and b is within 2 ^ tolerance_bits ULP
+///
+/// References:
+/// - https://en.wikipedia.org/wiki/Unit_in_the_last_place
+/// - https://randomascii.wordpress.com/2012/01/23/stupid-float-tricks-2
+/// - https://github.com/abseil/googletest/blob/master/googletest/docs/advanced.md#floating-point-comparison
+///
+/// s e e e e e e e e m m m m m m m m m m m m m m m m m m m m m m m
+/// |------------bfloat-----------|
+/// |----------------------------float----------------------------|
+///
+/// bfloat (s1, e8, m7) has 7 + 1 = 8 bits of mantissa or bit_precision
+/// float (s1, e8, m23) has 23 + 1 = 24 bits of mantissa or bit_precision
+///
+/// This function uses hard-coded value of 8 bit exponent_bits, so it's only valid for
+/// bfloat and f32.
 // clang-format on
 bool close_f(float a, float b, int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS, float min_signal = 0.0f);
 
 // clang-format off
-        /// \brief Check if the two f64 numbers are close
-        /// \param a First number to compare
-        /// \param b Second number to compare
-        /// \param tolerance_bits Bit tolerance error
-        /// \param min_signal Minimum value for comparisons
-        /// \returns True iff the distance between a and b is within 2 ^ tolerance_bits ULP
-        ///
-        /// References:
-        /// - https://en.wikipedia.org/wiki/Unit_in_the_last_place
-        /// - https://randomascii.wordpress.com/2012/01/23/stupid-float-tricks-2
-        /// - https://github.com/abseil/googletest/blob/master/googletest/docs/advanced.md#floating-point-comparison
-        ///
-        /// s e e e e e e e e e e e m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m
-        /// |----------------------------double-------------------------------------------------------------------------------------------|
-        ///
-        /// double (s1, e11, m52) has 52 + 1 = 53 bits of mantissa or bit_precision
-        ///
-        /// This function uses hard-coded value of 11 bit exponent_bits, so it's only valid for f64.
+/// \brief Check if the two f64 numbers are close
+/// \param a First number to compare
+/// \param b Second number to compare
+/// \param tolerance_bits Bit tolerance error
+/// \param min_signal Minimum value for comparisons
+/// \returns True iff the distance between a and b is within 2 ^ tolerance_bits ULP
+///
+/// References:
+/// - https://en.wikipedia.org/wiki/Unit_in_the_last_place
+/// - https://randomascii.wordpress.com/2012/01/23/stupid-float-tricks-2
+/// - https://github.com/abseil/googletest/blob/master/googletest/docs/advanced.md#floating-point-comparison
+///
+/// s e e e e e e e e e e e m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m
+/// |----------------------------double-------------------------------------------------------------------------------------------|
+///
+/// double (s1, e11, m52) has 52 + 1 = 53 bits of mantissa or bit_precision
+///
+/// This function uses hard-coded value of 11 bit exponent_bits, so it's only valid for f64.
 // clang-format on
 bool close_f(double a, double b, int tolerance_bits = DEFAULT_DOUBLE_TOLERANCE_BITS, double min_signal = 0.0);
-
-/// \brief Determine distances between two vectors of f32 numbers
-/// \param a Vector of floats to compare
-/// \param b Vector of floats to compare
-/// \param min_signal Minimum value for comparisons
-/// \returns Vector of distances
-///
-/// See float_distance for limitations and assumptions.
-std::vector<uint32_t> float_distances(const std::vector<float>& a,
-                                      const std::vector<float>& b,
-                                      float min_signal = 0.0f);
-
-/// \brief Determine distances between two vectors of f64 numbers
-/// \param a Vector of doubles to compare
-/// \param b Vector of doubles to compare
-/// \param min_signal Minimum value for comparisons
-/// \returns Vector of distances
-///
-/// See float_distance for limitations and assumptions.
-std::vector<uint64_t> float_distances(const std::vector<double>& a,
-                                      const std::vector<double>& b,
-                                      double min_signal = 0.0);
-
-/// \brief Determine number of matching mantissa bits given a distance
-/// \param distance Distance calculated by float_distance
-/// \returns Number of matching mantissa bits
-///
-/// See float_distance for limitations and assumptions.
-uint32_t matching_mantissa_bits(uint32_t distance);
-
-/// \brief Determine number of matching mantissa bits given a distance
-/// \param distance Distance calculated by float_distance
-/// \returns Number of matching mantissa bits
-///
-/// See float_distance for limitations and assumptions.
-uint32_t matching_mantissa_bits(uint64_t distance);
 
 /// \brief Check if the two floating point vectors are all close
 /// \param a First number to compare
