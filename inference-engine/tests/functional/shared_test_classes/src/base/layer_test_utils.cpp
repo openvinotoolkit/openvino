@@ -49,7 +49,6 @@ void LayerTestsCommon::Run() {
         LoadNetwork();
         for (auto&& tss : targetStaticShapes) {
             setTargetStaticShape(tss);
-            updateFunctionRefs();
             GenerateInputs();
             Infer();
             Validate();

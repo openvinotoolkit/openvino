@@ -22,6 +22,7 @@ const std::vector<InferenceEngine::Layout> inputLayouts2D = {
 const std::vector<std::vector<std::vector<std::pair<size_t, size_t>>>> inputStaticShape2D = {
     {NULL_RANGE}
 };
+
 const std::vector<std::vector<std::vector<InferenceEngine::SizeVector>>> inputShapes2D = {
     {{InferenceEngine::SizeVector{1, 100}}},
     {{InferenceEngine::SizeVector{100, 1}}},

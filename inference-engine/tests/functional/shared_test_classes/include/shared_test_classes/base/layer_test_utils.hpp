@@ -155,8 +155,6 @@ protected:
 
     virtual void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) {}
 
-    virtual bool updateFunctionRefs() {return false;}
-
     virtual void Validate();
 
     virtual std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs();

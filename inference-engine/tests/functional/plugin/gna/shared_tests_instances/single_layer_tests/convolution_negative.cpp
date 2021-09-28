@@ -53,14 +53,16 @@ const std::vector<std::vector<size_t >> dilations2DInvalid = { {2, 2},
 const std::vector<size_t> numOutChannels2D = { 32 };
 const std::vector<size_t> numOutChannels2DInvalid = { 1, 7, 9, 400 };
 
-const std::vector<std::vector<size_t>> input2DNCHWFine = { { 1, 8, 20, 16 } };
+const std::vector<std::vector<std::vector<std::vector<size_t>>>> input2DNCHWFine = {{{{1, 8, 20, 16}}}};
 
-const std::vector<std::vector<size_t>> input2DNCHWInvalidInputC = {
-    { 1, 7, 20, 16 },
-    { 1, 9, 20, 16 },
-    { 1, 400, 20, 16 } };
-const std::vector<std::vector<size_t>> input2DNCHWInvalidInputH = { { 1, 8, 15, 16 }, { 1, 8, 400, 16 } };
-const std::vector<std::vector<size_t>> input2DNCHWInvalidInputW = { { 1, 8, 20, 14 }, { 1, 8, 20, 400 } };
+const std::vector<std::vector<std::vector<std::vector<size_t>>>> input2DNCHWInvalidInputC = {{{
+    {1, 7, 20, 16},
+    {1, 9, 20, 16},
+    {1, 400, 20, 16}}}};
+const std::vector<std::vector<std::vector<std::vector<size_t>>>> input2DNCHWInvalidInputH = {
+    {{{1, 8, 15, 16}, {1, 8, 400, 16}}}};
+const std::vector<std::vector<std::vector<std::vector<size_t>>>> input2DNCHWInvalidInputW = {
+    {{{1, 8, 20, 14}, {1, 8, 20, 400}}}};
 
 const auto conv2DParametersFine = ::testing::Combine(
     ::testing::ValuesIn(kernels2D),
@@ -159,6 +161,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaCon
     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),                                                 \
     ::testing::Values(InferenceEngine::Layout::ANY),                                                            \
     ::testing::Values(InferenceEngine::Layout::ANY),                                                            \
+    ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),                         \
     ::testing::ValuesIn(input2DNCHW##suffix_input),                                                             \
     ::testing::Values(CommonTestUtils::DEVICE_GNA)),                                                            \
     GnaConv2DNegativeTest##whats_wrong::getTestCaseName);

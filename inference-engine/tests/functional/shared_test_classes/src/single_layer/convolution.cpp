@@ -88,18 +88,4 @@ void ConvolutionLayerTest::setTargetStaticShape(std::vector<ngraph::Shape>& desi
     targetStaticShape = desiredTargetStaticShape;
 }
 
-bool ConvolutionLayerTest::updateFunctionRefs() {
-    auto params = functionRefs->get_parameters()[0];
-    if (!params) {
-        return false;
-    }
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params_new = std::make_shared<ngraph::opset1::Parameter>(ngPrc, targetStaticShape.front());
-    params_new->set_friendly_name(params->get_friendly_name());
-    ngraph::copy_runtime_info(params, params_new);
-    ngraph::replace_node(params, params_new);
-    functionRefs->validate_nodes_and_infer_types();
-    return true;
-}
-
 }  // namespace LayerTestsDefinitions
