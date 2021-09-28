@@ -837,6 +837,11 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc, 
     if (!descWrapped.is_blocking_desc())
         IE_THROW(Unexpected) << "Can't create DnnlBlockedMemoryDesc from not blocking desc";
 
+    if (!shape.isCompatible(MKLDNNExtensionUtils::convertToVectorDims(mdesc.dims()))) {
+        IE_THROW(ParameterMismatch) << "Can not create DnnlBlockedMemoryDesc. memory::desc dims: " << vec2str(mdesc.dims()) <<
+                                    " are incompatible with provided shape: " << shape.toString() << ".";
+    }
+
     order = extractOrder(mdesc);
 
     desc = cloneDescWithNewDims(mdesc, shape.getDims(), order);
