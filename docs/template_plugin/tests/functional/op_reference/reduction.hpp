@@ -4,14 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <vector>
-
 #include "base_reference_test.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "ngraph/shape_util.hpp"
+
+using namespace ov;
 
 namespace reference_tests {
 namespace ReductionOpsRefTestDefinitions {
@@ -51,13 +48,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<ngraph::Function> CreateFunction(const ReductionParams& params) {
-        const auto data = std::make_shared<ngraph::op::Parameter>(params.data.type, params.data.shape);
-        const auto axes = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
-                                                                 ngraph::Shape{params.reductionAxes.size()},
-                                                                 params.reductionAxes);
+    static std::shared_ptr<ov::Function> CreateFunction(const ReductionParams& params) {
+        const auto data = std::make_shared<op::v0::Parameter>(params.data.type, params.data.shape);
+        const auto axes = std::make_shared<op::v0::Constant>(ov::element::i64,
+                                                             ov::Shape{params.reductionAxes.size()},
+                                                             params.reductionAxes);
         const auto reduction = ngraph::builder::makeReduce(data, axes, params.keepDimensions, params.reductionType);
-        return std::make_shared<ngraph::Function>(reduction, ngraph::ParameterVector{data});
+        return std::make_shared<ov::Function>(reduction, ov::ParameterVector{data});
     }
 };
 } // namespace ReductionOpsRefTestDefinitions

@@ -11,7 +11,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace reference_tests {
 

@@ -3,13 +3,12 @@
 //
 
 #include <gtest/gtest.h>
-
-#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <vector>
 
+#include "openvino/op/acosh.hpp"
 #include "base_reference_test.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace reference_tests {
 namespace {
@@ -42,9 +41,9 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const Shape& shape, const element::Type& type) {
-        const auto in = std::make_shared<op::Parameter>(type, shape);
-        const auto acosh = std::make_shared<op::Acosh>(in);
-        return std::make_shared<Function>(NodeVector {acosh}, ParameterVector {in});
+        const auto in = std::make_shared<op::v0::Parameter>(type, shape);
+        const auto acosh = std::make_shared<op::v3::Acosh>(in);
+        return std::make_shared<ov::Function>(NodeVector {acosh}, ParameterVector {in});
     }
 };
 
