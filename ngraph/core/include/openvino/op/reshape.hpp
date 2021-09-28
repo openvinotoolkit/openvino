@@ -16,7 +16,8 @@ namespace v1 {
 ///
 class OPENVINO_API Reshape : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Reshape", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
     Reshape() = default;
     /// \brief Constructs a dynamic reshape operation. This operation does not perform
     ///        transpose.
@@ -58,7 +59,7 @@ protected:
 private:
     void calculate_output_shape(std::vector<Dimension>& reshape_pattern,
                                 const int64_t& minus_one_idx,
-                                const Shape& input_pshape,
+                                const PartialShape& input_pshape,
                                 std::vector<Dimension>& output_shape) const;
 };
 }  // namespace v1

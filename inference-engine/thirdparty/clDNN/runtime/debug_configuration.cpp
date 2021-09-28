@@ -102,7 +102,8 @@ debug_configuration::debug_configuration()
         , dump_sources(std::string())
         , dump_layers_path(std::string())
         , dump_layers(std::string())
-        , dump_layers_dst_only(0) {
+        , dump_layers_dst_only(0)
+        , disable_onednn(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_common_debug_env_var("Verbose", verbose);
     get_gpu_debug_env_var("PrintMultiKernelPerf", print_multi_kernel_perf);
@@ -112,6 +113,8 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpLayersPath", dump_layers_path);
     get_gpu_debug_env_var("DumpLayers", dump_layers);
     get_gpu_debug_env_var("DumpLayersDstOnly", dump_layers_dst_only);
+    get_gpu_debug_env_var("DisableOnednn", disable_onednn);
+
     if (dump_layers_path.length() > 0 && !disable_usm) {
         disable_usm = 1;
         GPU_DEBUG_COUT << "DisableUsm=1 because of DumpLayersPath" << std::endl;

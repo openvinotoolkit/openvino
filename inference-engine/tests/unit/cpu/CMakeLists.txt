@@ -18,6 +18,7 @@ addIeTargetTest(
             mkldnn
             inference_engine_transformations
             inference_engine_lp_transformations
+            ov_shape_inference
             inference_engine_s
             unitTestUtils
         ADD_CPPLINT

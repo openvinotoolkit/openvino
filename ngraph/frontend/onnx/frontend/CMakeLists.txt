@@ -46,7 +46,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph ONNX frontend library")
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC ngraph PRIVATE frontend_manager ngraph::builder onnx_common inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PUBLIC ngraph PRIVATE frontend_manager ngraph::builder openvino::util onnx_common inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_FRONTEND_INCLUDE_DIR}>
                                                 $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
@@ -59,9 +59,9 @@ endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::onnx)
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
 
 install(DIRECTORY ${ONNX_FRONTEND_INCLUDE_DIR}/onnx_frontend
                   ${ONNX_FRONTEND_INCLUDE_DIR}/onnx_import

@@ -46,6 +46,8 @@ public:
 
     bool hasEmptyExtraData() const { return desc.data.extra.flags == dnnl_memory_extra_flag_none; }
 
+    MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
+
 protected:
     DnnlMemoryDesc() {}
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();

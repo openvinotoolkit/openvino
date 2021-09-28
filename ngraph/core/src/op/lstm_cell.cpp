@@ -17,8 +17,8 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::LSTMCell, "LSTMCell", 0, op::util::RNNCellBase);
-OPENVINO_RTTI_DEFINITION(op::v4::LSTMCell, "LSTMCell", 4, op::util::RNNCellBase);
+BWDCMP_RTTI_DEFINITION(op::v0::LSTMCell);
+BWDCMP_RTTI_DEFINITION(op::v4::LSTMCell);
 
 op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};
@@ -141,13 +141,13 @@ void op::v0::LSTMCell::validate_and_infer_types() {
 
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
-            set_output_type(1, get_input_element_type(0), ov::Shape::dynamic());
+            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
+            set_output_type(1, get_input_element_type(0), ov::PartialShape::dynamic());
             return;
         }
     }
 
-    std::vector<ov::Shape> input_param{};
+    std::vector<ov::PartialShape> input_param{};
 
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
@@ -274,13 +274,13 @@ void op::v0::LSTMCell::validate_and_infer_types() {
 
 Output<Node> op::v0::LSTMCell::get_default_bias_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
-                                                 StaticShape{s_gates_count * get_hidden_size()},
+                                                 Shape{s_gates_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }
 
 Output<Node> op::v0::LSTMCell::get_default_peepholes_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
-                                                 StaticShape{s_peepholes_count * get_hidden_size()},
+                                                 Shape{s_peepholes_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }
 
@@ -346,7 +346,7 @@ EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMWeightsForma
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::LSTMWeightsFormat>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::LSTMWeightsFormat>);
 
 }  // namespace ov
 
@@ -416,8 +416,8 @@ void op::v4::LSTMCell::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_LSTMCell_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
-            set_output_type(1, get_input_element_type(0), ov::Shape::dynamic());
+            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
+            set_output_type(1, get_input_element_type(0), ov::PartialShape::dynamic());
             return;
         }
     }
@@ -513,7 +513,7 @@ void op::v4::LSTMCell::validate_and_infer_types() {
 
 Output<Node> op::v4::LSTMCell::get_default_bias_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
-                                                 StaticShape{s_gates_count * get_hidden_size()},
+                                                 Shape{s_gates_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }
 

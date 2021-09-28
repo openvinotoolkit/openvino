@@ -13,12 +13,18 @@
 
 namespace ov {
 class Node;
+namespace op {
+namespace v0 {
+class Result;
+}  // namespace v0
+}  // namespace op
 namespace descriptor {
 class Output;
 
 // Describes a tensor that is an input to an op, directly or indirectly via a tuple
 class OPENVINO_API Input {
     friend class ov::Node;
+    friend class ov::op::v0::Result;
 
 public:
     /// \param node The node that owns this input
@@ -92,10 +98,10 @@ public:
     }
 
     /// \return the shape of the connected output
-    const StaticShape& get_shape() const;
+    const Shape& get_shape() const;
 
     /// \return the partial shape of the connected output
-    const Shape& get_partial_shape() const;
+    const PartialShape& get_partial_shape() const;
 
     /// \return the element type of the connected output
     const element::Type& get_element_type() const;

@@ -18,8 +18,10 @@ namespace internal {
 
 class TRANSFORMATIONS_API NonMaxSuppressionIEInternal : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"NonMaxSuppressionIEInternal", 0};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("NonMaxSuppressionIEInternal", "util");
+    BWDCMP_RTTI_DECLARATION;
+
+    NonMaxSuppressionIEInternal() = default;
 
     NonMaxSuppressionIEInternal(const Output<Node>& boxes,
                                 const Output<Node>& scores,

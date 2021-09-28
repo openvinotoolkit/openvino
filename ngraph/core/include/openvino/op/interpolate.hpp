@@ -18,11 +18,12 @@ namespace v0 {
 /// \brief Layer which performs bilinear interpolation
 class OPENVINO_API Interpolate : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Interpolate", "opset1");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Structure that specifies attributes for interpolation
     struct Attributes {
         // specify dimension indices where interpolation is applied, and `axes` is any
-        // unordered list of indeces of different dimensions of input tensor. Required.
+        // unordered list of indices of different dimensions of input tensor. Required.
         AxisSet axes;
         // specifies type of interpolation
         // one of `nearest`, `linear`, `cubic`, `area`. Required.
@@ -77,9 +78,10 @@ private:
 namespace v4 {
 class OPENVINO_API Interpolate : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Interpolate", "opset4", op::Op, 4);
+    BWDCMP_RTTI_DECLARATION;
 
-    /// \brief Shape calculation mode
+    /// \brief PartialShape calculation mode
     ///
     /// sizes  - output shape for interpolated axes is calculated using input `sizes`
     /// scales - output shape for interpolated axes is calculated using input `scales`
@@ -248,10 +250,10 @@ private:
 
     /// \brief Calculates input shape after padding.
     ///
-    /// \param input_shape Shape of input data.
+    /// \param input_shape PartialShape of input data.
     ///
     /// \return Padded input shape, i.e. input_shape + pads_begin + pads_end
-    Shape get_padded_input_shape(const Shape& input_shape) const;
+    PartialShape get_padded_input_shape(const PartialShape& input_shape) const;
 
     /// \brief Infers output shape using scales.
     ///
@@ -259,17 +261,17 @@ private:
     /// \param axes Interpolation axes
     /// \param scales Scales for interpolated axes
     /// \param padded_input_shape input shape after padding
-    void infer_using_scales(Shape& output_shape,
+    void infer_using_scales(PartialShape& output_shape,
                             const std::vector<int64_t>& axes,
                             const std::vector<float>& scales,
-                            const Shape& padded_input_shape) const;
+                            const PartialShape& padded_input_shape) const;
 
     /// \brief Infers output shape using sizes.
     ///
     /// \param output_shape[in,out] output shape
     /// \param axes Interpolation axes
     /// \param sizes sizes for interpolated axes
-    void infer_using_shapes(Shape& output_shape,
+    void infer_using_shapes(PartialShape& output_shape,
                             const std::vector<int64_t>& axes,
                             const std::vector<int64_t>& sizes) const;
 };
@@ -301,10 +303,8 @@ public:
     AttributeAdapter(op::v0::Interpolate::InterpolateMode& value)
         : EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::Interpolate::InterpolateMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v0::Interpolate::InterpolateMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 template <>
 class OPENVINO_API AttributeAdapter<op::v4::Interpolate::InterpolateMode>
@@ -313,10 +313,8 @@ public:
     AttributeAdapter(op::v4::Interpolate::InterpolateMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::InterpolateMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::InterpolateMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::InterpolateMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -326,10 +324,8 @@ public:
     AttributeAdapter(op::v4::Interpolate::CoordinateTransformMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::CoordinateTransformMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -339,10 +335,8 @@ public:
     AttributeAdapter(op::v4::Interpolate::NearestMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::NearestMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::NearestMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::NearestMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -352,9 +346,7 @@ public:
     AttributeAdapter(op::v4::Interpolate::ShapeCalcMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::ShapeCalcMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::ShapeCalcMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

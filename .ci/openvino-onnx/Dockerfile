@@ -68,14 +68,14 @@ RUN cmake .. \
     -DENABLE_PYTHON=ON \
     -DPYTHON_EXECUTABLE=/usr/bin/python3 \
     -DNGRAPH_ONNX_FRONTEND_ENABLE=ON \
-    -DNGRAPH_DEBUG_ENABLE=OFF \
+    -DOPENVINO_DEBUG_ENABLE=OFF \
     -DCMAKE_INSTALL_PREFIX=/openvino/dist \
     -DNGRAPH_USE_PROTOBUF_LITE=${PROTOBUF_LITE}
 RUN make -j $(nproc) install
 
 # Run tests via tox
 WORKDIR /openvino/runtime/bindings/python
-ENV OpenVINO_DIR=/openvino/dist/deployment_tools/inference_engine/share
-ENV LD_LIBRARY_PATH=/openvino/dist/deployment_tools/ngraph/lib
+ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
+ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib:/openvino/dist/runtime/3rdparty/tbb/lib
 ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/lib/python_api/python3.8:${PYTHONPATH}
 CMD tox
