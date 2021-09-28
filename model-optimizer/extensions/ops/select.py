@@ -3,8 +3,7 @@
 
 import numpy as np
 
-from mo.graph.graph import Error
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Node, Graph, Error
 from mo.ops.op import Op
 from mo.utils.broadcasting import bi_directional_shape_broadcasting, bi_directional_broadcasting
 
@@ -79,10 +78,8 @@ class Select(Op):
                 # 'else' tensor which is not defined, this means that we cannot perform value propagation.
                 if np.any(output_value == None):
                     return
-                # todo: check this
                 output_value_dtype = resulting_tensors[0].dtype if resulting_tensors[0] is not None else resulting_tensors[1].dtype
                 node.out_port(0).data.set_value(output_value.astype(output_value_dtype))
-                # node.out_port(0).data.set_value(output_value)
 
     @staticmethod
     def type_infer(node: Node):

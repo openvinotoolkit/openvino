@@ -171,10 +171,31 @@ class TestSelect(unittest.TestCase):
                                               else_value=None, else_shape=[3, 3],
                                               out_value=None, out_shape=[42, 42])
 
-    def test_select_infer_masked(self):
+    def test_select_infer_masked_1(self):
         flag, msg = self.build_select_graph_and_infer(condition_value=np.ma.array([True, True], mask=[1, 1]),
                                                       then_value=None, then_shape=[2],
                                                       else_value=np.zeros((2, 2), dtype=np.int64), else_shape=[2],
                                                       out_value=np.ma.array([[1, 1], [1, 1]], mask=[[1, 1], [1, 1]]))
+        self.assertTrue(flag, msg)
+
+    def test_select_infer_masked_2(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ma.array([False, False], mask=[1, 1]),
+                                                      then_value=None, then_shape=[2],
+                                                      else_value=np.zeros((2, 2), dtype=np.int64), else_shape=[2],
+                                                      out_value=np.ma.array([[1, 1], [1, 1]], mask=[[1, 1], [1, 1]]))
+        self.assertTrue(flag, msg)
+
+    def test_select_infer_masked_3(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ma.array([True, True], mask=[1, 1]),
+                                                      then_value=None, then_shape=[2],
+                                                      else_value=np.zeros((2, 2), dtype=np.int64), else_shape=[2],
+                                                      out_value=np.ma.array([[1, 1], [1, 1]], mask=[[1, 1], [1, 1]]))
+        self.assertTrue(flag, msg)
+
+    def test_select_infer_masked_4(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.ma.array([True, False], mask=[0, 1]),
+                                                      then_value=np.ones((2, 2), dtype=np.int64), then_shape=[2],
+                                                      else_value=np.zeros((2, 2), dtype=np.int64), else_shape=[2],
+                                                      out_value=np.ma.array([[1, 42], [1, 42]], mask=[[0, 1], [0, 1]]))
         self.assertTrue(flag, msg)
 
