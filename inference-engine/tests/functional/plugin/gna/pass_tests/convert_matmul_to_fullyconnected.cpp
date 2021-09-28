@@ -72,6 +72,7 @@ protected:
 
         auto eltwise = std::make_shared<ngraph::opset1::Multiply>(matmul, const_eltwise);
         function = std::make_shared<ngraph::Function>(eltwise, params, "ConvertMatmulToFC");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
