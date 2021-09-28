@@ -6,7 +6,7 @@
 echo -ne "\e[0;33mWARNING: If you get an error when running the sample in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
-VENV_DIR="$HOME/venv_openvino"
+VENV_DIR="$HOME/openvino_env"
 
 . "$ROOT_DIR/utils.sh"
 
@@ -116,19 +116,15 @@ fi
 
 . "$VENV_DIR/bin/activate"
 python -m pip install -U pip
-python -m pip install -r "$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader/requirements.in"
+# python -m pip install openvino-dev
 
 # Step 1. Download the Caffe model and the prototxt of the model
 echo -ne "\n###############|| Downloading the Caffe model and the prototxt ||###############\n\n"
 
-downloader_dir="${INTEL_OPENVINO_DIR}/extras/open_model_zoo/tools/downloader"
-
-model_dir=$(python "$downloader_dir/info_dumper.py" --name "$model_name" |
+model_dir=$(omz_info_dumper --name "$model_name" |
     python -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
 
-downloader_path="$downloader_dir/downloader.py"
-
-print_and_run python "$downloader_path" --name "$model_name" --output_dir "${models_path}" --cache_dir "${models_cache}"
+print_and_run omz_downloader --name "$model_name" --output_dir "${models_path}" --cache_dir "${models_cache}"
 
 ir_dir="${irs_path}/${model_dir}/${target_precision}"
 
@@ -142,10 +138,8 @@ if [ ! -e "$ir_dir" ]; then
     # Step 3. Convert a model with Model Optimizer
     echo -ne "\n###############|| Convert a model with Model Optimizer ||###############\n\n"
 
-    mo_path="${INTEL_OPENVINO_DIR}/tools/model_optimizer/mo.py"
-
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
-    print_and_run python "$downloader_dir/converter.py" --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
+    print_and_run omz_converter --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
 else
     echo -ne "\n\nTarget folder ${ir_dir} already exists. Skipping IR generation  with Model Optimizer."
     echo -ne "If you want to convert a model again, remove the entire ${ir_dir} folder. ${run_again}"
