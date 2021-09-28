@@ -9,6 +9,8 @@
  */
 #pragma once
 
+#include <type_traits>
+
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -136,9 +138,9 @@ public:
      * @return A host pointer to tensor memory casted to specified type `T`.
      * @note Throws exception if specified type does not match with tensor element type
      */
-    template <typename T>
+    template <typename T, typename datatype = typename std::decay<T>::type>
     T* data() const {
-        return static_cast<T*>(data(element::from<T>()));
+        return static_cast<T*>(data(element::from<datatype>()));
     }
 
     /**
