@@ -122,7 +122,7 @@ size_t getThreadsNum() {return getSystemDataByName((char*) "Threads:");}
 int run_in_processes(const int &numprocesses, const std::function<void()> &function) {
 #ifdef _WIN32
     // TODO: implement run in separate process by using WinAPI
-    function;
+    function();
     return 0;
 #else
     std::vector<pid_t> child_pids(numprocesses);
@@ -130,7 +130,7 @@ int run_in_processes(const int &numprocesses, const std::function<void()> &funct
     for (int i = 0; i < numprocesses; i++) {
         child_pids[i] = fork();
         if (child_pids[i] == 0) {
-            function;
+            function();
             exit(EXIT_SUCCESS);
         }
     }

@@ -571,7 +571,11 @@ std::map<std::string, std::string> clDNNEngine::ConvertPerfHintsToConfig(
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(1);
             } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-                config[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = std::to_string(1);
+                //checking throttling (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+                const auto bInConfig = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
+                    config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
+                if (!bInConfig && !throttlingSet)
+                    config[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = std::to_string(1);
             }
         }
     }
@@ -631,7 +635,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
 }
 
 IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const IRemoteContext::Ptr &context,
+                                                                const RemoteContext::Ptr &context,
                                                                 const std::map<std::string, std::string> &orig_config) {
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
@@ -649,7 +653,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     return std::make_shared<CLDNNExecNetwork>(transformedNetwork, casted, conf);
 }
 
-IRemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
+RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     // parameter map is non-empty
     std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
@@ -666,7 +670,7 @@ IRemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     }
 }
 
-IRemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
+RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
     if (nullptr == m_defaultContext) {
         m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_config));
     }
@@ -675,6 +679,8 @@ IRemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
 
 void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     streamsSet = (config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end());
+    throttlingSet = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
+            config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
     _impl->m_config.UpdateFromMap(config);
 }
 

@@ -118,18 +118,32 @@ DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize>
     }
 
     const auto& precisions = precisionsAttribute->get()->sharedValue->precisions;
+    std::vector<element::Type> precisionsForLevels{};
+    switch (levels) {
+        case 65536:
+        case 65535:
+            precisionsForLevels = {element::u16, element::i16};
+            break;
+        case static_cast<size_t>(4294967296):
+        case 4294967295:
+            precisionsForLevels = {element::u32, element::i32};
+            break;
+        default:
+            precisionsForLevels = {element::u8, element::i8};
+    }
+    const auto resultPrecisions = NetworkHelper::precisionIntersection(precisions, precisionsForLevels);
 
     ngraph::element::Type precision;
     bool hasZeroPoint;
-    if (precisions.size() > 1ul) {
+    if (resultPrecisions.size() > 1ul) {
         LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(
             levels,
             outputLowValues,
             outputHighValues);
-        const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
+        const auto foundIt = std::find(resultPrecisions.begin(), resultPrecisions.end(), precisionDetailsAtOutputIntervals.precision);
 
-        if (foundIt == precisions.end()) {
-            precision = *precisions.begin();
+        if (foundIt == resultPrecisions.end()) {
+            precision = *resultPrecisions.begin();
             hasZeroPoint = true;
         } else {
             precision = precisionDetailsAtOutputIntervals.precision;
@@ -140,7 +154,7 @@ DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize>
         precisionsAttribute->get()->sharedValue->precisions = { precision };
     } else {
         // use only available precision
-        precision = *precisions.begin();
+        precision = *resultPrecisions.begin();
         LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(
             levels,
             outputLowValues,

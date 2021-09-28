@@ -16,8 +16,9 @@
 #include "ngraph/function.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_metric_helpers.hpp"
+#include "openvino/op/logical_not.hpp"
 
-#include "cpp_interfaces/interface/ie_iremote_context.hpp"
+#include "ie_remote_context.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
@@ -62,7 +63,7 @@ std::string getTestCaseName(const testing::TestParamInfo<std::tuple<TestParam, s
     return std::get<1>(std::get<0>(obj.param)) + "_" + std::get<1>(obj.param);
 }
 
-class MockRemoteContext : public IRemoteContext {
+class MockRemoteContext : public RemoteContext {
     std::string m_name;
 public:
     MockRemoteContext(std::string name): m_name(std::move(name)) {}
@@ -97,7 +98,7 @@ public:
                                                                                  const std::map<std::string, std::string>& config));
 
     MOCK_METHOD3(LoadExeNetworkImpl, std::shared_ptr<IExecutableNetworkInternal>(const CNNNetwork& network,
-                                                                                 const IRemoteContext::Ptr& context,
+                                                                                 const RemoteContext::Ptr& context,
                                                                                  const std::map<std::string, std::string>& config));
 
     MOCK_CONST_METHOD0(OnLoadNetworkFromFile, void(void));
@@ -106,7 +107,7 @@ public:
                                                                const std::map<std::string, std::string>& config));
 
     MOCK_METHOD3(ImportNetwork, IExecutableNetworkInternal::Ptr(std::istream& networkModel,
-                                                                const IRemoteContext::Ptr& context,
+                                                                const RemoteContext::Ptr& context,
                                                                 const std::map<std::string, std::string>& config));
 
     MOCK_CONST_METHOD2(QueryNetwork, QueryNetworkResult(const CNNNetwork& network,
@@ -114,7 +115,7 @@ public:
 
     MOCK_CONST_METHOD2(GetMetric, Parameter(const std::string& name, const std::map<std::string, Parameter>& options));
     MOCK_METHOD1(SetConfig, void(const std::map<std::string, std::string>& options));
-    MOCK_METHOD1(GetDefaultContext, std::shared_ptr<IRemoteContext>(const ParamMap& params));
+    MOCK_METHOD1(GetDefaultContext, std::shared_ptr<RemoteContext>(const ParamMap& params));
 };
 
 class MockExecutableNetwork : public IExecutableNetworkInternal {
@@ -226,11 +227,11 @@ public:
         EXPECT_CALL(*mock, GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))).Times(AnyNumber()).WillRepeatedly(Return(Parameter{1u}));
         EXPECT_CALL(*mock, GetExecGraphInfo()).Times(AnyNumber()).WillRepeatedly(Return([] {
                     ngraph::ParameterVector parameters;
-                    parameters.push_back(std::make_shared<ngraph::op::v0::Parameter>(
+                    parameters.push_back(std::make_shared<ov::op::v0::Parameter>(
                         ov::element::f32, ov::Shape{1, 3, 8, 8}));
-                    auto notOp = std::make_shared<ngraph::op::v1::LogicalNot>(parameters.back());
+                    auto notOp = std::make_shared<ov::op::v1::LogicalNot>(parameters.back());
                     ngraph::ResultVector results;
-                    results.push_back(std::make_shared<ngraph::op::v0::Result>(notOp));
+                    results.push_back(std::make_shared<ov::op::v0::Result>(notOp));
                     return std::make_shared<ov::Function>(results, parameters, "empty_function");
                 } ()));
         auto ptr = std::make_shared<MockIInferRequestInternal>();
@@ -336,7 +337,7 @@ private:
                 WillByDefault(Return("mock"));
 
         ON_CALL(plugin, ImportNetwork(_, _, _)).
-                WillByDefault(Invoke([&](std::istream &istr, const IRemoteContext::Ptr&,
+                WillByDefault(Invoke([&](std::istream &istr, const RemoteContext::Ptr&,
                                          const std::map<std::string, std::string> &) {
             return createMockIExecutableNet();
         }));
@@ -347,7 +348,7 @@ private:
         }));
 
         ON_CALL(plugin, LoadExeNetworkImpl(_, _, _)).
-                WillByDefault(Invoke([&](const CNNNetwork &, const IRemoteContext::Ptr&,
+                WillByDefault(Invoke([&](const CNNNetwork &, const RemoteContext::Ptr&,
                                          const std::map<std::string, std::string> &) {
             return net;
         }));
@@ -443,7 +444,7 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
     ON_CALL(*mockPlugin, ImportNetwork(_, _, _)).
-            WillByDefault(Invoke([&](std::istream& s, IRemoteContext::Ptr,
+            WillByDefault(Invoke([&](std::istream& s, RemoteContext::Ptr,
                                      const std::map<std::string, std::string> &) {
         char a[sizeof(customData)];
         s.read(a, sizeof(customData));

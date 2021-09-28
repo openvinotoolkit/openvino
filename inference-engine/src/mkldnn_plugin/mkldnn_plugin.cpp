@@ -7,11 +7,14 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn_itt.h"
+#include "mkldnn_serialize.h"
 
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
 #include <ie_plugin_config.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+#include <ie_icore.hpp>
+#include <fstream>
 #include <vector>
 #include <tuple>
 #include <unordered_set>
@@ -59,11 +62,13 @@
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/smart_reshape/matmul_sr.hpp>
+#include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
+#include <transformations/serialize.hpp>
 
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -317,6 +322,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     pass_config->disable<ngraph::pass::ConvertGather7ToGather1>();
+    pass_config->disable<ngraph::pass::ConvertMinimum>();
 
     pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
@@ -363,8 +369,25 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
         });
 
+        // for GNA networks reference execution
+        bool updatePrecision = true;
+        bool hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
+                nGraphFunc,
+                {65535, 65536, 4294967295, 4294967296});
+        if (hasINT16orINT32Levels) {
+            updatePrecision = false;
+            LowPrecision::setDefaultPrecisions({
+                ngraph::element::u8,  ngraph::element::i8,
+                ngraph::element::u16, ngraph::element::i16,
+                ngraph::element::u32, ngraph::element::i32,
+            });
+
+            supportedPrecisions = std::vector<OperationPrecisionRestriction>({});
+        }
+
         ngraph::pass::Manager lptManager;
-        lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
+        lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization,
+                                                                            LayerTransformation::Params(updatePrecision));
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
             if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
                 return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
@@ -494,8 +517,12 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                     num_streams = std::max(default_num_streams, num_streams_less_aggressive);
                 }
                 auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
-                if (num_requests != config.end())
-                    num_streams = std::min(num_streams, PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
+                if (engConfig.perfHintsConfig.ovPerfHintNumRequests)  // set thru SetConfig to the plugin
+                    num_streams = std::min(engConfig.perfHintsConfig.ovPerfHintNumRequests,
+                            engConfig.perfHintsConfig.ovPerfHintNumRequests);
+                if (num_requests != config.end())   // arrived with config to the LoadNetwork (and thus higher pri)
+                    num_streams = std::min(num_streams,
+                            PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
            }
         }
@@ -546,14 +573,16 @@ static bool hasAVX512() {
 
 Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        std::vector<std::string> metrics;
-        metrics.push_back(METRIC_KEY(AVAILABLE_DEVICES));
-        metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
-        metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
-        metrics.push_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-        metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        metrics.push_back(METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS));
-        metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
+        std::vector<std::string> metrics = {
+            METRIC_KEY(AVAILABLE_DEVICES),
+            METRIC_KEY(SUPPORTED_METRICS),
+            METRIC_KEY(FULL_DEVICE_NAME),
+            METRIC_KEY(OPTIMIZATION_CAPABILITIES),
+            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+            METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+            METRIC_KEY(RANGE_FOR_STREAMS),
+            METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+        };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         std::string brand_string;
@@ -600,6 +629,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
@@ -629,11 +660,11 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         }
 
         auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-        auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
         Transformation(clonedNetwork, enableLPT);
+        auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
         for (auto op : ops) {
@@ -694,6 +725,34 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     }
 
     return res;
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
+                                            const std::map<std::string, std::string>& config) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "ImportNetwork");
+
+    CNNNetworkDeserializer deserializer(networkModel,
+        [this](const std::string& model, const Blob::CPtr& weights) {
+            return GetCore()->ReadNetwork(model, weights);
+        });
+
+    CNNNetwork cnnnetwork;
+    deserializer >> cnnnetwork;
+
+    Config conf = engConfig;
+    conf.readProperties(config);
+
+    if (conf.enableDynamicBatch) {
+        conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
+    }
+
+    auto execNetwork = std::make_shared<MKLDNNExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing);
+
+    execNetwork->setNetworkInputs(cnnnetwork.getInputsInfo());
+    execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());
+    execNetwork->SetPointerToPlugin(shared_from_this());
+
+    return execNetwork;
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MKLDNNPlugin"};

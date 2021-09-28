@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-#include "openvino/core/shape.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -15,7 +15,7 @@ namespace ov {
 namespace op {
 namespace util {
 struct VariableInfo {
-    Shape data_shape;
+    PartialShape data_shape;
     element::Type data_type;
     std::string variable_id;
 
@@ -52,9 +52,7 @@ public:
     explicit AttributeAdapter(std::shared_ptr<op::util::Variable>& value)
         : DirectValueAccessor<std::shared_ptr<op::util::Variable>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Variable>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

@@ -187,9 +187,9 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
     manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t> {
-        ngraph::opset5::MatMul::type_info,
-        ngraph::opset5::Convolution::type_info,
-        ngraph::opset5::GroupConvolution::type_info
+        ngraph::opset5::MatMul::get_type_info_static(),
+        ngraph::opset5::Convolution::get_type_info_static(),
+        ngraph::opset5::GroupConvolution::get_type_info_static()
     });
     manager.register_pass<vpu::DynamicToStaticShape>();
     manager.register_pass<vpu::EliminateShapeOfAfterDSR>();

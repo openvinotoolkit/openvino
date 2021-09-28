@@ -89,15 +89,15 @@ optional arguments:
                         Path to an .xml file with a trained model (required if
                         -rg is missing).
   -rg IMPORT_GNA_MODEL, --import_gna_model IMPORT_GNA_MODEL
-                        Read GNA model from file using path/filename provided 
+                        Read GNA model from file using path/filename provided
                         (required if -m is missing).
 
 Options:
   -h, --help            Show this help message and exit.
   -i INPUT, --input INPUT
-                        Required. Path to an input file (.ark or .npz).       
+                        Required. Path to an input file (.ark or .npz).
   -o OUTPUT, --output OUTPUT
-                        Optional. Output file name to save inference results  
+                        Optional. Output file name to save inference results
                         (.ark or .npz).
   -r REFERENCE, --reference REFERENCE
                         Optional. Read reference score file and compare
@@ -117,7 +117,8 @@ Options:
                         (default 16).
   -sf SCALE_FACTOR, --scale_factor SCALE_FACTOR
                         Optional. The user-specified input scale factor for
-                        quantization.
+                        quantization. If the network contains multiple inputs,
+                        provide scale factors by separating them with commas.
   -wg EXPORT_GNA_MODEL, --export_gna_model EXPORT_GNA_MODEL
                         Optional. Write GNA model to file using path/filename
                         provided.
@@ -176,27 +177,30 @@ The sample application logs each step in a standard output stream.
 [ INFO ] Creating Inference Engine
 [ INFO ] Reading the network: wsj_dnn5b.xml
 [ INFO ] Configuring input and output blobs
-[ INFO ] Using scale factor of 2175.4322417 calculated from first utterance.
+[ INFO ] Using scale factor(s) calculated from first utterance
+[ INFO ] For input 0 using scale factor of 2175.4322418
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode
 [ INFO ] Utterance 0 (4k0c0301)
+[ INFO ] Output blob name: affinetransform14/Fused_Add_
 [ INFO ] Frames in utterance: 1294
-[ INFO ] Total time in Infer (HW and SW): 5305.47ms
-[ INFO ] max error: 0.7051839
-[ INFO ] avg error: 0.0448387
-[ INFO ] avg rms error: 0.0582387        
-[ INFO ] stdev error: 0.0371649
+[ INFO ] Total time in Infer (HW and SW): 6211.45ms
+[ INFO ] max error: 0.7051840
+[ INFO ] avg error: 0.0448388
+[ INFO ] avg rms error: 0.0582387
+[ INFO ] stdev error: 0.0371650
 [ INFO ]
 [ INFO ] Utterance 1 (4k0c0302)
+[ INFO ] Output blob name: affinetransform14/Fused_Add_
 [ INFO ] Frames in utterance: 1005
-[ INFO ] Total time in Infer (HW and SW): 5031.53ms
+[ INFO ] Total time in Infer (HW and SW): 4742.27ms
 [ INFO ] max error: 0.7575974
 [ INFO ] avg error: 0.0452166
 [ INFO ] avg rms error: 0.0586013
 [ INFO ] stdev error: 0.0372769
-[ INFO ]
 ...
-[ INFO ] Total sample time: 38033.09ms
+[ INFO ] Total sample time: 40219.99ms
+[ INFO ] File result.npz was created!
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
 

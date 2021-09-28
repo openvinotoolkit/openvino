@@ -37,6 +37,9 @@ public:
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
 
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
+                                                     const std::map<std::string, std::string>& config) override;
+
 private:
     Config engConfig;
     NumaNodesWeights weightsSharing;

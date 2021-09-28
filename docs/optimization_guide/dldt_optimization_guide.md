@@ -305,7 +305,7 @@ Other than that, when implementing the kernels, you can try the methods from the
 ### A Few Device-Specific Tips <a name="device-specific-tips"></a>
 
 - As already outlined in the <a href="#cpu-checklist">CPU Checklist</a>, align the threading model that you use in your CPU kernels with the model that the rest of the Inference Engine compiled with.
-- For CPU extensions, consider kernel flavor that supports blocked layout, if your kernel is in the hotspots (see <a href="#performance-counters">Internal Inference Performance Counters</a>). Since Intel MKL-DNN internally operates on the blocked layouts, this would save you a data packing (Reorder) on tensor inputs/outputs of your kernel. For example of the blocked layout support, please, refer to the extensions in `<OPENVINO_INSTALL_DIR>/deployment_tools/samples/extension/`.
+- For CPU extensions, consider kernel flavor that supports blocked layout, if your kernel is in the hotspots (see <a href="#performance-counters">Internal Inference Performance Counters</a>). Since Intel MKL-DNN internally operates on the blocked layouts, this would save you a data packing (Reorder) on tensor inputs/outputs of your kernel.
 
 ## Plugging Inference Engine to Applications <a name="plugging-ie-to-applications"></a>
 

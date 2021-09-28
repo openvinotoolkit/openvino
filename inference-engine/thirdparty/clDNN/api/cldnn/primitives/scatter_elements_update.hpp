@@ -35,12 +35,13 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
     /// @param idupd Input updates primitive id.
     /// @param axis Gathering axis.
     scatter_elements_update(const primitive_id& id,
-                   const primitive_id& data,
-                   const primitive_id& idx,
-                   const primitive_id& idupd,
-                   const scatter_elements_update_axis axis,
-                   const padding& output_padding = padding())
-        : primitive_base(id, {data, idx, idupd}, output_padding), axis(axis) {}
+                            const primitive_id& data,
+                            const primitive_id& idx,
+                            const primitive_id& idupd,
+                            const scatter_elements_update_axis axis,
+                            const primitive_id& ext_prim_id = "",
+                            const padding& output_padding = padding())
+        : primitive_base(id, {data, idx, idupd}, ext_prim_id, output_padding), axis(axis) {}
 
     /// @brief ScatterElementsUpdate axis
     scatter_elements_update_axis axis;
