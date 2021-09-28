@@ -55,12 +55,13 @@ void jit_convert_vec_prepare<float, int8_t>(jit::Generator& gen) {
 
 template <>
 void jit_convert_vec<float, int8_t>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    std::cout << "Issue 66520: fix for jit_convert_vec float->int8 HIT" << std::endl;
     auto order = gen.ymm1;
     auto p32vec = gen.ymm2;
     auto p32vec_lo = gen.xmm2;
     auto p32vec_hi = gen.xmm3;
 
-    gen.vcvtps2dq(p32vec, gen.yword[src]);      // convert 8 floats to 8 ints
+    gen.vcvttps2dq(p32vec, gen.yword[src]);     // convert 8 floats to 8 ints
     gen.vpshufb(p32vec, p32vec, order);         // Shuffle the bytes according to the order
     gen.vextracti128(p32vec_hi, p32vec, 1);     // extract upper part of p32vec
     gen.vpor(p32vec_lo, p32vec_lo, p32vec_hi);  // p32vec_lo = p32vec_lo | p32vec_hi
@@ -74,13 +75,14 @@ void jit_convert_vec_prepare<float16, int8_t>(jit::Generator& gen) {
 
 template <>
 void jit_convert_vec<float16, int8_t>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    std::cout << "Issue 66520: fix for jit_convert_vec float16->int8 HIT" << std::endl;
     auto order = gen.ymm1;
     auto p32vec = gen.ymm2;
     auto p32vec_lo = gen.xmm2;
     auto p32vec_hi = gen.xmm3;
 
     gen.vcvtph2ps(p32vec, gen.xword[src]);      // convert 8 fp16's to 8 floats
-    gen.vcvtps2dq(p32vec, p32vec);              // convert 8 floats to 8 ints
+    gen.vcvttps2dq(p32vec, p32vec);             // convert 8 floats to 8 ints
     gen.vpshufb(p32vec, p32vec, order);         // Shuffle the bytes according to the order
     gen.vextracti128(p32vec_hi, p32vec, 1);     // extract upper part of p32vec
     gen.vpor(p32vec_lo, p32vec_lo, p32vec_hi);  // p32vec_lo = p32vec_lo | p32vec_hi
