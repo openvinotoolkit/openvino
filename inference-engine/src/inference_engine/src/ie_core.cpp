@@ -42,6 +42,8 @@ using namespace std::placeholders;
 namespace ov {
 namespace runtime {
 
+namespace {
+
 template <typename T>
 struct Parsed {
     std::string _deviceName;
@@ -118,6 +120,13 @@ ie::Parameter copyParameterValue(const ie::Parameter& value) {
     return std::move(value);
 }
 
+ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
+    return ie::CNNNetwork(
+        std::make_shared<ie::details::CNNNetworkNGraphImpl>(std::const_pointer_cast<ngraph::Function>(model),
+                                                            std::vector<ie::IExtensionPtr>{},
+                                                            true));
+}
+
 template <typename F>
 void allowNotImplemented(F&& f) {
     try {
@@ -125,6 +134,8 @@ void allowNotImplemented(F&& f) {
     } catch (const ie::NotImplemented&) {
     }
 }
+
+}  // namespace
 
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
     mutable std::map<std::string, ov::runtime::InferencePlugin> plugins;
@@ -179,6 +190,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
+
+    const bool newAPI;
 
     bool DeviceSupportsImportExport(const std::string& deviceName) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName);
@@ -345,7 +358,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
 public:
-    CoreImpl() {
+    CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         opsetNames.insert("opset1");
         opsetNames.insert("opset2");
         opsetNames.insert("opset3");
@@ -437,12 +450,20 @@ public:
 
     ie::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
-        return ie::details::ReadNetwork(modelPath, binPath, extensions);
+        auto cnnNet = InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions);
+        return InferenceEngine::CNNNetwork(std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(
+            cnnNet.getFunction(),
+            std::vector<InferenceEngine::IExtensionPtr>{},
+            newAPI));
     }
 
     ie::CNNNetwork ReadNetwork(const std::string& model, const ie::Blob::CPtr& weights) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
-        return ie::details::ReadNetwork(model, weights, extensions);
+        auto cnnNet = InferenceEngine::details::ReadNetwork(model, weights, extensions);
+        return InferenceEngine::CNNNetwork(std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(
+            cnnNet.getFunction(),
+            std::vector<InferenceEngine::IExtensionPtr>{},
+            newAPI));
     }
 
     // TODO: In future this method can be added to ICore interface
@@ -980,7 +1001,10 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
     return deviceNames;
 }
 
-class Core::Impl : public ov::runtime::CoreImpl {};
+class Core::Impl : public ov::runtime::CoreImpl {
+public:
+    Impl() : ov::runtime::CoreImpl(false) {}
+};
 
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
@@ -1244,7 +1268,10 @@ namespace runtime {
         OPENVINO_ASSERT(false, "Unexpected exception"); \
     }
 
-class Core::Impl : public CoreImpl {};
+class Core::Impl : public CoreImpl {
+public:
+    Impl() : ov::runtime::CoreImpl(true) {}
+};
 
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
@@ -1278,17 +1305,6 @@ std::shared_ptr<ngraph::Function> Core::read_model(const std::string& model, con
     OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(model, weights).getFunction(););
 }
 
-namespace {
-
-ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
-    return ie::CNNNetwork(
-        std::make_shared<ie::details::CNNNetworkNGraphImpl>(std::const_pointer_cast<ngraph::Function>(model),
-                                                            std::vector<ie::IExtensionPtr>{},
-                                                            true));
-}
-
-}  // namespace
-
 ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Function>& model,
                                       const std::string& deviceName,
                                       const ConfigMap& config) {
@@ -1303,7 +1319,6 @@ ExecutableNetwork Core::compile_model(const std::string& modelPath,
                                       const std::string& deviceName,
                                       const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
-        // TODO: need to pass newAPI flag to preserve conversions of precisions
         auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
         return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
                 exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
