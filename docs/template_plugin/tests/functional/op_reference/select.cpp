@@ -34,12 +34,12 @@ struct SelectParams {
     element::Type data_type;
     op::AutoBroadcastSpec broadcast;
     PartialShape select_input_pshape;
-    Blob::Ptr select_input;
+    ov::runtime::Tensor select_input;
     PartialShape if_input_pshape;
-    Blob::Ptr if_input;
+    ov::runtime::Tensor if_input;
     PartialShape else_input_pshape;
-    Blob::Ptr else_input;
-    Blob::Ptr expected_output;
+    ov::runtime::Tensor else_input;
+    ov::runtime::Tensor expected_output;
 };
 
 class ReferenceSelectLayerTest : public testing::TestWithParam<SelectParams>, public CommonReferenceTest {
