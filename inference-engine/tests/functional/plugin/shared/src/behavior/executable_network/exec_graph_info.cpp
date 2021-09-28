@@ -3,6 +3,7 @@
 //
 
 #include <common_test_utils/file_utils.hpp>
+#include "common_test_utils/test_common.hpp"
 #include <exec_graph_info.hpp>
 #include "behavior/executable_network/exec_graph_info.hpp"
 
@@ -243,10 +244,7 @@ const char expected_serialized_model[] = R"V0G0N(
 
 std::string ExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::ostringstream result;
-    std::string model_name, expected_model_name;
     std::string targetDevice = obj.param;
-    result << "ModelName=" << model_name << "_";
-    result << "ExpectedModelName=" << expected_model_name << "_";
     result << "TargetDevice=" << targetDevice;
     return result.str();
 }
@@ -255,12 +253,10 @@ void ExecGraphSerializationTest::SetUp() {
     const std::string XML_EXT = ".xml";
     const std::string BIN_EXT = ".bin";
 
-    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    test_name.erase(std::remove(test_name.begin(), test_name.end(), '/'), test_name.end());
-    test_name += CommonTestUtils::GetTimestamp();
+    std::string model_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();;
 
-    m_out_xml_path = test_name + XML_EXT;
-    m_out_bin_path = test_name + BIN_EXT;
+    m_out_xml_path = model_name + XML_EXT;
+    m_out_bin_path = model_name + BIN_EXT;
 
     deviceName = this->GetParam();
 }
@@ -344,10 +340,10 @@ std::pair<bool, std::string> ExecGraphSerializationTest::compare_docs(const pugi
 }
 
 TEST_P(ExecGraphSerializationTest, ExecutionGraph) {
-    InferenceEngine::Core ie;
+    auto ie = PluginCache::get().ie(deviceName);
     InferenceEngine::Blob::Ptr a;
-    auto cnnNet = ie.ReadNetwork(serialize_test_model, a);
-    auto execNet = ie.LoadNetwork(cnnNet, deviceName);
+    auto cnnNet = ie->ReadNetwork(serialize_test_model, a);
+    auto execNet = ie->LoadNetwork(cnnNet, deviceName);
     auto execGraph = execNet.GetExecGraphInfo();
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     execGraph.serialize(m_out_xml_path, m_out_bin_path);
@@ -401,7 +397,7 @@ void ExecGraphUniqueNodeNames::TearDown() {
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
-    auto ie = PluginCache::get().ie();
+    auto ie = PluginCache::get().ie(targetDevice);
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
 
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
@@ -412,8 +408,7 @@ TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     ASSERT_NE(function, nullptr);
 
     for (const auto & op : function->get_ops()) {
-        ASSERT_TRUE(names.find(op->get_friendly_name()) == names.end()) <<
-                                                                        "Node with name " << op->get_friendly_name() << "already exists";
+        ASSERT_TRUE(names.find(op->get_friendly_name()) == names.end()) << "Node with name " << op->get_friendly_name() << "already exists";
         names.insert(op->get_friendly_name());
 
         const auto & rtInfo = op->get_rt_info();

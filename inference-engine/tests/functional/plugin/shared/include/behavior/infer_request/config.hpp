@@ -24,6 +24,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(streamExecutorNumber, targetDevice, configuration) = this->GetParam();
+        ie = PluginCache::get().ie(targetDevice);
         // Create CNNNetwork from ngrpah::Function
         function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32});
         cnnNet = InferenceEngine::CNNNetwork(function);
@@ -45,16 +46,15 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            ie->SetConfig({}, targetDevice);
+            PluginCache::get().reset();
         }
     }
 
 protected:
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::shared_ptr<InferenceEngine::Core> ie;
     std::shared_ptr<ngraph::Function> function;
-    InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     size_t streamExecutorNumber;
@@ -69,7 +69,8 @@ protected:
         }
         // Load CNNNetwork to target plugins
         execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-        return execNet.CreateInferRequest();
+        auto req = execNet.CreateInferRequest();
+        return req;
     }
 };
 

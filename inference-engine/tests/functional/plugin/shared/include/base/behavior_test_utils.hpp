@@ -66,10 +66,8 @@ public:
     }
 
     void TearDown() override {
-        if (!configuration.empty()) {
-            ie->SetConfig({}, targetDevice);
-        }
         function.reset();
+        ie.reset();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
@@ -105,6 +103,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
+        ie = PluginCache::get().ie(targetDevice);
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
         // Load CNNNetwork to target plugins
@@ -112,16 +111,15 @@ public:
     }
 
     void TearDown() override {
-        if (!configuration.empty()) {
-            ie->SetConfig({}, targetDevice);
-        }
         execNet = InferenceEngine::ExecutableNetwork();
+        ie.reset();
+        function.reset();
     }
 
 protected:
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::shared_ptr<InferenceEngine::Core> ie;
     std::shared_ptr<ngraph::Function> function;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -148,19 +146,19 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
+        core = ov::test::PluginCache::get().core(targetDevice);
         function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
 
     void TearDown() override {
-        if (!configuration.empty()) {
-            core->set_config({});
-        }
         execNet = ov::runtime::ExecutableNetwork();
+        core.reset();
+        function.reset();
     }
 
 protected:
     ov::runtime::ExecutableNetwork execNet;
-    std::shared_ptr<ov::runtime::Core> core = ov::test::PluginCache::get().core();
+    std::shared_ptr<ov::runtime::Core> core;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     std::shared_ptr<ov::Function> function;
@@ -231,7 +229,6 @@ public:
     InferenceEngine::CNNNetwork actualCnnNetwork, simpleCnnNetwork, multinputCnnNetwork, ksoCnnNetwork;
 
     void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVClassNetworkTest::SetUp();
         // Generic network
         ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));

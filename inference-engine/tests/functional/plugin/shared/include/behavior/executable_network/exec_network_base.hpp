@@ -18,9 +18,8 @@ public:
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
-            for (auto &configItem : configuration) {
-                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
-            }
+            using namespace CommonTestUtils;
+            result << "config=" << configuration;
         }
         return result.str();
     }
@@ -29,19 +28,20 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
+        ie = PluginCache::get().ie(targetDevice);
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
-            ie->SetConfig({}, targetDevice);
+            PluginCache::get().reset();
         }
     }
 
 protected:
     InferenceEngine::CNNNetwork cnnNet;
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::shared_ptr<InferenceEngine::Core> ie;
     std::shared_ptr<ngraph::Function> function;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

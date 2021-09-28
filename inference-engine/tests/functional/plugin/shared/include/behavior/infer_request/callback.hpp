@@ -14,7 +14,6 @@ namespace BehaviorTestsDefinitions {
 using InferRequestCallbackTests = BehaviorTestsUtils::InferRequestTests;
 
 TEST_P(InferRequestCallbackTests, canCallAsyncWithCompletionCallback) {
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     bool isCalled = false;

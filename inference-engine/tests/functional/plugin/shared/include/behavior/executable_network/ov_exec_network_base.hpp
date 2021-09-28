@@ -34,17 +34,18 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
+        core = ov::test::PluginCache::get().core(targetDevice);
         function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
-            core->set_config({});
+            PluginCache::get().reset();
         }
     }
 
 protected:
-    std::shared_ptr<ov::runtime::Core> core = ov::test::PluginCache::get().core();
+    std::shared_ptr<ov::runtime::Core> core;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     std::shared_ptr<ov::Function> function;

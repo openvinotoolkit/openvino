@@ -65,6 +65,7 @@ protected:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(function, inOutShapes, targetDevice, configuration) = this->GetParam();
+        ie = PluginCache::get().ie(targetDevice);
     }
 
     void TearDown() override {
@@ -73,7 +74,7 @@ protected:
         }
     }
 
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::shared_ptr<InferenceEngine::Core> ie;
     std::shared_ptr<ngraph::Function> function;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

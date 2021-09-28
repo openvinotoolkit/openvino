@@ -125,7 +125,7 @@ public:
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
             using namespace CommonTestUtils;
-            result << "config=" <<(configuration);
+            result << "config=" << (configuration);
         }
         return result.str();
     }
@@ -140,7 +140,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            ie->SetConfig({}, targetDevice);
+            PluginCache::get().reset();
         }
     }
 };
@@ -195,6 +195,5 @@ using IncorrectConfigSingleOptionTests = BehaviorTestsSingleOption;
 using IncorrectConfigAPITests = CorrectConfigTests;
 using CorrectConfigCheck = CorrectConfigTests;
 using DefaultValuesConfigTests = CorrectConfigTests;
-
 
 } // namespace BehaviorTestsDefinitions

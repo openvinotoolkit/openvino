@@ -20,15 +20,15 @@ class ExecGraphUniqueNodeNames : public testing::WithParamInterface<LayerTestsUt
                                  public CommonTestUtils::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj);
+    void SetUp() override;
+    void TearDown() override;
+
+protected:
     std::string targetDevice;
     std::shared_ptr<ngraph::Function> fnPtr;
-protected:
-    void SetUp() override;
-
-    void TearDown() override;
 };
 
-class ExecGraphSerializationTest : public ::testing::Test, public testing::WithParamInterface<std::string> {
+class ExecGraphSerializationTest : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
     void SetUp() override;
@@ -55,7 +55,6 @@ protected:
     std::pair<bool, std::string> compare_docs(const pugi::xml_document &doc1,
                                               const pugi::xml_document &doc2);
 
-    std::string deviceName;
-    std::string m_out_xml_path, m_out_bin_path;
+    std::string deviceName, m_out_xml_path, m_out_bin_path;
 };
 }  // namespace ExecutionGraphTests
