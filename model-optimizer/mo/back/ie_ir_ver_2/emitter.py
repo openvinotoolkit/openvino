@@ -248,28 +248,31 @@ def serialize_meta_list(graph, node, schema, element, edges, unsupported):
     for item in items:
         serialize_node_attributes(graph, item, [sub_schema], element, edges, unsupported)
 
+
 def serialize_runtime_info(node, schema: list, parent_element: Element):
     name, attrs, _ = schema
-    element = SubElement(parent_element, name)
+    rt_info = SubElement(parent_element, 'rt_info')
+    attribute = SubElement(rt_info, 'attribute')
+    attribute.set('name', 'old_api_map')
+    attribute.set('version', '0')
 
     if 'rt_info' in node:
         for attr in attrs:
             key = attr
             value = None
             if key == 'old_api_element_type' and 'legacy_type' in node.rt_info.info['old_api']:
+                key = 'element_type'
                 value = np_data_type_to_destination_type(node.rt_info.info['old_api']['legacy_type'])
             elif key == 'old_api_transpose_order':
+                key = 'order'
                 if node.soft_get('type') == 'Parameter' and 'inverse_order' in node.rt_info.info['old_api']:
                     value = '{}'.format(node.rt_info.info['old_api']['inverse_order']).replace(' ', ',')
                 elif node.soft_get('type') == 'Result' and 'order' in node.rt_info.info['old_api']:
                     value = '{}'.format(node.rt_info.info['old_api']['order']).replace(' ', ',')
-            elif key == 'convert_dst_type':
-                value = '{}'.format(node.rt_info.info['old_api']['legacy_type'])
             if value is not None:
-                element.set(key, value)
-    if len(element.attrib) == 0:
-        parent_element.remove(element)
-
+                attribute.set(key, value)
+    if len(attribute.attrib) <= 2:
+        parent_element.remove(rt_info)
 
 
 def serialize_node_attributes(
