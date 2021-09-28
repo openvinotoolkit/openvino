@@ -189,6 +189,42 @@ struct IfConditionIsScalar : public IfFunctionalBase {
     }
 };
 
+
+struct IfConditionIsDynamic : public IfFunctionalBase {
+    std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
+                                              const std::vector<Tensor>& results) override {
+        NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
+        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
+
+        auto X = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+        auto Y = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+        auto cond = std::make_shared<op::Parameter>(element::boolean, PartialShape{Dimension::dynamic()});
+        //auto cond = std::make_shared<op::Parameter>(element::boolean, Shape{1});
+        // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+        // Body parameters
+        auto Xt = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yt = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xe = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+        auto Ye = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+        // Body
+        auto then_op = std::make_shared<op::v1::Multiply>(Xt, Yt);
+        auto else_op = std::make_shared<op::v1::Add>(Xe, Ye);
+        auto then_op_result = std::make_shared<op::Result>(then_op);
+        auto else_op_result = std::make_shared<op::Result>(else_op);
+        auto then_body = std::make_shared<ngraph::Function>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
+        auto else_body = std::make_shared<ngraph::Function>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
+        auto if_op = std::make_shared<op::v8::If>(cond);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(X, Xt, Xe);
+        if_op->set_input(Y, Yt, Ye);
+        auto rs = if_op->set_output(then_op_result, else_op_result);
+        auto result = std::make_shared<op::Result>(rs);
+        auto fun = std::make_shared<Function>(OutputVector{result}, ParameterVector{cond, X, Y});
+        return fun;
+    }
+};
+
 struct IfParams {
     IfParams(const std::shared_ptr<IfFunctionalBase>& functional,
              const std::vector<Tensor>& if_inputs,
@@ -227,6 +263,24 @@ public:
 
 TEST_P(ReferenceIfLayerTest, IfWithHardcodedRefs) {
     Exec();
+}
+std::vector<float> Y_gen() {
+    std::vector<float> Y_v;
+    for (auto c_ind = 0; c_ind < 4; ++c_ind) {
+        for (auto d_ind = 0; d_ind < 4; ++d_ind) {
+            Y_v.push_back(static_cast<float>(c_ind * d_ind));
+        }
+    }
+    return Y_v;
+}
+std::vector<float> Z_gen() {
+    std::vector<float> Z_v;
+    for (auto c_ind = 0; c_ind < 8; ++c_ind) {
+        for (auto d_ind = 0; d_ind < 64; ++d_ind) {
+            Z_v.push_back(static_cast<float>(c_ind * d_ind));
+        }
+    }
+    return Z_v;
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -280,4 +334,29 @@ INSTANTIATE_TEST_SUITE_P(
                                 Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
                                 Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
             std::vector<Tensor>{Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
-            "if_condition_is_scalar_cond_false")));
+            "if_condition_is_scalar_cond_false"),
+        IfParams(
+            std::make_shared<IfDynamismCaseWithStaticInputs>(),
+            std::vector<Tensor>{Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{1}),
+                                Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                Tensor(Shape{4, 2, 2}, ngraph::element::f32, Y_gen()),
+                                Tensor(Shape{8, 8, 8}, ngraph::element::f32, Z_gen())},
+            std::vector<Tensor>{Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 4.0, 9.0, 16.0}),
+                                Tensor(Shape{4, 2, 2}, ngraph::element::f32, Y_gen())},
+            "If_dynamism_case_with_static_inputs_condition_true"),
+        IfParams(
+            std::make_shared<IfDynamismCaseWithStaticInputs>(),
+            std::vector<Tensor>{Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{0}),
+                                Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                Tensor(Shape{4, 2, 2}, ngraph::element::f32, Y_gen()),
+                                Tensor(Shape{8, 8, 8}, ngraph::element::f32, Z_gen())},
+            std::vector<Tensor>{Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 4.0, 6.0, 8.0}),
+                                Tensor(Shape{8, 8, 8}, ngraph::element::f32, Z_gen())},
+            "If_dynamism_case_with_static_inputs_condition_false"),
+        IfParams(
+            std::make_shared<IfConditionIsDynamic>(),
+            std::vector<Tensor>{Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{1}),
+                                Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+            std::vector<Tensor>{Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
+            "if_condition_is_dynamic_cond_true")));
