@@ -58,7 +58,7 @@ def metadata_from_manifest(manifest):
     # parse OS name/version
     product_type_str = manifest['components'][PRODUCT_NAME]['product_type']
     product_type = product_type_str.split('_')
-    if len(product_type) != 5 or product_type[2] != 'ubuntu':
+    if len(product_type) != 5 or product_type[2] not in ['ubuntu', 'windows']:
         logging.error('Product type %s is not supported', product_type_str)
         return {}
     return {
