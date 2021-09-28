@@ -162,6 +162,8 @@ OPENVINO_API Type from<ov::bfloat16>();
 template <>
 OPENVINO_API Type from<ov::float16>();
 
+OPENVINO_API Type fundamental_type_for(const Type& type);
+
 OPENVINO_API
 std::ostream& operator<<(std::ostream& out, const ov::element::Type& obj);
 }  // namespace element
