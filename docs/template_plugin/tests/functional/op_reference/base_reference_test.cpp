@@ -3,6 +3,7 @@
 //
 #include "base_reference_test.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 #include <gtest/gtest.h>
 

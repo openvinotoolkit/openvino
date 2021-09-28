@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph/shape_util.hpp"
 

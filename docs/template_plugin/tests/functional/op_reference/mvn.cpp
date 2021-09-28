@@ -6,6 +6,7 @@
 
 #include "openvino/op/mvn.hpp"
 #include "base_reference_test.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov;
 using namespace reference_tests;
