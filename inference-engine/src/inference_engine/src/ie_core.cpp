@@ -451,7 +451,8 @@ public:
     ie::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
         auto cnnNet = InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions);
-        if (!cnnNet.getFunction() || !newAPI)
+        OPENVINO_ASSERT(cnnNet.getFunction() || !newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
+        if (!newAPI)
             return cnnNet;
 
         return InferenceEngine::CNNNetwork(std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(
@@ -463,7 +464,8 @@ public:
     ie::CNNNetwork ReadNetwork(const std::string& model, const ie::Blob::CPtr& weights) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
         auto cnnNet = InferenceEngine::details::ReadNetwork(model, weights, extensions);
-        if (!cnnNet.getFunction() || !newAPI)
+        OPENVINO_ASSERT(cnnNet.getFunction() || !newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
+        if (!newAPI)
             return cnnNet;
 
         return InferenceEngine::CNNNetwork(std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(

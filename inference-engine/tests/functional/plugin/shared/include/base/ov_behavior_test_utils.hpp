@@ -65,8 +65,8 @@ public:
         std::map<std::string, std::string> configuration;
         std::tie(elementType, targetDevice, configuration) = obj.param;
         std::ostringstream result;
-        result << "element_type=" << elementType;
-        result << "targetDevice=" << targetDevice;
+        result << "element_type=" << elementType << "_";
+        result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_" << configItem.second << "_";
