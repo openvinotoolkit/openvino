@@ -23,10 +23,10 @@ class AddFakeOutputsToSplit(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for split_node in graph.get_op_nodes(op='Split'):
-            AddFakeOutputsToSplit.split_normalize_outputs(split_node)
+            AddFakeOutputsToSplit.node_normalize_outputs(split_node)
 
     @staticmethod
-    def split_normalize_outputs(node: Node):
+    def node_normalize_outputs(node: Node):
         if node.has_valid('out_ports_count') and len(node.out_edges()) < node.out_ports_count:
             for p in range(node.out_ports_count):
                 if p not in node.out_ports():
@@ -72,4 +72,4 @@ class AddFakeOutputsToVariadicSplit(MiddleReplacementPattern):
         if not node.has_valid('out_ports_count'):
             node['out_ports_count'] = len(size_splits)
 
-        AddFakeOutputsToSplit().split_normalize_outputs(node)
+        AddFakeOutputsToSplit().node_normalize_outputs(node)
