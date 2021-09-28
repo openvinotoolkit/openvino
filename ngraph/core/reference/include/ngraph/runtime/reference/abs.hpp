@@ -9,18 +9,11 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
+template <typename T>
 void abs(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
         // TODO: generic "abs" doesn't work here for some reason.
         out[i] = (arg[i] < T(0) ? T(-arg[i]) : arg[i]);
-    }
-}
-
-template<typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true> 
-void abs(const T* arg, T* out, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        out[i] = std::roundl((arg[i] < T(0) ? T(-arg[i]) : arg[i]));
     }
 }
 }  // namespace reference

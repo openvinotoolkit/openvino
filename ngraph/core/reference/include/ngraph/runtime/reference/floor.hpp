@@ -10,17 +10,10 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
+template <typename T>
 void floor(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
         out[i] = std::floor(arg[i]);
-    }
-}
-
-template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-void floor(const T* arg, T* out, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        out[i] = std::round(std::floor(arg[i]));
     }
 }
 }  // namespace reference
