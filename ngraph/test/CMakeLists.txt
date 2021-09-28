@@ -469,13 +469,11 @@ set(MULTI_TEST_SRC
     backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
-    backend/log_softmax.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
-    backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
