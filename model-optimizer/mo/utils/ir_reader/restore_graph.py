@@ -28,10 +28,12 @@ def define_data_type(graph: Graph):
     for op_type in ('Parameter', 'Const'):
         for node in graph.get_op_nodes(op=op_type):
             if node.soft_get('element_type') == 'f16' or node.soft_get('data_type') == np.float16:
-                log.debug('Found operation Parameter with FP16 data_type. Set graph `data_type` '
+                log.debug('Found operation with `FP16` data type. Set graph `data_type` '
                             'attribute value to `FP16`!')
                 return 'FP16'
     # If there are no parameters or constants with FP16 we return FP32 as data_type value
+    log.debug('Operations with `FP16` data type not found. Set graph `data_type` '
+              'attribute value to `FP32`')
     return 'FP32'
 
 
