@@ -35,10 +35,18 @@ void ReplaceTransposeWithReshape(std::shared_ptr<ngraph::Node> transpose_node) {
 void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string& base_name) {
     auto consumers = prev_node->output(0).get_target_inputs();
     const auto orig_shape = prev_node->get_output_shape(0);
+    auto number_of_ones = std::count_if(orig_shape.begin(), orig_shape.end(), [](size_t n) { return n == 1; });
     std::vector<size_t> transpose_ids;
-    for (size_t i = 0; i < orig_shape.size(); ++i) {
-        if (orig_shape[i] > 1) {
-            transpose_ids.push_back(i);
+    IE_ASSERT(orig_shape.size() != number_of_ones);
+    if (orig_shape.size() - number_of_ones == 1) {
+        IE_ASSERT((orig_shape.front() > 1 || orig_shape.back() > 1));
+        transpose_ids.push_back(0);
+        transpose_ids.push_back(orig_shape.size() - 1);
+    } else {
+        for (size_t i = 0; i < orig_shape.size(); ++i) {
+            if (orig_shape[i] > 1) {
+                transpose_ids.push_back(i);
+            }
         }
     }
     IE_ASSERT(transpose_ids.size() == 2);
