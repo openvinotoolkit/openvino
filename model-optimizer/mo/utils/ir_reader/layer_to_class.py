@@ -281,8 +281,8 @@ postprocessing_op_nodes = {
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
     # Call normalize Split outputs for generated IR by ir-reader
-    'Split': AddFakeOutputsToSplit.split_normalize_outputs,
-    'VariadicSplit': AddFakeOutputsToSplit.split_normalize_outputs,
+    # 'Split': AddFakeOutputsToSplit.split_normalize_outputs,
+    # 'VariadicSplit': AddFakeOutputsToSplit.split_normalize_outputs,
 }
 
 
@@ -377,6 +377,10 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
             else:
                 node = Op.get_op_class_by_name(op_type)(new_graph, op.attrs()).create_node()
 
+            # Fill out_ports_count attribute
+            if 'out_ports_count' not in node and node.soft_get('type') != 'Result':
+                node['out_ports_count'] = len(op.out_edges())
+
         # This attribute is no longer needed and we can delete it
         if 'ir_data_attrs' in node:
             del node['ir_data_attrs']
@@ -398,6 +402,12 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
 
     # Nodes postprocessing stage in new graph
     for op in new_graph.get_op_nodes():
+        # Call normalize node outputs for restored operations to connect temporary Result operations for disconnected
+        # output ports. We need to do that for correct shape inference. These Result operations will be removed during
+        # IR emitting.
+        if op.soft_get('type') not in ('Assign', 'TopK'):
+            AddFakeOutputsToSplit.split_normalize_outputs(op)
+
         restore_tensor_names(op)
 
         # operations postprocessing with some special types

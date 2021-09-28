@@ -4,6 +4,8 @@
 import logging as log
 from copy import copy
 
+import numpy as np
+
 from extensions.back.ConvolutionNormalizer import ConvolutionNormalizer, ConvolutionWithGroupsResolver
 from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 from extensions.back.PackBinaryWeights import PackBinaryWeights
@@ -22,13 +24,15 @@ from mo.utils.utils import get_mo_root_dir
 
 
 def define_data_type(graph: Graph):
-    data_type = 'FP32'
-    for const_node in graph.get_op_nodes(op='Const'):
-        if const_node.soft_get('element_type') == 'f16':
-            log.warning('Found operation Const with attribute `element_type`== `f16`. Set graph `data_type` '
-                        'attribute value to `FP16`!')
-            data_type = 'FP16'
-    return data_type
+    # Trying to find parameters or constants with FP16 data_type
+    for op_type in ('Parameter', 'Const'):
+        for node in graph.get_op_nodes(op=op_type):
+            if node.soft_get('element_type') == 'f16' or node.soft_get('data_type') == np.float16:
+                log.debug('Found operation Parameter with FP16 data_type. Set graph `data_type` '
+                            'attribute value to `FP16`!')
+                return 'FP16'
+    # If there are no parameters or constants with FP16 we return FP32 as data_type value
+    return 'FP32'
 
 
 def restore_graph_from_ir(path_to_xml: str, path_to_bin: str = None) -> (Graph, dict):
@@ -66,7 +70,7 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
         name = graph.name
 
     if 'data_type' not in meta_data:
-        log.warning('Provided graph does not contain `data_type` parameter in `meta_info` section! Trying to '
+        log.debug('Provided graph does not contain `data_type` parameter in `meta_info` section! Trying to '
                     'define `data_type` parameter value from the model.')
         data_type = define_data_type(graph)
 
