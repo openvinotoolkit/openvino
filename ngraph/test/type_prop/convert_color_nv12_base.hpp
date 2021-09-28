@@ -4,7 +4,7 @@
 
 #include <vector>
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "openvino/op/op.hpp"
 
 using namespace ov;
 

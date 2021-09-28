@@ -9,12 +9,14 @@
 
 using namespace LayerTestsDefinitions;
 
-const std::vector<ngraph::Shape> inShapes_nhwc = {
+namespace {
+
+const std::vector<ov::Shape> inShapes_nhwc = {
     {1, 10, 10, 1}
 };
 
-const std::vector<ngraph::element::Type> inTypes = {
-        ngraph::element::u8, ngraph::element::f32
+const std::vector<ov::element::Type> inTypes = {
+        ov::element::u8, ov::element::f32
 };
 
 const auto testCase_values = ::testing::Combine(
@@ -27,3 +29,5 @@ const auto testCase_values = ::testing::Combine(
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12, ConvertColorNV12LayerTest, testCase_values, ConvertColorNV12LayerTest::getTestCaseName);
+
+}  // namespace

@@ -16,8 +16,8 @@
 namespace LayerTestsDefinitions {
 
 using ConvertColorNV12ParamsTuple = std::tuple<
-        ngraph::Shape,                                 // Input Shape
-        ngraph::element::Type,                         // Element type
+        ov::Shape,                                     // Input Shape
+        ov::element::Type,                             // Element type
         bool,                                          // Conversion type
         bool,                                          // 1 or 2 planes
         std::string>;                                  // Device name

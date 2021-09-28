@@ -62,7 +62,6 @@ protected:
 
 public:
     OPENVINO_OP("ConvertColorNV12Base", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     void validate_and_infer_types() override;
 

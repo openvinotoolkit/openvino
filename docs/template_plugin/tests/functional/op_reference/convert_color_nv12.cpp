@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/ngraph.hpp>
+#include <openvino/core/function.hpp>
 #include <tuple>
 #include <openvino/op/nv12_to_rgb.hpp>
 
