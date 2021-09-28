@@ -37,3 +37,5 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     target_link_libraries(ngraph_test_util PRIVATE onnx_common)
 endif()
 target_include_directories(ngraph_test_util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_test_util)
