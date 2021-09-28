@@ -240,18 +240,6 @@ def ti_add_edge_attrs(op: Node):
         i += 1
 
 
-def assign_add_output_result(op: Node):
-    """
-    Function adds necessary output result node for Assign node
-    :param op:
-    :return:
-    """
-    assert op.soft_get('type') == 'Assign', 'Wrong operation type, {} instead of Assign!' \
-                                            ''.format(op.soft_get('type'))
-    tmp_result = Result(op.graph, {'name': op.soft_get('name', op.id) + '/Result'}).create_node()
-    op.out_port(0).connect(tmp_result.in_port(0))
-
-
 def copy_input_blobs(op: Node, copy_op: Node):
     """
     Function copy input blob data nodes from restored graph to copied one
@@ -272,12 +260,10 @@ preprocessing_op_nodes = {
     'GroupConvolution': groupconv_to_conv,
     'ConvolutionBackpropData': backprop_to_deconv,
     'GroupConvolutionBackpropData': backprop_to_deconv,
-
 }
 
 # Map with postprocessing functions for nodes
 postprocessing_op_nodes = {
-    'Assign': assign_add_output_result,
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
 }
@@ -401,9 +387,15 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     for op in new_graph.get_op_nodes():
         # Call normalize node outputs for restored operations to connect temporary Result operations for disconnected
         # output ports. We need to do that for correct shape inference. These Result operations will be removed during
-        # IR emitting.
-        if op.soft_get('type') not in ('Assign', 'TopK'):
-            AddFakeOutputsToSplit.split_normalize_outputs(op)
+        # IR emitting.For TopK operation we should use specific function TopKNormalizer.normalize_outputs.
+        if op.soft_get('type') != 'TopK':
+            AddFakeOutputsToSplit.node_normalize_outputs(op)
+
+        # Set correct_data_type attribute to Const data nodes to correct processing of restored values
+        if op.soft_get('type') == 'Const':
+            assert len(op.out_nodes()) == 1 and op.out_node(0).soft_get('kind') == 'data',\
+                'Const node {} not properly corrected to appropriate data node'.format(op.soft_get('name'))
+            op.out_node(0)['correct_data_type'] = True
 
         restore_tensor_names(op)
 

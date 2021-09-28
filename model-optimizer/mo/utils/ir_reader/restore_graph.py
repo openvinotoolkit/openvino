@@ -12,7 +12,6 @@ from extensions.back.PackBinaryWeights import PackBinaryWeights
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement
 from extensions.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
 from extensions.back.blob_normalizer import BlobNormalizer
-from extensions.back.kaldi_remove_memory_output import KaldiRemoveMemoryOutputBackReplacementPattern
 from mo.graph.graph import Graph
 from mo.middle.passes.convert_data_type import data_type_str_to_precision
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
@@ -91,7 +90,6 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
         PackBinaryWeights,
         BlobNormalizer,
         ConvolutionNormalizer,
-        KaldiRemoveMemoryOutputBackReplacementPattern,
         MarkNodesWithShapeValues,
     ]
 
