@@ -451,6 +451,9 @@ public:
     ie::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
         auto cnnNet = InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions);
+        if (!cnnNet.getFunction() || !newAPI)
+            return cnnNet;
+
         return InferenceEngine::CNNNetwork(std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(
             cnnNet.getFunction(),
             std::vector<InferenceEngine::IExtensionPtr>{},
@@ -460,6 +463,9 @@ public:
     ie::CNNNetwork ReadNetwork(const std::string& model, const ie::Blob::CPtr& weights) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
         auto cnnNet = InferenceEngine::details::ReadNetwork(model, weights, extensions);
+        if (!cnnNet.getFunction() || !newAPI)
+            return cnnNet;
+
         return InferenceEngine::CNNNetwork(std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(
             cnnNet.getFunction(),
             std::vector<InferenceEngine::IExtensionPtr>{},
