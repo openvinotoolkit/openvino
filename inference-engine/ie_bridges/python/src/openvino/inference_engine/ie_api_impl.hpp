@@ -18,6 +18,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <numeric>
+#include <functional>
 
 #include "Python.h"
 #include "ie_core.hpp"
@@ -202,5 +204,7 @@ std::string get_version();
 InferenceEnginePython::IENetwork read_network(std::string path_to_xml, std::string path_to_bin);
 
 PyObject* getPartialShape_capsule(InferenceEngine::CDataPtr data);
+
+size_t size(const InferenceEngine::TensorDesc& tensor_desc);
 
 };  // namespace InferenceEnginePython

@@ -206,10 +206,9 @@ cdef class Blob:
         elif tensor_desc is not None and self._array_data is not None:
             c_tensor_desc = tensor_desc.impl
             precision = tensor_desc.precision
-            size_arr = np.prod(array.shape)
-            size_td = np.prod(tensor_desc.dims)
-            if size_arr != size_td:
-                raise AttributeError(f"Number of elements in provided numpy array {size_arr} and "
+            size_td = C.size(tensor_desc.impl)
+            if array.size != size_td:
+                raise AttributeError(f"Number of elements in provided numpy array {array.size} and "
                                      f"required by TensorDesc {size_td} are not equal")
             if self._array_data.dtype != format_map[precision]:
                 raise ValueError(f"Data type {self._array_data.dtype} of provided numpy array "
@@ -1067,7 +1066,6 @@ cdef class InferRequest:
     #  method of the `IECore` class with specified number of requests to get `ExecutableNetwork` instance
     #  which stores infer requests.
     def __init__(self):
-        self._user_blobs = {}
         self._inputs_list = []
         self._outputs_list = []
         self._py_callback = lambda *args, **kwargs: None
@@ -1113,13 +1111,9 @@ cdef class InferRequest:
     def input_blobs(self):
         input_blobs = {}
         for input in self._inputs_list:
-            # TODO: will not work for setting data via .inputs['data'][:]
-            if input in self._user_blobs:
-                input_blobs[input] = self._user_blobs[input]
-            else:
-                blob = Blob()
-                blob._ptr = deref(self.impl).getBlobPtr(input.encode())
-                input_blobs[input] = blob
+            blob = Blob()
+            blob._ptr = deref(self.impl).getBlobPtr(input.encode())
+            input_blobs[input] = blob
         return input_blobs
 
     ## Dictionary that maps output layer names to corresponding Blobs
@@ -1178,7 +1172,7 @@ cdef class InferRequest:
             deref(self.impl).setBlob(blob_name.encode(), blob._ptr, deref(preprocess_info._ptr))
         else:
             deref(self.impl).setBlob(blob_name.encode(), blob._ptr)
-        self._user_blobs[blob_name] = blob
+
     ## Starts synchronous inference of the infer request and fill outputs array
     #
     #  @param inputs: A dictionary that maps input layer names to `numpy.ndarray` objects of proper shape with

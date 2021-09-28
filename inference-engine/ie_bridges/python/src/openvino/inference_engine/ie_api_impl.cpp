@@ -680,3 +680,7 @@ InferenceEngine::Blob::Ptr InferenceEnginePython::CVariableState::getState() {
 void InferenceEnginePython::CVariableState::setState(InferenceEngine::Blob::Ptr state) {
     variableState.SetState(state);
 }
+
+size_t InferenceEnginePython::size(const InferenceEngine::TensorDesc& tensor_desc){
+    return std::accumulate(tensor_desc.getDims().begin(), tensor_desc.getDims().end(), 1, std::multiplies<size_t>{});
+}
