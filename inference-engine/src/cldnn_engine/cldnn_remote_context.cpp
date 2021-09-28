@@ -233,7 +233,12 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
         bool enable_profiling = (m_config.useProfiling ||
                 (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
                 (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
-        cldnn::queue_types queue_type = cldnn::queue_types::out_of_order;
+        cldnn::queue_types queue_type;
+        if (dev->get_info().supports_immad)
+            queue_type = cldnn::queue_types::in_order;
+        else
+            queue_type = cldnn::queue_types::out_of_order;
+
         bool use_unified_shared_memory = true;
         m_engine = cldnn::engine::create(engine_type, runtime_type, dev, cldnn::engine_configuration(enable_profiling,
                                                                                                      queue_type,

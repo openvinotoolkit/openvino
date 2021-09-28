@@ -83,16 +83,16 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         case cldnn::format::bfyx: return dnnl::memory::format_tag::nchw;
         case cldnn::format::bfzyx: return dnnl::memory::format_tag::ncdhw;
         case cldnn::format::byxf: return dnnl::memory::format_tag::nhwc;
-        // case cldnn::format::b_fs_yx_fsv16: return dnnl::memory::format_tag::nChw16c;
-        // case cldnn::format::b_fs_yx_fsv32: return dnnl::memory::format_tag::aBcd32b;
-        // case cldnn::format::b_fs_zyx_fsv16: return dnnl::memory::format_tag::nCdhw16c;
-        // case cldnn::format::b_fs_zyx_fsv32: return dnnl::memory::format_tag::aBcde32b;
-        // case cldnn::format::bs_fs_yx_bsv16_fsv16: return dnnl::memory::format_tag::NChw16n16c;
-        // case cldnn::format::bs_fs_yx_bsv32_fsv32: return dnnl::memory::format_tag::NChw32n32c;
-        // case cldnn::format::bs_fs_yx_bsv4_fsv4: return dnnl::memory::format_tag::ABcd4a4b;
-        // case cldnn::format::bs_fs_yx_bsv4_fsv2: return dnnl::memory::format_tag::ABcd4a2b;
-        // case cldnn::format::bs_fs_yx_bsv32_fsv16: return dnnl::memory::format_tag::NChw32n16c;
-        // case cldnn::format::bs_fs_zyx_bsv16_fsv16: return dnnl::memory::format_tag::NCdhw16n16c;
+        case cldnn::format::b_fs_yx_fsv16: return dnnl::memory::format_tag::nChw16c;
+        case cldnn::format::b_fs_yx_fsv32: return dnnl::memory::format_tag::aBcd32b;
+        case cldnn::format::b_fs_zyx_fsv16: return dnnl::memory::format_tag::nCdhw16c;
+        case cldnn::format::b_fs_zyx_fsv32: return dnnl::memory::format_tag::aBcde32b;
+        case cldnn::format::bs_fs_yx_bsv16_fsv16: return dnnl::memory::format_tag::NChw16n16c;
+        case cldnn::format::bs_fs_yx_bsv32_fsv32: return dnnl::memory::format_tag::NChw32n32c;
+        case cldnn::format::bs_fs_yx_bsv4_fsv4: return dnnl::memory::format_tag::ABcd4a4b;
+        case cldnn::format::bs_fs_yx_bsv4_fsv2: return dnnl::memory::format_tag::ABcd4a2b;
+        case cldnn::format::bs_fs_yx_bsv32_fsv16: return dnnl::memory::format_tag::NChw32n16c;
+        case cldnn::format::bs_fs_zyx_bsv16_fsv16: return dnnl::memory::format_tag::NCdhw16n16c;
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to ondnn layout " + fmt_to_str(fmt));
     }
 }
