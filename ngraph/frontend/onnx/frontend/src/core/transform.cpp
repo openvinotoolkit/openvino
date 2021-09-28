@@ -38,19 +38,21 @@ ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE
 void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto) {
     auto graph_proto = model_proto.mutable_graph();
 
+    ONNX_NAMESPACE::GraphProto new_graph;
     for (int i = 0; i < graph_proto->node().size(); ++i) {
-        ONNX_NAMESPACE::NodeProto node = graph_proto->node().Get(i);
+        ONNX_NAMESPACE::NodeProto* node = new_graph.add_node();
+        node->Swap(graph_proto->mutable_node(i));
 
         // Check if node operation is one of the functions we want to expand
-        if (std::find(onnx_functions_to_expand.begin(), onnx_functions_to_expand.end(), node.op_type()) ==
+        if (std::find(onnx_functions_to_expand.begin(), onnx_functions_to_expand.end(), node->op_type()) ==
             onnx_functions_to_expand.end()) {
             continue;
         }
 
         // Retrieve the operation schema from ONNX library
-        int opset_version = static_cast<int>(get_opset_version(model_proto, node.domain()));
+        int opset_version = static_cast<int>(get_opset_version(model_proto, node->domain()));
         const auto* schema_registry = ONNX_NAMESPACE::OpSchemaRegistry::Instance();
-        const auto node_op_schema = schema_registry->GetSchema(node.op_type(), opset_version, node.domain());
+        const auto node_op_schema = schema_registry->GetSchema(node->op_type(), opset_version, node->domain());
 
         // Check if operation schema found
         if (!node_op_schema) {
@@ -60,10 +62,15 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
         // Check if operation schema contains a function body and expand function
         if (node_op_schema->HasFunction()) {
             const auto* func_proto = node_op_schema->GetFunction();
-            ONNX_NAMESPACE::FunctionExpandHelper(node, *func_proto, *graph_proto);
+            const auto before_expand_size = new_graph.node().size();
+            ONNX_NAMESPACE::FunctionExpandHelper(*node, *func_proto, new_graph);
+            const auto added_nodes = new_graph.node().size() - before_expand_size;
 
             // Remove the original node which contained the function.
-            graph_proto->mutable_node()->erase(graph_proto->mutable_node()->begin() + i);
+            std::cout << "removed node: "
+                      << new_graph.mutable_node()->Get(new_graph.mutable_node()->size() - added_nodes - 1).op_type()
+                      << "\n";
+            new_graph.mutable_node()->erase(new_graph.mutable_node()->end() - added_nodes - 1);
         }
 
         else if (node_op_schema->HasContextDependentFunction()) {
@@ -75,19 +82,24 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
             }
 
             std::vector<ONNX_NAMESPACE::TypeProto> input_types;
-            for (const auto& input : node.input()) {
+            for (const auto& input : node->input()) {
                 input_types.push_back(ngraph::onnx_import::transform::detail::get_input_type(input, *graph_proto));
             }
 
-            ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(node, input_types);
+            ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(*node, input_types);
             ONNX_NAMESPACE::FunctionProto func_proto;
             node_op_schema->BuildContextDependentFunction(ctx, func_proto);
-            ONNX_NAMESPACE::FunctionExpandHelper(node, func_proto, *graph_proto);
+            const auto before_expand_size = new_graph.node().size();
+            ONNX_NAMESPACE::FunctionExpandHelper(*node, func_proto, new_graph);
+            const auto added_nodes = new_graph.node().size() - before_expand_size;
 
             // Remove the original node which contained the function.
-            graph_proto->mutable_node()->erase(graph_proto->mutable_node()->begin() + i);
+            new_graph.mutable_node()->erase(new_graph.mutable_node()->end() - added_nodes - 1);
         }
     }
+    graph_proto->mutable_node()->Clear();
+    graph_proto->MergeFrom(new_graph);
+    new_graph.Clear();
 }
 
 void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
