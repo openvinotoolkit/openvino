@@ -101,7 +101,7 @@ private:
         std::array<Xbyak::Label, 2> for_body;
         // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
         // todo: Do we need explicitly check that code contains ScalarEmitter?
-        std::vector<size_t> local_gpr = reg64_tmp_start + nparams < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
+//        std::vector<size_t> local_gpr = reg64_tmp_start + nparams < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
         std::vector<Xbyak::Reg64> regs(nparams);
         for (auto i = 0; dim > 0 && i < nparams; i++)
             regs[i] = Xbyak::Reg64(reg64_tmp_start + i);
@@ -116,7 +116,8 @@ private:
         h->L(for_body[0]); {
             h->push(amount);
             for (auto& c : code) {
-                c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
+//                c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
+                c.first->emit_code(c.second.first, c.second.second, pool, gpr);
             }
             h->pop(amount);
 
