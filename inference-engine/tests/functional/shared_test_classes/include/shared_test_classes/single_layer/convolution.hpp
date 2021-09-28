@@ -44,7 +44,6 @@ public:
 
 protected:
     void SetUp() override;
-    std::shared_ptr<ngraph::Function> makeConvolution(const std::string& name = "");
     void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) override;
 
 private:
