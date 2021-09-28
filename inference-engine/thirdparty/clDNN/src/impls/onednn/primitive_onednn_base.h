@@ -115,15 +115,16 @@ protected:
         auto profiling = engine.configuration().enable_profiling;
         event::ptr event;
 
-        if (profiling)
+        if (profiling) {
             stream.finish();
+            event = stream.create_user_event(false);
+        }
 
         _prim.execute(stream.get_onednn_stream(), _args);
 
         if (profiling) {
-            // Measure all previously queued tasks
-            event = stream.enqueue_marker({}, true);
-            stream.wait_for_events({event});
+            stream.finish();
+            event->set();
         } else {
             // Create and set user event as complete
             event = stream.create_user_event(true);
