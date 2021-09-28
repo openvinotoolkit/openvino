@@ -103,14 +103,11 @@ public:
         // TODO: handle multiply_value for ReduceSum case when set_keep_dims is ready
 
         //Convert std::vector<int64_t> -> ov::Shape
-        ov::Shape _reshape_end;
-        for (auto v : params.reshape_end) {
-            _reshape_end.push_back(v);
-        }
+        ov::Shape reshape_end(params.reshape_end.begin(), params.reshape_end.end());
 
-        if (_reshape_end != input.get_shape()) {
+        if (reshape_end != input.get_shape()) {
             input = std::make_shared<ngraph::opset1::Reshape>(input,
-                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ _reshape_end.size()}, _reshape_end), true);
+                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_end.size()}, reshape_end), true);
         }
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{input.get_node_shared_ptr()}, ngraph::ParameterVector{param});
@@ -141,11 +138,10 @@ INSTANTIATE_TEST_SUITE_P(ReduceToReshapePoolReshape, ConvertReduceToPoolingTests
         testing::Values(std::make_tuple(MAX, InputShape{2, 3, 3},    ReduceAxes{1, 2},    KeepDims{false}, ReduceToPoolParams({1, 1, 9, 1}, {9, 1}, {1})),
                         std::make_tuple(MAX, InputShape{2, 9},       ReduceAxes{-1},      KeepDims{true},  ReduceToPoolParams({1, 1, 9, 1}, {9, 1}, {1, 1})),
                         std::make_tuple(MAX, InputShape{2, 3, 4, 1}, ReduceAxes{1, 3, 2}, KeepDims{false}, ReduceToPoolParams({1, 1, 12, 1}, {12, 1}, {1})),
-                        std::make_tuple(MAX, InputShape{ 20, 4},     ReduceAxes{ 0,1 },   KeepDims{false}, ReduceToPoolParams({ 1, 1, 40, 1 }, { 40, 1 }, {}))));
+                        std::make_tuple(MAX, InputShape{20, 4},      ReduceAxes{0, 1},    KeepDims{false}, ReduceToPoolParams({1, 1, 40, 1}, {40, 1}, {}))));
 
 TEST(ConvertReduceToPooling, Negative) {
-    auto f = ConvertReduceToPoolingTests::get_initial_function(
-            ngraph::PartialShape::dynamic(), {3}, MAX, true);
+    auto f = ConvertReduceToPoolingTests::get_initial_function(ngraph::PartialShape::dynamic(), {3}, MAX, true);
     ASSERT_NO_THROW(ngraph::pass::ConvertReduceToPooling().run_on_function(f));
 }
 
