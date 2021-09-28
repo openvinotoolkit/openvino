@@ -3765,3 +3765,56 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_POOLING,
                         ::testing::Combine(::testing::ValuesIn(pooling_test::generate_generic_test_params()),
                                            ::testing::ValuesIn(pooling_test::generate_specific_test_params())),
                         tests::generic_test::custom_param_name_functor());
+
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
+
+    auto& engine = get_onednn_test_engine();
+    layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
+    layout out_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 1, 1 } };
+    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
+    std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.5f };
+    std::list<float> final_results = { 10.0f };
+
+    // Allocate memory for input image.
+    auto input_memory = engine.allocate_memory(in_layout);
+    set_values(input_memory, input_f);
+
+    // Create input_layout description
+    // "input" - is the primitive id inside topology
+    input_layout input("input", in_layout);
+
+    topology topology(
+        // 1. input layout primitive.
+        input,
+        // 2. reorder primitive with id "reorder_input"
+        reorder("reorder_input", input, byte_layout),
+        pooling("pool1", "reorder_input", pooling_mode::max, { 1, 1, 3, 3 }, {1, 1, 1, 1}),
+        reorder("reorder2", "pool1", out_layout)
+    );
+
+    build_options options_target;
+    options_target.set_option(build_option::outputs({ "reorder2"}));
+    implementation_desc impl = {format::bfyx, std::string(""), impl_types::onednn};
+    options_target.set_option(build_option::force_implementations({{"pool1", impl}}));
+
+    network network(
+        engine,
+        topology,
+        options_target);
+
+    network.set_input_data("input", input_memory);
+
+    auto outputs = network.execute();
+
+    auto interm = outputs.at("reorder2").get_memory();
+    cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
+    unsigned int cntr = 0;
+    for (const auto& exp : final_results)
+    {
+        EXPECT_EQ(exp, interm_ptr[cntr++]);
+    }
+}
+
+#endif   // ENABLE_ONEDNN_FOR_GPU
