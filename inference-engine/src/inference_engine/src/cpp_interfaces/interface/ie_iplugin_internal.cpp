@@ -270,12 +270,17 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 
     std::map<ngraph::Output<ngraph::Node>, ngraph::Output<ngraph::Node>> output_map;
 
+    for (const auto& param : function->get_parameters()) {
+        const_params.emplace_back(std::const_pointer_cast<const ov::op::v0::Parameter>(param));
+    }
+    for (const auto& result : function->get_results()) {
+        const_results.emplace_back(std::const_pointer_cast<const ov::op::v0::Result>(result));
+    }
     for (auto&& node : function->get_ordered_ops()) {
         ngraph::Node* new_node = nullptr;
         if (ngraph::is_type<ngraph::op::Parameter>(node)) {
             const auto param = std::static_pointer_cast<ov::op::v0::Parameter>(node->copy_with_new_inputs({}));
             parameters.push_back(param);
-            const_params.emplace_back(std::const_pointer_cast<const ov::op::v0::Parameter>(param));
             for (std::size_t i = 0; i < node->outputs().size(); ++i) {
                 output_map.emplace(node->output(i), parameters.back()->output(i));
             }
@@ -289,7 +294,6 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
                 const auto result =
                     std::static_pointer_cast<ngraph::op::v0::Result>(node->copy_with_new_inputs(outputs));
                 results.push_back(result);
-                const_results.emplace_back(std::const_pointer_cast<const ov::op::v0::Result>(result));
                 new_node = results.back().get();
             } else {
                 nodes.push_back(

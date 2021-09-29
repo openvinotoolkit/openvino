@@ -179,7 +179,7 @@ std::vector<ov::Output<const ov::Node>> ExecutableNetwork::outputs() const {
     return outputs;
 }
 ov::Output<const ov::Node> ExecutableNetwork::output() const {
-    const auto result = _impl->getParameters();
+    const auto result = _impl->getResults();
     if (result.size() != 1) {
         throw ov::Exception("output() must be called on a function with exactly one parameter.");
     }
