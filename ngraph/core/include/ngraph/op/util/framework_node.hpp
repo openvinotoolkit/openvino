@@ -9,9 +9,7 @@
 
 namespace ngraph {
 namespace op {
-namespace util {
 using ov::op::util::FrameworkNode;
 using ov::op::util::FrameworkNodeAttrs;
-}  // namespace util
 }  // namespace op
 }  // namespace ngraph

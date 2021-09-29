@@ -2,36 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (SRC
-    all_close_f.cpp
-    engine/ie_engines.cpp
-    engine/interpreter_engine.cpp
-    engine/shared_utils.cpp
-    float_util.cpp
-    test_tools.cpp
-    test_case.cpp
-    test_control.cpp
-    visitor.hpp
-    provenance_enabler.hpp
-)
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
-    list(APPEND SRC onnx_test_util.cpp)
+file(GLOB UTIL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
+if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
+    list(REMOVE_ITEM UTIL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/onnx_test_util.cpp ${CMAKE_CURRENT_SOURCE_DIR}/onnx_test_util.hpp)
 endif()
 
-add_library(ngraph_test_util STATIC ${SRC})
+add_library(ngraph_test_util STATIC ${UTIL_SRC})
 
 if(COMMAND ie_faster_build)
-    ie_faster_build(ngraph_test_util
-        UNITY
-    )
+    ie_faster_build(ngraph_test_util UNITY)
 endif()
 
 target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..
     $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
-target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend gtest gmock)
+target_link_libraries(ngraph_test_util PUBLIC ngraph gtest gmock)
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     target_link_libraries(ngraph_test_util PRIVATE onnx_common)
 endif()
+target_include_directories(ngraph_test_util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-file(GLOB_RECURSE util_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
-add_clang_format_target(ngraph_test_util_clang FOR_SOURCES ${util_src})
+file(GLOB_RECURSE all_util_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
+add_clang_format_target(ngraph_test_util_clang FOR_SOURCES ${all_util_src})
