@@ -13,39 +13,53 @@
 #include "base_reference_test.hpp"
 
 using namespace ngraph;
+using namespace reference_tests;
+using namespace InferenceEngine;
 
-namespace reference_tests {
 namespace {
 
 struct CeilingParams {
-    Tensor input;
-    Tensor expected;
-};
+    template <class IT>
+    CeilingParams(const PartialShape& shape,
+               const element::Type& iType,
+               const std::vector<IT>& iValues,
+               const std::vector<IT>& oValues)
+        : pshape(shape),
+          inType(iType),
+          outType(iType),
+          inputData(CreateBlob(iType, iValues)),
+          refData(CreateBlob(iType, oValues)) {}
 
-struct Builder : ParamsBuilder<CeilingParams> {
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, input);
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, expected);
+    PartialShape pshape;
+    element::Type inType;
+    element::Type outType;
+    Blob::Ptr inputData;
+    Blob::Ptr refData;
 };
 
 class ReferenceCeilingLayerTest : public testing::TestWithParam<CeilingParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params.input.shape, params.input.type);
-        inputData = {params.input.data};
-        refOutData = {params.expected.data};
+        function = CreateFunction(params.pshape, params.inType, params.outType);
+        inputData = {params.inputData};
+        refOutData = {params.refData};
     }
+
     static std::string getTestCaseName(const testing::TestParamInfo<CeilingParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
-        result << "shape=" << param.input.shape << "_";
-        result << "type=" << param.input.type;
+        result << "shape=" << param.pshape << "_";
+        result << "iType=" << param.inType << "_";
+        result << "oType=" << param.outType;
         return result.str();
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& shape, const element::Type& type) {
-        const auto in = std::make_shared<op::Parameter>(type, shape);
+    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape,
+                                                    const element::Type& input_type,
+                                                    const element::Type& expected_output_type) {
+        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
         const auto ceiling = std::make_shared<op::Ceiling>(in);
         return std::make_shared<Function>(NodeVector {ceiling}, ParameterVector {in});
     }
@@ -55,27 +69,68 @@ TEST_P(ReferenceCeilingLayerTest, CeilingWithHardcodedRefs) {
     Exec();
 }
 
-}  // namespace
+template <element::Type_t IN_ET>
+std::vector<CeilingParams> generateParamsForCeilingFloat() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<CeilingParams> roundParams{
+        CeilingParams(ngraph::PartialShape{4},
+                      IN_ET,
+                      std::vector<T>{-2.5f, -2.0f, 0.3f, 4.8f},
+                      std::vector<T>{-2.0f, -2.0f, 1.0f, 5.0f})
+    };
+    return roundParams;
+}
+
+template <element::Type_t IN_ET>
+std::vector<CeilingParams> generateParamsForCeilingInt64() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<CeilingParams> roundParams{
+        CeilingParams(ngraph::PartialShape{3},
+                     IN_ET,
+                     std::vector<T>{0, 1, 0x4000000000000001},
+                     std::vector<T>{0, 1, 0x4000000000000001})
+    };
+    return roundParams;
+}
+
+template <element::Type_t IN_ET>
+std::vector<CeilingParams> generateParamsForCeilingInt32() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<CeilingParams> roundParams{
+        CeilingParams(ngraph::PartialShape{4},
+                     IN_ET,
+                     std::vector<T>{2, 136314888, 0x40000010, 0x40000001},
+                     std::vector<T>{2, 136314888, 0x40000010, 0x40000001})
+    };
+    return roundParams;
+}
+
+std::vector<CeilingParams> generateCombinedParamsForCeiling() {
+    const std::vector<std::vector<CeilingParams>> roundTypeParams{
+        generateParamsForCeilingFloat<element::Type_t::f32>(),
+        generateParamsForCeilingFloat<element::Type_t::f16>(),
+        generateParamsForCeilingInt64<element::Type_t::i64>(),
+        generateParamsForCeilingInt32<element::Type_t::i32>(),
+        generateParamsForCeilingInt64<element::Type_t::u64>(),
+        generateParamsForCeilingInt32<element::Type_t::u32>()
+    };
+
+    std::vector<CeilingParams> combinedParams;
+
+    for (const auto& params : roundTypeParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+
+    return combinedParams;
+}
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Ceiling_With_Hardcoded_Refs, ReferenceCeilingLayerTest,
-    ::testing::Values(Builder {}
-                          .input({{4}, element::f16, std::vector<ngraph::float16>{-2.5f, -2.0f, 0.3f, 4.8f}})
-                          .expected({{4}, element::f16, std::vector<ngraph::float16> {-2.0f, -2.0f, 1.0f, 5.0f}}),
-                      Builder {}
-                          .input({{4}, element::f32, std::vector<float> {-2.5f, -2.0f, 0.3f, 4.8f}})
-                          .expected({{4}, element::f32, std::vector<float> {-2.0f, -2.0f, 1.0f, 5.0f}}),
-                      Builder {}
-                          .input({{4}, element::i32, std::vector<int32_t> {-2, -136314888, 0x40000010, 0x40000001}})
-                          .expected({{4}, element::i32, std::vector<int32_t> {-2, -136314888, 0x40000010, 0x40000001}}),
-                      Builder {}
-                          .input({{3}, element::i64, std::vector<int64_t> {0, 1, 0x4000000000000001}})
-                          .expected({{3}, element::i64, std::vector<int64_t> {0, 1, 0x4000000000000001}}),
-                      Builder {}
-                          .input({{4}, element::u32, std::vector<uint32_t> {2, 136314888, 0x40000010, 0x40000001}})
-                          .expected({{4}, element::u32, std::vector<uint32_t> {2, 136314888, 0x40000010, 0x40000001}}),
-                      Builder {}
-                          .input({{3}, element::u64, std::vector<uint64_t> {0, 1, 0x4000000000000001}})
-                          .expected({{3}, element::u64, std::vector<uint64_t>{0, 1, 0x4000000000000001}})),
+    smoke_Ceiling_With_Hardcoded_Refs, 
+    ReferenceCeilingLayerTest,
+    ::testing::ValuesIn(generateCombinedParamsForCeiling()),
     ReferenceCeilingLayerTest::getTestCaseName);
-}  // namespace reference_tests
+
+}  // namespace
