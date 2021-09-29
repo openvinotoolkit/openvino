@@ -1,6 +1,7 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from extensions.ops.tensor_iterator import TensorIterator
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
@@ -9,6 +10,17 @@ from mo.ops.result import Result
 from mo.ops.unsqueeze import Unsqueeze
 from mo.utils.error import Error
 
+def TI_infer(step_node, port_num):
+    out_port_map = step_node.output_port_map
+    for om in out_port_map:
+        if om['external_port_id'] == port_num:
+            int_layer_id = om['internal_layer_id']
+            break
+    int_node_name = TensorIterator.find_internal_layer_id(step_node.body, int_layer_id)
+    int_node = Node(step_node.body, int_node_name)
+    assert int_node.op == 'Result'
+    out_shape = int_node.in_port(0).data.get_shape()
+    step_node.out_port(port_num).data.set_shape(out_shape)
 
 class AddOutputRecursive(BackReplacementPattern):
     """
@@ -64,7 +76,10 @@ class AddOutputRecursive(BackReplacementPattern):
                 res_node['internal_layer_id'] = cur_max_layer_id + 2
                 cur_max_layer_id += 2
                 # infer shapes for new nodes
-                step_node.infer(step_node)
+                if step_node.op == 'TensorIterator':
+                    TI_infer(step_node, p_num)
+                else:
+                    step_node.infer(step_node)
                 unsq_node.infer(unsq_node)
                 res_node.infer(res_node)
                 new_port_id = len(cur_loop_node.in_ports()) + len(cur_loop_node.out_ports())
@@ -82,5 +97,7 @@ class AddOutputRecursive(BackReplacementPattern):
             res_node = Result(graph, {'name': out_name}).create_node()
             port.connect(res_node.in_port(0))
             res_node.infer(res_node)
-
-        step_node.infer(step_node)
+            if step_node.op == 'TensorIterator':
+                TI_infer(step_node, p_num)
+            else:
+                step_node.infer(step_node)
