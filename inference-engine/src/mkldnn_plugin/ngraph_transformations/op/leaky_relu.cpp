@@ -10,7 +10,7 @@ MKLDNNPlugin::LeakyReluNode::LeakyReluNode(const ngraph::Output<ngraph::Node> &d
                                            const float &negative_slope,
                                            const ngraph::element::Type output_type)
     : Op({data}), m_negative_slope(negative_slope), m_output_type(output_type) {
-    constructor_validate_and_infer_types();
+    validate_and_infer_types();
 }
 
 std::shared_ptr<ngraph::Node> MKLDNNPlugin::LeakyReluNode::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
@@ -27,5 +27,6 @@ void MKLDNNPlugin::LeakyReluNode::validate_and_infer_types() {
 
 bool MKLDNNPlugin::LeakyReluNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
     visitor.on_attribute("negative_slope", m_negative_slope);
+    visitor.on_attribute("out-type", m_output_type);
     return true;
 }
