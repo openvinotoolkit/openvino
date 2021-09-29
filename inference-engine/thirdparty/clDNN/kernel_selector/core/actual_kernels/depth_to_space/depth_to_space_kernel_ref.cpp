@@ -28,6 +28,18 @@ ParamsKey DepthToSpaceKernelRef::GetSupportedKey() const {
     return k;
 }
 
+CommonDispatchData DepthToSpaceKernelRef::SetDefault(const depth_to_space_params& params) const {
+    CommonDispatchData dispatchData;
+
+    dispatchData.gws = { params.output.Batch().v,
+                         params.output.Feature().v,
+                         params.output.Z().v * params.output.Y().v * params.output.X().v };
+
+    // this kernel only supports bfyx and b_fs_yx_fsv16 layout.
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes({1, dispatchData.gws[1], dispatchData.gws[2]}, params.engineInfo);
+    return dispatchData;
+}
+
 KernelsData DepthToSpaceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }

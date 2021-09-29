@@ -14,6 +14,7 @@ public:
     DepthToSpaceKernelRef() : DepthToSpaceKernelBase("depth_to_space_ref") {}
     virtual ~DepthToSpaceKernelRef() {}
 
+    CommonDispatchData SetDefault(const depth_to_space_params& params) const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;

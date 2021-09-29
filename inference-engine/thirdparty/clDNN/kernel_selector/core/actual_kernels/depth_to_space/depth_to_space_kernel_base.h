@@ -45,7 +45,7 @@ public:
 protected:
     bool Validate(const Params&, const optional_params&) const override;
     virtual JitConstants GetJitConstants(const depth_to_space_params& params) const;
-    virtual CommonDispatchData SetDefault(const depth_to_space_params& params) const;
+    virtual CommonDispatchData SetDefault(const depth_to_space_params& params) const = 0;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 };
 }  // namespace kernel_selector

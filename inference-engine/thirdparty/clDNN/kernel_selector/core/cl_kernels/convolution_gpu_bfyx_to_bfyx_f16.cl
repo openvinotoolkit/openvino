@@ -9,6 +9,14 @@
 
 #define DT_OUTPUT_BLOCK_WRITEN(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, OUTPUT_X_BLOCK_SIZE, ptr, offset, val)
 
+#define OUTPUT_PACKED_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, OUTPUT_X_BLOCK_SIZE)
+
+#define TO_OUTPUT_PACKED_TYPE CAT(convert_, OUTPUT_PACKED_TYPE)
+
+#if defined(BIAS_TYPE_SIZE) && FILTER_TYPE_SIZE != BIAS_TYPE_SIZE
+#error "convolution_gpu_bfyx_to_bfyx_f16: Filter and bias has different data type."
+#endif
+
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
 KERNEL(convolution_bfyx_to_bfyx_f16)(
@@ -89,7 +97,7 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
     bias_offset += split_idx * BIAS_LENGTH;
 #   endif
 
-    MAKE_VECTOR_TYPE(INPUT0_TYPE, OUTPUT_X_BLOCK_SIZE) dst = (MAKE_VECTOR_TYPE(INPUT0_TYPE, OUTPUT_X_BLOCK_SIZE))(DT_INPUT_BLOCK_READ(biases, bias_offset));
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, OUTPUT_X_BLOCK_SIZE) dst = (MAKE_VECTOR_TYPE(INPUT0_TYPE, OUTPUT_X_BLOCK_SIZE))(DT_BIAS_BLOCK_READ(biases, bias_offset));
 #else
     MAKE_VECTOR_TYPE(INPUT0_TYPE, OUTPUT_X_BLOCK_SIZE) dst = INPUT0_VAL_ZERO;
 #endif
@@ -143,9 +151,9 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
         }
     }
 
-    MAKE_VECTOR_TYPE(OUTPUT_TYPE, OUTPUT_X_BLOCK_SIZE) res;
+    OUTPUT_PACKED_TYPE res;
 #ifndef HAS_FUSED_OPS
-    res = ACTIVATION(dst, ACTIVATION_PARAMS);
+    res = TO_OUTPUT_PACKED_TYPE(ACTIVATION(dst, ACTIVATION_PARAMS));
 #endif
 
 #if OUTPUT_LEFTOVERS
