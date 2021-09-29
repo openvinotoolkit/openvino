@@ -11,7 +11,7 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND DEPENDENCIES test_model_zoo)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}/func_tests/models/")
 else()
-    set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/onnx)
+    set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx)
 endif()
 
 addIeTarget(
