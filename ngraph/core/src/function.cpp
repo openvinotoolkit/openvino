@@ -18,10 +18,13 @@
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
 
@@ -650,61 +653,59 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         return;
 
     const auto& params = get_parameters();
-    std::set<std::string> used_shapes;
+    std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Parameter>> tensor_param_map;
 
     // Check that we need to do reshape only if input shapes will be changed
-    bool needReshape = false;
-    for (const auto& param : params) {
-        const auto it = partial_shapes.find(param->get_friendly_name());
-        if (it == partial_shapes.end()) {
-            continue;
-        }
-        used_shapes.insert(it->first);
-        if (param->get_output_partial_shape(0).is_dynamic() || param->get_output_partial_shape(0) != it->second) {
-            needReshape = true;
-            break;
-        }
-    }
+    bool need_reshape = false;
+    for (const auto& partial_shape : partial_shapes) {
+        bool shape_is_used = false;
 
-    for (const auto & partial_shape : partial_shapes) {
-        OPENVINO_ASSERT(used_shapes.count(partial_shape.first) != 0,
+        for (const auto & param : params) {
+            const auto & tensor_names = param->get_output_tensor(0).get_names();
+
+            if (tensor_names.count(partial_shape.first)) {
+                shape_is_used = true;
+                tensor_param_map[partial_shape.first] = param;
+                if (param->get_output_partial_shape(0).is_dynamic() ||
+                    param->get_output_partial_shape(0) != partial_shape.second) {
+                    need_reshape = true;
+                }
+                break;
+            }
+        }
+
+        OPENVINO_ASSERT(shape_is_used,
             "PartialShape for tensor with name '", partial_shape.first,
             "' is not used in ov::Function::reshape");
     }
 
-    if (!needReshape)
+    if (!need_reshape)
         return;
 
     // save original parameters shape
-    std::map<std::string, ov::PartialShape> originalInputShapes;
+    std::map<std::string, ov::PartialShape> original_input_shapes;
     for (const auto& param : params) {
-        originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
+        std::string any_tensor_name = *param->get_output_tensor(0).get_names().begin();
+        original_input_shapes[any_tensor_name] = param->get_output_partial_shape(0);
     }
+
+    auto reshape_only = [&] (const std::map<std::string, ov::PartialShape>& pshapes) {
+        for (const auto & pshape : pshapes) {
+            tensor_param_map[pshape.first]->set_partial_shape(pshape.second);
+        }
+
+        validate_nodes_and_infer_types();
+    };
 
     try {
         ov::pass::Manager ssr_manager;
-        // ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
         ssr_manager.run_passes(shared_from_this());
 
-        std::map<std::string, ov::PartialShape> reshapeShapes;
-        for (const auto& item : partial_shapes) {
-            reshapeShapes[item.first] = item.second;
-        }
-
-        bool parameter_replaced = false;
-        for (size_t i = 0; i < params.size(); i++) {
-            auto& param = params[i];
-            if (reshapeShapes.find(param->get_friendly_name()) == reshapeShapes.end())
-                continue;
-            param->set_partial_shape(reshapeShapes.at(param->get_friendly_name()));
-            parameter_replaced = true;
-        }
-
-        if (parameter_replaced)
-            validate_nodes_and_infer_types();
+        reshape_only(partial_shapes);
     } catch (std::exception& ex) {
         // restore shapes to original ones
-        reshape(originalInputShapes);
+        reshape_only(original_input_shapes);
         throw ex;
     }
 }

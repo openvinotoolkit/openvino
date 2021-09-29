@@ -519,8 +519,7 @@ TEST(function_reshape, ReshapedDynamicShapeLayout) {
         ov::PartialShape shape({-1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        param->set_friendly_name("param_0");
-        param->get_output_tensor(0).set_names({"tensor_0"});
+        param->get_output_tensor(0).set_names({"tensor"});
         auto relu = std::make_shared<ov::op::v0::Relu>(param);
 
         ov::ParameterVector params = {param};
@@ -530,7 +529,7 @@ TEST(function_reshape, ReshapedDynamicShapeLayout) {
     EXPECT_TRUE(ngraph->input().get_partial_shape().is_dynamic());
 
     std::map<std::string, ov::PartialShape> new_shape;
-    new_shape["param_0"] = ov::Shape{1, 3, 22, 22};
+    new_shape["tensor"] = ov::Shape{1, 3, 22, 22};
     ASSERT_NO_THROW(ngraph->reshape(new_shape));
 
     EXPECT_FALSE(ngraph->input().get_partial_shape().is_dynamic());
@@ -543,7 +542,7 @@ TEST(function_reshape, ReshapeBatchReLU) {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        param->set_friendly_name("param_0");
+        param->get_output_tensor(0).set_names({"tensor"});
         auto relu = std::make_shared<ov::op::v0::Relu>(param);
         auto result = std::make_shared<ov::op::v0::Result>(relu);
 
@@ -558,7 +557,7 @@ TEST(function_reshape, ReshapeBatchReLU) {
 
     {
         std::map<std::string, ov::PartialShape> new_shape;
-        new_shape["param_0"] = ov::PartialShape{2, 3, 22, 22};
+        new_shape["tensor"] = ov::PartialShape{2, 3, 22, 22};
         ASSERT_NO_THROW(ngraph->reshape(new_shape));
     }
 
@@ -572,7 +571,7 @@ TEST(function_reshape, ReshapeSpatialReLU) {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        param->set_friendly_name("param_0");
+        param->get_output_tensor(0).set_names({"tensor"});
         auto relu = std::make_shared<ov::op::v0::Relu>(param);
         auto result = std::make_shared<ov::op::v0::Result>(relu);
 
@@ -587,7 +586,7 @@ TEST(function_reshape, ReshapeSpatialReLU) {
 
     {
         std::map<std::string, ov::PartialShape> new_shape;
-        new_shape["param_0"] = ov::PartialShape{1, 3, 25, 25};
+        new_shape["tensor"] = ov::PartialShape{1, 3, 25, 25};
         ASSERT_NO_THROW(ngraph->reshape(new_shape));
     }
 
@@ -629,7 +628,7 @@ TEST(function_reshape, ReshapeSpatialReLUStaticToDynamic) {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        param->set_friendly_name("data");
+        param->get_output_tensor(0).set_names({"tensor"});
         auto relu = std::make_shared<ov::op::v0::Relu>(param);
         auto result = std::make_shared<ov::op::v0::Result>(relu);
 
@@ -644,7 +643,7 @@ TEST(function_reshape, ReshapeSpatialReLUStaticToDynamic) {
 
     {
         std::map<std::string, ov::PartialShape> new_shape;
-        new_shape["data"] = refShape;
+        new_shape["tensor"] = refShape;
         ASSERT_NO_THROW(ngraph->reshape(new_shape));
     }
 
@@ -661,7 +660,7 @@ TEST(function_reshape, ReshapeSpatialReLUStaticToFullyDynamic) {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        param->set_friendly_name("data");
+        param->get_output_tensor(0).set_names({"tensor"});
         auto relu = std::make_shared<ov::op::v0::Relu>(param);
         auto result = std::make_shared<ov::op::v0::Result>(relu);
 
@@ -676,7 +675,7 @@ TEST(function_reshape, ReshapeSpatialReLUStaticToFullyDynamic) {
 
     {
         std::map<std::string, ov::PartialShape> new_shape;
-        new_shape["data"] = refShape;
+        new_shape["tensor"] = refShape;
         ASSERT_NO_THROW(ngraph->reshape(new_shape));
     }
 
@@ -693,7 +692,7 @@ TEST(function_reshape, ReshapeSpatialReLUDynamicToDynamic) {
         ov::PartialShape shape({1, 3, 22, ov::Dimension::dynamic()});
         ov::element::Type type(ov::element::Type_t::f32);
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        param->set_friendly_name("data");
+        param->get_output_tensor(0).set_names({"tensor"});
         auto relu = std::make_shared<ov::op::v0::Relu>(param);
         auto result = std::make_shared<ov::op::v0::Result>(relu);
 
@@ -708,7 +707,7 @@ TEST(function_reshape, ReshapeSpatialReLUDynamicToDynamic) {
 
     {
         std::map<std::string, ov::PartialShape> new_shape;
-        new_shape["data"] = refShape;
+        new_shape["tensor"] = refShape;
         ASSERT_NO_THROW(ngraph->reshape(new_shape));
     }
 
@@ -722,32 +721,35 @@ TEST(function_reshape, TestInvalidReshape) {
     std::shared_ptr<ov::Function> f;
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
-        input->set_friendly_name("input");
+        input->get_output_tensor(0).set_names({"tensor"});
         auto shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 4000});
         auto reshape = std::make_shared<ov::op::v1::Reshape>(input, shape, true);
         f = std::make_shared<ov::Function>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }
 
-    ASSERT_ANY_THROW(f->reshape({{"input", ov::Shape({4})}}));
+    ASSERT_ANY_THROW(f->reshape({{"tensor", ov::Shape({4})}}));
 
     auto param = f->get_parameters().front();
     ASSERT_EQ(param->get_output_shape(0), ov::Shape({1, 1000, 4}));
 
-    ASSERT_NO_THROW(f->reshape({{"input", ov::Shape({1, 1000, 4})}}));
+    ASSERT_NO_THROW(f->reshape({{"tensor", ov::Shape({1, 1000, 4})}}));
 }
 
-TEST(function_reshape, TestReshapeWithInvalidName) {
+TEST(function_reshape, TestReshapeWithInvalidTensorName) {
     std::shared_ptr<ov::Function> f;
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
-        input->set_friendly_name("input");
+        input->set_friendly_name("param");
+        input->get_output_tensor(0).set_names({"tensor"});
         auto shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 4000});
         auto reshape = std::make_shared<ov::op::v1::Reshape>(input, shape, true);
         f = std::make_shared<ov::Function>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }
 
-    ASSERT_ANY_THROW(f->reshape({{"input", ov::Shape({4, 4, 4})},
-                                 {"input2", ov::Shape({4, 4, 4})}}));
+    // both operation names and tensor names are specified
+    ASSERT_ANY_THROW(f->reshape({{"param", ov::Shape({4, 4, 4})},
+                                 {"tensor", ov::Shape({4, 4, 4})}}));
 
-    ASSERT_ANY_THROW(f->reshape({{"input2", ov::Shape({4, 4, 4})}}));
+    // operation name does not work
+    ASSERT_ANY_THROW(f->reshape({{"param", ov::Shape({4, 4, 4})}}));
 }
