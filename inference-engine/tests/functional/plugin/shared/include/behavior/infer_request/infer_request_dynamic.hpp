@@ -102,8 +102,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
     const std::string param_name = "Param_1";
     std::map<std::string, ov::PartialShape> shapes;
     shapes[param_name] = {ov::Dimension(0, 5), 4, 20, 20};
-    // TODO: ov::Function->reshape
-    // cnnNet.reshape(shapes);
+    function->reshape(shapes);
     // Load ov::Function to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
@@ -120,8 +119,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
     shapes[param_name] = {ov::Dimension::dynamic(), 4, 20, 20};
-    // TODO: reshape
-    // cnnNet.reshape(shapes);
+    function->reshape(shapes);
     // Load ov::Function to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
@@ -145,8 +143,7 @@ TEST_P(InferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
     shapes[param_name] = {ov::Dimension(0, 19), 4, 20, 20};
-    // TODO: reshape
-    // cnnNet.reshape(shapes);
+    function->reshape(shapes);
     // Load ov::Function to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
@@ -170,8 +167,7 @@ TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorLower) 
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
     shapes[param_name] = {ov::Dimension(2, 3), 4, 20, 20};
-    // TODO: reshape
-    // cnnNet.reshape(shapes);
+    function->reshape(shapes);
     // Load ov::Function to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
@@ -190,8 +186,7 @@ TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorUpper) 
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
     shapes[param_name] = {ov::Dimension(1, 2), 4, 20, 20};
-    // TODO: reshape
-    // cnnNet.reshape(shapes);
+    function->reshape(shapes);
     // Load ov::Function to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
@@ -212,8 +207,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
     const ov::Shape refOutShape2 = inOutShapes[1].second;
     std::map<std::string, ov::PartialShape> shapes;
     shapes[param_name] = {ov::Dimension::dynamic(), 4, 20, 20};
-    // TODO: reshape
-    // cnnNet.reshape(shapes);
+    function->reshape(shapes);
     // Load ov::Function to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
@@ -245,8 +239,7 @@ TEST_P(InferRequestDynamicTests, GetSameTensor2times) {
     const ov::Shape refShape = inOutShapes[0].first;
     std::map<std::string, ov::PartialShape> shapes;
     shapes[param_name] = {ov::Dimension::dynamic(), 4, 20, 20};
-    // TODO: reshape
-    // cnnNet.reshape(shapes);
+    function->reshape(shapes);
     // Load ov::Function to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
@@ -266,8 +259,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetTensor) {
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
     shapes[param_name] = {ov::Dimension::dynamic(), 4, 20, 20};
-    // TODO: reshape
-    // cnnNet.reshape(shapes);
+    function->reshape(shapes);
     // Load ov::Function to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
@@ -291,8 +283,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     const ov::Shape refOutShape2 = inOutShapes[1].second;
     std::map<std::string, ov::PartialShape> shapes;
     shapes[param_name] = {ov::Dimension::dynamic(), 4, 20, 20};
-    // TODO: reshape
-    // cnnNet.reshape(shapes);
+    function->reshape(shapes);
     // Load ov::Function to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest

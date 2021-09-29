@@ -14,6 +14,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
@@ -639,4 +640,50 @@ ov::Output<ov::Node> ov::Function::input(const std::string& tensor_name) {
             return param;
     }
     throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+}
+
+void ov::Function::reshape(const std::map<std::string, ov::PartialShape> &partial_shapes) {
+    if (partial_shapes.empty())
+        return;
+
+    const auto& params = get_parameters();
+
+    // Check that we need to do reshape only if input shapes will be changed
+    bool needReshape = false;
+    for (const auto& param : params) {
+        const auto it = partial_shapes.find(param->get_friendly_name());
+        if (it == partial_shapes.end()) {
+            continue;
+        }
+        if (param->get_output_partial_shape(0).is_dynamic() || param->get_output_partial_shape(0) != it->second) {
+            needReshape = true;
+            break;
+        }
+    }
+
+    if (!needReshape)
+        return;
+
+    // save original parameters shape
+    std::map<std::string, ov::PartialShape> originalInputShapes;
+    for (const auto& param : params) {
+        originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
+    }
+
+    try {
+        ov::pass::Manager ssr_manager;
+        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+        ssr_manager.run_passes(enable_shared_from_this());
+
+        std::map<std::string, ov::PartialShape> reshapeShapes;
+        for (const auto& item : partial_shapes) {
+            reshapeShapes[item.first] = ov::PartialShape(item.second);
+        }
+        reshape(reshapeShapes);
+    } catch (std::exception& ex) {
+        reshape(originalInputShapes);
+        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
+    }
+
+    return OK;
 }
