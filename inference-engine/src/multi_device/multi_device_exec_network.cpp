@@ -196,7 +196,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
             static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
             0 /*default threads per stream, workaround for ticket 62376*/,
             IStreamsExecutor::ThreadBindingType::NONE});
-
+    std::vector<Task> loads;
     for (auto& p : needLoadDevices) {
         // initialize these containers firstly to avoid insert operation in threads
         _idleWorkerRequests[p.deviceName];
@@ -206,7 +206,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         const auto deviceConfig = p.config;
         // will not wait for loading accelerator network,
         // so some parameters need to be transferred by value.
-       _executor->run([&, modelPath, network, device, deviceConfig]() {
+        loads.push_back([&, modelPath, network, device, deviceConfig]() {
             SoExecutableNetworkInternal executableNetwork;
             if (!modelPath.empty()) {
                 executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
@@ -223,6 +223,10 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 _cpuPromise.set_value(executableNetwork);
             }
         });
+    }
+
+    for (auto& task : loads) {
+         _executor->run(task);
     }
 
     WaitFirstNetworkReady();
