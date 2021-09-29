@@ -19,14 +19,14 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::InitNodeInfo, "InitNodeInfo", 0);
 bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(InitNodeInfo);
     std::vector<std::shared_ptr<Variant> > attributes {
-        std::make_shared<VariantWrapper<FusedNames> >(FusedNames())
+        std::make_shared<VariantWrapper<ngraph::FusedNames> >(ngraph::FusedNames())
     };
 
     using VariantCreator = std::function<std::shared_ptr<Variant>(const std::string&)>;
     std::map<std::string, VariantCreator> update_attributes {
             {"PrimitivesPriority",
                 [](const std::string & value) -> std::shared_ptr<Variant> {
-                    return std::make_shared<VariantWrapper<PrimitivesPriority> >(PrimitivesPriority(value));
+                    return std::make_shared<VariantWrapper<ov::PrimitivesPriority> >(ov::PrimitivesPriority(value));
                 }
             }
     };
@@ -42,9 +42,9 @@ bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Functio
         // Default attributes initialization
         for (auto & attr : attributes) {
             // Skip initialization if attribute has been already set
-            if (rtInfo.count(attr->get_type_info().name)) continue;
+            if (rtInfo.count(attr->get_type_info())) continue;
             if (auto init_attr = attr->init(node)) {
-                rtInfo[attr->get_type_info().name] = init_attr;
+                rtInfo[attr->get_type_info()] = init_attr;
             }
         }
         // Convert manually set attributes to appropriate VariantWrapper class instances
@@ -54,7 +54,7 @@ bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Functio
                 if (auto variant_string = std::dynamic_pointer_cast<VariantWrapper<std::string> >(rtInfo[attr.first])) {
                     rtInfo.erase(attr.first);
                     auto res = attr.second(variant_string->get());
-                    rtInfo[res->get_type_info().name] = res;
+                    rtInfo[res->get_type_info()] = res;
                 }
             }
         }
