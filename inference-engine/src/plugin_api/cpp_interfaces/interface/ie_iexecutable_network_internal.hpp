@@ -17,7 +17,13 @@
 
 namespace ov {
 class Function;
-}
+namespace op {
+namespace v0 {
+class Parameter;
+class Result;
+}  // namespace v0
+}  // namespace op
+}  // namespace ov
 namespace InferenceEngine {
 
 class IInferencePlugin;
@@ -49,6 +55,25 @@ public:
      * @param[in]  networkOutputs  The network outputs
      */
     virtual void setNetworkOutputs(const OutputsDataMap& networkOutputs);
+
+    /**
+     * @brief      Sets the network parameters
+     * @param[in]  params  The network parameters
+     */
+    virtual void setParameters(const std::vector<std::shared_ptr<const ov::op::v0::Parameter>>& params);
+    /**
+     * @brief      Returns the network parameters
+     */
+    virtual const std::vector<std::shared_ptr<const ov::op::v0::Parameter>>& getParameters() const;
+    /**
+     * @brief      Sets the network results
+     * @param[in]  params  The network results
+     */
+    virtual void setResult(const std::vector<std::shared_ptr<const ov::op::v0::Result>>& results);
+    /**
+     * @brief      Returns the network results
+     */
+    virtual const std::vector<std::shared_ptr<const ov::op::v0::Result>>& getResults() const;
 
     /**
      * @brief      Sets function with network inputs and outpus info
@@ -153,6 +178,8 @@ protected:
     std::shared_ptr<ov::Function> _runtime_function;  //!< Holds information about network inputs and outputs
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
+    std::vector<std::shared_ptr<const ov::op::v0::Parameter>> _parameters;
+    std::vector<std::shared_ptr<const ov::op::v0::Result>> _results;
 
     /**
      * @brief A pointer to a IInferencePlugin interface.

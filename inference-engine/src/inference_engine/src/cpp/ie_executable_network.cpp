@@ -133,44 +133,68 @@ std::shared_ptr<const Function> ExecutableNetwork::get_runtime_function() const 
     OV_EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Function>(_impl->GetExecGraphInfo()));
 }
 
-ParameterVector ExecutableNetwork::get_parameters() const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_parameters());
-}
-std::vector<ov::Output<const ov::Node>> ExecutableNetwork::inputs() const {
-    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
-    OV_EXEC_NET_CALL_STATEMENT(return func->inputs());
-}
-ov::Output<const ov::Node> ExecutableNetwork::input() const {
-    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
-    OV_EXEC_NET_CALL_STATEMENT(return func->input());
-}
-ov::Output<const ov::Node> ExecutableNetwork::input(size_t i) const {
-    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
-    OV_EXEC_NET_CALL_STATEMENT(return func->input(i));
-}
-ov::Output<const ov::Node> ExecutableNetwork::input(const std::string& tensor_name) const {
-    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
-    OV_EXEC_NET_CALL_STATEMENT(return func->input(tensor_name));
+ConstParameterVector ExecutableNetwork::get_parameters() const {
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->getParameters());
 }
 
-ResultVector ExecutableNetwork::get_results() const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_results());
+std::vector<ov::Output<const ov::Node>> ExecutableNetwork::inputs() const {
+    std::vector<ov::Output<const ov::Node>> inputs;
+    for (const auto& input : _impl->getParameters()) {
+        std::shared_ptr<const ov::Node> parameter = input;
+        inputs.emplace_back(parameter);
+    }
+    return inputs;
+}
+
+ov::Output<const ov::Node> ExecutableNetwork::input() const {
+    const auto params = _impl->getParameters();
+    if (params.size() != 1) {
+        throw ov::Exception("input() must be called on a function with exactly one parameter.");
+    }
+    return params.at(0);
+}
+
+ov::Output<const ov::Node> ExecutableNetwork::input(size_t i) const {
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->getParameters().at(i));
+}
+
+ov::Output<const ov::Node> ExecutableNetwork::input(const std::string& tensor_name) const {
+    for (const auto& param : _impl->getParameters()) {
+        if (param->get_output_tensor(0).get_names().count(tensor_name)) {
+            return param;
+        }
+    }
+    throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+}
+
+ConstResultVector ExecutableNetwork::get_results() const {
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->getResults());
 }
 std::vector<ov::Output<const ov::Node>> ExecutableNetwork::outputs() const {
-    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
-    OV_EXEC_NET_CALL_STATEMENT(return func->outputs());
+    std::vector<ov::Output<const ov::Node>> outputs;
+    for (const auto& input : _impl->getResults()) {
+        std::shared_ptr<const ov::Node> result = input;
+        outputs.emplace_back(result);
+    }
+    return outputs;
 }
 ov::Output<const ov::Node> ExecutableNetwork::output() const {
-    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
-    OV_EXEC_NET_CALL_STATEMENT(return func->output());
+    const auto result = _impl->getParameters();
+    if (result.size() != 1) {
+        throw ov::Exception("output() must be called on a function with exactly one parameter.");
+    }
+    return result.at(0);
 }
 ov::Output<const ov::Node> ExecutableNetwork::output(size_t i) const {
-    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
-    OV_EXEC_NET_CALL_STATEMENT(return func->output(i));
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->getResults().at(i));
 }
 ov::Output<const ov::Node> ExecutableNetwork::output(const std::string& tensor_name) const {
-    const std::shared_ptr<const Function>& func = _impl->GetExecGraphInfo();
-    OV_EXEC_NET_CALL_STATEMENT(return func->output(tensor_name));
+    for (const auto& result : _impl->getResults()) {
+        if (result->get_output_tensor(0).get_names().count(tensor_name)) {
+            return result;
+        }
+    }
+    throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
 }
 
 InferRequest ExecutableNetwork::create_infer_request() {

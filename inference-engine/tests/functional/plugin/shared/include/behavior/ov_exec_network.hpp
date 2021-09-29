@@ -22,6 +22,7 @@ TEST_P(OVExecNetwork, getInputFromFunctionWithSingleInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::ExecutableNetwork execNet;
+
     ASSERT_NO_THROW(execNet = ie->compile_model(function, targetDevice, configuration));
     ASSERT_EQ(function->inputs().size(), 1);
     ASSERT_EQ(function->inputs().size(), execNet.inputs().size());

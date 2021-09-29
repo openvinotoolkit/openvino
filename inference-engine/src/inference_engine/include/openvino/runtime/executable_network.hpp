@@ -64,7 +64,7 @@ public:
      *
      * @return vector of paramter nodes
      */
-    ParameterVector get_parameters() const;
+    ConstParameterVector get_parameters() const;
     std::vector<ov::Output<const ov::Node>> inputs() const;
     ov::Output<const ov::Node> input() const;
     ov::Output<const ov::Node> input(size_t i) const;
@@ -75,7 +75,7 @@ public:
      *
      * @return vector of result nodes
      */
-    ResultVector get_results() const;
+    ConstResultVector get_results() const;
     std::vector<ov::Output<const ov::Node>> outputs() const;
     ov::Output<const ov::Node> output() const;
     ov::Output<const ov::Node> output(size_t i) const;

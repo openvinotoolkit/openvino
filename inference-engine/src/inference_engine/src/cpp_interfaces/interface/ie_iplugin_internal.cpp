@@ -265,12 +265,17 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     ngraph::ResultVector results;
     ngraph::NodeVector nodes;
 
+    std::vector<std::shared_ptr<const ov::op::v0::Parameter>> const_params;
+    std::vector<std::shared_ptr<const ov::op::v0::Result>> const_results;
+
     std::map<ngraph::Output<ngraph::Node>, ngraph::Output<ngraph::Node>> output_map;
 
     for (auto&& node : function->get_ordered_ops()) {
         ngraph::Node* new_node = nullptr;
         if (ngraph::is_type<ngraph::op::Parameter>(node)) {
-            parameters.push_back(std::static_pointer_cast<ngraph::op::v0::Parameter>(node->clone_with_new_inputs({})));
+            const auto param = std::static_pointer_cast<ov::op::v0::Parameter>(node->copy_with_new_inputs({}));
+            parameters.push_back(param);
+            const_params.emplace_back(std::const_pointer_cast<const ov::op::v0::Parameter>(param));
             for (std::size_t i = 0; i < node->outputs().size(); ++i) {
                 output_map.emplace(node->output(i), parameters.back()->output(i));
             }
@@ -281,8 +286,10 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
                 outputs.emplace_back(output_map.at(input.get_source_output()));
             }
             if (ngraph::is_type<ngraph::op::Result>(node)) {
-                results.push_back(
-                    std::static_pointer_cast<ngraph::op::v0::Result>(node->clone_with_new_inputs(outputs)));
+                const auto result =
+                    std::static_pointer_cast<ngraph::op::v0::Result>(node->copy_with_new_inputs(outputs));
+                results.push_back(result);
+                const_results.emplace_back(std::const_pointer_cast<const ov::op::v0::Result>(result));
                 new_node = results.back().get();
             } else {
                 nodes.push_back(
@@ -302,6 +309,9 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         new_node->get_rt_info()[ExecGraphInfoSerialization::ORIGINAL_NAMES] =
             std::make_shared<::ngraph::VariantWrapper<std::string>>(node->get_friendly_name());
     }
+
+    exeNetwork->setParameters(const_params);
+    exeNetwork->setResult(const_results);
     exeNetwork->setRuntimeFunction(
         std::make_shared<ov::Function>(results, parameters, function->get_friendly_name() + "_execution_info"));
     exeNetwork->SetPointerToPlugin(shared_from_this());
