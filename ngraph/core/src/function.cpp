@@ -660,8 +660,8 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
     for (const auto& partial_shape : partial_shapes) {
         bool shape_is_used = false;
 
-        for (const auto & param : params) {
-            const auto & tensor_names = param->get_output_tensor(0).get_names();
+        for (const auto& param : params) {
+            const auto& tensor_names = param->get_output_tensor(0).get_names();
 
             if (tensor_names.count(partial_shape.first)) {
                 shape_is_used = true;
@@ -675,8 +675,9 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         }
 
         OPENVINO_ASSERT(shape_is_used,
-            "PartialShape for tensor with name '", partial_shape.first,
-            "' is not used in ov::Function::reshape");
+                        "PartialShape for tensor with name '",
+                        partial_shape.first,
+                        "' is not used in ov::Function::reshape");
     }
 
     if (!need_reshape)
@@ -689,8 +690,8 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         original_input_shapes[any_tensor_name] = param->get_output_partial_shape(0);
     }
 
-    auto reshape_only = [&] (const std::map<std::string, ov::PartialShape>& pshapes) {
-        for (const auto & pshape : pshapes) {
+    auto reshape_only = [&](const std::map<std::string, ov::PartialShape>& pshapes) {
+        for (const auto& pshape : pshapes) {
             tensor_param_map[pshape.first]->set_partial_shape(pshape.second);
         }
 

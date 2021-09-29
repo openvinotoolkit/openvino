@@ -747,8 +747,7 @@ TEST(function_reshape, TestReshapeWithInvalidTensorName) {
     }
 
     // both operation names and tensor names are specified
-    ASSERT_ANY_THROW(f->reshape({{"param", ov::Shape({4, 4, 4})},
-                                 {"tensor", ov::Shape({4, 4, 4})}}));
+    ASSERT_ANY_THROW(f->reshape({{"param", ov::Shape({4, 4, 4})}, {"tensor", ov::Shape({4, 4, 4})}}));
 
     // operation name does not work
     ASSERT_ANY_THROW(f->reshape({{"param", ov::Shape({4, 4, 4})}}));
