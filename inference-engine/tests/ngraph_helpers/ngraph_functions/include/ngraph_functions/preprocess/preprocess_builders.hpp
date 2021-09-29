@@ -220,11 +220,23 @@ inline std::shared_ptr<Function> resize_linear() {
 
 inline std::shared_ptr<Function> resize_nearest() {
     using namespace ov::preprocess;
-    auto function = create_preprocess_1input(element::f32, PartialShape{1, 10, 10, 3});
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 10, 10});
     function = PrePostProcessor()
             .input(InputInfo()
                            .tensor(InputTensorInfo().set_spatial_static_shape(20, 20))
                            .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_NEAREST))
+                           .network(InputNetworkInfo().set_layout("NCHW")))
+            .build(function);
+    return function;
+}
+
+inline std::shared_ptr<Function> resize_linear_nhwc() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 10, 10, 3});
+    function = PrePostProcessor()
+            .input(InputInfo()
+                           .tensor(InputTensorInfo().set_spatial_static_shape(20, 20))
+                           .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
                            .network(InputNetworkInfo().set_layout("NHWC")))
             .build(function);
     return function;
@@ -259,6 +271,7 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(tensor_layout, "tensor_layout", 0.01f),
             preprocess_func(resize_linear, "resize_linear", 0.01f),
             preprocess_func(resize_nearest, "resize_nearest", 0.01f),
+            preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
             preprocess_func(resize_cubic, "resize_cubic", 0.01f),
     };
 }
