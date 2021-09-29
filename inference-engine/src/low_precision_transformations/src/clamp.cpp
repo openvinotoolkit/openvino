@@ -32,41 +32,20 @@ ClampTransformation::ClampTransformation(const Params& params) : LayerTransforma
 }
 
 bool ClampTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
-    auto subWithTheSameValues = [](std::shared_ptr<ngraph::opset1::Subtract> sub) {
-        if (sub == nullptr) {
-            return false;
-        }
-
-        auto constant = as_type_ptr<ngraph::opset1::Constant>(sub->get_input_node_shared_ptr(1));
-        if (constant == nullptr) {
-            const auto convert = sub->get_input_node_shared_ptr(1);
-            if (!is_type<ngraph::opset1::Convert>(convert)) {
-                return false;
-            }
-            constant = as_type_ptr<ngraph::opset1::Constant>(convert->get_input_node_shared_ptr(0));
-        }
-
-        if (constant == nullptr) {
-            return false;
-        }
-
-        return NetworkHelper::isScalarLike(constant);
-    };
-
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
 
-    std::shared_ptr<Node> clamp = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
+    const std::shared_ptr<Node> clamp = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(clamp);
 
-    const bool moveSubtract = subWithTheSameValues(dequantization.subtract);
+    const bool moveSubtract = dequantization.subtract == nullptr ? false : NetworkHelper::isScalarLike(dequantization.subtractConstant);
     // issue #43136
     if (!moveSubtract && (dequantization.subtract != nullptr)) {
         return false;
     }
 
-    const auto newClamp = as_type_ptr<opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
+    const auto newClamp = ov::as_type_ptr<opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
 
     std::shared_ptr<ngraph::opset1::Clamp> replacement;
     {
@@ -74,7 +53,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         double max = newClamp->get_max();
 
         if (dequantization.multiply != nullptr) {
-            double scale = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<double>()[0];
+            double scale = dequantization.multiplyConstant->cast_vector<double>()[0];
             if (scale < 0.0) {
                 std::swap(min, max);
             }
@@ -83,14 +62,16 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         }
 
         if (dequantization.subtract != nullptr && moveSubtract) {
-            double shift = as_type_ptr<opset1::Constant>(dequantization.subtractConstant)->cast_vector<double>()[0];
+            double shift = dequantization.subtractConstant->cast_vector<double>()[0];
             min += shift;
             max += shift;
         }
 
-        replacement = std::make_shared<ngraph::opset1::Clamp>(newClamp->get_input_source_output(0), min, max);
+        replacement = std::make_shared<ngraph::opset1::Clamp>(newClamp->input_value(0), min, max);
     }
+
     replace_node(newClamp, replacement);
+    replacement->set_friendly_name(newClamp->get_friendly_name());
 
     element::Type outputClampType = dequantization.multiply ?
         dequantization.multiply->get_output_element_type(0) :

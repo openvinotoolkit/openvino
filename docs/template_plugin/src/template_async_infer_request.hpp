@@ -13,8 +13,10 @@ namespace TemplatePlugin {
 // ! [async_infer_request:header]
 class TemplateAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
-    TemplateAsyncInferRequest(const TemplateInferRequest::Ptr& inferRequest, const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
-                              const InferenceEngine::ITaskExecutor::Ptr& waitExecutor, const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
+    TemplateAsyncInferRequest(const TemplateInferRequest::Ptr& inferRequest,
+                              const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
+                              const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
+                              const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
 
     ~TemplateAsyncInferRequest();
 

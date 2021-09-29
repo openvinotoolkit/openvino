@@ -4,13 +4,13 @@
 
 #include <frontend/shared/include/utils.hpp>
 #include <frontend_manager/frontend_manager.hpp>
-#include <memory>
+
 #include "gtest/gtest.h"
+#include "paddle_utils.hpp"
 
 using namespace ngraph::frontend;
 
-const std::string model_file =
-    std::string(TEST_PDPD_MODELS_DIRNAME) + "place_test_model/place_test_model.pdmodel";
+const std::string model_file = std::string(TEST_PADDLE_MODELS_DIRNAME) + "place_test_model/place_test_model.pdmodel";
 
 /***
 model:
@@ -53,26 +53,27 @@ std::vector<std::string> tensor_names = {
     "save_infer_model/scale_5.tmp_1",
 };
 
-TEST(PDPD_Places, check_tensor_names)
-{
+TEST(PDPD_Places, check_tensor_names) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
-    for (const auto& tensor_name : tensor_names)
-    {
+    for (const auto& tensor_name : tensor_names) {
         auto place = input_model->get_place_by_tensor_name(tensor_name);
         EXPECT_NE(place, nullptr);
     }
 }
 
-TEST(PDPD_Places, check_input_outputs)
-{
+TEST(PDPD_Places, check_input_outputs) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     auto inputs = input_model->get_inputs();
     auto outputs = input_model->get_outputs();
@@ -90,27 +91,25 @@ TEST(PDPD_Places, check_input_outputs)
                                              "save_infer_model/scale_4.tmp_1",
                                              "save_infer_model/scale_5.tmp_1"};
 
-    for (const auto& name : output_names)
-    {
+    for (const auto& name : output_names) {
         const auto output_place = input_model->get_place_by_tensor_name(name);
-        auto it =
-            std::find_if(outputs.begin(), outputs.end(), [&output_place](const Place::Ptr& place) {
-                return output_place->is_equal(place);
-            });
+        auto it = std::find_if(outputs.begin(), outputs.end(), [&output_place](const Place::Ptr& place) {
+            return output_place->is_equal(place);
+        });
         EXPECT_NE(it, outputs.end());
     }
 }
 
 // all existed in the model ops have "Out" port
-TEST(PDPD_Places, check_out_port_of_all_ops)
-{
+TEST(PDPD_Places, check_out_port_of_all_ops) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
-    for (const auto& tensor_name : tensor_names)
-    {
+    for (const auto& tensor_name : tensor_names) {
         auto place = input_model->get_place_by_tensor_name(tensor_name);
         EXPECT_NE(place, nullptr);
 
@@ -125,16 +124,16 @@ TEST(PDPD_Places, check_out_port_of_all_ops)
     }
 }
 
-TEST(PDPD_Places, check_in_out_ports_of_model_outputs)
-{
+TEST(PDPD_Places, check_in_out_ports_of_model_outputs) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     auto outputs = input_model->get_outputs();
-    for (const auto& output : outputs)
-    {
+    for (const auto& output : outputs) {
         auto producing_op = output->get_producing_operation();
         EXPECT_NE(producing_op, nullptr);
 
@@ -160,16 +159,16 @@ TEST(PDPD_Places, check_in_out_ports_of_model_outputs)
     }
 }
 
-TEST(PDPD_Places, check_source_target_tensors_of_model_outputs)
-{
+TEST(PDPD_Places, check_source_target_tensors_of_model_outputs) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     auto outputs = input_model->get_outputs();
-    for (const auto& output : outputs)
-    {
+    for (const auto& output : outputs) {
         auto producing_op = output->get_producing_operation();
         EXPECT_NE(producing_op, nullptr);
 
@@ -195,16 +194,16 @@ TEST(PDPD_Places, check_source_target_tensors_of_model_outputs)
     }
 }
 
-TEST(PDPD_Places, check_producing_consuming_ops_of_model_outputs)
-{
+TEST(PDPD_Places, check_producing_consuming_ops_of_model_outputs) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     auto outputs = input_model->get_outputs();
-    for (const auto& output : outputs)
-    {
+    for (const auto& output : outputs) {
         auto op = output->get_producing_operation();
         EXPECT_NE(op, nullptr);
 
@@ -231,15 +230,15 @@ TEST(PDPD_Places, check_producing_consuming_ops_of_model_outputs)
 }
 
 // check data flow [ output port -> tensor -> input port ]
-TEST(PDPD_Places, check_data_flow)
-{
+TEST(PDPD_Places, check_data_flow) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
-    for (const auto& tensor_name : tensor_names)
-    {
+    for (const auto& tensor_name : tensor_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
         EXPECT_NE(tensor_place, nullptr);
 
@@ -251,8 +250,7 @@ TEST(PDPD_Places, check_data_flow)
 
         auto source_tensor = out_port->get_target_tensor();
         EXPECT_TRUE(source_tensor->is_equal(tensor_place));
-        for (const auto& in_port : in_ports)
-        {
+        for (const auto& in_port : in_ports) {
             EXPECT_TRUE(out_port->is_equal_data(in_port));
             EXPECT_TRUE(in_port->is_equal_data(out_port));
 
@@ -272,30 +270,25 @@ TEST(PDPD_Places, check_data_flow)
 //                -> input_port_2
 //                -> input_port_N]
 // input_port, input_port_2, ... input_port_N are equal data
-TEST(PDPD_Places, check_tensor_to_multiple_ports)
-{
+TEST(PDPD_Places, check_tensor_to_multiple_ports) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
-    for (const auto& tensor_name : tensor_names)
-    {
+    for (const auto& tensor_name : tensor_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
         auto inputs_to = tensor_place->get_consuming_ports();
-        for (size_t idx = 0; idx < inputs_to.size(); ++idx)
-        {
-            for (size_t idx_2 = 0; idx_2 < inputs_to.size(); ++idx_2)
-            {
+        for (size_t idx = 0; idx < inputs_to.size(); ++idx) {
+            for (size_t idx_2 = 0; idx_2 < inputs_to.size(); ++idx_2) {
                 EXPECT_TRUE(inputs_to[idx]->is_equal_data(inputs_to[idx_2]));
                 EXPECT_TRUE(inputs_to[idx_2]->is_equal_data(inputs_to[idx]));
 
-                if (idx == idx_2)
-                {
+                if (idx == idx_2) {
                     EXPECT_TRUE(inputs_to[idx]->is_equal(inputs_to[idx_2]));
-                }
-                else
-                {
+                } else {
                     EXPECT_FALSE(inputs_to[idx]->is_equal(inputs_to[idx_2]));
                 }
             }
@@ -304,15 +297,15 @@ TEST(PDPD_Places, check_tensor_to_multiple_ports)
 }
 
 // consuming ops should be equal for tensor place and producing output port
-TEST(PDPD_Places, check_consuming_ops)
-{
+TEST(PDPD_Places, check_consuming_ops) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
-    for (const auto& tensor_name : tensor_names)
-    {
+    for (const auto& tensor_name : tensor_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
         EXPECT_NE(tensor_place, nullptr);
 
@@ -320,41 +313,39 @@ TEST(PDPD_Places, check_consuming_ops)
         auto out_port = tensor_place->get_producing_port();
         auto consuming_ops_for_out_port = out_port->get_consuming_operations();
 
-        bool is_permutation =
-            std::is_permutation(consuming_ops_for_out_port.begin(),
-                                consuming_ops_for_out_port.end(),
-                                consuming_ops_for_tensor.begin(),
-                                [](const Place::Ptr& place1, const Place::Ptr& place2) {
-                                    return place1->is_equal(place2);
-                                });
+        bool is_permutation = std::is_permutation(consuming_ops_for_out_port.begin(),
+                                                  consuming_ops_for_out_port.end(),
+                                                  consuming_ops_for_tensor.begin(),
+                                                  [](const Place::Ptr& place1, const Place::Ptr& place2) {
+                                                      return place1->is_equal(place2);
+                                                  });
 
         EXPECT_TRUE(is_permutation);
 
         auto consuming_ports_for_tensor = tensor_place->get_consuming_ports();
         std::vector<Place::Ptr> consuming_ops_for_in_ports;
-        for (const auto& port : consuming_ports_for_tensor)
-        {
+        for (const auto& port : consuming_ports_for_tensor) {
             EXPECT_EQ(port->get_consuming_operations().size(), 1);
             consuming_ops_for_in_ports.push_back(port->get_consuming_operations()[0]);
         }
 
-        is_permutation =
-            std::is_permutation(consuming_ops_for_in_ports.begin(),
-                                consuming_ops_for_in_ports.end(),
-                                consuming_ops_for_tensor.begin(),
-                                [](const Place::Ptr& place1, const Place::Ptr& place2) {
-                                    return place1->is_equal(place2);
-                                });
+        is_permutation = std::is_permutation(consuming_ops_for_in_ports.begin(),
+                                             consuming_ops_for_in_ports.end(),
+                                             consuming_ops_for_tensor.begin(),
+                                             [](const Place::Ptr& place1, const Place::Ptr& place2) {
+                                                 return place1->is_equal(place2);
+                                             });
         EXPECT_TRUE(is_permutation);
     }
 }
 
-TEST(PDPD_Places, check_consuming_ops_2)
-{
+TEST(PDPD_Places, check_consuming_ops_2) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     auto it = find(tensor_names.begin(), tensor_names.end(), "lstm_0.tmp_2");
     EXPECT_NE(it, tensor_names.end());
@@ -365,8 +356,7 @@ TEST(PDPD_Places, check_consuming_ops_2)
     EXPECT_EQ(consuming_ports.size(), 4);
     EXPECT_EQ(consuming_ops.size(), 4);
 
-    for (const auto& consuming_port : consuming_ports)
-    {
+    for (const auto& consuming_port : consuming_ports) {
         auto port_consuming_ops = consuming_port->get_consuming_operations();
         EXPECT_EQ(port_consuming_ops.size(), 1);
 
@@ -374,15 +364,13 @@ TEST(PDPD_Places, check_consuming_ops_2)
         auto in_port_by_name = port_consuming_ops[0]->get_input_port("X");
         auto in_port_by_name_and_idx = port_consuming_ops[0]->get_input_port("X", 0);
 
-        EXPECT_TRUE(consuming_port->is_equal(in_port) &&
-                    consuming_port->is_equal(in_port_by_name) &&
+        EXPECT_TRUE(consuming_port->is_equal(in_port) && consuming_port->is_equal(in_port_by_name) &&
                     consuming_port->is_equal(in_port_by_name_and_idx));
 
-        auto op = std::find_if(consuming_ops.begin(),
-                               consuming_ops.end(),
-                               [&port_consuming_ops](const Place::Ptr& place) {
-                                   return place->is_equal(port_consuming_ops[0]);
-                               });
+        auto op =
+            std::find_if(consuming_ops.begin(), consuming_ops.end(), [&port_consuming_ops](const Place::Ptr& place) {
+                return place->is_equal(port_consuming_ops[0]);
+            });
         EXPECT_NE(op, consuming_ops.end());
 
         const auto source_tensor = port_consuming_ops[0]->get_source_tensor();
@@ -391,15 +379,15 @@ TEST(PDPD_Places, check_consuming_ops_2)
     }
 }
 
-TEST(PDPD_Places, check_producing_ops)
-{
+TEST(PDPD_Places, check_producing_ops) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
-    for (const auto& tensor_name : tensor_names)
-    {
+    for (const auto& tensor_name : tensor_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
         EXPECT_NE(tensor_place, nullptr);
 
@@ -408,19 +396,19 @@ TEST(PDPD_Places, check_producing_ops)
         auto producing_port = tensor_place->get_producing_port();
 
         EXPECT_TRUE(producing_op->is_equal(producing_port->get_producing_operation()));
-        for (const auto& consuming_port : consuming_ports)
-        {
+        for (const auto& consuming_port : consuming_ports) {
             EXPECT_TRUE(producing_op->is_equal(consuming_port->get_producing_operation()));
         }
     }
 }
 
-TEST(PDPD_Places, check_input_output_ports_dy_idx)
-{
+TEST(PDPD_Places, check_input_output_ports_dy_idx) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
                                              "save_infer_model/scale_1.tmp_1",
@@ -429,8 +417,7 @@ TEST(PDPD_Places, check_input_output_ports_dy_idx)
                                              "save_infer_model/scale_4.tmp_1",
                                              "save_infer_model/scale_5.tmp_1"};
 
-    for (const auto& tensor_name : output_names)
-    {
+    for (const auto& tensor_name : output_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
         EXPECT_NE(tensor_place, nullptr);
 
@@ -442,12 +429,13 @@ TEST(PDPD_Places, check_input_output_ports_dy_idx)
     }
 }
 
-TEST(PDPD_Places, check_ops_tensors_by_idx)
-{
+TEST(PDPD_Places, check_ops_tensors_by_idx) {
     FrontEndTestUtils::setupTestEnv();
-    auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
+    auto fem = FrontEndManager();
+    FrontEnd::Ptr frontend;
+    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
                                              "save_infer_model/scale_1.tmp_1",
@@ -456,8 +444,7 @@ TEST(PDPD_Places, check_ops_tensors_by_idx)
                                              "save_infer_model/scale_4.tmp_1",
                                              "save_infer_model/scale_5.tmp_1"};
 
-    for (const auto& tensor_name : output_names)
-    {
+    for (const auto& tensor_name : output_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
         EXPECT_NE(tensor_place, nullptr);
 

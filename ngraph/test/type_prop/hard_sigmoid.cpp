@@ -9,8 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, hardsigmoid)
-{
+TEST(type_prop, hardsigmoid) {
     const Shape data_shape{3, 5};
 
     const auto P = make_shared<op::Parameter>(element::f32, data_shape);

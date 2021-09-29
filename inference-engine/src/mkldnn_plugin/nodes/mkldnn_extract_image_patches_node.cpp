@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <cstring>
 #include <string>
 #include <cmath>
@@ -270,8 +268,12 @@ private:
     }
 };
 
-bool MKLDNNExtractImagePatchesNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNExtractImagePatchesNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto extImgPatcher = std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(op);
         if (!extImgPatcher) {
             errorMessage = "Only opset3 ExtractImagePatches operation is supported";
@@ -411,8 +413,8 @@ void MKLDNNExtractImagePatchesNode::initSupportedPrimitiveDescriptors() {
     if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
         IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, precision}},
-                         {{TensorDescCreatorTypes::ncsp, precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, precision}},
+                         {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
 }
 
@@ -421,12 +423,12 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
     char *dst_data = reinterpret_cast<char *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
     const size_t dtype_size = getOriginalInputPrecisionAtPort(0).size();
 
-    const auto& inDims = getParentEdgeAt(0)->getDims().ToSizeVector();
+    const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const size_t IC = inDims[1];
     const size_t IH = inDims[2];
     const size_t IW = inDims[3];
 
-    const auto& outDims = getChildEdgesAtPort(0)[0]->getDims().ToSizeVector();
+    const auto& outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
     const size_t OB = outDims[0];
     const size_t OH = outDims[2];
     const size_t OW = outDims[3];
@@ -436,8 +438,8 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
     const size_t RH = _rates[0], RW = _rates[1];
     const size_t PT = _pad_top, PL = _pad_left;
 
-    const std::vector<size_t> istrides = getParentEdgeAt(0)->getDesc().getBlockingDesc().getStrides();
-    const std::vector<size_t> ostrides = getChildEdgesAtPort(0)[0]->getDesc().getBlockingDesc().getStrides();
+    const std::vector<size_t> istrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const std::vector<size_t> ostrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     const std::vector<size_t> ostrides_partial = {ostrides[0], KW * IC * ostrides[1], IC * ostrides[1], ostrides[1]};
 
     if (extract_image_patches_kernel) {

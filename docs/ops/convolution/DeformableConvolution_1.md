@@ -2,7 +2,7 @@
 
 **Versioned name**: *DeformableConvolution-1*
 
-**Category**: Convolution
+**Category**: *Convolution*
 
 **Short description**: Computes 2D deformable convolution of input and kernel tensors.
 
@@ -12,7 +12,7 @@ Output is calculated using the following formula:
 
   \f[
 
-  y(p) = \sum_{k = 1}^{K}w_{k}x(p + p_{k} + {\Delta}p_{k})
+  y(p) = \displaystyle{\sum_{k = 1}^{K}}w_{k}x(p + p_{k} + {\Delta}p_{k})
 
   \f]
 

@@ -78,7 +78,7 @@ std::string average_unpooling_inst::to_string(average_unpooling_node const& node
     return primitive_description.str();
 }
 
-average_unpooling_inst::typed_primitive_inst(network_impl& network, average_unpooling_node const& node)
+average_unpooling_inst::typed_primitive_inst(network& network, average_unpooling_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

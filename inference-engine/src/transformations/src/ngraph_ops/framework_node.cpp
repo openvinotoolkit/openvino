@@ -8,7 +8,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::FrameworkNode, "FrameworkNode", 0);
+BWDCMP_RTTI_DEFINITION(op::FrameworkNode);
 
 op::FrameworkNode::FrameworkNode(const OutputVector& inputs, size_t output_size)
     : Op(inputs) {
@@ -95,8 +95,6 @@ void op::FrameworkNode::validate_and_infer_types() {
     }
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::FrameworkNodeAttrs>::type_info;
-
-AttributeAdapter<op::FrameworkNodeAttrs>::AttributeAdapter(
-    op::FrameworkNodeAttrs& value)
-    : DirectValueAccessor<op::FrameworkNodeAttrs>(value) {}
+ov::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>::AttributeAdapter(
+    ngraph::op::FrameworkNodeAttrs& value)
+    : DirectValueAccessor<ngraph::op::FrameworkNodeAttrs>(value) {}

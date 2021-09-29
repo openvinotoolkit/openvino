@@ -21,7 +21,7 @@ public:
     static std::string to_string(softmax_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, softmax_node const& desc);
+    typed_primitive_inst(network& network, softmax_node const& desc);
 };
 
 using softmax_inst = typed_primitive_inst<softmax>;

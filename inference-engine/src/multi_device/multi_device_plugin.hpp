@@ -36,14 +36,22 @@ public:
     std::vector<MultiDevicePlugin::DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
                                                                        const std::map<std::string, std::string> & config) const;
 
+    std::string GetDeviceList(const std::map<std::string, std::string>& config) const;
+    DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
+
 protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
                                                           const MultiDevicePlugin::DeviceName & deviceName) const;
 
 private:
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const std::string& modelPath,
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(const std::string& modelPath,
                                                                        InferenceEngine::CNNNetwork network,
-                                                                       const std::map<std::string, std::string>& config);
+                                                                       const std::map<std::string, std::string>& config,
+                                                                       const std::string &networkPrecision = METRIC_VALUE(FP32));
+    static void CheckConfig(const std::map<std::string, std::string>& config, bool& needPerfCounters,
+                            std::map<std::string, std::string>& filterConfig);
+    std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
+                                                const std::map<std::string, std::string>& config);
 };
 
 }  // namespace MultiDevicePlugin

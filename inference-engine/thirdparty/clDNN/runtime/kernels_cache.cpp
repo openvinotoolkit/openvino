@@ -30,18 +30,18 @@
 #include <malloc.h>
 #endif
 
-#ifndef ENABLE_UNICODE_PATH_SUPPORT
+#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 # ifdef _WIN32
 #  if defined __INTEL_COMPILER || defined _MSC_VER
-#   define ENABLE_UNICODE_PATH_SUPPORT
+#   define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #  endif
 # elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#  define ENABLE_UNICODE_PATH_SUPPORT
+#  define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 # endif
 #endif
 
 #ifndef _WIN32
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #include <locale>
 #include <codecvt>
 #endif
@@ -55,7 +55,7 @@
 namespace {
 std::mutex cacheAccessMutex;
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 std::wstring multiByteCharToWString(const char* str) {
 #ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
@@ -69,12 +69,12 @@ std::wstring multiByteCharToWString(const char* str) {
     return result;
 #endif  // _WIN32
 }
-#endif  // defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#endif  // defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 
 static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
     std::lock_guard<std::mutex> lock(cacheAccessMutex);
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = multiByteCharToWString(path.c_str());
     const wchar_t* filename = widefilename.c_str();
     FILE *fp = _wfopen(filename, L"rb");
@@ -101,7 +101,7 @@ static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
 }
 static void saveBinaryToFile(std::string path, const std::vector<unsigned char> buffer) {
     std::lock_guard<std::mutex> lock(cacheAccessMutex);
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = multiByteCharToWString(path.c_str());
     const wchar_t* filename = widefilename.c_str();
 #else
@@ -279,12 +279,18 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
 
     bool dump_sources = !_engine.configuration().sources_dumps_dir.empty() || batch.dump_custom_program;
+    std::string dump_sources_dir = _engine.configuration().sources_dumps_dir;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
+        dump_sources = true;
+        dump_sources_dir = debug_config->dump_sources;
+    }
 
     std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
 
     std::string current_dump_file_name = "";
     if (dump_sources) {
-        current_dump_file_name = _engine.configuration().sources_dumps_dir;
+        current_dump_file_name = dump_sources_dir;
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 

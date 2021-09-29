@@ -7,20 +7,37 @@
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include <memory_desc/cpu_memory_desc_utils.h>
+#include <ngraph/opsets/opset1.hpp>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+bool MKLDNNSoftMaxNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+        if (!std::dynamic_pointer_cast<const ngraph::opset1::Softmax>(op)) {
+            errorMessage = "Only opset1 Softmax operation is supported";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
 MKLDNNSoftMaxNode::MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache) {
-    const auto softmaxOp = ngraph::as_type_ptr<ngraph::op::v1::Softmax>(op);
-    if (softmaxOp) {
-        axis = softmaxOp->get_axis();
-    } else {
-        IE_THROW(NotImplemented)
-                << "CPU Softmax node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
     }
+    axis = ngraph::as_type_ptr<ngraph::op::v1::Softmax>(op)->get_axis();
 }
 
 void MKLDNNSoftMaxNode::getSupportedDescriptors() {
@@ -37,17 +54,17 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
     if (!getChildEdges().size())
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
-    if (getParentEdgeAt(0)->getDims().ndims() == 3) {
-        MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::abc);
+    const auto &inShape = getInputShapeAtPort(0);
+    if (inShape.getRank() == 3) {
+        auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, inputDataType, memory::format_tag::abc);
         createDescriptor({in_candidate}, {});
     }
 
-    for (auto format : getAvailableFormatsForDims(getParentEdgeAt(0)->getDims())) {
-        MKLDNNDims dims = getParentEdgeAt(0)->getDims();
-        if (MKLDNNMemoryDesc(dims, inputDataType, format).blocksExtended())
-            continue;
+    for (auto format : getAvailableFormatsForDims(inShape)) {
+        auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, inputDataType, format);
 
-        MKLDNNMemoryDesc in_candidate(dims, inputDataType, format);
+        if (in_candidate->blocksExtended())
+            continue;
 
         createDescriptor({in_candidate}, {});
     }
@@ -57,13 +74,13 @@ void MKLDNNSoftMaxNode::createPrimitive() {
     if (prim)
         return;
 
-    memory::desc in_candidate = getParentEdgeAt(0)->getMemory().GetDescriptor();
+    auto in_candidate = getParentEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
     MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
     descs[0] = desc;
     std::shared_ptr<softmax_forward::desc> selected_desc_ptr = descs[0];
 
-    const PrimitiveDescInfo *selected_pd = getSelectedPrimitiveDescriptor();
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
@@ -97,28 +114,29 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
-    if (isInitConfig(config))
+    if (isConfigDefined(config))
         return;
 
     if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
-            (!isUninitTensorDesc(config.inConfs[0].desc) &&
-                    !isUninitTensorDesc(config.outConfs[0].desc) && config.inConfs[0].desc != config.outConfs[0].desc))
+            (config.inConfs[0].desc->isDefined() &&
+                    config.outConfs[0].desc->isDefined() && !config.inConfs[0].desc->isCompatible(*config.outConfs[0].desc)))
         IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
-    if (!isUninitTensorDesc(config.inConfs[0].desc)) {
+    if (config.inConfs[0].desc->isDefined()) {
         config.outConfs[0].desc = config.inConfs[0].desc;
-    } else if (!isUninitTensorDesc(config.outConfs[0].desc)) {
+    } else if (config.outConfs[0].desc->isDefined()) {
         config.inConfs[0].desc = config.outConfs[0].desc;
     } else {
-        config.outConfs[0].desc = config.inConfs[0].desc = getConfiguredInputDesc(config, 0);
+        config.inConfs[0].desc = getDefinedInputDesc(config, 0);
+        config.outConfs[0].desc = config.inConfs[0].desc;
     }
 
     initDescriptor(config);
 }
 
-void MKLDNNSoftMaxNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
-                                         const std::vector<InferenceEngine::TensorDesc> &outputDesc) {
-    MKLDNNMemoryDesc in_candidate(inputDesc[0]);
+void MKLDNNSoftMaxNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
+                                         const std::vector<MemoryDescPtr> &outputDesc) {
+    auto in_candidate = MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc();
 
     MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));

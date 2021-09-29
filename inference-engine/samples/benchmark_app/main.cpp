@@ -21,6 +21,7 @@
 #include "infer_request_wrap.hpp"
 #include "inputs_filling.hpp"
 #include "progress_bar.hpp"
+#include "remote_blobs_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
 
@@ -59,9 +60,14 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
-
-    if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport && FLAGS_report_type != detailedCntReport) {
-        std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" + std::string(detailedCntReport) +
+    if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency") {
+        throw std::logic_error("Incorrect performance hint. Please set -hint option to"
+                               "either `throughput`(tput) or `latency' value.");
+    }
+    if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
+        FLAGS_report_type != detailedCntReport) {
+        std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" +
+                          std::string(detailedCntReport) +
                           " report types are supported (invalid -report_type option value)";
         throw std::logic_error(err);
     }
@@ -73,8 +79,9 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
     bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
     if (isNetworkCompiled && isPrecisionSet) {
-        std::string err = std::string("Cannot set precision for a compiled network. ") + std::string("Please re-compile your network with required precision "
-                                                                                                     "using compile_tool");
+        std::string err = std::string("Cannot set precision for a compiled network. ") +
+                          std::string("Please re-compile your network with required precision "
+                                      "using compile_tool");
 
         throw std::logic_error(err);
     }
@@ -83,17 +90,18 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 
 static void next_step(const std::string additional_info = "") {
     static size_t step_id = 0;
-    static const std::map<size_t, std::string> step_names = {{1, "Parsing and validating input arguments"},
-                                                             {2, "Loading Inference Engine"},
-                                                             {3, "Setting device configuration"},
-                                                             {4, "Reading network files"},
-                                                             {5, "Resizing network to match image sizes and given batch"},
-                                                             {6, "Configuring input of the model"},
-                                                             {7, "Loading the model to the device"},
-                                                             {8, "Setting optimal runtime parameters"},
-                                                             {9, "Creating infer requests and filling input blobs with images"},
-                                                             {10, "Measuring performance"},
-                                                             {11, "Dumping statistics report"}};
+    static const std::map<size_t, std::string> step_names = {
+        {1, "Parsing and validating input arguments"},
+        {2, "Loading Inference Engine"},
+        {3, "Setting device configuration"},
+        {4, "Reading network files"},
+        {5, "Resizing network to match image sizes and given batch"},
+        {6, "Configuring input of the model"},
+        {7, "Loading the model to the device"},
+        {8, "Setting optimal runtime parameters"},
+        {9, "Creating infer requests and filling input blobs with images"},
+        {10, "Measuring performance"},
+        {11, "Dumping statistics report"}};
 
     step_id++;
     if (step_names.count(step_id) == 0)
@@ -140,13 +148,16 @@ int main(int argc, char* argv[]) {
             }
         }
         if (!FLAGS_report_type.empty()) {
-            statistics = std::make_shared<StatisticsReport>(StatisticsReport::Config {FLAGS_report_type, FLAGS_report_folder});
+            statistics =
+                std::make_shared<StatisticsReport>(StatisticsReport::Config{FLAGS_report_type, FLAGS_report_folder});
             statistics->addParameters(StatisticsReport::Category::COMMAND_LINE_PARAMETERS, command_line_arguments);
         }
         auto isFlagSetInCommandLine = [&command_line_arguments](const std::string& name) {
-            return (std::find_if(command_line_arguments.begin(), command_line_arguments.end(), [name](const std::pair<std::string, std::string>& p) {
-                        return p.first == name;
-                    }) != command_line_arguments.end());
+            return (std::find_if(command_line_arguments.begin(),
+                                 command_line_arguments.end(),
+                                 [name](const std::pair<std::string, std::string>& p) {
+                                     return p.first == name;
+                                 }) != command_line_arguments.end());
         };
 
         std::string device_name = FLAGS_d;
@@ -201,6 +212,11 @@ int main(int argc, char* argv[]) {
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
         next_step();
+        std::string ov_perf_hint;
+        if (FLAGS_hint == "throughput" || FLAGS_hint == "tput")
+            ov_perf_hint = CONFIG_VALUE(THROUGHPUT);
+        else if (FLAGS_hint == "latency")
+            ov_perf_hint = CONFIG_VALUE(LATENCY);
 
         bool perf_counts = false;
         // Update config per device according to command line parameters
@@ -209,17 +225,28 @@ int main(int argc, char* argv[]) {
                 config[device] = {};
             std::map<std::string, std::string>& device_config = config.at(device);
 
+            // high-level performance modes
+            if (!ov_perf_hint.empty()) {
+                device_config[CONFIG_KEY(PERFORMANCE_HINT)] = ov_perf_hint;
+                if (FLAGS_nireq != 0)
+                    device_config[CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)] = std::to_string(FLAGS_nireq);
+            }
+
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
                 // set to user defined value
                 device_config[CONFIG_KEY(PERF_COUNT)] = FLAGS_pc ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
-            } else if (device_config.count(CONFIG_KEY(PERF_COUNT)) && (device_config.at(CONFIG_KEY(PERF_COUNT)) == "YES")) {
-                slog::warn << "Performance counters for " << device << " device is turned on. To print results use -pc option." << slog::endl;
+            } else if (device_config.count(CONFIG_KEY(PERF_COUNT)) &&
+                       (device_config.at(CONFIG_KEY(PERF_COUNT)) == "YES")) {
+                slog::warn << "Performance counters for " << device
+                           << " device is turned on. To print results use -pc option." << slog::endl;
             } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport) {
-                slog::warn << "Turn on performance counters for " << device << " device since report type is " << FLAGS_report_type << "." << slog::endl;
+                slog::warn << "Turn on performance counters for " << device << " device since report type is "
+                           << FLAGS_report_type << "." << slog::endl;
                 device_config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
             } else if (!FLAGS_exec_graph_path.empty()) {
-                slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping." << slog::endl;
+                slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
+                           << slog::endl;
                 device_config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
             } else {
                 // set to default value
@@ -227,19 +254,22 @@ int main(int argc, char* argv[]) {
             }
             perf_counts = (device_config.at(CONFIG_KEY(PERF_COUNT)) == CONFIG_VALUE(YES)) ? true : perf_counts;
 
+            // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&]() {
                 const std::string key = device + "_THROUGHPUT_STREAMS";
                 if (device_nstreams.count(device)) {
                     // set to user defined value
-                    std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                    if (std::find(supported_config_keys.begin(), supported_config_keys.end(), key) == supported_config_keys.end()) {
+                    std::vector<std::string> supported_config_keys =
+                        ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                    if (std::find(supported_config_keys.begin(), supported_config_keys.end(), key) ==
+                        supported_config_keys.end()) {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "'! " +
                                                "Please specify -nstreams for correct devices in format  "
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
                                                " or via configuration file.");
                     }
                     device_config[key] = device_nstreams.at(device);
-                } else if (!device_config.count(key) && (FLAGS_api == "async")) {
+                } else if (ov_perf_hint.empty() && !device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "
@@ -267,8 +297,10 @@ int main(int argc, char* argv[]) {
                     // set to user defined value
                     device_config[CONFIG_KEY(CPU_BIND_THREAD)] = FLAGS_pin;
                 } else if (!device_config.count(CONFIG_KEY(CPU_BIND_THREAD))) {
-                    if ((device_name.find("MULTI") != std::string::npos) && (device_name.find("GPU") != std::string::npos)) {
-                        slog::warn << "Turn off threads pinning for " << device << " device since multi-scenario with GPU device is used." << slog::endl;
+                    if ((device_name.find("MULTI") != std::string::npos) &&
+                        (device_name.find("GPU") != std::string::npos)) {
+                        slog::warn << "Turn off threads pinning for " << device
+                                   << " device since multi-scenario with GPU device is used." << slog::endl;
                         device_config[CONFIG_KEY(CPU_BIND_THREAD)] = CONFIG_VALUE(NO);
                     }
                 }
@@ -279,7 +311,8 @@ int main(int argc, char* argv[]) {
                 // for GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
 
-                if ((device_name.find("MULTI") != std::string::npos) && (device_name.find("CPU") != std::string::npos)) {
+                if ((device_name.find("MULTI") != std::string::npos) &&
+                    (device_name.find("CPU") != std::string::npos)) {
                     slog::warn << "Turn on GPU throttling. Multi-device execution with "
                                   "the CPU + GPU performs best with GPU throttling hint, "
                                << "which releases another CPU thread (that is otherwise "
@@ -299,9 +332,11 @@ int main(int argc, char* argv[]) {
                 if (isFlagSetInCommandLine("nthreads"))
                     device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
             } else {
-                std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                std::vector<std::string> supported_config_keys =
+                    ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 auto supported = [&](const std::string& key) {
-                    return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key) != std::end(supported_config_keys);
+                    return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key) !=
+                           std::end(supported_config_keys);
                 };
                 if (supported(CONFIG_KEY(CPU_THREADS_NUM)) && isFlagSetInCommandLine("nthreads")) {
                     device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
@@ -351,7 +386,14 @@ int main(int argc, char* argv[]) {
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"load network time (ms)", duration_ms}});
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {{"load network time (ms)", duration_ms}});
+            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
+                                                             FLAGS_layout,
+                                                             FLAGS_b,
+                                                             FLAGS_iscale,
+                                                             FLAGS_imean,
+                                                             exeNetwork.GetInputsInfo());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -367,7 +409,8 @@ int main(int argc, char* argv[]) {
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"read network time (ms)", duration_ms}});
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {{"read network time (ms)", duration_ms}});
 
             const InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
             if (inputInfo.empty()) {
@@ -380,7 +423,13 @@ int main(int argc, char* argv[]) {
             batchSize = cnnNetwork.getBatchSize();
             // Parse input shapes if specified
             bool reshape = false;
-            app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape, FLAGS_layout, FLAGS_b, inputInfo, reshape);
+            app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape,
+                                                            FLAGS_layout,
+                                                            FLAGS_b,
+                                                            FLAGS_iscale,
+                                                            FLAGS_imean,
+                                                            inputInfo,
+                                                            reshape);
             if (reshape) {
                 InferenceEngine::ICNNNetwork::InputShapes shapes = {};
                 for (auto& item : app_inputs_info)
@@ -391,13 +440,15 @@ int main(int argc, char* argv[]) {
                 duration_ms = double_to_string(get_total_ms_time(startTime));
                 slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
                 if (statistics)
-                    statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"reshape network time (ms)", duration_ms}});
+                    statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                              {{"reshape network time (ms)", duration_ms}});
             }
             // use batch size according to provided layout and shapes
             batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info) : cnnNetwork.getBatchSize();
 
             topology_name = cnnNetwork.getName();
-            slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize << slog::endl;
+            slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
+                       << slog::endl;
 
             // ----------------- 6. Configuring inputs and outputs
             // ----------------------------------------------------------------------
@@ -424,7 +475,8 @@ int main(int argc, char* argv[]) {
             duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"load network time (ms)", duration_ms}});
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {{"load network time (ms)", duration_ms}});
         } else {
             next_step();
             slog::info << "Skipping the step for compiled network" << slog::endl;
@@ -440,15 +492,36 @@ int main(int argc, char* argv[]) {
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Import network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"import network time (ms)", duration_ms}});
-            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape, FLAGS_layout, FLAGS_b, exeNetwork.GetInputsInfo());
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {{"import network time (ms)", duration_ms}});
+            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
+                                                             FLAGS_layout,
+                                                             FLAGS_b,
+                                                             FLAGS_iscale,
+                                                             FLAGS_imean,
+                                                             exeNetwork.GetInputsInfo());
             if (batchSize == 0) {
                 batchSize = 1;
             }
         }
-        // ----------------- 8. Setting optimal runtime parameters
+        // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
+        // output of the actual settings that the device selected based on the hint
+        if (!ov_perf_hint.empty()) {
+            for (const auto& device : devices) {
+                std::vector<std::string> supported_config_keys =
+                    ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                slog::info << "Device: " << device << slog::endl;
+                for (const auto& cfg : supported_config_keys) {
+                    try {
+                        slog::info << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
+                    } catch (...) {
+                    };
+                    slog::info << " }" << slog::endl;
+                }
+            }
+        }
 
         // Update number of streams
         for (auto&& ds : device_nstreams) {
@@ -479,8 +552,8 @@ int main(int argc, char* argv[]) {
         if ((niter > 0) && (FLAGS_api == "async")) {
             niter = ((niter + nireq - 1) / nireq) * nireq;
             if (FLAGS_niter != niter) {
-                slog::warn << "Number of iterations was aligned by request number from " << FLAGS_niter << " to " << niter << " using number of requests "
-                           << nireq << slog::endl;
+                slog::warn << "Number of iterations was aligned by request number from " << FLAGS_niter << " to "
+                           << niter << " using number of requests " << nireq << slog::endl;
             }
         }
 
@@ -496,23 +569,25 @@ int main(int argc, char* argv[]) {
         uint64_t duration_nanoseconds = getDurationInNanoseconds(duration_seconds);
 
         if (statistics) {
-            statistics->addParameters(StatisticsReport::Category::RUNTIME_CONFIG,
-                                      {
-                                          {"topology", topology_name},
-                                          {"target device", device_name},
-                                          {"API", FLAGS_api},
-                                          {"precision", std::string(precision.name())},
-                                          {"batch size", std::to_string(batchSize)},
-                                          {"number of iterations", std::to_string(niter)},
-                                          {"number of parallel infer requests", std::to_string(nireq)},
-                                          {"duration (ms)", std::to_string(getDurationInMilliseconds(duration_seconds))},
-                                      });
+            statistics->addParameters(
+                StatisticsReport::Category::RUNTIME_CONFIG,
+                {
+                    {"topology", topology_name},
+                    {"target device", device_name},
+                    {"API", FLAGS_api},
+                    {"precision", std::string(precision.name())},
+                    {"batch size", std::to_string(batchSize)},
+                    {"number of iterations", std::to_string(niter)},
+                    {"number of parallel infer requests", std::to_string(nireq)},
+                    {"duration (ms)", std::to_string(getDurationInMilliseconds(duration_seconds))},
+                });
             for (auto& nstreams : device_nstreams) {
                 std::stringstream ss;
                 ss << "number of " << nstreams.first << " streams";
-                statistics->addParameters(StatisticsReport::Category::RUNTIME_CONFIG, {
-                                                                                          {ss.str(), nstreams.second},
-                                                                                      });
+                statistics->addParameters(StatisticsReport::Category::RUNTIME_CONFIG,
+                                          {
+                                              {ss.str(), nstreams.second},
+                                          });
             }
         }
 
@@ -521,7 +596,16 @@ int main(int argc, char* argv[]) {
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
-        fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+        if (isFlagSetInCommandLine("use_device_mem")) {
+            if (device_name.find("GPU") == 0)
+                ::gpu::fillRemoteBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests, exeNetwork);
+            else if (device_name.find("CPU") == 0)
+                fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+            else
+                IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
+        } else {
+            fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+        }
 
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------
@@ -576,7 +660,8 @@ int main(int argc, char* argv[]) {
         auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
         slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
         if (statistics)
-            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"first inference time (ms)", duration_ms}});
+            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                      {{"first inference time (ms)", duration_ms}});
         inferRequestsQueue.resetTimes();
 
         auto startTime = Time::now();
@@ -587,7 +672,8 @@ int main(int argc, char* argv[]) {
          * executed in the same conditions **/
         ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
 
-        while ((niter != 0LL && iteration < niter) || (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
+        while ((niter != 0LL && iteration < niter) ||
+               (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
                (FLAGS_api == "async" && iteration % nireq != 0)) {
             inferRequest = inferRequestsQueue.getIdleRequest();
             if (!inferRequest) {
@@ -629,13 +715,15 @@ int main(int argc, char* argv[]) {
 
         double latency = getMedianValue<double>(inferRequestsQueue.getLatencies(), FLAGS_latency_percentile);
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
-        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / latency : batchSize * 1000.0 * iteration / totalDuration;
+        double fps =
+            (FLAGS_api == "sync") ? batchSize * 1000.0 / latency : batchSize * 1000.0 * iteration / totalDuration;
 
         if (statistics) {
-            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {
-                                                                                         {"total execution time (ms)", double_to_string(totalDuration)},
-                                                                                         {"total number of iterations", std::to_string(iteration)},
-                                                                                     });
+            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                      {
+                                          {"total execution time (ms)", double_to_string(totalDuration)},
+                                          {"total number of iterations", std::to_string(iteration)},
+                                      });
             if (device_name.find("MULTI") == std::string::npos) {
                 std::string latency_label;
                 if (FLAGS_latency_percentile == 50) {
@@ -643,11 +731,13 @@ int main(int argc, char* argv[]) {
                 } else {
                     latency_label = "latency (" + std::to_string(FLAGS_latency_percentile) + " percentile) (ms)";
                 }
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {
-                                                                                             {latency_label, double_to_string(latency)},
-                                                                                         });
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {
+                                              {latency_label, double_to_string(latency)},
+                                          });
             }
-            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"throughput", double_to_string(fps)}});
+            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                      {{"throughput", double_to_string(fps)}});
         }
 
         progressBar.finish();
@@ -707,9 +797,10 @@ int main(int argc, char* argv[]) {
         slog::err << ex.what() << slog::endl;
 
         if (statistics) {
-            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {
-                                                                                         {"error", ex.what()},
-                                                                                     });
+            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                      {
+                                          {"error", ex.what()},
+                                      });
             statistics->dump();
         }
 

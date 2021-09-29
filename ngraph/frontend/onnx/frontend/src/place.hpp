@@ -4,75 +4,123 @@
 
 #pragma once
 
+#include <editor.hpp>
 #include <frontend_manager/place.hpp>
+#include <memory>
+#include <sstream>
 
-namespace ngraph
-{
-    namespace frontend
-    {
-        class PlaceInputEdgeONNX : public Place
-        {
-        public:
-            PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge)
-                : m_edge(edge)
-            {
-            }
+namespace ngraph {
+namespace frontend {
+class PlaceInputEdgeONNX : public Place {
+public:
+    PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceInputEdgeONNX(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
-        private:
-            onnx_editor::InputEdge m_edge;
-        };
+    // internal usage
+    onnx_editor::InputEdge get_input_edge() const;
 
-        class PlaceOutputEdgeONNX : public Place
-        {
-        public:
-            PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge)
-                : m_edge(edge)
-            {
-            }
+    // external usage
+    bool is_input() const override;
+    bool is_output() const override;
+    bool is_equal(Place::Ptr another) const override;
+    bool is_equal_data(Place::Ptr another) const override;
+    Place::Ptr get_source_tensor() const override;
+    std::vector<Place::Ptr> get_consuming_operations() const override;
+    Place::Ptr get_producing_operation() const override;
+    Place::Ptr get_producing_port() const override;
 
-        private:
-            onnx_editor::OutputEdge m_edge;
-        };
+private:
+    onnx_editor::InputEdge m_edge;
+    const std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+};
 
-        class PlaceTensorONNX : public Place
-        {
-        public:
-            PlaceTensorONNX(const std::string& name, const onnx_editor::ONNXModelEditor& editor)
-                : m_name(name)
-                , m_editor(editor)
-            {
-            }
+class PlaceOutputEdgeONNX : public Place {
+public:
+    PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceOutputEdgeONNX(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
-            std::vector<std::string> get_names() const override { return {m_name}; }
+    // internal usage
+    onnx_editor::OutputEdge get_output_edge() const;
 
-            Place::Ptr get_producing_port() const override
-            {
-                return std::make_shared<PlaceOutputEdgeONNX>(m_editor.find_output_edge(m_name));
-            }
+    // external usage
+    bool is_input() const override;
+    bool is_output() const override;
+    bool is_equal(Place::Ptr another) const override;
+    bool is_equal_data(Place::Ptr another) const override;
+    Place::Ptr get_target_tensor() const override;
+    std::vector<Place::Ptr> get_consuming_ports() const override;
+    Place::Ptr get_producing_operation() const override;
+    std::vector<Place::Ptr> get_consuming_operations() const override;
 
-            std::vector<Place::Ptr> get_consuming_ports() const override
-            {
-                std::vector<Place::Ptr> ret;
-                auto edges = m_editor.find_output_consumers(m_name);
-                std::transform(edges.begin(),
-                               edges.end(),
-                               std::back_inserter(ret),
-                               [](const onnx_editor::InputEdge& edge) {
-                                   return std::make_shared<PlaceInputEdgeONNX>(edge);
-                               });
-                return ret;
-            }
+private:
+    onnx_editor::OutputEdge m_edge;
+    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+};
 
-            Ptr get_input_port(int input_port_index) const override
-            {
-                return std::make_shared<PlaceInputEdgeONNX>(m_editor.find_input_edge(
-                    onnx_editor::EditorNode(m_name), onnx_editor::EditorInput(input_port_index)));
-            }
+class PlaceTensorONNX : public Place {
+public:
+    PlaceTensorONNX(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceTensorONNX(std::string&& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
-        private:
-            std::string m_name;
-            const onnx_editor::ONNXModelEditor& m_editor;
-        };
-    } // namespace frontend
+    // external usage
+    std::vector<std::string> get_names() const override;
+    Place::Ptr get_producing_port() const override;
+    std::vector<Place::Ptr> get_consuming_ports() const override;
+    Place::Ptr get_producing_operation() const override;
+    bool is_input() const override;
+    bool is_output() const override;
+    bool is_equal(Place::Ptr another) const override;
+    bool is_equal_data(Place::Ptr another) const override;
+    std::vector<Place::Ptr> get_consuming_operations() const override;
 
-} // namespace ngraph
+private:
+    std::string m_name;
+    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+};
+
+class PlaceOpONNX : public Place {
+public:
+    PlaceOpONNX(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceOpONNX(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    std::vector<std::string> get_names() const override;
+
+    // internal usage
+    onnx_editor::EditorNode get_editor_node() const;
+
+    // external usage
+    Place::Ptr get_output_port() const override;
+    Place::Ptr get_output_port(int output_port_index) const override;
+    Place::Ptr get_output_port(const std::string& output_port_name) const override;
+
+    Place::Ptr get_input_port() const override;
+    Place::Ptr get_input_port(int input_port_index) const override;
+    Place::Ptr get_input_port(const std::string& input_name) const override;
+
+    std::vector<Place::Ptr> get_consuming_ports() const override;
+    std::vector<Place::Ptr> get_consuming_operations() const override;
+    std::vector<Place::Ptr> get_consuming_operations(int output_port_index) const override;
+    std::vector<Place::Ptr> get_consuming_operations(const std::string& output_port_name) const override;
+
+    Place::Ptr get_producing_operation() const override;
+    Place::Ptr get_producing_operation(int input_port_index) const override;
+    Place::Ptr get_producing_operation(const std::string& input_port_name) const override;
+
+    Place::Place::Ptr get_target_tensor() const override;
+    Place::Ptr get_target_tensor(int output_port_index) const override;
+    Place::Ptr get_target_tensor(const std::string& output_name) const override;
+
+    Place::Place::Ptr get_source_tensor() const override;
+    Place::Ptr get_source_tensor(int input_port_index) const override;
+    Place::Ptr get_source_tensor(const std::string& input_name) const override;
+
+    bool is_equal(Place::Ptr another) const override;
+    bool is_input() const override;
+    bool is_output() const override;
+
+private:
+    onnx_editor::EditorNode m_node;
+    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+};
+}  // namespace frontend
+
+}  // namespace ngraph

@@ -19,12 +19,12 @@ namespace mask_propagation {
 
 class Convolution;
 class GroupConvolution;
+class GroupConvolutionReshape;
 class Elementwise;
 class PassThrough;
 class StopPropagation;
 class FakeQuantize;
 class Concat;
-class Reshape;
 
 } // namespace mask_propagation
 } // namespace pass
@@ -192,9 +192,9 @@ public:
     }
 };
 
-class ngraph::pass::mask_propagation::Reshape : public MatcherPass {
+class ngraph::pass::mask_propagation::GroupConvolutionReshape : public MatcherPass {
 public:
-    Reshape() {
+    GroupConvolutionReshape() {
         auto input = pattern::any_input(pattern::has_static_shape());
         auto shape = pattern::any_input();
         // Working only for Reshapes on Group Convolution weights
@@ -258,10 +258,12 @@ public:
             ngraph::replace_node(old_shape_const, new_const);
 
             setMask(m_output, output_mask);
-            return true;
+            // This transformation propagates only Reshape mask and doesn't do anything with GroupConvolution.
+            // So, not to disable GroupConvolution mask propagation we return false here.
+            return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(reshape, "ReshapeMaskPropagation");
+        auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, "ReshapeMaskPropagation");
         register_matcher(m, callback);
     }
 };
@@ -419,13 +421,12 @@ public:
             auto fq_node = std::dynamic_pointer_cast<op::FakeQuantize>(m_output.get_node_shared_ptr());
             size_t idx = 0;
             if (fq_node->get_auto_broadcast() != ngraph::op::AutoBroadcastType::NONE) {
-                for (auto const_node : fq_params_nodes) {
+                for (auto node : fq_params_nodes) {
+                    auto const_node = std::dynamic_pointer_cast<op::Constant>(node);
+                    if (!const_node) throw ngraph_error("Unexpected operation type.");
                     auto new_shape = broadcast_shape_to_rank(const_node->get_shape(),
                                                              m_input.get_partial_shape().rank().get_length());
-                    auto const_copy = const_node->clone_with_new_inputs(const_node->input_values());
-                    auto new_const = std::dynamic_pointer_cast<op::Constant>(const_copy);
-                    new_const->set_data_shape(new_shape);
-                    new_const->validate_and_infer_types();
+                    auto new_const = std::make_shared<op::Constant>(*const_node, new_shape);
                     new_const->set_friendly_name(const_node->get_friendly_name());
                     ngraph::copy_runtime_info(const_node, new_const);
                     ngraph::replace_node(const_node, new_const);
@@ -605,11 +606,11 @@ public:
 
 ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::Convolution>();
+    add_matcher<mask_propagation::GroupConvolutionReshape>();
     add_matcher<mask_propagation::GroupConvolution>();
     add_matcher<mask_propagation::Elementwise>();
     add_matcher<mask_propagation::PassThrough>();
     add_matcher<mask_propagation::FakeQuantize>();
     add_matcher<mask_propagation::Concat>();
-    add_matcher<mask_propagation::Reshape>();
     add_matcher<mask_propagation::StopPropagation>();
 }

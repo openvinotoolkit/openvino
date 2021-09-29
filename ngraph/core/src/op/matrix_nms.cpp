@@ -3,8 +3,10 @@
 //
 
 #include "ngraph/op/matrix_nms.hpp"
+
 #include <cstring>
 #include <ngraph/validation_util.hpp>
+
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
@@ -16,24 +18,15 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v8::MatrixNms, "MatrixNms", 8, op::util::NmsBase);
+op::v8::MatrixNms::MatrixNms() : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
 
-op::v8::MatrixNms::MatrixNms()
-    : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k)
-{
-}
-
-op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes,
-                             const Output<Node>& scores,
-                             const Attributes& attrs)
-    : NmsBase(boxes, scores, m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k)
-    , m_attrs{attrs}
-{
+op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
+    : NmsBase(boxes, scores, m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k),
+      m_attrs{attrs} {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::v8::MatrixNms::clone_with_new_inputs(const OutputVector& new_args) const
-{
+std::shared_ptr<Node> op::v8::MatrixNms::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v8_MatrixNms_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() == 2, "Number of inputs must be 2");
@@ -41,8 +34,7 @@ std::shared_ptr<Node> op::v8::MatrixNms::clone_with_new_inputs(const OutputVecto
     return std::make_shared<op::v8::MatrixNms>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-void op::v8::MatrixNms::validate()
-{
+void op::v8::MatrixNms::validate() {
     NGRAPH_OP_SCOPE(v8_MatrixNms_validate);
     NmsBase::validate();
 
@@ -52,8 +44,7 @@ void op::v8::MatrixNms::validate()
                           m_attrs.background_class);
 }
 
-bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor)
-{
+bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_MatrixNms_visit_attributes);
 
     visitor.on_attribute("sort_result_type", m_attrs.sort_result_type);
@@ -71,22 +62,21 @@ bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-namespace ngraph
-{
-    template <>
-    EnumNames<op::v8::MatrixNms::DecayFunction>& EnumNames<op::v8::MatrixNms::DecayFunction>::get()
-    {
-        static auto enum_names = EnumNames<op::v8::MatrixNms::DecayFunction>(
-            "op::v8::MatrixNms::DecayFunction",
-            {{"gaussian", op::v8::MatrixNms::DecayFunction::GAUSSIAN},
-             {"linear", op::v8::MatrixNms::DecayFunction::LINEAR}});
-        return enum_names;
-    }
+std::ostream& ov::operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type) {
+    return s << as_string(type);
+}
 
-    constexpr DiscreteTypeInfo AttributeAdapter<op::v8::MatrixNms::DecayFunction>::type_info;
+namespace ov {
+template <>
+NGRAPH_API EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>&
+EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>(
+        "op::v8::MatrixNms::DecayFunction",
+        {{"gaussian", ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN},
+         {"linear", ngraph::op::v8::MatrixNms::DecayFunction::LINEAR}});
+    return enum_names;
+}
 
-    std::ostream& operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type)
-    {
-        return s << as_string(type);
-    }
-} // namespace ngraph
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v8::MatrixNms::DecayFunction>);
+
+}  // namespace ov

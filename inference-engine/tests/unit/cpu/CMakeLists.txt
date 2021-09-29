@@ -14,9 +14,11 @@ addIeTargetTest(
         LINK_LIBRARIES
             gtest
             gtest_main
+            gmock
             mkldnn
             inference_engine_transformations
             inference_engine_lp_transformations
+            ov_shape_inference
             inference_engine_s
         ADD_CPPLINT
         LABELS

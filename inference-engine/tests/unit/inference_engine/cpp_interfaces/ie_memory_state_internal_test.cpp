@@ -20,7 +20,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 
-class VariableStateTests : public ::testing::Test {
+class InferRequestVariableStateTests : public ::testing::Test {
  protected:
     shared_ptr<MockIExecutableNetworkInternal> mockExeNetworkInternal;
     shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
@@ -43,7 +43,7 @@ class VariableStateTests : public ::testing::Test {
     }
 };
 
-TEST_F(VariableStateTests, ExecutableNetworkCanConvertOneVariableStateFromCppToAPI) {
+TEST_F(InferRequestVariableStateTests, ExecutableNetworkCanConvertOneVariableStateFromCppToAPI) {
     IE_SUPPRESS_DEPRECATED_START
     std::vector<IVariableStateInternal::Ptr> toReturn(1);
     toReturn[0] = mockVariableStateInternal;
@@ -55,7 +55,7 @@ TEST_F(VariableStateTests, ExecutableNetworkCanConvertOneVariableStateFromCppToA
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(VariableStateTests, ExecutableNetworkCanConvertZeroVariableStateFromCppToAPI) {
+TEST_F(InferRequestVariableStateTests, ExecutableNetworkCanConvertZeroVariableStateFromCppToAPI) {
     IE_SUPPRESS_DEPRECATED_START
     std::vector<IVariableStateInternal::Ptr> toReturn;
 
@@ -66,7 +66,7 @@ TEST_F(VariableStateTests, ExecutableNetworkCanConvertZeroVariableStateFromCppTo
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(VariableStateTests, ExecutableNetworkCanConvert2VariableStatesFromCPPtoAPI) {
+TEST_F(InferRequestVariableStateTests, ExecutableNetworkCanConvert2VariableStatesFromCPPtoAPI) {
     IE_SUPPRESS_DEPRECATED_START
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
@@ -79,7 +79,7 @@ TEST_F(VariableStateTests, ExecutableNetworkCanConvert2VariableStatesFromCPPtoAP
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(VariableStateTests, VariableStatePropagatesReset) {
+TEST_F(InferRequestVariableStateTests, VariableStatePropagatesReset) {
     IE_SUPPRESS_DEPRECATED_START
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
@@ -92,7 +92,7 @@ TEST_F(VariableStateTests, VariableStatePropagatesReset) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(VariableStateTests, VariableStatePropagatesExceptionsFromReset) {
+TEST_F(InferRequestVariableStateTests, VariableStatePropagatesExceptionsFromReset) {
     IE_SUPPRESS_DEPRECATED_START
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
@@ -105,7 +105,7 @@ TEST_F(VariableStateTests, VariableStatePropagatesExceptionsFromReset) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(VariableStateTests, VariableStatePropagatesGetName) {
+TEST_F(InferRequestVariableStateTests, VariableStatePropagatesGetName) {
     IE_SUPPRESS_DEPRECATED_START
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
@@ -118,7 +118,7 @@ TEST_F(VariableStateTests, VariableStatePropagatesGetName) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithZeroLen) {
+TEST_F(InferRequestVariableStateTests, VariableStatePropagatesGetNameWithZeroLen) {
     IE_SUPPRESS_DEPRECATED_START
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
@@ -132,7 +132,7 @@ TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithZeroLen) {
 }
 
 
-TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithLenOfOne) {
+TEST_F(InferRequestVariableStateTests, VariableStatePropagatesGetNameWithLenOfOne) {
     IE_SUPPRESS_DEPRECATED_START
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
@@ -147,7 +147,7 @@ TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithLenOfOne) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithLenOfTwo) {
+TEST_F(InferRequestVariableStateTests, VariableStatePropagatesGetNameWithLenOfTwo) {
     IE_SUPPRESS_DEPRECATED_START
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
@@ -162,7 +162,7 @@ TEST_F(VariableStateTests, VariableStatePropagatesGetNameWithLenOfTwo) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(VariableStateTests, VariableStateCanPropagateSetState) {
+TEST_F(InferRequestVariableStateTests, VariableStateCanPropagateSetState) {
     IE_SUPPRESS_DEPRECATED_START
     std::vector<IVariableStateInternal::Ptr> toReturn;
     Blob::Ptr saver;
@@ -181,7 +181,7 @@ TEST_F(VariableStateTests, VariableStateCanPropagateSetState) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(VariableStateTests, VariableStateCanPropagateGetLastState) {
+TEST_F(InferRequestVariableStateTests, VariableStateCanPropagateGetLastState) {
     IE_SUPPRESS_DEPRECATED_START
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
@@ -205,12 +205,12 @@ class VariableStateInternalMockImpl : public IVariableStateInternal {
     MOCK_METHOD0(Reset, void());
 };
 
-TEST_F(VariableStateTests, VariableStateInternalCanSaveName) {
+TEST_F(InferRequestVariableStateTests, VariableStateInternalCanSaveName) {
     IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
     ASSERT_STREQ(pState->GetName().c_str(), "VariableStateInternalMockImpl");
 }
 
-TEST_F(VariableStateTests, VariableStateInternalCanSaveState) {
+TEST_F(InferRequestVariableStateTests, VariableStateInternalCanSaveState) {
     IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
@@ -225,7 +225,7 @@ TEST_F(VariableStateTests, VariableStateInternalCanSaveState) {
 }
 
 
-TEST_F(VariableStateTests, VariableStateInternalCanSaveStateByReference) {
+TEST_F(InferRequestVariableStateTests, VariableStateInternalCanSaveStateByReference) {
     IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
@@ -244,7 +244,7 @@ TEST_F(VariableStateTests, VariableStateInternalCanSaveStateByReference) {
 }
 
 // Tests for InferRequest::QueryState
-TEST_F(VariableStateTests, InferRequestCanConvertOneVariableStateFromCppToAPI) {
+TEST_F(InferRequestVariableStateTests, InferRequestCanConvertOneVariableStateFromCppToAPI) {
     std::vector<IVariableStateInternal::Ptr> toReturn(1);
     toReturn[0] = mockVariableStateInternal;
 
@@ -254,7 +254,7 @@ TEST_F(VariableStateTests, InferRequestCanConvertOneVariableStateFromCppToAPI) {
     ASSERT_EQ(state.size(), 1);
 }
 
-TEST_F(VariableStateTests, InferRequestCanConvertZeroVariableStateFromCppToAPI) {
+TEST_F(InferRequestVariableStateTests, InferRequestCanConvertZeroVariableStateFromCppToAPI) {
     std::vector<IVariableStateInternal::Ptr> toReturn;
 
     EXPECT_CALL(*mockInferRequestInternal.get(), QueryState()).WillOnce(Return(toReturn));
@@ -263,7 +263,7 @@ TEST_F(VariableStateTests, InferRequestCanConvertZeroVariableStateFromCppToAPI) 
     ASSERT_EQ(state.size(), 0);
 }
 
-TEST_F(VariableStateTests, InferRequestCanConvert2VariableStatesFromCPPtoAPI) {
+TEST_F(InferRequestVariableStateTests, InferRequestCanConvert2VariableStatesFromCPPtoAPI) {
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
     toReturn.push_back(mockVariableStateInternal);
@@ -274,7 +274,7 @@ TEST_F(VariableStateTests, InferRequestCanConvert2VariableStatesFromCPPtoAPI) {
     ASSERT_EQ(state.size(), 2);
 }
 
-TEST_F(VariableStateTests, InfReqVariableStatePropagatesReset) {
+TEST_F(InferRequestVariableStateTests, InfReqVariableStatePropagatesReset) {
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -285,7 +285,7 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesReset) {
     state.front()->Reset();
 }
 
-TEST_F(VariableStateTests, InfReqVariableStatePropagatesExceptionsFromReset) {
+TEST_F(InferRequestVariableStateTests, InfReqVariableStatePropagatesExceptionsFromReset) {
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -296,7 +296,7 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesExceptionsFromReset) {
     EXPECT_ANY_THROW(state.front()->Reset());
 }
 
-TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetName) {
+TEST_F(InferRequestVariableStateTests, InfReqVariableStatePropagatesGetName) {
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
 
@@ -307,7 +307,7 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetName) {
     EXPECT_STREQ(state.front()->GetName().c_str(), "someName");
 }
 
-TEST_F(VariableStateTests, InfReqVariableStateCanPropagateSetState) {
+TEST_F(InferRequestVariableStateTests, InfReqVariableStateCanPropagateSetState) {
     std::vector<IVariableStateInternal::Ptr> toReturn;
     Blob::Ptr saver;
     toReturn.push_back(mockVariableStateInternal);
@@ -324,7 +324,7 @@ TEST_F(VariableStateTests, InfReqVariableStateCanPropagateSetState) {
     ASSERT_FLOAT_EQ(saver->buffer().as<float*>()[2], 125);
 }
 
-TEST_F(VariableStateTests, InfReqVariableStateCanPropagateGetLastState) {
+TEST_F(InferRequestVariableStateTests, InfReqVariableStateCanPropagateGetLastState) {
     std::vector<IVariableStateInternal::Ptr> toReturn;
 
     float data[] = {123, 124, 125};

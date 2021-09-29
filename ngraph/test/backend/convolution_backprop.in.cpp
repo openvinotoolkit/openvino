@@ -21,7 +21,6 @@
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/engine/test_engines.hpp"
-#include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
@@ -42,8 +41,7 @@ static void ConvolutionBackpropTest(const std::vector<float>& inputs,
                                     const Strides& strides,
                                     const CoordinateDiff& padding,
                                     const Strides& dilations,
-                                    const CoordinateDiff& output_padding)
-{
+                                    const CoordinateDiff& output_padding) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};

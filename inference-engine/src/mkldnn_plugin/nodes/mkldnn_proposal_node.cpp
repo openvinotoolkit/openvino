@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "base.hpp"
 
 #include <string>
 #include <vector>
@@ -72,8 +71,12 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNProposalNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNProposalNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto proposal0Op = ngraph::as_type_ptr<const ngraph::op::v0::Proposal>(op);
         const auto proposal4Op = ngraph::as_type_ptr<const ngraph::op::v4::Proposal>(op);
         if (!proposal0Op && !proposal4Op) {
@@ -141,17 +144,17 @@ void MKLDNNProposalNode::initSupportedPrimitiveDescriptors() {
         return;
 
     if (store_prob) {
-        addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                             {{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+        addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                              {LayoutType::ncsp, Precision::FP32},
+                              {LayoutType::ncsp, Precision::FP32}},
+                             {{LayoutType::ncsp, Precision::FP32},
+                              {LayoutType::ncsp, Precision::FP32}},
                              impl_desc_type::ref_any);
     } else {
-        addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                             {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+        addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                              {LayoutType::ncsp, Precision::FP32},
+                              {LayoutType::ncsp, Precision::FP32}},
+                             {{LayoutType::ncsp, Precision::FP32}},
                              impl_desc_type::ref_any);
     }
 }
@@ -166,8 +169,8 @@ void MKLDNNProposalNode::execute(mkldnn::stream strm) {
         if (store_prob)
             outProbData = reinterpret_cast <float *>(getChildEdgesAtPort(PROBABILITIES_OUT_IDX)[0]->getMemoryPtr()->GetPtr());
 
-        auto inProbDims = getParentEdgeAt(0)->getDims().ToSizeVector();
-        const size_t imgInfoSize = getParentEdgeAt(2)->getDims()[0];
+        auto inProbDims = getParentEdgeAt(0)->getMemory().getStaticDims();
+        const size_t imgInfoSize = getParentEdgeAt(2)->getMemory().getStaticDims()[0];
 
         // input image height & width
         const float imgHeight = imgInfoData[0];

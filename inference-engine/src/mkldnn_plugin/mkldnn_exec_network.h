@@ -38,17 +38,19 @@ public:
 
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
-    InferenceEngine::CNNNetwork GetExecGraphInfo() override;
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
 
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
+
+    void Export(std::ostream& modelStream) override;
 
 protected:
     friend class MKLDNNInferRequest;
     MKLDNNExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     const InferenceEngine::CNNNetwork           _network;
-    std::mutex                                  _cfgMutex;
+    mutable std::mutex                          _cfgMutex;
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
     std::string                                 _name;
@@ -59,15 +61,17 @@ protected:
             Graph&                          _graph;
         };
     };
+
     // WARNING: Do not use _graphs directly.
-    std::deque<Graph>                           _graphs;
+    mutable std::deque<Graph>                   _graphs;
     NumaNodesWeights&                           _numaNodesWeights;
 
     /* WARNING: Use GetGraph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
      *       even from main thread
      */
-    Graph::Lock GetGraph();
+    Graph::Lock GetGraph() const;
+
 
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
 };

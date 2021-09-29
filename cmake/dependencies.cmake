@@ -7,10 +7,6 @@ cmake_policy(SET CMP0054 NEW)
 # TODO: fix it
 set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
 
-if(CMAKE_CROSSCOMPILING)
-    set(CMAKE_STAGING_PREFIX "${TEMP}")
-endif()
-
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
     branchName(MODELS_BRANCH)
 else()
@@ -87,13 +83,12 @@ if(THREADING STREQUAL "OMP")
         message(FATAL_ERROR "Intel OMP is not available on current platform")
     endif()
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
-    log_rpath_from_dir(OMP "${OMP}/lib")
     debug_message(STATUS "intel_omp=" ${OMP})
     
     ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list} 
-            DESTINATION "deployment_tools/inference_engine/external/omp/lib"
+            DESTINATION "runtime/3rdparty/omp/lib"
             COMPONENT omp)
 endif()
 
@@ -150,12 +145,6 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
 
     update_deps_cache(TBBBIND_2_4_DIR "${TBBBIND_2_4}/cmake" "Path to TBBBIND_2_4 cmake folder")
-
-    if(WIN32)
-        log_rpath_from_dir(TBB "${TBB}/bin")
-    else ()
-        log_rpath_from_dir(TBB "${TBB}/lib")
-    endif()
     debug_message(STATUS "tbb=" ${TBB})
 endif()
 
@@ -246,14 +235,6 @@ if(ENABLE_OPENCV)
     endif()
 
     update_deps_cache(OpenCV_DIR "${ocv_cmake_path}" "Path to OpenCV package folder")
-
-    if(WIN32)
-        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../bin")
-    elseif(ANDROID)
-        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../../../lib")
-    else()
-        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../lib")
-    endif()
     debug_message(STATUS "opencv=" ${OPENCV})
 else()
     reset_deps_cache(OpenCV_DIR)
@@ -281,8 +262,8 @@ if(ENABLE_GNA)
             set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.1226")
-            set(GNA_HASH "d5450af15c993e264c25ac4591a7dab44722e10d15fca4f222a1b84429d4e5b6")
+            set(GNA_VERSION "03.00.00.1377")
+            set(GNA_HASH "d45fb48994d8c2803a16e88e29ae48851066325b97c1c6c4a5bf4f4573d55c65")
         endif()
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
@@ -301,45 +282,4 @@ if(ENABLE_GNA)
     endif()
     update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA})
-endif()
-
-if(ENABLE_SPEECH_DEMO)
-    reset_deps_cache(SPEECH_LIBS_AND_DEMOS)
-    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
-        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
-    elseif(DEFINED THIRDPARTY_SERVER_PATH)
-        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
-    else()
-        message(WARNING "Unable to locate Speech Demo")
-    endif()
-    if(DEFINED IE_PATH_TO_DEPS)
-        if(WIN32 AND X86_64)
-            RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_WIN "speech_demo_1.0.0.774_windows.zip"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "67b25170be5e89a4f0e90e8b39623b60c9a15b965c30329385e295fcd2edc856")
-            debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
-        elseif(LINUX AND X86_64)
-            if(LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
-                RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.774_centos.tgz"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "5ec3b7be9ae05376aefae5bd5fd4a39b12c274e82817fd3218120b8e8fc8ff5a")
-                debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
-            else()
-                RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.774_linux.tgz"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "f0bbd0a6218b0365e7cfb1f860b34e4ace7e0d47dd60b369cdea8a480329810f")
-                debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
-            endif()
-        else()
-            message(FATAL_ERROR "Speech Demo is not available on current platform")
-        endif()
-        unset(IE_PATH_TO_DEPS)
-    endif()
-    update_deps_cache(SPEECH_LIBS_AND_DEMOS "${SPEECH_LIBS_AND_DEMOS}" "Path to SPEECH_LIBS_AND_DEMOS root folder")
 endif()

@@ -11,8 +11,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNEmbeddingSegmentsSumNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNEmbeddingSegmentsSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto embBagSegSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingSegmentsSum>(op);
         if (!embBagSegSumOp) {
             errorMessage = "Node is not an instance of the EmbeddingSegmentsSum operation from opset v3.";
@@ -62,21 +66,21 @@ void MKLDNNEmbeddingSegmentsSumNode::initSupportedPrimitiveDescriptors() {
             IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
     }
 
-    std::vector<DataConfigurator> inDataConfigurators({{TensorDescCreatorTypes::ncsp, inDataPrecision},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32}});
-    if (getOriginalInputsNumber() > DEFAULT_INDEX_IDX)
-        inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, Precision::I32});
-    if (getOriginalInputsNumber() > PER_SAMPLE_WEIGHTS_IDX)
-        inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, inDataPrecision});
+    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
+                                                       {LayoutType::ncsp, Precision::I32},
+                                                       {LayoutType::ncsp, Precision::I32},
+                                                       {LayoutType::ncsp, Precision::I32}});
+    if (inputShapes.size() > DEFAULT_INDEX_IDX)
+        inDataConfigurators.push_back({LayoutType::ncsp, Precision::I32});
+    if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX)
+        inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
 
-    addSupportedPrimDesc(inDataConfigurators, {{TensorDescCreatorTypes::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
 }
 
 void MKLDNNEmbeddingSegmentsSumNode::initFromInputs() {
     indices_ = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->GetPtr());
-    indicesSize_ = getParentEdgeAt(INDICES_IDX)->getBlob()->size();
+    indicesSize_ = getParentEdgeAt(INDICES_IDX)->getMemory().GetShape().getElementsCount();
 
     segmentIds_ = reinterpret_cast<const int *>(getParentEdgeAt(SEGMENT_ID_IDX)->getMemoryPtr()->GetPtr());
 
@@ -124,7 +128,9 @@ void MKLDNNEmbeddingSegmentsSumNode::execute(mkldnn::stream strm) {
     if (_withWeights)
         weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
 
-    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, getParentEdgeAt(0)->getDesc(), getChildEdgeAt(0)->getDesc());
+    const auto &inputMem  = getParentEdgeAt(0)->getMemory();
+    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
+                                       inputMem .getStaticDims(), getChildEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims());
 }
 
 bool MKLDNNEmbeddingSegmentsSumNode::created() const {

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <cstring>
 #include <cassert>
 #include <cmath>
@@ -275,8 +273,12 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
 }
 
 bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::isSupportedOperation
-            (const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+            (const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
         if (!proposalOp) {
             errorMessage = "Node is not an instance of the Proposal from the operations set v0.";
@@ -313,36 +315,39 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::initSupportedP
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
     try {
-        if (inDims.size() != 4 || outDims.size() != 2) {
+        if (inputShapes.size() != 4 || outputShapes.size() != 2) {
             IE_THROW() << "Incorrect number of input or output edges!";
         }
 
         size_t anchor_dims_size = 1;
-        for (size_t i = 0; i < getParentEdgeAt(INPUT_ANCHORS)->getDims().ToSizeVector().size(); i++) {
-            anchor_dims_size *= getParentEdgeAt(INPUT_ANCHORS)->getDims().ToSizeVector()[i];
+        const auto &anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
+        for (size_t i = 0; i < anchorDims.size(); i++) {
+            anchor_dims_size *= anchorDims[i];
         }
 
         size_t deltas_dims_size = 1;
-        for (size_t i = 0; i < getParentEdgeAt(INPUT_DELTAS)->getDims().ToSizeVector().size(); i++) {
-            deltas_dims_size *= getParentEdgeAt(INPUT_DELTAS)->getDims().ToSizeVector()[i];
+        const auto &deltaDims = getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims();
+        for (size_t i = 0; i < deltaDims.size(); i++) {
+            deltas_dims_size *= deltaDims[i];
         }
         if (anchor_dims_size != deltas_dims_size)
             IE_THROW() << "'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!";
 
         size_t score_dims_size = 1;
-        for (size_t i = 0; i < getParentEdgeAt(INPUT_SCORES)->getDims().ToSizeVector().size(); i++) {
-            score_dims_size *= getParentEdgeAt(INPUT_SCORES)->getDims().ToSizeVector()[i];
+        const auto &scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
+        for (size_t i = 0; i < scoreDims.size(); i++) {
+            score_dims_size *= scoreDims[i];
         }
         if (deltas_dims_size != (4 * score_dims_size))
             IE_THROW() << "'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!";
@@ -356,11 +361,11 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
         float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
         float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
 
-        const int anchors_num = getParentEdgeAt(INPUT_SCORES)->getDims()[0];
+        const int anchors_num = scoreDims[0];
 
         // bottom shape: (num_anchors) x H x W
-        const int bottom_H = getParentEdgeAt(INPUT_DELTAS)->getDims()[1];
-        const int bottom_W = getParentEdgeAt(INPUT_DELTAS)->getDims()[2];
+        const int bottom_H = deltaDims[1];
+        const int bottom_W = deltaDims[2];
 
         // input image height & width
         const float img_H = p_img_info_cpu[0];

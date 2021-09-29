@@ -11,7 +11,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-class ImportReshapePermuteConvGNA : public ImportReshapePermuteConv {
+class ImportExportGNAModelUnchanged : public ImportReshapePermuteConv {
 private:
     void exportImportNetwork() override {
         {
@@ -42,8 +42,14 @@ private:
     std::string fileName = "exported_model.blob";
 };
 
-TEST_P(ImportReshapePermuteConvGNA, CompareWithRefImpl) {
-    Run();
+class ImportExportGNAModelChanged : public ImportExportGNAModelUnchanged {};
+
+TEST_P(ImportExportGNAModelUnchanged, ReshapePermuteConv) {
+    TestRun(false);
+};
+
+TEST_P(ImportExportGNAModelChanged, ReshapePermuteConv) {
+    TestRun(true);
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -58,15 +64,25 @@ const std::vector<std::map<std::string, std::string>> exportConfigs = {
     }
 };
 
-const std::vector<std::map<std::string, std::string>> importConfigs = {
+const std::vector<std::map<std::string, std::string>> importConfigsChanged = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_SCALE_FACTOR_0", "32767"}
-    },
+    }
+};
+
+const std::vector<std::map<std::string, std::string>> importConfigsUnchanged = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_SCALE_FACTOR_0", "327.67"}
     },
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+        {"GNA_SCALE_FACTOR_0", "1"}
+    },
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
+    }
 };
 
 const std::vector<std::string> appHeaders = {
@@ -74,13 +90,22 @@ const std::vector<std::string> appHeaders = {
         "APPLICATION_HEADER"
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkCase, ImportReshapePermuteConvGNA,
+INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportExportGNAModelUnchanged,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(exportConfigs),
-                            ::testing::ValuesIn(importConfigs),
+                            ::testing::ValuesIn(importConfigsUnchanged),
                             ::testing::ValuesIn(appHeaders)),
-                        ImportReshapePermuteConvGNA::getTestCaseName);
+                        ImportExportGNAModelUnchanged::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportExportGNAModelChanged,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                            ::testing::ValuesIn(exportConfigs),
+                            ::testing::ValuesIn(importConfigsChanged),
+                            ::testing::ValuesIn(appHeaders)),
+                        ImportExportGNAModelChanged::getTestCaseName);
 
 } // namespace

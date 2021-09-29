@@ -9,7 +9,6 @@
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/engine/test_engines.hpp"
-#include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
@@ -22,8 +21,7 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, interpolate_down_scales_const_linear)
-{
+NGRAPH_TEST(${BACKEND_NAME}, interpolate_down_scales_const_linear) {
     Shape input_shape{1, 1, 2, 4};
     Shape output_shape{1, 1, 1, 2};
     op::v0::InterpolateAttrs attrs;

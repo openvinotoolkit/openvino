@@ -31,10 +31,14 @@ public:
 
 using PrecisionPreservedAttributePtr = std::shared_ptr<PrecisionPreservedAttribute>;
 
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<PrecisionPreservedAttributePtr>;
+} // namespace ngraph
+
+namespace ov {
+
+extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<ngraph::PrecisionPreservedAttributePtr>;
 
 template<>
-class LP_TRANSFORMATIONS_API VariantWrapper<PrecisionPreservedAttributePtr> : public VariantImpl<PrecisionPreservedAttributePtr> {
+class LP_TRANSFORMATIONS_API VariantWrapper<ngraph::PrecisionPreservedAttributePtr> : public VariantImpl<ngraph::PrecisionPreservedAttributePtr> {
 public:
     static constexpr VariantTypeInfo type_info{ "LowPrecision::PrecisionPreserved", 0 };
 
@@ -44,8 +48,9 @@ public:
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 
-    PrecisionPreservedAttributePtr get() { return this->m_value; }
+    ngraph::PrecisionPreservedAttributePtr get() { return this->m_value; }
 
     std::string to_string() override;
 };
-} // namespace ngraph
+
+}  // namespace ov

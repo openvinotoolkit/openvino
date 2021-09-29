@@ -21,8 +21,8 @@ public:
             size_t perSampleWeightsIdx,
             size_t defaultIndexIdx);
 
-    void execute(const uint8_t* srcData, const uint8_t* weightsData, uint8_t* dstData,
-                 const InferenceEngine::TensorDesc& srcDesc, const InferenceEngine::TensorDesc& dstDesc);
+    void execute(const uint8_t* srcData, const uint8_t* weightsData, uint8_t* dstData, const InferenceEngine::Precision &srcPrc,
+                 const InferenceEngine::SizeVector& inDims, const InferenceEngine::SizeVector& outDims);
 
     ~MKLDNNEmbeddingBagSumNode() = default;
 
@@ -37,7 +37,7 @@ protected:
 
     template<typename T>
     void processData(const T* srcData, const T* weightsData, T* dstData,
-                     const InferenceEngine::TensorDesc& srcDesc, const InferenceEngine::TensorDesc& dstDesc);
+                     const InferenceEngine::SizeVector& inDataDims, const InferenceEngine::SizeVector& outDataDims);
 
     const size_t EMB_TABLE_IDX = 0lu;
     const size_t INDICES_IDX;

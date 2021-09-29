@@ -176,7 +176,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
-    {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
+    {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+    ngraph::PartialShape::dynamic()
 };
 
 const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues = {
@@ -213,33 +214,4 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValues)),
     FuseMultiplyToFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues2
-
-namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
-    PartialShape::dynamic()
-};
-
-const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {}, {}, { 0.5f } },
-        },
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {}, {}, { 0.5f } },
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    FuseMultiplyToFakeQuantizeTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(quantizationLevels),
-        ::testing::ValuesIn(inputShapesWithDynamicChannels),
-        ::testing::ValuesIn(testValues)),
-    FuseMultiplyToFakeQuantizeTransformation::getTestCaseName);
-} // namespace testValues3
 } // namespace

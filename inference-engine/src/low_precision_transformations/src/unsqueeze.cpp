@@ -42,11 +42,18 @@ bool UnsqueezeTransformation::transform(TransformationContext& context, ngraph::
                                 const std::shared_ptr<ngraph::opset1::Constant>& dequantizationOpConstant,
                                 const ngraph::PartialShape& inputShape) {
         const size_t inputRankValue = inputShape.rank().get_length();
-        if (dequantizationOpConstant->get_shape().size() == inputRankValue) {
-            return as_type_ptr<opset1::Constant>(fold<opset1::Unsqueeze>(dequantizationOpConstant, unsqueeze->get_input_node_shared_ptr(1)));
+        const auto constantShape = dequantizationOpConstant->get_shape();
+        if (shape_size(constantShape) == 1ul) {
+            return NetworkHelper::toScalar(dequantizationOpConstant);
         }
+
+        if (constantShape.size() == inputRankValue) {
+            return ov::as_type_ptr<opset1::Constant>(fold<opset1::Unsqueeze>(dequantizationOpConstant, unsqueeze->input_value(1)));
+        }
+
         return dequantizationOpConstant;
     };
+
 
     const std::shared_ptr<Node> unsqueeze = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(unsqueeze);

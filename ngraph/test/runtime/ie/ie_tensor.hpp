@@ -11,45 +11,39 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace ie
-        {
-            class IETensor : public ngraph::runtime::Tensor
-            {
-            public:
-                IE_BACKEND_API IETensor(const ngraph::element::Type& element_type,
-                                        const Shape& shape);
-                IE_BACKEND_API IETensor(const ngraph::element::Type& element_type,
-                                        const PartialShape& shape);
+namespace ngraph {
+namespace runtime {
+namespace ie {
+class IE_BACKEND_API IETensor : public ngraph::runtime::Tensor {
+public:
+    IETensor(const ngraph::element::Type& element_type, const Shape& shape);
+    IETensor(const ngraph::element::Type& element_type, const PartialShape& shape);
 
-                ///
-                /// \brief      Write bytes directly into the tensor
-                ///
-                /// \param      src    Pointer to source of data
-                /// \param      bytes  Number of bytes to write, must be integral number of
-                /// elements.
-                ///
-                void write(const void* src, size_t bytes) override;
+    ///
+    /// \brief      Write bytes directly into the tensor
+    ///
+    /// \param      src    Pointer to source of data
+    /// \param      bytes  Number of bytes to write, must be integral number of
+    /// elements.
+    ///
+    void write(const void* src, size_t bytes) override;
 
-                ///
-                /// \brief      Read bytes directly from the tensor
-                ///
-                /// \param      dst    Pointer to destination for data
-                /// \param      bytes  Number of bytes to read, must be integral number of elements.
-                ///
-                void read(void* dst, size_t bytes) const override;
+    ///
+    /// \brief      Read bytes directly from the tensor
+    ///
+    /// \param      dst    Pointer to destination for data
+    /// \param      bytes  Number of bytes to read, must be integral number of elements.
+    ///
+    void read(void* dst, size_t bytes) const override;
 
-                const void* get_data_ptr() const;
+    const void* get_data_ptr() const;
 
-            private:
-                IETensor(const IETensor&) = delete;
-                IETensor(IETensor&&) = delete;
-                IETensor& operator=(const IETensor&) = delete;
-                AlignedBuffer m_data;
-            };
-        }
-    }
-}
+private:
+    IETensor(const IETensor&) = delete;
+    IETensor(IETensor&&) = delete;
+    IETensor& operator=(const IETensor&) = delete;
+    AlignedBuffer m_data;
+};
+}  // namespace ie
+}  // namespace runtime
+}  // namespace ngraph

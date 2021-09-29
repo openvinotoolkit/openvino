@@ -85,7 +85,7 @@ The sample application logs each step in a standard output stream and outputs to
 
 ```
 [ INFO ] Creating Inference Engine
-[ INFO ] Loading the network using ngraph function with weights from c:\openvino\deployment_tools\inference_engine\samples\python\ngraph_function_creation_sample\lenet.bin
+[ INFO ] Loading the network using ngraph function with weights from c:\openvino\samples\python\ngraph_function_creation_sample\lenet.bin
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
 [ WARNING ] Image c:\images\3.png is inverted to white over black
@@ -130,7 +130,7 @@ The sample application logs each step in a standard output stream and outputs to
 
 - [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
 - [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-- [Model Downloader](@ref omz_tools_downloader_README)
+- [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html

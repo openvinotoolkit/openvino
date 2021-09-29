@@ -30,7 +30,6 @@
 #include "ngraph/ngraph.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/random.hpp"
 #include "util/test_control.hpp"
@@ -44,8 +43,7 @@ using ExperimentalDO = op::v6::ExperimentalDetectronDetectionOutput;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_detection_output_eval)
-{
+NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_detection_output_eval) {
     Attrs attrs;
     attrs.class_agnostic_box_regression = true;
     attrs.deltas_weights = {10.0f, 10.0f, 5.0f, 5.0f};
@@ -69,30 +67,26 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_detection_output_eval)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    std::vector<float> rois_data = {
-        1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,  4.0f,  1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    std::vector<float> rois_data = {1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f,  4.0f,  1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
     std::vector<float> deltas_data = {
-        5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
-    std::vector<float> scores_data = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                      1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                      1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                                      1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    std::vector<float> scores_data = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                      1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                      1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
     std::vector<float> im_info_data = {1.0f, 1.0f, 1.0f};
 
@@ -142,22 +136,17 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_detection_output_eval)
     auto handle1 = backend->compile(f1);
     auto handle2 = backend->compile(f2);
 
-    handle0->call_with_validate({output_boxes},
-                                {backend_rois, backend_deltas, backend_scores, backend_im_info});
-    handle1->call_with_validate({output_classes},
-                                {backend_rois, backend_deltas, backend_scores, backend_im_info});
-    handle2->call_with_validate({output_scores},
-                                {backend_rois, backend_deltas, backend_scores, backend_im_info});
+    handle0->call_with_validate({output_boxes}, {backend_rois, backend_deltas, backend_scores, backend_im_info});
+    handle1->call_with_validate({output_classes}, {backend_rois, backend_deltas, backend_scores, backend_im_info});
+    handle2->call_with_validate({output_scores}, {backend_rois, backend_deltas, backend_scores, backend_im_info});
 
     auto output_boxes_vector = read_vector<float>(output_boxes);
     size_t output_boxes_shape_size = shape_size(output_boxes_shape);
-    for (std::size_t j = 0; j < output_boxes_shape_size; ++j)
-    {
+    for (std::size_t j = 0; j < output_boxes_shape_size; ++j) {
         EXPECT_NEAR(output_boxes_vector[j], expected_output_boxes[j], 0.0000002);
     }
 
     EXPECT_EQ(expected_output_classes, read_vector<int32_t>(output_classes));
 
-    EXPECT_TRUE(test::all_close_f(
-        expected_output_scores, read_vector<float>(output_scores), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f(expected_output_scores, read_vector<float>(output_scores), MIN_FLOAT_TOLERANCE_BITS));
 }

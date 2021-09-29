@@ -4,5 +4,6 @@
 
 #pragma once
 
-#define COPY_TENSOR(a)                                                                             \
-    case element::Type_t::a: rc = copy_tensor<element::Type_t::a>
+#define COPY_TENSOR(a)       \
+    case element::Type_t::a: \
+        rc = copy_tensor<element::Type_t::a>

@@ -8,7 +8,6 @@
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
@@ -18,102 +17,84 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-namespace
-{
-    template <typename ValueType>
-    struct Params
-    {
-        using Data = ::ngraph::test::NDArrayBase<ValueType>;
-        using Pads = ::ngraph::test::NDArrayBase<int64_t>;
+namespace {
+template <typename ValueType>
+struct Params {
+    using Data = ::ngraph::test::NDArrayBase<ValueType>;
+    using Pads = ::ngraph::test::NDArrayBase<int64_t>;
 
-        Params(Data input_data,
-               Pads pads_begin,
-               Pads pads_end,
-               Data expected_output,
-               op::PadMode pad_mode,
-               ValueType constant_value)
-            : input_data{std::move(input_data)}
-            , pads_begin{std::move(pads_begin)}
-            , pads_end{std::move(pads_end)}
-            , expected_output{std::move(expected_output)}
-            , pad_mode{pad_mode}
-            , use_const_value{true}
-            , constant_value{constant_value}
-        {
-        }
+    Params(Data input_data,
+           Pads pads_begin,
+           Pads pads_end,
+           Data expected_output,
+           op::PadMode pad_mode,
+           ValueType constant_value)
+        : input_data{std::move(input_data)},
+          pads_begin{std::move(pads_begin)},
+          pads_end{std::move(pads_end)},
+          expected_output{std::move(expected_output)},
+          pad_mode{pad_mode},
+          use_const_value{true},
+          constant_value{constant_value} {}
 
-        Params(Data input_data,
-               Pads pads_begin,
-               Pads pads_end,
-               Data expected_output,
-               op::PadMode pad_mode)
-            : input_data{std::move(input_data)}
-            , pads_begin{std::move(pads_begin)}
-            , pads_end{std::move(pads_end)}
-            , expected_output{std::move(expected_output)}
-            , pad_mode{pad_mode}
-        {
-        }
+    Params(Data input_data, Pads pads_begin, Pads pads_end, Data expected_output, op::PadMode pad_mode)
+        : input_data{std::move(input_data)},
+          pads_begin{std::move(pads_begin)},
+          pads_end{std::move(pads_end)},
+          expected_output{std::move(expected_output)},
+          pad_mode{pad_mode} {}
 
-        Data input_data;
-        Pads pads_begin;
-        Pads pads_end;
-        Data expected_output;
-        op::PadMode pad_mode;
-        bool use_const_value{false};
-        ValueType constant_value{};
-    };
+    Data input_data;
+    Pads pads_begin;
+    Pads pads_end;
+    Data expected_output;
+    op::PadMode pad_mode;
+    bool use_const_value{false};
+    ValueType constant_value{};
+};
 
-    class PadBackendTest : public ::testing::TestWithParam<Params<float>>
-    {
-    public:
-        static void execute_test(const Params<float>& params)
-        {
-            const auto data =
-                make_shared<op::Parameter>(element::f32, params.input_data.get_shape());
+class PadBackendTest : public ::testing::TestWithParam<Params<float>> {
+public:
+    static void execute_test(const Params<float>& params) {
+        const auto data = make_shared<op::Parameter>(element::f32, params.input_data.get_shape());
 
-            const auto pads_begin = op::Constant::create(
-                element::i64, params.pads_begin.get_shape(), params.pads_begin.get_vector());
+        const auto pads_begin =
+            op::Constant::create(element::i64, params.pads_begin.get_shape(), params.pads_begin.get_vector());
 
-            const auto pads_end = op::Constant::create(
-                element::i64, params.pads_end.get_shape(), params.pads_end.get_vector());
+        const auto pads_end =
+            op::Constant::create(element::i64, params.pads_end.get_shape(), params.pads_end.get_vector());
 
-            auto f = [&] {
-                if (params.use_const_value)
-                {
-                    // pad_value should be used only in CONSTANT mode
-                    const auto pad_val =
-                        op::Constant::create(element::f32, Shape{}, {params.constant_value});
-
-                    return make_shared<Function>(
-                        make_shared<op::v1::Pad>(
-                            data, pads_begin, pads_end, pad_val, params.pad_mode),
-                        ParameterVector{data});
-                }
+        auto f = [&] {
+            if (params.use_const_value) {
+                // pad_value should be used only in CONSTANT mode
+                const auto pad_val = op::Constant::create(element::f32, Shape{}, {params.constant_value});
 
                 return make_shared<Function>(
-                    make_shared<op::v1::Pad>(data, pads_begin, pads_end, params.pad_mode),
+                    make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, params.pad_mode),
                     ParameterVector{data});
-            }();
+            }
 
-            auto backend = runtime::Backend::create("${BACKEND_NAME}");
+            return make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, params.pad_mode),
+                                         ParameterVector{data});
+        }();
 
-            // Create some tensors for input/output
-            auto a = backend->create_tensor(element::f32, params.input_data.get_shape());
-            copy_data(a, params.input_data.get_vector());
-            auto result = backend->create_tensor(element::f32, params.expected_output.get_shape());
+        auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-            auto handle = backend->compile(f);
-            handle->call_with_validate({result}, {a});
-            EXPECT_TRUE(test::all_close_f(params.expected_output.get_vector(),
-                                          read_vector<float>(result),
-                                          MIN_FLOAT_TOLERANCE_BITS));
-        }
-    };
-} // namespace
+        // Create some tensors for input/output
+        auto a = backend->create_tensor(element::f32, params.input_data.get_shape());
+        copy_data(a, params.input_data.get_vector());
+        auto result = backend->create_tensor(element::f32, params.expected_output.get_shape());
 
-NGRAPH_TEST_P(${BACKEND_NAME}, PadBackendTest, PadBackendTestForSpec)
-{
+        auto handle = backend->compile(f);
+        handle->call_with_validate({result}, {a});
+        EXPECT_TRUE(test::all_close_f(params.expected_output.get_vector(),
+                                      read_vector<float>(result),
+                                      MIN_FLOAT_TOLERANCE_BITS));
+    }
+};
+}  // namespace
+
+NGRAPH_TEST_P(${BACKEND_NAME}, PadBackendTest, PadBackendTestForSpec) {
     execute_test(GetParam());
 }
 
@@ -125,8 +106,7 @@ NGRAPH_INSTANTIATE_TEST_SUITE_P(
         Params<float>{test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}),
                       test::NDArray<int64_t, 1>({4}),
                       test::NDArray<int64_t, 1>({5}),
-                      test::NDArray<float, 1>(
-                          {2112, 2112, 2112, 2112, 1, 2, 3, 4, 5, 6, 2112, 2112, 2112, 2112, 2112}),
+                      test::NDArray<float, 1>({2112, 2112, 2112, 2112, 1, 2, 3, 4, 5, 6, 2112, 2112, 2112, 2112, 2112}),
                       op::PadMode::CONSTANT,
                       2112},
         Params<float>{test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}),
@@ -146,69 +126,67 @@ NGRAPH_INSTANTIATE_TEST_SUITE_P(
     ${BACKEND_NAME},
     pad_1d_constant_use_default_const,
     PadBackendTest,
-    testing::Values(
-        Params<float>{test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}),
-                      test::NDArray<int64_t, 1>({4}),
-                      test::NDArray<int64_t, 1>({5}),
-                      test::NDArray<float, 1>({0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0}),
-                      op::PadMode::CONSTANT},
-        Params<float>{test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}),
-                      test::NDArray<int64_t, 1>({4}),
-                      test::NDArray<int64_t, 1>({0}),
-                      test::NDArray<float, 1>({0, 0, 0, 0, 1, 2, 3, 4, 5, 6}),
-                      op::PadMode::CONSTANT},
-        Params<float>{test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}),
-                      test::NDArray<int64_t, 1>({0}),
-                      test::NDArray<int64_t, 1>({3}),
-                      test::NDArray<float, 1>({1, 2, 3, 4, 5, 6, 0, 0, 0}),
-                      op::PadMode::CONSTANT}));
+    testing::Values(Params<float>{test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}),
+                                  test::NDArray<int64_t, 1>({4}),
+                                  test::NDArray<int64_t, 1>({5}),
+                                  test::NDArray<float, 1>({0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0}),
+                                  op::PadMode::CONSTANT},
+                    Params<float>{test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}),
+                                  test::NDArray<int64_t, 1>({4}),
+                                  test::NDArray<int64_t, 1>({0}),
+                                  test::NDArray<float, 1>({0, 0, 0, 0, 1, 2, 3, 4, 5, 6}),
+                                  op::PadMode::CONSTANT},
+                    Params<float>{test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}),
+                                  test::NDArray<int64_t, 1>({0}),
+                                  test::NDArray<int64_t, 1>({3}),
+                                  test::NDArray<float, 1>({1, 2, 3, 4, 5, 6, 0, 0, 0}),
+                                  op::PadMode::CONSTANT}));
 
-NGRAPH_INSTANTIATE_TEST_SUITE_P(
-    ${BACKEND_NAME},
-    pad_2d_constant_const_value_provided,
-    PadBackendTest,
-    testing::Values(Params<float>{test::NDArray<float, 2>({
-                                      {1, 2},
-                                      {3, 4},
-                                  }),
-                                  test::NDArray<int64_t, 1>({1, 2}),
-                                  test::NDArray<int64_t, 1>({3, 4}),
-                                  test::NDArray<float, 2>({
-                                      {2112, 2112, 2112, 2112, 2112, 2112, 2112, 2112},
-                                      {2112, 2112, 1, 2, 2112, 2112, 2112, 2112},
-                                      {2112, 2112, 3, 4, 2112, 2112, 2112, 2112},
-                                      {2112, 2112, 2112, 2112, 2112, 2112, 2112, 2112},
-                                      {2112, 2112, 2112, 2112, 2112, 2112, 2112, 2112},
-                                      {2112, 2112, 2112, 2112, 2112, 2112, 2112, 2112},
-                                  }),
-                                  op::PadMode::CONSTANT,
-                                  2112},
-                    Params<float>{test::NDArray<float, 2>({
-                                      {1, 2},
-                                      {3, 4},
-                                  }),
-                                  test::NDArray<int64_t, 1>({1, 2}),
-                                  test::NDArray<int64_t, 1>({0, 0}),
-                                  test::NDArray<float, 2>({
-                                      {2112, 2112, 2112, 2112},
-                                      {2112, 2112, 1, 2},
-                                      {2112, 2112, 3, 4},
-                                  }),
-                                  op::PadMode::CONSTANT,
-                                  2112},
-                    Params<float>{test::NDArray<float, 2>({
-                                      {1, 2},
-                                      {3, 4},
-                                  }),
-                                  test::NDArray<int64_t, 1>({0, 0}),
-                                  test::NDArray<int64_t, 1>({1, 2}),
-                                  test::NDArray<float, 2>({
-                                      {1, 2, 2112, 2112},
-                                      {3, 4, 2112, 2112},
-                                      {2112, 2112, 2112, 2112},
-                                  }),
-                                  op::PadMode::CONSTANT,
-                                  2112}));
+NGRAPH_INSTANTIATE_TEST_SUITE_P(${BACKEND_NAME},
+                                pad_2d_constant_const_value_provided,
+                                PadBackendTest,
+                                testing::Values(Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2},
+                                                                  {3, 4},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<int64_t, 1>({3, 4}),
+                                                              test::NDArray<float, 2>({
+                                                                  {2112, 2112, 2112, 2112, 2112, 2112, 2112, 2112},
+                                                                  {2112, 2112, 1, 2, 2112, 2112, 2112, 2112},
+                                                                  {2112, 2112, 3, 4, 2112, 2112, 2112, 2112},
+                                                                  {2112, 2112, 2112, 2112, 2112, 2112, 2112, 2112},
+                                                                  {2112, 2112, 2112, 2112, 2112, 2112, 2112, 2112},
+                                                                  {2112, 2112, 2112, 2112, 2112, 2112, 2112, 2112},
+                                                              }),
+                                                              op::PadMode::CONSTANT,
+                                                              2112},
+                                                Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2},
+                                                                  {3, 4},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<int64_t, 1>({0, 0}),
+                                                              test::NDArray<float, 2>({
+                                                                  {2112, 2112, 2112, 2112},
+                                                                  {2112, 2112, 1, 2},
+                                                                  {2112, 2112, 3, 4},
+                                                              }),
+                                                              op::PadMode::CONSTANT,
+                                                              2112},
+                                                Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2},
+                                                                  {3, 4},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({0, 0}),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<float, 2>({
+                                                                  {1, 2, 2112, 2112},
+                                                                  {3, 4, 2112, 2112},
+                                                                  {2112, 2112, 2112, 2112},
+                                                              }),
+                                                              op::PadMode::CONSTANT,
+                                                              2112}));
 
 NGRAPH_INSTANTIATE_TEST_SUITE_P(${BACKEND_NAME},
                                 pad_2d_constant_use_default_const,
@@ -455,8 +433,7 @@ NGRAPH_INSTANTIATE_TEST_SUITE_P(${BACKEND_NAME},
                                                               }),
                                                               op::PadMode::SYMMETRIC}));
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_to_large_symmetric_padding)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_to_large_symmetric_padding) {
     const auto params_to_large = Params<float>{test::NDArray<float, 2>({
                                                    {1, 2},
                                                    {4, 5},
@@ -485,8 +462,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_to_large_symmetric_padding)
 
     EXPECT_NO_THROW(PadBackendTest::execute_test(params_ok));
 }
-NGRAPH_TEST(${BACKEND_NAME}, pad_to_large_reflect_padding)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_to_large_reflect_padding) {
     const auto params_to_large = Params<float>{test::NDArray<float, 2>({
                                                    {1, 2},
                                                    {4, 5},
@@ -516,8 +492,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_to_large_reflect_padding)
     EXPECT_NO_THROW(PadBackendTest::execute_test(params_ok));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_1d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_1d) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -525,9 +500,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_1d)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {5});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -538,14 +512,12 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_1d)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(
-        test::all_close_f({2112, 2112, 2112, 2112, 1, 2, 3, 4, 5, 6, 2112, 2112, 2112, 2112, 2112},
-                          read_vector<float>(result),
-                          MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f({2112, 2112, 2112, 2112, 1, 2, 3, 4, 5, 6, 2112, 2112, 2112, 2112, 2112},
+                                  read_vector<float>(result),
+                                  MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -553,9 +525,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-2});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -566,13 +537,11 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f({2112, 2112, 2112, 2112, 1, 2, 3, 4},
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(
+        test::all_close_f({2112, 2112, 2112, 2112, 1, 2, 3, 4}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d_check_limits)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d_check_limits) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -580,9 +549,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d_check_limits)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-7});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -593,12 +561,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d_check_limits)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        {2112, 2112, 2112}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f({2112, 2112, 2112}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -606,9 +572,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -619,12 +584,11 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        {1, 1, 1, 2, 3, 4, 5, 6, 6, 6, 6}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(
+        test::all_close_f({1, 1, 1, 2, 3, 4, 5, 6, 6, 6, 6}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -632,9 +596,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-3});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -645,12 +608,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(
-        test::all_close_f({1, 1, 1, 2, 3}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f({1, 1, 1, 2, 3}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg_bigger_than_tensor)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg_bigger_than_tensor) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -658,9 +619,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg_bigger_than_tensor)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-7});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -674,8 +634,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg_bigger_than_tensor)
     EXPECT_TRUE(test::all_close_f({1}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -683,9 +642,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -696,12 +654,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        {3, 4, 5, 6, 6, 6, 6}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f({3, 4, 5, 6, 6, 6, 6}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg_bigger_than_tensor)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg_bigger_than_tensor) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -709,9 +665,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg_bigger_than_tensor)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -725,8 +680,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg_bigger_than_tensor)
     EXPECT_TRUE(test::all_close_f({6, 6}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d) {
     const Shape data_shape{3, 4};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -734,9 +688,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d)
     const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -758,8 +711,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d_with_neg)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d_with_neg) {
     const Shape data_shape{3, 4};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -767,9 +719,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d_with_neg)
     const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -791,8 +742,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d_with_neg)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -800,9 +750,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -818,8 +767,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -827,9 +775,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-3});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -840,12 +787,11 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        std::vector<float>({3, 2, 1, 2, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(
+        test::all_close_f(std::vector<float>({3, 2, 1, 2, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg_bigger_than_tensor)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg_bigger_than_tensor) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -853,9 +799,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg_bigger_than_tensor)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-7});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -866,12 +811,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg_bigger_than_tensor)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        std::vector<float>({3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f(std::vector<float>({3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -879,9 +822,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -897,8 +839,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg_bigger_than_tensor)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg_bigger_than_tensor) {
     const Shape data_shape{6};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -906,9 +847,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg_bigger_than_tensor)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -919,12 +859,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg_bigger_than_tensor)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        std::vector<float>({4, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f(std::vector<float>({4, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_pad_reflect_1d_multi_reflect)
-{
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_pad_reflect_1d_multi_reflect) {
     const Shape data_shape{3};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -932,9 +870,8 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_pad_reflect_1d_multi_reflect)
     const auto pads_end = op::Constant::create(element::i64, Shape{1}, {9});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -945,14 +882,13 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_pad_reflect_1d_multi_reflect)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        std::vector<float>({3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2}),
-        read_vector<float>(result),
-        MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(
+        test::all_close_f(std::vector<float>({3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2}),
+                          read_vector<float>(result),
+                          MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d) {
     const Shape data_shape{3, 4};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -960,16 +896,14 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d)
     const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::f32, data_shape);
-    copy_data(a,
-              test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
+    copy_data(a, test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
     auto result = backend->create_tensor(element::f32, Shape{6, 9});
 
     auto handle = backend->compile(f);
@@ -985,8 +919,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d_with_neg)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d_with_neg) {
     const Shape data_shape{3, 4};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -994,16 +927,14 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d_with_neg)
     const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::f32, data_shape);
-    copy_data(a,
-              test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
+    copy_data(a, test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
     auto result = backend->create_tensor(element::f32, Shape{6, 5});
 
     auto handle = backend->compile(f);
@@ -1019,8 +950,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d_with_neg)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d) {
     const Shape data_shape{2, 3};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -1028,9 +958,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d)
     const auto pads_end = op::Constant::create(element::i64, Shape{2}, {2, 0});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {9});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -1041,14 +970,12 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        test::NDArray<float, 2>({{9, 9}, {2, 3}, {5, 6}, {9, 9}, {9, 9}}).get_vector(),
-        read_vector<float>(result),
-        MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f(test::NDArray<float, 2>({{9, 9}, {2, 3}, {5, 6}, {9, 9}, {9, 9}}).get_vector(),
+                                  read_vector<float>(result),
+                                  MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d_all_negative)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d_all_negative) {
     const Shape data_shape{3, 3};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -1056,9 +983,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d_all_negative)
     const auto pads_end = op::Constant::create(element::i64, Shape{2}, {-1, -1});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {9});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -1074,8 +1000,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d_all_negative)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x0) {
     const Shape data_shape{0, 0};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -1083,9 +1008,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x0)
     const auto pads_end = op::Constant::create(element::i64, Shape{2}, {3, 2});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -1105,8 +1029,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x0)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x3)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x3) {
     const Shape data_shape{0, 3};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -1114,9 +1037,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x3)
     const auto pads_end = op::Constant::create(element::i64, Shape{2}, {3, 1});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -1136,8 +1058,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x3)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_3x0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_3x0) {
     const Shape data_shape{3, 0};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -1145,9 +1066,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_3x0)
     const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -1167,8 +1087,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_3x0)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_4d_1x2x2x2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_4d_1x2x2x2) {
     const Shape data_shape{1, 2, 2, 2};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -1176,9 +1095,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_4d_1x2x2x2)
     const auto pads_end = op::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {42});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -1225,8 +1143,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_4d_1x2x2x2)
     // clang-format on
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_4d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_4d) {
     const Shape data_shape{1, 3, 2, 2};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -1234,9 +1151,8 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_4d)
     const auto pads_end = op::Constant::create(element::i64, Shape{4}, {0, -1, 1, 1});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {42});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -1285,8 +1201,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_4d)
 
 // This test covers the case with multiple image and with asymetric pad
 // bug has been found on nvGPU side now covered by this test
-NGRAPH_TEST(${BACKEND_NAME}, pad_2channel_2image_asym)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_2channel_2image_asym) {
     const Shape data_shape{2, 2, 4, 4};
     const auto window_movement_strides = Strides{2, 2};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
@@ -1295,31 +1210,30 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_2channel_2image_asym)
     const auto pads_end = op::Constant::create(element::i64, Shape{4}, {0, 0, 2, 2});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {42});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
-        ParameterVector{data});
+    auto f = make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+                                   ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::f32, data_shape);
     copy_data(a,
-              test::NDArray<float, 4>({{{{0, 1, 0, 2}, // img 0 chan 0
+              test::NDArray<float, 4>({{{{0, 1, 0, 2},  // img 0 chan 0
                                          {0, 3, 2, 0},
                                          {2, 0, 0, 0},
                                          {0, 2, 1, 0}},
 
-                                        {{0, 0, 0, 2}, // img 0 chan 1
+                                        {{0, 0, 0, 2},  // img 0 chan 1
                                          {0, 2, 3, 0},
                                          {2, 0, 1, 0},
                                          {2, 0, 0, 0}}},
 
-                                       {{{0, 2, 1, 1}, // img 1 chan 0
+                                       {{{0, 2, 1, 1},  // img 1 chan 0
                                          {0, 0, 2, 0},
                                          {0, 0, 1, 2},
                                          {0, 0, 0, 0}},
 
-                                        {{2, 1, 0, 0}, // img 1 chan 1
+                                        {{2, 1, 0, 0},  // img 1 chan 1
                                          {0, 2, 0, 0},
                                          {1, 1, 2, 0},
                                          {1, 0, 0, 0}}}})
@@ -1330,28 +1244,28 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_2channel_2image_asym)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
 
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 4>({{{{0, 1, 0, 2, 42, 42}, // img 0 chan 0
+    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 4>({{{{0, 1, 0, 2, 42, 42},  // img 0 chan 0
                                                               {0, 3, 2, 0, 42, 42},
                                                               {2, 0, 0, 0, 42, 42},
                                                               {0, 2, 1, 0, 42, 42},
                                                               {42, 42, 42, 42, 42, 42},
                                                               {42, 42, 42, 42, 42, 42}},
 
-                                                             {{0, 0, 0, 2, 42, 42}, // img 1 chan 0
+                                                             {{0, 0, 0, 2, 42, 42},  // img 1 chan 0
                                                               {0, 2, 3, 0, 42, 42},
                                                               {2, 0, 1, 0, 42, 42},
                                                               {2, 0, 0, 0, 42, 42},
                                                               {42, 42, 42, 42, 42, 42},
                                                               {42, 42, 42, 42, 42, 42}}},
 
-                                                            {{{0, 2, 1, 1, 42, 42}, // img 1 chan 0
+                                                            {{{0, 2, 1, 1, 42, 42},  // img 1 chan 0
                                                               {0, 0, 2, 0, 42, 42},
                                                               {0, 0, 1, 2, 42, 42},
                                                               {0, 0, 0, 0, 42, 42},
                                                               {42, 42, 42, 42, 42, 42},
                                                               {42, 42, 42, 42, 42, 42}},
 
-                                                             {{2, 1, 0, 0, 42, 42}, // img 1 chan 1
+                                                             {{2, 1, 0, 0, 42, 42},  // img 1 chan 1
                                                               {0, 2, 0, 0, 42, 42},
                                                               {1, 1, 2, 0, 42, 42},
                                                               {1, 0, 0, 0, 42, 42},
@@ -1362,8 +1276,7 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_2channel_2image_asym)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_symmetric)
-{
+NGRAPH_TEST(${BACKEND_NAME}, pad_symmetric) {
     const Shape data_shape{2, 3};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -1371,9 +1284,9 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_symmetric)
     const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
     const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::SYMMETRIC),
-        ParameterVector{data});
+    auto f =
+        make_shared<Function>(make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::SYMMETRIC),
+                              ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -1384,11 +1297,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_symmetric)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 2>({{2, 1, 1, 2, 3, 3, 2},
-                                                            {2, 1, 1, 2, 3, 3, 2},
-                                                            {5, 4, 4, 5, 6, 6, 5},
-                                                            {5, 4, 4, 5, 6, 6, 5}})
-                                       .get_vector()),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f(
+        (test::NDArray<float, 2>(
+             {{2, 1, 1, 2, 3, 3, 2}, {2, 1, 1, 2, 3, 3, 2}, {5, 4, 4, 5, 6, 6, 5}, {5, 4, 4, 5, 6, 6, 5}})
+             .get_vector()),
+        read_vector<float>(result),
+        MIN_FLOAT_TOLERANCE_BITS));
 }

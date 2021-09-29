@@ -9,6 +9,7 @@ from .logging import logger
 
 import json
 import re
+import numpy as np
 
 def static_vars(**kwargs):
     def decorate(func):
@@ -29,7 +30,7 @@ def next_step(additional_info='', step_id=0):
         5: "Resizing network to match image sizes and given batch",
         6: "Configuring input of the model",
         7: "Loading the model to the device",
-        8: "Setting optimal runtime parameters",
+        8: "Querying optimal runtime parameters",
         9: "Creating infer requests and filling input blobs with images",
         10: "Measuring performance",
         11: "Dumping statistics report",
@@ -193,18 +194,18 @@ def parse_nstreams_value_per_device(devices, values_string):
     return result
 
 
-def process_help_inference_string(benchmark_app):
+def process_help_inference_string(benchmark_app, exe_network):
     output_string = f'Start inference {benchmark_app.api_type}hronously'
     if benchmark_app.api_type == 'async':
         output_string += f', {benchmark_app.nireq} inference requests'
 
         device_ss = ''
         if CPU_DEVICE_NAME in benchmark_app.device:
-            device_ss += str(benchmark_app.ie.get_config(CPU_DEVICE_NAME, 'CPU_THROUGHPUT_STREAMS'))
+            device_ss += str(exe_network.get_config('CPU_THROUGHPUT_STREAMS'))
             device_ss += f' streams for {CPU_DEVICE_NAME}'
         if GPU_DEVICE_NAME in benchmark_app.device:
             device_ss += ', ' if device_ss else ''
-            device_ss += str(benchmark_app.ie.get_config(GPU_DEVICE_NAME, 'GPU_THROUGHPUT_STREAMS'))
+            device_ss += str(exe_network.get_config('GPU_THROUGHPUT_STREAMS'))
             device_ss += f' streams for {GPU_DEVICE_NAME}'
 
         if device_ss:
@@ -291,11 +292,33 @@ def parse_input_parameters(parameter_string, input_info):
             raise Exception(f"Can't parse input parameter: {parameter_string}")
     return return_value
 
+def parse_scale_or_mean(parameter_string, input_info):
+    # Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all inputs)
+    return_value = {}
+    if parameter_string:
+        matches = re.findall(r'(.*?)\[(.*?)\],?', parameter_string)
+        if matches:
+            for match in matches:
+                input_name, value = match
+                f_value = np.array(value.split(",")).astype(np.float)
+                if input_name != '':
+                    return_value[input_name] = f_value
+                else:
+                    print("input_info: ", input_info)
+                    for name, description in input_info.items():
+                        if description.is_image:
+                            return_value[name] = f_value
+        else:
+            raise Exception(f"Can't parse input parameter: {parameter_string}")
+    return return_value
+
 class InputInfo:
     def __init__(self):
         self.precision = None
         self.layout = ""
         self.shape = []
+        self.scale = []
+        self.mean = []
 
     @property
     def is_image(self):
@@ -334,7 +357,7 @@ class InputInfo:
     def depth(self):
         return self.getDimentionByLayout("D")
 
-def get_inputs_info(shape_string, layout_string, batch_size, input_info):
+def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_string, input_info):
     shape_map = parse_input_parameters(shape_string, input_info)
     layout_map = parse_input_parameters(layout_string, input_info)
     reshape = False
@@ -359,6 +382,21 @@ def get_inputs_info(shape_string, layout_string, batch_size, input_info):
                 info.shape[batch_index] = batch_size
                 reshape = True
         info_map[name] = info
+
+    # Update scale, mean
+    scale_map = parse_scale_or_mean(scale_string, info_map)
+    mean_map = parse_scale_or_mean(mean_string, info_map)
+
+    for name, descriptor in info_map.items():
+        if descriptor.is_image:
+            descriptor.scale = np.ones(3)
+            descriptor.mean = np.zeros(3)
+
+            if name in scale_map:
+                descriptor.scale = scale_map[name]
+            if name in mean_map:
+                descriptor.mean = mean_map[name]
+
     return info_map, reshape
 
 def get_batch_size(inputs_info):

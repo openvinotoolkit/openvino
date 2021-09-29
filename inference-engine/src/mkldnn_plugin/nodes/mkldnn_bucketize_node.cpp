@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -15,8 +13,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNBucketizeNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNBucketizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
         if (!bucketsize) {
             errorMessage = "Only opset3 Bucketize operation is supported";
@@ -37,6 +39,9 @@ MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op
 
     errorPrefix = "Bucketize layer with name '" + op->get_friendly_name() + "' ";
     const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
+    if (bucketsize == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of Bucketize from opset3.";
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
@@ -82,9 +87,9 @@ void MKLDNNBucketizeNode::initSupportedPrimitiveDescriptors() {
         output_precision = Precision::I32;
     }
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, input_precision},
-                          {TensorDescCreatorTypes::ncsp, boundaries_precision}},
-                         {{TensorDescCreatorTypes::ncsp, output_precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, input_precision},
+                          {LayoutType::ncsp, boundaries_precision}},
+                         {{LayoutType::ncsp, output_precision}},
                          impl_desc_type::ref_any);
 }
 

@@ -16,6 +16,95 @@ from mo.graph.graph import Graph, Node, add_opoutput
 from mo.utils.error import Error
 
 
+def create_edge_with_attrs(graph, src_name, src_internal_id, src_port, dst_id, dst_port):
+    # src_name - name of input for edge
+    # src_internal_id - input node dst_id. Can be the same as src_name or different if Parameter was created
+    assert (graph.has_node(src_internal_id))
+    edge_attrs = {
+        'out': src_port,
+        'in': dst_port,
+        'name': src_name,
+        'fw_tensor_debug_info': [(src_internal_id, src_name)],
+        'in_attrs': ['in', 'name'],
+        'out_attrs': ['out', 'name'],
+        'data_attrs': ['fw_tensor_debug_info']
+    }
+    graph.add_edge(src_internal_id, dst_id, **edge_attrs)
+
+
+def create_parameter_with_empty_attrs(graph, param_name):
+    graph.add_node(param_name, kind='op', op='Parameter', name=param_name, pb=None, shape=None)
+    parameter_node = Node(graph, param_name)
+    # need to manually update necessary attrs for the node because extractor will not be called
+    # for it because the node does not have .pb attribute
+    Parameter.update_node_stat(parameter_node, {})
+    parameter_node['internal_layer_id'] = len(graph.nodes)
+
+    return parameter_node
+
+
+def create_cross_body_edge(body_graph, external_edges, additional_params, src_internal_id, dst_id, dst_port):
+    cur_graph = body_graph
+    counter = 0
+    is_finished = False
+    transit_parameter = None
+    # go through all levels of nested graphs starting from the deepest
+    while not is_finished and 'parent_node' in cur_graph.graph:
+        parent_graph = cur_graph.graph['parent_node'].graph
+        external_edges.append([])
+        additional_params.append({})
+        assert 0 <= counter < len(additional_params)
+        assert 0 <= counter < len(external_edges)
+        # if parent graph contains input node, create edge from outer to inner graph
+        if src_internal_id in parent_graph.graph['tensor_mapping']:
+            log.debug('The edge between outer and inner graphs detected: {} -> {}'.format(src_internal_id, dst_id))
+            # if parameter in inner graph already created, use it. Otherwise - create new one
+            if parent_graph.graph['tensor_mapping'][src_internal_id] not in additional_params[counter - 1]:
+                # possibly we create edge through several levels and have created transit parameter
+                if transit_parameter is None:
+                    # create new Parameter body node and connect the body node with the outer graph using it
+                    param_id = str(src_internal_id)
+                    parameter_node = create_parameter_with_empty_attrs(cur_graph, param_id)
+                    src_id, src_port = param_id, 0
+                else:
+                    parameter_node = transit_parameter
+                    src_id, src_port = transit_parameter.id, 0
+                external_edges[counter].append((parent_graph.graph['tensor_mapping'][src_internal_id],
+                                                parameter_node, src_internal_id))
+                additional_params[counter][parent_graph.graph['tensor_mapping'][src_internal_id][0]] = parameter_node
+            else:
+                src_id, src_port = additional_params[counter - 1][parent_graph.graph['tensor_mapping'][src_internal_id][0]].id, 0
+            is_finished = True
+        else:
+            # check that we are not in process of creating edge through several borders
+            # if we have transit node, it becomes destination of edge
+            # otherwise create new Parameter
+            if transit_parameter is None:
+                # create new Parameter in inner graph in hope that we will find node later
+                param_id = str(src_internal_id).split(':')[0]
+                parameter_node = create_parameter_with_empty_attrs(cur_graph, param_id)
+            else:
+                parameter_node = transit_parameter
+                param_id = transit_parameter.id
+
+            # create transit parameter in outer graph in hope that real input will be found later
+            parent_param_id = str(src_internal_id).split(':')[0] + "_transit"
+            parent_parameter_node = create_parameter_with_empty_attrs(parent_graph, parent_param_id)
+
+            external_edges[counter].append(((parent_param_id, 0), parameter_node, parent_param_id))
+            src_id, src_port = param_id, 0
+            additional_params[counter][parent_param_id + ":0"] = parameter_node
+            transit_parameter = parent_parameter_node
+
+        if cur_graph.has_node(dst_id):
+            create_edge_with_attrs(cur_graph, src_internal_id, src_id, src_port, dst_id, dst_port)
+
+        cur_graph = parent_graph
+        counter += 1
+
+    return is_finished
+
+
 class LoopExtractor(FrontExtractorOp):
     op = 'Loop'
     enabled = True
@@ -29,10 +118,14 @@ class LoopExtractor(FrontExtractorOp):
 
         # create a Graph object for the body and take graph attributes from the main graph
         body_graph = Graph()
-        main_graph_attrs_copy = copy.deepcopy(main_graph.graph)
-        del main_graph_attrs_copy['tensor_mapping']
+        main_graph_attrs_copy = {}
+        for attr_key, attr_value in main_graph.graph.items():
+            if attr_key not in ['tensor_mapping', 'parent_node']:
+                main_graph_attrs_copy[attr_key] = copy.deepcopy(attr_value)
         body_graph.graph.update(main_graph_attrs_copy)
         loop_node['body'] = body_graph
+        # save parent node for nested loops to know which node contains body (and which graph is on upper level)
+        body_graph.graph['parent_node'] = loop_node
 
         # maps a tensor name to a node produced it and the node port: str -> (node_id, node_port)
         data_nodes_map = {}
@@ -41,7 +134,8 @@ class LoopExtractor(FrontExtractorOp):
         body_parameters = add_initializers_and_inputs_to_graph(body_graph, body_graph_proto, data_nodes_map)
 
         external_edges = []  # (src_node, src_out_port), dest_body_parameter_node
-        additional_params = {}  # (src_node, src_out_port) -> parameter_node (for manually added Parameters)
+        # save additional edges information for graph on each level, the first one is the deepest
+        additional_params = []  # (src_node, src_out_port) -> parameter_node (for manually added Parameters)
         # Go through all nodes in the original model order because data nodes are defined on-the-fly and order matters
         for pb_node in body_graph_proto.node:
             # create an NX node
@@ -52,43 +146,21 @@ class LoopExtractor(FrontExtractorOp):
 
             # add incoming edges based on data_nodes_map
             for dst_port, inp in enumerate(pb_node.input):
-                # should add edge inp --> id
+                # should add edge src_internal_id --> dst_id
                 if inp not in data_nodes_map:
                     if inp == '':
                         # input is omitted; most likely it corresponds to an optional input for an operator
                         continue
-                    elif inp in main_graph.graph['tensor_mapping']:
-                        log.debug('The edge between outer and inner graphs detected: {} -> {}'.format(inp, id))
-                        if main_graph.graph['tensor_mapping'][inp] not in additional_params:
-                            # create new Parameter body node and connect the body node with the outer graph using it
-                            param_id = str(inp)
-                            body_graph.add_node(param_id, kind='op', op='Parameter', name=param_id, pb=None, shape=None)
-                            parameter_node = Node(body_graph, param_id)
-                            # need to manually update necessary attrs for the node because extractor will not be called
-                            # for it because the node does not have .pb attribute
-                            Parameter.update_node_stat(parameter_node, {})
-                            external_edges.append((main_graph.graph['tensor_mapping'][inp], parameter_node, inp))
-                            src_id, src_port = param_id, 0
-                            additional_params[main_graph.graph['tensor_mapping'][inp]] = parameter_node
-                        else:
-                            src_id, src_port = additional_params[main_graph.graph['tensor_mapping'][inp]].id, 0
                     else:
-                        raise Error('Reference to "{}" is not satisfied. A node refer not existing data tensor. ONNX '
-                                    'model is not consistent. Protobuf fragment: {}', inp, pb_node)
+                        is_finished = create_cross_body_edge(body_graph, external_edges, additional_params,
+                                                             inp, id, dst_port)
+                        if not is_finished:
+                            raise Error(
+                                'Reference to "{}" is not satisfied. A node refer not existing data tensor. ONNX '
+                                'model is not consistent. Protobuf fragment: {}', inp, pb_node)
                 else:
                     src_id, src_port = data_nodes_map[inp]
-
-                assert (body_graph.has_node(src_id))
-                edge_attrs = {
-                    'out': src_port,
-                    'in': dst_port,
-                    'name': inp,
-                    'fw_tensor_debug_info': [(src_id, inp)],
-                    'in_attrs': ['in', 'name'],
-                    'out_attrs': ['out', 'name'],
-                    'data_attrs': ['fw_tensor_debug_info']
-                }
-                body_graph.add_edge(src_id, id, **edge_attrs)
+                    create_edge_with_attrs(body_graph, inp, src_id, src_port, id, dst_port)
 
             # add outgoing edges to data_nodes_map
             for src_port, out in enumerate(pb_node.output):
@@ -130,21 +202,22 @@ class LoopExtractor(FrontExtractorOp):
         #   1 .. loop_carried_dependencies_count - loop carried dependencies
         #   loop_carried_dependencies_count + 1 .. - scan outputs
 
-        body_graph.stage = 'front'
         # some of the inputs/outputs may not be connected but the normalization transformation will take care of it
         # connection Loop body nodes with external input edges
         next_loop_input_port_idx = sorted(loop_node.in_edges().keys())[-1] + 1
-        for (src_node, src_port), body_node, tensor_name in external_edges:
-            main_graph.add_edge(src_node, loop_node.id, **{'out': src_port,
-                                                           'in': next_loop_input_port_idx,
-                                                           'name': src_node,
-                                                           'fw_tensor_debug_info': [(src_node, tensor_name)],
-                                                           'in_attrs': ['in', 'name'],
-                                                           'out_attrs': ['out', 'name'],
-                                                           'data_attrs': ['fw_tensor_debug_info']}
-                                )
-            Loop.connect_body_input(loop_node, next_loop_input_port_idx, body_node)
-            next_loop_input_port_idx += 1
+        cur_graph = body_graph
+        for external_edges_subg in external_edges:
+            if 'parent_node' not in cur_graph.graph:
+                continue
+            cur_loop_node = cur_graph.graph['parent_node']
+            parent_graph = cur_loop_node.graph
+            for (src_node, src_port), body_node, tensor_name in external_edges_subg:
+                create_edge_with_attrs(parent_graph, tensor_name, src_node, src_port,
+                                       cur_loop_node.id, next_loop_input_port_idx)
+
+                Loop.connect_body_input(cur_loop_node, next_loop_input_port_idx, body_node)
+                next_loop_input_port_idx += 1
+            cur_graph = parent_graph
 
         # mark current iteration input Parameter node
         Loop.mark_current_iteration_parameter_node(loop_node, body_parameters[0])

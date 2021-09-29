@@ -217,8 +217,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'the order of dimensions depends on the framework input layout of the model. '
                                    'For example, [N,C,H,W] is used for Caffe* models and [N,H,W,C] for TensorFlow* '
                                    'models. Model Optimizer performs necessary transformations to convert the shape to '
-                                   'the layout required by Inference Engine (N,C,H,W). The shape should not contain '
-                                   'undefined dimensions (? or -1) and should fit the dimensions defined in the input '
+                                   'the layout required by Inference Engine (N,C,H,W). The shape could contain '
+                                   'undefined dimensions (-1) and should fit the dimensions defined in the input '
                                    'operation of the graph. If there are multiple inputs in the model, --input_shape '
                                    'should contain definition of shape for each input separated by a comma, for '
                                    'example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes. '
@@ -245,13 +245,13 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default='ERROR')
     common_group.add_argument('--input',
                               help='Quoted list of comma-separated input nodes names with shapes, data types, '
-                                   'and values for freezing. The shape and value are specified as space-separated lists. '
-                                   'The data type of input node is specified in braces and can have one of the values: '
-                                   'f64 (float64), f32 (float32), f16 (float16), i64 (int64), i32 (int32), u8 (uint8), boolean. '
-                                   'For example, use the following format to set input port 0 '
-                                   'of the node `node_name1` with the shape [3 4] as an input node and '
-                                   'freeze output port 1 of the node `node_name2` with the value [20 15] of the int32 type '
-                                   'and shape [2]: "0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
+                                   'and values for freezing. The shape and value are specified as space-separated '
+                                   'lists. The data type of input node is specified in braces and can have one of the '
+                                   'values: f64 (float64), f32 (float32), f16 (float16), i64 (int64), i32 (int32), u8 '
+                                   '(uint8), boolean. For example, use the following format to set input port 0 of the '
+                                   'node `node_name1` with the shape [3 4] as an input node and freeze output port 1 '
+                                   'of the node `node_name2` with the value [20 15] of the int32 type and shape [2]: '
+                                   '"0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
     common_group.add_argument('--output',
                               help='The name of the output operation of the model. ' +
                                    'For TensorFlow*, do not add :0 to this name.')
@@ -275,7 +275,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--data_type',
                               help='Data type for all intermediate tensors and weights. ' +
                                    'If original model is in FP32 and --data_type=FP16 is specified, all model weights ' +
-                                   'and biases are quantized to FP16.',
+                                   'and biases are compressed to FP16.',
                               choices=["FP16", "FP32", "half", "float"],
                               default='float')
     common_group.add_argument('--transform',
@@ -334,9 +334,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Use --input option to specify a value for freezing.',
                               default=None)
     common_group.add_argument('--generate_deprecated_IR_V7',
-                              help='Force to generate deprecated IR V7 with layers from old IR specification.',
-                              action=IgnoredAction,
-                              default=False)
+                              help=argparse.SUPPRESS, action=IgnoredAction, default=False)
     common_group.add_argument('--static_shape',
                               help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
                                    'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
@@ -358,8 +356,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                           help='Use the configuration file with transformations description.',
                           action=CanonicalizePathCheckExistenceAction)
     common_group.add_argument('--legacy_ir_generation',
-                              help='Use legacy IR serialization engine',
-                              action=DeprecatedStoreTrue, default=False)
+                              help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
     return parser
 
 
@@ -531,7 +528,7 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_file)
     tf_group.add_argument('--saved_model_dir', default=None,
-                          help='TensorFlow*: directory with a model in SavedModel format'
+                          help='TensorFlow*: directory with a model in SavedModel format '
                                'of TensorFlow 1.x or 2.x version.',
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_dirs)
@@ -952,7 +949,7 @@ def parse_tuple_pairs(argv_values: str):
 
     matches = [m for m in re.finditer(r'[(\[]([0-9., -]+)[)\]]', argv_values, re.IGNORECASE)]
 
-    error_msg = 'Mean/scale values should consist of name and values specified in round or square brackets' \
+    error_msg = 'Mean/scale values should consist of name and values specified in round or square brackets ' \
                 'separated by comma, e.g. data(1,2,3),info[2,3,4],egg[255] or data(1,2,3). Or just plain set of ' \
                 'values without names: (1,2,3),(2,3,4) or [1,2,3],[2,3,4].' + refer_to_faq_msg(101)
     if not matches:

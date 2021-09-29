@@ -18,7 +18,6 @@
 #include "ngraph/ngraph.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
@@ -28,8 +27,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d) {
     Shape shape{2, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
@@ -65,8 +63,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d)
     EXPECT_TRUE(test::all_close(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_double)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_double) {
     Shape shape{2, 2, 3};
     auto A = make_shared<op::Parameter>(element::f64, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
@@ -102,8 +99,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_double)
     EXPECT_TRUE(test::all_close(expected, read_vector<double>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_1) {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 1), ParameterVector{A});
@@ -128,8 +124,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_1)
     EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_0) {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
@@ -155,8 +150,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_0)
     EXPECT_TRUE(test::all_close(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_trivial)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_trivial) {
     Shape shape{1, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
@@ -173,8 +167,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_trivial)
     EXPECT_TRUE(test::all_close(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_underflow)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_underflow) {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
@@ -193,13 +186,11 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_underflow)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    vector<float> expected{
-        expf(low) / d0, expf(1) / d1, expf(2) / d2, expf(3) / d0, expf(4) / d1, expf(5) / d2};
+    vector<float> expected{expf(low) / d0, expf(1) / d1, expf(2) / d2, expf(3) / d0, expf(4) / d1, expf(5) / d2};
     EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_overflow)
-{
+NGRAPH_TEST(${BACKEND_NAME}, softmax_overflow) {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});

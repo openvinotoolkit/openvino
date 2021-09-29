@@ -8,7 +8,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -46,7 +45,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
     newSplit->set_friendly_name(split->get_friendly_name());
     ngraph::copy_runtime_info(split, newSplit);
 
-    const int64_t axis = as_type_ptr<opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
+    const int64_t axis = ov::as_type_ptr<opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
     const size_t normalizedAxis = normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
     const size_t outputSize = newSplit->get_output_size();
 
@@ -91,12 +90,12 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         }
 
         if (dequantization.subtract) {
-            const auto subtract = std::make_shared<DequantizationSubtract>(parent, splitedSub[i]);
+            const auto subtract = std::make_shared<opset1::Subtract>(parent, splitedSub[i]);
             copy_runtime_info({ newSplit, subtract }, subtract);
             parent = subtract;
         }
 
-        const auto multiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(parent, splitedMul[i]);
+        const auto multiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(parent, splitedMul[i]);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
         copy_runtime_info({ newSplit, multiply }, multiply);
 
@@ -128,7 +127,7 @@ void SplitTransformation::updateOutputs(
             const auto lastNode = lastNodes[i];
             for (auto output : lastNodes[i]->outputs()) {
                 for (auto input : output.get_target_inputs()) {
-                    if (is_type<ngraph::opset1::Result>(input.get_node())) {
+                    if (ov::is_type<ngraph::opset1::Result>(input.get_node())) {
                         originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                         lastNode->set_friendly_name(originalName + "." + std::to_string(i));
                         break;
@@ -149,7 +148,7 @@ bool SplitTransformation::canBeTransformed(const TransformationContext& context,
     }
 
     const auto consumers = NetworkHelper::consumers(layer);
-    const auto concat = as_type_ptr<opset1::Concat>(consumers[0]);
+    const auto concat = ov::as_type_ptr<opset1::Concat>(consumers[0]);
 
     // WA to avoid propagation of dequantization if after Split all consumers are the same unsupported Concat
     if (concat && concat->get_axis() != 1ul) {

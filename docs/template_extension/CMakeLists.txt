@@ -7,30 +7,28 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(TARGET_NAME "template_extension")
 
-find_package(ngraph REQUIRED OPTIONAL_COMPONENTS onnx_importer)
-find_package(InferenceEngine REQUIRED)
+find_package(OpenVINO REQUIRED COMPONENTS Runtime OPTIONAL_COMPONENTS ONNX)
 find_package(OpenCV QUIET COMPONENTS core)
 
 set(SRC cpu_kernel.cpp extension.cpp op.cpp)
 
-if (OpenCV_FOUND)
+if(OpenCV_FOUND)
     set(SRC ${SRC} fft_kernel.cpp fft_op.cpp)
 endif()
 
 add_library(${TARGET_NAME} MODULE ${SRC})
 
-if (OpenCV_FOUND)
+if(OpenCV_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_IMPORT_ENABLED)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
 endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
-target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine
-                                             ${NGRAPH_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::core openvino::runtime)
 
-if (ngraph_onnx_importer_FOUND)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${ONNX_IMPORTER_LIBRARIES})
-    target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_ONNX_IMPORT_ENABLED)
+if(OpenVINO_Frontend_ONNX_FOUND)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::frontend::onnx)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_ONNX_FRONTEND_ENABLED)
 endif()
 # [cmake:extension]
 

@@ -23,7 +23,7 @@ public:
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         return std::make_shared<FakeAbs>(new_args.at(0));
     }
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
+    bool visit_attributes(ngraph::AttributeVisitor&) override {
         return true;
     }
 };

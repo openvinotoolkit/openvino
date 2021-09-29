@@ -83,7 +83,7 @@ public:
             OutputVector convertedOutput(1);
             convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
             const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
-            testValues.expected.weights = as_type_ptr<opset1::Constant>(convertedWeights);
+            testValues.expected.weights = ov::as_type_ptr<opset1::Constant>(convertedWeights);
         }
 
         referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(
@@ -153,7 +153,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // with zero point
@@ -193,7 +193,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // without zero point
@@ -213,7 +213,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // without zero point
@@ -233,7 +233,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // without zero point, not update precisions
@@ -253,7 +253,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // with zero point, per-channel quantization with the same values
@@ -273,7 +273,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // with zero point, per-channel quantization with different values
@@ -389,7 +389,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // incorrect zero point on activations [not transformed]

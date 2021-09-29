@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -16,8 +14,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNExperimentalDetectronTopKROIsNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNExperimentalDetectronTopKROIsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto topKROI = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronTopKROIs>(op);
         if (!topKROI) {
             errorMessage = "Only opset6 ExperimentalDetectronTopKROIs operation is supported";
@@ -38,6 +40,10 @@ MKLDNNExperimentalDetectronTopKROIsNode::MKLDNNExperimentalDetectronTopKROIsNode
 
     errorPrefix = "ExperimentalDetectronTopKROIs layer with name '" + op->get_friendly_name() + "'";
     const auto topKROI = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronTopKROIs>(op);
+    if (topKROI == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of ExperimentalDetectronTopKROIs from opset6.";
+
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
@@ -51,14 +57,14 @@ void MKLDNNExperimentalDetectronTopKROIsNode::initSupportedPrimitiveDescriptors(
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNExperimentalDetectronTopKROIsNode::execute(mkldnn::stream strm) {
-    const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getDims()[0];
+    const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int top_rois_num = (std::min)(max_rois_num_, input_rois_num);
 
     auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());

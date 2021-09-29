@@ -15,12 +15,14 @@
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph_ops/framework_node.hpp"
+#include "ngraph_ops/type_relaxed.hpp"
 #include "pugixml.hpp"
 #include "transformations/serialize.hpp"
 
 using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Serialize, "Serialize", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::StreamSerialize, "StreamSerialize", 0);
 
 namespace {  // helpers
 template <typename Container>
@@ -84,11 +86,13 @@ public:
 
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
         : m_binary_output(bin_data)
-        , m_enable_compression(enable_compression) {
+        , m_enable_compression(enable_compression)
+        , m_blob_offset(bin_data.tellp()) {
     }
 
     FilePosition write(const char* ptr, size_t size) {
-        const auto offset = m_binary_output.tellp();
+        const FilePosition write_pos = m_binary_output.tellp();
+        const auto offset = write_pos - m_blob_offset;
         if (!m_enable_compression) {
             m_binary_output.write(ptr, size);
             return offset;
@@ -114,6 +118,7 @@ private:
     ConstWritePositions m_hash_to_file_positions;
     std::ostream& m_binary_output;
     bool m_enable_compression;
+    FilePosition m_blob_offset;     // blob offset inside output stream
 };
 
 void ngfunction_2_irv10(pugi::xml_node& node,
@@ -215,13 +220,13 @@ class XmlSerializer : public ngraph::AttributeVisitor {
             input.append_attribute("external_port_id").set_value(input_description->m_input_index);
             input.append_attribute("internal_layer_id").set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
 
-            if (auto slice_input = as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
+            if (auto slice_input = ov::as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
                 input.prepend_attribute("axis").set_value(slice_input->m_axis);
                 input.append_attribute("start").set_value(slice_input->m_start);
                 input.append_attribute("end").set_value(slice_input->m_end);
                 input.append_attribute("stride").set_value(slice_input->m_stride);
                 input.append_attribute("part_size").set_value(slice_input->m_part_size);
-            } else if (auto merged_input = as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
+            } else if (auto merged_input = ov::as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
                 pugi::xml_node back_edges = m_xml_node.parent().child("back_edges");
                 if (!back_edges) {
                     back_edges = m_xml_node.parent().insert_child_after("back_edges", port_map);
@@ -249,7 +254,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
             output.append_attribute("external_port_id").set_value(input_count + output_description->m_output_index);
             output.append_attribute("internal_layer_id").set_value(result_mapping[output_description->m_body_value_index].c_str());
 
-            if (auto concat_output = as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
+            if (auto concat_output = ov::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
                 output.prepend_attribute("axis").set_value(concat_output->m_axis);
                 output.append_attribute("start").set_value(concat_output->m_start);
                 output.append_attribute("end").set_value(concat_output->m_end);
@@ -325,7 +330,7 @@ public:
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
             }
-        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<op::FrameworkNodeAttrs>>(&adapter)) {
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
             const auto & attrs = a->get();
 
             // Update type and version attributes
@@ -346,6 +351,9 @@ public:
             for (const auto & attr : attrs) {
                 m_xml_node.append_attribute(attr.first.c_str()).set_value(attr.second.c_str());
             }
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
+            const auto & attrs = a->get();
+            m_xml_node.append_attribute(name.c_str()).set_value(join(attrs).c_str());
         } else {
             throw ngraph_error("Unsupported attribute type for serialization: " + name);
         }
@@ -465,6 +473,17 @@ const std::vector<Edge> create_edge_mapping(
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
+    // Try to find opset name from RT info
+    auto opset_it = n->get_rt_info().find("opset");
+    if (opset_it != n->get_rt_info().end()) {
+        if (auto variant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(opset_it->second)) {
+            const std::string & opset_name = variant->get();
+            if (custom_opsets.find(opset_name) != custom_opsets.end()) {
+                return opset_name;
+            }
+        }
+    }
+
     auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 8>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
         ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6(),
@@ -623,7 +642,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
         auto & op = f_ops[id];
         auto & clone_op = f_clone_ops[id];
 
-        if (auto op_subgraph = std::dynamic_pointer_cast<op::util::SubGraphOp>(op)) {
+        if (auto op_subgraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {
             resolve_dynamic_shapes(*op_subgraph->get_function());
         }
 
@@ -642,8 +661,6 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
                            [](const Dimension& d) -> Dimension {
                                return d.get_max_length();
                            });
-            NGRAPH_CHECK(PartialShape(out_shape).is_static(),
-                         "Dynamic dimension cannot be resolved in ", op);
             return out_shape;
         };
 
@@ -685,6 +702,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
 
+    // TODO remove resolve_dynamic_shapes function completely when support for -1 will be implemented in the MO
     bool has_dynamic_shapes = resolve_dynamic_shapes(f);
 
     const bool exec_graph = is_exec_graph(f);
@@ -711,9 +729,6 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
             for (const auto & i : node->inputs()) {
-                NGRAPH_CHECK(i.get_partial_shape().is_static(),
-                             "Unsupported dynamic input shape in ", node);
-
                 // WA for LSTMCellv0, peephole input shall not be serialized
                 if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell *>(node)) {
                     port_id++;
@@ -724,10 +739,14 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
                         .set_value(get_precision_name(i.get_element_type()).c_str());
-                for (auto d : i.get_shape()) {
+                for (auto d : i.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
-                    dim.append_child(pugi::xml_node_type::node_pcdata)
-                        .set_value(std::to_string(d).c_str());
+                    if (d.is_dynamic()) {
+                        dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
+                    } else {
+                        dim.append_child(pugi::xml_node_type::node_pcdata)
+                                .set_value(std::to_string(d.get_length()).c_str());
+                    }
                 }
             }
 
@@ -739,17 +758,25 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
             for (const auto & o : node->outputs()) {
-                NGRAPH_CHECK(o.get_partial_shape().is_static(),
-                             "Unsupported dynamic output shape in ", node);
-
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
                     .set_value(get_precision_name(o.get_element_type()).c_str());
 
                 // Sort tensor names
+                // Skip autogenerated names
+                // TODO: remove this code after transformation fixes
+                const auto& autogenerated_name = [](const std::string& name) {
+                    if (name.rfind("Tensor_", 0) != 0)
+                        return false;
+                    return true;
+                };
                 const auto & tensor_names = o.get_tensor().get_names();
-                std::vector<std::string> vector_names(tensor_names.begin(), tensor_names.end());
+                std::vector<std::string> vector_names;
+                for (const auto& name : tensor_names) {
+                    if (!autogenerated_name(name))
+                        vector_names.emplace_back(name);
+                }
                 sort(vector_names.begin(), vector_names.end());
 
                 std::string names;
@@ -762,10 +789,14 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                     port.append_attribute("names").set_value(names.c_str());
                 }
 
-                for (auto d : o.get_shape()) {
+                for (auto d : o.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
-                    dim.append_child(pugi::xml_node_type::node_pcdata)
-                        .set_value(std::to_string(d).c_str());
+                    if (d.is_dynamic()) {
+                        dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
+                    } else {
+                        dim.append_child(pugi::xml_node_type::node_pcdata)
+                                .set_value(std::to_string(d.get_length()).c_str());
+                    }
                 }
             }
             if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
@@ -810,7 +841,33 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         f.validate_nodes_and_infer_types();
     }
 }
+
+std::string valid_xml_path(const std::string &path) {
+    NGRAPH_CHECK(path.length() > 4, "Path for xml file is to short: \"" + path + "\"");
+
+    const char *const extension = ".xml";
+    const bool has_xml_extension = path.rfind(extension) == path.size() - std::strlen(extension);
+    NGRAPH_CHECK(has_xml_extension,
+                 "Path for xml file doesn't contains file name with 'xml' extension: \"" +
+                     path + "\"");
+    return path;
+}
+
+std::string provide_bin_path(const std::string &xmlPath, const std::string &binPath) {
+    if (!binPath.empty()) {
+        return binPath;
+    }
+    assert(xmlPath.size() > 4); // should be check by valid_xml_path
+    std::string bestPath = xmlPath;
+    const char *const extension = "bin";
+    const auto ext_size = std::strlen(extension);
+    bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
+    return bestPath;
+}
+
 }  // namespace
+
+namespace ngraph {
 
 // ! [function_pass:serialize_cpp]
 // serialize.cpp
@@ -867,33 +924,6 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     return false;
 }
 
-namespace {
-
-std::string valid_xml_path(const std::string &path) {
-    NGRAPH_CHECK(path.length() > 4, "Path for xml file is to short: \"" + path + "\"");
-
-    const char *const extension = ".xml";
-    const bool has_xml_extension = path.rfind(extension) == path.size() - std::strlen(extension);
-    NGRAPH_CHECK(has_xml_extension,
-                 "Path for xml file doesn't contains file name with 'xml' extension: \"" +
-                     path + "\"");
-    return path;
-}
-
-std::string provide_bin_path(const std::string &xmlPath, const std::string &binPath) {
-    if (!binPath.empty()) {
-        return binPath;
-    }
-    assert(xmlPath.size() > 4); // should be check by valid_xml_path
-    std::string bestPath = xmlPath;
-    const char *const extension = "bin";
-    const auto ext_size = std::strlen(extension);
-    bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
-    return bestPath;
-}
-
-} // namespace
-
 pass::Serialize::Serialize(std::ostream& xmlFile,
                            std::ostream& binFile,
                            pass::Serialize::Version version,
@@ -919,4 +949,70 @@ pass::Serialize::Serialize(const std::string& xmlPath,
     , m_custom_opsets{custom_opsets}
 {
 }
+
+ngraph::pass::StreamSerialize::StreamSerialize(std::ostream & stream,
+                                               std::map<std::string, ngraph::OpSet> && custom_opsets,
+                                               const std::function<void(std::ostream &)> & custom_data_serializer,
+                                               Serialize::Version version)
+    : m_stream(stream)
+    , m_custom_opsets(std::move(custom_opsets))
+    , m_custom_data_serializer(custom_data_serializer) {
+    if (version != Serialize::Version::IR_V10) {
+        throw ngraph_error("Unsupported version");
+    }
+}
+
+bool ngraph::pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    /*
+        Format:
+        [ DataHeader  ]
+        [ Custom data ]
+        [    Blobs    ]
+        [     IR      ]
+    */
+    DataHeader hdr = {};
+
+    auto writeHeader = [this](const DataHeader & hdr) {
+        m_stream.write((const char*)&hdr, sizeof hdr);
+    };
+
+    // Header
+    const size_t header_offset = m_stream.tellp();
+    writeHeader(hdr);
+
+    // Custom data
+    hdr.custom_data_offset = m_stream.tellp();
+    if (m_custom_data_serializer) {
+        m_custom_data_serializer(m_stream);
+    }
+
+    // Blobs
+    hdr.consts_offset = m_stream.tellp();
+    std::string name = "net";
+    pugi::xml_document xml_doc;
+    pugi::xml_node net_node = xml_doc.append_child(name.c_str());
+    ConstantWriter constant_write_handler(m_stream);
+    XmlSerializer visitor(net_node, name, m_custom_opsets, constant_write_handler);
+    visitor.on_attribute(name, f);
+
+    // IR
+    hdr.model_offset = m_stream.tellp();
+    xml_doc.save(m_stream);
+    m_stream.flush();
+
+    const size_t file_size = m_stream.tellp();
+
+    hdr.custom_data_size = hdr.consts_offset - hdr.custom_data_offset;
+    hdr.consts_size = hdr.model_offset - hdr.consts_offset;
+    hdr.model_size = file_size - hdr.model_offset;
+
+    m_stream.seekp(header_offset);
+    writeHeader(hdr);
+
+    m_stream.seekp(file_size);
+
+    // Return false because we didn't change nGraph Function
+    return false;
+}
 // ! [function_pass:serialize_cpp]
+}  // namespace ngraph

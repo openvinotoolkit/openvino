@@ -126,8 +126,8 @@ const std::vector<std::vector<float>> defaultScales = {
 };
 
 const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
-        ngraph::op::v4::Interpolate::ShapeCalcMode::sizes,
-        ngraph::op::v4::Interpolate::ShapeCalcMode::scales,
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
 };
 
 const auto interpolateCasesNearestMode2x = ::testing::Combine(

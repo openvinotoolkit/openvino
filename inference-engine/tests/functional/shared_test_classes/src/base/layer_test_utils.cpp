@@ -67,7 +67,7 @@ void LayerTestsCommon::Run() {
 void LayerTestsCommon::Serialize() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = GetTestName().substr(0, maxFileNameLength) + "_" + GetTimestamp();
+    std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -88,6 +88,23 @@ void LayerTestsCommon::Serialize() {
     EXPECT_TRUE(success) << message;
 
     CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+}
+
+void LayerTestsCommon::QueryNetwork() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    cnnNetwork = InferenceEngine::CNNNetwork(function);
+
+    auto queryNetworkResult = PluginCache::get().ie()->QueryNetwork(cnnNetwork, targetDevice);
+    std::set<std::string> expected;
+    for (auto&& node : function->get_ops()) {
+        expected.insert(node->get_friendly_name());
+    }
+
+    std::set<std::string> actual;
+    for (auto&& res : queryNetworkResult.supportedLayersMap) {
+        actual.insert(res.first);
+    }
+    ASSERT_EQ(expected, actual);
 }
 
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -269,6 +286,14 @@ void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const
             Compare(reinterpret_cast<const std::int32_t *>(expectedBuffer),
                     reinterpret_cast<const std::int32_t *>(actualBuffer), size, 0);
             break;
+        case InferenceEngine::Precision::I16:
+            Compare(reinterpret_cast<const std::int16_t *>(expectedBuffer),
+                    reinterpret_cast<const std::int16_t *>(actualBuffer), size, 0);
+            break;
+        case InferenceEngine::Precision::U8:
+            Compare(reinterpret_cast<const std::uint8_t *>(expectedBuffer),
+                    reinterpret_cast<const std::uint8_t *>(actualBuffer), size, 0);
+            break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
     }
@@ -313,6 +338,7 @@ void LayerTestsCommon::LoadNetwork() {
 }
 
 void LayerTestsCommon::GenerateInputs() {
+    inputs.clear();
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
     const auto& functionParams = function->get_parameters();
     for (int i = 0; i < functionParams.size(); ++i) {
@@ -473,6 +499,24 @@ std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layer
 
     return "";
 }
+
+#ifndef NDEBUG
+void LayerTestsCommon::showRuntimePrecisions() {
+    const auto execGraph = executableNetwork.GetExecGraphInfo();
+    const auto function = execGraph.getFunction();
+
+    for (const auto& op : function->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+        const auto& typeIt = rtInfo.find("layerType");
+
+        const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
+        const auto& it = rtInfo.find("runtimePrecision");
+
+        const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
+        std::cout << type << ": " << rtPrecisionPtr->get() << std::endl;
+    }
+}
+#endif
 
 void LayerTestsCommon::SetRefMode(RefMode mode) {
     refMode = mode;

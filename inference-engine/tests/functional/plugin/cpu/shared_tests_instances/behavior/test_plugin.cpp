@@ -21,10 +21,6 @@ namespace {
             {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
     };
 
-    const std::vector<std::map<std::string, std::string>> AutoConfigs = {
-            {{ AUTO_CONFIG_KEY(DEVICE_LIST) , CommonTestUtils::DEVICE_CPU}}
-    };
-
     const std::vector<std::map<std::string, std::string>> configsInput = {
             {},
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
@@ -37,7 +33,7 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> AutoConfigsInputOutput = {
-            {{InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_CPU}}
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
     };
 
     const std::vector<std::map<std::string, std::string>> configsOutput = {
@@ -85,7 +81,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(AutoConfigs)),
+                                    ::testing::ValuesIn(MultiConfigs)),
                             BehaviorTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTestInput,

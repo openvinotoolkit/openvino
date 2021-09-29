@@ -17,16 +17,8 @@ def get_available_transformations():
         return {}
 
 
-def apply_offline_transformations(input_model: str, framework: str, transforms: list):
-    # This variable is only needed by GenerateMappingFile transformation
-    # to produce correct mapping
-    extract_names = framework in ['tf', 'mxnet', 'kaldi']
-
-    from openvino.inference_engine import read_network  # pylint: disable=import-error,no-name-in-module
-    from openvino.offline_transformations import ApplyMOCTransformations, GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
-
-    net = read_network(input_model + "_tmp.xml", input_model + "_tmp.bin")
-
+# net should be openvino.inference_engine.IENetwork type, but IE Engine is still optional dependency
+def apply_user_transformations(net: object, transforms: list):
     available_transformations = get_available_transformations()
 
     for name, args in transforms:
@@ -35,7 +27,23 @@ def apply_offline_transformations(input_model: str, framework: str, transforms: 
 
         available_transformations[name](net, **args)
 
+
+def apply_moc_transformations(net: object):
+    from openvino.offline_transformations import ApplyMOCTransformations  # pylint: disable=import-error,no-name-in-module
     ApplyMOCTransformations(net, False)
+
+
+def apply_offline_transformations(input_model: str, framework: str, transforms: list):
+    # This variable is only needed by GenerateMappingFile transformation
+    # to produce correct mapping
+    extract_names = framework in ['tf', 'mxnet', 'kaldi']
+
+    from openvino.inference_engine import read_network  # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
+
+    net = read_network(input_model + "_tmp.xml", input_model + "_tmp.bin")
+    apply_user_transformations(net, transforms)
+    apply_moc_transformations(net)
     net.serialize(input_model + ".xml", input_model + ".bin")
     path_to_mapping = input_model + ".mapping"
     GenerateMappingFile(net, path_to_mapping.encode('utf-8'), extract_names)

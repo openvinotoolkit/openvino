@@ -9,7 +9,6 @@
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/engine/test_engines.hpp"
-#include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
@@ -35,8 +34,7 @@ static void DeformableConvolutionOpset8Test(const std::vector<float>& inputs,
                                             const int64_t group = 1,
                                             const int64_t deformable_group = 1,
                                             const size_t tolerance_bits = 2,
-                                            const bool use_bilinear_interpolation_padding = false)
-{
+                                            const bool use_bilinear_interpolation_padding = false) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
@@ -54,8 +52,7 @@ static void DeformableConvolutionOpset8Test(const std::vector<float>& inputs,
                                                            group,
                                                            deformable_group,
                                                            use_bilinear_interpolation_padding);
-    auto f =
-            make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
+    auto f = make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(inputs);
     test_case.add_input<float>(offsets);
@@ -80,8 +77,7 @@ static void DeformableConvolutionOpset8Test(const std::vector<float>& inputs,
                                             const int64_t group = 1,
                                             const int64_t deformable_group = 1,
                                             const size_t tolerance_bits = 2,
-                                            const bool use_bilinear_interpolation_padding = false)
-{
+                                            const bool use_bilinear_interpolation_padding = false) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
@@ -101,8 +97,7 @@ static void DeformableConvolutionOpset8Test(const std::vector<float>& inputs,
                                                            group,
                                                            deformable_group,
                                                            use_bilinear_interpolation_padding);
-    auto f =
-            make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param, mask_param});
+    auto f = make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param, mask_param});
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(inputs);
     test_case.add_input<float>(offsets);

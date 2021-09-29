@@ -12,15 +12,15 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
 endif()
 
 file (GLOB LIBRARY_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/threading/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/interface/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/threading/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
       )
 
 # TODO: WA for OneHot pass usage in reshape
-set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src/")
+set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
 set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
@@ -30,38 +30,38 @@ set(LEGACY_LIBRARY_SHARED_SRCS
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
     COMPILE_DEFINITIONS "USE_STATIC_IE")
 
-set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/file_utils.cpp)
+set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
 file (GLOB LIBRARY_HEADERS
-       ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-       ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
+       ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
+       ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
       )
 
 if (LINUX)
     file (GLOB LIBRARY_SRC
           ${LIBRARY_SRC}
-          ${CMAKE_CURRENT_SOURCE_DIR}/os/lin/*.cpp)
+          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
-         ${CMAKE_CURRENT_SOURCE_DIR}/os/lin/*.hpp)
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
 elseif (UNIX)
     list (APPEND LIBRARY_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/os/lin/lin_shared_object_loader.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_shared_object_loader.cpp)
 endif()
 
 if (WIN32)
     file (GLOB LIBRARY_SRC
          ${LIBRARY_SRC}
-         ${CMAKE_CURRENT_SOURCE_DIR}/os/win/*.cpp)
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
-         ${CMAKE_CURRENT_SOURCE_DIR}/os/win/*.hpp)
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
 endif()
 
 if(ENABLE_SSE42)
-    file(GLOB SSE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.cpp)
-    file(GLOB SSE_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.hpp)
+    file(GLOB SSE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/cpu_x86_sse42/*.cpp)
+    file(GLOB SSE_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/cpu_x86_sse42/*.hpp)
 
     list(APPEND LIBRARY_HEADERS ${SSE_HEADERS})
     list(APPEND LIBRARY_SRC ${SSE_SRC})
@@ -75,9 +75,9 @@ if(ENABLE_SSE42)
     endif()
 endif()
 
-addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
+addVersionDefines(src/ie_version.cpp CI_BUILD_NUMBER)
 
-set (PUBLIC_HEADERS_DIR "${IE_MAIN_SOURCE_DIR}/include")
+set (PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 file (GLOB_RECURSE PUBLIC_HEADERS
        ${PUBLIC_HEADERS_DIR}/*.hpp
@@ -97,16 +97,16 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
-    ${PUBLIC_HEADERS_DIR})
+    ${PUBLIC_HEADERS_DIR} ${PUBLIC_HEADERS_DIR}/ie)
 
-target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvino::itt)
+target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvino::itt openvino::util)
 
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 
 file(GLOB_RECURSE plugin_api_src "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.hpp"
                                  "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.h")
 
-add_cpplint_target(${TARGET_NAME}_plugin_api_cpplint FOR_SOURCES ${plugin_api_src})
+add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
 
 # Create object library
 
@@ -116,33 +116,31 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${PUBLIC_HEADERS})
 
 ie_faster_build(${TARGET_NAME}_obj
-    UNITY PCH PRIVATE "precomp.hpp"
+    UNITY PCH PRIVATE "src/precomp.hpp"
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
-                                                      $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>
-                                                      $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_COMPILE_DEFINITIONS>)
+                                                      $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
+                                                      $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
+target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
-                                                             $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>
+                                                             $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
-                                                      "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader" # for ie_ir_version.hpp
+target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+                                                      "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader_v7" # for ie_ir_version.hpp
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api openvino::itt)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api openvino::itt openvino::util)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_4_FOUND)
     target_compile_definitions(${TARGET_NAME}_obj PRIVATE -DTBBBIND_2_4_AVAILABLE)
     target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create shared library file from object library
 
@@ -151,6 +149,14 @@ add_library(${TARGET_NAME} SHARED
             ${LEGACY_LIBRARY_SHARED_SRCS}
             ${vs_version_file}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+
+add_library(openvino::runtime ALIAS ${TARGET_NAME})
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
+
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
+                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Core Runtime library")
@@ -161,12 +167,13 @@ if (TBBBIND_2_4_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
-                                             ngraph ngraph::frontend_manager::static inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
+                                             frontend_manager::static inference_engine_transformations
+                                     PUBLIC ngraph)
 
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-            $<INSTALL_INTERFACE:${IE_CPACK_IE_DIR}/include>
+            $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>
     PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -194,7 +201,7 @@ if (TBBBIND_2_4_FOUND)
     target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
-target_include_directories(${TARGET_NAME}_s PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
+target_include_directories(${TARGET_NAME}_s PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src"
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
 
@@ -202,7 +209,7 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph ngraph::frontend_manager::static
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph frontend_manager::static
                                                inference_engine_transformations pugixml::static)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
@@ -216,8 +223,8 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
 
 # Export for build tree
 
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
-        APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
+export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # Export for developer package
 
@@ -241,25 +248,26 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     list(APPEND core_components tbb)
 
     install(DIRECTORY "${TBB}/include"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
+            DESTINATION runtime/3rdparty/tbb
             COMPONENT tbb)
     install(DIRECTORY "${TBB}/lib"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
+            DESTINATION runtime/3rdparty/tbb
             COMPONENT tbb)
+    # Windows only
     if(EXISTS "${TBB}/bin")
         install(DIRECTORY "${TBB}/bin"
-                DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
+                DESTINATION runtime/3rdparty/tbb
                 COMPONENT tbb)
     endif()
     install(FILES "${TBB}/LICENSE"
-            DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
+            DESTINATION runtime/3rdparty/tbb
             COMPONENT tbb)
 
-    set(IE_TBB_DIR_INSTALL "external/tbb/cmake")
+    set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
 
     install(FILES "${TBB}/cmake/TBBConfig.cmake"
                   "${TBB}/cmake/TBBConfigVersion.cmake"
-            DESTINATION ${IE_CPACK_IE_DIR}/${IE_TBB_DIR_INSTALL}
+            DESTINATION runtime/${IE_TBB_DIR_INSTALL}
             COMPONENT tbb)
 endif()
 
@@ -268,13 +276,17 @@ endif()
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 
-install(DIRECTORY "${PUBLIC_HEADERS_DIR}" DESTINATION ${IE_CPACK_IE_DIR}
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)
 
-install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
+install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+        INCLUDES DESTINATION runtime/include
+                             # TODO: remove later once samples are updated
+                             runtime/include/ie)
 
 install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
         DESTINATION ${IE_CPACK_RUNTIME_PATH}
@@ -291,14 +303,14 @@ endif()
 
 # Install cmake scripts
 
-install(EXPORT InferenceEngineTargets
-        FILE InferenceEngineTargets.cmake
-        NAMESPACE IE::
-        DESTINATION ${IE_CPACK_IE_DIR}/share
+install(EXPORT OpenVINOTargets
+        FILE OpenVINOTargets.cmake
+        NAMESPACE openvino::
+        DESTINATION runtime/cmake
         COMPONENT core_dev)
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
-set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}")
+set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
 set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
@@ -306,22 +318,38 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceE
                                INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
                                PATH_VARS ${PATH_VARS})
 
-set(IE_INCLUDE_DIR "include")
-set(IE_NGRAPH_DIR "../ngraph/cmake")
+configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig.cmake.in"
+                              "${CMAKE_BINARY_DIR}/OpenVINOConfig.cmake"
+                              INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
+                              PATH_VARS ${PATH_VARS})
+
+set(IE_INCLUDE_DIR "include/ie")
+set(IE_NGRAPH_DIR ".")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
-set(IE_PARALLEL_CMAKE "share/ie_parallel.cmake")
+set(IE_PARALLEL_CMAKE "cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
+                              INSTALL_DESTINATION cmake
+                              PATH_VARS ${PATH_VARS})
+
+configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig.cmake.in"
+                              "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
                               INSTALL_DESTINATION share
                               PATH_VARS ${PATH_VARS})
 
 configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
-               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-               @ONLY)
+               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake" @ONLY)
+configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
+               "${CMAKE_BINARY_DIR}/OpenVINOConfig-version.cmake" @ONLY)
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
               "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake"
-        DESTINATION ${IE_CPACK_IE_DIR}/share
+        DESTINATION runtime/cmake
+        COMPONENT core_dev)
+
+install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
+              "${CMAKE_BINARY_DIR}/OpenVINOConfig-version.cmake"
+        DESTINATION runtime/cmake
         COMPONENT core_dev)

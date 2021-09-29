@@ -13,7 +13,6 @@
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/error_handler.hpp"
 
-#include "network_impl.h"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>
@@ -24,21 +23,19 @@ template<>
 struct typed_program_node<loop> : public typed_program_node_base<loop> {
 private:
     using parent = typed_program_node_base<loop>;
-    topology body_topology;
-    topology_impl& body;
+    mutable topology body;
 
     std::vector<loop::io_primitive_map> input_primitive_maps;
     std::vector<loop::io_primitive_map> output_primitive_maps;
     mutable std::vector<loop::backedge_mapping> back_edges;
     bool use_current_iteration;
     bool use_execution_condition;
-    mutable program_impl::ptr body_program;
+    mutable program::ptr body_program;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog) :
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) :
         parent(prim, prog),
-        body_topology(this->get_primitive()->body),
-        body(*body_topology.get()),
+        body(this->get_primitive()->body),
         input_primitive_maps(this->get_primitive()->input_primitive_maps),
         output_primitive_maps(this->get_primitive()->output_primitive_maps),
         back_edges(this->get_primitive()->back_edges),
@@ -50,7 +47,7 @@ public:
     int64_t max_iteration;
 
     int64_t get_max_iteration() const { return max_iteration; }
-    program_impl::ptr get_body_program() const { return body_program; }
+    program::ptr get_body_program() const { return body_program; }
     bool is_current_iteration_used() const { return use_current_iteration; }
     bool is_execution_condition_used() const { return use_execution_condition; }
 
@@ -248,7 +245,7 @@ public:
 
         // add current_iteration primitive if current_iteration primitive is not exist in body
         if (body_topology_map.find(current_iteration_id) == body_topology_map.end()) {
-            body.add(std::make_shared<input_layout>(current_iteration_id, body_input_layout));
+            body.add_primitive(std::make_shared<input_layout>(current_iteration_id, body_input_layout));
         } else {
             const auto& body_input_prim = body.at(current_iteration_id);
             const auto input_layout_prim = std::dynamic_pointer_cast<input_layout>(body_input_prim);
@@ -265,11 +262,11 @@ public:
         auto mem = get_program().get_engine().allocate_memory(body_input_layout);
         auto& stream = get_program().get_stream();
         write_scalar_value(mem, stream, 1);
-        body.add(std::make_shared<data>(increment_value_id, mem));
+        body.add_primitive(std::make_shared<data>(increment_value_id, mem));
 
         // add eltwise sum updating current_iteration with incremental data
         const primitive_id updated_currnet_iteration_id = current_iteration_id + "_update";
-        body.add(std::make_shared<eltwise>(updated_currnet_iteration_id,
+        body.add_primitive(std::make_shared<eltwise>(updated_currnet_iteration_id,
             current_iteration_id, increment_value_id, eltwise_mode::sum));
 
         // set backedge
@@ -285,7 +282,7 @@ public:
             if (body_output == body_topology_map.end()) {
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
                 auto md = std::make_shared<data>(id, mem);
-                body.add(md);
+                body.add_primitive(md);
             } else {
                 auto body_output_prim = body.at(body_output->first);
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
@@ -301,7 +298,7 @@ public:
 
             // add inputs for body network if not exist
             if (body.get_primitives().count(internal_input_id) == 0) {
-                body.add(std::make_shared<input_layout>(internal_input_id, calculated_layout));
+                body.add_primitive(std::make_shared<input_layout>(internal_input_id, calculated_layout));
             } else {
                 body.change_input_layout(internal_input_id, calculated_layout);
             }
@@ -345,7 +342,7 @@ public:
         auto opts = get_program().get_options();
         std::vector<primitive_id> output_names_vec(output_names.begin(), output_names.end());
         opts.set_option(build_option::outputs(output_names_vec));
-        body_program = program_impl::build_program(get_program().get_engine(), body, opts, false, false, true);
+        body_program = program::build_program(get_program().get_engine(), body, opts, false, false, true);
     }
 
     const primitive_id& get_trip_count_id() const { return get_primitive()->trip_count_id; }
@@ -384,39 +381,39 @@ public:
         size_t total_bytes;
 
         backedge_memory_mapping(
-            std::shared_ptr<primitive_inst> from_primitive, std::shared_ptr<primitive_inst> to_primitive,
-            std::vector<memory::ptr> from_mems, memory::ptr initial_mem, cldnn::stream& stream, backedge_type type = CONCAT_OUTPUT):
-            from_primitive(from_primitive),
-            to_primitive(to_primitive),
-            from_mems(from_mems),
-            initial_mem(initial_mem),
-            stream(stream),
-            type(type),
+            std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
+            std::vector<memory::ptr> _from_mems, memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = CONCAT_OUTPUT):
+            from_primitive(_from_primitive),
+            to_primitive(_to_primitive),
+            from_mems(_from_mems),
+            initial_mem(_initial_mem),
+            stream(_stream),
+            type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
                 validate_backedge_memory();
             }
 
         backedge_memory_mapping(
-            std::shared_ptr<primitive_inst> from_primitive, std::shared_ptr<primitive_inst> to_primitive,
-            memory::ptr from_mem, memory::ptr initial_mem, cldnn::stream& stream, backedge_type type = SINGLE_SHARED):
-            from_primitive(from_primitive),
-            to_primitive(to_primitive),
-            from_mems{from_mem},
-            initial_mem(initial_mem),
-            stream(stream),
-            type(type),
+            std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
+            memory::ptr _from_mem, memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = SINGLE_SHARED):
+            from_primitive(_from_primitive),
+            to_primitive(_to_primitive),
+            from_mems{_from_mem},
+            initial_mem(_initial_mem),
+            stream(_stream),
+            type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
                 validate_backedge_memory();
             }
 
         backedge_memory_mapping(
-            std::shared_ptr<primitive_inst> from_primitive, std::shared_ptr<primitive_inst> to_primitive,
-            memory::ptr initial_mem, cldnn::stream& stream, backedge_type type = SINGLE):
-            from_primitive(from_primitive),
-            to_primitive(to_primitive),
-            initial_mem(initial_mem),
-            stream(stream),
-            type(type),
+            std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
+            memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = SINGLE):
+            from_primitive(_from_primitive),
+            to_primitive(_to_primitive),
+            initial_mem(_initial_mem),
+            stream(_stream),
+            type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
                 validate_backedge_memory();
             }
@@ -558,11 +555,13 @@ private:
     size_t current_iteratoin_backedge_mapping_idx = 0;
 
 public:
-    typed_primitive_inst(network_impl& network, const loop_node& node);
-    network_impl::ptr get_body_network() const { return body_network; }
+    typed_primitive_inst(network& network, const loop_node& node);
+    network::ptr get_body_network() const { return body_network; }
     void preprocess_input_memory();
     void preprocess_output_memory();
     void preprocess_backedge_memory();
+    void update_mapped_memory();
+    void set_output_memory(memory::ptr mem, bool check = true) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
         if (!node.is_current_iteration_used()) {
             CLDNN_ERROR_MESSAGE(node.id(), "no backedge mapping for current_iteration");
@@ -571,7 +570,7 @@ public:
     }
 
 private:
-    network_impl::ptr body_network;
+    network::ptr body_network;
     memory::ptr get_external_memory(const primitive_id& external_id) const;
     std::vector<memory::ptr> get_sliced_mem(const primitive_id& internal_id) const;
 };

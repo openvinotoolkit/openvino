@@ -14,8 +14,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNMathNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNMathNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         if (initializers.find(op->get_type_info()) == initializers.end()) {
             errorMessage = "Unsupported Math layer type.";
             return false;
@@ -49,18 +53,18 @@ void MKLDNNMathNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::vector<DataConfigurator> inDataConf;
-    inDataConf.reserve(getOriginalInputsNumber());
-    for (int i = 0; i < getOriginalInputsNumber(); ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
+    std::vector<PortConfigurator> inDataConf;
+    inDataConf.reserve(inputShapes.size());
+    for (int i = 0; i < inputShapes.size(); ++i)
+        inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNMathNode::execute(mkldnn::stream strm) {
-    size_t dataSize = getChildEdgeAt(0)->getBlob()->size();
+    size_t dataSize = getChildEdgesAtPort(0)[0]->getMemory().GetShape().getElementsCount();
     const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 

@@ -10,15 +10,19 @@
 #include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
 #include "mkldnn_one_hot_node.h"
-#include <nodes/common/tensor_desc_creator.h>
+#include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
         if (!oneHot) {
             errorMessage = "Only opset1 OneHot operation is supported";
@@ -89,11 +93,11 @@ void MKLDNNOneHotNode::initSupportedPrimitiveDescriptors() {
     }
     output_precision = getOriginalOutputPrecisionAtPort(0);
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, input_precision},
-                          {TensorDescCreatorTypes::ncsp, input_precision},
-                          {TensorDescCreatorTypes::ncsp, output_precision},
-                          {TensorDescCreatorTypes::ncsp, output_precision}},
-                         {{TensorDescCreatorTypes::ncsp, output_precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, input_precision},
+                          {LayoutType::ncsp, input_precision},
+                          {LayoutType::ncsp, output_precision},
+                          {LayoutType::ncsp, output_precision}},
+                         {{LayoutType::ncsp, output_precision}},
                          impl_desc_type::ref_any);
 }
 
@@ -125,13 +129,13 @@ void MKLDNNOneHotNode::one_hot(size_t prefix_size, size_t suffix_size) {
 
 void MKLDNNOneHotNode::execute(mkldnn::stream strm) {
     std::size_t prefix_size = 1;
-    auto input_dims = getParentEdgeAt(0)->getDesc().getDims();
+    auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 
     std::size_t actual_axis = (axis == -1) ? src_dims.size() : axis;
     for (size_t i = 0; i < actual_axis; ++i)
         prefix_size *= input_dims[i];
 
-    std::size_t suffix_size = getParentEdgeAt(0)->getBlob()->size() / prefix_size;
+    std::size_t suffix_size = getParentEdgeAt(0)->getMemory().GetShape().getElementsCount() / prefix_size;
 
     OneHotContext ctx = {this, prefix_size, suffix_size};
     OV_SWITCH(MKLDNNPlugin, OneHotExecute, ctx, output_precision.size(),

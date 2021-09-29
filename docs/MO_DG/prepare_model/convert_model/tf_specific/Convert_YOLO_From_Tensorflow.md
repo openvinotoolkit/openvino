@@ -67,7 +67,11 @@ git checkout ed60b90
 ```
 3. Download [coco.names](https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names) file from the DarkNet website **OR** use labels that fit your task.
 4. Download the [yolov3.weights](https://pjreddie.com/media/files/yolov3.weights) (for the YOLOv3 model) or [yolov3-tiny.weights](https://pjreddie.com/media/files/yolov3-tiny.weights) (for the YOLOv3-tiny model) file **OR** use your pre-trained weights with the same structure
-5. Run a converter:
+5. Install PIL, which is used by the conversion script in the repo:
+```sh
+pip install PIL
+```
+6. Run a converter:
 - for YOLO-v3:
 ```sh
 python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weights_file yolov3.weights
@@ -88,7 +92,7 @@ python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weig
 
 ### Convert YOLOv3 TensorFlow Model to IR
 
-To solve the problems explained in the <a href="#yolov3-overview">YOLOv3 architecture overview</a> section, use the `yolo_v3.json` or `yolo_v3_tiny.json` (depending on a model) configuration file with custom operations located in the `<OPENVINO_INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf` repository.
+To solve the problems explained in the <a href="#yolov3-overview">YOLOv3 architecture overview</a> section, use the `yolo_v3.json` or `yolo_v3_tiny.json` (depending on a model) configuration file with custom operations located in the `<OPENVINO_INSTALL_DIR>/tools/model_optimizer/extensions/front/tf` repository.
 
 It consists of several attributes:<br>
 ```sh
@@ -202,7 +206,7 @@ Converted TensorFlow YOLO model is missing `Region` layer and its parameters. Or
 file under the `[region]` title.   
 
 To recreate the original model structure, use the corresponding yolo `.json` configuration file with custom operations and `Region` layer
-parameters when converting the model to the IR. This file is located in the `<OPENVINO_INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf` directory.
+parameters when converting the model to the IR. This file is located in the `<OPENVINO_INSTALL_DIR>/tools/model_optimizer/extensions/front/tf` directory.
 
 If chosen model has specific values of this parameters,
 create another configuration file with custom operations and use it for conversion.
@@ -213,7 +217,7 @@ python3 ./mo_tf.py
 --input_model <path_to_model>/<model_name>.pb       \
 --batch 1                                       \
 --scale 255 \
---transformations_config <OPENVINO_INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/<yolo_config>.json
+--transformations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/<yolo_config>.json
 ```
 where:
 

@@ -8,7 +8,6 @@
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
@@ -18,8 +17,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, shape_of_scalar_v0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, shape_of_scalar_v0) {
     Shape input_shape{};
     Shape output_shape{0};
 
@@ -38,16 +36,14 @@ NGRAPH_TEST(${BACKEND_NAME}, shape_of_scalar_v0)
     EXPECT_EQ(expected, read_vector<int64_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, shape_of_scalar_v3)
-{
+NGRAPH_TEST(${BACKEND_NAME}, shape_of_scalar_v3) {
     Shape input_shape{};
     Shape output_shape{0};
 
     auto A = std::make_shared<op::Parameter>(element::f32, input_shape);
-    auto f =
-        std::make_shared<Function>(OutputVector{std::make_shared<op::v3::ShapeOf>(A),
-                                                std::make_shared<op::v3::ShapeOf>(A, element::i32)},
-                                   ParameterVector{A});
+    auto f = std::make_shared<Function>(
+        OutputVector{std::make_shared<op::v3::ShapeOf>(A), std::make_shared<op::v3::ShapeOf>(A, element::i32)},
+        ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -64,8 +60,7 @@ NGRAPH_TEST(${BACKEND_NAME}, shape_of_scalar_v3)
     EXPECT_EQ(expected32, read_vector<int32_t>(result32));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, shape_of_vector_v0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, shape_of_vector_v0) {
     Shape input_shape{2};
     Shape output_shape{1};
 
@@ -84,16 +79,14 @@ NGRAPH_TEST(${BACKEND_NAME}, shape_of_vector_v0)
     EXPECT_EQ(expected, read_vector<int64_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, shape_of_vector_v3)
-{
+NGRAPH_TEST(${BACKEND_NAME}, shape_of_vector_v3) {
     Shape input_shape{2};
     Shape output_shape{1};
 
     auto A = std::make_shared<op::Parameter>(element::f32, input_shape);
-    auto f =
-        std::make_shared<Function>(OutputVector{std::make_shared<op::v3::ShapeOf>(A),
-                                                std::make_shared<op::v3::ShapeOf>(A, element::i32)},
-                                   ParameterVector{A});
+    auto f = std::make_shared<Function>(
+        OutputVector{std::make_shared<op::v3::ShapeOf>(A), std::make_shared<op::v3::ShapeOf>(A, element::i32)},
+        ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -110,8 +103,7 @@ NGRAPH_TEST(${BACKEND_NAME}, shape_of_vector_v3)
     EXPECT_EQ(expected32, read_vector<int32_t>(result32));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, shape_of_matrix_v0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, shape_of_matrix_v0) {
     Shape input_shape{2, 4};
     Shape output_shape{2};
 
@@ -130,16 +122,14 @@ NGRAPH_TEST(${BACKEND_NAME}, shape_of_matrix_v0)
     EXPECT_EQ(expected, read_vector<int64_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, shape_of_matrix_v3)
-{
+NGRAPH_TEST(${BACKEND_NAME}, shape_of_matrix_v3) {
     Shape input_shape{2, 4};
     Shape output_shape{2};
 
     auto A = std::make_shared<op::Parameter>(element::f32, input_shape);
-    auto f =
-        std::make_shared<Function>(OutputVector{std::make_shared<op::v3::ShapeOf>(A),
-                                                std::make_shared<op::v3::ShapeOf>(A, element::i32)},
-                                   ParameterVector{A});
+    auto f = std::make_shared<Function>(
+        OutputVector{std::make_shared<op::v3::ShapeOf>(A), std::make_shared<op::v3::ShapeOf>(A, element::i32)},
+        ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -156,8 +146,7 @@ NGRAPH_TEST(${BACKEND_NAME}, shape_of_matrix_v3)
     EXPECT_EQ(expected32, read_vector<int32_t>(result32));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, shape_of_5d_v0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, shape_of_5d_v0) {
     Shape input_shape{2, 4, 8, 16, 32};
     Shape output_shape{5};
 
@@ -176,16 +165,14 @@ NGRAPH_TEST(${BACKEND_NAME}, shape_of_5d_v0)
     EXPECT_EQ(expected, read_vector<int64_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, shape_of_5d_v3)
-{
+NGRAPH_TEST(${BACKEND_NAME}, shape_of_5d_v3) {
     Shape input_shape{2, 4, 8, 16, 32};
     Shape output_shape{5};
 
     auto A = std::make_shared<op::Parameter>(element::f32, input_shape);
-    auto f =
-        std::make_shared<Function>(OutputVector{std::make_shared<op::v3::ShapeOf>(A),
-                                                std::make_shared<op::v3::ShapeOf>(A, element::i32)},
-                                   ParameterVector{A});
+    auto f = std::make_shared<Function>(
+        OutputVector{std::make_shared<op::v3::ShapeOf>(A), std::make_shared<op::v3::ShapeOf>(A, element::i32)},
+        ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

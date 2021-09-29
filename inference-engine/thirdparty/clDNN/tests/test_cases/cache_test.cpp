@@ -217,7 +217,7 @@ public:
             cldnn::build_option::tuning_config(tune_conf),
             cldnn::build_option::optimize_data(true)
         );
-        auto network = cldnn::network(_engine, topology, build_opts);
+        cldnn::network network(_engine, topology, build_opts);
         auto in_mem = _engine.allocate_memory(cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 16, 3, 3 }));
         network.set_input_data("input", in_mem);
         network.execute();

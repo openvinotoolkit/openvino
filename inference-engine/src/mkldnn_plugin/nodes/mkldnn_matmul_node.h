@@ -21,15 +21,15 @@ public:
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
-    int getMaxBatch() override;
+    size_t getMaxBatch() const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    float alpha = 1.0f;
-    float beta = 1.0f;
+    float alpha = 1.f;
+    float beta = 0.f;
     bool transposeA = false;
     bool transposeB = false;
 
@@ -40,9 +40,36 @@ private:
     std::vector<int> bOffsets;
     std::vector<int> cOffsets;
 
-    template<typename T0, typename T1> void process_data();
+    InferenceEngine::Precision runtimePrecision;
+
+    template<typename T0, typename T1> inline void process_data();
 
     std::string errorPrefix;
+
+    struct {
+        MKLDNNMemoryPtr src0_mem_ptr = nullptr;
+        MKLDNNMemoryPtr src1_mem_ptr = nullptr;
+        MKLDNNMemoryPtr dst_mem_ptr = nullptr;
+
+        char transa = 'N';
+        char transb = 'N';
+
+        int MB1 = 1;
+        int MB2 = 1;
+
+        int M = 0;
+        int N = 0;
+        int K = 0;
+
+        int lda = 0;
+        int ldb = 0;
+        int ldc = 0;
+
+        int shift1 = 0;
+        int shift2 = 0;
+
+        size_t ndims = 0;
+    } params;
 };
 
 }  // namespace MKLDNNPlugin

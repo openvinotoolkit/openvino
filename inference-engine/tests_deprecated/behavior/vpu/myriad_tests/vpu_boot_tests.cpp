@@ -45,7 +45,7 @@ class MYRIADBoot : public MyriadDevicesInfo,
      * @brief Boot any free device
      */
     void bootOneDevice() {
-        ASSERT_NO_ERROR(ncDeviceLoadFirmware(NC_ANY_PLATFORM, firmwareDir));
+        ASSERT_NO_ERROR(ncDeviceLoadFirmware(firmwareDir));
     }
 
 };

@@ -2,7 +2,7 @@
 
 **Versioned name**: *Broadcast-1*
 
-**Category**: Data movement
+**Category**: *Data movement*
 
 **Short description**: *Broadcast* replicates data on the first input to fit a given shape on the second input.
 

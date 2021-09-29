@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
 #include <ngraph/except.hpp>
 
+#include "gtest/gtest.h"
+
 #ifdef SELECTIVE_BUILD_ANALYZER
-#define SELECTIVE_BUILD_ANALYZER_ON
-#undef SELECTIVE_BUILD_ANALYZER
+#    define SELECTIVE_BUILD_ANALYZER_ON
+#    undef SELECTIVE_BUILD_ANALYZER
 #elif defined(SELECTIVE_BUILD)
-#define SELECTIVE_BUILD_ON
-#undef SELECTIVE_BUILD
+#    define SELECTIVE_BUILD_ON
+#    undef SELECTIVE_BUILD
 #endif
 
 #define SELECTIVE_BUILD_ANALYZER
@@ -20,8 +20,7 @@
 
 using namespace std;
 
-TEST(conditional_compilation, collect_op_scope)
-{
+TEST(conditional_compilation, collect_op_scope) {
 #define ngraph_op_Scope0 1
     int n = 0;
 
@@ -40,7 +39,7 @@ TEST(conditional_compilation, collect_op_scope)
 #undef SELECTIVE_BUILD_ANALYZER
 
 #ifdef SELECTIVE_BUILD_ANALYZER_ON
-#define SELECTIVE_BUILD_ANALYZER
+#    define SELECTIVE_BUILD_ANALYZER
 #elif defined(SELECTIVE_BUILD_ON)
-#define SELECTIVE_BUILD
+#    define SELECTIVE_BUILD
 #endif
