@@ -99,3 +99,4 @@ std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7
 }
 
 } // namespace GNAPluginNS
+

@@ -4,6 +4,11 @@
 
 #pragma once
 
+#include <ngraph/opsets/opset7.hpp>
+
+#include <vector>
+#include <unordered_set>
+
 namespace GNAPluginNS {
 
 struct ConvData {
@@ -56,7 +61,7 @@ bool TransposeOrderMatches(std::shared_ptr<ngraph::opset7::Transpose> transpose,
 /**
  * @brief performs a crop of a flattened input tensor
  * @param input input layer
- * @param offset offset to start the crop at* 
+ * @param offset offset to start the crop at*
  * @param size size of the crop
  * @return pointer to the newly created slice
  */
@@ -77,5 +82,47 @@ std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> c
  * @return new fake quantize layer or the last node
  */
 std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer, std::shared_ptr<ngraph::Node> last_node);
+
+/** @brief checks whether specified node has type TOperation
+ *
+ * @tparam TOperation alleged node type
+ * @param node Layer shared pointer
+ * @return true if node has TOperation type
+ * @return false if node doesn't have TOperation type
+ */
+template <typename TOperation>
+bool IsLayerType(std::shared_ptr<ngraph::Node> node) {
+    return ::ngraph::as_type_ptr<TOperation>(node) != nullptr;
+}
+
+/**
+ * @brief checks whether specified node has one of types TOperation ... TOperations
+ * for borderline case when single type TOperation is specified
+ * Is needed for complete var-args template IsAnyOfLayerTypes<...>
+ *
+ * @tparam TOperation ... TOperations alleged node types
+ * @param node Layer shared pointer
+ * @return true if node has one of the TOperation ... TOperations types
+ * @return false if node doesn't have one of the TOperation ... TOperations types
+ */
+template <typename TOperation, typename ... TOperations, typename std::enable_if<(sizeof...(TOperations) == 0), bool>::type = true>
+bool IsAnyOfLayerTypes(std::shared_ptr<ngraph::Node> node) {
+    return IsLayerType<TOperation>(node);
+}
+
+/**
+ * @brief checks whether specified node has one of types TOperation ... TOperations
+ *
+ * @tparam TOperation ... TOperations alleged node types
+ * @param node layer shared pointer
+ * @return true if node has one of the TOperation ... TOperations types
+ * @return false if node doesn't have one of the TOperation ... TOperations types
+ */
+template <typename TOperation, typename ... TOperations, typename std::enable_if<(sizeof...(TOperations) > 0), bool>::type = true>
+bool IsAnyOfLayerTypes(std::shared_ptr<ngraph::Node> node) {
+    if (IsLayerType<TOperation>(node))
+        return true;
+    return IsAnyOfLayerTypes<TOperations...>(node);
+}
 
 } // namespace GNAPluginNS

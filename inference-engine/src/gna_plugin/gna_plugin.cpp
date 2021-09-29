@@ -70,6 +70,7 @@
 #include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 #include "transformations/remove_single_input_concat.hpp"
+#include "transformations/broadcast_const.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -715,6 +716,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
+        manager.register_pass<BroadcastConst>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -730,9 +732,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
         // TransposeReduction can be enabled when Transpose-Conv-Transpose patterns will be handled in ngraph transformations
         pass_config->disable<ngraph::pass::TransposeReduction>();
+
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
-
         isNgraphPassesUsed = true;
     }
     IE_SUPPRESS_DEPRECATED_START
@@ -770,6 +772,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             passes->registerPass<RemoveConstPass>();
             passes->registerPass<UnrollLSTMCellPass>();
             passes->registerPass<RemoveSingleInputConcatPass>();
+            passes->registerPass<BroadcastConstPass>();
         }
 
         // fake quantisation aware passes
@@ -777,8 +780,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
 
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
-        passes->registerPass<BroadcastConstPass>();
-
         passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
 
         passes->registerPass<SubstitutePReluPass>();

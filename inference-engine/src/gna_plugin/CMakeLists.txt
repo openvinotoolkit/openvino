@@ -39,7 +39,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
 ie_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_legacy inference_engine_transformations
-        Threads::Threads libGNA)
+        Threads::Threads libGNA ngraph_reference)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(${TARGET_NAME}
@@ -65,7 +65,7 @@ target_compile_definitions(${TARGET_NAME}_test_static
             INTEGER_LOW_P
             USE_STATIC_IE)
 
-target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_preproc_s inference_engine_transformations libGNA::API)
+target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_preproc_s inference_engine_transformations libGNA::API ngraph_reference)
 target_include_directories(${TARGET_NAME}_test_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
     $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
     PRIVATE $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
