@@ -15,8 +15,6 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pass.hpp"
 
-#define DYN ngraph::Dimension::dynamic()
-
 class FunctionsComparator {
 public:
     enum CmpValues {
