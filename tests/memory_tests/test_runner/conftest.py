@@ -546,6 +546,7 @@ def pytest_runtest_makereport(item, call):
                 instance["db"]["status"] = "passed"
         instance["db"]["results"] = instance["results"]
         instance["db"]["raw_results"] = instance["raw_results"]
-        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, db_name, db_collection, instance["db"]))
 
+        logging.info(f"Upload data to {db_url}/{db_name}.{db_collection}. "
+                     f"Data: {instance['db']}")
         upload_data(instance["db"], db_url, db_name, db_collection)
