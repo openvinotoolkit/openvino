@@ -91,6 +91,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/matrix_nms.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/max_unpool.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/mish.hpp"

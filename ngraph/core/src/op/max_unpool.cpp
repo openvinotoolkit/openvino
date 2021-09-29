@@ -1,9 +1,10 @@
 #include "ngraph/op/max_unpool.hpp"
+#include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v8::MaxUnpool, "MaxUnpool", 1);
+BWDCMP_RTTI_DEFINITION(op::v8::MaxUnpool);
 
 op::v8::MaxUnpool::MaxUnpool(const ngraph::Output<ngraph::Node>& poolInp,
                              const ngraph::Output<ngraph::Node>& poolOut,
@@ -13,11 +14,11 @@ op::v8::MaxUnpool::MaxUnpool(const ngraph::Output<ngraph::Node>& poolInp,
     constructor_validate_and_infer_types();
 }
 
-bool op::v8::MaxUnpool::visit_attributes(ngraph::AttributeVisitor& visitor) {
+bool op::v8::MaxUnpool::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-std::shared_ptr<ngraph::Node> op::v8::MaxUnpool::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
+std::shared_ptr<ngraph::Node> op::v8::MaxUnpool::clone_with_new_inputs(const OutputVector& new_args) const {
     if (new_args.size() != 4) {
         throw ngraph::ngraph_error("Incorrect number of new arguments");
     }

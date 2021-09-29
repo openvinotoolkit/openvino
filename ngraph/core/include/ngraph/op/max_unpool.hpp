@@ -1,30 +1,12 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/max_unpool.hpp"
+
 namespace ngraph {
 namespace op {
 namespace v8 {
-class NGRAPH_API MaxUnpool : public Op {
-public:
-    NGRAPH_RTTI_DECLARATION;
-
-    MaxUnpool() = default;
-
-    MaxUnpool(const ngraph::Output<ngraph::Node>& poolInp,
-              const ngraph::Output<ngraph::Node>& poolOut,
-              const ngraph::Output<ngraph::Node>& inp,
-              const ngraph::Output<ngraph::Node>& shape);
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
-    void validate_and_infer_types() override;
-
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-
-    bool has_evaluate() const override;
-};
+using ov::op::v8::MaxUnpool;
 }  // namespace v8
 }  // namespace op
 }  // namespace ngraph
