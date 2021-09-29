@@ -47,9 +47,9 @@ const std::vector<std::vector<ptrdiff_t>> padEndsH1 = {{1, 0},
                                                        {1, 3}};
 const std::vector<std::vector<size_t >> dilationsH1 = {{1, 1},
                                                        {1, 3}};
-const std::vector<std::vector<std::vector<std::vector<size_t>>>> inputShapesH1 = {{{{1, 1, 1, 32},
-                                                                                    {1, 32, 1, 160},
-                                                                                    {1, 8, 1, 64}}}};
+const std::vector<std::vector<size_t>> inputShapesH1 = {{1, 1, 1, 32},
+                                                        {1, 32, 1, 160},
+                                                        {1, 8, 1, 64}};
 const std::vector<std::vector<size_t >> kernelsW1 = {{3, 1},
                                                      {5, 1}};
 const std::vector<std::vector<size_t >> stridesW1 = {{1, 1},
@@ -60,22 +60,22 @@ const std::vector<std::vector<ptrdiff_t>> padEndsW1 = {{0, 1},
                                                        {3, 1}};
 const std::vector<std::vector<size_t >> dilationsW1 = {{1, 1},
                                                        {3, 1}};
-const std::vector<std::vector<std::vector<std::vector<size_t>>>> inputShapesW1 = {{{{1, 1, 32, 1},
-                                                                                    {1, 32, 160, 1},
-                                                                                    {1, 8, 64, 1}}}};
+const std::vector<std::vector<size_t>> inputShapesW1 = {{1, 1, 32, 1},
+                                                        {1, 32, 160, 1},
+                                                        {1, 8, 64, 1}};
 const std::vector<size_t> numOutCannels = {4, 8, 12};
 
 const std::vector<std::vector<size_t >> kernels2D = {
-                                                          {5, 1},
-                                                          {4, 1},
-                                                          {1, 3},
-                                                          {1, 2},
-                                                          {2, 2},
-                                                          {7, 1},
-                                                          {3, 3},
+        {5, 1},
+        {4, 1},
+        {1, 3},
+        {1, 2},
+        {2, 2},
+        {7, 1},
+        {3, 3},
 };
 const std::vector<std::vector<size_t >> strides2D = {
-                                                          {1, 1},
+        {1, 1},
 };
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = { {0, 0},
 };
@@ -85,20 +85,20 @@ const std::vector<std::vector<size_t >> dilations2D = { {1, 1},
 };
 const std::vector<size_t> numOutCannels2D = { 8, 16, 32};
 
-const std::vector<std::vector<std::vector<size_t>>> input2DNCHW = {{{1, 8, 20, 16}}};
+const std::vector<size_t> input2DNCHW = { 1, 8, 20, 16 };
 
-const std::vector<std::vector<std::vector<std::vector<size_t>>>> inputShapesMapTo1d = {{{{1, 1, 56, 5},
-                                                                                         {1, 32, 56, 5},
-                                                                                         {1, 2, 64, 5}}}};
+const std::vector<std::vector<size_t>> inputShapesMapTo1d = {{1, 1, 56, 5},
+                                                             {1, 32, 56, 5},
+                                                             {1, 2, 64, 5}};
 
 const auto conv2DParams_Kernels2D = ::testing::Combine(
-    ::testing::ValuesIn(kernels2D),
-    ::testing::ValuesIn(strides2D),
-    ::testing::ValuesIn(padBegins2D),
-    ::testing::ValuesIn(padEnds2D),
-    ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutCannels2D),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::ValuesIn(kernels2D),
+        ::testing::ValuesIn(strides2D),
+        ::testing::ValuesIn(padBegins2D),
+        ::testing::ValuesIn(padEnds2D),
+        ::testing::ValuesIn(dilations2D),
+        ::testing::ValuesIn(numOutCannels2D),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParams_ExplicitPadding_Height1 = ::testing::Combine(
         ::testing::ValuesIn(kernelsH1),
@@ -148,80 +148,74 @@ const auto conv2DParams_AutoPadValid_MapTo1d = ::testing::Combine(
 
 // TODO: padding isn't currently supported in GNA
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Height1, ConvolutionLayerTest,
-                        ::testing::Combine(
-                                conv2DParams_ExplicitPadding_Height1,
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
-                                ::testing::ValuesIn(inputShapesH1),
-                                ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-                        ConvolutionLayerTest::getTestCaseName);
+                         ::testing::Combine(
+                                 conv2DParams_ExplicitPadding_Height1,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::ValuesIn(inputShapesH1),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Width1, ConvolutionLayerTest,
-                        ::testing::Combine(
-                                conv2DParams_ExplicitPadding_Width1,
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
-                                ::testing::ValuesIn(inputShapesW1),
-                                ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-                        ConvolutionLayerTest::getTestCaseName);
+                         ::testing::Combine(
+                                 conv2DParams_ExplicitPadding_Width1,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::ValuesIn(inputShapesW1),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Height1, ConvolutionLayerTest,
-                        ::testing::Combine(
-                                conv2DParams_AutoPadValid_Height1,
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
-                                ::testing::ValuesIn(inputShapesH1),
-                                ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-                        ConvolutionLayerTest::getTestCaseName);
+                         ::testing::Combine(
+                                 conv2DParams_AutoPadValid_Height1,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::ValuesIn(inputShapesH1),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Width1, ConvolutionLayerTest,
-                        ::testing::Combine(
-                                conv2DParams_AutoPadValid_Width1,
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
-                                ::testing::ValuesIn(inputShapesW1),
-                                ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-                        ConvolutionLayerTest::getTestCaseName);
+                         ::testing::Combine(
+                                 conv2DParams_AutoPadValid_Width1,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::ValuesIn(inputShapesW1),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_MapTo1d, ConvolutionLayerTest,
-                        ::testing::Combine(
-                                conv2DParams_AutoPadValid_MapTo1d,
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
-                                ::testing::ValuesIn(inputShapesMapTo1d),
-                                ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-                        ConvolutionLayerTest::getTestCaseName);
+                         ::testing::Combine(
+                                 conv2DParams_AutoPadValid_MapTo1d,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::ValuesIn(inputShapesMapTo1d),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
-    ::testing::Combine(
-        conv2DParams_Kernels2D,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
-        ::testing::Values(input2DNCHW),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-    GnaConvolutionLayerTest::getTestCaseName);
+                         ::testing::Combine(
+                                 conv2DParams_Kernels2D,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(input2DNCHW),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         GnaConvolutionLayerTest::getTestCaseName);
 }  // namespace
