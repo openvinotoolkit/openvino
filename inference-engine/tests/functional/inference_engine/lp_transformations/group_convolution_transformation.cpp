@@ -473,7 +473,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
                     1,
                     ngraph::element::i8,
                     false,
-                    {"DISABLED_CONSTANT_FOLDING"}
+                    {"disabled_constant_folding_0"}
                 },
                 {}
             },

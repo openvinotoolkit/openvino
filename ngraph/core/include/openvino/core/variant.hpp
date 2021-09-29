@@ -14,6 +14,7 @@
 
 namespace ov {
 class Node;
+class AttributeVisitor;
 using VariantTypeInfo = DiscreteTypeInfo;
 
 class OPENVINO_API Variant {
@@ -27,12 +28,19 @@ public:
     virtual std::string to_string() {
         return "";
     }
+    virtual bool visit_attributes(AttributeVisitor&) {
+        return false;
+    }
+
+    using type_info_t = DiscreteTypeInfo;
 };
 
 template <typename VT>
 class VariantImpl : public Variant {
 public:
     using value_type = VT;
+
+    VariantImpl() = default;
 
     VariantImpl(const value_type& value) : m_value(value) {}
 

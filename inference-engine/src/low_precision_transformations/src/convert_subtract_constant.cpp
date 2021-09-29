@@ -9,6 +9,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <transformations/rt_info/disable_constant_folding.hpp>
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph;
@@ -82,8 +83,7 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
             NetworkHelper::copyInfo(subtractConstant, resultConvert);
             resultConvert->set_friendly_name(subtractConstant->get_friendly_name() + "/Convert");
 
-            auto& rtInfo = resultConvert->get_rt_info();
-            rtInfo["DISABLED_CONSTANT_FOLDING"] = std::make_shared<VariantWrapper<std::string>>("");
+            ov::disable_constant_folding(resultConvert);
 
             const auto newSubtract = std::make_shared<opset1::Subtract>(opsMap.at(weightsConvertWrapper).get_node_shared_ptr(), resultConvert);
             NetworkHelper::copyInfo(subtract, newSubtract);

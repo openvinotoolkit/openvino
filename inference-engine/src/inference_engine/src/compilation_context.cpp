@@ -123,7 +123,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
             } else if (auto fNames =
                            std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::FusedNames>>(rtMapData.second)) {
                 seed = hash_combine(seed, fNames->get().getNames());
-            } else if (auto prim = std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::PrimitivesPriority>>(
+            } else if (auto prim = std::dynamic_pointer_cast<ngraph::VariantWrapper<ov::PrimitivesPriority>>(
                            rtMapData.second)) {
                 seed = hash_combine(seed, prim->get().getPrimitivesPriority());
             }
