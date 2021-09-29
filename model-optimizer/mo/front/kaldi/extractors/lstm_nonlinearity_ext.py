@@ -27,7 +27,6 @@ class LSTMNonlinearityFrontExtractor(FrontExtractorOp):
             # layer have not UseDropout attribute, so setup it to False
             use_dropout = False
 
-
         mapping_rule = {'use_dropout': use_dropout}
 
         assert len(ifo_x_weights_shape) == 2, "Unexpected shape of weights in LSTMNonLinearityComponent"
