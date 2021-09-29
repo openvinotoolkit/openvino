@@ -13,7 +13,8 @@ namespace v0 {
 ///
 class OPENVINO_API Sign : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Sign", "opset1", util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
 
     Sign() = default;
     /// \brief Constructs an elementwise sign operation.

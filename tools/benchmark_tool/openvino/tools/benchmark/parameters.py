@@ -49,9 +49,9 @@ def parse_args():
                       help='Optional. Required for GPU custom kernels. Absolute path to an .xml file with the '
                            'kernels description.')
     args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'latency'],
-                      help='Optional. Performance hint (optimize for latency or throughput).'
-                            'The hint allows the OpenVINO device to select the right network-specific settings,'
-                            'as opposite to accepting specific values like  \'nstreams\' from the command line.'
+                      help='Optional. Performance hint (optimize for latency or throughput). '
+                            'The hint allows the OpenVINO device to select the right network-specific settings, '
+                            'as opposite to accepting specific values like  \'nstreams\' from the command line. '
                             'So you can specify just the hint without adding explicit device-specific options')
     args.add_argument('-api', '--api_type', type=str, required=False, default='async', choices=['sync', 'async'],
                       help='Optional. Enable using sync/async API. Default value is async.')
@@ -101,8 +101,8 @@ def parse_args():
     args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
                       help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '
                            'threads->(NUMA)nodes (\'NUMA\'), '
-                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs)'
-                           'or completely disable (\'NO\')'
+                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs) '
+                           'or completely disable (\'NO\') '
                            'CPU threads pinning for CPU-involved inference.')
     args.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')

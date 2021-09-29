@@ -22,7 +22,8 @@ namespace v0 {
 /// \brief Class for constants.
 class OPENVINO_API Constant : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Constant", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     Constant() = default;
 
@@ -226,6 +227,11 @@ public:
     /// \param shape The shape of the tensor constant.
     OPENVINO_DEPRECATED("Use Constant c-tor with shape argument instead")
     void set_data_shape(const Shape& shape);
+
+    /// \brief Return data size in bytes
+    size_t get_byte_size() const {
+        return m_data->size();
+    }
 
     /// \brief Wrapper around constructing a shared_ptr of a Constant
     ///

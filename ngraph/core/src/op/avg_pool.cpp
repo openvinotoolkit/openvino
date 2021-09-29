@@ -12,7 +12,7 @@
 using namespace std;
 
 // *** AvgPool OP SET 1 ***
-OPENVINO_RTTI_DEFINITION(ov::op::v1::AvgPool, "AvgPool", 1);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::AvgPool);
 
 ov::op::v1::AvgPool::AvgPool(const Output<Node>& arg,
                              const Strides& strides,

@@ -243,34 +243,42 @@ def prepare_omz_model(openvino_ref, model, omz_repo, omz_cache_dir, tmpdir):
     downloader_path = omz_repo / "tools" / "downloader" / "downloader.py"
     model_path_root = tmpdir
 
-    cmd = f'{python_executable} {downloader_path} --name {model["name"]}' \
-          f' --precisions={model["precision"]}' \
-          f' --num_attempts {OMZ_NUM_ATTEMPTS}' \
-          f' --output_dir {model_path_root}'
+    cmd = [f'{python_executable}', f'{downloader_path}',
+           '--name', f'{model["name"]}',
+           f'--precisions={model["precision"]}',
+           '--num_attempts', f'{OMZ_NUM_ATTEMPTS}',
+           '--output_dir', f'{model_path_root}']
 
     if omz_cache_dir:
-        cmd += f' --cache_dir {omz_cache_dir}'
+        cmd.append('--cache_dir')
+        cmd.append(f'{omz_cache_dir}')
 
-    cmd_exec(cmd, log=omz_log)
+    return_code, output = cmd_exec(cmd, log=omz_log)
+    assert return_code == 0, "Downloading OMZ models has failed!"
 
     # Step 2: converter
     converter_path = omz_repo / "tools" / "downloader" / "converter.py"
     ir_path = model_path_root / "_IR"
     # Note: remove --precisions if both precisions (FP32 & FP16) are required
-    cmd = f'{python_executable} {converter_path} --name {model["name"]}' \
-          f' -p {python_executable}' \
-          f' --precisions={model["precision"]}' \
-          f' --output_dir {ir_path}' \
-          f' --download_dir {model_path_root}' \
-          f' --mo {Path("../../model-optimizer/mo.py").resolve()}'
+    cmd = [f'{python_executable}', f'{converter_path}',
+           '--name', f'{model["name"]}',
+           '-p', f'{python_executable}',
+           f'--precisions={model["precision"]}',
+           '--output_dir', f'{ir_path}',
+           '--download_dir', f'{model_path_root}',
+           '--mo', f'{openvino_ref / "tools"/ "model_optimizer" / "mo.py"}']
 
-    cmd_exec(cmd, env=get_openvino_environment(openvino_ref), log=omz_log)
+    return_code, output = cmd_exec(cmd, env=get_openvino_environment(openvino_ref), log=omz_log)
+    assert return_code == 0, "Converting OMZ models has failed!"
 
     # Step 3: info_dumper
     info_dumper_path = omz_repo / "tools" / "downloader" / "info_dumper.py"
-    cmd = f'"{python_executable}" "{info_dumper_path}" --name {model["name"]}'
+    cmd = [f'{python_executable}',
+           f'{info_dumper_path}',
+           '--name', f'{model["name"]}']
 
     return_code, output = cmd_exec(cmd, log=omz_log)
+    assert return_code == 0, "Getting information about OMZ models has failed!"
     model_info = json.loads(output)[0]
 
     # Step 4: form model_path

@@ -5,11 +5,12 @@
 #include "openvino/core/layout.hpp"
 
 #include <algorithm>
+#include <cctype>
 
 #include "ngraph/except.hpp"
 #include "ngraph/util.hpp"
 
-using namespace ov;
+namespace ov {
 
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -263,3 +264,5 @@ void AttributeAdapter<ov::Layout>::set(const std::string& value) {
 }
 
 constexpr VariantTypeInfo VariantWrapper<ov::Layout>::type_info;
+
+}  // namespace ov

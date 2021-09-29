@@ -64,6 +64,9 @@
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "impls/onednn/register.hpp"
+#endif
 
 #include "kernel_base.h"
 
@@ -130,6 +133,9 @@ void program::init_primitives() {
         common::register_implementations();
         cpu::register_implementations();
         ocl::register_implementations();
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        onednn::register_implementations();
+#endif
         is_initialized = true;
     }
 }
@@ -417,9 +423,17 @@ void program::build_program(bool is_internal) {
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
-    prepare_memory_dependencies();
-    compile();
-    init_kernels();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+#ifdef GPU_DEBUG_CONFIG
+    if (debug_config->dry_run_path.empty()) {
+#else
+    {
+#endif
+        prepare_memory_dependencies();
+        compile();
+        init_kernels();
+    }
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
