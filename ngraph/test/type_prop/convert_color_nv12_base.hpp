@@ -5,7 +5,7 @@
 #include <vector>
 #include "gtest/gtest.h"
 #include "openvino/op/op.hpp"
-#include "openvino/op/parameter.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace ov;
 
