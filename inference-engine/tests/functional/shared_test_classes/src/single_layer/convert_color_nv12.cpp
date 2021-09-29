@@ -3,6 +3,9 @@
 //
 
 #include "shared_test_classes/single_layer/convert_color_nv12.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
+#include "openvino/op/nv12_to_bgr.hpp"
+
 namespace LayerTestsDefinitions {
 
 std::string ConvertColorNV12LayerTest::getTestCaseName(const testing::TestParamInfo<ConvertColorNV12ParamsTuple> &obj) {

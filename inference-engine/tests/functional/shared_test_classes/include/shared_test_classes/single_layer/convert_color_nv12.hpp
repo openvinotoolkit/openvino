@@ -11,7 +11,6 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "openvino/op/nv12_to_rgb.hpp"
 
 namespace LayerTestsDefinitions {
 

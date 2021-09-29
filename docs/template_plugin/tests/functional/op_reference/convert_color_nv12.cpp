@@ -7,6 +7,7 @@
 #include <openvino/core/function.hpp>
 #include <tuple>
 #include <openvino/op/nv12_to_rgb.hpp>
+#include <openvino/op/nv12_to_bgr.hpp>
 
 #include "base_reference_test.hpp"
 
