@@ -22,50 +22,98 @@ class ValueHolder {
         NGRAPH_CHECK(false, "Invalid type access");
     }
 
-        public:
-            virtual ~ValueHolder() {}
-            virtual operator bool&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator float&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator double&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::string&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator int8_t&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator int16_t&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator int32_t&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator int64_t&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator uint8_t&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator uint16_t&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator uint32_t&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator uint64_t&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<std::string>&()
-            {
-                NGRAPH_CHECK(false, "Invalid type access");
-            }
-            virtual operator std::vector<float>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<double>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<int8_t>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<int16_t>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<int32_t>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<int64_t>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<uint8_t>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<uint16_t>&()
-            {
-                NGRAPH_CHECK(false, "Invalid type access");
-            }
-            virtual operator std::vector<uint32_t>&()
-            {
-                NGRAPH_CHECK(false, "Invalid type access");
-            }
-            virtual operator std::vector<uint64_t>&()
-            {
-                NGRAPH_CHECK(false, "Invalid type access");
-            }
-            virtual operator HostTensorPtr&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::shared_ptr<ov::Function>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            virtual operator std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>&() { NGRAPH_CHECK(false, "Invalid type access"); }
-            uint64_t get_index() { return m_index; }
+public:
+    virtual ~ValueHolder() {}
+    virtual operator bool&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator float&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator double&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::string&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator int8_t&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator int16_t&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator int32_t&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator int64_t&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator uint8_t&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator uint16_t&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator uint32_t&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator uint64_t&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<std::string>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<float>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<double>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<int8_t>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<int16_t>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<int32_t>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<int64_t>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<uint8_t>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<uint16_t>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<uint32_t>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<uint64_t>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator HostTensorPtr&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::shared_ptr<ov::Function>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    uint64_t get_index() {
+        return m_index;
+    }
 
 protected:
     uint64_t m_index{0};
@@ -142,53 +190,42 @@ protected:
     bool m_print{false};
 };
 
-        class DeserializeAttributeVisitor : public AttributeVisitor
-        {
-        public:
-            DeserializeAttributeVisitor(ValueMap& value_map)
-                : m_values(value_map)
-            {
-            }
+class DeserializeAttributeVisitor : public AttributeVisitor {
+public:
+    DeserializeAttributeVisitor(ValueMap& value_map) : m_values(value_map) {}
 
-            void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override
-            {
-                adapter.set(m_values.get<std::shared_ptr<ov::Function>>(name));
-            }
+    void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override {
+        adapter.set(m_values.get<std::shared_ptr<ov::Function>>(name));
+    }
 
-            void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
-            {
-                if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<
-                        std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter))
-                {
-                    auto& data = m_values.get<HostTensorPtr>(name);
-                    data->read(a->get()->get_ptr(), a->get()->size());
-                } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-                    a->set(m_values.get<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>(name));
-                } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
-                    a->set(m_values.get<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>(name));
-                } else {
-                    NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
-                }
-            }
-            // The remaining adapter methods fall back on the void adapter if not implemented
-            void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override
-            {
-                adapter.set(m_values.get<std::string>(name));
-            };
-            void on_adapter(const std::string& name, ValueAccessor<bool>& adapter) override
-            {
-                adapter.set(m_values.get<bool>(name));
-            };
-            void on_adapter(const std::string& name, ValueAccessor<int64_t>& adapter) override
-            {
-                adapter.set(m_values.get<int64_t>(name));
-            }
-            void on_adapter(const std::string& name, ValueAccessor<double>& adapter) override
-            {
-                adapter.set(m_values.get<double>(name));
-            }
+    void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
+        if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+                &adapter)) {
+            auto& data = m_values.get<HostTensorPtr>(name);
+            data->read(a->get()->get_ptr(), a->get()->size());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
+                       std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+            a->set(m_values.get<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>(name));
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
+                       std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+            a->set(m_values.get<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>(name));
+        } else {
+            NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
+        }
+    }
+    // The remaining adapter methods fall back on the void adapter if not implemented
+    void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override {
+        adapter.set(m_values.get<std::string>(name));
+    };
+    void on_adapter(const std::string& name, ValueAccessor<bool>& adapter) override {
+        adapter.set(m_values.get<bool>(name));
+    };
+    void on_adapter(const std::string& name, ValueAccessor<int64_t>& adapter) override {
+        adapter.set(m_values.get<int64_t>(name));
+    }
+    void on_adapter(const std::string& name, ValueAccessor<double>& adapter) override {
+        adapter.set(m_values.get<double>(name));
+    }
 
     void on_adapter(const std::string& name, ValueAccessor<std::vector<int8_t>>& adapter) override {
         adapter.set(m_values.get<std::vector<int8_t>>(name));
@@ -236,40 +273,33 @@ class SerializeAttributeVisitor : public AttributeVisitor {
 public:
     SerializeAttributeVisitor(ValueMap& value_map) : m_values(value_map) {}
 
-            void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override
-            {
-                m_values.insert(name, adapter.get());
-            }
+    void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override {
+        m_values.insert(name, adapter.get());
+    }
 
-            void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
-            {
-                if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<
-                        std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter))
-                {
-                    HostTensorPtr data =
-                        std::make_shared<HostTensor>(element::u8, Shape{a->get()->size()});
-                    data->write(a->get()->get_ptr(), a->get()->size());
-                    m_values.insert(name, data);
-                } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-                    m_values.insert_vector(name, a->get());
-                } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
-                    m_values.insert_vector(name, a->get());
-                } else
-                {
-                    NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
-                }
-            }
-            // The remaining adapter methods fall back on the void adapter if not implemented
-            void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override
-            {
-                m_values.insert_scalar(name, adapter.get());
-            };
-            void on_adapter(const std::string& name, ValueAccessor<bool>& adapter) override
-            {
-                m_values.insert_scalar(name, adapter.get());
-            };
+    void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
+        if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+                &adapter)) {
+            HostTensorPtr data = std::make_shared<HostTensor>(element::u8, Shape{a->get()->size()});
+            data->write(a->get()->get_ptr(), a->get()->size());
+            m_values.insert(name, data);
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
+                       std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+            m_values.insert_vector(name, a->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
+                       std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+            m_values.insert_vector(name, a->get());
+        } else {
+            NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
+        }
+    }
+    // The remaining adapter methods fall back on the void adapter if not implemented
+    void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override {
+        m_values.insert_scalar(name, adapter.get());
+    };
+    void on_adapter(const std::string& name, ValueAccessor<bool>& adapter) override {
+        m_values.insert_scalar(name, adapter.get());
+    };
 
     void on_adapter(const std::string& name, ValueAccessor<int64_t>& adapter) override {
         m_values.insert_scalar(name, adapter.get());
