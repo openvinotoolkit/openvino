@@ -4,13 +4,14 @@
 
 #pragma once
 
+#include "all_close.hpp"
+#include "all_close_f.hpp"
+#include "backend.hpp"
+#include "engine_traits.hpp"
+#include "execute_tools.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
-#include "runtime/backend.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/engine/engine_traits.hpp"
-#include "util/engine/test_case_engine.hpp"
+#include "test_case_engine.hpp"
 
 namespace ngraph {
 namespace test {

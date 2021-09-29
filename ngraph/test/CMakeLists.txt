@@ -411,6 +411,7 @@ endif()
 
 add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
 add_subdirectory(util)
+add_subdirectory(engines_util)
 
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
@@ -607,6 +608,7 @@ if(UNIT_TESTS_DEPENDENCIES)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
+                                        engines_test_util
                                         ngraph::builder
                                         ${CMAKE_DL_LIBS}
                                         ie_backend

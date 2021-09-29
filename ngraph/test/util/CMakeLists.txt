@@ -13,8 +13,6 @@ if(COMMAND ie_faster_build)
     ie_faster_build(ngraph_test_util UNITY)
 endif()
 
-target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..
-    $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
 target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend gtest gmock)
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     target_link_libraries(ngraph_test_util PRIVATE onnx_common)
