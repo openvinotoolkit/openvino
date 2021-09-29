@@ -41,9 +41,9 @@ set "PATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PATH%"
 
 
 :: Model Downloader
-if exist %INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader (
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PYTHONPATH%
-set "PATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PATH%"
+if exist %INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\model_tools (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\model_tools;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\model_tools;%PATH%"
 )
 
 :: OpenVINO runtime
@@ -117,8 +117,8 @@ if not "%bitness%"=="64" (
 
 set PYTHONPATH=%INTEL_OPENVINO_DIR%\python\python%pyversion_major%.%pyversion_minor%;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
 
-if exist %INTEL_OPENVINO_DIR%\tools\accuracy_checker (
-    set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\accuracy_checker;%PYTHONPATH%
+if exist %INTEL_OPENVINO_DIR%\tools\accuracy_checker\openvino (
+    set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\accuracy_checker\openvino;%PYTHONPATH%
 )
 
 if exist %INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit (

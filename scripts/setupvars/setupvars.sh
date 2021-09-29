@@ -77,13 +77,13 @@ export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/model_optimizer${PYTHONPATH:+:$PYTH
 
 
 
-if [ -e "$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader" ]; then
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader:$PYTHONPATH"
-    export PATH="$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader:$PATH"
+if [ -e "$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/model_tools" ]; then
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/model_tools:$PYTHONPATH"
+    export PATH="$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/model_tools:$PATH"
 fi
 
-if [ -e "$INTEL_OPENVINO_DIR/tools/accuracy_checker" ]; then
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/accuracy_checker:$PYTHONPATH"
+if [ -e "$INTEL_OPENVINO_DIR/tools/accuracy_checker/openvino" ]; then
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/accuracy_checker/openvino:$PYTHONPATH"
 fi
 
 if [ -e "$INTEL_OPENVINO_DIR/tools/post_training_optimization_toolkit" ]; then
