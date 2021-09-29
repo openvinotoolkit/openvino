@@ -32,6 +32,7 @@ public:
     std::string dump_sources;       // Dump opencl sources
     std::string dump_layers_path;   // Enable dumping intermediate buffers and set the dest path
     std::string dump_layers;        // Dump intermediate buffers of specified layers only, separated by space
+    std::string dry_run_path;       // Dry run and serialize execution graph into the specified path
     int dump_layers_dst_only;       // Dump only output of layers
     static const debug_configuration *get_instance();
 };
