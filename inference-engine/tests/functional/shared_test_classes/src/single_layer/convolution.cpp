@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <utility>
-
 #include "shared_test_classes/single_layer/convolution.hpp"
-#include "functional_test_utils/partial_shape_utils.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -14,11 +11,10 @@ std::string ConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<c
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
-    std::vector<std::vector<std::pair<size_t, size_t>>> inputShape;
-    std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes;
+    InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, targetDevice) =
-        obj.param;
+    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) =
+            obj.param;
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
@@ -26,8 +22,7 @@ std::string ConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<c
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
+    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "K" << CommonTestUtils::vec2str(kernel) << "_";
     result << "S" << CommonTestUtils::vec2str(stride) << "_";
     result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
@@ -46,46 +41,29 @@ std::string ConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<c
 
 void ConvolutionLayerTest::SetUp() {
     convSpecificParams convParams;
-    std::vector<std::vector<std::pair<size_t, size_t>>> inputShape;
-    std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes;
-    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, targetDevice) =
-        this->GetParam();
-    for (auto&& targetShape : targetShapes) {
-        targetStaticShapes.emplace_back(
-                std::vector<ngraph::Shape>{ngraph::Shape{targetShape.front()}, ngraph::Shape{targetShape.front()}});
-    }
-    inputDynamicShapes.emplace_back(
-            FuncTestUtils::PartialShapeUtils::vec2partialshape(
-                    inputShape.empty() ?
-                    std::vector<std::pair<size_t, size_t>>{} :
-                    inputShape.front(), targetStaticShapes[0].front()));
+    std::vector<size_t> inputShape;
+    auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
+    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) =
+            this->GetParam();
+    ngraph::op::PadType padType;
+    InferenceEngine::SizeVector kernel, stride, dilation;
+    std::vector<ptrdiff_t> padBegin, padEnd;
+    size_t convOutChannels;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
-
-//    setTargetStaticShape(targetStaticShapes[0]);
-    function = makeConvolution("convolution");
-    functionRefs = ngraph::clone_function(*function);
-}
-
-std::shared_ptr<ngraph::Function> ConvolutionLayerTest::makeConvolution(const std::string& name) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes.front().front()});
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::vector<float> filter_weights;
     if (targetDevice == CommonTestUtils::DEVICE_GNA) {
         auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
-        filter_weights = CommonTestUtils::generate_float_numbers(convOutChannels * targetStaticShapes.front().front()[1] * filter_size,
+        filter_weights = CommonTestUtils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size,
                                                                  -0.5f, 0.5f);
     }
     auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(
             ngraph::builder::makeConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, false, filter_weights));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
-    return std::make_shared<ngraph::Function>(results, params, name);
+    function = std::make_shared<ngraph::Function>(results, params, "convolution");
 }
-
-//void ConvolutionLayerTest::setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) {
-//    targetStaticShape = desiredTargetStaticShape;
-//}
-
 }  // namespace LayerTestsDefinitions

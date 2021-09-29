@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <fstream>
 #include <signal.h>
 #ifdef _WIN32
 #include <process.h>
 #endif
 
 #include <transformations/serialize.hpp>
-#include <transformations/op_conversions/convert_batch_to_space.hpp>
-#include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <pugixml.hpp>
 #include <common_test_utils/file_utils.hpp>
@@ -49,12 +46,14 @@ void LayerTestsCommon::Run() {
         LoadNetwork();
         for (size_t i = 0; i < targetStaticShapes.size(); i++) {
             index = i;
-//            std::cout << CommonTestUtils::vec2str(tss) << std::endl;
-////            setTargetStaticShape(tss);
-            GenerateInputs();
-            Infer();
-            Validate();
-            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
+            try {
+                GenerateInputs();
+                Infer();
+                Validate();
+                s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
+            } catch (const std::exception &ex) {
+                THROW_IE_EXCEPTION << "Incorrect target static shape: " << CommonTestUtils::vec2str(targetStaticShapes[i]) << std::endl << ex.what();
+            }
         }
     }
     catch (const std::runtime_error &re) {
@@ -347,8 +346,7 @@ void LayerTestsCommon::ConfigureNetwork() {
         ASSERT_EQ(params.size(), inputDynamicShapes.size());
         for (size_t i = 0; i < inputDynamicShapes.size(); i++) {
             ngraph::PartialShape dynamicShape = inputDynamicShapes[i];
-            // TODO: iefode
-            if (dynamicShape.get_shape().empty()) {
+            if (dynamicShape.rank() == 0) {
                 continue;
             }
             std::string inputName = params[i]->get_friendly_name();
@@ -368,30 +366,23 @@ void LayerTestsCommon::LoadNetwork() {
 void LayerTestsCommon::GenerateInputs() {
     inputs.clear();
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
-    const auto& functionParams = functionRefs->get_parameters();
+    const auto& functionParams = function->get_parameters();
     for (int i = 0; i < functionParams.size(); ++i) {
         const auto& param = functionParams[i];
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
         GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
-        auto info = infoIt->second;
-        if (inputDynamicShapes[i].get_shape().empty()) {
-            auto td = InferenceEngine::TensorDesc(info->getPrecision(),
-                                                  targetStaticShapes[index][i],
-                                                  const_cast<InferenceEngine::InputInfo &>(*info).getLayout());
-            InferenceEngine::Data data(infoIt->first, td);
-            InferenceEngine::DataPtr b(&data);
+        InferenceEngine::InputInfo::CPtr info = infoIt->second;
+        InferenceEngine::Blob::Ptr blob;
+        if (inputDynamicShapes[i].rank() != 0) {
+            InferenceEngine::DataPtr b(new InferenceEngine::Data(infoIt->first, info->getTensorDesc().getPrecision(),
+                                                             targetStaticShapes[index][i],
+                                                                    info->getTensorDesc().getLayout()));
             InferenceEngine::InputInfo a;
             a.setInputData(b);
-            info = a;
+            blob = GenerateInput(a);
+        } else {
+            blob = GenerateInput(*info);
         }
-        //    return FuncTestUtils::createAndFillBlob(targetStaticShape.empty() || targetStaticShape[0].empty() ?
-//                                            info.getTensorDesc() :
-//                                            InferenceEngine::TensorDesc(
-//                                                    info.getPrecision(),
-//                                                    targetStaticShape[0],
-//                                                    const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
-
-        auto blob = GenerateInput(*info);
         inputs.push_back(blob);
     }
 }

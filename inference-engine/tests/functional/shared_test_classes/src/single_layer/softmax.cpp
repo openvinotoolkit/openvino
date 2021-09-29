@@ -3,7 +3,6 @@
 //
 
 #include "shared_test_classes/single_layer/softmax.hpp"
-#include "functional_test_utils/partial_shape_utils.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -11,12 +10,11 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
-    ngraph::PartialShape inputShape;
-    std::vector<ngraph::Shape> targetShapes;
+    std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>> shapes;
     size_t axis;
     std::string targetDevice;
     std::map<std::string, std::string> config;
-    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, axis, targetDevice, config) = obj.param;
+    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, axis, targetDevice, config) = obj.param;
 
     std::ostringstream result;
     result << "netPRC=" << netPrecision.name() << "_";
@@ -24,8 +22,11 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
     result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
-    result << "IS=" << CommonTestUtils::partialShape2str({inputShape}) << "_";
-    result << "TS=" << CommonTestUtils::vec2str(targetShapes.front()) << "_";
+    result << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+    result << "TS=";
+    for (const auto& item : shapes.second) {
+        result << CommonTestUtils::vec2str(item) << "_";
+    }
     result << "axis=" << axis << "_";
     result << "trgDev=" << targetDevice;
 
@@ -33,31 +34,15 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
 }
 
 void SoftMaxLayerTest::SetUp() {
-//    std::vector<std::vector<std::pair<size_t, size_t>>> inputShape;
-//    std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes;
-    ngraph::PartialShape dynamicShape;
-    std::vector<ngraph::Shape> staticShape;
+    std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>> shapes;
     InferenceEngine::Precision netPrecision;
     size_t axis;
 
-    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, dynamicShape, staticShape, axis, targetDevice, configuration) = GetParam();
+    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, axis, targetDevice, configuration) = GetParam();
     outLayout = inLayout;
 
-    targetStaticShapes = {staticShape};
-    inputDynamicShapes = {dynamicShape};
-
-//    for (auto&& targetShape : targetShapes) {
-//        targetStaticShapes.emplace_back(
-//                std::vector<ngraph::Shape>{ngraph::Shape{targetShape.front()}, ngraph::Shape{targetShape.front()}});
-//    }
-
-//    inputDynamicShapes.emplace_back(
-//            FuncTestUtils::PartialShapeUtils::vec2partialshape(
-//                    inputShape.empty() ?
-//                    std::vector<std::pair<size_t, size_t>>{} :
-//                    inputShape.front(), targetStaticShapes[0].front()));
-
-//    setTargetStaticShapes(targetStaticShapes[0]);
+    targetStaticShapes = {shapes.second};
+    inputDynamicShapes = {shapes.first};
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     const auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes.front().front()});
@@ -71,9 +56,4 @@ void SoftMaxLayerTest::SetUp() {
     functionRefs = ngraph::clone_function(*function);
     functionRefs->set_friendly_name("softMaxRefs");
 }
-
-//void SoftMaxLayerTest::setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) {
-//    targetStaticShape = desiredTargetStaticShape;
-//}
-
 }  // namespace LayerTestsDefinitions
