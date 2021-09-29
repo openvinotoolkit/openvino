@@ -5,7 +5,7 @@ from extensions.ops.MaxUnpool import MaxUnpool
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
 
-class MaxUnpoolExtractor(FrontReplacementSubgraph):
+class MaxUnpoolFrontReplacer(FrontReplacementSubgraph):
     enabled = True
 
     def pattern(self):
