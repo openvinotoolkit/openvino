@@ -239,6 +239,8 @@ TEST_P(MoveFakeQuantizeTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
+
     const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
     ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
         "PrecisionsAttribute are not the same";
