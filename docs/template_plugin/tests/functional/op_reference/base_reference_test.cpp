@@ -35,11 +35,12 @@ void CommonReferenceTest::LoadNetwork() {
 void CommonReferenceTest::FillInputs() {
     const auto& functionParams = function->get_parameters();
     ASSERT_EQ(functionParams.size(), inputData.size());
-
     for (size_t i = 0; i < functionParams.size(); i++) {
         const auto& param = functionParams[i];
-
-        ov::runtime::Tensor blob(param->get_element_type(), param->get_shape());
+        auto param_shape_is_static = param->get_partial_shape().is_static();
+        const auto& blob_shape = (param_shape_is_static) ? param->get_shape() : inputData[i].get_shape();
+        
+        ov::runtime::Tensor blob(param->get_element_type(), blob_shape);
         ASSERT_EQ(blob.get_byte_size(), inputData[i].get_byte_size());
 
         std::memcpy(blob.data(), inputData[i].data(), inputData[i].get_byte_size());

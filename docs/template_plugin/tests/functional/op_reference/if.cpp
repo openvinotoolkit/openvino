@@ -189,7 +189,6 @@ struct IfConditionIsScalar : public IfFunctionalBase {
     }
 };
 
-
 struct IfConditionIsDynamic : public IfFunctionalBase {
     std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
@@ -199,7 +198,7 @@ struct IfConditionIsDynamic : public IfFunctionalBase {
         auto X = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
         auto Y = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
         auto cond = std::make_shared<op::Parameter>(element::boolean, PartialShape{Dimension::dynamic()});
-        //auto cond = std::make_shared<op::Parameter>(element::boolean, Shape{1});
+        // auto cond = std::make_shared<op::Parameter>(element::boolean, Shape{1});
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
         auto Xt = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
@@ -359,4 +358,11 @@ INSTANTIATE_TEST_SUITE_P(
                                 Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
                                 Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
             std::vector<Tensor>{Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
-            "if_condition_is_dynamic_cond_true")));
+            "if_condition_is_dynamic_cond_true"),
+        IfParams(
+            std::make_shared<IfConditionIsDynamic>(),
+            std::vector<Tensor>{Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{0}),
+                                Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+            std::vector<Tensor>{Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
+            "if_condition_is_dynamic_cond_false")));
