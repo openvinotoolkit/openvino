@@ -171,9 +171,7 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             for (auto& axis : axes_vector) {
                 kernel[axis-2] = input_shape[axis];
             }
-            if (!reduce->get_keep_dims()) {
-                shape_end = reduce->output(0).get_shape();
-            }
+            shape_end = reduce->output(0).get_shape();
         }
 
         /*
@@ -254,7 +252,7 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             return false;
         }
 
-        if (!shape_end.empty() && shape_end != input.get_shape()) {
+        if (shape_end != input.get_shape()) {
             input = std::make_shared<ngraph::opset1::Reshape>(input,
                     ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{shape_end.size()}, shape_end), true);
             new_ops.push_back(input.get_node_shared_ptr());
