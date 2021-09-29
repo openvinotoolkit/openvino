@@ -38,7 +38,12 @@ void color_convert_nv12(const T* arg_y,
         for (int h = 0; h < image_h; h++) {
             for (int w = 0; w < image_w; w++) {
                 auto y_index = h * image_w + w;
-                auto y_val = static_cast<float>(y_ptr[y_index]);
+                // For little-endian systems:
+                //      Y bytes are shuffled as Y1, Y0, Y3, Y2, Y5, Y4, etc.
+                //      UV bytes are ordered as V0, U0, V1, U1, V2, U2, etc.
+                // For float point case follow the same order
+                auto add_y_index = is_little_endian ? (w % 2 ? -1 : 1) : 0;
+                auto y_val = static_cast<float>(y_ptr[y_index + add_y_index]);
                 auto uv_index = (h / 2) * image_w + (w / 2) * 2;
                 auto u_val = static_cast<float>(uv_ptr[uv_index + is_little_endian]);
                 auto v_val = static_cast<float>(uv_ptr[uv_index + 1 - is_little_endian]);
@@ -46,7 +51,7 @@ void color_convert_nv12(const T* arg_y,
                 auto d = u_val - 128.f;
                 auto e = v_val - 128.f;
                 auto clip = [](float a) -> T {
-                    return a < 0.f ? static_cast<T>(0) : (a > 255.f ? static_cast<T>(255) : static_cast<T>(a));
+                    return a < 0.5f ? static_cast<T>(0) : (a > 254.5f ? static_cast<T>(255) : static_cast<T>(a));
                 };
                 auto b = clip(1.164f * c + 2.018f * d);
                 auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);
