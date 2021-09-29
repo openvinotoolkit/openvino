@@ -107,7 +107,7 @@ TEST_P(GNAEltwiseTest, FourBytesInputsViaReshape) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    GNALayerTests,
+    DISABLED_GNALayerTests,
     GNAEltwiseTest,
     ::testing::Combine(
         ::testing::Values(Precision::FP32, Precision::I16, Precision::I8),

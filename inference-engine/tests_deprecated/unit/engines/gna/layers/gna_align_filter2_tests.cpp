@@ -175,7 +175,7 @@ TEST_P(GNAAlignFilterTest, DISABLED_concatWith_2_Inputs_accurate) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    GNALayerTests,
+    DISABLED_GNALayerTests,
     GNAAlignFilterTest,
     testing::Combine(
     testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),

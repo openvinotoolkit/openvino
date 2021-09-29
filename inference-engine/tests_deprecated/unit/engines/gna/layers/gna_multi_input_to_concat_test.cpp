@@ -107,7 +107,7 @@ TEST_P(GNAMultiInputToConcatTest, InputsToConcat) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-        GNALayerTests,
+        DISABLED_GNALayerTests,
         GNAMultiInputToConcatTest,
         ::testing::Combine(
                 ::testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),

@@ -146,7 +146,7 @@ static const SqueezeCaseParam gna_squeeze_test_params[] = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    GNALayerTests, GNASqueezeTest,
+    DISABLED_GNALayerTests, GNASqueezeTest,
     ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),
         ::testing::Values(true),
@@ -154,7 +154,7 @@ INSTANTIATE_TEST_CASE_P(
         GNAUnsqueezeTest::getTestName);
 
 INSTANTIATE_TEST_CASE_P(
-    GNALayerTests, GNAUnsqueezeTest,
+    DISABLED_GNALayerTests, GNAUnsqueezeTest,
     ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),
         ::testing::Values(false),

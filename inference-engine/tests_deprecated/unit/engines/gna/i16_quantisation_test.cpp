@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+#if 0
 #include <vector>
 #include <gtest/gtest.h>
 #include <legacy/layer_transform.hpp>
@@ -462,3 +462,4 @@ TEST_F(I16QuantisationTest, DISABLED_SplitToConcatWith2Inputs1360NotAlignedNoFC)
             .propagate_forward()
             .called();
 }
+#endif
