@@ -717,3 +717,21 @@ TEST(function_reshape, ReshapeSpatialReLUDynamicToDynamic) {
     ASSERT_EQ(ngraph->input().get_partial_shape(), refShape);
     ASSERT_EQ(ngraph->output().get_partial_shape(), refShape);
 }
+
+TEST(function_reshape, TestInvalidReshape) {
+    std::shared_ptr<ov::Function> f;
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
+        input->set_friendly_name("input");
+        auto shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 4000});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, shape, true);
+        f = std::make_shared<ov::Function>(ov::OutputVector{reshape}, ov::ParameterVector{input});
+    }
+
+    ASSERT_ANY_THROW(f->reshape({{"input", ov::Shape({4})}}));
+
+    auto param = f->get_parameters().front();
+    ASSERT_EQ(param->get_output_shape(0), ov::Shape({1, 1000, 4}));
+
+    ASSERT_NO_THROW(f->reshape({{"input", ov::Shape({1, 1000, 4})}}));
+}

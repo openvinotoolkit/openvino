@@ -23,7 +23,7 @@
 
 namespace ov {
 /// A user-defined function.
-class OPENVINO_API Function {
+class OPENVINO_API Function : public std::enable_shared_from_this<Function> {
 public:
     static constexpr ngraph::DiscreteTypeInfo type_info{"Function", 0};
     const ngraph::DiscreteTypeInfo& get_type_info() const {

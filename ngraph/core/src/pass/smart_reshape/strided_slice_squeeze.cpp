@@ -5,7 +5,7 @@
 #include <itt.hpp>
 #include <transformations/smart_reshape/strided_slice_squeeze.hpp>
 
-#include <ngraph/ngraph.hpp>
+#include <ngraph/validation_util.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -14,7 +14,8 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceSqueeze, "ngraph::pass::StridedSliceSqueeze", 0);
 
 ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
-    MATCHER_SCOPE(StridedSliceSqueeze);
+    // TODO: enable conditional compile
+    // MATCHER_SCOPE(StridedSliceSqueeze);
     auto ss_label = ngraph::pattern::wrap_type<opset5::StridedSlice>(pattern::consumers_count(1));
     auto squeeze_label = ngraph::pattern::wrap_type<opset5::Squeeze>({ss_label, ngraph::pattern::wrap_type<opset5::Constant>()});
 
@@ -76,13 +77,14 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
         copy_runtime_info(slice, new_slice);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(squeeze_label, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(squeeze_label /*, matcher_name */);
     register_matcher(m, callback);
 }
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SqueezeStridedSlice, "ngraph::pass::SqueezeStridedSlice", 0);
 
 ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
-    MATCHER_SCOPE(SqueezeStridedSlice);
+    // TODO: enable conditional compile
+    // MATCHER_SCOPE(SqueezeStridedSlice);
     auto squeeze_label = ngraph::pattern::wrap_type<opset5::Squeeze>(
             {pattern::any_input(), ngraph::pattern::wrap_type<opset5::Constant>()}, pattern::consumers_count(1));
     auto ss_label = ngraph::pattern::wrap_type<opset5::StridedSlice>({squeeze_label, pattern::any_input(), pattern::any_input(), pattern::any_input()});
@@ -140,7 +142,7 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         copy_runtime_info(slice, new_slice);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(ss_label, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(ss_label /*, matcher_name */);
     register_matcher(m, callback);
 }
 
@@ -164,7 +166,8 @@ bool squeezes_perform_the_same(std::shared_ptr<ngraph::opset5::Squeeze> lhs, std
 }
 
 bool ngraph::pass::SharedSqueeze::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    RUN_ON_FUNCTION_SCOPE(SharedSqueeze);
+    // TODO: enable conditional compile
+    // RUN_ON_FUNCTION_SCOPE(SharedSqueeze);
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::SharedSqueeze");
 
     bool graph_rewritten = false;

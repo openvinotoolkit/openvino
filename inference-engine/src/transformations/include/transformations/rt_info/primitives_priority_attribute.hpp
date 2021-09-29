@@ -17,7 +17,6 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include <transformations_visibility.hpp>
 
 namespace ngraph {
 
@@ -26,7 +25,7 @@ namespace ngraph {
  * @brief PrimitivesPriority class represents runtime info attribute that
  * can be used for plugins specific primitive choice.
  */
-class TRANSFORMATIONS_API PrimitivesPriority {
+class NGRAPH_API PrimitivesPriority {
 private:
     std::string primitives_priority;
 
@@ -52,16 +51,16 @@ public:
  * @brief getPrimitivesPriority return string with primitive priorities value
  * @param[in] node The node will be used to get PrimitivesPriority attribute
  */
-TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
+NGRAPH_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 
 }  // namespace ngraph
 
 namespace ov {
 
-extern template class TRANSFORMATIONS_API VariantImpl<ngraph::PrimitivesPriority>;
+extern template class NGRAPH_API VariantImpl<ngraph::PrimitivesPriority>;
 
 template<>
-class TRANSFORMATIONS_API VariantWrapper<ngraph::PrimitivesPriority> : public VariantImpl<ngraph::PrimitivesPriority> {
+class NGRAPH_API VariantWrapper<ngraph::PrimitivesPriority> : public VariantImpl<ngraph::PrimitivesPriority> {
 public:
     OPENVINO_RTTI("VariantWrapper<PrimitivesPriority>");
 

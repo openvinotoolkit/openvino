@@ -19,6 +19,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/op/util/variable_extension.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace std;
 
@@ -671,9 +672,9 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
     }
 
     try {
-        // ov::pass::Manager ssr_manager;
+        ov::pass::Manager ssr_manager;
         // ssr_manager.register_pass<ngraph::pass::SmartReshape>();
-        // ssr_manager.run_passes(enable_shared_from_this());
+        ssr_manager.run_passes(shared_from_this());
 
         std::map<std::string, ov::PartialShape> reshapeShapes;
         for (const auto& item : partial_shapes) {
