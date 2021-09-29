@@ -6,9 +6,11 @@
 
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "cpp_interfaces/interface/ie_iremote_context.hpp"
 #include "ie_common.h"
 #include "ie_executable_network_base.hpp"
+#include "ie_remote_context.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/runtime/executable_network.hpp"
 
 namespace InferenceEngine {
 
@@ -18,7 +20,17 @@ namespace InferenceEngine {
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (...) {                                                         \
-        details::Rethrow();                                                 \
+        InferenceEngine::details::Rethrow();                                \
+    }
+
+#define OV_EXEC_NET_CALL_STATEMENT(...)                                          \
+    OPENVINO_ASSERT(_impl != nullptr, "ExecutableNetwork was not initialized."); \
+    try {                                                                        \
+        __VA_ARGS__;                                                             \
+    } catch (const std::exception& ex) {                                         \
+        throw ov::Exception(ex.what());                                          \
+    } catch (...) {                                                              \
+        OPENVINO_ASSERT(false, "Unexpected exception");                          \
     }
 
 ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader& so, const IExecutableNetworkInternal::Ptr& impl)
@@ -55,9 +67,10 @@ ExecutableNetwork::operator IExecutableNetwork::Ptr() {
 
 std::vector<VariableState> ExecutableNetwork::QueryState() {
     std::vector<VariableState> controller;
-    EXEC_NET_CALL_STATEMENT(for (auto&& state
-                                 : _impl->QueryState()) {
-        controller.emplace_back(VariableState{_so, state});
+    EXEC_NET_CALL_STATEMENT({
+        for (auto&& state : _impl->QueryState()) {
+            controller.emplace_back(VariableState{_so, state});
+        }
     });
     return controller;
 }
@@ -106,3 +119,58 @@ ExecutableNetwork::operator bool() const noexcept {
     return !!_impl;
 }
 }  // namespace InferenceEngine
+
+namespace ov {
+namespace runtime {
+ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<void>& so,
+                                     const std::shared_ptr<ie::IExecutableNetworkInternal>& impl)
+    : _so{so},
+      _impl{impl} {
+    OPENVINO_ASSERT(_impl != nullptr, "ExecutableNetwork was not initialized.");
+}
+
+std::shared_ptr<const Function> ExecutableNetwork::get_runtime_function() const {
+    OV_EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Function>(_impl->GetExecGraphInfo()));
+}
+
+ParameterVector ExecutableNetwork::get_parameters() const {
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_parameters());
+}
+
+ResultVector ExecutableNetwork::get_results() const {
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_results());
+}
+
+InferRequest ExecutableNetwork::create_infer_request() {
+    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
+}
+
+void ExecutableNetwork::export_model(std::ostream& networkModel) {
+    OV_EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
+}
+
+void ExecutableNetwork::set_config(const ie::ParamMap& config) {
+    OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
+}
+
+ie::Parameter ExecutableNetwork::get_config(const std::string& name) const {
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetConfig(name));
+}
+
+ie::Parameter ExecutableNetwork::get_metric(const std::string& name) const {
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
+}
+
+std::shared_ptr<ie::RemoteContext> ExecutableNetwork::get_context() const {
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetContext());
+}
+
+bool ExecutableNetwork::operator!() const noexcept {
+    return !_impl;
+}
+
+ExecutableNetwork::operator bool() const noexcept {
+    return !!_impl;
+}
+}  // namespace runtime
+}  // namespace ov

@@ -19,6 +19,7 @@
 #include "ngraph/op/util/variable.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
 
 namespace ov {
 /// A user-defined function.
@@ -91,16 +92,33 @@ public:
     /// Return the op that generates output i
     std::shared_ptr<ngraph::Node> get_output_op(size_t i) const;
 
-    ngraph::Output<ngraph::Node> output(size_t i) const;
+    /// Output functions
+    std::vector<ov::Output<ov::Node>> outputs();
+    ov::Output<ov::Node> output();
+    ov::Output<ov::Node> output(size_t i);
+    ov::Output<ov::Node> output(const std::string& tensor_name);
+    std::vector<ov::Output<const ov::Node>> outputs() const;
+    ov::Output<const ov::Node> output() const;
+    ov::Output<const ov::Node> output(size_t i) const;
+    ov::Output<const ov::Node> output(const std::string& tensor_name) const;
+    /// Input functions
+    std::vector<ov::Output<ov::Node>> inputs();
+    ov::Output<ov::Node> input();
+    ov::Output<ov::Node> input(size_t i);
+    ov::Output<ov::Node> input(const std::string& tensor_name);
+    std::vector<ov::Output<const ov::Node>> inputs() const;
+    ov::Output<const ov::Node> input() const;
+    ov::Output<const ov::Node> input(size_t i) const;
+    ov::Output<const ov::Node> input(const std::string& tensor_name) const;
 
     /// Return the element type of output i
     const ngraph::element::Type& get_output_element_type(size_t i) const;
 
     /// Return the shape of element i
-    const StaticShape& get_output_shape(size_t i) const;
+    const Shape& get_output_shape(size_t i) const;
 
     /// Return the partial shape of element i
-    const Shape& get_output_partial_shape(size_t i) const;
+    const PartialShape& get_output_partial_shape(size_t i) const;
 
     /// Check that there is a single result and return it.
     std::shared_ptr<ngraph::Node> get_result() const;
@@ -279,9 +297,7 @@ public:
     AttributeAdapter(std::shared_ptr<ov::Function>& value)
         : DirectValueAccessor<std::shared_ptr<ov::Function>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Function>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Function>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

@@ -18,6 +18,7 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/except.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 
@@ -161,6 +162,8 @@ OPENVINO_API Type from<ov::bfloat16>();
 template <>
 OPENVINO_API Type from<ov::float16>();
 
+OPENVINO_API Type fundamental_type_for(const Type& type);
+
 OPENVINO_API
 std::ostream& operator<<(std::ostream& out, const ov::element::Type& obj);
 }  // namespace element
@@ -170,24 +173,20 @@ class OPENVINO_API AttributeAdapter<ov::element::Type_t> : public EnumAttributeA
 public:
     AttributeAdapter(ov::element::Type_t& value) : EnumAttributeAdapterBase<ov::element::Type_t>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<element::Type_t>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::element::Type_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
 class OPENVINO_API AttributeAdapter<ov::element::Type> : public ValueAccessor<std::string> {
 public:
+    OPENVINO_RTTI("AttributeAdapter<ov::element::Type>");
+    BWDCMP_RTTI_DECLARATION;
     AttributeAdapter(ov::element::Type& value) : m_ref(value) {}
 
     const std::string& get() override;
     void set(const std::string& value) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<element::Type>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
     operator ov::element::Type&() {
         return m_ref;
     }
@@ -195,4 +194,13 @@ public:
 protected:
     ov::element::Type& m_ref;
 };
+
+template <>
+class NGRAPH_API AttributeAdapter<ov::element::TypeVector> : public DirectValueAccessor<ov::element::TypeVector> {
+public:
+    OPENVINO_RTTI("AttributeAdapter<ov::element::TypeVector>");
+    BWDCMP_RTTI_DECLARATION;
+    AttributeAdapter(ov::element::TypeVector& value) : DirectValueAccessor<ov::element::TypeVector>(value) {}
+};
+
 }  // namespace ov

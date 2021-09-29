@@ -47,7 +47,7 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
     std::string win_dir_path{ PADDLE_TEST_MODELS "relu.pdmodel" };
     std::wstring wmodel = CommonTestUtils::addUnicodePostfixToPath(win_dir_path,
@@ -55,7 +55,7 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
     bool is_copy_successfully = CommonTestUtils::copyFile(win_dir_path, wmodel);
     if (!is_copy_successfully) {
         FAIL() << "Unable to copy from '" << win_dir_path << "' to '"
-                << FileUtils::wStringtoMBCSstringChar(wmodel) << "'";
+                << ov::util::wstring_to_string(wmodel) << "'";
     }
     InferenceEngine::Core ie;
     auto cnnNetwork = ie.ReadNetwork(wmodel);

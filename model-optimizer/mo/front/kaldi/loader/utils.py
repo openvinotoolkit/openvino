@@ -24,6 +24,7 @@ supported_components = [
     'convolutional1dcomponent',
     'convolutionalcomponent',
     'copy',
+    'dropoutmaskcomponent',
     'elementwiseproductcomponent',
     'fixedaffinecomponent',
     'fixedscalecomponent',

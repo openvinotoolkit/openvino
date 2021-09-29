@@ -143,3 +143,20 @@ TEST(intervals, sets) {
     }
     EXPECT_TRUE(Interval(min_int, max_int) == a_int_b);
 }
+
+TEST(intervals, corner_cases) {
+    Interval::value_type max = numeric_limits<Interval::value_type>::max();
+    Interval almost_max(0, max - 10);
+    Interval dynamic(0, max);
+    Interval zero(0, 0);
+
+    EXPECT_TRUE(almost_max + almost_max == dynamic);
+    EXPECT_TRUE(dynamic + almost_max == dynamic);
+    EXPECT_TRUE(almost_max + dynamic == dynamic);
+    EXPECT_TRUE(dynamic - almost_max == dynamic);
+
+    EXPECT_TRUE(dynamic * almost_max == dynamic);
+    EXPECT_TRUE(almost_max * dynamic == dynamic);
+    EXPECT_TRUE(zero * almost_max == zero);
+    EXPECT_TRUE(almost_max * zero == zero);
+}

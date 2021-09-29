@@ -119,9 +119,20 @@ public:
     virtual Parameter GetMetric(const std::string& deviceName, const std::string& name) const = 0;
 
     /**
+     * @brief Gets configuration dedicated to device behaviour.
+     *
+     * The method is targeted to extract information which can be set via SetConfig method.
+     *
+     * @param deviceName  - A name of a device to get a configuration value.
+     * @param name  - config key.
+     * @return Value of config corresponding to config key.
+     */
+    virtual Parameter GetConfig(const std::string& deviceName, const std::string& name) const = 0;
+
+    /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     virtual std::vector<std::string> GetAvailableDevices() const = 0;

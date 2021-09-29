@@ -39,15 +39,19 @@ set(SRC
     eval.cpp
     file_util.cpp
     float16.cpp
+    function.cpp
     graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
     int4.cpp
     intervals.cpp
+    layout.cpp
     main.cpp
     matcher_pass.cpp
     misc.cpp
+    rtti.cpp
     node_input_output.cpp
+    rtti.cpp
     op.cpp
     opset.cpp
     op_eval/binary_convolution.cpp
@@ -73,10 +77,13 @@ set(SRC
     op_eval/transpose.cpp
     op_eval/variadic_split.cpp
     opset1.cpp
+    ov_default_allocator_test.cpp
+    ov_tensor_test.cpp
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
     pattern.cpp
+    preprocess.cpp
     provenance.cpp
     replace_node.cpp
     reshape_opt_kernel.cpp
@@ -84,6 +91,8 @@ set(SRC
     span.cpp
     specialize_function.cpp
     tensor.cpp
+    threading.cpp
+    type_info.cpp
     type_prop/abs.cpp
     type_prop/acos.cpp
     type_prop/adaptive_avg_pool.cpp
@@ -216,6 +225,7 @@ set(SRC
     type_prop/sign.cpp
     type_prop/sin.cpp
     type_prop/sinh.cpp
+    type_prop/slice.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
@@ -226,6 +236,7 @@ set(SRC
     type_prop/squeeze.cpp
     type_prop/swish.cpp
     type_prop/tan.cpp
+    type_prop/tanh.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
@@ -237,10 +248,12 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/acos.cpp
     visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
     visitors/op/add.cpp
+    visitors/op/asin.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
@@ -269,6 +282,7 @@ set(SRC
     visitors/op/floor_mod.cpp
     visitors/op/floor.cpp
     visitors/op/gather.cpp
+    visitors/op/gather_tree.cpp
     visitors/op/gelu.cpp
     visitors/op/greater_equal.cpp
     visitors/op/greater.cpp
@@ -325,15 +339,19 @@ set(SRC
     visitors/op/reverse.cpp
     visitors/op/reverse_sequence.cpp
     visitors/op/rnn_cell.cpp
+    visitors/op/rnn_sequence.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
     visitors/op/scatter_elements_update.cpp
+    visitors/op/scatter_update.cpp
     visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/sign.cpp
+    visitors/op/sin.cpp
     visitors/op/sinh.cpp
+    visitors/op/slice.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
     visitors/op/space_to_batch.cpp
@@ -354,6 +372,11 @@ set(SRC
     uint4.cpp
     util.cpp
 )
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set_source_files_properties(ov_tensor_test.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+endif()
 
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
@@ -400,15 +423,11 @@ add_subdirectory(util)
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
     backend/abs.in.cpp
-    backend/acos.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
-    backend/asin.in.cpp
-    backend/asinh.in.cpp
-    backend/atan.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
@@ -423,8 +442,6 @@ set(MULTI_TEST_SRC
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
-    backend/cos.in.cpp
-    backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/deformable_psroi_pooling.in.cpp
@@ -463,7 +480,6 @@ set(MULTI_TEST_SRC
     backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
-    backend/minimum.in.cpp
     backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiclass_nms.in.cpp
@@ -500,8 +516,6 @@ set(MULTI_TEST_SRC
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
-    backend/sin.in.cpp
-    backend/sinh.in.cpp
     backend/softmax.in.cpp
     backend/softplus.in.cpp
     backend/space_to_batch.in.cpp
@@ -511,7 +525,6 @@ set(MULTI_TEST_SRC
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
     backend/swish.in.cpp
-    backend/tanh.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
     backend/transpose.in.cpp
@@ -581,6 +594,9 @@ add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+
+get_target_property(NGRAPH_SRC_DIR openvino::core SOURCE_DIR)
+target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
 
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")

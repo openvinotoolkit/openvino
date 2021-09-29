@@ -92,11 +92,35 @@ public:
     ///
     bool is_correct_and_unambiguous_node(const EditorNode& node) const;
 
+    /// \brief Returns index (position) of provided node in the graph
+    ///        in topological order.
+    ///
+    /// \param node An EditorNode helper structure created based on a node name
+    ///             or a node output name.
+    ///
+    /// \note  The exception will be thrown if the provided node is ambiguous.
+    ///
+    int get_node_index(const EditorNode& node) const;
+
     /// \brief Returns true if a provided tensor name is correct (exists in a graph).
     ///
     /// \param name The name of tensor in a graph.
     ///
     bool is_correct_tensor_name(const std::string& name) const;
+
+    /// \brief     Get names of input ports of given node.
+    ///
+    /// \param node An EditorNode helper structure created based on a node name
+    ///             or a node output name.
+    ///
+    std::vector<std::string> get_input_ports(const EditorNode& node) const;
+
+    /// \brief     Get names of output ports of given node.
+    ///
+    /// \param node An EditorNode helper structure created based on a node name
+    ///             or a node output name.
+    ///
+    std::vector<std::string> get_output_ports(const EditorNode& node) const;
 
     /// \brief     Get name of the tensor which is the source of the input edge.
     ///
@@ -116,6 +140,7 @@ private:
     // note: a single node can have more than one inputs with the same name
     std::vector<int> get_node_input_indexes(int node_index, const std::string& input_name) const;
     int get_node_output_idx(int node_index, const std::string& output_name) const;
+    void check_node_index(int node_index) const;
 
     std::vector<std::vector<std::string>> m_node_inputs;
     std::vector<std::vector<std::string>> m_node_outputs;

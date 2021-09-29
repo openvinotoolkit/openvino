@@ -13,11 +13,8 @@ namespace ov {
 template <>
 class TRANSFORMATIONS_API VariantWrapper<std::vector<size_t>> : public VariantImpl<std::vector<size_t>> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::RegInfo|Variant::RuntimeAttribute::AxisVector", 0};
-
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("VariantWrapper<std::vector<size_t>>");
+    BWDCMP_RTTI_DECLARATION;
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
