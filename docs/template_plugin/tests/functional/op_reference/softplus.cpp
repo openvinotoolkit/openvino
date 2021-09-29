@@ -1,0 +1,98 @@
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+
+#include <ie_core.hpp>
+#include <ie_ngraph_utils.hpp>
+#include <limits>
+#include <algorithm>
+#include <cmath>
+#include <ngraph/ngraph.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
+
+#include "base_reference_test.hpp"
+
+using namespace reference_tests;
+using namespace ngraph;
+using namespace InferenceEngine;
+
+namespace {
+struct SoftPlusParams {
+    template <class IT>
+    SoftPlusParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+        : pshape(shape),
+          inType(iType),
+          outType(iType),
+          inputData(CreateBlob(iType, iValues)),
+          refData(CreateBlob(iType, oValues)) {}
+
+    PartialShape pshape;
+    element::Type inType;
+    element::Type outType;
+    Blob::Ptr inputData;
+    Blob::Ptr refData;
+};
+
+class ReferenceSoftPlusLayerTest : public testing::TestWithParam<SoftPlusParams>, public CommonReferenceTest {
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        function = CreateFunction(params.pshape, params.inType, params.outType);
+        inputData = {params.inputData};
+        refOutData = {params.refData};
+    }
+    static std::string getTestCaseName(const testing::TestParamInfo<SoftPlusParams>& obj) {
+        auto param = obj.param;
+        std::ostringstream result;
+        result << "shape=" << param.pshape << "_";
+        result << "iType=" << param.inType << "_";
+        result << "oType=" << param.outType;
+        return result.str();
+    }
+
+private:
+    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
+                                                    const element::Type& SoftPlusected_output_type) {
+        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto SoftPlus = std::make_shared<op::v4::SoftPlus>(in);
+        return std::make_shared<Function>(NodeVector {SoftPlus}, ParameterVector {in});
+    }
+};
+
+TEST_P(ReferenceSoftPlusLayerTest, CompareWithRefs) {
+    Exec();
+}
+
+template <element::Type_t IN_ET>
+std::vector<SoftPlusParams> generateSoftPlusFloatParams() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<SoftPlusParams> softPlusParams {
+        SoftPlusParams(ngraph::PartialShape {4},
+                    IN_ET,
+                    std::vector<T>{-1.0, 0.0, 1.0, 20.0},
+                    std::vector<T>{0.31326166, 0.69314718, 1.3132616, 20.0})
+    };
+    return softPlusParams;
+}
+
+std::vector<SoftPlusParams> generateSoftPlusCombinedParams() {
+    const std::vector<std::vector<SoftPlusParams>> softPlusTypeParams {
+        generateSoftPlusFloatParams<element::Type_t::f32>(),
+        generateSoftPlusFloatParams<element::Type_t::f16>(),
+        generateSoftPlusFloatParams<element::Type_t::bf16>()
+        };
+    std::vector<SoftPlusParams> combinedParams;
+
+    for (const auto& params : softPlusTypeParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+    return combinedParams;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_SoftPlus_With_Hardcoded_Refs, ReferenceSoftPlusLayerTest,
+    testing::ValuesIn(generateSoftPlusCombinedParams()), ReferenceSoftPlusLayerTest::getTestCaseName);
+
+} // namespace
