@@ -58,7 +58,7 @@ void CommonReferenceTest::Infer() {
 }
 
 void CommonReferenceTest::Validate() {
-    ASSERT_EQ(executableNetwork.get_results().size(), refOutData.size());
+    ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
     std::vector<ov::runtime::Tensor> outputs;
     for (const auto& result : function->get_results()) {
         auto name = ngraph::op::util::create_ie_output_name(result->input_value(0));
