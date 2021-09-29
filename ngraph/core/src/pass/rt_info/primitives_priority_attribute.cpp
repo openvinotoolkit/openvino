@@ -14,9 +14,6 @@
 #include <ngraph/variant.hpp>
 #include <ostream>
 
-#include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
-
 using namespace ov;
 using namespace ngraph;
 
@@ -43,9 +40,7 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::merge(const
         if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
             std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
             std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) ||
-            std::dynamic_pointer_cast<ngraph::op::DeconvolutionIE>(node)) {
+            std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
             return true;
         }
         return false;
