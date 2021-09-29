@@ -7,6 +7,7 @@
 #include <openvino/op/convolution.hpp>
 #include <openvino/op/parameter.hpp>
 #include <convolution_shape_inference.hpp>
+#include <experimental_detectron_roi_feature_shape_inference.hpp>
 #include <openvino/op/ops.hpp>
 #include "utils/shape_inference/static_shape.hpp"
 
@@ -39,6 +40,76 @@ TEST(StaticShapeInferenceTest, ConvolutionTest) {
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
+
+
+TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractorTestDynamic) {
+    using namespace op::v0;
+    using namespace op::v6;
+
+    ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
+    attrs.aligned = false;
+    attrs.output_size = 14;
+    attrs.sampling_ratio = 2;
+    attrs.pyramid_scales = {4, 8, 16, 32};
+
+    auto input = std::make_shared<Parameter>(element::f32, PartialShape{-1, -1});
+    auto pyramid_layer0 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer1 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer2 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer3 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+
+    auto roi = std::make_shared<ExperimentalDetectronROIFeatureExtractor>(
+        NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3},
+        attrs);
+
+    std::vector<PartialShape> input_shapes = {PartialShape{1000, 4},
+                                              PartialShape{1, 256, 200, 336},
+                                              PartialShape{1, 256, 100, 168},
+                                              PartialShape{1, 256, 50, 84},
+                                              PartialShape{1, 256, 25, 42}};
+    std::vector<PartialShape> output_shapes = {PartialShape{}, PartialShape{}};
+    shape_infer(roi.get(), input_shapes, output_shapes);
+
+    ASSERT_EQ(roi->get_output_element_type(0), element::f32);
+
+    EXPECT_EQ(output_shapes[0], (Shape{1000, 256, 14, 14}));
+    EXPECT_EQ(output_shapes[1], (Shape{1000, 4}));
+}
+
+TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractorTestStatic) {
+    using namespace op::v0;
+    using namespace op::v6;
+
+    ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
+    attrs.aligned = false;
+    attrs.output_size = 14;
+    attrs.sampling_ratio = 2;
+    attrs.pyramid_scales = {4, 8, 16, 32};
+
+    auto input = std::make_shared<Parameter>(element::f32, PartialShape{-1, -1});
+    auto pyramid_layer0 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer1 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer2 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer3 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+
+    auto roi = std::make_shared<ExperimentalDetectronROIFeatureExtractor>(
+        NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3},
+        attrs);
+
+    std::vector<StaticShape> input_shapes = {StaticShape{1000, 4},
+                                              StaticShape{1, 256, 200, 336},
+                                              StaticShape{1, 256, 100, 168},
+                                              StaticShape{1, 256, 50, 84},
+                                              StaticShape{1, 256, 25, 42}};
+    std::vector<StaticShape> output_shapes = {StaticShape{}, StaticShape{}};
+    shape_infer(roi.get(), input_shapes, output_shapes);
+
+    ASSERT_EQ(roi->get_output_element_type(0), element::f32);
+
+    EXPECT_EQ(output_shapes[0], (Shape{1000, 256, 14, 14}));
+    EXPECT_EQ(output_shapes[1], (Shape{1000, 4}));
+}
+
 
 #if 0
 TEST(StaticShapeInferenceTest, ConvolutionTimeTest) {
