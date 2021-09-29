@@ -1408,19 +1408,18 @@ bool evaluate(const shared_ptr<op::v1::AvgPool>& op, const HostTensorVector& out
 
 template <element::Type_t ET>
 bool evaluate(const std::shared_ptr<op::v8::Slice>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-
     const auto ind_size = inputs[1]->get_shape()[0];
-    std::vector<int64_t>starts(inputs[1]->get_data_ptr<T>(), inputs[1]->get_data_ptr<T>()+ind_size);
-    std::vector<int64_t>stops(inputs[2]->get_data_ptr<T>(), inputs[2]->get_data_ptr<T>()+ind_size);
-    std::vector<int64_t>steps(inputs[3]->get_data_ptr<T>(), inputs[3]->get_data_ptr<T>()+ind_size);
+
+    std::vector<int64_t>starts = host_tensor_2_vector<int64_t>(inputs[1]);
+    std::vector<int64_t>stops = host_tensor_2_vector<int64_t>(inputs[2]);
+    std::vector<int64_t>steps = host_tensor_2_vector<int64_t>(inputs[3]);
 
     std::vector<int64_t>axes(ind_size);
     if (inputs.size() < 5){
         std::iota(axes.begin(), axes.end(), 0);
     }
     else {
-        axes = std::vector<int64_t>(inputs[4]->get_data_ptr<T>(), inputs[4]->get_data_ptr<T>()+ind_size);
+        axes = host_tensor_2_vector<int64_t>(inputs[4]);
     }
 
     const auto data_shape = inputs[0]->get_shape();
