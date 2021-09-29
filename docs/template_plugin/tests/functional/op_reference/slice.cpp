@@ -23,13 +23,15 @@ struct SliceParams {
                 const Tensor& stop,
                 const Tensor& step,
                 const Tensor& axes,
-                const Tensor& output, const std::string& test_name = "")
+                const Tensor& output,
+                const std::string& test_name = "")
         : m_data(data),
           m_start(start),
           m_stop(stop),
           m_step(step),
           m_axes(axes),
-          m_output(output), m_test_name(test_name) {}
+          m_output(output),
+          m_test_name(test_name) {}
 
     Tensor m_data;
     Tensor m_start;
@@ -55,10 +57,12 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<SliceParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
-        result << "test_name=" << param.m_test_name << "_";
+        result << "test_name=" << param.m_test_name << "__";
         result << "data_shape=" << param.m_data.shape << "_";
-        result << "data_type=" << param.m_data.shape << "_";
+        result << "data_type=" << param.m_data.type << "_";
         result << "axes_shape=" << param.m_axes.shape << "_";
+        result << "axes_type=" << param.m_axes.type << "_";
+        result << "ind_type=" << param.m_start.type << "_";
         return result.str();
     }
 
@@ -84,39 +88,54 @@ TEST_P(ReferenceSliceLayerTest, CompareWithHardcodedRefs) {
     Exec();
 }
 
-template <element::Type_t IN_ET>
-std::vector<SliceParams> generateSliceParams(const element::Type& type) {
-    using T = typename element_type_traits<IN_ET>::value_type;
-    std::vector<SliceParams> opParams{SliceParams(Tensor{{2, 2}, type, std::vector<T>{1, 2, 3, 4}},
-                                                  Tensor{{2}, type, std::vector<T>{0, 0}},
-                                                  Tensor{{2}, type, std::vector<T>{2, 2}},
-                                                  Tensor{{2}, type, std::vector<T>{1, 1}},
-                                                  Tensor{{2}, type, std::vector<T>{0, 1}},
-                                                  Tensor{{2, 2}, type, std::vector<T>{1, 2, 3, 4}}, "2D_full_axes"),
-                                      SliceParams(Tensor{{2, 2}, type, std::vector<T>{1, 2, 3, 4}},
-                                                  Tensor{{2}, type, std::vector<T>{0, 0}},
-                                                  Tensor{{2}, type, std::vector<T>{2, 2}},
-                                                  Tensor{{2}, type, std::vector<T>{1, -1}},
-                                                  Tensor{{2}, type, std::vector<T>{0, 1}},
-                                                  Tensor{{2, 2}, type, std::vector<T>{2, 1, 4, 3}}, "negative_step"),
-                                      SliceParams(Tensor{{2, 2, 2}, type, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}},
-                                                  Tensor{{3}, type, std::vector<T>{0, 0, 0}},
-                                                  Tensor{{3}, type, std::vector<T>{2, 2, 2}},
-                                                  Tensor{{3}, type, std::vector<T>{1, 1, 1}},
-                                                  Tensor{{3}, type, std::vector<T>{0, 1, 2}},
-                                                  Tensor{{2, 2, 2}, type, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}}, "3D_full_axes"),
-                                      SliceParams(Tensor{{2, 2, 2}, type, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}},
-                                                  Tensor{{2}, type, std::vector<T>{0, 0}},
-                                                  Tensor{{2}, type, std::vector<T>{2, 2}},
-                                                  Tensor{{2}, type, std::vector<T>{1, 1}},
-                                                  Tensor{{2}, type, std::vector<T>{0, 1}},
-                                                  Tensor{{2, 2, 2}, type, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}}, "3D_less_axes")};
+template <element::Type_t DATA_ET, element::Type_t IND_ET, element::Type_t AXIS_ET>
+std::vector<SliceParams> generateSliceParams(const element::Type& data_type,
+                                             const element::Type& ind_type,
+                                             const element::Type& axis_type) {
+    using DATA_T = typename element_type_traits<DATA_ET>::value_type;
+    using IND_T = typename element_type_traits<IND_ET>::value_type;
+    using AXIS_T = typename element_type_traits<AXIS_ET>::value_type;
+
+    std::vector<SliceParams> opParams{
+        SliceParams(Tensor{{2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{0, 0}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{2, 2}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{1, 1}},
+                    Tensor{{2}, axis_type, std::vector<AXIS_T>{0, 1}},
+                    Tensor{{2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
+                    "2D_full_axes"),
+        SliceParams(Tensor{{2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{0, 0}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{2, 2}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{1, -1}},
+                    Tensor{{2}, axis_type, std::vector<AXIS_T>{0, 1}},
+                    Tensor{{2, 2}, data_type, std::vector<DATA_T>{2, 1, 4, 3}},
+                    "negative_step"),
+        SliceParams(Tensor{{2, 2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4, 5, 6, 7, 8}},
+                    Tensor{{3}, ind_type, std::vector<IND_T>{0, 0, 0}},
+                    Tensor{{3}, ind_type, std::vector<IND_T>{2, 2, 2}},
+                    Tensor{{3}, ind_type, std::vector<IND_T>{1, 1, 1}},
+                    Tensor{{3}, axis_type, std::vector<AXIS_T>{0, 1, 2}},
+                    Tensor{{2, 2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4, 5, 6, 7, 8}},
+                    "3D_full_axes"),
+        SliceParams(Tensor{{2, 2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4, 5, 6, 7, 8}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{0, 0}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{2, 2}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{1, 1}},
+                    Tensor{{2}, axis_type, std::vector<AXIS_T>{0, 1}},
+                    Tensor{{2, 2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4, 5, 6, 7, 8}},
+                    "3D_less_axes")};
     return opParams;
 }
 
 std::vector<SliceParams> generateSliceCombinedParams() {
     const std::vector<std::vector<SliceParams>> opTypeParams{
-        generateSliceParams<element::Type_t::i32>(element::i32),
+        generateSliceParams<element::Type_t::f16, element::Type_t::i32, element::Type_t::i64>(element::f16,
+                                                                                              element::i32,
+                                                                                              element::i64),
+        generateSliceParams<element::Type_t::i32, element::Type_t::i64, element::Type_t::i16>(element::i32,
+                                                                                              element::i64,
+                                                                                              element::i16),
     };
     std::vector<SliceParams> combinedParams;
     std::for_each(opTypeParams.begin(), opTypeParams.end(), [&](std::vector<SliceParams> params) {
