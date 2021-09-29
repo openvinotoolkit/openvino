@@ -352,6 +352,8 @@ std::string NameFromType(const Type type) {
             return "MatrixNms";
         case MulticlassNms:
             return "MulticlassNms";
+        case Subgraph:
+            return "Subgraph";
         default:
             return "Unknown";
     }
