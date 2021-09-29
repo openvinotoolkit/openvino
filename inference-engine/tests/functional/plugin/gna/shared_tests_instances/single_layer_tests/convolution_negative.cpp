@@ -19,24 +19,24 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 /* ============= 2D Convolution ============= */
 const std::vector<std::vector<size_t >> kernels2D = {
-    {1, 3},
-    {7, 1},
-    {3, 3},
+        {1, 3},
+        {7, 1},
+        {3, 3},
 };
 
 const std::vector<std::vector<size_t >> kernels2DInvalid = {
-    {1, 4},
-    {2, 3},
-    {3, 2},
-    {8, 1},
-    {4, 4},
+        {1, 4},
+        {2, 3},
+        {3, 2},
+        {8, 1},
+        {4, 4},
 };
 
 const std::vector<std::vector<size_t >> strides2D = {
-                                                          {1, 1},
+        {1, 1},
 };
 const std::vector<std::vector<size_t >> strides2DInvalid = {
-                                                          {4, 4}, {1, 4}
+        {4, 4}, {1, 4}
 };
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = { {0, 0},
 };
@@ -53,70 +53,68 @@ const std::vector<std::vector<size_t >> dilations2DInvalid = { {2, 2},
 const std::vector<size_t> numOutChannels2D = { 32 };
 const std::vector<size_t> numOutChannels2DInvalid = { 1, 7, 9, 400 };
 
-const std::vector<std::vector<std::vector<std::vector<size_t>>>> input2DNCHWFine = {{{{1, 8, 20, 16}}}};
+const std::vector<std::vector<size_t>> input2DNCHWFine = { { 1, 8, 20, 16 } };
 
-const std::vector<std::vector<std::vector<std::vector<size_t>>>> input2DNCHWInvalidInputC = {{{
-    {1, 7, 20, 16},
-    {1, 9, 20, 16},
-    {1, 400, 20, 16}}}};
-const std::vector<std::vector<std::vector<std::vector<size_t>>>> input2DNCHWInvalidInputH = {
-    {{{1, 8, 15, 16}, {1, 8, 400, 16}}}};
-const std::vector<std::vector<std::vector<std::vector<size_t>>>> input2DNCHWInvalidInputW = {
-    {{{1, 8, 20, 14}, {1, 8, 20, 400}}}};
+const std::vector<std::vector<size_t>> input2DNCHWInvalidInputC = {
+        { 1, 7, 20, 16 },
+        { 1, 9, 20, 16 },
+        { 1, 400, 20, 16 } };
+const std::vector<std::vector<size_t>> input2DNCHWInvalidInputH = { { 1, 8, 15, 16 }, { 1, 8, 400, 16 } };
+const std::vector<std::vector<size_t>> input2DNCHWInvalidInputW = { { 1, 8, 20, 14 }, { 1, 8, 20, 400 } };
 
 const auto conv2DParametersFine = ::testing::Combine(
-    ::testing::ValuesIn(kernels2D),
-    ::testing::ValuesIn(strides2D),
-    ::testing::ValuesIn(padBegins2D),
-    ::testing::ValuesIn(padEnds2D),
-    ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutChannels2D),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::ValuesIn(kernels2D),
+        ::testing::ValuesIn(strides2D),
+        ::testing::ValuesIn(padBegins2D),
+        ::testing::ValuesIn(padEnds2D),
+        ::testing::ValuesIn(dilations2D),
+        ::testing::ValuesIn(numOutChannels2D),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParametersInvalidKernel = ::testing::Combine(
-    ::testing::ValuesIn(kernels2DInvalid),
-    ::testing::ValuesIn(strides2D),
-    ::testing::ValuesIn(padBegins2D),
-    ::testing::ValuesIn(padEnds2D),
-    ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutChannels2D),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::ValuesIn(kernels2DInvalid),
+        ::testing::ValuesIn(strides2D),
+        ::testing::ValuesIn(padBegins2D),
+        ::testing::ValuesIn(padEnds2D),
+        ::testing::ValuesIn(dilations2D),
+        ::testing::ValuesIn(numOutChannels2D),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParametersInvalidFilterNumber = ::testing::Combine(
-    ::testing::ValuesIn(kernels2D),
-    ::testing::ValuesIn(strides2D),
-    ::testing::ValuesIn(padBegins2D),
-    ::testing::ValuesIn(padEnds2D),
-    ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutChannels2DInvalid),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::ValuesIn(kernels2D),
+        ::testing::ValuesIn(strides2D),
+        ::testing::ValuesIn(padBegins2D),
+        ::testing::ValuesIn(padEnds2D),
+        ::testing::ValuesIn(dilations2D),
+        ::testing::ValuesIn(numOutChannels2DInvalid),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParametersInvalidPadding = ::testing::Combine(
-    ::testing::ValuesIn(kernels2D),
-    ::testing::ValuesIn(strides2D),
-    ::testing::ValuesIn(padBegins2DInvalid),
-    ::testing::ValuesIn(padEnds2DInvalid),
-    ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutChannels2D),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::ValuesIn(kernels2D),
+        ::testing::ValuesIn(strides2D),
+        ::testing::ValuesIn(padBegins2DInvalid),
+        ::testing::ValuesIn(padEnds2DInvalid),
+        ::testing::ValuesIn(dilations2D),
+        ::testing::ValuesIn(numOutChannels2D),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParametersInvalidStride = ::testing::Combine(
-    ::testing::ValuesIn(kernels2D),
-    ::testing::ValuesIn(strides2DInvalid),
-    ::testing::ValuesIn(padBegins2D),
-    ::testing::ValuesIn(padEnds2D),
-    ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutChannels2D),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::ValuesIn(kernels2D),
+        ::testing::ValuesIn(strides2DInvalid),
+        ::testing::ValuesIn(padBegins2D),
+        ::testing::ValuesIn(padEnds2D),
+        ::testing::ValuesIn(dilations2D),
+        ::testing::ValuesIn(numOutChannels2D),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParametersInvalidDilation = ::testing::Combine(
-    ::testing::ValuesIn(kernels2D),
-    ::testing::ValuesIn(strides2D),
-    ::testing::ValuesIn(padBegins2D),
-    ::testing::ValuesIn(padEnds2D),
-    ::testing::ValuesIn(dilations2DInvalid),
-    ::testing::ValuesIn(numOutChannels2D),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::ValuesIn(kernels2D),
+        ::testing::ValuesIn(strides2D),
+        ::testing::ValuesIn(padBegins2D),
+        ::testing::ValuesIn(padEnds2D),
+        ::testing::ValuesIn(dilations2DInvalid),
+        ::testing::ValuesIn(numOutChannels2D),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
 class GnaConv2DNegativeTest : public ConvolutionLayerTest, protected GnaLayerTestCheck {
@@ -135,7 +133,7 @@ protected:
                 const auto expected = expectedSubstring();
                 ASSERT_STR_CONTAINS(errorMsg, expected);
                 EXPECT_TRUE(errorMsg.find(expected) != std::string::npos) << "Wrong error message, actula error message: " << errorMsg <<
-                    ", expected: " << expected;
+                                                                          ", expected: " << expected;
             }
         }
     }
@@ -161,7 +159,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaCon
     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),                                                 \
     ::testing::Values(InferenceEngine::Layout::ANY),                                                            \
     ::testing::Values(InferenceEngine::Layout::ANY),                                                            \
-    ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),                         \
     ::testing::ValuesIn(input2DNCHW##suffix_input),                                                             \
     ::testing::Values(CommonTestUtils::DEVICE_GNA)),                                                            \
     GnaConv2DNegativeTest##whats_wrong::getTestCaseName);
