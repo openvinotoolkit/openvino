@@ -220,12 +220,12 @@ inline std::shared_ptr<Function> resize_linear() {
 
 inline std::shared_ptr<Function> resize_nearest() {
     using namespace ov::preprocess;
-    auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 10, 10});
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 10, 10, 3});
     function = PrePostProcessor()
             .input(InputInfo()
                            .tensor(InputTensorInfo().set_spatial_static_shape(20, 20))
                            .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_NEAREST))
-                           .network(InputNetworkInfo().set_layout("NCHW")))
+                           .network(InputNetworkInfo().set_layout("NHWC")))
             .build(function);
     return function;
 }

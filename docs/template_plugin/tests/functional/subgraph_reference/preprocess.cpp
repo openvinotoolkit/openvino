@@ -274,18 +274,18 @@ static RefPreprocessParams mean_scale_dynamic_layout() {
 static RefPreprocessParams resize_to_network_height() {
     RefPreprocessParams res("resize_to_network_height");
     res.function = []() {
-        auto f = create_simple_function(element::f32, PartialShape{1, 1, 2, 1});
+        auto f = create_simple_function(element::f32, PartialShape{1, 2, 1, 1});
         f = PrePostProcessor()
                 .input(InputInfo()
                                .tensor(InputTensorInfo().set_spatial_dynamic_shape())
                                .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
-                               .network(InputNetworkInfo().set_layout("??HW"))
+                               .network(InputNetworkInfo().set_layout("NHWC"))
                 )
                 .build(f);
         return f;
     };
-    res.inputs.emplace_back(element::f32, Shape{1, 1, 4, 1}, std::vector<float>{0., 2., 4., 6.});
-    res.expected.emplace_back(Shape{1, 1, 2, 1}, element::f32, std::vector<float>{1., 5.});
+    res.inputs.emplace_back(element::f32, Shape{1, 4, 1, 1}, std::vector<float>{0., 2., 4., 6.});
+    res.expected.emplace_back(Shape{1, 2, 1, 1}, element::f32, std::vector<float>{1., 5.});
     return res;
 }
 

@@ -32,28 +32,6 @@ void CommonReferenceTest::LoadNetwork() {
 }
 
 void CommonReferenceTest::FillInputs() {
-//<<<<<<< HEAD
-//    const auto& inputInfo = executableNetwork.GetInputsInfo();
-//    const auto& params = function->get_parameters();
-//    ASSERT_EQ(params.size(), inputData.size());
-//    ASSERT_EQ(inputInfo.size(), inputData.size());
-//
-//    for (size_t i = 0; i < params.size(); i++) {
-//        const auto& param = params[i];
-//        const auto infoIt = inputInfo.find(param->get_friendly_name());
-//        GTEST_ASSERT_NE(infoIt, inputInfo.cend());
-//
-//        const auto& info = infoIt->second;
-//        InferenceEngine::Blob::Ptr blob;
-//        if (!info->getTensorDesc().getDims().empty() && info->getTensorDesc().getDims()[0] != 0) {
-//            blob = make_blob_with_precision(info->getTensorDesc());
-//        } else {
-//            blob = make_plain_blob(info->getTensorDesc().getPrecision(), inputData[i]->getTensorDesc().getDims());
-//        }
-//        blob->allocate();
-//
-//        ASSERT_EQ(blob->byteSize(), inputData[i]->byteSize());
-//=======
     const auto& functionParams = function->get_parameters();
     ASSERT_EQ(functionParams.size(), inputData.size());
 
