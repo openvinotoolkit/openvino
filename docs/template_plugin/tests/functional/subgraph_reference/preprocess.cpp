@@ -59,7 +59,7 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     data1->get_output_tensor(0).set_names({"tensor_input1"});
     auto res = std::make_shared<op::v0::Result>(data1);
     res->set_friendly_name("Result");
-    return std::make_shared<Function>(ResultVector{res}, ParameterVector{data1});
+    return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
 }
 
 static std::shared_ptr<Function> create_2inputs(element::Type type, const PartialShape& shape) {
@@ -73,7 +73,7 @@ static std::shared_ptr<Function> create_2inputs(element::Type type, const Partia
     res1->set_friendly_name("Result1");
     auto res2 = std::make_shared<op::v0::Result>(data2);
     res2->set_friendly_name("Result2");
-    return std::make_shared<Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
+    return std::make_shared<ov::Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
 }
 
 static RefPreprocessParams simple_mean_scale() {
@@ -101,23 +101,44 @@ static RefPreprocessParams scale_then_mean() {
     return res;
 }
 
+static RefPreprocessParams convert_only() {
+    RefPreprocessParams res("convert_only");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, Shape{1, 1, 2, 2});
+        f = PrePostProcessor().input(InputInfo()
+                .tensor(InputTensorInfo().set_element_type(element::i16))
+                .preprocess(PreProcessSteps()
+                .convert_element_type(element::f32)
+                .scale(3.f)
+                .convert_element_type(element::u8)
+                .convert_element_type(element::f32)))
+                        .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 1, 2, 2}, element::i16, std::vector<int16_t>{2, 3, 4, 5});
+    res.expected.emplace_back(Shape{1, 1, 2, 2}, element::f32, std::vector<float>{0., 1., 1., 1.});
+    return res;
+}
+
 static RefPreprocessParams convert_element_type_and_scale() {
     RefPreprocessParams res("convert_element_type_and_scale");
     res.function = []() {
-        auto f = create_simple_function(element::i8, Shape{1, 3, 2, 2});
+        auto f = create_simple_function(element::u8, Shape{1, 3, 2, 2});
         f = PrePostProcessor()
                 .input(InputInfo()
                                .tensor(InputTensorInfo().set_element_type(element::i16))
                                .preprocess(PreProcessSteps()
                                                    .convert_element_type(element::f32)
                                                    .scale(2.f)
-                                                   .convert_element_type(element::i8)))
+                                                   .convert_element_type(element::u8)))
                 .build(f);
         return f;
     };
 
-    res.inputs.emplace_back(Shape{1, 3, 2, 2}, element::i16, std::vector<int16_t>{2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 10000, 200});
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::i8, std::vector<int8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, (int8_t)5000, 100});
+    res.inputs.emplace_back(Shape{1, 3, 2, 2}, element::i16,
+                            std::vector<int16_t>{2, 3, 6, 8, 10, 12, 14, 16, 18, 20, 10000, 200});
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8,
+                              std::vector<uint8_t>{1, 1, 3, 4, 5, 6, 7, 8, 9, 10, (uint8_t)5000, 100});
     return res;
 }
 
@@ -403,6 +424,7 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
     return std::vector<RefPreprocessParams> {
         simple_mean_scale(),
         scale_then_mean(),
+        convert_only(),
         convert_element_type_and_scale(),
         tensor_element_type_and_scale(),
         custom_preprocessing(),

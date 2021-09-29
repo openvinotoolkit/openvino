@@ -22,7 +22,13 @@ inline std::shared_ptr<Function> create_preprocess_1input(element::Type type,
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->output(0).get_tensor().set_names({"input1"});
-    auto res = std::make_shared<op::v0::Result>(data1);
+    std::shared_ptr<op::v0::Result> res;
+    if (type == element::f32) {
+        res = std::make_shared<op::v0::Result>(data1);
+    } else {
+        auto convert = std::make_shared<op::v0::Convert>(data1, element::f32);
+        res = std::make_shared<op::v0::Result>(convert);
+    }
     res->set_friendly_name("Result");
     return std::make_shared<Function>(ResultVector{res}, ParameterVector{data1});
 }
@@ -35,9 +41,17 @@ inline std::shared_ptr<Function> create_preprocess_2inputs(element::Type type,
     auto data2 = std::make_shared<op::v0::Parameter>(type, shape);
     data2->set_friendly_name("input2");
     data2->output(0).get_tensor().set_names({"input2"});
-    auto res1 = std::make_shared<op::v0::Result>(data1);
+    std::shared_ptr<op::v0::Result> res1, res2;
+    if (type == element::f32) {
+        res1 = std::make_shared<op::v0::Result>(data1);
+        res2 = std::make_shared<op::v0::Result>(data2);
+    } else {
+        auto convert1 = std::make_shared<op::v0::Convert>(data1, element::f32);
+        res1 = std::make_shared<op::v0::Result>(convert1);
+        auto convert2 = std::make_shared<op::v0::Convert>(data2, element::f32);
+        res2 = std::make_shared<op::v0::Result>(convert2);
+    }
     res1->set_friendly_name("Result1");
-    auto res2 = std::make_shared<op::v0::Result>(data2);
     res2->set_friendly_name("Result2");
     return std::make_shared<Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
 }
@@ -90,24 +104,24 @@ inline std::shared_ptr<Function> scale_vector() {
 
 inline std::shared_ptr<Function> convert_element_type_and_mean() {
     using namespace ov::preprocess;
-    auto function = create_preprocess_1input(element::i8, Shape{1, 3, 24, 24});
+    auto function = create_preprocess_1input(element::u8, Shape{1, 3, 24, 24});
     function = PrePostProcessor()
             .input(InputInfo()
                            .preprocess(PreProcessSteps()
                                                .convert_element_type(element::f32)
                                                .mean(0.2f)
-                                               .convert_element_type(element::i8)))
+                                               .convert_element_type(element::u8)))
             .build(function);
     return function;
 }
 
 inline std::shared_ptr<Function> tensor_element_type_and_mean() {
     using namespace ov::preprocess;
-    auto function = create_preprocess_1input(element::i8, Shape{1, 3, 12, 12});
+    auto function = create_preprocess_1input(element::u8, Shape{1, 3, 12, 12});
     function = PrePostProcessor()
             .input(InputInfo()
                            .tensor(InputTensorInfo().set_element_type(element::f32))
-                           .preprocess(PreProcessSteps().mean(0.1f).convert_element_type(element::i8)))
+                           .preprocess(PreProcessSteps().mean(0.1f).convert_element_type(element::u8)))
             .build(function);
     return function;
 }
@@ -127,7 +141,7 @@ inline std::shared_ptr<Function> custom_preprocessing() {
 
 inline std::shared_ptr<Function> lvalues_multiple_ops() {
     using namespace ov::preprocess;
-    auto function = create_preprocess_1input(element::i8, Shape{1, 3, 3, 3});
+    auto function = create_preprocess_1input(element::u8, Shape{1, 3, 3, 3});
     auto p = PrePostProcessor();
     auto p1 = std::move(p);
     p = std::move(p1);
@@ -155,7 +169,7 @@ inline std::shared_ptr<Function> lvalues_multiple_ops() {
             abs->set_friendly_name(node->get_friendly_name() + "/abs");
             return abs;
         });
-        auto& same = preprocessSteps.convert_element_type(element::i8);
+        auto& same = preprocessSteps.convert_element_type(element::u8);
         inputInfo.preprocess(std::move(same));
     }
     p.input(std::move(inputInfo));
@@ -236,10 +250,10 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(scale_mean, "scale_mean", 0.01f),
             preprocess_func(mean_vector, "mean_vector", 0.01f),
             preprocess_func(scale_vector, "scale_vector", 0.01f),
-            preprocess_func(convert_element_type_and_mean, "convert_element_type_and_mean", 1.f),
-            preprocess_func(tensor_element_type_and_mean, "tensor_element_type_and_mean", 1.f),
+            preprocess_func(convert_element_type_and_mean, "convert_element_type_and_mean", 0.01f),
+            preprocess_func(tensor_element_type_and_mean, "tensor_element_type_and_mean", 0.01f),
             preprocess_func(custom_preprocessing, "custom_preprocessing", 0.01f),
-            preprocess_func(lvalues_multiple_ops, "lvalues_multiple_ops", 1.f),
+            preprocess_func(lvalues_multiple_ops, "lvalues_multiple_ops", 0.01f),
             preprocess_func(two_inputs_basic, "two_inputs_basic", 0.01f),
             preprocess_func(reuse_network_layout, "reuse_network_layout", 0.01f),
             preprocess_func(tensor_layout, "tensor_layout", 0.01f),

@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/ngraph.hpp>
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/core/type/element_type.hpp"
-
-#include <shared_test_classes/base/layer_test_utils.hpp>
 
 namespace reference_tests {
 
@@ -18,13 +15,9 @@ public:
     CommonReferenceTest();
 
     void Exec();
-
     void LoadNetwork();
-
     void FillInputs();
-
     void Infer();
-
     void Validate();
 
 private:
@@ -43,7 +36,7 @@ protected:
 };
 
 template <class T>
-ov::runtime::Tensor CreateBlob(const ov::element::Type& element_type,
+ov::runtime::Tensor CreateTensor(const ov::element::Type& element_type,
                                const std::vector<T>& values,
                                size_t size = 0) {
     size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
@@ -55,7 +48,7 @@ ov::runtime::Tensor CreateBlob(const ov::element::Type& element_type,
 
 // Create blob with correct input shape (not 1-dimensional). Will be used in tests with dynamic input shapes
 template <class T>
-ov::runtime::Tensor CreateBlob(const ov::Shape& shape,
+ov::runtime::Tensor CreateTensor(const ov::Shape& shape,
                                const ov::element::Type& element_type,
                                const std::vector<T>& values) {
     ov::runtime::Tensor tensor { element_type, shape };
@@ -74,12 +67,12 @@ struct Tensor {
 
     template <typename T>
     Tensor(const ov::Shape& shape, ov::element::Type type, const std::vector<T>& data_elements)
-        : Tensor {shape, type, CreateBlob(type, data_elements)} {}
+        : Tensor {shape, type, CreateTensor(type, data_elements)} {}
 
     // Temporary constructor to create blob with passed input shape (not 1-dimensional)
     template <typename T>
     Tensor(ov::element::Type type, const ov::Shape& shape, const std::vector<T>& data_elements)
-            : Tensor {shape, type, CreateBlob(shape, type, data_elements)} {}
+            : Tensor {shape, type, CreateTensor(shape, type, data_elements)} {}
 
     ov::Shape shape;
     ov::element::Type type;
