@@ -13,8 +13,8 @@
 #include <random>
 #include <vector>
 
-#include "backend.hpp"
 #include "gtest/gtest.h"
+#include "ngraph/function.hpp"
 
 template <typename T>
 size_t count_ops_of_type(const std::shared_ptr<ngraph::Function>& f) {

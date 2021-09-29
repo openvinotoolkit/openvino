@@ -412,6 +412,10 @@ endif()
 add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
 add_subdirectory(util)
 add_subdirectory(engines_util)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
+    add_subdirectory(onnx_test_util)
+endif()
+
 
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
@@ -638,7 +642,7 @@ endif()
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ngraph_frontend SOURCE_DIR)
     target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(unit-test PRIVATE onnx_ngraph_frontend)
+    target_link_libraries(unit-test PRIVATE onnx_ngraph_frontend onnx_test_util)
     if (LINUX)
         target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)

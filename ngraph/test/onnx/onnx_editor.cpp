@@ -14,7 +14,7 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/onnx_test_util.hpp"
+#include "onnx_test_util.hpp"
 #include "util/test_control.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
