@@ -26,13 +26,9 @@ NamedOutputs stack(const NodeContext& node) {
             "axis range is [-(R+1), R+1)!");
 
     for (const auto& data : datas) {
-        if (data.get_partial_shape().rank().is_static())
-            PDPD_OP_VALIDATION_CHECK(node,
-                                     data_shape == data.get_partial_shape(),
-                                     "stack input tensor must the same shape!");
         PDPD_OP_VALIDATION_CHECK(node,
                                  data_type == data.get_element_type(),
-                                 "stack input tensor must the same data types!");
+                                 "stack input tensor must have the same data types!");
 
         node_datas_reshape.push_back(std::make_shared<Unsqueeze>(data, axis_const));
     }
