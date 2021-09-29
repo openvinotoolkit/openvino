@@ -671,19 +671,29 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape> &partia
     }
 
     try {
-        ov::pass::Manager ssr_manager;
-        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
-        ssr_manager.run_passes(enable_shared_from_this());
+        // ov::pass::Manager ssr_manager;
+        // ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+        // ssr_manager.run_passes(enable_shared_from_this());
 
         std::map<std::string, ov::PartialShape> reshapeShapes;
         for (const auto& item : partial_shapes) {
-            reshapeShapes[item.first] = ov::PartialShape(item.second);
+            reshapeShapes[item.first] = item.second;
         }
-        reshape(reshapeShapes);
-    } catch (std::exception& ex) {
-        reshape(originalInputShapes);
-        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
-    }
 
-    return OK;
+        bool parameter_replaced = false;
+        for (size_t i = 0; i < params.size(); i++) {
+            auto& param = params[i];
+            if (reshapeShapes.find(param->get_friendly_name()) == reshapeShapes.end())
+                continue;
+            param->set_partial_shape(reshapeShapes.at(param->get_friendly_name()));
+            parameter_replaced = true;
+        }
+
+        if (parameter_replaced)
+            validate_nodes_and_infer_types();
+    } catch (std::exception& ex) {
+        // restore shapes to original ones
+        reshape(originalInputShapes);
+        throw ex;
+    }
 }

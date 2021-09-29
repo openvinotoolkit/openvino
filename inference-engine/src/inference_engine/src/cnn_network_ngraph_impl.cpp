@@ -357,7 +357,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
 
         std::map<std::string, ngraph::PartialShape> reshapeShapes;
         for (const auto& item : inputShapes) {
-            reshapeShapes[item.first] = ngraph::PartialShape(item.second);
+            reshapeShapes[item.first] = item.second;
         }
         reshape(reshapeShapes);
     } catch (std::exception& ex) {
@@ -368,7 +368,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
     std::map<std::string, ngraph::PartialShape> shapes;
     for (const auto& shape : inputShapes)
