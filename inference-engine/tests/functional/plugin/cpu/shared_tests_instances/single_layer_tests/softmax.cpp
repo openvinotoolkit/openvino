@@ -20,7 +20,9 @@ const std::vector<InferenceEngine::Layout> inputLayouts2D = {
 };
 
 const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputStaticShape2D = {
-        {{}, {{1, 100}, {100, 1}, {10, 10}}},
+        {{}, {{1, 100}}},
+        {{}, {{100, 1}}},
+        {{}, {{10, 10}}},
 };
 
 const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputDynamicShape2D = {

@@ -366,15 +366,19 @@ void LayerTestsCommon::GenerateInputs() {
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
         GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
         InferenceEngine::InputInfo::CPtr info = infoIt->second;
-        InferenceEngine::Blob::Ptr blob;
-        if (inputDynamicShapes[i].rank() != 0) {
-            InferenceEngine::DataPtr b(new InferenceEngine::Data(infoIt->first, info->getTensorDesc().getPrecision(),
-                                                             targetStaticShapes[index][i],
-                                                                    info->getTensorDesc().getLayout()));
-            InferenceEngine::InputInfo a;
-            a.setInputData(b);
-            blob = GenerateInput(a);
-        } else {
+        InferenceEngine::Blob::Ptr blob = nullptr;
+        if (!inputDynamicShapes.empty()) {
+            if (inputDynamicShapes[i].rank() != 0) {
+                InferenceEngine::DataPtr dataNew(
+                        new InferenceEngine::Data(infoIt->first, info->getTensorDesc().getPrecision(),
+                                                  targetStaticShapes[index][i],
+                                                  info->getTensorDesc().getLayout()));
+                InferenceEngine::InputInfo infoNew;
+                infoNew.setInputData(dataNew);
+                blob = GenerateInput(infoNew);
+            }
+        }
+        if (blob == nullptr) {
             blob = GenerateInput(*info);
         }
         inputs.push_back(blob);
