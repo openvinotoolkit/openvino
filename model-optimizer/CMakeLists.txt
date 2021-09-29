@@ -60,7 +60,7 @@ install(DIRECTORY automation
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/.coveragerc
+install(FILES .coveragerc
         DESTINATION tools/model_optimizer
         COMPONENT tests
         EXCLUDE_FROM_ALL)
