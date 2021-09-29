@@ -4,17 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
+#include "openvino/op/max_pool.hpp"
 #include "base_reference_test.hpp"
 
-using namespace ngraph;
 using namespace reference_tests;
-using namespace InferenceEngine;
+using namespace ov;
 
 struct MaxPoolParams {
     template <class Input_t, class Indices_t>
@@ -34,9 +28,9 @@ struct MaxPoolParams {
         : m_input_shape(input_shape),
           m_input_type(input_type),
           m_indices_type(indices_type),
-          m_input_data(CreateBlob(input_type, input_data)),
-          m_expected_values(CreateBlob(input_type, expected_values)),
-          m_expected_indices(CreateBlob(indices_type, expected_indices)),
+          m_input_data(CreateTensor(input_type, input_data)),
+          m_expected_values(CreateTensor(input_type, expected_values)),
+          m_expected_indices(CreateTensor(indices_type, expected_indices)),
           m_strides(strides),
           m_dilations(dilations),
           m_pads_begin(pads_begin),
@@ -86,7 +80,7 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const MaxPoolParams& params) {
-        const auto in = std::make_shared<op::Parameter>(params.m_input_type, params.m_input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(params.m_input_type, params.m_input_shape);
         const auto max_pool = std::make_shared<op::v8::MaxPool>(in,
                                                                 params.m_strides,
                                                                 params.m_dilations,
@@ -97,7 +91,7 @@ private:
                                                                 params.m_pad_type,
                                                                 params.m_indices_type,
                                                                 params.m_axis);
-        return std::make_shared<Function>(max_pool, ParameterVector{in});
+        return std::make_shared<ov::Function>(max_pool, ParameterVector{in});
     }
 };
 
