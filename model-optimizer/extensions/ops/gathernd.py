@@ -16,7 +16,7 @@ class GatherND(Op):
         mandatory_props = {
             'type': self.op,
             'op': self.op,
-            'version': 'opset5',
+            'version': 'opset8',
             'infer': self.infer,
             'in_ports_count': 2,
             'out_ports_count': 1,
@@ -60,7 +60,9 @@ class GatherND(Op):
         # compute output shape
         if batch_dims > 0:
             if is_fully_defined(data_shape[:batch_dims]):
-                batch = [np.prod(data_shape[:batch_dims]).tolist()]
+                batch = data_shape[:batch_dims].tolist()
+                if node['version'] == 'opset5':     # Support old version of gather
+                    batch = [np.prod(data_shape[:batch_dims]).tolist()]
             else:
                 batch = [dynamic_dimension_value]
         else:
