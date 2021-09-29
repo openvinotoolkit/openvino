@@ -16,7 +16,7 @@ using namespace default_opset;
 using namespace element;
 namespace detail {
 namespace {
-std::shared_ptr<StridedSlice> make_slice(std::shared_ptr<ngraph::Node> node, int64_t start, int64_t end) {
+std::shared_ptr<StridedSlice> make_slice(const std::shared_ptr<ngraph::Node>& node, int64_t start, int64_t end) {
     return std::make_shared<StridedSlice>(node,
                                           Constant::create(i64, Shape{1}, std::vector<int64_t>{start}),
                                           Constant::create(i64, Shape{1}, std::vector<int64_t>{end}),
@@ -54,7 +54,7 @@ NamedOutputs prior_box(const NodeContext& node) {
     auto node_boxes_origin = node_prior_box_split->output(0);
     auto node_variances_origin = node_prior_box_split->output(1);
 
-    auto out_shape =
+    const auto out_shape =
         std::make_shared<Concat>(NodeVector{output_shape_slice, Constant::create<int64_t>(i64, {2}, {-1, 4})}, 0);
 
     auto node_boxes_reshape = std::make_shared<Reshape>(node_boxes_origin, out_shape, true);
