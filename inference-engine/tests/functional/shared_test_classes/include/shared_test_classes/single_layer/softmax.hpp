@@ -37,6 +37,11 @@ public:
 protected:
     void SetUp() override;
     void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) override;
+    void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) override;
+
+private:
+    InferenceEngine::Precision netPrecision;
+    size_t axis;
 };
 
 }  // namespace LayerTestsDefinitions
