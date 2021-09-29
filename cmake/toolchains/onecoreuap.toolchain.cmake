@@ -9,7 +9,7 @@
 if(NOT DEFINED CMAKE_SYSTEM_VERSION)
     # Sometimes CMAKE_HOST_SYSTEM_VERSION has form 10.x.y while we need
     # form 10.x.y.z Adding .0 at the end fixes the issue
-    if(CMAKE_HOST_SYSTEM_VERSION MATCHES "^10\.0\.[0-9]+$")
+    if(CMAKE_HOST_SYSTEM_VERSION MATCHES "^10\\.0\\.[0-9]+$")
         set(CMAKE_SYSTEM_VERSION "${CMAKE_HOST_SYSTEM_VERSION}.0")
     else()
         set(CMAKE_SYSTEM_VERSION "${CMAKE_HOST_SYSTEM_VERSION}")
