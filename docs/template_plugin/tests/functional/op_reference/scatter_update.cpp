@@ -270,114 +270,521 @@ std::vector<ScatterUpdate6Params> generateScatterUpdate6Params(const element::Ty
                                                              0, 3, 4,
                                                              0, 5, 6}}),
         Builder {}
-            .data({{3, 3, 2}, numeric_type, std::vector<N> {0, 0,
+            .data({{3, 3}, numeric_type, std::vector<N> {0, 0, 0,
+                                                            0, 0, 0,
+                                                            0, 0, 0}}) // rank 3
+            .indices({{1, 2}, integer_type, std::vector<I> {1, 2}}) // rank 1
+            .updates({{4, 4, 4}, numeric_type, std::vector<N> {1, 2, 3, 4,
+                                                               5, 6, 7, 8,
+                                                               9, 10, 11, 12,
+                                                               13, 14, 15, 16,
+                                                               //
+                                                               17, 18, 19, 20,
+                                                               21, 22, 23, 24,
+                                                               25, 26, 27, 28,
+                                                               29, 30, 31, 32,
+                                                               //
+                                                               33, 34, 35, 36,
+                                                               37, 38, 39, 40,
+                                                               41, 42, 43, 44,
+                                                               45, 46, 47, 48,
+                                                               //
+                                                               49, 50, 51, 52,
+                                                               53, 54, 55, 56,
+                                                               57, 58, 59, 60,
+                                                               61, 62, 63, 64}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {1}})
+            .expected({{3, 3}, numeric_type, std::vector<N> {0, 1, 2,
+                                                             0, 17, 18,
+                                                             0, 33, 34}}),
+        Builder {}
+            .data({{3, 3}, numeric_type, std::vector<N> {0, 0, 0,
+                                                            0, 0, 0,
+                                                            0, 0, 0}}) // rank 3
+            .indices({{1, 3}, integer_type, std::vector<I> {0, 1, 2}}) // rank 1
+            .updates({{4, 4, 4}, numeric_type, std::vector<N> {1, 2, 3, 4,
+                                                               5, 6, 7, 8,
+                                                               9, 10, 11, 12,
+                                                               13, 14, 15, 16,
+                                                               //
+                                                               17, 18, 19, 20,
+                                                               21, 22, 23, 24,
+                                                               25, 26, 27, 28,
+                                                               29, 30, 31, 32,
+                                                               //
+                                                               33, 34, 35, 36,
+                                                               37, 38, 39, 40,
+                                                               41, 42, 43, 44,
+                                                               45, 46, 47, 48,
+                                                               //
+                                                               49, 50, 51, 52,
+                                                               53, 54, 55, 56,
+                                                               57, 58, 59, 60,
+                                                               61, 62, 63, 64}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {1}})
+            .expected({{3, 3}, numeric_type, std::vector<N> {1, 2, 3,
+                                                             17, 18, 19,
+                                                             33, 34, 35}}),
+        Builder {}
+            .data({{3, 3}, numeric_type, std::vector<N> {0, 0, 0,
+                                                            0, 0, 0,
+                                                            0, 0, 0}}) // rank 3
+            .indices({{1, 1}, integer_type, std::vector<I> {2}}) // rank 1
+            .updates({{2, 2, 2}, numeric_type, std::vector<N> {1, 2,
+                                                               3, 4,
+                                                               //
+                                                               5, 6,
+                                                               7, 8}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {1}})
+            .expected({{3, 3}, numeric_type, std::vector<N> {0, 0, 1,
+                                                             0, 0, 5,
+                                                             0, 0, 0}}),
+        Builder {}
+            .data({{3, 4}, numeric_type, std::vector<N> {0, 0, 0, 0,
+                                                         0, 0, 0, 0,
+                                                         0, 0, 0, 0}}) // rank 3
+            .indices({{1, 4}, integer_type, std::vector<I> {0, 1, 2, 3}}) // rank 1
+            .updates({{2, 2, 2}, numeric_type, std::vector<N> {1, 2,
+                                                               3, 4,
+                                                               //
+                                                               5, 6,
+                                                               7, 8}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {1}})
+            .expected({{3, 4}, numeric_type, std::vector<N> {1, 2, 3, 4,
+                                                             5, 6, 7, 8,
+                                                             0, 0, 0, 0}}),
+        Builder {}
+            .data({{3, 3}, numeric_type, std::vector<N> {0, 0, 0,
+                                                            0, 0, 0,
+                                                            0, 0, 0}}) // rank 3
+            .indices({{1, 3}, integer_type, std::vector<I> {0, 1, 2}}) // rank 1
+            .updates({{2, 2, 2}, numeric_type, std::vector<N> {1, 2,
+                                                               3, 4,
+                                                               //
+                                                               5, 6,
+                                                               7, 8}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {0}})
+            .expected({{3, 3}, numeric_type, std::vector<N> {1, 2, 0,
+                                                             3, 4, 0,
+                                                             5, 6, 0}}),
+        Builder {}
+            .data({{3, 3}, numeric_type, std::vector<N> {0, 0, 0,
+                                                            0, 0, 0,
+                                                            0, 0, 0}}) // rank 3
+            .indices({{1, 3}, integer_type, std::vector<I> {0, 1, 2}}) // rank 1
+            .updates({{2, 2, 1}, numeric_type, std::vector<N> {1, 2,
+                                                               3, 4}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {0}})
+            .expected({{3, 3}, numeric_type, std::vector<N> {1, 0, 0,
+                                                             2, 0, 0,
+                                                             3, 0, 0}}),
+        Builder {}
+            .data({{3, 3}, numeric_type, std::vector<N> {0, 0, 0,
+                                                            0, 0, 0,
+                                                            0, 0, 0}}) // rank 3
+            .indices({{1, 3}, integer_type, std::vector<I> {0, 1, 2}}) // rank 1
+            .updates({{1, 1, 1}, numeric_type, std::vector<N> {1}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {0}})
+            .expected({{3, 3}, numeric_type, std::vector<N> {1, 0, 0,
+                                                             0, 0, 0,
+                                                             0, 0, 0}}),
+        Builder {}
+            .data({{2, 2}, numeric_type, std::vector<N> {0, 0,
+                                                         0, 0}}) // rank 3
+            .indices({{2, 1}, integer_type, std::vector<I> {0, 1}}) // rank 1
+            .updates({{2, 2, 2}, numeric_type, std::vector<N> {1, 2,
+                                                               3, 4,
+                                                               //
+                                                               5, 6,
+                                                               7, 8}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {0}})
+            .expected({{2, 2}, numeric_type, std::vector<N> {1, 2,
+                                                             3, 4}}),
+        Builder {}
+            .data({{4, 4}, numeric_type, std::vector<N> {0, 0, 0, 0,
+                                                         0, 0, 0, 0,
+                                                         0, 0, 0, 0,
+                                                         0, 0, 0, 0}}) // rank 3
+            .indices({{4, 1}, integer_type, std::vector<I> {0, 1, 2, 3}}) // rank 1
+            .updates({{2, 2, 2}, numeric_type, std::vector<N> {1, 2,
+                                                               3, 4,
+                                                               //
+                                                               5, 6,
+                                                               7, 8}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {0}})
+            .expected({{4, 4}, numeric_type, std::vector<N> {1, 2, 0, 0,
+                                                             3, 4, 0, 0,
+                                                             5, 6, 0, 0,
+                                                             7, 8, 0, 0}}),
+        Builder {}
+            .data({{2, 3, 4, 2}, numeric_type, std::vector<N> {0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               //
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               //
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               // --------
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               //
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               //
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0}})
+                                                               //}}) // rank 3
+            .indices({{3, 1}, integer_type, std::vector<I> {0, 1, 2}}) // rank 1
+            .updates({{3, 2, 3, 3, 2}, numeric_type, std::vector<N> {1, 2,
+                                                                     3, 4,
+                                                                     5, 6,
+                                                                     //
+                                                                     7, 8,
+                                                                     9, 10,
+                                                                     11, 12,
+                                                                     //
+                                                                     13, 14,
+                                                                     15, 16,
+                                                                     17, 18,
+                                                                     // ----
+                                                                     19, 20,
+                                                                     21, 22,
+                                                                     23, 24,
+                                                                     //
+                                                                     25, 26,
+                                                                     27, 28,
+                                                                     29, 30,
+                                                                     //
+                                                                     31, 32,
+                                                                     33, 34,
+                                                                     35, 36,
+                                                                     // -----
+                                                                     37, 38,
+                                                                     39, 40,
+                                                                     41, 42,
+                                                                     //
+                                                                     43, 44,
+                                                                     45, 46,
+                                                                     47, 48,
+                                                                     //
+                                                                     49, 50,
+                                                                     51, 52,
+                                                                     53, 54,
+                                                                     //
+                                                                     55, 56,
+                                                                     57, 58,
+                                                                     59, 60,
+                                                                     //
+                                                                     61, 62,
+                                                                     63, 64,
+                                                                     65, 66,
+                                                                     //
+                                                                     67, 68,
+                                                                     69, 70,
+                                                                     71, 72,
+                                                                     //
+                                                                     73, 74,
+                                                                     75, 76,
+                                                                     77, 78,
+                                                                     //
+                                                                     79, 80,
+                                                                     81, 82,
+                                                                     83, 84,
+                                                                     //
+                                                                     85, 86,
+                                                                     87, 88,
+                                                                     89, 90,
+                                                                     //
+                                                                     91, 92,
+                                                                     93, 94,
+                                                                     95, 96,
+                                                                     //
+                                                                     97, 98,
+                                                                     99, 100,
+                                                                     101, 102,
+                                                                     //
+                                                                     103, 104,
+                                                                     105, 106,
+                                                                     107, 108}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {2}})
+            .expected({{2, 3, 4, 2}, numeric_type, std::vector<N> {
+                                                               1, 2,
+                                                               3, 4,
+                                                               5, 6,
+                                                               0, 0,
+                                                               //
+                                                               19, 20,
+                                                               21, 22,
+                                                               23, 24,
+                                                               0, 0,
+                                                               //
+                                                               37, 38,
+                                                               39, 40,
+                                                               41, 42,
+                                                               0, 0,
+                                                               // --------
+                                                               55, 56,
+                                                               57, 58,
+                                                               59, 60,
+                                                               0, 0,
+                                                               //
+                                                               73, 74,
+                                                               75, 76,
+                                                               77, 78,
+                                                               0, 0,
+                                                               //
+                                                               91, 92,
+                                                               93, 94,
+                                                               95, 96,
+                                                               0, 0}}),
+        Builder {}
+            .data({{1, 3, 2, 2}, numeric_type, std::vector<N> {0, 0, 0,
+                                                            0, 0, 0,
+                                                            //
+                                                            0, 0, 0,
+                                                            0, 0, 0}}) // rank 3
+            .indices({{1, 3}, integer_type, std::vector<I> {2, 0, 1}}) // rank 1
+            .updates({{1, 3, 2, 2, 2}, numeric_type, std::vector<N> {
+                                                                  1, 2,
+                                                                  3, 4,
+                                                                  //
+                                                                  5, 6,
+                                                                  7, 8,
+                                                                  //
+                                                                  //
+                                                                  9, 10,
+                                                                  11, 12,
+                                                                  //
+                                                                  13, 14,
+                                                                  15, 16,
+                                                                  //
+                                                                  //
+                                                                  17, 18,
+                                                                  19, 20,
+                                                                  //
+                                                                  21, 22,
+                                                                  23, 24}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {1}})
+            .expected({{1, 3, 2, 2}, numeric_type, std::vector<N> {
+                                                            5, 6,
+                                                            7, 8,
+                                                            //
+                                                            9, 10,
+                                                            11, 12,
+                                                            //
+                                                            1, 2,
+                                                            3, 4}}),
+        Builder {}
+            .data({{2, 2, 2}, numeric_type, std::vector<N> {0, 0,
                                                             0, 0,
-                                                            0, 0,
-                                                            // --------
-                                                            0, 0,
-                                                            0, 0,
-                                                            0, 0,
-                                                            // --------
-                                                            0, 0,
+                                                            //
                                                             0, 0,
                                                             0, 0}}) // rank 3
-            .indices({{1, 1}, integer_type, std::vector<I> {1}}) // rank 1
-            .updates({{1, 1, 3, 2}, numeric_type, std::vector<N> {1, 2,
+            .indices({{1, 2}, integer_type, std::vector<I> {0, 1}}) // rank 1
+            .updates({{2, 2, 3, 2}, numeric_type, std::vector<N> {1, 2,
                                                                   3, 4,
-                                                                  5, 6}}) // rank 3
+                                                                  5, 6,
+                                                                  //
+                                                                  7, 8,
+                                                                  9, 10,
+                                                                  11, 12,
+                                                                  //
+                                                                  13, 14,
+                                                                  15, 16,
+                                                                  17, 18,
+                                                                  //
+                                                                  19, 20,
+                                                                  21, 22,
+                                                                  23, 24}}) // rank 3
             .axis({{1}, integer_type, std::vector<I> {1}})
-            .expected({{3, 3, 2}, numeric_type, std::vector<N> {0, 0,
-                                                                1, 2,
+            .expected({{2, 2, 2}, numeric_type, std::vector<N> {1, 2,
+                                                                3, 4,
+                                                                //
+                                                                13, 14,
+                                                                15, 16}}),
+        Builder {}
+            .data({{2, 2, 4}, numeric_type, std::vector<N> {0, 0, 0, 0,
+                                                            0, 0, 0, 0,
+                                                            //
+                                                            0, 0, 0, 0,
+                                                            0, 0, 0, 0}}) // rank 3
+            .indices({{1, 2, 1}, integer_type, std::vector<I> {0, 1}}) // rank 1
+            .updates({{2, 2, 3, 2, 1}, numeric_type, std::vector<N> {1, 2,
+                                                                  3, 4,
+                                                                  5, 6,
+                                                                  //
+                                                                  7, 8,
+                                                                  9, 10,
+                                                                  11, 12,
+                                                                  //
+                                                                  13, 14,
+                                                                  15, 16,
+                                                                  17, 18,
+                                                                  //
+                                                                  19, 20,
+                                                                  21, 22,
+                                                                  23, 24}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {1}})
+            .expected({{2, 2, 2}, numeric_type, std::vector<N> {1, 13, 0, 0,
+                                                                2, 14, 0, 0,
+                                                                //
+                                                                0, 0, 0, 0,
+                                                                0, 0, 0, 0}}),
+        Builder {}
+            .data({{2, 4, 2}, numeric_type, std::vector<N> {0, 0, 0, 0,
+                                                            0, 0, 0, 0,
+                                                            //
+                                                            0, 0, 0, 0,
+                                                            0, 0, 0, 0}}) // rank 3
+            .indices({{1, 2, 1}, integer_type, std::vector<I> {0, 1}}) // rank 1
+            .updates({{2, 2, 3, 2, 1}, numeric_type, std::vector<N> {1, 2,
+                                                                  3, 4,
+                                                                  5, 6,
+                                                                  //
+                                                                  7, 8,
+                                                                  9, 10,
+                                                                  11, 12,
+                                                                  //
+                                                                  13, 14,
+                                                                  15, 16,
+                                                                  17, 18,
+                                                                  //
+                                                                  19, 20,
+                                                                  21, 22,
+                                                                  23, 24}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {1}})
+            .expected({{2, 4, 2}, numeric_type, std::vector<N> {1, 13,
+                                                                2, 14,
                                                                 0, 0,
-                                                                // ------
+                                                                0, 0,
+                                                                //
                                                                 0, 0,
                                                                 0, 0,
                                                                 0, 0,
-                                                                // -----------
-                                                                0, 0,
-                                                                0, 0,
-                                                                0, 0}})};
+                                                                0, 0}}),
+        Builder {}
+            .data({{2, 2, 2}, numeric_type, std::vector<N> {0, 0,
+                                                            0, 0,
+                                                            //
+                                                            0, 0,
+                                                            0, 0}}) // rank 3
+            .indices({{2, 1}, integer_type, std::vector<I> {1, 0}}) // rank 1
+            .updates({{2, 2, 3, 2}, numeric_type, std::vector<N> {1, 2,
+                                                                  3, 4,
+                                                                  5, 6,
+                                                                  //
+                                                                  7, 8,
+                                                                  9, 10,
+                                                                  11, 12,
+                                                                  //
+                                                                  13, 14,
+                                                                  15, 16,
+                                                                  17, 18,
+                                                                  //
+                                                                  19, 20,
+                                                                  21, 22,
+                                                                  23, 24}}) // rank 3
+            .axis({{1}, integer_type, std::vector<I> {2}})
+            .expected({{2, 2, 2}, numeric_type, std::vector<N> {
+                                                            2, 1,
+                                                            8, 7,
+                                                            //
+                                                            14, 13,
+                                                            20, 19}})};
     return ScatterUpdateParams;
 }
 
 std::vector<ScatterUpdate6Params> generateScatterUpdateCombinedParams() {
     const std::vector<std::vector<ScatterUpdate6Params>> ScatterUpdateTypeParams {
         // f32
-        generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::i16>(element::f32, element::i16),
-        generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::i32>(element::f32, element::i32),
-        generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::i64>(element::f32, element::i64),
-        generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u8>(element::f32, element::u8),
-        generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u16>(element::f32, element::u16),
-        generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u32>(element::f32, element::u32),
-        // f16
-        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i16>(element::f16, element::i16),
-        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i32>(element::f16, element::i32),
-        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i64>(element::f16, element::i64),
-        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u8>(element::f16, element::u8),
-        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u16>(element::f16, element::u16),
-        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u32>(element::f16, element::u32),
-        // i8
-        generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::i16>(element::i8, element::i16),
-        generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::i32>(element::i8, element::i32),
-        generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::i64>(element::i8, element::i64),
-        generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::u8>(element::i8, element::u8),
-        generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::u16>(element::i8, element::u16),
-        generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::u32>(element::i8, element::u32),
-        // i16
-        generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::i16>(element::i16, element::i16),
-        generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::i32>(element::i16, element::i32),
-        generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::i64>(element::i16, element::i64),
-        generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::u8>(element::i16, element::u8),
-        generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::u16>(element::i16, element::u16),
-        generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::u32>(element::i16, element::u32),
-        // i32
-        generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::i16>(element::i32, element::i16),
-        generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::i32>(element::i32, element::i32),
-        generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::i64>(element::i32, element::i64),
-        generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::u8>(element::i32, element::u8),
-        generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::u16>(element::i32, element::u16),
-        generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::u32>(element::i32, element::u32),
-        // i64
-        generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::i16>(element::i64, element::i16),
-        generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::i32>(element::i64, element::i32),
-        generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::i64>(element::i64, element::i64),
-        generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::u8>(element::i64, element::u8),
-        generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::u16>(element::i64, element::u16),
-        generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::u32>(element::i64, element::u32),
-        // u8
-        generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::i16>(element::u8, element::i16),
-        generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::i32>(element::u8, element::i32),
-        generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::i64>(element::u8, element::i64),
-        generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::u8>(element::u8, element::u8),
-        generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::u16>(element::u8, element::u16),
-        generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::u32>(element::u8, element::u32),
-        // u16
-        generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::i16>(element::u16, element::i16),
-        generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::i32>(element::u16, element::i32),
-        generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::i64>(element::u16, element::i64),
-        generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::u8>(element::u16, element::u8),
-        generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::u16>(element::u16, element::u16),
-        generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::u32>(element::u16, element::u32),
-        // u32
-        generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::i16>(element::u32, element::i16),
-        generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::i32>(element::u32, element::i32),
-        generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::i64>(element::u32, element::i64),
-        generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::u8>(element::u32, element::u8),
-        generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::u16>(element::u32, element::u16),
-        generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::u32>(element::u32, element::u32),
-        // u64
-        generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::i16>(element::u64, element::i16),
-        generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::i32>(element::u64, element::i32),
-        generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::i64>(element::u64, element::i64),
-        generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::u8>(element::u64, element::u8),
-        generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::u16>(element::u64, element::u16),
-        generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::u32>(element::u64, element::u32),
-        // // bf16
-        generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i16>(element::bf16, element::i16),
-        generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i32>(element::bf16, element::i32),
-        generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i64>(element::bf16, element::i64),
-        generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::u8>(element::bf16, element::u8),
-        generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::u16>(element::bf16, element::u16),
+        // generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::i16>(element::f32, element::i16),
+        // generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::i32>(element::f32, element::i32),
+        // generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::i64>(element::f32, element::i64),
+        // generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u8>(element::f32, element::u8),
+        // generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u16>(element::f32, element::u16),
+        // generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u32>(element::f32, element::u32),
+        // // f16
+        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i16>(element::f16, element::i16),
+        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i32>(element::f16, element::i32),
+        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i64>(element::f16, element::i64),
+        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u8>(element::f16, element::u8),
+        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u16>(element::f16, element::u16),
+        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u32>(element::f16, element::u32),
+        // // i8
+        // generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::i16>(element::i8, element::i16),
+        // generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::i32>(element::i8, element::i32),
+        // generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::i64>(element::i8, element::i64),
+        // generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::u8>(element::i8, element::u8),
+        // generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::u16>(element::i8, element::u16),
+        // generateScatterUpdate6Params<element::Type_t::i8, element::Type_t::u32>(element::i8, element::u32),
+        // // i16
+        // generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::i16>(element::i16, element::i16),
+        // generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::i32>(element::i16, element::i32),
+        // generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::i64>(element::i16, element::i64),
+        // generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::u8>(element::i16, element::u8),
+        // generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::u16>(element::i16, element::u16),
+        // generateScatterUpdate6Params<element::Type_t::i16, element::Type_t::u32>(element::i16, element::u32),
+        // // i32
+        // generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::i16>(element::i32, element::i16),
+        // generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::i32>(element::i32, element::i32),
+        // generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::i64>(element::i32, element::i64),
+        // generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::u8>(element::i32, element::u8),
+        // generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::u16>(element::i32, element::u16),
+        // generateScatterUpdate6Params<element::Type_t::i32, element::Type_t::u32>(element::i32, element::u32),
+        // // i64
+        // generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::i16>(element::i64, element::i16),
+        // generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::i32>(element::i64, element::i32),
+        // generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::i64>(element::i64, element::i64),
+        // generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::u8>(element::i64, element::u8),
+        // generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::u16>(element::i64, element::u16),
+        // generateScatterUpdate6Params<element::Type_t::i64, element::Type_t::u32>(element::i64, element::u32),
+        // // u8
+        // generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::i16>(element::u8, element::i16),
+        // generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::i32>(element::u8, element::i32),
+        // generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::i64>(element::u8, element::i64),
+        // generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::u8>(element::u8, element::u8),
+        // generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::u16>(element::u8, element::u16),
+        // generateScatterUpdate6Params<element::Type_t::u8, element::Type_t::u32>(element::u8, element::u32),
+        // // u16
+        // generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::i16>(element::u16, element::i16),
+        // generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::i32>(element::u16, element::i32),
+        // generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::i64>(element::u16, element::i64),
+        // generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::u8>(element::u16, element::u8),
+        // generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::u16>(element::u16, element::u16),
+        // generateScatterUpdate6Params<element::Type_t::u16, element::Type_t::u32>(element::u16, element::u32),
+        // // u32
+        // generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::i16>(element::u32, element::i16),
+        // generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::i32>(element::u32, element::i32),
+        // generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::i64>(element::u32, element::i64),
+        // generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::u8>(element::u32, element::u8),
+        // generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::u16>(element::u32, element::u16),
+        // generateScatterUpdate6Params<element::Type_t::u32, element::Type_t::u32>(element::u32, element::u32),
+        // // u64
+        // generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::i16>(element::u64, element::i16),
+        // generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::i32>(element::u64, element::i32),
+        // generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::i64>(element::u64, element::i64),
+        // generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::u8>(element::u64, element::u8),
+        // generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::u16>(element::u64, element::u16),
+        // generateScatterUpdate6Params<element::Type_t::u64, element::Type_t::u32>(element::u64, element::u32),
+        // // // bf16
+        // generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i16>(element::bf16, element::i16),
+        // generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i32>(element::bf16, element::i32),
+        // generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i64>(element::bf16, element::i64),
+        // generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::u8>(element::bf16, element::u8),
+        // generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::u16>(element::bf16, element::u16),
         generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::u32>(element::bf16, element::u32)};
     std::vector<ScatterUpdate6Params> combinedParams;
 
