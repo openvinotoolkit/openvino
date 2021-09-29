@@ -110,6 +110,9 @@ include_directories(
 add_library("${CLDNN_BUILD__PROJ}" STATIC
     ${__CLDNN_AllSources}
   )
+
+target_compile_options(${CLDNN_BUILD__PROJ} PRIVATE -Os)
+
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 
 target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC
