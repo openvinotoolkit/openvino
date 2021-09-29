@@ -51,7 +51,7 @@ enum RefMode {
 
 class LayerTestsCommon : public CommonTestUtils::TestsCommon {
 public:
-    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
+    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::TensorDesc &td) const;
 
     virtual void Run();
 
@@ -127,7 +127,7 @@ protected:
 
     virtual void ConfigureNetwork();
 
-    virtual void ConfigureNetwork_Secondary() {}
+//    virtual void ConfigureNetwork_Secondary() {}
 
     virtual void LoadNetwork();
 
@@ -149,11 +149,12 @@ protected:
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
-    std::vector<ngraph::PartialShape> inputDynamicShape;
-    std::vector<ngraph::Shape> targetStaticShape;
+    std::vector<ngraph::PartialShape> inputDynamicShapes;
+    size_t index = 0;
+//    std::vector<ngraph::Shape> targetStaticShape;
     std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
 
-    virtual void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) {}
+//    virtual void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) {}
 
     virtual void Validate();
 

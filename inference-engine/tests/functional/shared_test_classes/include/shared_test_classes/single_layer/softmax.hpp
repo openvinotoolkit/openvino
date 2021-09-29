@@ -22,8 +22,8 @@ using softMaxLayerTestParams = std::tuple<
         InferenceEngine::Precision,                          // Output precision
         InferenceEngine::Layout,                             // Input layout
         InferenceEngine::Layout,                             // Output layout
-        std::vector<std::vector<std::pair<size_t, size_t>>>, // Input shape
-        std::vector<std::vector<std::vector<size_t>>>,       // Target shapes
+        ngraph::PartialShape, // Input dynamic shape
+        std::vector<ngraph::Shape>,       // Target static shapes
         size_t,                                              // axis
         std::string,                                         // targetDevice
         std::map<std::string, std::string>                   // config
@@ -36,12 +36,6 @@ public:
 
 protected:
     void SetUp() override;
-    void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) override;
-    void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) override;
-
-private:
-    InferenceEngine::Precision netPrecision;
-    size_t axis;
+//    void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) override;
 };
-
 }  // namespace LayerTestsDefinitions

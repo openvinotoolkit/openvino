@@ -54,27 +54,27 @@ void ConvolutionLayerTest::SetUp() {
         targetStaticShapes.emplace_back(
                 std::vector<ngraph::Shape>{ngraph::Shape{targetShape.front()}, ngraph::Shape{targetShape.front()}});
     }
-    inputDynamicShape.emplace_back(
+    inputDynamicShapes.emplace_back(
             FuncTestUtils::PartialShapeUtils::vec2partialshape(
                     inputShape.empty() ?
                     std::vector<std::pair<size_t, size_t>>{} :
                     inputShape.front(), targetStaticShapes[0].front()));
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
-    setTargetStaticShape(targetStaticShapes[0]);
+//    setTargetStaticShape(targetStaticShapes[0]);
     function = makeConvolution("convolution");
     functionRefs = ngraph::clone_function(*function);
 }
 
 std::shared_ptr<ngraph::Function> ConvolutionLayerTest::makeConvolution(const std::string& name) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShape.front()});
+    auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes.front().front()});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::vector<float> filter_weights;
     if (targetDevice == CommonTestUtils::DEVICE_GNA) {
         auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
-        filter_weights = CommonTestUtils::generate_float_numbers(convOutChannels * targetStaticShape.front()[1] * filter_size,
+        filter_weights = CommonTestUtils::generate_float_numbers(convOutChannels * targetStaticShapes.front().front()[1] * filter_size,
                                                                  -0.5f, 0.5f);
     }
     auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(
@@ -84,8 +84,8 @@ std::shared_ptr<ngraph::Function> ConvolutionLayerTest::makeConvolution(const st
     return std::make_shared<ngraph::Function>(results, params, name);
 }
 
-void ConvolutionLayerTest::setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) {
-    targetStaticShape = desiredTargetStaticShape;
-}
+//void ConvolutionLayerTest::setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) {
+//    targetStaticShape = desiredTargetStaticShape;
+//}
 
 }  // namespace LayerTestsDefinitions

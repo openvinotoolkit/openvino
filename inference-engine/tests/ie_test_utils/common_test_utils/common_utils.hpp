@@ -47,6 +47,14 @@ inline std::string vec2str(const std::vector<vecElementType> &vec) {
     return std::string("()");
 }
 
+inline std::string partialShape2str(const std::vector<ngraph::PartialShape>& partialShapes) {
+    std::ostringstream result;
+    for (const auto& partialShape : partialShapes) {
+        result << vec2str(partialShape.get_min_shape()) << "_" << vec2str(partialShape.get_max_shape());
+    }
+    return result.str();
+}
+
 inline std::string pair2str(const std::pair<size_t, size_t>& p) {
     std::ostringstream result;
     result << "(" << p.first << "." << p.second << ")";

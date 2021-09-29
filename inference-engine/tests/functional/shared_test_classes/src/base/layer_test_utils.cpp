@@ -47,8 +47,10 @@ void LayerTestsCommon::Run() {
 
     try {
         LoadNetwork();
-        for (auto&& tss : targetStaticShapes) {
-            setTargetStaticShape(tss);
+        for (size_t i = 0; i < targetStaticShapes.size(); i++) {
+            index = i;
+//            std::cout << CommonTestUtils::vec2str(tss) << std::endl;
+////            setTargetStaticShape(tss);
             GenerateInputs();
             Infer();
             Validate();
@@ -111,12 +113,13 @@ void LayerTestsCommon::QueryNetwork() {
 }
 
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo& info) const {
-    return FuncTestUtils::createAndFillBlob(targetStaticShape.empty() || targetStaticShape[0].empty() ?
-                                            info.getTensorDesc() :
-                                            InferenceEngine::TensorDesc(
-                                                    info.getPrecision(),
-                                                    targetStaticShape[0],
-                                                    const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+//    return FuncTestUtils::createAndFillBlob(targetStaticShape.empty() || targetStaticShape[0].empty() ?
+//                                            info.getTensorDesc() :
+//                                            InferenceEngine::TensorDesc(
+//                                                    info.getPrecision(),
+//                                                    targetStaticShape[0],
+//                                                    const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
 }
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
@@ -337,21 +340,21 @@ void LayerTestsCommon::ConfigureNetwork() {
         }
     }
 
-    if (!inputDynamicShape.empty()) {
-        if (inputDynamicShape.size() == 1) {
-            if (inputDynamicShape.front().is_dynamic()) {
-                std::map<std::string, ngraph::PartialShape> inputShapes;
-                auto inputsDataMap = cnnNetwork.getInputsInfo();
-                for (auto&& inputDataMap : inputsDataMap) {
-                    inputShapes[inputDataMap.first] = std::vector<ngraph::Dimension>(inputDynamicShape.front());
-                }
-                cnnNetwork.reshape(inputShapes);
+    // Reshape CNNNetwork before load to the plugin in dynamic scenario
+    if (!inputDynamicShapes.empty()) {
+        auto params = function->get_parameters();
+        std::map<std::string, ngraph::PartialShape> inputDataMap;
+        ASSERT_EQ(params.size(), inputDynamicShapes.size());
+        for (size_t i = 0; i < inputDynamicShapes.size(); i++) {
+            ngraph::PartialShape dynamicShape = inputDynamicShapes[i];
+            // TODO: iefode
+            if (dynamicShape.get_shape().empty()) {
+                continue;
             }
-        } else if (inputDynamicShape.size() == 2) {
-            ConfigureNetwork_Secondary();
-        } else {
-            IE_THROW() << "Incorrect number of input shapes";
+            std::string inputName = params[i]->get_friendly_name();
+            inputDataMap.insert({inputName, dynamicShape});
         }
+        cnnNetwork.reshape(inputDataMap);
     }
 }
 
@@ -370,8 +373,24 @@ void LayerTestsCommon::GenerateInputs() {
         const auto& param = functionParams[i];
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
         GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+        auto info = infoIt->second;
+        if (inputDynamicShapes[i].get_shape().empty()) {
+            auto td = InferenceEngine::TensorDesc(info->getPrecision(),
+                                                  targetStaticShapes[index][i],
+                                                  const_cast<InferenceEngine::InputInfo &>(*info).getLayout());
+            InferenceEngine::Data data(infoIt->first, td);
+            InferenceEngine::DataPtr b(&data);
+            InferenceEngine::InputInfo a;
+            a.setInputData(b);
+            info = a;
+        }
+        //    return FuncTestUtils::createAndFillBlob(targetStaticShape.empty() || targetStaticShape[0].empty() ?
+//                                            info.getTensorDesc() :
+//                                            InferenceEngine::TensorDesc(
+//                                                    info.getPrecision(),
+//                                                    targetStaticShape[0],
+//                                                    const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
 
-        const auto& info = infoIt->second;
         auto blob = GenerateInput(*info);
         inputs.push_back(blob);
     }
@@ -483,9 +502,9 @@ void LayerTestsCommon::Validate() {
 
 std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) {
     const auto execGraph = executableNetwork.GetExecGraphInfo();
-    const auto function = execGraph.getFunction();
+    const auto execFunction = execGraph.getFunction();
 
-    for (const auto& op : function->get_ops()) {
+    for (const auto& op : execFunction->get_ops()) {
         const auto name = op->get_friendly_name();
         if (name == layerName) {
             const auto& rtInfo = op->get_rt_info();
@@ -503,9 +522,9 @@ std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) 
 
 std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layerType) {
     const auto execGraph = executableNetwork.GetExecGraphInfo();
-    const auto function = execGraph.getFunction();
+    const auto execFunction = execGraph.getFunction();
 
-    for (const auto& op : function->get_ops()) {
+    for (const auto& op : execFunction->get_ops()) {
         const auto& rtInfo = op->get_rt_info();
         const auto& typeIt = rtInfo.find("layerType");
 
@@ -528,9 +547,9 @@ std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layer
 #ifndef NDEBUG
 void LayerTestsCommon::showRuntimePrecisions() {
     const auto execGraph = executableNetwork.GetExecGraphInfo();
-    const auto function = execGraph.getFunction();
+    const auto execFunction = execGraph.getFunction();
 
-    for (const auto& op : function->get_ops()) {
+    for (const auto& op : execFunction->get_ops()) {
         const auto& rtInfo = op->get_rt_info();
         const auto& typeIt = rtInfo.find("layerType");
 

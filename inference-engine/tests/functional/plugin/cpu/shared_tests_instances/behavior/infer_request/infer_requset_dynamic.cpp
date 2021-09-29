@@ -75,4 +75,14 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
                                 ::testing::ValuesIn(configs)),
                         InferRequestDynamicTests::getTestCaseName);
 
+class TEST_DYNAMIC : public testing::WithParamInterface<ngraph::PartialShape>,
+                                 public CommonTestUtils::TestsCommon {};
+
+TEST_P(TEST_DYNAMIC, test) {
+    ngraph::PartialShape param = this->GetParam();
+    std::cout << "YEP" << std::endl;
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_2, TEST_DYNAMIC, ::testing::Values(ngraph::PartialShape{ngraph::Dimension::dynamic(), 4, 20, 20}));
+
 }  // namespace
