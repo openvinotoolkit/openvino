@@ -3,8 +3,8 @@
 //
 
 #ifndef NGRAPH_OP
-#warning "NGRAPH_OP not defined"
-#define NGRAPH_OP(x, y)
+#    warning "NGRAPH_OP not defined"
+#    define NGRAPH_OP(x, y)
 #endif
 
 NGRAPH_OP(Abs, op::v0)
