@@ -11,11 +11,19 @@
 --------------------------------------------------------------------------------
 
 local argArray = table.pack(...)
-local class = argArray[1]
+local classes = argArray[1]
 
 local templatePrefix = ""
-if #class.templateParamArray > 0 or #class.templateSpecParamArray > 0 then
-	templatePrefix = "template "
+
+local level = 1
+for i = 1, #classes do
+
+class = classes[i]
+
+if i == 1 then
+	level = 1
+else
+	level = 6
 end
 
 local titleName = getItemQualifiedName(class)
@@ -29,8 +37,12 @@ end -- if
 .. index:: pair: $(class.compoundKind); $titleName
 .. _doxid-$(class.id):
 
-$(getTitle(templatePrefix .. class.compoundKind .. " " .. titleName, 1))
+$(getTitle(templatePrefix .. class.compoundKind .. " " .. titleName, level))
 
 %{
 includeFile("compound.rst.in", class)
+}
+
+%{
+end -- for
 }
