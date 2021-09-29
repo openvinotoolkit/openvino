@@ -735,3 +735,19 @@ TEST(function_reshape, TestInvalidReshape) {
 
     ASSERT_NO_THROW(f->reshape({{"input", ov::Shape({1, 1000, 4})}}));
 }
+
+TEST(function_reshape, TestReshapeWithInvalidName) {
+    std::shared_ptr<ov::Function> f;
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
+        input->set_friendly_name("input");
+        auto shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 4000});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, shape, true);
+        f = std::make_shared<ov::Function>(ov::OutputVector{reshape}, ov::ParameterVector{input});
+    }
+
+    ASSERT_ANY_THROW(f->reshape({{"input", ov::Shape({4, 4, 4})},
+                                 {"input2", ov::Shape({4, 4, 4})}}));
+
+    ASSERT_ANY_THROW(f->reshape({{"input2", ov::Shape({4, 4, 4})}}));
+}

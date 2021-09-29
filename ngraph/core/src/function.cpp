@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <list>
 #include <memory>
+#include <string>
+#include <unordered_map>
 
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
@@ -648,6 +650,7 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         return;
 
     const auto& params = get_parameters();
+    std::set<std::string> used_shapes;
 
     // Check that we need to do reshape only if input shapes will be changed
     bool needReshape = false;
@@ -656,10 +659,17 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         if (it == partial_shapes.end()) {
             continue;
         }
+        used_shapes.insert(it->first);
         if (param->get_output_partial_shape(0).is_dynamic() || param->get_output_partial_shape(0) != it->second) {
             needReshape = true;
             break;
         }
+    }
+
+    for (const auto & partial_shape : partial_shapes) {
+        OPENVINO_ASSERT(used_shapes.count(partial_shape.first) != 0,
+            "PartialShape for tensor with name '", partial_shape.first,
+            "' is not used in ov::Function::reshape");
     }
 
     if (!needReshape)
