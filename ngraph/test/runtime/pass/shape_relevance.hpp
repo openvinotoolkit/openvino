@@ -7,18 +7,12 @@
 #include "backend_visibility.hpp"
 #include "ngraph/pass/pass.hpp"
 
-namespace ngraph
-{
-    namespace pass
-    {
-        class BACKEND_API ShapeRelevance : public FunctionPass
-        {
-        public:
-            ShapeRelevance()
-                : FunctionPass()
-            {
-            }
-            virtual bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
-        };
-    }
-}
+namespace ngraph {
+namespace pass {
+class BACKEND_API ShapeRelevance : public FunctionPass {
+public:
+    ShapeRelevance() : FunctionPass() {}
+    virtual bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+};
+}  // namespace pass
+}  // namespace ngraph

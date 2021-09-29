@@ -1229,8 +1229,9 @@ struct InfoForEDROIFeature {
     Shape output_rois_shape;
 };
 
-InfoForEDROIFeature get_info_for_ed_roi_feature(const std::vector<Shape> input_shapes,
-                                                const op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes& attrs) {
+InfoForEDROIFeature get_info_for_ed_roi_feature(
+    const std::vector<Shape> input_shapes,
+    const op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes& attrs) {
     InfoForEDROIFeature result;
 
     size_t output_size = static_cast<size_t>(attrs.output_size);
@@ -1249,13 +1250,12 @@ InfoForEDROIFeature get_info_for_ed_roi_feature(const std::vector<Shape> input_s
 
     return result;
 }
-} // namespace experimental_roi_feature
+}  // namespace experimental_roi_feature
 
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronROIFeatureExtractor>& op,
               const HostTensorVector& outputs,
-              const HostTensorVector& inputs)
-{
+              const HostTensorVector& inputs) {
     const auto attrs = op->get_attrs();
 
     std::vector<std::vector<float>> input_data;

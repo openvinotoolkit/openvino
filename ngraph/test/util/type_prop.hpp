@@ -6,14 +6,11 @@
 
 #include "gtest/gtest.h"
 
-#define EXPECT_HAS_SUBSTRING(haystack, needle)                                                     \
-    EXPECT_PRED_FORMAT2(testing::IsSubstring, needle, haystack)
+#define EXPECT_HAS_SUBSTRING(haystack, needle) EXPECT_PRED_FORMAT2(testing::IsSubstring, needle, haystack)
 
-struct PrintToDummyParamName
-{
+struct PrintToDummyParamName {
     template <class ParamType>
-    std::string operator()(const ::testing::TestParamInfo<ParamType>& info) const
-    {
+    std::string operator()(const ::testing::TestParamInfo<ParamType>& info) const {
         return "dummy" + std::to_string(info.index);
     }
 };
