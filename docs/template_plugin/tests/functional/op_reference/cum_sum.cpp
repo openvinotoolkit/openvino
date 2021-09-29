@@ -4,17 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
+#include "openvino/op/cum_sum.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct CumSumParams {
@@ -30,9 +24,9 @@ struct CumSumParams {
           axisType(axisType),
           inType(iType),
           outType(iType),
-          axisData(CreateBlob(axisType, std::vector<AT> {axisVal})),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)),
+          axisData(CreateTensor(axisType, std::vector<AT> {axisVal})),
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)),
           testDefaults(false) {}
 
     // Default axis input and attributes
@@ -42,8 +36,8 @@ struct CumSumParams {
           axisType(element::i32),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)),
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)),
           testDefaults(true) {}
 
     bool execlusive = false;
@@ -93,16 +87,16 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& data_shape, const element::Type& data_type, const PartialShape& axis_shape,
                                                     const element::Type& axis_type, const bool execlusive, const bool reverse) {
-        const auto data_param = std::make_shared<op::Parameter>(data_type, data_shape);
-        const auto axis_param = std::make_shared<op::Parameter>(axis_type, axis_shape);
+        const auto data_param = std::make_shared<op::v0::Parameter>(data_type, data_shape);
+        const auto axis_param = std::make_shared<op::v0::Parameter>(axis_type, axis_shape);
         const auto cum_sum = std::make_shared<op::v0::CumSum>(data_param, axis_param, execlusive, reverse);
-        return std::make_shared<Function>(NodeVector {cum_sum}, ParameterVector {data_param, axis_param});
+        return std::make_shared<ov::Function>(NodeVector {cum_sum}, ParameterVector {data_param, axis_param});
     }
 
     static std::shared_ptr<Function> CreateFunction(const PartialShape& data_shape, const element::Type& data_type) {
-        const auto data_param = std::make_shared<op::Parameter>(data_type, data_shape);
+        const auto data_param = std::make_shared<op::v0::Parameter>(data_type, data_shape);
         const auto cum_sum = std::make_shared<op::v0::CumSum>(data_param);
-        return std::make_shared<Function>(NodeVector {cum_sum}, ParameterVector {data_param});
+        return std::make_shared<ov::Function>(NodeVector {cum_sum}, ParameterVector {data_param});
     }
 };
 
