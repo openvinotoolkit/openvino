@@ -87,7 +87,7 @@ void ExportTlvModel(uint32_t modelId,
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetTarget");
 
     // first descriptors
-    void* bufferLayerDescriptors;
+    void* bufferLayerDescriptors = nullptr;;
     uint32_t sizeOfLayerDescriptors;
 
     status = Gna2ModelExport(exportConfig,
@@ -96,7 +96,7 @@ void ExportTlvModel(uint32_t modelId,
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentLayerDescriptors)");
 
     // RO
-    void* bufferROData;
+    void* bufferROData = nullptr;;
     uint32_t sizeOfROData;
 
     status = Gna2ModelExport(exportConfig,
@@ -105,7 +105,7 @@ void ExportTlvModel(uint32_t modelId,
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentReadOnlyDump)");
 
     // RW - scratch
-    void* bufferScratchRWData;
+    void* bufferScratchRWData = nullptr;;
     uint32_t sizeOfScratchRWData;
 
     status = Gna2ModelExport(exportConfig,
@@ -128,7 +128,7 @@ void ExportTlvModel(uint32_t modelId,
     }
 
     // RW - external Input
-    void* bufferInputRWData;
+    void* bufferInputRWData = nullptr;
     uint32_t sizeOfInputRWData;
     status = Gna2ModelExport(exportConfig,
         Gna2ModelExportComponentInputDump,
@@ -136,14 +136,14 @@ void ExportTlvModel(uint32_t modelId,
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentInputDump)");
 
     // RW - external Output
-    void* bufferOutputRWData;
+    void* bufferOutputRWData = nullptr;
     uint32_t sizeOfOutputRWData;
     status = Gna2ModelExport(exportConfig,
         Gna2ModelExportComponentOutputDump,
         &bufferOutputRWData, &sizeOfOutputRWData);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentOutputDump)");
 
-    char* outTlv;
+    char* outTlv = nullptr;
     uint32_t outTlvSize;
 
     const auto gnaLibraryVersion = GNADeviceHelper::GetGnaLibraryVersion();
@@ -203,7 +203,7 @@ void ExportLdForDeviceVersion(
     status = Gna2ModelExportConfigSetTarget(exportConfig, deviceVersionToExport);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetTarget");
 
-    void * ldDump;
+    void * ldDump = nullptr;
     uint32_t ldDumpSize;
 
     status = Gna2ModelExport(exportConfig,
