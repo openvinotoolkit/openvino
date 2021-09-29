@@ -263,8 +263,7 @@ static RefPreprocessParams resize_to_network_height() {
                 .build(f);
         return f;
     };
-//    res.inputs.emplace_back(element::f32, Shape{1, 1, 4, 1}, std::vector<float>{0., 2., 4., 6.});
-    res.inputs.emplace_back(Shape{1, 1, 4, 1}, element::f32, std::vector<float>{0., 2., 4., 6.});
+    res.inputs.emplace_back(element::f32, Shape{1, 1, 4, 1}, std::vector<float>{0., 2., 4., 6.});
     res.expected.emplace_back(Shape{1, 1, 2, 1}, element::f32, std::vector<float>{1., 5.});
     return res;
 }
@@ -281,9 +280,7 @@ static RefPreprocessParams resize_to_network_width() {
                 .build(f);
         return f;
     };
-//    res.inputs.emplace_back(element::f32, Shape{1, 1, 2, 6}, std::vector<float>{0., 1., 2., 3., 4., 5.,
-//                                                                                0., 1., 2., 3., 4., 5.});
-    res.inputs.emplace_back(Shape{1, 1, 2, 6}, element::f32, std::vector<float>{0., 1., 2., 3., 4., 5.,
+    res.inputs.emplace_back(element::f32, Shape{1, 1, 2, 6}, std::vector<float>{0., 1., 2., 3., 4., 5.,
                                                                                 0., 1., 2., 3., 4., 5.});
     res.expected.emplace_back(Shape{1, 1, 2, 2}, element::f32, std::vector<float>{1., 4., 1., 4.});
     return res;
@@ -303,8 +300,7 @@ static RefPreprocessParams resize_from_spatial_dims() {
                 .build(f);
         return f;
     };
-//    res.inputs.emplace_back(element::f32, Shape{1, 1, 1, 7}, std::vector<float>{0., 0.25, 1., 2.25, 4., 6.25, 9});
-    res.inputs.emplace_back(Shape{1, 1, 1, 7}, element::f32, std::vector<float>{0., 0.25, 1., 2.25, 4., 6.25, 9});
+    res.inputs.emplace_back(element::f32, Shape{1, 1, 1, 7}, std::vector<float>{0., 0.25, 1., 2.25, 4., 6.25, 9});
     res.expected.emplace_back(Shape{1, 1, 1, 1}, element::f32, std::vector<float>{2.25});
     return res;
 }
@@ -334,8 +330,7 @@ static RefPreprocessParams resize_to_network_width_height() {
                                    3., 4., 6., 7.,
                                    2., 3., 5., 6.};
     // clang-format on
-//    res.inputs.emplace_back(element::f32, Shape{1, 1, 5, 5}, input);
-    res.inputs.emplace_back(Shape{1, 1, 5, 5}, element::f32, input);
+    res.inputs.emplace_back(element::f32, Shape{1, 1, 5, 5}, input);
     res.expected.emplace_back(Shape{1, 1, 4, 4}, element::f32, expected);
     return res;
 }
@@ -365,8 +360,7 @@ static RefPreprocessParams resize_to_specified_width_height() {
                                    3., 4., 6., 7.,
                                    2., 3., 5., 6.};
     // clang-format on
-//    res.inputs.emplace_back(element::f32, Shape{1, 1, 5, 5}, input);
-    res.inputs.emplace_back(Shape{1, 1, 5, 5}, element::f32, input);
+    res.inputs.emplace_back(element::f32, Shape{1, 1, 5, 5}, input);
     res.expected.emplace_back(Shape{1, 1, 4, 4}, element::f32, expected);
     return res;
 }
@@ -393,13 +387,7 @@ static RefPreprocessParams resize_lvalues() {
         return f;
     };
     // clang-format off
-//    res.inputs.emplace_back(element::f32, Shape{1, 1, 1, 18}, std::vector<float>{0., 0., 0.,
-//                                                                                 1., 1., 1.,
-//                                                                                 2., 2., 2.,
-//                                                                                 3., 3., 3.,
-//                                                                                 4., 4., 4.,
-//                                                                                 5., 5., 5.});
-    res.inputs.emplace_back(Shape{1, 1, 1, 18}, element::f32, std::vector<float>{0., 0., 0.,
+    res.inputs.emplace_back(element::f32, Shape{1, 1, 1, 18}, std::vector<float>{0., 0., 0.,
                                                                                  1., 1., 1.,
                                                                                  2., 2., 2.,
                                                                                  3., 3., 3.,

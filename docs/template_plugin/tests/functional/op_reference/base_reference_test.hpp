@@ -43,7 +43,9 @@ protected:
 };
 
 template <class T>
-ov::runtime::Tensor CreateBlob(const ov::element::Type& element_type, const std::vector<T>& values, size_t size = 0) {
+ov::runtime::Tensor CreateBlob(const ov::element::Type& element_type,
+                               const std::vector<T>& values,
+                               size_t size = 0) {
     size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
     ov::runtime::Tensor tensor { element_type, {real_size} };
     std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
@@ -51,22 +53,15 @@ ov::runtime::Tensor CreateBlob(const ov::element::Type& element_type, const std:
     return tensor;
 }
 
+// Create blob with correct input shape (not 1-dimensional). Will be used in tests with dynamic input shapes
 template <class T>
-InferenceEngine::Blob::Ptr CreateBlob(const ov::PartialShape& partial_shape,
-                                      const ngraph::element::Type& element_type,
-                                      const std::vector<T>& values) {
-    auto shape = partial_shape.get_shape();
-    auto blob = make_blob_with_precision(
-            InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(element_type), shape,
-                                        InferenceEngine::Layout::ANY));
-    blob->allocate();
-    InferenceEngine::MemoryBlob::Ptr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-    IE_ASSERT(minput);
-    auto minputHolder = minput->wmap();
+ov::runtime::Tensor CreateBlob(const ov::Shape& shape,
+                               const ov::element::Type& element_type,
+                               const std::vector<T>& values) {
+    ov::runtime::Tensor tensor { element_type, shape };
+    std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
 
-    std::memcpy(minputHolder.as<void*>(), values.data(), sizeof(T) * values.size());
-
-    return blob;
+    return tensor;
 }
 
 ///
@@ -81,10 +76,10 @@ struct Tensor {
     Tensor(const ov::Shape& shape, ov::element::Type type, const std::vector<T>& data_elements)
         : Tensor {shape, type, CreateBlob(type, data_elements)} {}
 
-//    // Use this constructor of dynamic network inputs
-//    template <typename T>
-//    Tensor(ngraph::element::Type type, const ngraph::Shape& shape, const std::vector<T>& data_elements)
-//            : Tensor {shape, type, CreateBlob(shape, type, data_elements)} {}
+    // Temporary constructor to create blob with passed input shape (not 1-dimensional)
+    template <typename T>
+    Tensor(ov::element::Type type, const ov::Shape& shape, const std::vector<T>& data_elements)
+            : Tensor {shape, type, CreateBlob(shape, type, data_elements)} {}
 
     ov::Shape shape;
     ov::element::Type type;
