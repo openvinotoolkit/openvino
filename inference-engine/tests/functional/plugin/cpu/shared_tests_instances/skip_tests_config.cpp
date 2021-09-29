@@ -67,10 +67,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
 
-        // TODO: 55656 AUTO plugin and QueryNetwork
-        R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
-        // Unsupported config KEY_ENFORCE_BF16 for AUTO plugin
-        R"(.*Behavior_Auto.*InferRequestSetBlobByType.*)",
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
         // need to implement Export / Import
