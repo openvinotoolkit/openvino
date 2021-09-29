@@ -133,10 +133,6 @@ std::shared_ptr<const Function> ExecutableNetwork::get_runtime_function() const 
     OV_EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Function>(_impl->GetExecGraphInfo()));
 }
 
-ConstParameterVector ExecutableNetwork::get_parameters() const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->getParameters());
-}
-
 std::vector<ov::Output<const ov::Node>> ExecutableNetwork::inputs() const {
     std::vector<ov::Output<const ov::Node>> inputs;
     for (const auto& input : _impl->getParameters()) {
@@ -167,9 +163,6 @@ ov::Output<const ov::Node> ExecutableNetwork::input(const std::string& tensor_na
     throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
 }
 
-ConstResultVector ExecutableNetwork::get_results() const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->getResults());
-}
 std::vector<ov::Output<const ov::Node>> ExecutableNetwork::outputs() const {
     std::vector<ov::Output<const ov::Node>> outputs;
     for (const auto& input : _impl->getResults()) {

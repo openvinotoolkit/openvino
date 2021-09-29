@@ -75,7 +75,6 @@ class Node;
 using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 
 using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
-using ConstResultVector = std::vector<std::shared_ptr<const ov::op::v0::Result>>;
 
 OPENVINO_API
 std::string node_validation_failure_loc_string(const Node* node);

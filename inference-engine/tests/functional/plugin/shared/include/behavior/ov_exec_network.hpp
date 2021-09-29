@@ -125,16 +125,16 @@ TEST_P(OVExecNetwork, precisionsAsInOriginalFunction) {
     ov::runtime::ExecutableNetwork execNet;
     ASSERT_NO_THROW(execNet = ie->compile_model(function, targetDevice, configuration));
 
-    EXPECT_EQ(function->get_parameters().size(), execNet.get_parameters().size());
+    EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
     auto ref_parameter = function->get_parameters().back();
-    auto actual_parameter = execNet.get_parameters().back();
+    auto actual_parameter = execNet.inputs().back().get_node_shared_ptr();
     EXPECT_EQ(ref_parameter->get_element_type(), actual_parameter->get_element_type());
     EXPECT_EQ(ref_parameter->get_shape(), actual_parameter->get_shape());
     EXPECT_EQ(ref_parameter->get_friendly_name(), actual_parameter->get_friendly_name());
 
-    EXPECT_EQ(function->get_results().size(), execNet.get_results().size());
+    EXPECT_EQ(function->get_results().size(), execNet.outputs().size());
     auto ref_result = function->get_results().back();
-    auto actual_result = execNet.get_results().back();
+    auto actual_result = execNet.outputs().back().get_node_shared_ptr();
     EXPECT_EQ(ref_result->get_element_type(), actual_result->get_element_type());
     EXPECT_EQ(ref_result->get_shape(), actual_result->get_shape());
     EXPECT_EQ(ref_result->get_friendly_name(), actual_result->get_friendly_name());
@@ -152,17 +152,17 @@ TEST_P(OVExecNetwork, precisionsAsInOriginalIR) {
     ov::runtime::ExecutableNetwork execNet;
     ASSERT_NO_THROW(execNet = ie->compile_model(m_out_xml_path_1, targetDevice, configuration));
 
-    EXPECT_EQ(function->get_parameters().size(), execNet.get_parameters().size());
+    EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
     auto ref_parameter = function->get_parameters().back();
-    auto actual_parameter = execNet.get_parameters().back();
+    auto actual_parameter = execNet.inputs().back().get_node_shared_ptr();
     EXPECT_EQ(elementType, ref_parameter->get_element_type());
     EXPECT_EQ(ref_parameter->get_element_type(), actual_parameter->get_element_type());
     EXPECT_EQ(ref_parameter->get_shape(), actual_parameter->get_shape());
     EXPECT_EQ(ref_parameter->get_friendly_name(), actual_parameter->get_friendly_name());
 
-    EXPECT_EQ(function->get_results().size(), execNet.get_results().size());
+    EXPECT_EQ(function->get_results().size(), execNet.outputs().size());
     auto ref_result = function->get_results().back();
-    auto actual_result = execNet.get_results().back();
+    auto actual_result = execNet.outputs().back().get_node_shared_ptr();
     EXPECT_EQ(ref_result->get_element_type(), actual_result->get_element_type());
     EXPECT_EQ(ref_result->get_shape(), actual_result->get_shape());
     EXPECT_EQ(ref_result->get_friendly_name(), actual_result->get_friendly_name());
