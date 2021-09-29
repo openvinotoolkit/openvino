@@ -3769,7 +3769,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_POOLING,
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
-
     auto& engine = get_onednn_test_engine();
     layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
     layout out_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 1, 1 } };
