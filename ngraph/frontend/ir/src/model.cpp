@@ -260,9 +260,7 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> Xml
     const std::string& body_name,
     const std::string& port_map_name) {
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> inputs;
-    auto body_node = node.child(body_name.c_str());
-
-    const auto up_io_map = updated_io_map(node, body_node);
+    const auto & up_io_map = updated_io_map(node, node.child(body_name.c_str()));
 
     // Parse PortMap: external_port_id for inputs does not always appear in consecutive order
     std::map<uint64_t, pugi::xml_node> input_map;
@@ -335,8 +333,7 @@ XmlDeserializer::parseOutputDescription(const pugi::xml_node& node,
                                         const std::string& body_name,
                                         const std::string& port_map_name) {
     std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>> outputs;
-    auto body_node = node.child(body_name.c_str());
-    const auto up_io_map = updated_io_map(node, body_node);
+    const auto & up_io_map = updated_io_map(node, node.child(body_name.c_str()));
 
     // Parse PortMap: outputs
     std::map<int64_t, pugi::xml_node> output_map;
@@ -390,8 +387,7 @@ XmlDeserializer::parseOutputDescription(const pugi::xml_node& node,
 
 ngraph::op::v5::Loop::SpecialBodyPorts XmlDeserializer::parsePurposeAttribute(const pugi::xml_node& node) {
     ngraph::op::v5::Loop::SpecialBodyPorts result = {-1, -1};
-    auto body_node = node.child("body");
-    const auto up_io_map = updated_io_map(node, body_node);
+    const auto & up_io_map = updated_io_map(node, node.child("body"));
 
     NGRAPH_CHECK(!up_io_map.inputs.empty() || !up_io_map.outputs.empty(),
                  "No parameters or results found in body Function.");
