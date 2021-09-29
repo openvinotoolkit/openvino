@@ -10,26 +10,21 @@
 #include <string>
 #include <vector>
 
-#include "int_backend_visibility.hpp"
-
 #include "backend.hpp"
 #include "backend_manager.hpp"
+#include "int_backend_visibility.hpp"
 #include "ngraph/runtime/tensor.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace interpreter
-        {
-            class INTBackend;
-            class INTExecutable;
-        }
-    }
-}
+namespace ngraph {
+namespace runtime {
+namespace interpreter {
+class INTBackend;
+class INTExecutable;
+}  // namespace interpreter
+}  // namespace runtime
+}  // namespace ngraph
 
-class INTERPRETER_BACKEND_API ngraph::runtime::interpreter::INTBackend : public Backend
-{
+class INTERPRETER_BACKEND_API ngraph::runtime::interpreter::INTBackend : public Backend {
 public:
     INTBackend();
     INTBackend(const std::vector<std::string>& unsupported_op_name_list);
@@ -39,12 +34,10 @@ public:
 
     std::shared_ptr<Tensor> create_tensor() override;
 
-    std::shared_ptr<Tensor>
-        create_tensor(const element::Type& type, const Shape& shape, void* memory_pointer) override;
+    std::shared_ptr<Tensor> create_tensor(const element::Type& type, const Shape& shape, void* memory_pointer) override;
 
     std::shared_ptr<Tensor> create_tensor(const element::Type& type, const Shape& shape) override;
-    std::shared_ptr<Tensor> create_dynamic_tensor(const element::Type& type,
-                                                  const PartialShape& shape) override;
+    std::shared_ptr<Tensor> create_dynamic_tensor(const element::Type& type, const PartialShape& shape) override;
 
     std::shared_ptr<Executable> compile(std::shared_ptr<Function> function,
                                         bool enable_performance_data = false) override;
