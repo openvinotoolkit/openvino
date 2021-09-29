@@ -920,7 +920,7 @@ void MKLDNNConvolutionNode::prepareParams() {
 
     auto inMemoryDesc = getParentEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
     auto weightMemoryDesc = getParentEdgesAtPort(1).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
-    auto outMemoryDesc =  getChildEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    auto outMemoryDesc = getChildEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
 
     std::shared_ptr<mkldnn::convolution_forward::desc> dnnlConvDesc;
     auto alg = isWinograd() ? mkldnn::algorithm::convolution_winograd : mkldnn::algorithm::convolution_direct;
@@ -928,12 +928,7 @@ void MKLDNNConvolutionNode::prepareParams() {
     if (withBiases) {
         auto biasMemoryDesc = getParentEdgesAtPort(2).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
         // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
-        mkldnn::memory::desc dnnlBiasDesc;
-        if (biasMemoryDesc->getShape().getRank() == 1) {
-            dnnlBiasDesc = biasMemoryDesc->getDnnlDesc();
-        } else {
-            dnnlBiasDesc = biasMemoryDesc->getDnnlDesc().reshape({biasMemoryDesc->getDnnlDesc().dims()[1]});
-        }
+        mkldnn::memory::desc dnnlBiasDesc = biasMemoryDesc->getDnnlDesc().reshape(MKLDNNExtensionUtils::convertToDnnlDims(biasesDims));
         dnnlConvDesc = createDescriptorInternal(inMemoryDesc->getDnnlDesc(),
                                                 weightMemoryDesc->getDnnlDesc(),
                                                 dnnlBiasDesc,
