@@ -13,6 +13,7 @@
 #include <random>
 #include <vector>
 
+#include "backend.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/log.hpp"
@@ -21,7 +22,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type_traits.hpp"
-#include "runtime/backend.hpp"
 
 namespace ngraph {
 class TestOpMultiOut : public op::Op {
