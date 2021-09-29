@@ -58,6 +58,7 @@ Standard MXNet\* symbols:
 | _contrib_box_nms | No |
 | _contrib_DeformableConvolution | No |
 | _contrib_DeformablePSROIPooling | No |
+| _contrib_div_sqrt_dim | No |
 | _contrib_MultiBoxDetection | "force_suppress" = 1 is not supported, non-default variances are not supported |
 | _contrib_MultiBoxPrior | No |
 | _contrib_Proposal | No |
@@ -79,6 +80,7 @@ Standard MXNet\* symbols:
 | arccosh | No |
 | arcsinh | No |
 | arctanh | No |
+| batch_dot | No |
 | broadcast_add | No |
 | broadcast_div | No |
 | broadcast_mul | No |
@@ -96,6 +98,7 @@ Standard MXNet\* symbols:
 | max | No |
 | minus_scalar | No |
 | null | Not needed for inference |
+| LayerNorm | No |
 | repeat | No |
 | rnn | No |
 | rnn_param_concat | No |
