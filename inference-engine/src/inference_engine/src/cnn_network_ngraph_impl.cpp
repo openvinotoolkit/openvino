@@ -47,8 +47,10 @@ using ngraph::Function;
 void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output,
                                                const std::string& outName,
                                                DataPtr& ptr) {
-    const auto isCompatible = [](size_t size, const Layout& l) -> bool {
+    const auto isCompatible = [](int size, const Layout& l) -> bool {
         switch (size) {
+        case -1:
+            return l == Layout::BLOCKED;
         case 0:
             return l == Layout::SCALAR;
         case 1:
@@ -66,20 +68,20 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
         }
     };
     auto shape = output.get_partial_shape();
-    auto rank = shape.rank().is_static() ? shape.rank().get_length() : 0;
+    auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
     for (const auto& dim : shape) {
         if (dim.is_static() && dim.get_length() == 0)
             IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
+    const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
-        const auto layout = isCompatible(rank, origLayout) ? origLayout : TensorDesc::getLayoutByRank(rank);
+        const auto layout = isCompatible(rank, origLayout) ? origLayout : rankLayout;
         ptr->reshape(shape, layout);
     } else {
-        const auto layout = TensorDesc::getLayoutByRank(rank);
         const auto precision = details::convertPrecision(output.get_element_type());
-        ptr.reset(new Data(outName, precision, shape, layout));
+        ptr.reset(new Data(outName, precision, shape, rankLayout));
     }
 }
 

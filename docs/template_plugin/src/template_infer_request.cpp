@@ -16,6 +16,8 @@
 
 #include "blob_factory.hpp"
 #include "ie_ngraph_utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "template_executable_network.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
@@ -74,21 +76,21 @@ static void AllocateImplSingle(BlobMap& blobMap,
                                const SizeVector& dims) {
     const auto& precision = blobData.second->getTensorDesc().getPrecision();
     auto layout = blobData.second->getTensorDesc().getLayout();
-    if (dims.size() > 0 && layout == InferenceEngine::Layout::SCALAR) {
-        layout = InferenceEngine::Layout::ANY;
-    }
     const auto deviceLayout = TensorDesc::getLayoutByDims(dims);
-    Blob::Ptr blob;
-    blob = make_blob_with_precision({precision, dims, layout});
-    blob->allocate();
-    blobMap[blobData.first] = blob;
+    Blob::Ptr& blob = blobMap[blobData.first];
+    if (!blob) {
+        blob = make_blob_with_precision({precision, dims, layout});
+        blob->allocate();
+    } else {
+        blob->setShape(dims);
+    }
 
-    auto networkPresion = InferenceEngine::details::convertPrecision(GetNetworkPrecision(blobData.first));
+    auto networkPrecision = InferenceEngine::details::convertPrecision(GetNetworkPrecision(blobData.first));
     Blob::Ptr networkBlob;
-    if (precision == networkPresion && layout == deviceLayout) {
+    if (precision == networkPrecision && layout == deviceLayout) {
         networkBlob = blob;
     } else {
-        networkBlob = make_blob_with_precision({networkPresion, dims, deviceLayout});
+        networkBlob = make_blob_with_precision({networkPrecision, dims, deviceLayout});
         networkBlob->allocate();
     }
     networkBlobMap[blobData.first] = networkBlob;
@@ -313,7 +315,6 @@ void TemplateInferRequest::inferPostprocess() {
         const auto& result = _executableNetwork->_function->get_results()[index];
         if (result->get_output_partial_shape(0).is_dynamic()) {
             // Touch blob to allocate it
-            Blob::Ptr blob;
             GetBlob(output.first);
         }
         auto outputBlob = _outputs.at(output.first);
@@ -373,21 +374,17 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
         SizeVector dims;
         if (!foundOutput->isDynamic()) {
             dims = foundOutput->getTensorDesc().getDims();
-        } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
+        } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)] &&
+                   _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
             dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
+        } else if (foundOutput->isDynamic()) {
+            dims = {0};
         } else {
             IE_THROW() << "Output blob dimensions are not all known for output name " << name
                        << " with partial shape: " << foundOutput->getPartialShape();
         }
 
-        if (data) {
-            if (data->getTensorDesc().getDims() != dims) {
-                // TODO: implement something smart here instead of raw re-allocation
-                data.reset();
-            }
-        }
-
-        if (!data) {
+        if (data && data->getTensorDesc().getDims() != dims) {
             auto&& results = _executableNetwork->_function->get_results();
             AllocateImplSingle(
                 _outputs,
@@ -417,7 +414,7 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
     const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
     if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
-    if (userBlob->size() == 0) {
+    if (userBlob->size() == 0 && userBlob->getTensorDesc().getDims().size() == 0) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
 

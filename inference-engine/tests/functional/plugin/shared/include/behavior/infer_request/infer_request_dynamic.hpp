@@ -14,6 +14,7 @@
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "ie_extension.h"
 #include <condition_variable>
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -161,6 +162,30 @@ TEST_P(InferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     ASSERT_EQ(tensor.get_shape(), refOutShape);
 }
 
+TEST_P(InferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
+    const std::string tensor_name = "Tensor_1";
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = ov::PartialShape::dynamic();
+    ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor;
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
+    //ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->get_parameters().back()->get_friendly_name()));
+    ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
+    ASSERT_EQ(tensor.get_shape(), refShape);
+    ASSERT_NO_THROW(req.infer());
+    ASSERT_NO_THROW(req.start_async());
+    req.wait();
+    ASSERT_NO_THROW(tensor = req.get_tensor(ngraph::op::util::create_ie_output_name(function->get_results().front()->input_value(0))));
+    ASSERT_EQ(tensor.get_shape(), refOutShape);
+}
+
 TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorLower) {
     const std::string tensor_name = "Tensor_1";
     const ov::Shape refShape = inOutShapes[0].first;
@@ -259,6 +284,28 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetTensor) {
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Function to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor(ov::element::f32, refShape);
+    ASSERT_NO_THROW(req = execNet.create_infer_request());
+    ASSERT_NO_THROW(req.set_tensor(function->get_parameters().back()->get_friendly_name(), tensor));
+    ASSERT_EQ(tensor.get_shape(), refShape);
+    ASSERT_NO_THROW(req.infer());
+    ASSERT_NO_THROW(req.start_async());
+    ASSERT_NO_THROW(req.wait());
+    ASSERT_NO_THROW(tensor = req.get_tensor(ngraph::op::util::create_ie_output_name(function->get_results().front()->input_value(0))));
+    ASSERT_EQ(tensor.get_shape(), refOutShape);
+}
+
+TEST_P(InferRequestDynamicTests, InferFullyDynamicNetworkWithSetTensor) {
+    const std::string tensor_name = "Tensor_1";
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = ov::PartialShape::dynamic();
     ASSERT_NO_THROW(function->reshape(shapes));
     // Load ov::Function to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
