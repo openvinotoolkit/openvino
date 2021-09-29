@@ -73,8 +73,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior_Auto.*InferRequestSetBlobByType.*)",
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
-        // need to implement Export / Import
-        R"(.*IEClassImportExportTestP.*)",
         // CVS-58963: Not implemented yet
         R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
         // Not expected behavior
