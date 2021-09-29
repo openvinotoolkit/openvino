@@ -203,7 +203,7 @@ bool squeezes_perform_the_same(std::shared_ptr<ngraph::opset5::Squeeze> lhs,
 bool ngraph::pass::SharedSqueeze::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // TODO: enable conditional compile
     // RUN_ON_FUNCTION_SCOPE(SharedSqueeze);
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::SharedSqueeze");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "ngraph::pass::SharedSqueeze");
 
     bool graph_rewritten = false;
 
