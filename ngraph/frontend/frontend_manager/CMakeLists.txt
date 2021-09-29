@@ -18,7 +18,7 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME}_static STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME}_static)
-target_link_libraries(${TARGET_NAME}_static PRIVATE ${CMAKE_DL_LIBS} PUBLIC ngraph)
+target_link_libraries(${TARGET_NAME}_static PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC ngraph)
 target_include_directories(${TARGET_NAME}_static PUBLIC ${FRONTEND_INCLUDE_DIR})
 target_include_directories(${TARGET_NAME}_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_definitions(${TARGET_NAME}_static PUBLIC USE_STATIC_FRONTEND_MANAGER)
@@ -34,7 +34,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
         $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} PUBLIC ngraph)
+target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC ngraph)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 

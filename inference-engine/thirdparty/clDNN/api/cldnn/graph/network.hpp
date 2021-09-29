@@ -145,6 +145,7 @@ public:
     std::vector<primitive_id> get_all_primitive_org_ids() const;
     const program::primitives_info& get_primitives_info() const;
     const program::graph_optimizer_info& get_optimizer_passes_info() const;
+    std::map<primitive_id, primitive_id> get_ext_id_mapping() const;
     void execute_impl(const std::vector<event::ptr>& events);
 
     /// @brief Executes network and returns the list of @ref network_output.

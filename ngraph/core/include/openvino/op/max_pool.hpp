@@ -14,7 +14,8 @@ namespace v1 {
 /// \brief Batched max pooling operation.
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("MaxPool", "opset1", op::util::MaxPoolBase, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched max pooling operation.
     MaxPool() = default;
@@ -59,7 +60,7 @@ namespace v8 {
 /// \brief MaxPooling operation with values and indices calculated as individual outputs
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("MaxPool", "opset8", op::util::MaxPoolBase);
 
     /// \brief Constructs an empty MaxPool operation.
     MaxPool() = default;

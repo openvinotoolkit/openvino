@@ -65,8 +65,9 @@ struct detection_output : public primitive_base<detection_output> {
                      const bool decrease_label_id = false,
                      const bool clip_before_nms = false,
                      const bool clip_after_nms = false,
+                     const primitive_id& ext_prim_id = "",
                      const padding& output_padding = padding())
-        : primitive_base(id, {input_location, input_confidence, input_prior_box}, output_padding),
+        : primitive_base(id, {input_location, input_confidence, input_prior_box}, ext_prim_id, output_padding),
           num_classes(num_classes),
           keep_top_k(keep_top_k),
           share_location(share_location),

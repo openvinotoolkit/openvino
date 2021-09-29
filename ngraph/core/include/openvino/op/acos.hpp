@@ -15,7 +15,8 @@ namespace v0 {
 ///
 class OPENVINO_API Acos : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Acos", "opset1", util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an arccos operation.
     Acos() = default;
     /// \brief Constructs an arccos operation.

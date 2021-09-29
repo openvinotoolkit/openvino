@@ -290,7 +290,7 @@ TEST(reorder_gpu_f32, basic) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx,{ 2,2,2,2 });
+    layout output_layout(data_types::f32, format::bfyx,{ 2, 2, 2, 2 });
 
     set_values(input, {
         1.f, 0.f,
@@ -375,7 +375,7 @@ TEST(reorder_gpu_f32, basic_subtract) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32,  format::yxfb, { 2, 2, 2, 2 } });
-    layout output_layout( data_types::f32, format::bfyx, {2,2,2,2} );
+    layout output_layout( data_types::f32, format::bfyx, { 2, 2, 2, 2 } );
     auto subtract = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 2, 2, 2 } });
 
     set_values(input, {
@@ -464,7 +464,7 @@ TEST(reorder_gpu_f32, basic_subtract_value) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx,{ 2,2,2,2 });
+    layout output_layout(data_types::f32, format::bfyx,{ 2, 2, 2, 2 });
     std::vector<float> subtract_val = { 0.5, 2.5 };
 
     set_values(input, {
@@ -555,7 +555,7 @@ TEST(reorder_gpu_f16, basic_subtract_f32_output_f32) {
     }
 
     auto input = engine.allocate_memory({ data_types::f16, format::yxfb, { 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx,{ 2,2,2,2 });
+    layout output_layout(data_types::f32, format::bfyx,{ 2, 2, 2, 2 });
     auto subtract = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 2, 2, 2 } });
 
     set_values(input, {
@@ -649,7 +649,7 @@ TEST(reorder_gpu_f16, basic_subtract_value) {
     }
 
     auto input = engine.allocate_memory({ data_types::f16, format::yxfb, { 2, 2, 2, 2 } });
-    layout output_layout(data_types::f16, format::bfyx,{ 2,2,2,2 });
+    layout output_layout(data_types::f16, format::bfyx,{ 2, 2, 2, 2 });
     std::vector<float> subtract_val = { 0.5, 2.5 };
 
     set_values(input, {
@@ -789,8 +789,8 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
 TEST(reorder_gpu, basic_convert_int8) {
 
     auto& engine = get_test_engine();
-    layout in_layout = { type_to_data_type<float>::value,format::byxf,{ 1,1,3,3 } };
-    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx,{ 1,1,3,3 } };
+    layout in_layout = { type_to_data_type<float>::value,format::byxf,{ 1, 1, 3, 3 } };
+    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx,{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, -3.0f, 3.0f, -4.0f, 5.0f, -7.0f, 7.0f, -8.0f, 9.0f };
 
@@ -835,74 +835,75 @@ TEST(reorder_gpu, basic_convert_int8) {
 }
 
 TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
-	//  Converts an ARGB(uint8) image to common clDNN input of bfyx FP32
-	//
-	//  Input               : 1x5x5x4 (UINT8)
-	//  Intermediate        : 1x4x5x5 (FP32) {different mem format and ordering}
-	//  Output              : 1x3x5x5 (FP32) {using crop layer to reduce feature dimention and drop A from RGBA}
-	//
-	//  Output is expected to contain the same value as input
-	//
-	const int kernel_size = 5;
-	const int feature_size = 4;
-	auto& engine = get_test_engine();
+    //  Converts an ARGB(uint8) image to common clDNN input of bfyx FP32
+    //
+    //  Input               : 1x5x5x4 (UINT8)
+    //  Intermediate        : 1x4x5x5 (FP32) {different mem format and ordering}
+    //  Output              : 1x3x5x5 (FP32) {using crop layer to reduce feature dimention and drop A from RGBA}
+    //
+    //  Output is expected to contain the same value as input
+    //
+    const int kernel_size = 5;
+    const int feature_size = 4;
+    auto& engine = get_test_engine();
 
-	if (!engine.get_device_info().supports_fp16)
-	{
-		std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-		EXPECT_EQ(1, 1);
-		return;
-	}
+    if (!engine.get_device_info().supports_fp16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
 
-	std::initializer_list<uint8_t> input_i8 = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-		55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36,
-		101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120,
-		155, 154, 153, 152, 151, 150, 149, 148, 147, 146, 145, 144, 143, 142, 141, 140, 139, 138, 137, 136,
-		255, 254, 253, 252, 251, 250, 249, 248, 247, 246, 245, 244, 243, 242, 241, 240, 239, 238, 237, 236
-	};
+    std::initializer_list<uint8_t> input_i8 = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+        55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36,
+        101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120,
+        155, 154, 153, 152, 151, 150, 149, 148, 147, 146, 145, 144, 143, 142, 141, 140, 139, 138, 137, 136,
+        255, 254, 253, 252, 251, 250, 249, 248, 247, 246, 245, 244, 243, 242, 241, 240, 239, 238, 237, 236
+    };
 
-	layout in_layout = { type_to_data_type<uint8_t>::value,format::byxf,{ 1,4,kernel_size,kernel_size } };
-	layout output_layout = { type_to_data_type<float>::value, format::bfyx, {1,4,kernel_size,kernel_size } };
+    layout in_layout = { type_to_data_type<uint8_t>::value,format::byxf,{ 1, 4, kernel_size,kernel_size } };
+    layout output_layout = { type_to_data_type<float>::value, format::bfyx, { 1, 4, kernel_size,kernel_size } };
 
-	// Allocate memory for input image.
-	auto input_memory = engine.allocate_memory(in_layout);
-	set_values(input_memory, input_i8);
+    // Allocate memory for input image.
+    auto input_memory = engine.allocate_memory(in_layout);
+    set_values(input_memory, input_i8);
 
     // Create input_layout description
-	// "input" - is the primitive id inside topology
-	input_layout input("input", in_layout);
+    // "input" - is the primitive id inside topology
+    input_layout input("input", in_layout);
 
-	// Create topology object with 2 primitives
-	topology topology(
-		// 1. input layout primitive.
-		input,
-		// 2. reorder primitive with id "reorder_input"
-		reorder("reorder_input",
-			// input primitive for reorder (implicitly converted to primitive_id)
-			input,
-			// output layout for reorder
-			output_layout)
-	);
+    // Create topology object with 2 primitives
+    topology topology(
+        // 1. input layout primitive.
+        input,
+        // 2. reorder primitive with id "reorder_input"
+        reorder("reorder_input",
+            // input primitive for reorder (implicitly converted to primitive_id)
+            input,
+            // output layout for reorder
+            output_layout)
+    );
 
-	tensor crop_reference_input_tensor(spatial(kernel_size, kernel_size), batch(1), feature(4 - 1));
-	tensor crop_offset_tensor(spatial(0, 0), batch(0), feature(0));
-	padding output_padding = padding({ 0,0,0,0 }, { 0,0,0,0 }, 0);
-	topology.add(
-		// cropping primitive with id "crop1"
-		crop("crop",
-			"reorder_input",    // primitive id of the cropping input
-			crop_reference_input_tensor,  // input tensor
-			crop_offset_tensor,    // bias primitive id
-			output_padding
-		)
-	);
+    tensor crop_reference_input_tensor(spatial(kernel_size, kernel_size), batch(1), feature(4 - 1));
+    tensor crop_offset_tensor(spatial(0, 0), batch(0), feature(0));
+    padding output_padding = padding({ 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0);
+    topology.add(
+        // cropping primitive with id "crop1"
+        crop("crop",
+             "reorder_input",               // primitive id of the cropping input
+             crop_reference_input_tensor,   // input tensor
+             crop_offset_tensor,            // bias primitive id
+             "",
+             output_padding
+            )
+    );
 
-	network network(
-		engine,
-		topology,
+    network network(
+        engine,
+        topology,
         build_options{
-			build_option::outputs({ "reorder_input", "crop" })
-		});
+            build_option::outputs({ "reorder_input", "crop" })
+        });
 
     network.set_input_data("input", input_memory);
 
@@ -979,7 +980,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfyx_input_padding)
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx, { 2,2,2,2 });
+    layout output_layout(data_types::f32, format::bfyx, { 2, 2, 2, 2 });
 
     set_values(input, {
         1.f, 0.f,
@@ -997,7 +998,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfyx_input_padding)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 1, 2 }, 0 }),
+        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, "", padding{ { 0, 0, 1, 2 }, 0 }),
         reorder("reorder2", "reorder", output_layout));
 
     network network(engine, topology);
@@ -1058,7 +1059,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_yxfb_input_padding)
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::yxfb, { 2,2,2,2 });
+    layout output_layout(data_types::f32, format::yxfb, { 2, 2, 2, 2 });
 
     set_values(input, {
         1.0f,  2.0f,
@@ -1076,7 +1077,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_yxfb_input_padding)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 2, 1 }, 0 }),
+        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, "", padding{ { 0, 0, 2, 1 }, 0 }),
         reorder("reorder2", "reorder", output_layout));
 
     network network(engine, topology);
@@ -1357,12 +1358,12 @@ TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
 
     memory::ptr in = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 1 } });
     set_values(in, { -1.0f, -1.0f });
-    memory::ptr scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1, 1, 1, 1 } });
+    memory::ptr scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
     set_values(scale_mem, { 2.0f });
     topology tpl{
         input_layout("in", in->get_layout()),
         reorder("r1", "in", format::bfyx, data_types::f32),
-        activation("relu", "r1", activation_func::relu_negative_slope, {0.01f, 0.0f}),
+        activation("relu", "r1", activation_func::relu_negative_slope, { 0.01f, 0.0f }),
         data("scale_data", scale_mem),
         scale("output", "relu", "scale_data")
     };
@@ -1467,7 +1468,7 @@ TEST(reorder_gpu_opt, mean_mul)
     auto& engine = get_test_engine();
 
     memory::ptr in  = engine.allocate_memory({ data_types::i8, format::bfyx, tensor{ 1, 3, 1, 2 } });
-    memory::ptr mul = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{1, 3, 1, 2 } });
+    memory::ptr mul = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 3, 1, 2 } });
 
     set_values<char>(in,
     { 1, 2,
@@ -1598,7 +1599,7 @@ TEST(reorder_gpu_i32, basic)
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::i32, format::bfyx, { 2,2,2,2 });
+    layout output_layout(data_types::i32, format::bfyx, { 2, 2, 2, 2 });
 
     set_values(input, {
         1.f, 0.f, 5.f, 1.5f,
@@ -1639,7 +1640,7 @@ TEST(reorder_gpu_i64, basic)
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::i64, format::bfyx, { 2,2,2,2 });
+    layout output_layout(data_types::i64, format::bfyx, { 2, 2, 2, 2 });
 
     set_values(input, {
         1.f, 0.f, 5.f, 1.5f,
@@ -1910,11 +1911,11 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16)
             for (int32_t z = 0; z < z_in; z++) {
                 for (int32_t y = 0; y < y_in; y++) {
                     for (int32_t x = 0; x < x_in; x++) {
-                        int32_t bsv16_fsv16_index = get_bsv16_fsv16_index(b_in,f_in,z_in,y_in,x_in,b,
-                                                                          0,f,0,
-                                                                          0,z,0,
-                                                                          0,y,0,
-                                                                          0,x,0);
+                        int32_t bsv16_fsv16_index = get_bsv16_fsv16_index(b_in, f_in, z_in, y_in, x_in, b,
+                                                                          0, f, 0,
+                                                                          0, z, 0,
+                                                                          0, y, 0,
+                                                                          0, x, 0);
                         EXPECT_FLOAT_EQ(input_ptr[linear_index++], output_ptr[bsv16_fsv16_index]);
                     }
                 }
@@ -1937,14 +1938,14 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
     const int32_t y_pad= 2;
     const int32_t x_pad= 1;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { b_in,f_in,x_in,y_in,z_in } });
-    layout output_layout(data_types::f32, format::bs_fs_zyx_bsv16_fsv16,{ b_in,f_in,x_in,y_in,z_in });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { b_in, f_in, x_in, y_in, z_in } });
+    layout output_layout(data_types::f32, format::bs_fs_zyx_bsv16_fsv16, { b_in, f_in, x_in, y_in, z_in });
 
     tests::set_random_values<float>(input);
 
     topology topology(
             input_layout("input", input->get_layout()),
-            reorder("reorder", "input", output_layout.with_padding(padding({0, 0, x_pad, y_pad, 0}, 0.f))));
+            reorder("reorder", "input", output_layout.with_padding(padding({ 0, 0, x_pad, y_pad, 0 }, 0.f))));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1992,11 +1993,11 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
             for (int32_t z = 0; z < z_in; z++) {
                 for (int32_t y = 0; y < y_in; y++) {
                     for (int32_t x = 0; x < x_in; x++) {
-                        int32_t bsv16_fsv16_index = get_bsv16_fsv16_index(b_in,f_in,z_in,y_in,x_in,b,
-                                                                          f_pad,f,f_pad,
-                                                                          z_pad,z,z_pad,
-                                                                          y_pad,y,y_pad,
-                                                                          x_pad,x,x_pad);
+                        int32_t bsv16_fsv16_index = get_bsv16_fsv16_index(b_in, f_in, z_in, y_in, x_in, b,
+                                                                          f_pad, f, f_pad,
+                                                                          z_pad, z, z_pad,
+                                                                          y_pad, y, y_pad,
+                                                                          x_pad, x, x_pad);
                         EXPECT_FLOAT_EQ(input_ptr[linear_index++], output_ptr[bsv16_fsv16_index]);
                     }
                 }
@@ -2066,7 +2067,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_not_allowed)
             input_layout("input", input->get_layout()),
             data("weights", weights),
             reorder(reorder_name, "input", format::bfyx, data_types::f32),
-            convolution("convolution", reorder_name, {"weights"}, {1,1,1,1}, {0,0,-1,-1}, {1,1,1,1}));
+            convolution("convolution", reorder_name, {"weights"}, { 1, 1, 1, 1 }, { 0, 0, -1, -1 }, { 1, 1, 1, 1 }));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -2099,7 +2100,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_padded)
     auto input = engine.allocate_memory({ data_types::f32,
                                             format::b_fs_yx_fsv16,
                                             { 2, 4, 1, 1 },
-                                            padding({1, 16, 0, 0}, {1, 0, 0, 0}) });
+                                            padding({ 1, 16, 0, 0 }, { 1, 0, 0, 0 }) });
 
     std::vector<float> in_data = {
         // b -1 (lower pad)
@@ -2393,3 +2394,57 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_REORDER,
                         reorder_test,
                         ::testing::ValuesIn(reorder_test::generate_specific_test_params()),
                         tests::generic_test::custom_param_name_functor());
+
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(reorder_onednn_gpu, basic_convert_int8) {
+
+    auto& engine = get_onednn_test_engine();
+    layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
+    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
+    std::initializer_list<float> input_f = { 1.0f, -2.6f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
+    std::list<float> final_results = { 1.0f, -3.0f, 3.0f, -4.0f, 5.0f, -7.0f, 7.0f, -8.0f, 9.0f };
+
+    // Allocate memory for input image.
+    auto input_memory = engine.allocate_memory(in_layout);
+    set_values(input_memory, input_f);
+
+    // Create input_layout description
+    // "input" - is the primitive id inside topology
+    input_layout input("input", in_layout);
+
+    topology topology(
+        // 1. input layout primitive.
+        input,
+        // 2. reorder primitive with id "reorder_input"
+        reorder("reorder_input",
+            // input primitive for reorder (implicitly converted to primitive_id)
+            input,
+            // output layout for reorder
+            byte_layout),
+        reorder("reorder2", "reorder_input", in_layout)
+    );
+
+    build_options options_target;
+    options_target.set_option(build_option::outputs({ "reorder_input", "reorder2"}));
+    implementation_desc impl = { format::bfyx, std::string(""), impl_types::onednn };
+    options_target.set_option(build_option::force_implementations({{ "reorder_input", impl }}));
+
+    network network(
+        engine,
+        topology,
+        options_target);
+
+    network.set_input_data("input", input_memory);
+
+    auto outputs = network.execute();
+
+    auto interm = outputs.at("reorder2").get_memory();
+    cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
+    unsigned int cntr = 0;
+    for (const auto& exp : final_results)
+    {
+        EXPECT_EQ(exp, interm_ptr[cntr++]);
+    }
+}
+#endif

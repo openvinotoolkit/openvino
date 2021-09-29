@@ -22,7 +22,8 @@ namespace v1 {
 ///         of the same type as `data` input.
 class OPENVINO_API BatchToSpace : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("BatchToSpace", "opset2", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
     BatchToSpace() = default;
     /// \brief Constructs a BatchToSpace operation.
     ///
