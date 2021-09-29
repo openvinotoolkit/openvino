@@ -24,6 +24,10 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
 }
 
 void LayerTestsCommon::Run() {
+    if (functionRefs == nullptr) {
+        functionRefs = ngraph::clone_function(*function);
+        functionRefs->set_friendly_name("refFunction");
+    }
     auto crashHandler = [](int errCode) {
         auto &s = Summary::getInstance();
         s.saveReport();

@@ -135,7 +135,7 @@ protected:
 
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
-    std::shared_ptr<ngraph::Function> functionRefs;
+    std::shared_ptr<ngraph::Function> functionRefs = nullptr;
     std::map<std::string, std::string> configuration;
     // Non default values of layouts/precisions will be set to CNNNetwork
     InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
