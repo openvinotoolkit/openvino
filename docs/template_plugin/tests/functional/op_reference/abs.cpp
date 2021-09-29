@@ -13,41 +13,53 @@
 #include "base_reference_test.hpp"
 
 using namespace ngraph;
+using namespace reference_tests;
+using namespace InferenceEngine;
 
-namespace reference_tests {
 namespace {
 
 struct AbsParams {
-    Tensor input;
-    Tensor expected;
-};
+    template <class IT>
+    AbsParams(const PartialShape& shape,
+              const element::Type& iType,
+              const std::vector<IT>& iValues,
+              const std::vector<IT>& oValues)
+        : pshape(shape),
+          inType(iType),
+          outType(iType),
+          inputData(CreateBlob(iType, iValues)),
+          refData(CreateBlob(iType, oValues)) {}
 
-struct Builder : ParamsBuilder<AbsParams> {
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, input);
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, expected);
+    PartialShape pshape;
+    element::Type inType;
+    element::Type outType;
+    Blob::Ptr inputData;
+    Blob::Ptr refData;
 };
 
 class ReferenceAbsLayerTest : public testing::TestWithParam<AbsParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params.input.shape, params.input.type);
-        inputData = {params.input.data};
-        refOutData = {params.expected.data};
+        function = CreateFunction(params.pshape, params.inType, params.outType);
+        inputData = {params.inputData};
+        refOutData = {params.refData};
     }
+
     static std::string getTestCaseName(const testing::TestParamInfo<AbsParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
-        result << "shape=" << param.input.shape << "_";
-        result << "type=" << param.input.type;
+        result << "shape=" << param.pshape << "_";
+        result << "iType=" << param.inType << "_";
+        result << "oType=" << param.outType;
         return result.str();
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& shape, const element::Type& type) {
-        const auto in = std::make_shared<op::Parameter>(type, shape);
-        const auto abs = std::make_shared<op::Abs>(in);
-        return std::make_shared<Function>(NodeVector {abs}, ParameterVector {in});
+    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type, const element::Type& expected_output_type) {
+        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto log = std::make_shared<op::Abs>(in);
+        return std::make_shared<Function>(NodeVector{log}, ParameterVector{in});
     }
 };
 
@@ -55,27 +67,68 @@ TEST_P(ReferenceAbsLayerTest, AbsWithHardcodedRefs) {
     Exec();
 }
 
-}  // namespace
+template <element::Type_t IN_ET>
+std::vector<AbsParams> generateParamsForAbsFloat() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<AbsParams> roundParams{
+        AbsParams(ngraph::PartialShape{4},
+                  IN_ET,
+                  std::vector<T>{1.f, -2.f, 0.f, -4.75f},
+                  std::vector<T>{1.f, 2.f, 0.f, 4.75f})
+    };
+    return roundParams;
+}
+
+template <element::Type_t IN_ET>
+std::vector<AbsParams> generateParamsForAbsInt() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<AbsParams> roundParams{
+        AbsParams(ngraph::PartialShape{4},
+                  IN_ET,
+                  std::vector<T>{1, -2, 0, -4},
+                  std::vector<T>{1, 2, 0, 4})
+    };
+    return roundParams;
+}
+
+template <element::Type_t IN_ET>
+std::vector<AbsParams> generateParamsForAbsUInt() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<AbsParams> roundParams{
+        AbsParams(ngraph::PartialShape{4},
+                  IN_ET,
+                  std::vector<T>{1, 2, 0, 4},
+                  std::vector<T>{1, 2, 0, 4})
+    };
+    return roundParams;
+}
+
+std::vector<AbsParams> generateCombinedParamsForAbs() {
+    const std::vector<std::vector<AbsParams>> roundTypeParams{
+        generateParamsForAbsFloat<element::Type_t::f32>(),
+        generateParamsForAbsFloat<element::Type_t::f16>(),
+        generateParamsForAbsInt<element::Type_t::i64>(),
+        generateParamsForAbsInt<element::Type_t::i32>(),
+        generateParamsForAbsUInt<element::Type_t::u64>(),
+        generateParamsForAbsUInt<element::Type_t::u32>()
+    };
+
+    std::vector<AbsParams> combinedParams;
+
+    for (const auto& params : roundTypeParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+
+    return combinedParams;
+}
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Abs_With_Hardcoded_Refs, ReferenceAbsLayerTest,
-    ::testing::Values(Builder {}
-                          .input({{4}, element::f16, std::vector<ngraph::float16> {1.f, -2.f, 0.f, -4.75f}})
-                          .expected({{4}, element::f16, std::vector<ngraph::float16> {1.f, 2.f, 0.f, 4.75f}}),
-                      Builder {}
-                          .input({{4}, element::f32, std::vector<float> {1.f, -2.f, 0.f, -4.75f}})
-                          .expected({{4}, element::f32, std::vector<float>{1.f, 2.f, 0.f, 4.75f}}),
-                      Builder {}
-                          .input({{4}, element::i32, std::vector<int32_t> {1, -2, 0, -4}})
-                          .expected({{4}, element::i32, std::vector<int32_t>{1, 2, 0, 4}}),
-                      Builder {}
-                          .input({{4}, element::i64, std::vector<int64_t>{1, -2, 0, -4}})
-                          .expected({{4}, element::i64, std::vector<int64_t>{1, 2, 0, 4}}),
-                      Builder {}
-                          .input({{4}, element::u32, std::vector<uint32_t>{1, 2, 0, 4}})
-                          .expected({{4}, element::u32, std::vector<uint32_t>{1, 2, 0, 4}}),
-                      Builder {}
-                          .input({{4}, element::u64, std::vector<uint64_t>{1, 2, 0, 4}})
-                          .expected({{4}, element::u64, std::vector<uint64_t>{1, 2, 0, 4}})),
+    smoke_Abs_With_Hardcoded_Refs, 
+    ReferenceAbsLayerTest,
+    ::testing::ValuesIn(generateCombinedParamsForAbs()),
     ReferenceAbsLayerTest::getTestCaseName);
-}  // namespace reference_tests
+
+}  // namespace
