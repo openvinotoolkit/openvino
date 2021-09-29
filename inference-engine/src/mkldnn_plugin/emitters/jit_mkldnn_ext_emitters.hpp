@@ -100,5 +100,18 @@ public:
         }
 };
 
+class jit_hswish_emitter : public jit_mkldnn_emitter {
+public:
+    jit_hswish_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
+                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
+            : jit_mkldnn_emitter(host, host_isa, n, exec_prc) {
+        kind = dnnl_eltwise_hswish;
+        alpha = 0.f;
+        beta = 0.f;
+
+        set_injector();
+    }
+};
+
 
 } // namespace MKLDNNPlugin

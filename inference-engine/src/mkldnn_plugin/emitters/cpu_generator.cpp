@@ -107,6 +107,7 @@ MKLDNNPlugin::CPUTarget::CPUTarget(dnnl::impl::cpu::x64::cpu_isa_t host_isa)
     // jitters[ngraph::opset1::Tan::type_info] = CREATE_EMITTER(); // not supported
     jitters[ngraph::opset1::Tanh::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_tanh_emitter);
 
+    jitters[ngraph::op::v4::HSwish::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_hswish_emitter);
     // jitters[ngraph::opset1::HardSigmoid::type_info] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Selu::type_info] = CREATE_EMITTER(); // not supported
 
