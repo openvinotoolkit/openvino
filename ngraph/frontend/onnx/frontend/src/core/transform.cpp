@@ -51,14 +51,16 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
     auto graph_proto = model_proto.mutable_graph();
 
     ONNX_NAMESPACE::GraphProto new_graph;
-    for (int i = 0; i < graph_proto->node().size() || i < new_graph.node().size(); ++i) {
+    int origin_graph_index = 0;
+    int new_graph_index = 0;
+    while (origin_graph_index < graph_proto->node().size() || new_graph_index < new_graph.node().size()) {
         ONNX_NAMESPACE::NodeProto* node = nullptr;
-        if (i < graph_proto->node().size()) {
-            node = new_graph.add_node();
-            node->Swap(graph_proto->mutable_node(i));
-        } else {
+        if (new_graph_index < new_graph.node().size()) {
             // nodes expenaded from function can have another functions
-            node = new_graph.mutable_node(i);
+            node = new_graph.mutable_node(new_graph_index++);
+        } else {
+            node = new_graph.add_node();
+            node->Swap(graph_proto->mutable_node(origin_graph_index++));
         }
 
         // Check if node operation is one of the functions we want to expand

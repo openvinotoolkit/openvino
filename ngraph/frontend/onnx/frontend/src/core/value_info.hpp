@@ -30,10 +30,9 @@ public:
 
             if (onnx_tensor.has_shape()) {
                 m_partial_shape = onnx_common::to_ng_shape(onnx_tensor.shape());
-            } else {
-                m_partial_shape = PartialShape::dynamic();
             }
         }
+        m_partial_shape = PartialShape::dynamic();
     }
 
     ValueInfo& operator=(const ValueInfo&) = delete;

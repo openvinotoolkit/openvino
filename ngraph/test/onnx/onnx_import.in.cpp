@@ -404,6 +404,31 @@ NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_function_dependency_to_created_sub
     test_case.run();
 }
 
+NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_context_dependent_function) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_crossentropy_consumed.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({0.54881352186203,
+                                0.7151893377304077,
+                                0.6027633547782898,
+                                0.5448831915855408,
+                                0.42365479469299316,
+                                0.6458941102027893,
+                                0.4375872015953064,
+                                0.891772985458374,
+                                0.9636627435684204,
+                                0.3834415078163147,
+                                0.7917250394821167,
+                                0.5288949012756348,
+                                0.5680445432662964,
+                                0.9255966544151306,
+                                0.07103605568408966});
+    test_case.add_input<int64_t>({1, 4, 3});
+    test_case.add_expected_output<int32_t>(Shape{}, {1});
+    test_case.run();
+}
+
 // ############################################################################ OPERATOR TESTS
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_addmul_abc) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/addmul_abc.onnx"));
