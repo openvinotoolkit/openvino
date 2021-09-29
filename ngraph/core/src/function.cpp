@@ -642,7 +642,7 @@ ov::Output<ov::Node> ov::Function::input(const std::string& tensor_name) {
     throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
 }
 
-void ov::Function::reshape(const std::map<std::string, ov::PartialShape> &partial_shapes) {
+void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partial_shapes) {
     if (partial_shapes.empty())
         return;
 
