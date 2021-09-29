@@ -67,6 +67,7 @@
 #include <ngraph/runtime/reference/selu.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
+#include <ngraph/runtime/reference/slice.hpp>
 #include <ngraph/runtime/reference/squared_difference.hpp>
 #include <ngraph/runtime/reference/tensor_iterator.hpp>
 #include <ngraph/runtime/reference/utils/nms_common.hpp>
@@ -1479,6 +1480,54 @@ bool evaluate(const shared_ptr<op::v1::AvgPool>& op, const HostTensorVector& out
                                     !op->get_exclude_pad());
     return true;
 }
+
+template <element::Type_t ET>
+bool evaluate(const std::shared_ptr<op::v8::Slice>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+
+    const auto ind_size = inputs[1]->get_shape()[0];
+    std::vector<int64_t>starts(inputs[1]->get_data_ptr<T>(), inputs[1]->get_data_ptr<T>()+ind_size);
+    std::vector<int64_t>stops(inputs[2]->get_data_ptr<T>(), inputs[2]->get_data_ptr<T>()+ind_size);
+    std::vector<int64_t>steps(inputs[3]->get_data_ptr<T>(), inputs[3]->get_data_ptr<T>()+ind_size);
+
+    std::vector<int64_t>axes(ind_size);
+    if (inputs.size() < 5){
+        std::iota(axes.begin(), axes.end(), 0);
+    }
+    else {
+        axes = std::vector<int64_t>(inputs[4]->get_data_ptr<T>(), inputs[4]->get_data_ptr<T>()+ind_size);
+    }
+
+    const auto data_shape = inputs[0]->get_shape();
+    const auto data_rank = data_shape.size();
+
+    std::vector<int64_t> full_starts(data_rank, 0);
+    std::vector<int64_t> full_steps(data_rank, 1);
+    std::vector<int64_t> full_stops(data_shape.begin(), data_shape.end());
+    std::for_each(full_stops.begin(), full_stops.end(), [](int64_t x){++x;}); // Exclusive end
+
+    for(size_t i = 0; i < ind_size; ++i) {
+        const auto axis = axes[i];
+        full_starts[axis] = starts[i];
+        full_stops[axis] = stops[i];
+        full_steps[axis] = steps[i];
+    }
+
+    PartialShape output_shape = op->calculate_output_shape(starts, stops, steps, axes, inputs[0]->get_partial_shape());
+    outputs[0]->set_shape(output_shape.to_shape());
+    outputs[0]->set_element_type(inputs[0]->get_element_type());
+
+    runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
+                                outputs[0]->get_data_ptr<char>(),
+                                data_shape,
+                                Coordinate(full_starts.begin(), full_starts.end()),
+                                Coordinate(full_stops.begin(), full_stops.end()),
+                                Strides(full_steps.begin(), full_steps.end()),
+                                output_shape.to_shape(),
+                                inputs[0]->get_element_type().size());
+    return true;
+}
+
 
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::HardSigmoid>& op,

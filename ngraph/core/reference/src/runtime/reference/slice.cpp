@@ -18,14 +18,13 @@ void slice(const char* arg,
            const Coordinate& lower_bounds,
            const Coordinate& upper_bounds,
            const Strides& strides,
-           const Shape& out_shape,
-           size_t elem_size) {
+           const Shape& out_shape = {},
+           size_t elem_size = 0) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     const CoordinateTransform input_transform(arg_shape, lower_bounds, upper_bounds, strides);
 
-    const CoordinateTransform output_transform(out_shape);
-
-    NGRAPH_CHECK(shape_size(input_transform.get_target_shape()) == shape_size(output_transform.get_target_shape()));
+    // const CoordinateTransform output_transform(out_shape);
+    // NGRAPH_CHECK(shape_size(input_transform.get_target_shape()) == shape_size(output_transform.get_target_shape()));
 
     auto dst_mem = out;
 
