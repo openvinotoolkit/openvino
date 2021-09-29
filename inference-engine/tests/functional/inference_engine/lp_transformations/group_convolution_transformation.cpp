@@ -130,6 +130,8 @@ TEST_P(GroupConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 namespace testValues1 {
@@ -471,7 +473,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
                     1,
                     ngraph::element::i8,
                     false,
-                    {"DISABLED_CONSTANT_FOLDING"}
+                    {"disabled_constant_folding_0"}
                 },
                 {}
             },
