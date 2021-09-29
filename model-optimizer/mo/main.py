@@ -132,15 +132,20 @@ def get_moc_frontends(argv: argparse.Namespace):
 def arguments_post_parsing(argv: argparse.Namespace):
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx, is_paddle =\
-        deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False, False]
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
+        deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
 
-    if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx, is_paddle]):
+    if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
         frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
         frameworks = list(set(frameworks + available_moc_front_ends))
         if argv.framework not in frameworks:
-            raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
-                        refer_to_faq_msg(15), argv.framework, frameworks)
+            if argv.use_legacy_frontend:
+                raise Error('Framework {} is not a valid target when using the --use_legacy_frontend flag. '
+                            'The following legacy frameworks are available: {}' +
+                            refer_to_faq_msg(15), argv.framework, frameworks)
+            else:
+                raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
+                            refer_to_faq_msg(15), argv.framework, frameworks)
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -152,8 +157,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
         raise Error('Path to input model or input proto is required: use --input_model or --input_proto')
     elif (is_kaldi or is_onnx) and not argv.input_model:
         raise Error('Path to input model is required: use --input_model.')
-    elif is_paddle and argv.use_legacy_frontend:
-        raise Error('It is not possible to use the --use_legacy_frontend flag when processing a PaddlePaddle model.')
 
     log.debug(str(argv))
     log.debug("Model Optimizer started")
