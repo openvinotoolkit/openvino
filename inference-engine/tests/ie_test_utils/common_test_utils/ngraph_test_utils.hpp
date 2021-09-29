@@ -499,15 +499,15 @@ struct Equal<SubGraphOpInputDescription::value_type> {
             return false;
         }
         using SubGraphOp = ngraph::op::util::SubGraphOp;
-        if (lhs_type_info == SubGraphOp::SliceInputDescription::type_info) {
+        if (lhs_type_info == SubGraphOp::SliceInputDescription::get_type_info_static()) {
             const auto& l_input = static_cast<const SubGraphOp::SliceInputDescription&>(*lhs);
             const auto& r_input = static_cast<const SubGraphOp::SliceInputDescription&>(*rhs);
             return l_input.m_start == r_input.m_start && l_input.m_stride == r_input.m_stride &&
                    l_input.m_part_size == r_input.m_part_size && l_input.m_end == r_input.m_end &&
                    l_input.m_axis == r_input.m_axis;
-        } else if (lhs_type_info == SubGraphOp::MergedInputDescription::type_info) {
+        } else if (lhs_type_info == SubGraphOp::MergedInputDescription::get_type_info_static()) {
             return true;
-        } else if (lhs_type_info == SubGraphOp::InvariantInputDescription::type_info) {
+        } else if (lhs_type_info == SubGraphOp::InvariantInputDescription::get_type_info_static()) {
             return true;
         }
         return false;
@@ -538,13 +538,13 @@ struct Equal<SubGraphOpOutputDescription::value_type> {
             return false;
         }
         using SubGraphOp = ngraph::op::util::SubGraphOp;
-        if (lhs_type_info == SubGraphOp::ConcatOutputDescription::type_info) {
+        if (lhs_type_info == SubGraphOp::ConcatOutputDescription::get_type_info_static()) {
             const auto& l_output = static_cast<const SubGraphOp::ConcatOutputDescription&>(*lhs);
             const auto& r_output = static_cast<const SubGraphOp::ConcatOutputDescription&>(*rhs);
             return l_output.m_start == r_output.m_start && l_output.m_stride == r_output.m_stride &&
                    l_output.m_part_size == r_output.m_part_size &&
                    l_output.m_end == r_output.m_end && l_output.m_axis == r_output.m_axis;
-        } else if (lhs_type_info == SubGraphOp::BodyOutputDescription::type_info) {
+        } else if (lhs_type_info == SubGraphOp::BodyOutputDescription::get_type_info_static()) {
             const auto& l_output = static_cast<const SubGraphOp::BodyOutputDescription&>(*lhs);
             const auto& r_output = static_cast<const SubGraphOp::BodyOutputDescription&>(*rhs);
             return l_output.m_iteration == r_output.m_iteration;

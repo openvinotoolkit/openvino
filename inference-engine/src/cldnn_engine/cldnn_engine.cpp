@@ -32,7 +32,6 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include "transformations/common_optimizations/softmax_fusion.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -64,6 +63,7 @@
 #include <transformations/op_conversions/convert_gather_0d.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include "transformations/op_conversions/softmax_decomposition.hpp"
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -333,9 +333,10 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     return false;
                 });
 
-            pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
+            pass_config->enable<ngraph::pass::SoftmaxDecomposition>();
+            pass_config->set_callback<ngraph::pass::SoftmaxDecomposition>(
                 [](const_node_ptr &node) -> bool {
-                    return node->input_value(0).get_partial_shape().rank().get_length() > 5;
+                    return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
                 });
 
             // List of enabled/disabled transformations
@@ -571,7 +572,11 @@ std::map<std::string, std::string> clDNNEngine::ConvertPerfHintsToConfig(
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(1);
             } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-                config[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = std::to_string(1);
+                //checking throttling (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+                const auto bInConfig = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
+                    config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
+                if (!bInConfig && !throttlingSet)
+                    config[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = std::to_string(1);
             }
         }
     }
@@ -675,6 +680,8 @@ RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
 
 void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     streamsSet = (config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end());
+    throttlingSet = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
+            config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
     _impl->m_config.UpdateFromMap(config);
 }
 

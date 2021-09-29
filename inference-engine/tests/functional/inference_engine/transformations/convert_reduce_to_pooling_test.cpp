@@ -88,11 +88,11 @@ public:
         }
 
         if (!params.pooling_kernel.empty()) {
-            if (reduce->get_type_info() == ngraph::opset1::ReduceMax::type_info) {
+            if (reduce->get_type_info() == ngraph::opset1::ReduceMax::get_type_info_static()) {
                 input = std::make_shared<ngraph::opset1::MaxPool>(input, ngraph::Strides{1, 1}, ngraph::Shape{0, 0},
                         ngraph::Shape{0, 0}, params.pooling_kernel, ngraph::op::RoundingType::FLOOR /*any*/);
-            } else if (reduce->get_type_info() == ngraph::opset1::ReduceMean::type_info ||
-                       reduce->get_type_info() == ngraph::opset1::ReduceSum::type_info) {
+            } else if (reduce->get_type_info() == ngraph::opset1::ReduceMean::get_type_info_static() ||
+                       reduce->get_type_info() == ngraph::opset1::ReduceSum::get_type_info_static()) {
                 input = std::make_shared<ngraph::opset1::AvgPool>(input, ngraph::Strides{1, 1}, ngraph::Shape{0, 0},
                         ngraph::Shape{0, 0}, params.pooling_kernel, false /*any*/, ngraph::op::RoundingType::FLOOR /*any*/);
             } else {

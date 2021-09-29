@@ -4,15 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/reduce_mean.hpp"
 #include "reduction.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 using ReductionType = ngraph::helpers::ReductionType;
 
 namespace reference_tests {
@@ -26,13 +21,13 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
     std::vector<ReductionParams> params = {
         ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{0, 1},
                         Tensor({2, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4}),
-                        Tensor(reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{2.5})),
+                        Tensor(ngraph::reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{2.5})),
         ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{0},
                         Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{3, 4})),
+                        Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{3, 4})),
         ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{1},
                         Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{1.5, 3.5, 5.5}))
+                        Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{1.5, 3.5, 5.5}))
     };
     return params;
 }
@@ -44,13 +39,13 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
     std::vector<ReductionParams> params = {
         ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{0, 1},
                         Tensor({2, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4}),
-                        Tensor(reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{2})),
+                        Tensor(ngraph::reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{2})),
         ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{0},
                         Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{3, 4})),
+                        Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{3, 4})),
         ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{1},
                         Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{1, 3, 5}))
+                        Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{1, 3, 5}))
     };
     return params;
 }

@@ -4,15 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/less_eq.hpp"
 #include "comparison.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 using ComparisonTypes = ngraph::helpers::ComparisonTypes;
 
 namespace reference_tests {

@@ -52,7 +52,7 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
 
         FakeQuantizeDequantization dequantization;
         {
-            const auto targetInputs = node->output(0).get_target_inputs();
+            const auto targetInputs = node->get_output_target_inputs(0);
             if (targetInputs.size() == 1ul) {
                 dequantization = NetworkHelper::getDequantizationBelow(node, true);
             }
@@ -75,7 +75,7 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
                 auto multiplyResult = dequantization.multiplyConstant == nullptr ?
                     node->get_input_node_ptr(3)->shared_from_this() :
                     fold<opset1::Multiply>(
-                        foldConvert(node->get_input_node_ptr(3)->shared_from_this(), params.deqPrecision),
+                        foldConvert(node->input_value(3), params.deqPrecision),
                         dequantization.multiplyConstant);
 
                 auto multiplyResultConstant = ov::as_type_ptr<opset1::Constant>(multiplyResult);
@@ -87,7 +87,7 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
                 auto multiplyResult = dequantization.multiplyConstant == nullptr ?
                     node->get_input_node_ptr(4)->shared_from_this() :
                     fold<opset1::Multiply>(
-                        foldConvert(node->get_input_node_ptr(4)->shared_from_this(), params.deqPrecision),
+                        foldConvert(node->input_value(4), params.deqPrecision),
                         dequantization.multiplyConstant);
 
                 auto multiplyResultConstant = ov::as_type_ptr<opset1::Constant>(multiplyResult);
