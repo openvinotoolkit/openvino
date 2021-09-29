@@ -299,6 +299,8 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
         yield
         return
 
+    instance["db"] = {}
+
     # add db_metadata
     db_meta_path = request.config.getoption("db_metadata")
     if db_meta_path:
@@ -322,10 +324,10 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
         "references": instance["instance"].get("references", {}),  # upload actual references that were used
         "ref_factor": REFS_FACTOR,
     }
-    info['_id'] = hashlib.sha256(
-        ''.join([str(info[key]) for key in FIELDS_FOR_ID]).encode()).hexdigest()
-    instance["db"] = info
+    info['_id'] = hashlib.sha256(''.join([str(info[key]) for key in FIELDS_FOR_ID]).encode()).hexdigest()
 
+    # add metadata
+    instance["db"].update(info)
     # add manifest metadata
     instance["db"].update(manifest_metadata)
 
