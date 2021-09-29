@@ -6,10 +6,8 @@ set(TARGET_NAME funcSharedTests)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-set(LINK_LIBRARIES pugixml::static funcTestUtils ngraphFunctions lptNgraphFunctions sharedTestClasses)
 set(DEPENDENCIES inference_engine mock_engine HeteroPlugin MultiDevicePlugin)
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
-    list(APPEND LINK_LIBRARIES onnx_ngraph_frontend)
     list(APPEND DEPENDENCIES test_model_zoo)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}/func_tests/models/")
 else()
@@ -32,7 +30,11 @@ addIeTarget(
                 ${PUBLIC_HEADERS_DIR}
         LINK_LIBRARIES
             PUBLIC
-                ${LINK_LIBRARIES}
+                pugixml::static
+                funcTestUtils
+                ngraphFunctions
+                lptNgraphFunctions
+                sharedTestClasses
             PRIVATE
                 openvino::util
                 inference_engine_transformations
