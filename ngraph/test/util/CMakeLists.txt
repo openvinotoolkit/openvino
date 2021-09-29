@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-file(GLOB UTIL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
+file(GLOB_RECURSE UTIL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
     list(REMOVE_ITEM UTIL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/onnx_test_util.cpp ${CMAKE_CURRENT_SOURCE_DIR}/onnx_test_util.hpp)
 endif()
@@ -15,7 +15,7 @@ endif()
 
 target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..
     $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
-target_link_libraries(ngraph_test_util PUBLIC ngraph gtest gmock)
+target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend gtest gmock)
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     target_link_libraries(ngraph_test_util PRIVATE onnx_common)
 endif()

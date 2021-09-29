@@ -610,6 +610,7 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph::builder
                                         ${CMAKE_DL_LIBS}
                                         ie_backend
+                                        ngraph_backend
                                         interpreter_backend
                                         Threads::Threads
                                         openvino::conditional_compilation
