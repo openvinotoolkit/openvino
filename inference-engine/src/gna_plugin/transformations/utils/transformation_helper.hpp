@@ -6,9 +6,6 @@
 
 #include <ngraph/opsets/opset7.hpp>
 
-#include <vector>
-#include <unordered_set>
-
 namespace GNAPluginNS {
 
 struct ConvData {
