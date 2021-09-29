@@ -198,8 +198,8 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     const size_t quantizationLevels,
     const std::vector<float>& outputLowValues,
     const std::vector<float>& outputHighValues) {
+    const float zeroThreshold = std::numeric_limits<float>::denorm_min();
     // TODO: workaround: hardcoded values
-    const float zeroThreshold = 1.e-6f;
     const float quantizationIntervalAsymmetryThreshold = 0.002f;
 
     float asymmetricIntervalSideRatio = -static_cast<float>(quantizationLevels) / (quantizationLevels - 2.f);
