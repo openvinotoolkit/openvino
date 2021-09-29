@@ -42,13 +42,8 @@ NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d) {
     std::vector<float> a;
     for (int i = 1; i < 50; ++i)
         a.push_back(i);
-    std::vector<float> result{0, 0, 0, 0, 0, 0, 0,
-                              0, 9, 0, 11, 0, 13 ,0,
-                              0, 0, 0, 0, 0, 0, 0,
-                              0, 23, 0, 25, 0, 27, 0,
-                              0, 0, 0, 0, 0, 0, 0,
-                              0, 37, 0, 39, 0, 41, 0,
-                              0, 0, 0, 0, 0, 0, 0};
+    std::vector<float> result{0, 0,  0, 0, 0, 0, 0, 0, 9, 0, 11, 0,  13, 0,  0, 0,  0, 0, 0, 0, 0, 0, 23, 0, 25,
+                              0, 27, 0, 0, 0, 0, 0, 0, 0, 0, 0,  37, 0,  39, 0, 41, 0, 0, 0, 0, 0, 0, 0,  0};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({a});
@@ -77,10 +72,7 @@ NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_output_smaller_then_input) {
     for (int i = 1; i < 37; ++i)
         a.push_back(i);
     std::vector<float> b(24, 0);
-    std::vector<float> result{0, 0, 0, 0, 0, 0,
-                              0, 8, 0, 10, 0, 12,
-                              0, 0, 0, 0, 0, 0,
-                              0, 20, 0, 22, 0, 24};
+    std::vector<float> result{0, 0, 0, 0, 0, 0, 0, 8, 0, 10, 0, 12, 0, 0, 0, 0, 0, 0, 0, 20, 0, 22, 0, 24};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
@@ -109,13 +101,8 @@ NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_reshape_output) {
     for (int i = 1; i < 43; ++i)
         a.push_back(i);
     std::vector<float> b(42, 0);
-    std::vector<float> result{0, 0, 0, 0, 0, 0,
-                              0, 0, 9, 0, 11, 0,
-                              13, 0, 0, 0, 0, 0,
-                              0, 0, 0, 0, 23, 0,
-                              25, 0, 27, 0, 0, 0,
-                              0, 0, 0, 0, 0, 0,
-                              37, 0, 39, 0, 41, 0};
+    std::vector<float> result{0, 0,  0, 0,  0, 0,  0, 0, 9, 0, 11, 0, 13, 0, 0, 0,  0, 0,  0, 0,  0,
+                              0, 23, 0, 25, 0, 27, 0, 0, 0, 0, 0,  0, 0,  0, 0, 37, 0, 39, 0, 41, 0};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});

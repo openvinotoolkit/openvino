@@ -28,4 +28,4 @@ public:
 };
 }  // namespace v8
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

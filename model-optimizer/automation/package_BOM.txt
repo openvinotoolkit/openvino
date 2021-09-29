@@ -301,7 +301,7 @@ extensions/front/onnx/lstm_ext.py
 extensions/front/onnx/mask_rcnn.json
 extensions/front/onnx/mask_rcnn_conversion.py
 extensions/front/onnx/matmul_ext.py
-extensions/front/onnx/max_unpool_ext.py 
+extensions/front/onnx/maxunpoolONNX_to_maxunpool.py
 extensions/front/onnx/mean_variance_normalization_ext.py
 extensions/front/onnx/MvnOnnxToMvn.py
 extensions/front/onnx/non_max_suppression_ext.py
