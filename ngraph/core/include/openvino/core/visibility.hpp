@@ -4,16 +4,40 @@
 
 // https://gcc.gnu.org/wiki/Visibility
 // Generic helper definitions for shared library support
-#if defined _WIN32 || defined __CYGWIN__
-#    define CORE_HELPER_DLL_IMPORT __declspec(dllimport)
-#    define CORE_HELPER_DLL_EXPORT __declspec(dllexport)
-#    define CORE_HELPER_DLL_LOCAL
-#elif defined(__GNUC__) && __GNUC__ >= 4
-#    define CORE_HELPER_DLL_IMPORT __attribute__((visibility("default")))
-#    define CORE_HELPER_DLL_EXPORT __attribute__((visibility("default")))
-#    define CORE_HELPER_DLL_LOCAL  __attribute__((visibility("hidden")))
+
+#ifndef OPENVINO_EXTERN_C
+#    ifdef __cplusplus
+#        define OPENVINO_EXTERN_C extern "C"
+#    else
+#        define OPENVINO_EXTERN_C
+#    endif
+#endif
+
+#if defined _WIN32
+#    define OPENVINO_CDECL   __cdecl
+#    define OPENVINO_STDCALL __stdcall
 #else
-#    define CORE_HELPER_DLL_IMPORT
-#    define CORE_HELPER_DLL_EXPORT
-#    define CORE_HELPER_DLL_LOCAL
+#    define OPENVINO_CDECL
+#    define OPENVINO_STDCALL
+#endif
+
+#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef _WIN32
+#        if defined __INTEL_COMPILER || defined _MSC_VER
+#            define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        endif
+#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
+#        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    endif
+#endif
+
+#if defined _WIN32 || defined __CYGWIN__
+#    define OPENVINO_CORE_IMPORTS __declspec(dllimport)
+#    define OPENVINO_CORE_EXPORTS __declspec(dllexport)
+#elif defined(__GNUC__) && __GNUC__ >= 4
+#    define OPENVINO_CORE_IMPORTS __attribute__((visibility("default")))
+#    define OPENVINO_CORE_EXPORTS __attribute__((visibility("default")))
+#else
+#    define OPENVINO_CORE_IMPORTS
+#    define OPENVINO_CORE_EXPORTS
 #endif

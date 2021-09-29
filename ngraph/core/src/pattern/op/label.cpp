@@ -10,11 +10,7 @@
 
 using namespace std;
 
-constexpr ov::NodeTypeInfo ov::pass::pattern::op::Label::type_info;
-
-const ov::NodeTypeInfo& ov::pass::pattern::op::Label::get_type_info() const {
-    return type_info;
-}
+BWDCMP_RTTI_DEFINITION(ov::pass::pattern::op::Label);
 
 ov::Output<ov::Node> ov::pass::pattern::op::Label::wrap_values(const ov::OutputVector& wrapped_values) {
     switch (wrapped_values.size()) {
@@ -49,5 +45,5 @@ std::shared_ptr<ov::Node> ov::pass::pattern::any_input() {
 }
 
 std::shared_ptr<ov::Node> ov::pass::pattern::any_input(const ov::pass::pattern::op::ValuePredicate& pred) {
-    return std::make_shared<pattern::op::Label>(element::dynamic, Shape::dynamic(), pred);
+    return std::make_shared<pattern::op::Label>(element::dynamic, PartialShape::dynamic(), pred);
 }

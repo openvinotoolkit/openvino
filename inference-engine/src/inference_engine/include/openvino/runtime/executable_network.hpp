@@ -16,9 +16,9 @@
 #include <string>
 #include <vector>
 
-#include "ie_parameter.hpp"
 #include "openvino/core/function.hpp"
 #include "openvino/runtime/infer_request.hpp"
+#include "openvino/runtime/parameter.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
 namespace InferenceEngine {
@@ -33,8 +33,8 @@ class Core;
 /**
  * @brief This is an interface of an executable network
  */
-class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
-    std::shared_ptr<SharedObject> _so;
+class OPENVINO_RUNTIME_API ExecutableNetwork {
+    std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
 
     /**
@@ -43,8 +43,7 @@ class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
      * object is destroyed.
      * @param impl Initialized shared pointer
      */
-    ExecutableNetwork(const std::shared_ptr<SharedObject>& so,
-                      const std::shared_ptr<ie::IExecutableNetworkInternal>& impl);
+    ExecutableNetwork(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IExecutableNetworkInternal>& impl);
     friend class ov::runtime::Core;
 
 public:
@@ -97,7 +96,7 @@ public:
      *
      * @param config Map of pairs: (config parameter name, config parameter value)
      */
-    void set_config(const ie::ParamMap& config);
+    void set_config(const ParamMap& config);
 
     /** @brief Gets configuration for current executable network.
      *
@@ -110,7 +109,7 @@ public:
      * @param name config key, can be found in ie_plugin_config.hpp
      * @return Configuration parameter value
      */
-    ie::Parameter get_config(const std::string& name) const;
+    Parameter get_config(const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for an executable network.
@@ -121,7 +120,7 @@ public:
      * @param name metric name to request
      * @return Metric parameter value
      */
-    ie::Parameter get_metric(const std::string& name) const;
+    Parameter get_metric(const std::string& name) const;
 
     /**
      * @brief Returns pointer to plugin-specific shared context

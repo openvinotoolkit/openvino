@@ -11,7 +11,8 @@ namespace op {
 namespace v3 {
 class OPENVINO_API ExtractImagePatches : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ExtractImagePatches", "opset3", op::Op, 3);
+    BWDCMP_RTTI_DECLARATION;
 
     ExtractImagePatches() = default;
     /// \brief Constructs a ExtractImagePatches operation
@@ -24,9 +25,9 @@ public:
     /// \param auto_pad Padding type. it can be any value from
     /// valid, same_lower, same_upper
     ExtractImagePatches(const Output<Node>& image,
-                        const StaticShape& sizes,
+                        const Shape& sizes,
                         const Strides& strides,
-                        const StaticShape& rates,
+                        const Shape& rates,
                         const PadType& auto_pad);
 
     void validate_and_infer_types() override;
@@ -34,10 +35,10 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    const StaticShape& get_sizes() const {
+    const Shape& get_sizes() const {
         return m_patch_sizes;
     }
-    void set_sizes(const StaticShape& sizes) {
+    void set_sizes(const Shape& sizes) {
         m_patch_sizes = sizes;
     }
     const Strides& get_strides() const {
@@ -46,10 +47,10 @@ public:
     void set_strides(const Strides& strides) {
         m_patch_movement_strides = strides;
     }
-    const StaticShape& get_rates() const {
+    const Shape& get_rates() const {
         return m_patch_selection_rates;
     }
-    void set_rates(const StaticShape& rates) {
+    void set_rates(const Shape& rates) {
         m_patch_selection_rates = rates;
     }
     const PadType& get_auto_pad() const {
@@ -60,9 +61,9 @@ public:
     }
 
 private:
-    StaticShape m_patch_sizes;
+    Shape m_patch_sizes;
     Strides m_patch_movement_strides;
-    StaticShape m_patch_selection_rates;
+    Shape m_patch_selection_rates;
     PadType m_padding;
 };
 }  // namespace v3

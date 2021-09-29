@@ -14,7 +14,8 @@ namespace v1 {
 /// \brief Batched max pooling operation.
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("MaxPool", "opset1", op::util::MaxPoolBase, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched max pooling operation.
     MaxPool() = default;
@@ -31,9 +32,9 @@ public:
     /// \param auto_pad The pad type for automatically computing padding sizes.
     MaxPool(const Output<Node>& arg,
             const Strides& strides,
-            const StaticShape& pads_begin,
-            const StaticShape& pads_end,
-            const StaticShape& kernel,
+            const Shape& pads_begin,
+            const Shape& pads_end,
+            const Shape& kernel,
             const op::RoundingType rounding_type = op::RoundingType::FLOOR,
             const PadType auto_pad = op::PadType::EXPLICIT);
 
@@ -59,7 +60,7 @@ namespace v8 {
 /// \brief MaxPooling operation with values and indices calculated as individual outputs
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("MaxPool", "opset8", op::util::MaxPoolBase);
 
     /// \brief Constructs an empty MaxPool operation.
     MaxPool() = default;
@@ -83,9 +84,9 @@ public:
     MaxPool(const Output<Node>& arg,
             const Strides& strides,
             const Strides& dilations,
-            const StaticShape& pads_begin,
-            const StaticShape& pads_end,
-            const StaticShape& kernel,
+            const Shape& pads_begin,
+            const Shape& pads_end,
+            const Shape& kernel,
             const op::RoundingType rounding_type = op::RoundingType::FLOOR,
             const PadType auto_pad = op::PadType::EXPLICIT,
             const element::Type index_element_type = element::i64,
