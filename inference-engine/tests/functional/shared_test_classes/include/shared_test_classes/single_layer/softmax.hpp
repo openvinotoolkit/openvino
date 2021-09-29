@@ -36,12 +36,7 @@ public:
 
 protected:
     void SetUp() override;
-    std::shared_ptr<ngraph::Function> makeSoftMax(const std::string& name = "");
     void setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) override;
-
-private:
-    InferenceEngine::Precision netPrecision;
-    size_t axis;
 };
 
 }  // namespace LayerTestsDefinitions

@@ -35,6 +35,8 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
 void SoftMaxLayerTest::SetUp() {
     std::vector<std::vector<std::pair<size_t, size_t>>> inputShape;
     std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes;
+    InferenceEngine::Precision netPrecision;
+    size_t axis;
 
     std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, axis, targetDevice, configuration) = GetParam();
     outLayout = inLayout;
@@ -51,19 +53,21 @@ void SoftMaxLayerTest::SetUp() {
                     inputShape.front(), targetStaticShapes[0].front()));
 
     setTargetStaticShape(targetStaticShapes[0]);
-    function = makeSoftMax("softMax");
-    functionRefs = ngraph::clone_function(*function);
-}
-
-std::shared_ptr<ngraph::Function> SoftMaxLayerTest::makeSoftMax(const std::string& name) {
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     const auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShape.front()});
     const auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), axis);
     const ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(softMax)};
-    return std::make_shared<ngraph::Function>(results, params, name);
+    function = std::make_shared<ngraph::Function>(results, params, "softMax");
+    functionRefs = ngraph::clone_function(*function);
+    if (function.get() == functionRefs.get()) {
+        std::cout << "equal" << std::endl;
+    }
+    std::cout << "Before: " << functionRefs->get_friendly_name() << std::endl;
+    functionRefs->set_friendly_name("softmaxRefs");
+    std::cout << "After: " << functionRefs->get_friendly_name() << std::endl;
 }
 
 void SoftMaxLayerTest::setTargetStaticShape(std::vector<ngraph::Shape>& desiredTargetStaticShape) {
