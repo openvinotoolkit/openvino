@@ -74,6 +74,8 @@ def replaceArgsHelper(log_level='DEBUG',
         scale_values=scale_values,
         output_dir=output_dir,
         freeze_placeholder_with_value=freeze_placeholder_with_value,
+        use_legacy_frontend=None,
+        use_new_frontend=None,
         framework=None)
 
 
