@@ -54,8 +54,20 @@ static void insert_pooling(const ngraph::Output<ngraph::Node>& first, ngraph::In
             new_shape = constant_new_shape;
         first_node = std::make_shared<ngraph::opset7::Reshape>(first_node, new_shape, false);
     }
+//#define USE_SLICE
+#ifdef USE_SLICE
+    auto begin = ngraph::op::Constant::create(ngraph::element::i32, ov::Shape{4}, {0, 0, 0, 0});
+    auto end = ngraph::op::Constant::create(ngraph::element::u32, ov::Shape{4}, std::vector<uint32_t>{0, 0, UINT32_MAX, UINT32_MAX});
+    auto new_strides = strides;
+    new_strides.insert(new_strides.begin(), 2, 1);
+    auto strides_const = ngraph::op::Constant::create(ov::element::u64, ov::Shape{4}, new_strides);
+    std::vector<int64_t> mask{1, 1, 0, 0};
+    std::shared_ptr<ngraph::Node> new_node = std::make_shared<ngraph::opset7::StridedSlice>(first_node,
+            begin, end, strides_const, mask, mask);
+#else
     std::shared_ptr<ngraph::Node> new_node = std::make_shared<ngraph::opset7::MaxPool>(first_node, strides, ngraph::Shape{},
             ngraph::Shape{}, ngraph::Shape(strides.size(), 1));
+#endif
     if (do_reshape) {
         // squeeze dimensions back
         size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
@@ -119,16 +131,17 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
             auto conv_input = conv->input(0);
             insert_strides_prop(conv_input, conv_strides);
         } else if (!std::equal(current_strides.begin(), current_strides.end(), conv_strides.begin())) {
+            bool is_auto_pad_explicit = conv->get_auto_pad() == op::PadType::EXPLICIT;
             const auto& pattern_value_map = m.get_pattern_value_map();
             const auto& input = pattern_value_map.at(data);
-            bool is_auto_pad_explicit = conv->get_auto_pad() == op::PadType::EXPLICIT;
             const auto& pshape = input.get_partial_shape();
             bool spatial_shapes_are_static = pshape.rank().is_static() &&
                                              std::all_of(pshape.begin() + 2, pshape.end(),
                                                          [] (const Dimension& dim) -> bool {
                                                              return dim.is_static();
                                                          });
-            if (is_auto_pad_explicit || spatial_shapes_are_static) {
+            bool set_strides = true;
+            if (is_auto_pad_explicit || (spatial_shapes_are_static && set_strides)) {
                 // Retain original padding
                 // Make sure that setting strides does not change padding in cases when auto_pad is not EXPLICIT.
                 // When padding type is not EXPLICIT, strides make a role to paddings calculation.
