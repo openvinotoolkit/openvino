@@ -115,7 +115,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     idleWorkerRequests.set_capacity(numRequests);
     for (auto&& workerRequest : workerRequests) {
-        workerRequest._inferRequest = { executableNetwork, executableNetwork->CreateInferRequest() };
+        workerRequest._inferRequest = { executableNetwork._so, executableNetwork->CreateInferRequest() };
         auto* workerRequestPtr = &workerRequest;
         IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
         workerRequest._inferRequest->SetCallback(
