@@ -276,3 +276,39 @@ TEST(type_prop, if_dynamic_inputs) {
         EXPECT_EQ(*exp_res_it, *res_it);
     }
 }
+
+TEST(type_prop, if_constant_condition) {
+    // That which we iterate over
+    auto X_shape = PartialShape{-1, 8};
+
+    auto X = make_shared<op::Parameter>(element::f32, X_shape);
+
+    auto X_unsqueezed = make_shared<op::Unsqueeze>(X, op::Constant::create(element::i64, {1}, {-1}));
+    auto shape = std::make_shared<op::v3::ShapeOf>(X_unsqueezed);
+    auto taken = make_shared<op::v1::Gather>(
+            shape, op::Constant::create(element::i64, {1}, {2}), op::Constant::create(element::i64, {}, {0}));
+    auto cond = make_shared<op::v1::Equal>(taken, op::Constant::create(element::i64, {1}, {1}));
+
+    // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+    // Body parameters
+    auto Xt = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Xe = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    // Body
+    auto then_op = std::make_shared<op::Unsqueeze>(Xt, op::Constant::create(element::i64, {1}, {1}));
+    auto then_body_res = make_shared<op::Result>(then_op);
+    auto then_body = make_shared<ngraph::Function>(OutputVector{then_body_res}, ParameterVector{Xt});
+
+    auto else_op = std::make_shared<op::Unsqueeze>(Xe, op::Constant::create(element::i64, {2}, {0, 1}));
+    auto else_body_res = make_shared<op::Result>(else_op);
+    auto else_body = make_shared<ngraph::Function>(OutputVector{else_body_res}, ParameterVector{Xe});
+
+    auto if_op = make_shared<op::v8::If>(cond);
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(X, Xt, Xe);
+    auto res = if_op->set_output(then_body_res, else_body_res);
+    if_op->validate_and_infer_types();
+    auto output_shape = if_op->get_output_partial_shape(0);
+    auto expected_result = PartialShape{-1, 1, 8};
+    EXPECT_EQ(output_shape, expected_result);
+}

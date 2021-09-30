@@ -1201,6 +1201,27 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
     }
 }
 
+bool host_tensor_values_are_equal(const HostTensorPtr& lhs, const HostTensorPtr& rhs)
+{
+    const auto lhs_constant = std::make_shared<op::Constant>(lhs);
+    const auto rhs_constant = std::make_shared<op::Constant>(rhs);
+
+    OutputVector equal(1);
+    bool folded = std::make_shared<op::v1::Equal>(lhs_constant, rhs_constant)
+            ->constant_fold(equal, {lhs_constant, rhs_constant});
+    NGRAPH_CHECK(folded);
+
+    auto axes_vector = std::vector<int64_t>(equal[0].get_shape().size());
+    std::iota(axes_vector.begin(), axes_vector.end(), 0);
+    const auto axes = op::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
+    OutputVector all(1);
+    folded = std::make_shared<op::v1::ReduceLogicalAnd>(equal[0], axes)->constant_fold(all, {equal[0], axes});
+    NGRAPH_CHECK(folded && ov::is_type<op::Constant>(all[0].get_node_shared_ptr()));
+    const auto result = std::dynamic_pointer_cast<op::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>();
+    NGRAPH_CHECK(all[0].get_shape() == Shape{});
+    return result[0];
+}
+
 HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper) {
     // bound is already set in the tensor
     if (is_upper && output.get_tensor().get_upper_value() != nullptr)
@@ -1221,10 +1242,19 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper) {
                     return input.get_tensor().has_and_set_bound();
                 });
                 for (size_t i = 0; i < outputs.size(); ++i) {
-                    // TODO: should we skip setting value for tensors that have only one consumer?
-                    if ((same_inputs || is_upper) && node->get_output_tensor(i).get_upper_value() == nullptr)
+                    const auto current_bound = is_upper ? node->get_output_tensor(i).get_upper_value() : node->get_output_tensor(i).get_lower_value();
+                    const auto opposit_bound = is_upper ? node->get_output_tensor(i).get_lower_value() : node->get_output_tensor(i).get_upper_value();
+
+                    bool should_propagate_same_ptr = same_inputs;
+                    if (!same_inputs && opposit_bound != nullptr && shape_size(opposit_bound->get_shape()) < 10)
+                        should_propagate_same_ptr = host_tensor_values_are_equal(outputs[i], opposit_bound);
+                        // propagate static output value even in case when input values are different
+                        // useful for operations reducing number of elements
+                        // Example: ShapeOf([-1, 5]) - [lower: [0, 5]; upper: [int_max, 5]] -> Gather(ind=1, axis=0) -- [static value: 5]
+
+                    if ((should_propagate_same_ptr || is_upper) && current_bound == nullptr)
                         node->get_output_tensor(i).set_upper_value(outputs[i]);
-                    if ((same_inputs || !is_upper) && node->get_output_tensor(i).get_lower_value() == nullptr)
+                    if ((should_propagate_same_ptr || !is_upper) && current_bound == nullptr)
                         node->get_output_tensor(i).set_lower_value(outputs[i]);
                 }
                 for (const auto& input : input_values)
@@ -1251,7 +1281,9 @@ HostTensorPtr ngraph::evaluate_upper_bound(const Output<Node>& output) {
 }
 
 pair<HostTensorPtr, HostTensorPtr> ngraph::evaluate_both_bounds(const Output<Node>& output) {
-    return {evaluate_lower_bound(output), evaluate_upper_bound(output)};
+    evaluate_lower_bound(output);
+    evaluate_upper_bound(output);
+    return {output.get_tensor().get_lower_value(), output.get_tensor().get_upper_value()};
 }
 
 bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
