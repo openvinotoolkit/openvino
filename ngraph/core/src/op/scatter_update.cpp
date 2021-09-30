@@ -5,7 +5,6 @@
 #include "ngraph/op/scatter_update.hpp"
 
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -35,6 +34,7 @@ std::vector<int64_t> get_indices(const HostTensorPtr& in) {
     auto data_ptr = in->get_data_ptr<ET>();
     return std::vector<int64_t>(data_ptr, data_ptr + in->get_element_count());
 }
+}  // namespace scatter_update
 
 #define GET_INDICES(a, ...)                                                                   \
     case element::Type_t::a: {                                                                \
@@ -42,9 +42,8 @@ std::vector<int64_t> get_indices(const HostTensorPtr& in) {
         indices_casted_vector = scatter_update::get_indices<element::Type_t::a>(__VA_ARGS__); \
     } break;
 
-template <element::Type_t ET>
-bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
+bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outputs,
+                                                    const HostTensorVector& inputs) const {
     const auto& data = inputs[0];
     const auto& indices = inputs[1];
     const auto& updates = inputs[2];
@@ -58,8 +57,7 @@ bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) {
 
     int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
     if (axis_val < 0) {
-        // axis_val = ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
-        axis_val = axis_val + data->get_shape().size();
+        axis_val = ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
     }
 
     std::vector<int64_t> indices_casted_vector;
@@ -76,47 +74,22 @@ bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) {
         return false;
     }
 
-    runtime::reference::scatter_update<T>(data->get_data_ptr<ET>(),
-                                          indices_casted_vector.data(),
-                                          updates->get_data_ptr<ET>(),
-                                          axis_val,
-                                          out->get_data_ptr<ET>(),
-                                          elem_size,
-                                          data->get_shape(),
-                                          indices->get_shape(),
-                                          updates->get_shape());
+    runtime::reference::scatter_update(data->get_data_ptr<char>(),
+                                       indices_casted_vector.data(),
+                                       updates->get_data_ptr<char>(),
+                                       axis_val,
+                                       out->get_data_ptr<char>(),
+                                       elem_size,
+                                       data->get_shape(),
+                                       indices->get_shape(),
+                                       updates->get_shape());
 
     return true;
 }
 
-bool evaluate_scatter_update(const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    bool rc = true;
-    const auto out = outputs[0];
-    switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_scatter_update, f16, outputs, inputs);
-        NGRAPH_TYPE_CASE(evaluate_scatter_update, f32, outputs, inputs);
-        NGRAPH_TYPE_CASE(evaluate_scatter_update, bf16, outputs, inputs);
-        NGRAPH_TYPE_CASE(evaluate_scatter_update, i8, outputs, inputs);
-        NGRAPH_TYPE_CASE(evaluate_scatter_update, i16, outputs, inputs);
-        NGRAPH_TYPE_CASE(evaluate_scatter_update, i32, outputs, inputs);
-        NGRAPH_TYPE_CASE(evaluate_scatter_update, i64, outputs, inputs);
-        NGRAPH_TYPE_CASE(evaluate_scatter_update, u8, outputs, inputs);
-        NGRAPH_TYPE_CASE(evaluate_scatter_update, u16, outputs, inputs);
-        NGRAPH_TYPE_CASE(evaluate_scatter_update, u32, outputs, inputs);
-        NGRAPH_TYPE_CASE(evaluate_scatter_update, u64, outputs, inputs);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-
-}  // namespace scatter_update
-
 bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate);
-    NGRAPH_CHECK(!inputs.empty());
-    return scatter_update::evaluate_scatter_update(outputs, inputs);
+    return evaluate_scatter_update(outputs, inputs);
 }
 
 bool op::v3::ScatterUpdate::has_evaluate() const {

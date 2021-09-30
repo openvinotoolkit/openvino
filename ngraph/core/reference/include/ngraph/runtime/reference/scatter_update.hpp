@@ -4,142 +4,143 @@
 
 #pragma once
 
-#include <cstring>
-#include <cmath>
+#include <numeric>
 
+#include "ngraph/check.hpp"
+#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
+#include "ngraph/util.hpp"
 
 namespace ngraph {
 namespace runtime {
 namespace reference {
-template <typename dataType>
-void scatter_update(const dataType* input_data,
+static const CoordinateTransformBasic get_target_shape(const Shape& data_shape,
+                                                       const Coordinate& start_corner,
+                                                       const Coordinate& end_corner) {
+    const auto m_n_axes = data_shape.size();
+    Shape target_shape;
+    target_shape.reserve(m_n_axes);
+    AxisVector axis_order(m_n_axes);
+    std::iota(axis_order.begin(), axis_order.end(), 0);
+    const Strides strides(m_n_axes, 1);
+    for (size_t axis = 0; axis < m_n_axes; axis++) {
+        target_shape.push_back(
+            ceil_div(end_corner[axis_order[axis]] - start_corner[axis_order[axis]], strides[axis_order[axis]]));
+    }
+    return target_shape;
+}
+
+void scatter_update(const char* input_data,
                     const int64_t* indices,
-                    const dataType* updates,
+                    const char* updates,
                     const int64_t axis,
-                    dataType* out_buf,
+                    char* out_buf,
                     const size_t elem_size,
                     const Shape& data_shape,
                     const Shape& indices_shape,
                     const Shape& updates_shape) {
-    std::memcpy(out_buf, input_data, sizeof(dataType) * shape_size(data_shape));
+    // Copy inputs to out
+    std::memcpy(out_buf, input_data, elem_size * shape_size(data_shape));
 
-    const auto num_of_updates = shape_size(indices_shape);
-    const auto size_before_axis = shape_size(Shape(data_shape.begin(), data_shape.begin() + axis));
+    // Algorithm overview
+    // data[..., indices[m, n, ..., p], ...] = updates[..., m, n, ..., p, ...]
+    // where first ... in the data corresponds to first axis dimensions,
+    // last ... in the data corresponds to the rank(data) - (axis + 1) dimensions.
+
+    //
+    // for i_coord in indices[m, n, ..., p]:
+    //     # get linear index
+    //     i_idx = index(i_coord)
+    //     # simultaneously iterate over two slices of data with same elements count
+    //     for d_coord in slice data[..., i_idx, ...],
+    //         u_coord in slice updates[..., i_coord, ...]
+    //          data[index(d_coord)] = updates[index(u_coord)]
+
+    CoordinateTransformBasic indices_transform{indices_shape};
+    const auto indices_in_strides = row_major_strides(indices_shape);
+
+    size_t indices_ndim = indices_shape.size();
+    size_t updates_ndim = updates_shape.size();
+    size_t data_ndim = data_shape.size();
+
+    int num_axis_jumps{0};
+    for (size_t i = axis + 1; i <= updates_ndim - 1; ++i) {
+        if (updates_shape[i] == 1)
+            ++num_axis_jumps;
+    }
+    const auto same_dims = data_ndim == updates_ndim;
     const auto size_after_axis = shape_size(Shape(data_shape.begin() + axis + 1, data_shape.end()));
-    const auto axis_dim = data_shape[axis];
+    const auto updates_size_after_axis = shape_size(Shape(updates_shape.begin() + axis + 1, updates_shape.end()));
 
-    // const auto updates_axis = updates_shape[axis] == 1 ? axis + 1 : axis;
-    // const auto updates_axis_dim = updates_shape[updates_axis];
-    // const auto updates_axis_last_dim = updates_shape.size() - updates_axis == 1;
-    // const auto swaps = updates_axis_last_dim ? updates_shape[axis - 1] : updates_shape[axis + 1];
-    // // const auto swaps = updates_axis_last_dim ? 1 ;
+    auto unary_shift = size_after_axis >= updates_size_after_axis ? 0 : 1;
+    if ((!unary_shift) && (!same_dims))
+        unary_shift = 1;
+    const auto updates_last_axis_dim = updates_ndim - axis == 1;
+    auto updates_axis_dim = updates_last_axis_dim ? axis : axis + unary_shift + num_axis_jumps;
 
-    const auto updates_size_before_axis =
-        shape_size(Shape(updates_shape.begin(), updates_shape.begin() + axis));
-    const auto updates_size_after_axis =
-        shape_size(Shape(updates_shape.begin() + axis + 1, updates_shape.end()));
+    if (updates_axis_dim >= updates_ndim)
+        updates_axis_dim = updates_ndim - 1;
 
-    // const auto updates_jump =  axis == 0 ? updates_shape.back() : 1;
+    Coordinate updates_indices_start_corner(updates_ndim, 0);
+    Coordinate updates_indices_end_corner(updates_ndim, 1);
 
+    for (size_t i = 0; i < indices_ndim; ++i) {
+        updates_indices_end_corner[axis + i] = updates_shape[axis + i];
+    }
 
-    // std::vector<int64_t> updates_ids;
-    // const auto updates_space = num_of_updates * updates_size_before_axis * updates_size_after_axis;
-    // updates_ids.reserve(updates_space);
-    std::vector<int64_t> data_ids;
-    const auto data_space = num_of_updates * size_before_axis * size_after_axis;
-    data_ids.reserve(data_space);
+    const auto updates_indices_transform =
+        get_target_shape(updates_shape, updates_indices_start_corner, updates_indices_end_corner);
 
-    // const auto moves = [&] {
-    //     const auto needed = size_after_axis * num_of_updates;
-    //     auto changes =  int(size_after_axis);
-    //     const auto updates_num = shape_size(updates_shape);
-    //     if (updates_num < needed) {
-    //         auto left = std::remainder(updates_num, needed);
-    //         left = left >= 0 ? left : -left;
-    //         auto changes = int((needed - left - size_after_axis) / swaps);
-    //         return changes;
-    //     }
-    //     return changes;
+    auto updates_indices_coord_iter = updates_indices_transform.begin();
 
-    // }();
-    // const auto data_axis_last_dim = axis + 1 == data_shape.size();
-    // const auto less = data_axis_last_dim ? false : updates_shape.back() < data_shape.back();
-    // const auto data_dims = shape_size(data_shape);
-    // const auto updates_dims = shape_size(updates_shape);
-    // const auto less = ((updates_shape.back() < data_shape.back()) && (updates_dims >= data_dims));
+    int iteration{0};
+    for (const Coordinate& indices_cord : indices_transform) {
+        const size_t indices_idx =
+            std::inner_product(indices_cord.begin(), indices_cord.end(), indices_in_strides.begin(), 0);
+        int64_t slice_index = indices[indices_idx];
 
-    // int check = 0;
-    // // const bool less = false;
-    // int dim_after_axis{0};
-    // int dim_before_axis{-1};
-    // int update_num{-1};
-    // for (size_t k = 0; k < num_of_updates; ++k) {
-    //     const auto ind_idx = *(indices + k);
-    //     ++update_num;
-    //     dim_before_axis = less ? 0 : -1;
-    //     dim_after_axis = 0;
-    //     for (size_t i = 0; i < size_before_axis; ++i) {
-    //         const auto slice_idx = i * axis_dim * size_after_axis;
-    //         if (!less) {
-    //             ++dim_before_axis;
-    //             dim_after_axis = 0;
-    //         }
-    //         for (size_t j = 0; j < moves; ++j) {
-    //             const auto sequence_start_idx = slice_idx + j;
-    //             const auto up_slice_idx = dim_before_axis * updates_axis_dim * updates_size_after_axis;
-    //             const auto up_sequence_start_idx = up_slice_idx + dim_after_axis;
-    //             const auto element_idx = sequence_start_idx + (ind_idx * size_after_axis);
-    //             const auto updates_idx = up_sequence_start_idx + update_num * updates_jump;
+        Coordinate out_start_corner(data_shape.size(), 0);
+        Coordinate out_end_corner(data_shape);
+        out_start_corner[axis] = static_cast<size_t>(slice_index);
+        out_end_corner[axis] = out_start_corner[axis] + 1;
 
-    //             if (updates_idx >= shape_size(updates_shape))
-    //                 break;
-                
-    //             if (element_idx == size_after_axis) {
-    //                 check = 1;
-    //             }
-    //             updates_ids.push_back(updates_idx);
-    //             data_ids.push_back(element_idx);
+        const auto out_transform = get_target_shape(data_shape, out_start_corner, out_end_corner);
+        const auto out_transform_in_strides = row_major_strides(data_shape);
 
-    //             ++dim_after_axis;
-    //             if (less) {
-    //                 if (dim_after_axis == swaps) {
-    //                     ++dim_before_axis;
-    //                     dim_after_axis = 0;
-    //                 };
-    //                 if (dim_before_axis == updates_size_before_axis) {
-    //                     dim_before_axis = 0;
-    //                     ++update_num;
-    //             }
-    //             }
-    //         }
-    //     }
-    // }
-    const auto updates_axis_sum = updates_size_before_axis * updates_size_after_axis;
-    const auto data_axis_sum = size_before_axis * size_after_axis;
-    const auto udpates_smaller =  updates_axis_sum < data_axis_sum ? updates_axis_sum : data_axis_sum;
-    const auto eq = udpates_smaller ? updates_axis_sum : data_axis_sum;
-    const auto data_ndim = data_shape.size();
-    const auto updates_ndim = updates_shape.size();
-    const auto final_before_axis = std::min(size_before_axis, updates_size_before_axis);
-    const auto final_after_axis = ((data_ndim != updates_ndim) && (axis == 0)) ? updates_shape.back() : std::min(size_after_axis, updates_size_after_axis);
-    const auto final_num_of_updates = num_of_updates <= eq ? num_of_updates : eq; 
-    for (size_t j = 0; j < final_before_axis; ++j) {
-        for (size_t k = 0; k < final_num_of_updates; ++k) {
-            const auto ind_idx = *(indices + k);
-            for (size_t i = 0; i < final_after_axis; ++i) {
-                const auto elem_idx = j * axis_dim * size_after_axis + ind_idx * size_after_axis + i;
-                data_ids.push_back(elem_idx);
-            }
+        if (updates_indices_coord_iter == updates_indices_transform.end())
+            break;
+        Coordinate updates_update_start_corner = *updates_indices_coord_iter;
+        Coordinate updates_update_end_corner(updates_shape);
+        for (size_t i = 0; i < indices_ndim; ++i) {
+            updates_update_end_corner[axis + i] = updates_update_start_corner[axis + i] + 1;
         }
-    }
 
-    for (size_t i = 0; i < data_ids.size(); ++i) {
-        out_buf[data_ids[i]] = 4;
-    }
+        const auto updates_update_transform =
+            get_target_shape(updates_shape, updates_update_start_corner, updates_update_end_corner);
+        const auto updates_update_in_strides = row_major_strides(updates_shape);
+        auto updates_update_coord_iter = updates_update_transform.begin();
 
+        for (const Coordinate& out_cord : out_transform) {
+            if (updates_update_coord_iter == updates_update_transform.end())
+                break;
+
+            Coordinate update_cord = *updates_update_coord_iter;
+            Coordinate out_coord = out_cord;
+            out_coord.at(axis) = slice_index;
+            update_cord.at(updates_axis_dim) += iteration;
+            const auto data_idx =
+                std::inner_product(out_coord.begin(), out_coord.end(), out_transform_in_strides.begin(), 0);
+            const auto updates_idx =
+                std::inner_product(update_cord.begin(), update_cord.end(), updates_update_in_strides.begin(), 0) *
+                elem_size;
+
+            std::copy(updates + updates_idx, updates + (updates_idx + elem_size), out_buf + data_idx * elem_size);
+            updates_update_coord_iter++;
+        }
+        updates_indices_coord_iter++;
+        iteration++;
+    }
 }
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
- 
