@@ -64,43 +64,43 @@ template <element::Type_t IN_ET>
 std::vector<AbsParams> generateParamsForAbsFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<AbsParams> roundParams{
-        AbsParams(ngraph::PartialShape{4},
+    std::vector<AbsParams> params{
+        AbsParams(ov::PartialShape{4},
                   IN_ET,
                   std::vector<T>{1.f, -2.f, 0.f, -4.75f},
                   std::vector<T>{1.f, 2.f, 0.f, 4.75f})
     };
-    return roundParams;
+    return params;
 }
 
 template <element::Type_t IN_ET>
 std::vector<AbsParams> generateParamsForAbsInt() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<AbsParams> roundParams{
-        AbsParams(ngraph::PartialShape{4},
+    std::vector<AbsParams> params{
+        AbsParams(ov::PartialShape{4},
                   IN_ET,
                   std::vector<T>{1, -2, 0, -4},
                   std::vector<T>{1, 2, 0, 4})
     };
-    return roundParams;
+    return params;
 }
 
 template <element::Type_t IN_ET>
 std::vector<AbsParams> generateParamsForAbsUInt() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<AbsParams> roundParams{
-        AbsParams(ngraph::PartialShape{4},
+    std::vector<AbsParams> params{
+        AbsParams(ov::PartialShape{4},
                   IN_ET,
                   std::vector<T>{1, 2, 0, 4},
                   std::vector<T>{1, 2, 0, 4})
     };
-    return roundParams;
+    return params;
 }
 
 std::vector<AbsParams> generateCombinedParamsForAbs() {
-    const std::vector<std::vector<AbsParams>> roundTypeParams{
+    const std::vector<std::vector<AbsParams>> allTypeParams{
         generateParamsForAbsFloat<element::Type_t::f32>(),
         generateParamsForAbsFloat<element::Type_t::f16>(),
         generateParamsForAbsInt<element::Type_t::i64>(),
@@ -111,7 +111,7 @@ std::vector<AbsParams> generateCombinedParamsForAbs() {
 
     std::vector<AbsParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 
