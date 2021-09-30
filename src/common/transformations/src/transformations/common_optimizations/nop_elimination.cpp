@@ -8,6 +8,7 @@
 #include <numeric>
 
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/util.hpp>
 #include <ngraph/log.hpp>
@@ -20,56 +21,69 @@ using namespace ngraph;
 //`simplify_gather`, optimizes gather if Gather is gathering the
 // whole input tensor
 static bool simplify_gather(std::shared_ptr<Node> node) {
-    if (auto gather = ov::as_type_ptr<opset3::Gather>(node)) {
-        // check if we are gathering the whole input
-        auto data = gather->input_value(0);
-        auto indices = gather->input_value(1);
+    auto gather = ov::as_type_ptr<op::util::GatherBase>(node);
 
-        // we need to know data and indices shape to infer if gather is Nop
-        if (data.get_partial_shape().is_dynamic() || indices.get_partial_shape().is_dynamic()) {
-            return false;
-        }
-        // if rank of data and gather output dont match, we will skip
-        if (data.get_shape().size() != node->get_shape().size()) {
-            return false;
-        }
+    if (!gather) {
+        return false;
+    }
 
-        auto axis = gather->get_axis();
-        if (axis == opset3::Gather::AXIS_NOT_SET_VALUE) {
-            NGRAPH_DEBUG << "axis value not set";
-            return false;
-        }
+    bool is_suitable_op = ov::as_type_ptr<op::v1::Gather>(node) != nullptr;
+    if (auto gather_v7 = ov::as_type_ptr<op::v7::Gather>(node)) {
+        is_suitable_op |= (gather_v7->get_batch_dims() == 0);
+    }
 
-        // case_1 : if the input tensor is of shape (4, 1, 4)
-        // and axis = 1, then the gather would be simply
-        // gathering the whole input tensor, so we can optimize this
-        // op has Nop
+    if (!is_suitable_op) {
+        return false;
+    }
 
-        if (data.get_shape()[axis] == 1 && data.get_shape() == node->get_shape()) {
+    // check if we are gathering the whole input
+    auto data = gather->input_value(0);
+    auto indices = gather->input_value(1);
+
+    // we need to know data and indices shape to infer if gather is Nop
+    if (data.get_partial_shape().is_dynamic() || indices.get_partial_shape().is_dynamic()) {
+        return false;
+    }
+    // if rank of data and gather output dont match, we will skip
+    if (data.get_shape().size() != node->get_shape().size()) {
+        return false;
+    }
+
+    auto axis = gather->get_axis();
+    if (axis == opset3::Gather::AXIS_NOT_SET_VALUE) {
+        NGRAPH_DEBUG << "axis value not set";
+        return false;
+    }
+
+    // case_1 : if the input tensor is of shape (4, 1, 4)
+    // and axis = 1, then the gather would be simply
+    // gathering the whole input tensor, so we can optimize this
+    // op has Nop
+
+    if (data.get_shape()[axis] == 1 && data.get_shape() == node->get_shape()) {
+        return replace_output_update_name(gather->output(0), gather->input_value(0));
+    }
+
+    // case_2 : if the input tensor is of shape (4, 3, 4)
+    // we need to check the contents of indices, if indices
+    // is 1D tensor of value {0, 1, 2}, we can optimize this
+    // op has Nop
+
+    // check if the indices is constant
+    auto constant_indices =
+            ov::as_type_ptr<opset3::Constant>(gather->input_value(1).get_node_shared_ptr());
+    if (!constant_indices) {
+        return false;
+    } else {
+        // if ref_inidices == indices, we are capturing the
+        // entire input tensor
+        std::vector<int64_t> ref_indices(data.get_shape()[axis], 0);
+        std::iota(ref_indices.begin(), ref_indices.end(), 0);
+        if (ref_indices == constant_indices->cast_vector<int64_t>()) {
             return replace_output_update_name(gather->output(0), gather->input_value(0));
         }
-
-        // case_2 : if the input tensor is of shape (4, 3, 4)
-        // we need to check the contents of indices, if indices
-        // is 1D tensor of value {0, 1, 2}, we can optimize this
-        // op has Nop
-
-        // check if the indices is constant
-        auto constant_indices =
-                ov::as_type_ptr<opset3::Constant>(gather->input_value(1).get_node_shared_ptr());
-        if (!constant_indices) {
-            return false;
-        } else {
-            // if ref_inidices == indices, we are capturing the
-            // entire input tensor
-            std::vector<int64_t> ref_indices(data.get_shape()[axis], 0);
-            std::iota(ref_indices.begin(), ref_indices.end(), 0);
-            if (ref_indices == constant_indices->cast_vector<int64_t>()) {
-                return replace_output_update_name(gather->output(0), gather->input_value(0));
-            }
-        }
     }
-    return false;
+    return true;
 }
 
 static bool eliminate_nop(const std::shared_ptr<Node>& node) {
@@ -362,7 +376,7 @@ SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, opset3::Reshape, eliminate_resh
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateSqueeze, opset3::Squeeze, eliminate_squeeze);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, opset3::Unsqueeze, eliminate_unsqueeze);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, op::v1::Broadcast, eliminate_nop);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, opset3::Gather, simplify_gather);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, op::util::GatherBase, simplify_gather);
 
 
 NGRAPH_RTTI_DEFINITION(pass::EliminatePad, "EliminatePad", 0);
