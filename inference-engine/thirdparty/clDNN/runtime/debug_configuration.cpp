@@ -57,6 +57,11 @@ T convert_to(const std::string &str) {
     return res;
 }
 
+template <>
+std::string convert_to(const std::string &str) {
+    return str;
+}
+
 template<typename T>
 void get_debug_env_var(const std::string &var, T &val, std::vector<std::string> allowed_option_prefixes) {
     bool found = false;
@@ -103,6 +108,7 @@ debug_configuration::debug_configuration()
         , dump_layers_path(std::string())
         , dump_layers(std::string())
         , dump_layers_dst_only(0)
+        , dry_run_path(std::string())
         , disable_onednn(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_common_debug_env_var("Verbose", verbose);
@@ -114,6 +120,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpLayers", dump_layers);
     get_gpu_debug_env_var("DumpLayersDstOnly", dump_layers_dst_only);
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
+    get_gpu_debug_env_var("DryRunPath", dry_run_path);
 
     if (dump_layers_path.length() > 0 && !disable_usm) {
         disable_usm = 1;

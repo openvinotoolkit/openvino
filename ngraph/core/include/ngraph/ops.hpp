@@ -103,6 +103,8 @@
 #include "ngraph/op/normalize_l2.hpp"
 #include "ngraph/op/not.hpp"
 #include "ngraph/op/not_equal.hpp"
+#include "ngraph/op/nv12_to_bgr.hpp"
+#include "ngraph/op/nv12_to_rgb.hpp"
 #include "ngraph/op/one_hot.hpp"
 #include "ngraph/op/or.hpp"
 #include "ngraph/op/pad.hpp"
