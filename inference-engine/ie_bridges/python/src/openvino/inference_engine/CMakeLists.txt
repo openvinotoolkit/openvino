@@ -60,15 +60,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(${TARGET_NAME} PRIVATE "-Wno-error=register")
 endif()
 
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
-
 # perform copy
 add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../requirements.txt
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/../../requirements.txt
-    COMMAND ${Python_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/utils/merge_init_files.py
+    COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/utils/merge_init_files.py
         -i ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/__init__.py
         -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../__init__.py
 )
