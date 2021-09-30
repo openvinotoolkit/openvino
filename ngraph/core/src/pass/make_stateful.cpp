@@ -50,9 +50,7 @@ bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f
         copy_runtime_info(param, read_val);
 
         // Create Assign
-        const auto& input_to_res = res->input_value(0);
-        input_to_res.remove_target_input(res->input(0));
-        auto assign = make_shared<Assign>(input_to_res, variable);
+        auto assign = make_shared<Assign>(res->input_value(0), variable);
         copy_runtime_info(res, assign);
 
         // Update Function
@@ -84,7 +82,7 @@ ov::pass::MakeStateful::ParamResPairs ov::pass::MakeStateful::find_param_results
         NGRAPH_CHECK(param != params.end(),
                      "Parameter node with name = ",
                      param_name,
-                     "doesn't belong to the function");
+                     "doesn't exist in the function");
 
         auto res = std::find_if(results.begin(), results.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
             return node->get_friendly_name().find(res_name) != std::string::npos;
