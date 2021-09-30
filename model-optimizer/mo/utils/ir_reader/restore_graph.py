@@ -22,20 +22,6 @@ from mo.utils.ir_reader.layer_to_class import copy_graph_with_ops, collect_exten
 from mo.utils.utils import get_mo_root_dir
 
 
-def define_data_type(graph: Graph):
-    # Trying to find parameters or constants with FP16 data_type
-    for op_type in ('Parameter', 'Const'):
-        for node in graph.get_op_nodes(op=op_type):
-            if node.soft_get('element_type') == 'f16' or node.soft_get('data_type') == np.float16:
-                log.debug('Found operation with `FP16` data type. Set graph `data_type` '
-                            'attribute value to `FP16`!')
-                return 'FP16'
-    # If there are no parameters or constants with FP16 we return FP32 as data_type value
-    log.debug('Operations with `FP16` data type not found. Set graph `data_type` '
-              'attribute value to `FP32`')
-    return 'FP32'
-
-
 def restore_graph_from_ir(path_to_xml: str, path_to_bin: str = None) -> (Graph, dict):
     """
     Function to make valid graph and metadata for MO back stage from IR.
@@ -72,10 +58,12 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
 
     if 'data_type' not in meta_data:
         log.debug('Provided graph does not contain `data_type` parameter in `meta_info` section! Trying to '
-                    'define `data_type` parameter value from the model.')
-        data_type = define_data_type(graph)
+                  'define `data_type` parameter value from the model.')
+        # data_type = define_data_type(graph)
+        data_type = 'FP32'
 
         # We need to specify this attribute to pass graph transformations. This information will not be saved into IR.
+        # All constants and placeholders will be saved with same types as restored from IR
         graph.graph['cmd_params'].data_type = data_type
     else:
         data_type = data_type_str_to_precision(graph.graph['cmd_params'].data_type)
