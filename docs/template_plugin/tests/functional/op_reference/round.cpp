@@ -89,24 +89,24 @@ template <element::Type_t IN_ET>
 std::vector<RoundParams> generateParamsForRoundHalfToEven() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<RoundParams> roundParams{
-        RoundParams(ngraph::PartialShape{5},
+    std::vector<RoundParams> params{
+        RoundParams(ov::PartialShape{5},
                     IN_ET,
                     std::vector<T>{0.9f, 2.5f, 2.3f, 1.5f, -4.5f},
                     std::vector<T>{1.0f, 2.0f, 2.0f, 2.0f, -4.0f})
     };
-    return roundParams;
+    return params;
 }
 
 std::vector<RoundParams> generateCombinedParamsForRoundHalfToEven() {
-    const std::vector<std::vector<RoundParams>> roundTypeParams{
+    const std::vector<std::vector<RoundParams>> allTypeParams{
         generateParamsForRoundHalfToEven<element::Type_t::f32>(),
         generateParamsForRoundHalfToEven<element::Type_t::f16>()
     };
 
     std::vector<RoundParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 
@@ -117,23 +117,23 @@ template <element::Type_t IN_ET>
 std::vector<RoundParams> generateParamsForRound2D() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<RoundParams> roundParams{
-        RoundParams(ngraph::PartialShape{15},
+    std::vector<RoundParams> params{
+        RoundParams(ov::PartialShape{15},
                     IN_ET,
                     std::vector<T>{0.1f, 0.5f, 0.9f, 1.2f, 1.5f, 1.8f, 2.3f, 2.5f, 2.7f, -1.1f, -1.5f, -1.9f, -2.2f, -2.5f, -2.8f},
                     std::vector<T>{0.f, 0.f, 1.f, 1.f, 2.f, 2.f, 2.f, 2.f, 3.f, -1.f, -2.f, -2.f, -2.f, -2.f, -3.f})};
-    return roundParams;
+    return params;
 }
 
 std::vector<RoundParams> generateCombinedParamsForRound2D() {
-    const std::vector<std::vector<RoundParams>> roundTypeParams{
+    const std::vector<std::vector<RoundParams>> allTypeParams{
         generateParamsForRound2D<element::Type_t::f32>(),
         generateParamsForRound2D<element::Type_t::f16>()
     };
 
     std::vector<RoundParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 
@@ -144,22 +144,22 @@ template <element::Type_t IN_ET>
 std::vector<RoundParams> generateParamsForRoundInt64() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<RoundParams> roundParams{
-        RoundParams(ngraph::PartialShape{3},
+    std::vector<RoundParams> params{
+        RoundParams(ov::PartialShape{3},
                     IN_ET,
                     std::vector<T>{0, 1, 0x4000000000000001},
                     std::vector<T>{0, 1, 0x4000000000000001})};
-    return roundParams;
+    return params;
 }
 
 std::vector<RoundParams> generateCombinedParamsForRoundInt64() {
-    const std::vector<std::vector<RoundParams>> roundTypeParams{
+    const std::vector<std::vector<RoundParams>> allTypeParams{
         generateParamsForRoundInt64<element::Type_t::i64>()
     };
 
     std::vector<RoundParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 
@@ -170,23 +170,23 @@ template <element::Type_t IN_ET>
 std::vector<RoundParams> generateParamsForRoundAwayFromZero() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<RoundParams> roundParams{
-        RoundParams(ngraph::PartialShape{5},
+    std::vector<RoundParams> params{
+        RoundParams(ov::PartialShape{5},
                     IN_ET,
                     std::vector<T>{0.9f, 2.5f, 2.3f, 1.5f, -4.5f},
                     std::vector<T>{1.0f, 3.0f, 2.0f, 2.0f, -5.0f})};
-    return roundParams;
+    return params;
 }
 
 std::vector<RoundParams> generateCombinedParamsForRoundAwayFromZero() {
-    const std::vector<std::vector<RoundParams>> roundTypeParams{
+    const std::vector<std::vector<RoundParams>> allTypeParams{
         generateParamsForRoundAwayFromZero<element::Type_t::f32>(),
         generateParamsForRoundAwayFromZero<element::Type_t::f16>()
     };
 
     std::vector<RoundParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 

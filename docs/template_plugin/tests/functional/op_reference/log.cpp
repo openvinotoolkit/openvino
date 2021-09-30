@@ -64,24 +64,24 @@ template <element::Type_t IN_ET>
 std::vector<LogParams> generateParamsForLog() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<LogParams> roundParams{
-        LogParams(ngraph::PartialShape{8},
+    std::vector<LogParams> logParams{
+        LogParams(ov::PartialShape{8},
                   IN_ET,
                   std::vector<T>{0.125f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f, 16.f},
                   std::vector<T>{-2.07944154f, -1.38629436f, -0.69314718f, 0.00000000f, 0.69314718f, 1.38629436f, 2.07944154f, 2.77258872f})
     };
-    return roundParams;
+    return logParams;
 }
 
 std::vector<LogParams> generateCombinedParamsForLog() {
-    const std::vector<std::vector<LogParams>> roundTypeParams{
+    const std::vector<std::vector<LogParams>> allTypeParams{
         generateParamsForLog<element::Type_t::f32>(),
         generateParamsForLog<element::Type_t::f16>()
     };
 
     std::vector<LogParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 

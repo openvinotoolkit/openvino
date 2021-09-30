@@ -65,17 +65,17 @@ template <element::Type_t IN_ET>
 std::vector<SqrtParams> generateParamsForSqrtBasic() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<SqrtParams> roundParams{
-        SqrtParams(ngraph::PartialShape{6},
+    std::vector<SqrtParams> params{
+        SqrtParams(ov::PartialShape{6},
                    IN_ET,
                    std::vector<T>{16, 4, 81, 100, 10000, 0},
                    std::vector<T>{4, 2, 9, 10, 100, 0})
     };
-    return roundParams;
+    return params;
 }
 
 std::vector<SqrtParams> generateCombinedParamsForSqrtBasic() {
-    const std::vector<std::vector<SqrtParams>> roundTypeParams{
+    const std::vector<std::vector<SqrtParams>> allTypeParams{
         generateParamsForSqrtBasic<element::Type_t::f32>(),
         generateParamsForSqrtBasic<element::Type_t::f16>(),
         generateParamsForSqrtBasic<element::Type_t::i64>(),
@@ -86,7 +86,7 @@ std::vector<SqrtParams> generateCombinedParamsForSqrtBasic() {
 
     std::vector<SqrtParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 
@@ -97,17 +97,17 @@ template <element::Type_t IN_ET>
 std::vector<SqrtParams> generateParamsForSqrtNegative() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<SqrtParams> roundParams{
-        SqrtParams(ngraph::PartialShape{4},
+    std::vector<SqrtParams> params{
+        SqrtParams(ov::PartialShape{4},
                    IN_ET,
                    std::vector<T>{-1, 4, -81, 100},
                    std::vector<T>{static_cast<T> NAN, 2, static_cast<T> NAN, 10})
     };
-    return roundParams;
+    return params;
 }
 
 std::vector<SqrtParams> generateCombinedParamsForSqrtNegative() {
-    const std::vector<std::vector<SqrtParams>> roundTypeParams{
+    const std::vector<std::vector<SqrtParams>> allTypeParams{
         generateParamsForSqrtNegative<element::Type_t::f32>(),
         generateParamsForSqrtNegative<element::Type_t::f16>(),
         generateParamsForSqrtNegative<element::Type_t::i64>(),
@@ -116,7 +116,7 @@ std::vector<SqrtParams> generateCombinedParamsForSqrtNegative() {
 
     std::vector<SqrtParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 
@@ -127,30 +127,30 @@ template <element::Type_t IN_ET>
 std::vector<SqrtParams> generateParamsForSqrtIntegralFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<SqrtParams> roundParams{
-        SqrtParams(ngraph::PartialShape{14},
+    std::vector<SqrtParams> params{
+        SqrtParams(ov::PartialShape{14},
                    IN_ET,
                    std::vector<T>{4, 7, 9, 10, 80, 55, 6.25, 0.9, 23.33, 233, 256, 473.7891, 1024, 111108.88},
                    std::vector<T>{2, 2.6457512, 3, 3.1622777, 8.944272, 7.4161983, 2.5, 0.94868326, 4.830114, 15.264338, 16., 21.766697, 32., 333.33})
     };
-    return roundParams;
+    return params;
 }
 
 template <element::Type_t IN_ET>
 std::vector<SqrtParams> generateParamsForSqrtIntegralInt() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<SqrtParams> roundParams{
-        SqrtParams(ngraph::PartialShape{14},
+    std::vector<SqrtParams> params{
+        SqrtParams(ov::PartialShape{14},
                    IN_ET,
                    std::vector<T>{4, 7, 9, 10, 80, 55, 6, 1, 23, 233, 256, 474, 1024, 110889},
                    std::vector<T>{2, 3, 3, 3, 9, 7, 2, 1, 5, 15, 16, 22, 32, 333})
     };
-    return roundParams;
+    return params;
 }
 
 std::vector<SqrtParams> generateCombinedParamsForSqrtIntegral() {
-    const std::vector<std::vector<SqrtParams>> roundTypeParams{
+    const std::vector<std::vector<SqrtParams>> allTypeParams{
         generateParamsForSqrtIntegralFloat<element::Type_t::f32>(),
         generateParamsForSqrtIntegralFloat<element::Type_t::f16>(),
         generateParamsForSqrtIntegralInt<element::Type_t::i64>(),
@@ -161,7 +161,7 @@ std::vector<SqrtParams> generateCombinedParamsForSqrtIntegral() {
 
     std::vector<SqrtParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 

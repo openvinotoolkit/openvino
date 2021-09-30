@@ -66,43 +66,43 @@ template <element::Type_t IN_ET>
 std::vector<CeilingParams> generateParamsForCeilingFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<CeilingParams> roundParams{
-        CeilingParams(ngraph::PartialShape{4},
+    std::vector<CeilingParams> params{
+        CeilingParams(ov::PartialShape{4},
                       IN_ET,
                       std::vector<T>{-2.5f, -2.0f, 0.3f, 4.8f},
                       std::vector<T>{-2.0f, -2.0f, 1.0f, 5.0f})
     };
-    return roundParams;
+    return params;
 }
 
 template <element::Type_t IN_ET>
 std::vector<CeilingParams> generateParamsForCeilingInt64() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<CeilingParams> roundParams{
-        CeilingParams(ngraph::PartialShape{3},
+    std::vector<CeilingParams> params{
+        CeilingParams(ov::PartialShape{3},
                      IN_ET,
                      std::vector<T>{0, 1, 0x4000000000000001},
                      std::vector<T>{0, 1, 0x4000000000000001})
     };
-    return roundParams;
+    return params;
 }
 
 template <element::Type_t IN_ET>
 std::vector<CeilingParams> generateParamsForCeilingInt32() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<CeilingParams> roundParams{
-        CeilingParams(ngraph::PartialShape{4},
+    std::vector<CeilingParams> params{
+        CeilingParams(ov::PartialShape{4},
                      IN_ET,
                      std::vector<T>{2, 136314888, 0x40000010, 0x40000001},
                      std::vector<T>{2, 136314888, 0x40000010, 0x40000001})
     };
-    return roundParams;
+    return params;
 }
 
 std::vector<CeilingParams> generateCombinedParamsForCeiling() {
-    const std::vector<std::vector<CeilingParams>> roundTypeParams{
+    const std::vector<std::vector<CeilingParams>> allTypeParams{
         generateParamsForCeilingFloat<element::Type_t::f32>(),
         generateParamsForCeilingFloat<element::Type_t::f16>(),
         generateParamsForCeilingInt64<element::Type_t::i64>(),
@@ -113,7 +113,7 @@ std::vector<CeilingParams> generateCombinedParamsForCeiling() {
 
     std::vector<CeilingParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 

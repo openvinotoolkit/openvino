@@ -64,30 +64,30 @@ template <element::Type_t IN_ET>
 std::vector<NegativeParams> generateParamsForNegativeFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<NegativeParams> roundParams{
-        NegativeParams(ngraph::PartialShape{6},
+    std::vector<NegativeParams> params{
+        NegativeParams(ov::PartialShape{6},
                        IN_ET,
                        std::vector<T>{1, -2, 0, -4.75f, 8.75f, -8.75f},
                        std::vector<T>{-1, 2, 0, 4.75f, -8.75f, 8.75f})
     };
-    return roundParams;
+    return params;
 }
 
 template <element::Type_t IN_ET>
 std::vector<NegativeParams> generateParamsForNegativeInt() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<NegativeParams> roundParams{
-        NegativeParams(ngraph::PartialShape{10},
+    std::vector<NegativeParams> params{
+        NegativeParams(ov::PartialShape{10},
                        IN_ET,
                        std::vector<T>{1, 8, -8, 17, -2, 1, 8, -8, 17, -1},
                        std::vector<T>{-1, -8, 8, -17, 2, -1, -8, 8, -17, 1})
     };
-    return roundParams;
+    return params;
 }
 
 std::vector<NegativeParams> generateCombinedParamsForNegative() {
-    const std::vector<std::vector<NegativeParams>> roundTypeParams{
+    const std::vector<std::vector<NegativeParams>> allTypeParams{
         generateParamsForNegativeFloat<element::Type_t::f32>(),
         generateParamsForNegativeFloat<element::Type_t::f16>(),
         generateParamsForNegativeInt<element::Type_t::i64>(),
@@ -96,7 +96,7 @@ std::vector<NegativeParams> generateCombinedParamsForNegative() {
 
     std::vector<NegativeParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 
