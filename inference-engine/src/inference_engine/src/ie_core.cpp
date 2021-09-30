@@ -12,7 +12,9 @@
 #include <string>
 #include <vector>
 
+#include "cnn_network_ngraph_impl.hpp"
 #include "compilation_context.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "cpp/ie_plugin.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -39,6 +41,8 @@ using namespace std::placeholders;
 
 namespace ov {
 namespace runtime {
+
+namespace {
 
 template <typename T>
 struct Parsed {
@@ -116,6 +120,13 @@ ie::Parameter copyParameterValue(const ie::Parameter& value) {
     return std::move(value);
 }
 
+ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
+    return ie::CNNNetwork(
+        std::make_shared<ie::details::CNNNetworkNGraphImpl>(std::const_pointer_cast<ngraph::Function>(model),
+                                                            std::vector<ie::IExtensionPtr>{},
+                                                            true));
+}
+
 template <typename F>
 void allowNotImplemented(F&& f) {
     try {
@@ -123,6 +134,8 @@ void allowNotImplemented(F&& f) {
     } catch (const ie::NotImplemented&) {
     }
 }
+
+}  // namespace
 
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
     mutable std::map<std::string, ov::runtime::InferencePlugin> plugins;
@@ -177,6 +190,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
+
+    const bool newAPI;
 
     bool DeviceSupportsImportExport(const std::string& deviceName) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName);
@@ -343,7 +358,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
 public:
-    CoreImpl() {
+    CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         opsetNames.insert("opset1");
         opsetNames.insert("opset2");
         opsetNames.insert("opset3");
@@ -435,12 +450,28 @@ public:
 
     ie::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
-        return ie::details::ReadNetwork(modelPath, binPath, extensions);
+        auto cnnNet = InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions);
+        OPENVINO_ASSERT(cnnNet.getFunction() || !newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
+        if (!newAPI)
+            return cnnNet;
+
+        return InferenceEngine::CNNNetwork(std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(
+            cnnNet.getFunction(),
+            std::vector<InferenceEngine::IExtensionPtr>{},
+            newAPI));
     }
 
     ie::CNNNetwork ReadNetwork(const std::string& model, const ie::Blob::CPtr& weights) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
-        return ie::details::ReadNetwork(model, weights, extensions);
+        auto cnnNet = InferenceEngine::details::ReadNetwork(model, weights, extensions);
+        OPENVINO_ASSERT(cnnNet.getFunction() || !newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
+        if (!newAPI)
+            return cnnNet;
+
+        return InferenceEngine::CNNNetwork(std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(
+            cnnNet.getFunction(),
+            std::vector<InferenceEngine::IExtensionPtr>{},
+            newAPI));
     }
 
     // TODO: In future this method can be added to ICore interface
@@ -592,6 +623,15 @@ public:
         // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
         // TODO: remove this WA after *-31417 is resolved
         return copyParameterValue(GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config));
+    }
+
+    ie::Parameter GetConfig(const std::string& deviceName, const std::string& name) const override {
+        auto parsed = parseDeviceNameIntoConfig(deviceName);
+
+        // we need to return a copy of Parameter object which is created on Core side,
+        // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
+        // TODO: remove this WA after *-31417 is resolved
+        return copyParameterValue(GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config));
     }
 
     /**
@@ -969,7 +1009,10 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
     return deviceNames;
 }
 
-class Core::Impl : public ov::runtime::CoreImpl {};
+class Core::Impl : public ov::runtime::CoreImpl {
+public:
+    Impl() : ov::runtime::CoreImpl(false) {}
+};
 
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
@@ -1233,7 +1276,10 @@ namespace runtime {
         OPENVINO_ASSERT(false, "Unexpected exception"); \
     }
 
-class Core::Impl : public CoreImpl {};
+class Core::Impl : public CoreImpl {
+public:
+    Impl() : ov::runtime::CoreImpl(true) {}
+};
 
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
@@ -1241,8 +1287,14 @@ Core::Core(const std::string& xmlConfigFile) {
     OV_CORE_CALL_STATEMENT(register_plugins(parseXmlConfig(xmlConfigFile)));
 }
 
-std::map<std::string, ie::Version> Core::get_versions(const std::string& deviceName) const {
-    OV_CORE_CALL_STATEMENT(return _impl->GetVersions(deviceName))
+std::map<std::string, Version> Core::get_versions(const std::string& deviceName) const {
+    OV_CORE_CALL_STATEMENT({
+        std::map<std::string, Version> versions;
+        for (auto&& kvp : _impl->GetVersions(deviceName)) {
+            versions[kvp.first] = Version{kvp.second.buildNumber, kvp.second.description};
+        }
+        return versions;
+    })
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -1261,50 +1313,51 @@ std::shared_ptr<ngraph::Function> Core::read_model(const std::string& model, con
     OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(model, weights).getFunction(););
 }
 
-ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Function>& network,
+ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Function>& model,
                                       const std::string& deviceName,
                                       const ConfigMap& config) {
-    OV_CORE_CALL_STATEMENT(
-        auto exec =
-            _impl->LoadNetwork(ie::CNNNetwork(std::const_pointer_cast<ngraph::Function>(network)), deviceName, config);
+    OV_CORE_CALL_STATEMENT({
+        auto exec = _impl->LoadNetwork(toCNN(model), deviceName, config);
         return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
-                exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};);
+                exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
+    });
 }
 
 ExecutableNetwork Core::compile_model(const std::string& modelPath,
                                       const std::string& deviceName,
                                       const ConfigMap& config) {
-    OV_CORE_CALL_STATEMENT(auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
-                           return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
-                                   exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};);
+    OV_CORE_CALL_STATEMENT({
+        auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
+        return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
+                exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
+    });
 }
 
-ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Function>& network,
+ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Function>& model,
                                       const RemoteContext& context,
                                       const ConfigMap& config) {
-    OV_CORE_CALL_STATEMENT(auto exec =
-                               _impl->LoadNetwork(ie::CNNNetwork(std::const_pointer_cast<ngraph::Function>(network)),
-                                                  context._impl,
-                                                  config);
-                           return {exec._so, exec._ptr};);
+    OV_CORE_CALL_STATEMENT({
+        auto exec = _impl->LoadNetwork(toCNN(model), context._impl, config);
+        return {exec._so, exec._ptr};
+    });
 }
 
 void Core::add_extension(const ie::IExtensionPtr& extension) {
     OV_CORE_CALL_STATEMENT(_impl->AddExtension(extension););
 }
 
-ExecutableNetwork Core::import_model(std::istream& networkModel,
+ExecutableNetwork Core::import_model(std::istream& modelStream,
                                      const std::string& deviceName,
                                      const ConfigMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
-    OV_CORE_CALL_STATEMENT(auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
-                           return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
-                                   exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};);
+    OV_CORE_CALL_STATEMENT({
+        auto exec = _impl->ImportNetwork(modelStream, deviceName, config);
+        return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
+                exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
+    });
 }
 
-ExecutableNetwork Core::import_model(std::istream& networkModel,
-                                     const RemoteContext& context,
-                                     const ConfigMap& config) {
+ExecutableNetwork Core::import_model(std::istream& modelStream, const RemoteContext& context, const ConfigMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
     using ExportMagic = std::array<char, 4>;
@@ -1312,27 +1365,30 @@ ExecutableNetwork Core::import_model(std::istream& networkModel,
 
     std::string deviceName;
     ExportMagic magic = {};
-    auto currentPos = networkModel.tellg();
-    networkModel.read(magic.data(), magic.size());
+    auto currentPos = modelStream.tellg();
+    modelStream.read(magic.data(), magic.size());
     if (exportMagic == magic) {
-        std::getline(networkModel, deviceName);
+        std::getline(modelStream, deviceName);
     } else {
         OPENVINO_ASSERT(false,
                         "Passed compiled stream does not contain device name. "
                         "Please, provide device name manually");
     }
-    networkModel.seekg(currentPos, networkModel.beg);
+    modelStream.seekg(currentPos, modelStream.beg);
 
-    OV_CORE_CALL_STATEMENT(auto exec = _impl->GetCPPPluginByName(deviceName).import_model(networkModel, {});
-                           return {exec._so, exec._ptr};);
+    OV_CORE_CALL_STATEMENT({
+        auto exec = _impl->GetCPPPluginByName(deviceName).import_model(modelStream, {});
+        return {exec._so, exec._ptr};
+    });
 }
 
-SupportedOpsMap Core::query_model(const std::shared_ptr<const ngraph::Function>& network,
+SupportedOpsMap Core::query_model(const std::shared_ptr<const ngraph::Function>& model,
                                   const std::string& deviceName,
                                   const ConfigMap& config) const {
-    OV_CORE_CALL_STATEMENT(auto cnnNet = ie::CNNNetwork(std::const_pointer_cast<ngraph::Function>(network));
-                           auto qnResult = _impl->QueryNetwork(cnnNet, deviceName, config);
-                           return qnResult.supportedLayersMap;);
+    OV_CORE_CALL_STATEMENT({
+        auto qnResult = _impl->QueryNetwork(toCNN(model), deviceName, config);
+        return qnResult.supportedLayersMap;
+    });
 }
 
 void Core::set_config(const ConfigMap& config, const std::string& deviceName) {
@@ -1351,11 +1407,14 @@ void Core::set_config(const ConfigMap& config, const std::string& deviceName) {
                     "set_config is supported only for device family itself (without particular device .#). "
                     "You can pass .# as a particular device instance to query_model, compile_model, import_model only");
 
-    OV_CORE_CALL_STATEMENT(
-        if (deviceName.empty()) { _impl->SetConfigForPlugins(config, std::string()); } else {
+    OV_CORE_CALL_STATEMENT({
+        if (deviceName.empty()) {
+            _impl->SetConfigForPlugins(config, std::string());
+        } else {
             auto parsed = parseDeviceNameIntoConfig(deviceName, config);
             _impl->SetConfigForPlugins(parsed._config, parsed._deviceName);
-        });
+        }
+    });
 }
 
 Parameter Core::get_config(const std::string& deviceName, const std::string& name) const {
@@ -1369,13 +1428,14 @@ Parameter Core::get_config(const std::string& deviceName, const std::string& nam
                     "You can only get_config of the AUTO itself (without devices). "
                     "get_config is also possible for the individual devices before creating the AUTO on top.");
 
-    OV_CORE_CALL_STATEMENT(
+    OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName);
 
         // we need to return a copy of Parameter object which is created on Core side,
         // not in ie plugin side, which can be unloaded from Core in a parallel thread
         // TODO: remove this WA after *-31417 is resolved
-        return copyParameterValue(_impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config)););
+        return copyParameterValue(_impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config));
+    });
 }
 
 Parameter Core::get_metric(const std::string& deviceName, const std::string& name) const {
@@ -1391,9 +1451,12 @@ void Core::register_plugin(const std::string& pluginName, const std::string& dev
 }
 
 void Core::unload_plugin(const std::string& deviceName) {
-    OV_CORE_CALL_STATEMENT(ie::DeviceIDParser parser(deviceName); std::string devName = parser.getDeviceName();
+    OV_CORE_CALL_STATEMENT({
+        ie::DeviceIDParser parser(deviceName);
+        std::string devName = parser.getDeviceName();
 
-                           _impl->UnloadPluginByName(devName););
+        _impl->UnloadPluginByName(devName);
+    });
 }
 
 void Core::register_plugins(const std::string& xmlConfigFile) {
@@ -1405,10 +1468,11 @@ RemoteContext Core::create_context(const std::string& deviceName, const ParamMap
     OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
 
-    OV_CORE_CALL_STATEMENT(auto parsed = parseDeviceNameIntoConfig(deviceName, params);
-                           auto remoteContext =
-                               _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
-                           return {remoteContext._so, remoteContext._ptr};);
+    OV_CORE_CALL_STATEMENT({
+        auto parsed = parseDeviceNameIntoConfig(deviceName, params);
+        auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
+        return {remoteContext._so, remoteContext._ptr};
+    });
 }
 
 RemoteContext Core::get_default_context(const std::string& deviceName) {
@@ -1416,10 +1480,11 @@ RemoteContext Core::get_default_context(const std::string& deviceName) {
     OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
 
-    OV_CORE_CALL_STATEMENT(auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
-                           auto remoteContext =
-                               _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
-                           return {remoteContext._so, remoteContext._ptr};);
+    OV_CORE_CALL_STATEMENT({
+        auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
+        auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
+        return {remoteContext._so, remoteContext._ptr};
+    });
 }
 
 }  // namespace runtime

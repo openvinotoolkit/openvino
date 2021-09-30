@@ -275,7 +275,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--data_type',
                               help='Data type for all intermediate tensors and weights. ' +
                                    'If original model is in FP32 and --data_type=FP16 is specified, all model weights ' +
-                                   'and biases are quantized to FP16.',
+                                   'and biases are compressed to FP16.',
                               choices=["FP16", "FP32", "half", "float"],
                               default='float')
     common_group.add_argument('--transform',

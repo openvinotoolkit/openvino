@@ -14,10 +14,10 @@
 #include <string>
 
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace InferenceEngine {
 class IVariableStateInternal;
-class Blob;
 }  // namespace InferenceEngine
 
 namespace ov {
@@ -65,13 +65,13 @@ public:
      * @brief Returns the value of the variable state.
      * @return A blob representing a state
      */
-    std::shared_ptr<const ie::Blob> get_state() const;
+    Tensor get_state() const;
 
     /**
      * @brief Sets the new state for the next inference.
      * @param state The current state to set
      */
-    void set_state(const std::shared_ptr<ie::Blob>& state);
+    void set_state(const Tensor& state);
 };
 }  // namespace runtime
 }  // namespace ov

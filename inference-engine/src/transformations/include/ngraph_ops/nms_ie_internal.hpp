@@ -21,6 +21,8 @@ public:
     OPENVINO_OP("NonMaxSuppressionIEInternal", "util");
     BWDCMP_RTTI_DECLARATION;
 
+    NonMaxSuppressionIEInternal() = default;
+
     NonMaxSuppressionIEInternal(const Output<Node>& boxes,
                                 const Output<Node>& scores,
                                 const Output<Node>& max_output_boxes_per_class,

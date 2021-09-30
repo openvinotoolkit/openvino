@@ -4,15 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/reduce_prod.hpp"
 #include "reduction.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 using ReductionType = ngraph::helpers::ReductionType;
 
 namespace reference_tests {
@@ -24,17 +19,17 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
     std::vector<ReductionParams> params = {
         ReductionParams(ReductionType::Prod, keep_dims, std::vector<int64_t>{0, 1},
                         Tensor({2, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4}),
-                        Tensor(reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{24})),
+                        Tensor(ngraph::reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{24})),
         ReductionParams(ReductionType::Prod, keep_dims, std::vector<int64_t>{0},
                         Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{15, 48})),
+                        Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{15, 48})),
         ReductionParams(ReductionType::Prod, keep_dims, std::vector<int64_t>{1},
                         Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        Tensor(reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{2, 12, 30})),
+                        Tensor(ngraph::reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{2, 12, 30})),
         ReductionParams(ReductionType::Prod, keep_dims, std::vector<int64_t>{0},
                         Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}),
-                        Tensor(reduce(Shape{3, 3, 3}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{1 * 10 * 19,
+                        Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{1 * 10 * 19,
                                                                                                                    2 * 11 * 20,
                                                                                                                    3 * 12 * 21,
                                                                                                                    4 * 13 * 22,
@@ -46,7 +41,7 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
         ReductionParams(ReductionType::Prod, keep_dims, std::vector<int64_t>{2},
                         Tensor({3, 3, 3}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}),
-                        Tensor(reduce(Shape{3, 3, 3}, AxisSet{2}, keep_dims), element::Type(IN_ET), std::vector<T>{1 * 2 * 3,
+                        Tensor(ngraph::reduce(Shape{3, 3, 3}, AxisSet{2}, keep_dims), element::Type(IN_ET), std::vector<T>{1 * 2 * 3,
                                                                                                                    4 * 5 * 6,
                                                                                                                    7 * 8 * 9,
                                                                                                                    10 * 11 * 12,
