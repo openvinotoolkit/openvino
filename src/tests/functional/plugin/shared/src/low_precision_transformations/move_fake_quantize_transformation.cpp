@@ -20,21 +20,21 @@ namespace LayerTestsDefinitions {
 
 std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    std::vector<ngraph::PartialShape> inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     MoveFakeQuantizeTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) <<
-        param.operation << param.fakeQuantizeAfter;
+    result << getTestCaseNameByParams(netPrecision, inputShape[0], targetDevice, params) <<
+        param.operation << param.fakeQuantizeAfter << param.dequantizationAfter;
     return result.str();
 }
 
 void MoveFakeQuantizeTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    std::vector<ngraph::PartialShape> inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     MoveFakeQuantizeTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
@@ -42,17 +42,14 @@ void MoveFakeQuantizeTransformation::SetUp() {
     function = ngraph::builder::subgraph::MoveFakeQuantize::get(
         netPrecision,
         inputShape,
-        param.fakeQuantizeBefore1,
-        param.convertBefore1,
-        param.dequantizationBefore1,
-        param.fakeQuantizeBefore2,
-        param.convertBefore2,
-        param.dequantizationBefore2,
+        param.number_of_operations,
+        param.fakeQuantizeBefore,
+        param.convertBefore,
+        param.dequantizationBefore,
         param.operation,
         param.fakeQuantizeAfter,
         param.convertAfter,
         param.dequantizationAfter,
-        {},
         {},
         {},
         param.axis);
