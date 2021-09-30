@@ -7,14 +7,16 @@
 #include <process.h>
 #endif
 
+#include <thread>
+
+#include "pugixml.hpp"
+
 #include <transformations/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
-#include <pugixml.hpp>
-#include <common_test_utils/file_utils.hpp>
-#include <thread>
 
 #include "ngraph/variant.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
 
 namespace LayerTestsUtils {
@@ -24,6 +26,7 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
 }
 void LayerTestsCommon::ResizeNgraphFunction() {
     auto params = function->get_parameters();
+    ASSERT_LE(params.size(), targetStaticShapes[index].size());
     for (size_t i = 0; i < params.size(); i++) {
         params[i]->set_partial_shape(targetStaticShapes[index][i]);
     }
@@ -60,8 +63,10 @@ void LayerTestsCommon::Run() {
         for (size_t i = 0; i < targetStaticShapes.size(); i++) {
             index = i;
             try {
-                // resize ngraph function according new target shape
-                ResizeNgraphFunction();
+                if (!inputDynamicShapes.empty()) {
+                    // resize ngraph function according new target shape
+                    ResizeNgraphFunction();
+                }
                 GenerateInputs();
                 Infer();
                 Validate();

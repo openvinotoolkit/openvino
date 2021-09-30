@@ -69,7 +69,9 @@ void EltwiseLayerTest::SetUp() {
     std::tie(shapes, eltwiseType, secondaryInputType, opType, netPrecision, inPrc, outPrc, inLayout, targetDevice, additional_config) =
         this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    std::tie(inputDynamicShapes, targetStaticShapes) = shapes;
+
+    targetStaticShapes = shapes.second;
+    inputDynamicShapes = shapes.first;
 
     ngraph::Shape inputShape1 = targetStaticShapes.front().front(), inputShape2 = targetStaticShapes.front().back();
 
@@ -111,5 +113,14 @@ void EltwiseLayerTest::SetUp() {
     auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
     function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
     functionRefs = ngraph::clone_function(*function);
+
+    // w/a: to propagate 1 input shape for other input
+    for (auto& staticShape : targetStaticShapes) {
+        if (function->get_parameters().size() > staticShape.size()) {
+            for (size_t i = 0; i < function->get_parameters().size() - staticShape.size(); i++) {
+                staticShape.push_back(staticShape.front());
+            }
+        }
+    }
 }
 } // namespace LayerTestsDefinitions
