@@ -6,6 +6,7 @@ from extensions.ops.transpose import Transpose
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.utils.runtime_info import OldAPIMap
 
 
 class PreserveRuntimeInfo(MiddleReplacementPattern):
@@ -49,7 +50,9 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                 # rt info update
                 assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op_name)
 
-                op.rt_info.old_api_transpose(op_shape[permutation.perm], permutation.inv)
+                if ('old_api_map', 0) not in op.rt_info.info:
+                    op.rt_info.info[('old_api_map', 0)] = OldAPIMap()
+                op.rt_info.info[('old_api_map', 0)].old_api_transpose(op_shape[permutation.perm], permutation.inv)
 
                 # keep input in the framework format
                 transpose = create_op_node_with_second_input(
@@ -73,7 +76,9 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                     permutation = in_data_node['permutation']
                     # rt info update
                     assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op)
-                    op.rt_info.old_api_transpose_result(permutation.perm)
+                    if ('old_api_map', 0) not in op.rt_info.info:
+                        op.rt_info.info[('old_api_map', 0)] = OldAPIMap()
+                    op.rt_info.info[('old_api_map', 0)].old_api_transpose_result(permutation.perm)
 
                     # keep result in the framework format
                     transpose = create_op_node_with_second_input(

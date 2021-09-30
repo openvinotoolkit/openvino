@@ -3,19 +3,17 @@
 
 import copy
 import logging as log
-from collections import namedtuple, defaultdict
+from collections import namedtuple
 
 import networkx as nx
 import numpy as np
-from typing import Dict
 
 from mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors
 from mo.front.extractor import add_attrs_props, update_ie_fields
 from mo.graph.graph import Node, Graph
-from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.utils import class_registration
 from mo.utils.error import Error
-from mo.front.common.partial_infer.utils import unmask_shape, is_fully_defined
+from mo.utils.runtime_info import RTInfo
 
 
 class Op(object):
@@ -32,7 +30,8 @@ class Op(object):
             self.ir_version = None
 
         self.attrs = {
-            'kind': 'op'
+            'kind': 'op',
+            'rt_info': RTInfo()
         }
         self.default_backend_attrs = []
         if attrs1 is not None:
@@ -75,7 +74,7 @@ class Op(object):
                 [('id', lambda node: node.node), 'name', 'type', 'version'],
                 [
                     ('data', backend_attrs_mapping[self.ir_version]() + self.default_backend_attrs, []),
-                    ('@runtime_info', ['old_api_map'], []),
+                    '@runtime_info',
                     '@ports',
                     '@consts'])]
         })
@@ -473,42 +472,3 @@ class PermuteAttrs:
             perm = list(range(0, dims_number))
         inv = PermuteAttrs.get_inverse_permutation(perm)
         return PermuteAttrs.Permutation(perm=int64_array(perm), inv=int64_array(inv))
-
-
-class RTInfo:
-    def __init__(self):
-        self.info = defaultdict(dict)
-        self.info['old_api_map']['serialize'] = self.old_api_map_serialize
-        self.info['old_api_map']['version'] = '0'
-
-    def old_api_transpose(self, legacy_shape: np.array, inv: np.array):
-        self.info['old_api_map']['legacy_shape'] = legacy_shape
-        self.info['old_api_map']['inverse_order'] = inv
-
-    def old_api_transpose_result(self, order: np.array):
-        self.info['old_api_map']['order'] = order
-
-    def old_api_convert(self, legacy_type: np.dtype):
-        self.info['old_api_map']['legacy_type'] = legacy_type
-
-    def serialize_old_api_map_for_parameter(self) -> Dict:
-        result = {}
-        if 'legacy_type' in self.info['old_api_map']:
-            result['element_type'] = np_data_type_to_destination_type(self.info['old_api_map']['legacy_type'])
-
-        if 'inverse_order' in self.info['old_api_map']:
-            result['order'] = '{}'.format(self.info['old_api_map']['inverse_order']).replace(' ', ',')
-        return result
-
-    def serialize_old_api_map_for_result(self) -> Dict:
-        if 'order' in self.info['old_api_map']:
-            return {'order': '{}'.format(self.info['old_api_map']['order']).replace(' ', ',')}
-        return {}
-
-    def old_api_map_serialize(self, node) -> Dict:
-        result = {}
-        if node.soft_get('type') == 'Parameter':
-            result = self.serialize_old_api_map_for_parameter()
-        elif node.soft_get('type') == 'Result':
-            result = self.serialize_old_api_map_for_result()
-        return result

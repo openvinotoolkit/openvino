@@ -249,18 +249,16 @@ def serialize_meta_list(graph, node, schema, element, edges, unsupported):
         serialize_node_attributes(graph, item, [sub_schema], element, edges, unsupported)
 
 
-def serialize_runtime_info(node, schema: list, parent_element: Element):
-    name, attrs, _ = schema
+def serialize_runtime_info(node, parent_element: Element):
     if 'rt_info' not in node:
         return
     rt_info = SubElement(parent_element, 'rt_info')
 
-    for attr in attrs:
+    for (name, version), info_elem in node.rt_info.info.items():
         attribute = SubElement(rt_info, 'attribute')
-        attribute.set('name', attr)
-        attribute.set('version', node.rt_info.info[attr]['version'])
-
-        params = node.rt_info.info[attr]['serialize'](node)
+        attribute.set('name', name)
+        attribute.set('version', str(version))
+        params = info_elem.serialize(node)
         if len(params) == 0:
             rt_info.remove(attribute)
             continue
@@ -293,6 +291,8 @@ def serialize_node_attributes(
                                      refer_to_faq_msg(3)).format(node.id)) from e
                 elif s == '@consts':
                     xml_consts(graph, node, parent_element)
+                elif s == '@runtime_info':
+                    serialize_runtime_info(node, parent_element)
                 else:
                     log.warning('Unknown xml schema tag: {}'.format(s))
             else:
@@ -301,8 +301,6 @@ def serialize_node_attributes(
                     serialize_meta_list(graph, node, s, parent_element, edges, unsupported)
                 elif name == '@network':
                     serialize_network(node[s[1]], parent_element, unsupported)
-                elif name == '@runtime_info':
-                    serialize_runtime_info(node, s, parent_element)
                 else:
                     serialize_element(graph, node, s, parent_element, edges, unsupported)
     except Exception as e:
