@@ -363,12 +363,14 @@ bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
                 return true;
             } else {
                 element::TypeVector output_types;
-                for (const auto & output : nms->outputs()) {
+                for (const auto& output : nms->outputs()) {
                     output_types.emplace_back(output.get_element_type());
                 }
                 output_types[idx] = to;
                 auto relaxed_op =
-                        std::make_shared<ngraph::op::TypeRelaxed<opset5::NonMaxSuppression>>(*nms, element::TypeVector{}, output_types);
+                    std::make_shared<ngraph::op::TypeRelaxed<opset5::NonMaxSuppression>>(*nms,
+                                                                                         element::TypeVector{},
+                                                                                         output_types);
                 replace_node(node, relaxed_op);
                 return true;
             }
