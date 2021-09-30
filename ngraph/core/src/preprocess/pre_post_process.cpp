@@ -38,10 +38,63 @@ public:
         return m_layout;
     }
 
+    bool is_spatial_shape_set() const {
+        return m_spatial_shape_set;
+    }
+
+    int get_spatial_width() const {
+        return m_spatial_width;
+    }
+
+    int get_spatial_height() const {
+        return m_spatial_height;
+    }
+
+    bool is_spatial_shape_dynamic() const {
+        return m_spatial_shape_set && m_spatial_width == -1 && m_spatial_height == -1;
+    }
+
+    void set_spatial_dynamic_shape() {
+        m_spatial_shape_set = true;
+        m_spatial_width = -1;
+        m_spatial_height = -1;
+    }
+
+    void set_spatial_static_shape(size_t height, size_t width) & {
+        m_spatial_shape_set = true;
+        m_spatial_height = static_cast<int>(height);
+        m_spatial_width = static_cast<int>(width);
+    }
+
 private:
     element::Type m_type = element::dynamic;
     bool m_type_set = false;
 
+    Layout m_layout = Layout();
+    bool m_layout_set = false;
+
+    int m_spatial_width = -1;
+    int m_spatial_height = -1;
+    bool m_spatial_shape_set = false;
+};
+
+/// \brief InputNetworkInfoImpl - internal data structure
+class InputNetworkInfo::InputNetworkInfoImpl {
+public:
+    InputNetworkInfoImpl() = default;
+
+    void set_layout(const Layout& layout) {
+        m_layout = layout;
+        m_layout_set = true;
+    }
+    bool is_layout_set() const {
+        return m_layout_set;
+    }
+    const Layout& get_layout() const {
+        return m_layout;
+    }
+
+private:
     Layout m_layout = Layout();
     bool m_layout_set = false;
 };
@@ -66,6 +119,7 @@ struct InputInfo::InputInfoImpl {
     size_t m_index = 0;
     std::unique_ptr<InputTensorInfo::InputTensorInfoImpl> m_tensor_data;
     std::unique_ptr<PreProcessSteps::PreProcessStepsImpl> m_preprocess;
+    std::unique_ptr<InputNetworkInfo::InputNetworkInfoImpl> m_network_data;
 };
 
 //-------------- InputInfo ------------------
@@ -93,6 +147,16 @@ InputInfo&& InputInfo::preprocess(PreProcessSteps&& builder) && {
 InputInfo& InputInfo::preprocess(PreProcessSteps&& builder) & {
     m_impl->m_preprocess = std::move(builder.m_impl);
     return *this;
+}
+
+InputInfo& InputInfo::network(InputNetworkInfo&& builder) & {
+    m_impl->m_network_data = std::move(builder.m_impl);
+    return *this;
+}
+
+InputInfo&& InputInfo::network(InputNetworkInfo&& builder) && {
+    m_impl->m_network_data = std::move(builder.m_impl);
+    return std::move(*this);
 }
 
 // ------------------------ PrePostProcessor --------------------
@@ -132,6 +196,10 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
                                 "particular input instead of default one");
             param = function->get_parameters().front();
         }
+        // Set parameter layout from 'network' information
+        if (input->m_network_data && input->m_network_data->is_layout_set() && param->get_layout() == Layout()) {
+            param->set_layout(input->m_network_data->get_layout());
+        }
         auto consumers = param->output(0).get_target_inputs();
         if (!input->m_tensor_data) {
             input->create_tensor_data(param->get_element_type(), param->get_layout());
@@ -143,6 +211,19 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             input->m_tensor_data->set_element_type(param->get_element_type());
         }
         auto new_param_shape = param->get_partial_shape();
+        if (input->m_tensor_data->is_spatial_shape_set()) {
+            auto height_idx = get_and_check_height_idx(input->m_tensor_data->get_layout(), new_param_shape);
+            auto width_idx = get_and_check_width_idx(input->m_tensor_data->get_layout(), new_param_shape);
+            if (input->m_tensor_data->is_spatial_shape_dynamic()) {
+                // Use dynamic spatial dimensions
+                new_param_shape[height_idx] = Dimension::dynamic();
+                new_param_shape[width_idx] = Dimension::dynamic();
+            } else {
+                // Use static spatial dimensions
+                new_param_shape[height_idx] = input->m_tensor_data->get_spatial_height();
+                new_param_shape[width_idx] = input->m_tensor_data->get_spatial_width();
+            }
+        }
         auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->get_element_type(), new_param_shape);
         if (input->m_tensor_data->is_layout_set()) {
             new_param->set_layout(input->m_tensor_data->get_layout());
@@ -155,6 +236,8 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
 
         std::shared_ptr<Node> node = new_param;
         PreprocessingContext context(new_param->get_layout());
+        context.network_layout() = param->get_layout();
+        context.network_shape() = param->get_partial_shape();
         // 2. Apply preprocessing
         for (const auto& action : input->m_preprocess->actions()) {
             node = std::get<0>(action)({node}, context);
@@ -204,6 +287,42 @@ InputTensorInfo& InputTensorInfo::set_layout(const Layout& layout) & {
 }
 
 InputTensorInfo&& InputTensorInfo::set_layout(const Layout& layout) && {
+    m_impl->set_layout(layout);
+    return std::move(*this);
+}
+
+InputTensorInfo& InputTensorInfo::set_spatial_dynamic_shape() & {
+    m_impl->set_spatial_dynamic_shape();
+    return *this;
+}
+
+InputTensorInfo&& InputTensorInfo::set_spatial_dynamic_shape() && {
+    m_impl->set_spatial_dynamic_shape();
+    return std::move(*this);
+}
+
+InputTensorInfo& InputTensorInfo::set_spatial_static_shape(size_t height, size_t width) & {
+    m_impl->set_spatial_static_shape(height, width);
+    return *this;
+}
+
+InputTensorInfo&& InputTensorInfo::set_spatial_static_shape(size_t height, size_t width) && {
+    m_impl->set_spatial_static_shape(height, width);
+    return std::move(*this);
+}
+
+// --------------------- InputNetworkInfo ------------------
+InputNetworkInfo::InputNetworkInfo() : m_impl(std::unique_ptr<InputNetworkInfoImpl>(new InputNetworkInfoImpl())) {}
+InputNetworkInfo::InputNetworkInfo(InputNetworkInfo&&) noexcept = default;
+InputNetworkInfo& InputNetworkInfo::operator=(InputNetworkInfo&&) noexcept = default;
+InputNetworkInfo::~InputNetworkInfo() = default;
+
+InputNetworkInfo& InputNetworkInfo::set_layout(const Layout& layout) & {
+    m_impl->set_layout(layout);
+    return *this;
+}
+
+InputNetworkInfo&& InputNetworkInfo::set_layout(const Layout& layout) && {
     m_impl->set_layout(layout);
     return std::move(*this);
 }
@@ -262,6 +381,32 @@ PreProcessSteps& PreProcessSteps::convert_element_type(const element::Type& type
 
 PreProcessSteps&& PreProcessSteps::convert_element_type(const element::Type& type) && {
     m_impl->add_convert_impl(type);
+    return std::move(*this);
+}
+
+PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) & {
+    OPENVINO_ASSERT(dst_height <= std::numeric_limits<int>::max() && dst_width <= std::numeric_limits<int>::max(),
+                    "Resize: Width/Height dimensions cannot be greater than ",
+                    std::to_string(std::numeric_limits<int>::max()));
+    m_impl->add_resize_impl(alg, static_cast<int>(dst_height), static_cast<int>(dst_width));
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) && {
+    OPENVINO_ASSERT(dst_height <= std::numeric_limits<int>::max() && dst_width <= std::numeric_limits<int>::max(),
+                    "Resize: Width/Height dimensions cannot be greater than ",
+                    std::to_string(std::numeric_limits<int>::max()));
+    m_impl->add_resize_impl(alg, static_cast<int>(dst_height), static_cast<int>(dst_width));
+    return std::move(*this);
+}
+
+PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg) & {
+    m_impl->add_resize_impl(alg, -1, -1);
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::resize(ResizeAlgorithm alg) && {
+    m_impl->add_resize_impl(alg, -1, -1);
     return std::move(*this);
 }
 
