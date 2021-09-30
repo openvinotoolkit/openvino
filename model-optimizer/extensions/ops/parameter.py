@@ -24,7 +24,7 @@ class Parameter(Op):
 
             'type_infer': self.type_infer,
 
-            'out_ports_count': 1
+            'out_ports_count': 1,
         }
         if 'data_type' not in attrs:
             mandatory_props['data_type'] = np.float32

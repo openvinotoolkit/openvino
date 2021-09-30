@@ -9,7 +9,7 @@ from defusedxml.minidom import parseString
 
 from mo.front.common.partial_infer.utils import unmask_shape, is_fully_defined
 from mo.graph.graph import *
-from mo.middle.passes.convert_data_type import np_data_type_to_precision, np_data_type_to_destination_type
+from mo.middle.passes.convert_data_type import np_data_type_to_precision
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
