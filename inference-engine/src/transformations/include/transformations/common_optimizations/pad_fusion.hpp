@@ -13,7 +13,6 @@ namespace pass {
 
 class TRANSFORMATIONS_API PadFusion;
 class TRANSFORMATIONS_API PadFusionAvgPool;
-class TRANSFORMATIONS_API PadFusionMaxPool;
 class TRANSFORMATIONS_API PadFusionConvolution;
 class TRANSFORMATIONS_API PadFusionConvolutionBackpropData;
 class TRANSFORMATIONS_API PadFusionGroupConvolution;
@@ -34,19 +33,6 @@ class ngraph::pass::PadFusionAvgPool: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PadFusionAvgPool();
-};
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief PadFusion transformation replaces following graph:
- * Pad -> MaxPool to MaxPool, under following conditions
- * - pad mode is op::PadMode::CONSTANT
- * - pad value is 0
- */
-class ngraph::pass::PadFusionMaxPool: public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    PadFusionMaxPool();
 };
 
 /**
@@ -108,7 +94,6 @@ public:
     NGRAPH_RTTI_DECLARATION;
     PadFusion() {
         add_matcher<ngraph::pass::PadFusionAvgPool>();
-        add_matcher<ngraph::pass::PadFusionMaxPool, false>();
         add_matcher<ngraph::pass::PadFusionConvolution>();
         add_matcher<ngraph::pass::PadFusionConvolutionBackpropData>();
         add_matcher<ngraph::pass::PadFusionGroupConvolution>();

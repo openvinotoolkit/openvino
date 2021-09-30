@@ -23,10 +23,8 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto maxpool_v8_node = std::dynamic_pointer_cast<ngraph::opset8::MaxPool>(m.get_match_root());
-        if (!maxpool_v8_node)
-            return false;
 
-        if (maxpool_v8_node->get_output_target_inputs(1).size() != 0)
+        if (!maxpool_v8_node || maxpool_v8_node->get_output_target_inputs(1).size() != 0)
             return false;
 
         auto maxpool_v1_node = make_shared<ngraph::opset1::MaxPool>(maxpool_v8_node->input_value(0),
