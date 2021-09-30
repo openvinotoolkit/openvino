@@ -6,7 +6,6 @@ setlocal enabledelayedexpansion
 
 set TARGET=CPU
 set BUILD_FOLDER=%USERPROFILE%\Documents\Intel\OpenVINO
-set VENV_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\openvino_env
 
 :: command line arguments parsing
 :input_arguments_loop
@@ -90,23 +89,6 @@ if not "%python_ver%"=="okay" (
     goto error
 )
 
-:: install yaml python modules required for downloader.py
-if exist "%VENV_DIR%" (
-    echo.
-    echo ###############^|^| Using the existing python virtual environment ^|^|###############
-    echo.
-) else (
-    echo.
-    echo ###############^|^| Creating the python virtual environment ^|^|###############
-    echo.
-    python -m venv "%VENV_DIR%"
-)
-
-call "%VENV_DIR%\Scripts\activate.bat"
-python -m pip install -U pip
-
-if ERRORLEVEL 1 GOTO errorHandling
-
 for /F "tokens=* usebackq" %%d in (
     `omz_info_dumper --name "%model_name%" ^|
         python -c "import sys, json; print(json.load(sys.stdin)[0]['subdirectory'])"`
@@ -116,6 +98,7 @@ for /F "tokens=* usebackq" %%d in (
 
 set ir_dir=%irs_path%\%model_dir%\%target_precision%
 
+echo.
 echo Download public %model_name% model
 echo omz_downloader --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
 omz_downloader --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
@@ -131,15 +114,6 @@ if exist "%ir_dir%" (
     GOTO buildSample
 )
 
-echo.
-echo ###############^|^| Install Model Optimizer prerequisites ^|^|###############
-echo.
-CALL :delay 3
-cd /d "%INTEL_OPENVINO_DIR%\tools\model_optimizer"
-python -m pip install -r requirements.txt
-if ERRORLEVEL 1 GOTO errorHandling
-
-CALL :delay 7
 echo.
 echo ###############^|^| Run Model Optimizer ^|^|###############
 echo.

@@ -6,7 +6,6 @@
 echo -ne "\e[0;33mWARNING: If you get an error when running the sample in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
-VENV_DIR="$HOME/openvino_env"
 
 . "$ROOT_DIR/utils.sh"
 
@@ -111,17 +110,6 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-if [ -e "$VENV_DIR" ]; then
-    echo -ne "\n###############|| Using the existing python virtual environment ||###############\n\n"
-else
-    echo -ne "\n###############|| Creating the python virtual environment ||###############\n\n"
-    "$python_binary" -m venv "$VENV_DIR"
-fi
-
-. "$VENV_DIR/bin/activate"
-python -m pip install -U pip
-# python -m pip install openvino-dev
-
 # Step 1. Download the Caffe model and the prototxt of the model
 echo -ne "\n###############|| Downloading the Caffe model and the prototxt ||###############\n\n"
 
@@ -133,13 +121,7 @@ print_and_run omz_downloader --name "$model_name" --output_dir "${models_path}" 
 ir_dir="${irs_path}/${model_dir}/${target_precision}"
 
 if [ ! -e "$ir_dir" ]; then
-    # Step 2. Configure Model Optimizer
-    echo -ne "\n###############|| Install Model Optimizer dependencies ||###############\n\n"
-    cd "${INTEL_OPENVINO_DIR}/tools/model_optimizer"
-    python -m pip install -r requirements.txt
-    cd "$PWD"
-
-    # Step 3. Convert a model with Model Optimizer
+    # Step 2. Convert a model with Model Optimizer
     echo -ne "\n###############|| Convert a model with Model Optimizer ||###############\n\n"
 
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
@@ -149,7 +131,7 @@ else
     echo -ne "If you want to convert a model again, remove the entire ${ir_dir} folder. ${run_again}"
 fi
 
-# Step 4. Build samples
+# Step 3. Build samples
 echo -ne "\n###############|| Build Inference Engine samples ||###############\n\n"
 
 OS_PATH=$(uname -m)
@@ -173,7 +155,7 @@ cmake -DCMAKE_BUILD_TYPE=Release "$samples_path"
 
 make $NUM_THREADS benchmark_app
 
-# Step 5. Run samples
+# Step 4. Run samples
 echo -ne "\n###############|| Run Inference Engine benchmark app ||###############\n\n"
 
 cd "$binaries_dir"
