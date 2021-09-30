@@ -30,7 +30,7 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
     gpu_buffer(ocl_engine* engine, const layout& new_layout, const cl::Buffer& buffer);
     gpu_buffer(ocl_engine* engine, const layout& layout);
 
-    void* lock(const stream& stream) override;
+    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
     event::ptr fill(stream& stream, unsigned char pattern) override;
     event::ptr fill(stream& stream) override;
@@ -54,7 +54,7 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
     gpu_image2d(ocl_engine* engine, const layout& new_layout, const cl::Image2D& buffer);
     gpu_image2d(ocl_engine* engine, const layout& layout);
 
-    void* lock(const stream& stream) override;
+    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
     event::ptr fill(stream& stream, unsigned char pattern) override;
     event::ptr fill(stream& stream) override;
@@ -102,7 +102,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer, allocation_type type);
     gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type);
 
-    void* lock(const stream& stream) override;
+    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
     const cl::UsmMemory& get_buffer() const { return _buffer; }
     cl::UsmMemory& get_buffer() { return _buffer; }

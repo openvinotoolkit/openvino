@@ -3,6 +3,7 @@
 //
 
 #include "dynamic_backend.hpp"
+
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/avg_pool.hpp"
 #include "ngraph/op/broadcast.hpp"
@@ -21,49 +22,39 @@ using namespace std;
 using namespace ngraph;
 
 runtime::dynamic::DynamicBackend::DynamicBackend(shared_ptr<runtime::Backend> wrapped_backend)
-    : m_wrapped_backend(std::move(wrapped_backend))
-{
-}
+    : m_wrapped_backend(std::move(wrapped_backend)) {}
 
-shared_ptr<runtime::Tensor> runtime::dynamic::DynamicBackend::create_tensor()
-{
+shared_ptr<runtime::Tensor> runtime::dynamic::DynamicBackend::create_tensor() {
     return m_wrapped_backend->create_tensor();
 }
 
-shared_ptr<runtime::Tensor>
-    runtime::dynamic::DynamicBackend::create_tensor(const element::Type& type, const Shape& shape)
-{
+shared_ptr<runtime::Tensor> runtime::dynamic::DynamicBackend::create_tensor(const element::Type& type,
+                                                                            const Shape& shape) {
     return m_wrapped_backend->create_tensor(type, shape);
 }
 
-shared_ptr<runtime::Tensor> runtime::dynamic::DynamicBackend::create_tensor(
-    const element::Type& type, const Shape& shape, void* memory_pointer)
-{
+shared_ptr<runtime::Tensor> runtime::dynamic::DynamicBackend::create_tensor(const element::Type& type,
+                                                                            const Shape& shape,
+                                                                            void* memory_pointer) {
     return m_wrapped_backend->create_tensor(type, shape, memory_pointer);
 }
 
-std::shared_ptr<runtime::Tensor>
-    runtime::dynamic::DynamicBackend::create_dynamic_tensor(const element::Type& type,
-                                                            const PartialShape& shape)
-{
+std::shared_ptr<runtime::Tensor> runtime::dynamic::DynamicBackend::create_dynamic_tensor(const element::Type& type,
+                                                                                         const PartialShape& shape) {
     return make_shared<DynamicTensor>(type, shape, m_wrapped_backend);
 }
 
-shared_ptr<runtime::Executable>
-    runtime::dynamic::DynamicBackend::compile(shared_ptr<Function> function,
-                                              bool enable_performance_collection)
-{
-    return make_shared<runtime::dynamic::DynamicExecutable>(
-        function, m_wrapped_backend, enable_performance_collection);
+shared_ptr<runtime::Executable> runtime::dynamic::DynamicBackend::compile(shared_ptr<Function> function,
+                                                                          bool enable_performance_collection) {
+    return make_shared<runtime::dynamic::DynamicExecutable>(function, m_wrapped_backend, enable_performance_collection);
 }
 
 runtime::dynamic::DynamicExecutable::DynamicExecutable(shared_ptr<Function> wrapped_function,
                                                        shared_ptr<runtime::Backend> wrapped_backend,
                                                        bool enable_performance_collection)
-    : m_wrapped_function(wrapped_function)
-    , m_wrapped_backend(wrapped_backend)
-    , m_enable_performance_collection(enable_performance_collection)
-{
+    : m_wrapped_function(wrapped_function),
+      m_wrapped_backend(wrapped_backend),
+      m_enable_performance_collection(enable_performance_collection) {
     pass::Manager passes;
     passes.register_pass<pass::ShapeRelevance>();
     passes.run_passes(m_wrapped_function);
@@ -73,30 +64,24 @@ runtime::dynamic::DynamicExecutable::DynamicExecutable(shared_ptr<Function> wrap
 
 // Due to clang++-3.9 bugs, this needs to be a non-static separate function from
 // count_dyn_nodes.
-bool is_dynamic_op(const std::shared_ptr<Node>& op)
-{
+bool is_dynamic_op(const std::shared_ptr<Node>& op) {
     return ov::is_type<op::Range>(op) || ov::is_type<op::v1::ConvolutionBackpropData>(op) ||
            ov::is_type<op::v3::Broadcast>(op);
 }
 
 // Helper for a vile hack in DynamicExecutable::call. See body of that function for details.
-static size_t count_dyn_nodes(const shared_ptr<ngraph::Function>& f)
-{
+static size_t count_dyn_nodes(const shared_ptr<ngraph::Function>& f) {
     size_t count = 0;
-    for (auto op : f->get_ops())
-    {
-        if (is_dynamic_op(op))
-        {
+    for (auto op : f->get_ops()) {
+        if (is_dynamic_op(op)) {
             count++;
         }
     }
     return count;
 }
 
-bool runtime::dynamic::DynamicExecutable::call(
-    const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
-    const std::vector<std::shared_ptr<runtime::Tensor>>& inputs)
-{
+bool runtime::dynamic::DynamicExecutable::call(const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
+                                               const std::vector<std::shared_ptr<runtime::Tensor>>& inputs) {
     // TODO: Get cached executable out if it exists.
     // We will cache on:
     // (1) all shapes;
@@ -105,24 +90,18 @@ bool runtime::dynamic::DynamicExecutable::call(
     std::vector<int> merged_input_shapes;
     std::ostringstream key;
     size_t loop_count = 0;
-    for (auto& input : inputs)
-    {
-        if (m_wrapped_function->get_parameters()[loop_count]->is_relevant_to_shapes())
-        {
+    for (auto& input : inputs) {
+        if (m_wrapped_function->get_parameters()[loop_count]->is_relevant_to_shapes()) {
             // Caching on values of Shape relevant inputs
             int size = input->get_size_in_bytes() / (input->get_element_type().bitwidth() / 8);
             std::vector<int64_t> data(size);
             input->read(data.data(), input->get_size_in_bytes());
-            for (size_t i = 0; i < input->get_element_count(); i++)
-            {
+            for (size_t i = 0; i < input->get_element_count(); i++) {
                 merged_input_shapes.emplace_back(data[i]);
             }
-        }
-        else
-        {
+        } else {
             // Caching on all remaining shapes
-            for (size_t i = 0; i < input->get_shape().size(); i++)
-            {
+            for (size_t i = 0; i < input->get_shape().size(); i++) {
                 merged_input_shapes.emplace_back(input->get_shape()[i]);
             }
         }
@@ -133,44 +112,32 @@ bool runtime::dynamic::DynamicExecutable::call(
         loop_count++;
     }
 
-    std::copy(merged_input_shapes.begin(),
-              merged_input_shapes.end(),
-              std::ostream_iterator<int>(key, ", "));
+    std::copy(merged_input_shapes.begin(), merged_input_shapes.end(), std::ostream_iterator<int>(key, ", "));
 
-    if (m_lru->is_cached(merged_input_shapes))
-    {
+    if (m_lru->is_cached(merged_input_shapes)) {
         std::vector<std::shared_ptr<runtime::Tensor>> wrapped_inputs;
         std::vector<std::shared_ptr<runtime::Tensor>> wrapped_outputs;
 
         std::shared_ptr<Function> clone = m_lru->get_cloned_function(merged_input_shapes);
         const ResultVector& results = clone->get_results();
-        for (auto& result : results)
-        {
+        for (auto& result : results) {
             NGRAPH_CHECK(result->get_output_partial_shape(0).is_static(),
                          "Shape staticization failed for result node ",
                          *result);
         }
         NGRAPH_CHECK(results.size() == outputs.size());
 
-        for (size_t i = 0; i < outputs.size(); i++)
-        {
-            if (auto dynamic_tensor =
-                    std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(outputs[i]))
-            {
-                dynamic_tensor->make_storage(results[i]->get_output_element_type(0),
-                                             results[i]->get_output_shape(0));
+        for (size_t i = 0; i < outputs.size(); i++) {
+            if (auto dynamic_tensor = std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(outputs[i])) {
+                dynamic_tensor->make_storage(results[i]->get_output_element_type(0), results[i]->get_output_shape(0));
                 wrapped_outputs.push_back(dynamic_tensor->get_wrapped_tensor());
-            }
-            else
-            {
+            } else {
                 wrapped_outputs.push_back(outputs[i]);
             }
         }
 
         return m_lru->get_cached_entry(merged_input_shapes)->call(wrapped_outputs, inputs);
-    }
-    else
-    {
+    } else {
         NGRAPH_CHECK(m_wrapped_function->get_parameters().size() == inputs.size());
 
         std::vector<std::shared_ptr<runtime::Tensor>> wrapped_inputs;
@@ -188,14 +155,10 @@ bool runtime::dynamic::DynamicExecutable::call(
 
             size_t i = 0;
 
-            for (auto& input : inputs)
-            {
-                if (m_wrapped_function->get_parameters()[i]->is_relevant_to_shapes())
-                {
+            for (auto& input : inputs) {
+                if (m_wrapped_function->get_parameters()[i]->is_relevant_to_shapes()) {
                     // TODO(amprocte): Move has_storage() to runtime::Tensor?
-                    if (auto dynamic_tensor =
-                            std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(input))
-                    {
+                    if (auto dynamic_tensor = std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(input)) {
                         NGRAPH_CHECK(dynamic_tensor->has_storage());
                     }
 
@@ -205,23 +168,16 @@ bool runtime::dynamic::DynamicExecutable::call(
                     // TODO(amprocte): For host-resident tensors we should be able to skip the read,
                     // but no API for that yet.
                     input->read(arg_value_base_pointers[i], input->get_size_in_bytes());
-                }
-                else
-                {
+                } else {
                     arg_value_base_pointers[i] = nullptr;
                 }
 
-                if (auto dynamic_tensor =
-                        std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(input))
-                {
+                if (auto dynamic_tensor = std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(input)) {
                     NGRAPH_CHECK(dynamic_tensor->has_storage());
-                    arg_element_types.push_back(
-                        dynamic_tensor->get_wrapped_tensor()->get_element_type());
+                    arg_element_types.push_back(dynamic_tensor->get_wrapped_tensor()->get_element_type());
                     arg_shapes.push_back(dynamic_tensor->get_wrapped_tensor()->get_shape());
                     wrapped_inputs.push_back(dynamic_tensor->get_wrapped_tensor());
-                }
-                else
-                {
+                } else {
                     arg_element_types.push_back(input->get_element_type());
                     arg_shapes.push_back(input->get_shape());
                     wrapped_inputs.push_back(input);
@@ -231,8 +187,7 @@ bool runtime::dynamic::DynamicExecutable::call(
             }
 
             NGRAPH_SUPPRESS_DEPRECATED_START;
-            clone = specialize_function(
-                m_wrapped_function, arg_element_types, arg_shapes, arg_value_base_pointers);
+            clone = specialize_function(m_wrapped_function, arg_element_types, arg_shapes, arg_value_base_pointers);
             NGRAPH_SUPPRESS_DEPRECATED_END;
         }
 
@@ -252,8 +207,7 @@ bool runtime::dynamic::DynamicExecutable::call(
         // and DE into one pass.
         size_t num_dyn_nodes_last_pass = std::numeric_limits<size_t>::max();
 
-        while (num_dyn_nodes_last_pass != 0)
-        {
+        while (num_dyn_nodes_last_pass != 0) {
             passes.run_passes(clone);
             auto num_dyn_nodes_this_pass = count_dyn_nodes(clone);
 
@@ -272,23 +226,17 @@ bool runtime::dynamic::DynamicExecutable::call(
         const ResultVector& results = clone->get_results();
         NGRAPH_CHECK(results.size() == outputs.size());
 
-        for (size_t i = 0; i < outputs.size(); i++)
-        {
-            if (auto dynamic_tensor =
-                    std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(outputs[i]))
-            {
+        for (size_t i = 0; i < outputs.size(); i++) {
+            if (auto dynamic_tensor = std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(outputs[i])) {
                 dynamic_tensor->make_storage(results[i]->get_output_element_type(0),
                                              results[i]->get_output_partial_shape(0));
                 wrapped_outputs.push_back(dynamic_tensor->get_wrapped_tensor());
-            }
-            else
-            {
+            } else {
                 wrapped_outputs.push_back(outputs[i]);
             }
         }
 
-        auto compiled_executable =
-            m_wrapped_backend->compile(clone, m_enable_performance_collection);
+        auto compiled_executable = m_wrapped_backend->compile(clone, m_enable_performance_collection);
         // Put compiled executable in the cache.
         m_lru->add_entry(merged_input_shapes, compiled_executable, clone);
         auto result = compiled_executable->call(wrapped_outputs, wrapped_inputs);
@@ -297,78 +245,57 @@ bool runtime::dynamic::DynamicExecutable::call(
     }
 }
 
-runtime::dynamic::DynamicTensor::DynamicTensor(
-    const element::Type& element_type,
-    const PartialShape& shape,
-    const std::shared_ptr<runtime::Backend>& wrapped_backend)
-    : Tensor(make_shared<descriptor::Tensor>(element_type, shape, "wrapped_dynamic"))
-    , m_wrapped_tensor(nullptr)
-    , m_wrapped_backend(wrapped_backend)
-{
-}
+runtime::dynamic::DynamicTensor::DynamicTensor(const element::Type& element_type,
+                                               const PartialShape& shape,
+                                               const std::shared_ptr<runtime::Backend>& wrapped_backend)
+    : Tensor(make_shared<descriptor::Tensor>(element_type, shape, "wrapped_dynamic")),
+      m_wrapped_tensor(nullptr),
+      m_wrapped_backend(wrapped_backend) {}
 
-size_t runtime::dynamic::DynamicTensor::get_size_in_bytes() const
-{
-    NGRAPH_CHECK(m_wrapped_tensor != nullptr,
-                 "asked for size in bytes of a dynamic tensor with no allocated storage");
+size_t runtime::dynamic::DynamicTensor::get_size_in_bytes() const {
+    NGRAPH_CHECK(m_wrapped_tensor != nullptr, "asked for size in bytes of a dynamic tensor with no allocated storage");
     // TODO expand size calculation for type with bitwidth less than 8 like:
     // m_wrapped_tensor->get_size_in_bytes()
     return get_element_count() * get_element_type().size();
 }
 
-size_t runtime::dynamic::DynamicTensor::get_element_count() const
-{
-    NGRAPH_CHECK(m_wrapped_tensor != nullptr,
-                 "asked for element count of a dynamic tensor with no allocated storage");
+size_t runtime::dynamic::DynamicTensor::get_element_count() const {
+    NGRAPH_CHECK(m_wrapped_tensor != nullptr, "asked for element count of a dynamic tensor with no allocated storage");
     return shape_size(m_wrapped_tensor->get_shape());
 }
 
-const element::Type& runtime::dynamic::DynamicTensor::get_element_type() const
-{
-    if (m_wrapped_tensor == nullptr)
-    {
+const element::Type& runtime::dynamic::DynamicTensor::get_element_type() const {
+    if (m_wrapped_tensor == nullptr) {
         return m_descriptor->get_element_type();
-    }
-    else
-    {
+    } else {
         return m_wrapped_tensor->get_element_type();
     }
 }
 
-const ngraph::Shape& runtime::dynamic::DynamicTensor::get_shape() const
-{
-    NGRAPH_CHECK(m_wrapped_tensor != nullptr,
-                 "asked for shape of a dynamic tensor with no allocated storage");
+const ngraph::Shape& runtime::dynamic::DynamicTensor::get_shape() const {
+    NGRAPH_CHECK(m_wrapped_tensor != nullptr, "asked for shape of a dynamic tensor with no allocated storage");
     return m_wrapped_tensor->get_shape();
 }
 
-void runtime::dynamic::DynamicTensor::write(const void* p, size_t n)
-{
-    NGRAPH_CHECK(m_wrapped_tensor != nullptr,
-                 "tried to write to a dynamic tensor with no allocated storage");
+void runtime::dynamic::DynamicTensor::write(const void* p, size_t n) {
+    NGRAPH_CHECK(m_wrapped_tensor != nullptr, "tried to write to a dynamic tensor with no allocated storage");
     m_wrapped_tensor->write(p, n);
 }
 
-void runtime::dynamic::DynamicTensor::read(void* p, size_t n) const
-{
-    NGRAPH_CHECK(m_wrapped_tensor != nullptr,
-                 "tried to read from a dynamic tensor with no allocated storage");
+void runtime::dynamic::DynamicTensor::read(void* p, size_t n) const {
+    NGRAPH_CHECK(m_wrapped_tensor != nullptr, "tried to read from a dynamic tensor with no allocated storage");
     m_wrapped_tensor->read(p, n);
 }
 
-bool runtime::dynamic::DynamicTensor::has_storage() const
-{
+bool runtime::dynamic::DynamicTensor::has_storage() const {
     return m_wrapped_tensor != nullptr;
 }
 
-void runtime::dynamic::DynamicTensor::release_storage()
-{
+void runtime::dynamic::DynamicTensor::release_storage() {
     m_wrapped_tensor = nullptr;
 }
 
-void runtime::dynamic::DynamicTensor::make_storage(const element::Type& element_type,
-                                                   const PartialShape& shape)
-{
+void runtime::dynamic::DynamicTensor::make_storage(const element::Type& element_type, const PartialShape& shape) {
     NGRAPH_CHECK(element_type.is_static(), "make_storage requires a static element type");
     NGRAPH_CHECK(get_element_type().is_dynamic() || get_element_type() == element_type,
                  "tried to make storage with element type ",
@@ -380,18 +307,13 @@ void runtime::dynamic::DynamicTensor::make_storage(const element::Type& element_
                  shape,
                  " which is incompatible with dynamic tensor shape ",
                  get_partial_shape());
-    if (shape.is_static())
-    {
+    if (shape.is_static()) {
         m_wrapped_tensor = m_wrapped_backend->create_tensor(element_type, shape.get_shape());
-    }
-    else
-    {
+    } else {
         m_wrapped_tensor = m_wrapped_backend->create_dynamic_tensor(element_type, shape);
     }
 }
 
-const std::shared_ptr<ngraph::runtime::Tensor>&
-    runtime::dynamic::DynamicTensor::get_wrapped_tensor() const
-{
+const std::shared_ptr<ngraph::runtime::Tensor>& runtime::dynamic::DynamicTensor::get_wrapped_tensor() const {
     return m_wrapped_tensor;
 }

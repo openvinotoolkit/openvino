@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/preprocess/resize_algorithm.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
@@ -139,6 +140,42 @@ public:
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     PreProcessSteps&& custom(const CustomPreprocessOp& preprocess_cb) &&;
+
+    /// \brief Add resize operation to known dimensions - Lvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \param dst_height Desired height of resized image.
+    ///
+    /// \param dst_width Desired width of resized image.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) &;
+
+    /// \brief Add resize operation to known dimensions - Rvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \param dst_height Desired height of resized image.
+    ///
+    /// \param dst_width Desired width of resized image.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps&& resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) &&;
+
+    /// \brief Add resize operation to network dimensions - Lvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& resize(ResizeAlgorithm alg) &;
+
+    /// \brief Add resize operation to network dimensions - Rvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps&& resize(ResizeAlgorithm alg) &&;
 };
 
 }  // namespace preprocess
