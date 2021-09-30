@@ -843,7 +843,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node) {
         const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
         preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
     } else if (node.is_type<reorder>()) {
-        if (!node.get_program().get_engine().get_device_info().supports_immad)
+        if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
         std::vector<format> onednn_optimized_fmt = {
@@ -973,6 +973,9 @@ void layout_optimizer::set_optimization_attribute(optimization_attributes_type a
             break;
         case optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network:
             _optimization_attributes.bs_fs_yx_bsv16_fsv16_network = val;
+            break;
+        case optimization_attributes_type::use_onednn_impls:
+            _optimization_attributes.use_onednn_impls = val;
             break;
         default:
             throw std::out_of_range("unsupported layout optimization attribute");
