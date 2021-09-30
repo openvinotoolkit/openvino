@@ -41,10 +41,17 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
         ngraph::helpers::EltwiseTypes::ADD
 };
 
-std::map<std::string, std::string> additional_config = {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_SCALE_FACTOR_0", "1638.4"},
-        {"GNA_SCALE_FACTOR_1", "1638.4"}
+std::vector<std::map<std::string, std::string>> additional_config = {
+        {
+                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+                {"GNA_SCALE_FACTOR_0", "1638.4"},
+                {"GNA_SCALE_FACTOR_1", "1638.4"}
+        },
+        {
+                {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
+                {"GNA_SCALE_FACTOR_0", "1638.4"},
+                {"GNA_SCALE_FACTOR_1", "1638.4"}
+        }
 };
 
 const auto multiply_params = ::testing::Combine(
@@ -57,7 +64,7 @@ const auto multiply_params = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::Values(additional_config));
+        ::testing::ValuesIn(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
 }  // namespace
