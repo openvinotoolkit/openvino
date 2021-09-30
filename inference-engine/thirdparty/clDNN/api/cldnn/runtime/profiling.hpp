@@ -17,6 +17,14 @@ namespace instrumentation {
 /// @addtogroup cpp_event Events Support
 /// @{
 
+/// @brief Represents profiling intervals stages.
+enum class profiling_stage {
+    submission,  // Time spent on submitting command by the host to the device associated with the commandqueue.
+    starting,    // Time spent on waiting in the commandqueue before execution.
+    executing,   // Time spent on command execution.
+    duration     // Time spent on command execution for CPU layers.
+};
+
 /// @brief Helper class to calculate time periods.
 template <class ClockTy = std::chrono::steady_clock>
 class timer {
@@ -55,9 +63,9 @@ private:
     std::chrono::nanoseconds _value;
 };
 
-/// @brief Represents prifiling interval as its name and value.
+/// @brief Represents profiling interval as its type and value.
 struct profiling_interval {
-    std::string name;                         ///< @brief Display name.
+    profiling_stage stage;                    ///< @brief Display name.
     std::shared_ptr<profiling_period> value;  ///< @brief Interval value.
 };
 
