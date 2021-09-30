@@ -3,18 +3,11 @@
 //
 
 #include <gtest/gtest.h>
-
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <vector>
-
 #include "base_reference_test.hpp"
+#include "openvino/op/floor.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace reference_tests;
-using namespace InferenceEngine;
 
 namespace {
 
@@ -27,14 +20,14 @@ struct FloorParams {
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)) {}
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)) {}
 
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    runtime::Tensor inputData;
+    runtime::Tensor refData;
 };
 
 class ReferenceFloorLayerTest : public testing::TestWithParam<FloorParams>, public CommonReferenceTest {
@@ -59,8 +52,8 @@ private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape,
                                                     const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
-        const auto floor = std::make_shared<op::Floor>(in);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto floor = std::make_shared<op::v0::Floor>(in);
         return std::make_shared<Function>(NodeVector{floor}, ParameterVector{in});
     }
 };

@@ -3,18 +3,11 @@
 //
 
 #include <gtest/gtest.h>
-
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <vector>
-
 #include "base_reference_test.hpp"
+#include "openvino/op/abs.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace reference_tests;
-using namespace InferenceEngine;
 
 namespace {
 
@@ -27,14 +20,14 @@ struct AbsParams {
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)) {}
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)) {}
 
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    runtime::Tensor inputData;
+    runtime::Tensor refData;
 };
 
 class ReferenceAbsLayerTest : public testing::TestWithParam<AbsParams>, public CommonReferenceTest {
@@ -57,8 +50,8 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type, const element::Type& expected_output_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
-        const auto log = std::make_shared<op::Abs>(in);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto log = std::make_shared<op::v0::Abs>(in);
         return std::make_shared<Function>(NodeVector{log}, ParameterVector{in});
     }
 };
