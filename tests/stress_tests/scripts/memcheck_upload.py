@@ -58,22 +58,34 @@ def metadata_from_manifest(manifest):
     # parse OS name/version
     product_type_str = manifest['components'][PRODUCT_NAME]['product_type']
     product_type = product_type_str.split('_')
-    if product_type[2] != 'ubuntu':
-        if product_type[1] != 'windows':
-            logging.error('Product type %s is not supported', product_type_str)
-            return {}
+    if product_type[2] == 'ubuntu':
+        return {
+            'os_name': product_type[2],
+            'os_version': [product_type[3], product_type[4]],
+            'commit_sha': repo_trigger['revision'],
+            'commit_date': repo_trigger['commit_time'],
+            'repo_url': repo_trigger['url'],
+            'branch': repo_trigger['branch'],
+            'target_branch': repo_trigger['target_branch'] if repo_trigger["target_branch"] else repo_trigger["branch"],
+            'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
+            f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
+        }
 
-    return {
-        'os_name': product_type[2],
-        'os_version': [product_type[3], product_type[4]],
-        'commit_sha': repo_trigger['revision'],
-        'commit_date': repo_trigger['commit_time'],
-        'repo_url': repo_trigger['url'],
-        'branch': repo_trigger['branch'],
-        'target_branch': repo_trigger['target_branch'] if repo_trigger["target_branch"] else repo_trigger["branch"],
-        'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
-        f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
-    }
+    if product_type[1] == 'windows':
+        return {
+            'os_name': product_type[1],
+            'os_version': [product_type[2]],
+            'commit_sha': repo_trigger['revision'],
+            'commit_date': repo_trigger['commit_time'],
+            'repo_url': repo_trigger['url'],
+            'branch': repo_trigger['branch'],
+            'target_branch': repo_trigger['target_branch'] if repo_trigger["target_branch"] else repo_trigger["branch"],
+            'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
+            f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
+        }
+    else:
+        logging.error('Product type %s is not supported', product_type_str)
+        return {}
 
 
 def info_from_test_config(test_conf):
