@@ -240,6 +240,18 @@ def ti_add_edge_attrs(op: Node):
         i += 1
 
 
+def assign_add_output_result(op: Node):
+    """
+    Function adds necessary output result node for Assign node
+    :param op:
+    :return:
+    """
+    assert op.soft_get('type') == 'Assign', 'Wrong operation type, {} instead of Assign!' \
+                                            ''.format(op.soft_get('type'))
+    tmp_result = Result(op.graph, {'name': op.soft_get('name', op.id) + '/Result'}).create_node()
+    op.out_port(0).connect(tmp_result.in_port(0))
+
+
 def copy_input_blobs(op: Node, copy_op: Node):
     """
     Function copy input blob data nodes from restored graph to copied one
@@ -265,6 +277,7 @@ preprocessing_op_nodes = {
 
 # Map with postprocessing functions for nodes
 postprocessing_op_nodes = {
+    'Assign': assign_add_output_result,
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
     # Call normalize Split outputs for generated IR by ir-reader
