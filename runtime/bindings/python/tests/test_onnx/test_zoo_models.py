@@ -159,6 +159,7 @@ if len(zoo_models) > 0:
         execution_xfail_list = [
             # ONNX Model Zoo
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
+            (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_mask_rcnn_model_MaskRCNN_10_mask_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet50_11_fcn_resnet50_11_model_cpu"),
