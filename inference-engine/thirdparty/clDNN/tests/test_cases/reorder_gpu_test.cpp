@@ -2398,7 +2398,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_REORDER,
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(reorder_onednn_gpu, basic_convert_int8) {
-
     auto& engine = get_onednn_test_engine();
     layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
