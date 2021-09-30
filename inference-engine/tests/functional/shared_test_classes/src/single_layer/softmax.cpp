@@ -11,7 +11,7 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
-    std::vector<std::vector<std::pair<size_t, size_t>>> inputShape;
+    std::vector<ngraph::PartialShape> inputShape;
     std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes;
     size_t axis;
     std::string targetDevice;
@@ -24,8 +24,8 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
     result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShape.front()) << "_";
-    result << "TS=" << CommonTestUtils::vec2str(targetShapes.front()) << "_";
+    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
     result << "axis=" << axis << "_";
     result << "trgDev=" << targetDevice;
 
@@ -33,7 +33,7 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
 }
 
 void SoftMaxLayerTest::SetUp() {
-    std::vector<std::vector<std::pair<size_t, size_t>>> inputShape;
+    std::vector<ngraph::PartialShape> inputShape;
     std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes;
 
     std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, axis, targetDevice, configuration) = GetParam();
@@ -44,11 +44,7 @@ void SoftMaxLayerTest::SetUp() {
                 std::vector<ngraph::Shape>{ngraph::Shape{targetShape.front()}, ngraph::Shape{targetShape.front()}});
     }
 
-    inputDynamicShape.emplace_back(
-            FuncTestUtils::PartialShapeUtils::vec2partialshape(
-                    inputShape.empty() ?
-                    std::vector<std::pair<size_t, size_t>>{} :
-                    inputShape.front(), targetStaticShapes[0].front()));
+    inputDynamicShape.emplace_back(inputShape.empty() ? targetStaticShapes[0].front() : inputShape[0]);
 
     setTargetStaticShape(targetStaticShapes[0]);
 

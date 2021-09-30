@@ -20,12 +20,12 @@ const std::vector<InferenceEngine::Layout> inputLayouts2D = {
     InferenceEngine::Layout::NC,
 };
 
-const std::vector<std::vector<std::vector<std::pair<size_t, size_t>>>> inputStaticShape2D = {
+const std::vector<std::vector<ngraph::PartialShape>> inputStaticShape2D = {
     {NULL_RANGE}
 };
 
-const std::vector<std::vector<std::vector<std::pair<size_t, size_t>>>> inputShape2D = {
-    {{{1, 200}, {1, 200}}}
+const std::vector<std::vector<ngraph::PartialShape>> inputShape2D = {
+    {{{1, 100}, {1, 100}}}
 };
 
 const std::vector<std::vector<std::vector<InferenceEngine::SizeVector>>> targetShapes2D = {
@@ -78,12 +78,12 @@ INSTANTIATE_TEST_SUITE_P(
         SoftMaxLayerTest::getTestCaseName
 );
 
-const std::vector<std::vector<std::vector<std::pair<size_t, size_t>>>> inputStaticShape4D = {
+const std::vector<std::vector<ngraph::PartialShape>> inputStaticShape4D = {
     {NULL_RANGE}
 };
 
-const std::vector<std::vector<std::vector<std::pair<size_t, size_t>>>> inputShape4D = {
-    {{{1, 200}, {1, 200}, {1, 200}, {1, 200}}}
+const std::vector<std::vector<ngraph::PartialShape>> inputShape4D = {
+    {{{1, 100}, {1, 100}, {1, 100}, {1, 100}}}
 };
 
 const std::vector<std::vector<std::vector<InferenceEngine::SizeVector>>> targetShapes4D = {

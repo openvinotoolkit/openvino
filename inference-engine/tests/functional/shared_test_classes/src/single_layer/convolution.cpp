@@ -14,7 +14,7 @@ std::string ConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<c
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
-    std::vector<std::vector<std::pair<size_t, size_t>>> inputShape;
+    std::vector<ngraph::PartialShape> inputShape;
     std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes;
     std::string targetDevice;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, targetDevice) =
@@ -46,7 +46,7 @@ std::string ConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<c
 
 void ConvolutionLayerTest::SetUp() {
     convSpecificParams convParams;
-    std::vector<std::vector<std::pair<size_t, size_t>>> inputShape;
+    std::vector<ngraph::PartialShape> inputShape;
     std::vector<std::vector<InferenceEngine::SizeVector>> targetShapes;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, targetDevice) =
         this->GetParam();
@@ -54,11 +54,7 @@ void ConvolutionLayerTest::SetUp() {
         targetStaticShapes.emplace_back(
                 std::vector<ngraph::Shape>{ngraph::Shape{targetShape.front()}, ngraph::Shape{targetShape.front()}});
     }
-    inputDynamicShape.emplace_back(
-            FuncTestUtils::PartialShapeUtils::vec2partialshape(
-                    inputShape.empty() ?
-                    std::vector<std::pair<size_t, size_t>>{} :
-                    inputShape.front(), targetStaticShapes[0].front()));
+    inputDynamicShape.emplace_back(std::vector<ov::Dimension>(inputShape[0]).empty() ? targetStaticShapes[0].front() : inputShape[0]);
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
     setTargetStaticShape(targetStaticShapes[0]);
