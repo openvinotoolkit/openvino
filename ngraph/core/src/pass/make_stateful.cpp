@@ -15,8 +15,8 @@ using namespace opset8;
 using namespace op::util;
 
 namespace {
-string generate_variable_name(const shared_ptr<Parameter>& param, const shared_ptr<Result>& res, uint64_t idx) {
-    return param->get_friendly_name() + res->get_friendly_name() + std::to_string(idx);
+string generate_variable_name(const shared_ptr<Parameter>& param, const shared_ptr<Result>& res) {
+    return param->get_friendly_name() + res->get_friendly_name();
 }
 
 ov::pass::MakeStateful::ParamResPairs find_param_results_by_names(
@@ -54,7 +54,6 @@ bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f
 
     VariableVector variables;
     SinkVector sinks;
-    uint64_t idx = 0;
     for (const auto& pair : m_param_res_pairs) {
         const auto& param = pair.first;
         const auto& res = pair.second;
@@ -67,7 +66,7 @@ bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f
         const auto& target_inputs = param->get_output_target_inputs(0);
 
         // Create Variable
-        std::string var_name = generate_variable_name(param, res, idx++);
+        std::string var_name = generate_variable_name(param, res);
         auto variable =
             std::make_shared<Variable>(VariableInfo{param->get_shape(), param->get_element_type(), var_name});
         variables.push_back(variable);
