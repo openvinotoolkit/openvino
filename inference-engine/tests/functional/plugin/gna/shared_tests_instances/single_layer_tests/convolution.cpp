@@ -155,7 +155,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Height1, C
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+                                ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
                                 ::testing::ValuesIn(inputShapesH1),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
@@ -168,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Width1, Co
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+                                ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
                                 ::testing::ValuesIn(inputShapesW1),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
@@ -181,7 +181,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Height1, ConvolutionLa
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+                                ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
                                 ::testing::ValuesIn(inputShapesH1),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
@@ -194,7 +194,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Width1, ConvolutionLay
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+                                ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
                                 ::testing::ValuesIn(inputShapesW1),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
@@ -207,7 +207,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_MapTo1d, ConvolutionLa
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+                                ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
                                 ::testing::ValuesIn(inputShapesMapTo1d),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
@@ -220,7 +220,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+        ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
         ::testing::Values(input2DNCHW),
         ::testing::Values(CommonTestUtils::DEVICE_GNA)),
     GnaConvolutionLayerTest::getTestCaseName);

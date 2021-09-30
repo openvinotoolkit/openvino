@@ -3,7 +3,6 @@
 //
 
 #include "shared_test_classes/single_layer/softmax.hpp"
-#include "functional_test_utils/partial_shape_utils.hpp"
 
 namespace LayerTestsDefinitions {
 

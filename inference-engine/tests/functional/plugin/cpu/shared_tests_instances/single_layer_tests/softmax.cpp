@@ -19,7 +19,7 @@ const std::vector<InferenceEngine::Layout> inputLayouts2D = {
     InferenceEngine::Layout::NC,
 };
 
-const std::vector<std::vector<std::vector<std::pair<size_t, size_t>>>> inputStaticShape2D = {
+const std::vector<std::vector<ngraph::PartialShape>> inputStaticShape2D = {
     {NULL_RANGE}
 };
 
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(
         SoftMaxLayerTest::getTestCaseName
 );
 
-const std::vector<std::vector<std::vector<std::pair<size_t, size_t>>>> inputStaticShape4D = {
+const std::vector<std::vector<ngraph::PartialShape>> inputStaticShape4D = {
     {NULL_RANGE}
 };
 

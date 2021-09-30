@@ -43,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+        ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
         ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 30}}})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
@@ -56,7 +56,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+        ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
         ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 30}}})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
@@ -89,7 +89,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+        ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
         ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 30, 30}}})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
@@ -102,7 +102,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+        ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
         ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 30, 30}}})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
@@ -131,7 +131,7 @@ namespace specificWeightLayout {
                                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                                    ::testing::Values(InferenceEngine::Layout::ANY),
                                                    ::testing::Values(InferenceEngine::Layout::ANY),
-                                                   ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+                                                   ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
                                                    ::testing::Values(std::vector<std::vector<std::vector<size_t>>>(
                                                            {{{1, 1, 50, 75}}})),
                                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -165,7 +165,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+        ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
         ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 10, 10, 10}}})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
@@ -178,7 +178,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<std::vector<std::pair<size_t, size_t>>>(NULL_RANGE)),
+        ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
         ::testing::Values(std::vector<std::vector<std::vector<size_t>>>({{{1, 3, 10, 10, 10}}})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
