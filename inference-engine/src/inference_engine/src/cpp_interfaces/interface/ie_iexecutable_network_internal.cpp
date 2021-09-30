@@ -29,17 +29,16 @@ void IExecutableNetworkInternal::setNetworkOutputs(const OutputsDataMap& network
 void IExecutableNetworkInternal::setRuntimeFunction(std::shared_ptr<ov::Function> function) {
     _runtime_function = std::move(function);
 }
-void IExecutableNetworkInternal::setParameters(
-    const std::vector<std::shared_ptr<const ov::op::v0::Parameter>>& params) {
+void IExecutableNetworkInternal::setInputs(const std::vector<std::shared_ptr<const ov::Node>>& params) {
     _parameters = params;
 }
-const std::vector<std::shared_ptr<const ov::op::v0::Parameter>>& IExecutableNetworkInternal::getParameters() const {
+const std::vector<std::shared_ptr<const ov::Node>>& IExecutableNetworkInternal::getInputs() const {
     return _parameters;
 }
-void IExecutableNetworkInternal::setResult(const std::vector<std::shared_ptr<const ov::op::v0::Result>>& results) {
+void IExecutableNetworkInternal::setOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results) {
     _results = results;
 }
-const std::vector<std::shared_ptr<const ov::op::v0::Result>>& IExecutableNetworkInternal::getResults() const {
+const std::vector<std::shared_ptr<const ov::Node>>& IExecutableNetworkInternal::getOutputs() const {
     return _results;
 }
 

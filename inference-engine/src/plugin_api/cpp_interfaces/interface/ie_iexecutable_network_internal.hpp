@@ -60,20 +60,20 @@ public:
      * @brief      Sets the network parameters
      * @param[in]  params  The network parameters
      */
-    virtual void setParameters(const std::vector<std::shared_ptr<const ov::op::v0::Parameter>>& params);
+    virtual void setInputs(const std::vector<std::shared_ptr<const ov::Node>>& params);
     /**
      * @brief      Returns the network parameters
      */
-    virtual const std::vector<std::shared_ptr<const ov::op::v0::Parameter>>& getParameters() const;
+    virtual const std::vector<std::shared_ptr<const ov::Node>>& getInputs() const;
     /**
      * @brief      Sets the network results
-     * @param[in]  params  The network results
+     * @param[in]  results  The network results
      */
-    virtual void setResult(const std::vector<std::shared_ptr<const ov::op::v0::Result>>& results);
+    virtual void setOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results);
     /**
      * @brief      Returns the network results
      */
-    virtual const std::vector<std::shared_ptr<const ov::op::v0::Result>>& getResults() const;
+    virtual const std::vector<std::shared_ptr<const ov::Node>>& getOutputs() const;
 
     /**
      * @brief      Sets function with network inputs and outpus info
@@ -178,8 +178,8 @@ protected:
     std::shared_ptr<ov::Function> _runtime_function;  //!< Holds information about network inputs and outputs
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
-    std::vector<std::shared_ptr<const ov::op::v0::Parameter>> _parameters;
-    std::vector<std::shared_ptr<const ov::op::v0::Result>> _results;
+    std::vector<std::shared_ptr<const ov::Node>> _parameters;
+    std::vector<std::shared_ptr<const ov::Node>> _results;
 
     /**
      * @brief A pointer to a IInferencePlugin interface.

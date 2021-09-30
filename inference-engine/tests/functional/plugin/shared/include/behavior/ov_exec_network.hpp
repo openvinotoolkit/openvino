@@ -5,14 +5,14 @@
 #include <chrono>
 #include <memory>
 #include <string>
-#include <transformations/serialize.hpp>
 #include <tuple>
 #include <vector>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "openvino/runtime/runtime.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/runtime/runtime.hpp"
+#include "transformations/serialize.hpp"
 
 namespace ov {
 namespace test {
@@ -64,7 +64,8 @@ TEST_P(OVExecNetwork, getInputsFromFunctionWithSeveralInputs) {
         auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
         concat->output(0).get_tensor().set_names({"concat"});
         auto result2 = std::make_shared<ov::opset8::Result>(concat);
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2}, ngraph::ParameterVector{param1, param2});
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                      ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleRuLU");
     }
     ASSERT_NO_THROW(execNet = ie->compile_model(function, targetDevice, configuration));
@@ -100,7 +101,8 @@ TEST_P(OVExecNetwork, getOutputsFromFunctionWithSeveralOutputs) {
         auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
         concat->output(0).get_tensor().set_names({"concat"});
         auto result2 = std::make_shared<ov::opset8::Result>(concat);
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2}, ngraph::ParameterVector{param1, param2});
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                      ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleRuLU");
     }
     ASSERT_NO_THROW(execNet = ie->compile_model(function, targetDevice, configuration));

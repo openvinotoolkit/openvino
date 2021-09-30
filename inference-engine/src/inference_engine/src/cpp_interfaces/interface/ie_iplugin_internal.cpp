@@ -258,66 +258,27 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const std::shared_ptr<ov::Function>& function) {
-    IE_ASSERT(exeNetwork != nullptr);
-    IE_ASSERT(function != nullptr);
+    OPENVINO_ASSERT(exeNetwork != nullptr);
+    OPENVINO_ASSERT(function != nullptr);
 
-    ngraph::ParameterVector parameters;
-    ngraph::ResultVector results;
-    ngraph::NodeVector nodes;
-
-    std::vector<std::shared_ptr<const ov::op::v0::Parameter>> const_params;
-    std::vector<std::shared_ptr<const ov::op::v0::Result>> const_results;
-
-    std::map<ngraph::Output<ngraph::Node>, ngraph::Output<ngraph::Node>> output_map;
+    std::vector<std::shared_ptr<const ov::Node>> const_params;
+    std::vector<std::shared_ptr<const ov::Node>> const_results;
 
     for (const auto& param : function->get_parameters()) {
-        const_params.emplace_back(std::const_pointer_cast<const ov::op::v0::Parameter>(param));
+        auto new_param = param->copy_with_new_inputs({});
+        new_param->set_friendly_name(param->get_friendly_name());
+        const_params.emplace_back(std::const_pointer_cast<const ov::Node>(new_param));
     }
     for (const auto& result : function->get_results()) {
-        const_results.emplace_back(std::const_pointer_cast<const ov::op::v0::Result>(result));
-    }
-    for (auto&& node : function->get_ordered_ops()) {
-        ngraph::Node* new_node = nullptr;
-        if (ngraph::is_type<ngraph::op::Parameter>(node)) {
-            const auto param = std::static_pointer_cast<ov::op::v0::Parameter>(node->copy_with_new_inputs({}));
-            parameters.push_back(param);
-            for (std::size_t i = 0; i < node->outputs().size(); ++i) {
-                output_map.emplace(node->output(i), parameters.back()->output(i));
-            }
-            new_node = parameters.back().get();
-        } else {
-            std::vector<ngraph::Output<ngraph::Node>> outputs;
-            for (auto&& input : node->inputs()) {
-                outputs.emplace_back(output_map.at(input.get_source_output()));
-            }
-            if (ngraph::is_type<ngraph::op::Result>(node)) {
-                const auto result =
-                    std::static_pointer_cast<ngraph::op::v0::Result>(node->copy_with_new_inputs(outputs));
-                results.push_back(result);
-                new_node = results.back().get();
-            } else {
-                nodes.push_back(
-                    std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(outputs, node->outputs().size()));
-                new_node = nodes.back().get();
-                for (std::size_t i = 0; i < node->outputs().size(); ++i) {
-                    auto output = node->output(i);
-                    output_map.emplace(output, nodes.back()->output(i));
-                    new_node->set_output_type(i, output.get_element_type(), output.get_partial_shape());
-                }
-            }
-        }
-        IE_ASSERT(new_node != nullptr);
-        new_node->set_friendly_name(node->get_friendly_name());
-        new_node->get_rt_info()[ExecGraphInfoSerialization::PERF_COUNTER] =
-            std::make_shared<::ngraph::VariantWrapper<std::string>>("not_executed");
-        new_node->get_rt_info()[ExecGraphInfoSerialization::ORIGINAL_NAMES] =
-            std::make_shared<::ngraph::VariantWrapper<std::string>>(node->get_friendly_name());
+        auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
+                                                                  result->get_output_partial_shape(0));
+        auto new_result = result->copy_with_new_inputs({fake_param});
+        new_result->set_friendly_name(result->get_friendly_name());
+        const_results.emplace_back(std::const_pointer_cast<const ov::Node>(new_result));
     }
 
-    exeNetwork->setParameters(const_params);
-    exeNetwork->setResult(const_results);
-    exeNetwork->setRuntimeFunction(
-        std::make_shared<ov::Function>(results, parameters, function->get_friendly_name() + "_execution_info"));
+    exeNetwork->setInputs(const_params);
+    exeNetwork->setOutputs(const_results);
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 
