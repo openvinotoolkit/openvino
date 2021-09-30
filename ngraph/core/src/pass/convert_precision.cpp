@@ -331,7 +331,11 @@ bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, element::Ty
 
 bool fuse_type_to_nms3(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
     if (auto nms = ov::as_type_ptr<opset3::NonMaxSuppression>(node)) {
-        nms->set_output_type(to);
+        if (to == element::i32 || to == element::i64) {
+            nms->set_output_type(to);
+        } else {
+            throw ngraph_error("Type: " + to.get_type_name() + " is not supported for NMS3");
+        }
         return true;
     }
     return false;
@@ -339,7 +343,11 @@ bool fuse_type_to_nms3(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
 
 bool fuse_type_to_nms4(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
     if (auto nms = ov::as_type_ptr<opset4::NonMaxSuppression>(node)) {
-        nms->set_output_type(to);
+        if (to == element::i32 || to == element::i64) {
+            nms->set_output_type(to);
+        } else {
+            throw ngraph_error("Type: " + to.get_type_name() + " is not supported for NMS4");
+        }
         return true;
     }
     return false;
