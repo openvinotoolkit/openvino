@@ -1,6 +1,6 @@
 # Default Model Optimizer Optimizations {#openvino_docs_MO_DG_Default_Model_Optimizer_Optimizations}
 
-As described in the [Model Optimizer Guide](../MO_DG/prepare_model/Prepare_Trained_Model.md), there are a number of device-agnostic optimizations the tool performs.  For example, certain primitives like linear operations (BatchNorm and ScaleShift), are automatically fused into convolutions. Generally, these layers should not be manifested in the resulting IR:
+Model Optimizer not only converts a model to IR format, but also performs a number of optimizations. For example, certain primitives like linear operations (BatchNorm and ScaleShift), are automatically fused into convolutions. Generally, these layers should not be manifested in the resulting IR:
 
 ![](../img/optimizations/resnet_269.png)
 

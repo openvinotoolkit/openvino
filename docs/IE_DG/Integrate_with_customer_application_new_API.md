@@ -10,6 +10,7 @@
 @endsphinxdirective
 
 The following diagram illustrates the typical Inference Engine С++ API workflow:
+
 ![ie_api_flow_cpp]
 
 Read the sections below to learn about each item.
@@ -480,7 +481,7 @@ output = result[output_name]
 
 Congratulations, you've made your first Python application with OpenVINO™ toolkit, now you may run it.
 
-[ie_api_flow_cpp]: img/ie_api_cpp.png
-[ie_api_use_cpp]: img/ie_api_integration_cpp.png 
-[ie_api_flow_python]: img/ie_api_python.png
-[ie_api_use_python]: img/ie_api_integration_python.png
+[ie_api_flow_cpp]: img/BASIC_IE_API_workflow_Cpp.svg
+[ie_api_use_cpp]: img/IMPLEMENT_PIPELINE_with_API_C.svg
+[ie_api_flow_python]: img/BASIC_IE_API_workflow_Python.svg
+[ie_api_use_python]: img/IMPLEMENT_PIPELINE_with_API_Python.svg
