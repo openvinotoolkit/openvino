@@ -18,7 +18,6 @@ namespace ov {
 namespace test {
 using OVExecNetwork = ov::test::BehaviorTestsBasic;
 
-// Load correct network to Plugin to get executable network
 TEST_P(OVExecNetwork, getInputFromFunctionWithSingleInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -55,15 +54,21 @@ TEST_P(OVExecNetwork, getInputsFromFunctionWithSeveralInputs) {
     // Create simple function
     {
         auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
         auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
         auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("relu_op");
         relu->output(0).get_tensor().set_names({"relu"});
         auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        result1->set_friendly_name("result1");
         auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        concat->set_friendly_name("concat_op");
         concat->output(0).get_tensor().set_names({"concat"});
         auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        result2->set_friendly_name("result2");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleRuLU");
@@ -92,15 +97,21 @@ TEST_P(OVExecNetwork, getOutputsFromFunctionWithSeveralOutputs) {
     // Create simple function
     {
         auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
         auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
         auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("relu_op");
         relu->output(0).get_tensor().set_names({"relu"});
         auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        result1->set_friendly_name("result1");
         auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        concat->set_friendly_name("concat_op");
         concat->output(0).get_tensor().set_names({"concat"});
         auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        result2->set_friendly_name("result2");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleRuLU");
@@ -168,6 +179,75 @@ TEST_P(OVExecNetwork, precisionsAsInOriginalIR) {
     EXPECT_EQ(ref_result->get_element_type(), actual_result->get_element_type());
     EXPECT_EQ(ref_result->get_shape(), actual_result->get_shape());
     EXPECT_EQ(ref_result->get_friendly_name(), actual_result->get_friendly_name());
+}
+
+TEST_P(OVExecNetwork, importExportedNetwork) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::runtime::ExecutableNetwork execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
+        param2->output(0).get_tensor().set_names({"data2"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("relu_op");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        result1->set_friendly_name("result1");
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        concat->set_friendly_name("concat_op");
+        concat->output(0).get_tensor().set_names({"concat"});
+        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        result2->set_friendly_name("result2");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                      ngraph::ParameterVector{param1, param2});
+        function->set_friendly_name("SingleRuLU");
+    }
+    ASSERT_NO_THROW(execNet = ie->compile_model(function, targetDevice, configuration));
+
+    std::stringstream strm;
+    execNet.export_model(strm);
+
+    ov::runtime::ExecutableNetwork importedExecNet = ie->import_model(strm, targetDevice, configuration);
+    ASSERT_EQ(function->inputs().size(), 2);
+    ASSERT_EQ(function->inputs().size(), importedExecNet.inputs().size());
+    ASSERT_THROW(importedExecNet.input(), ov::Exception);
+    ASSERT_EQ(function->input(0).get_tensor().get_names(), importedExecNet.input(0).get_tensor().get_names());
+    ASSERT_EQ(function->input(0).get_tensor().get_partial_shape(),
+              importedExecNet.input(0).get_tensor().get_partial_shape());
+    ASSERT_EQ(function->input(0).get_tensor().get_element_type(),
+              importedExecNet.input(0).get_tensor().get_element_type());
+    ASSERT_EQ(function->input(1).get_tensor().get_names(), importedExecNet.input(1).get_tensor().get_names());
+    ASSERT_EQ(function->input(1).get_tensor().get_partial_shape(),
+              importedExecNet.input(1).get_tensor().get_partial_shape());
+    ASSERT_EQ(function->input(1).get_tensor().get_element_type(),
+              importedExecNet.input(1).get_tensor().get_element_type());
+    ASSERT_EQ(importedExecNet.input(0).get_node(), importedExecNet.input("data1").get_node());
+    ASSERT_NE(importedExecNet.input(1).get_node(), importedExecNet.input("data1").get_node());
+    ASSERT_EQ(importedExecNet.input(1).get_node(), importedExecNet.input("data2").get_node());
+    ASSERT_NE(importedExecNet.input(0).get_node(), importedExecNet.input("data2").get_node());
+    ASSERT_EQ(function->outputs().size(), 2);
+    ASSERT_EQ(function->outputs().size(), importedExecNet.outputs().size());
+    ASSERT_THROW(importedExecNet.output(), ov::Exception);
+    ASSERT_EQ(function->output(0).get_tensor().get_names(), importedExecNet.output(0).get_tensor().get_names());
+    ASSERT_EQ(function->output(0).get_tensor().get_partial_shape(),
+              importedExecNet.output(0).get_tensor().get_partial_shape());
+    ASSERT_EQ(function->output(0).get_tensor().get_element_type(),
+              importedExecNet.output(0).get_tensor().get_element_type());
+    ASSERT_EQ(function->output(1).get_tensor().get_names(), importedExecNet.output(1).get_tensor().get_names());
+    ASSERT_EQ(function->output(1).get_tensor().get_partial_shape(),
+              importedExecNet.output(1).get_tensor().get_partial_shape());
+    ASSERT_EQ(function->output(1).get_tensor().get_element_type(),
+              importedExecNet.output(1).get_tensor().get_element_type());
+    ASSERT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("relu").get_node());
+    ASSERT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("relu").get_node());
+    ASSERT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat").get_node());
+    ASSERT_NE(importedExecNet.output(0).get_node(), importedExecNet.output("concat").get_node());
 }
 
 }  // namespace test
