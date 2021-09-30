@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "blob_factory.hpp"
+#include "ie_common.h"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -378,7 +379,8 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
                    _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
             dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
         } else if (foundOutput->isDynamic()) {
-            dims = {0};
+            auto rank = foundOutput->getPartialShape().rank();
+            dims = rank.is_dynamic() ? SizeVector{0} : SizeVector(rank.get_length(), 0);
         } else {
             IE_THROW() << "Output blob dimensions are not all known for output name " << name
                        << " with partial shape: " << foundOutput->getPartialShape();
@@ -410,18 +412,21 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
     }
     if (!userBlob)
         IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
+    InputInfo::Ptr foundInput;
+    DataPtr foundOutput;
+    const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
     const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
     if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
-    if (userBlob->size() == 0 && userBlob->getTensorDesc().getDims().size() == 0) {
+    if (userBlob->size() == 0 &&
+        !((foundInput && foundInput->getInputData()->isDynamic()) ||
+          (foundOutput && foundOutput->isDynamic()))) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
 
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
     size_t dataSize = userBlob->size();
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+    if (isInput) {
         // ilavreno: the condition below is obsolete, but we need an exact list of precisions
         // which are supports by G-API preprocessing
         if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
