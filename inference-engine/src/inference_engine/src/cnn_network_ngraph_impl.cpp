@@ -355,11 +355,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
         ssr_manager.register_pass<ngraph::pass::SmartReshape>();
         ssr_manager.run_passes(_ngraph_function);
 
-        std::map<std::string, ngraph::PartialShape> reshapeShapes;
-        for (const auto& item : inputShapes) {
-            reshapeShapes[item.first] = ngraph::PartialShape(item.second);
-        }
-        reshape(reshapeShapes);
+        reshape(inputShapes);
     } catch (std::exception& ex) {
         reshape(originalInputShapes);
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
@@ -368,7 +364,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
     std::map<std::string, ngraph::PartialShape> shapes;
     for (const auto& shape : inputShapes)

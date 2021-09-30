@@ -8,21 +8,12 @@
 #include <memory>
 #include <numeric>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/pattern/matcher.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API MimicSetBatchSize;
+class NGRAPH_API MimicSetBatchSize;
 
 }  // namespace pass
 }  // namespace ngraph

@@ -19,7 +19,6 @@
 #include <ngraph/variant.hpp>
 #include <openvino/core/rtti.hpp>
 #include <ngraph/attribute_visitor.hpp>
-#include <transformations_visibility.hpp>
 
 
 namespace ngraph {
@@ -29,7 +28,7 @@ namespace ngraph {
  * @brief FusedName class represents runtime info attribute that stores
  * all operation names that was fully or partially fused into node
  */
-class TRANSFORMATIONS_API FusedNames {
+class NGRAPH_API FusedNames {
 private:
     std::set<std::string> fused_names;
 
@@ -72,7 +71,7 @@ public:
  * @brief getFusedNames return string with operation names separated by coma in alphabetical order
  * @param[in] node The node will be used to get FusedNames attribute
  */
-TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ngraph::Node> & node);
+NGRAPH_API std::string getFusedNames(const std::shared_ptr<ngraph::Node> & node);
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -80,16 +79,16 @@ TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ngraph::Node
  * @param[in] node The node will be used to get FusedNames attribute
  * @return vector of strings
  */
-TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
+NGRAPH_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
 
 }  // namespace ngraph
 
 namespace ov {
 
-extern template class TRANSFORMATIONS_API VariantImpl<ngraph::FusedNames>;
+extern template class NGRAPH_API VariantImpl<ngraph::FusedNames>;
 
 template<>
-class TRANSFORMATIONS_API VariantWrapper<ngraph::FusedNames> : public VariantImpl<ngraph::FusedNames> {
+class NGRAPH_API VariantWrapper<ngraph::FusedNames> : public VariantImpl<ngraph::FusedNames> {
 public:
     OPENVINO_RTTI("fused_names", "0");
 
@@ -105,7 +104,7 @@ public:
 };
 
 template <>
-class TRANSFORMATIONS_API AttributeAdapter<std::set<std::string>> : public DirectValueAccessor<std::set<std::string>> {
+class NGRAPH_API AttributeAdapter<std::set<std::string>> : public DirectValueAccessor<std::set<std::string>> {
 public:
     OPENVINO_RTTI("AttributeAdapter<set<string>>");
     AttributeAdapter(std::set<std::string>& value) : DirectValueAccessor<std::set<std::string>>(value) {}

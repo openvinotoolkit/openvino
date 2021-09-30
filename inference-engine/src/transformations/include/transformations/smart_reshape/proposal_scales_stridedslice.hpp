@@ -7,15 +7,13 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API Proposal1Scales;
-class TRANSFORMATIONS_API Proposal4Scales;
+class NGRAPH_API Proposal1Scales;
+class NGRAPH_API Proposal4Scales;
 
 }  // namespace pass
 }  // namespace ngraph
