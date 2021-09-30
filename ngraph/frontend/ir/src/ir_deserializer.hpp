@@ -189,6 +189,6 @@ private:
     IoMap io_map;
 
     bool m_use_framework_node{false};
-    size_t m_version;
+    int64_t m_version;
 };
 }  // namespace ov
