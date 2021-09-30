@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <mkldnn_node.h>
-#include <string>
-#include <vector>
-#include <utility>
-#include <map>
-#include <memory>
 #include "common/permute_kernel.h"
+
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace MKLDNNPlugin {
 
@@ -33,7 +31,35 @@ public:
         return order;
     }
 
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
 private:
+    struct TransposeExecutor {
+        TransposeExecutor() {}
+        virtual void exec(MKLDNNTransposeNode* node, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) = 0;
+        virtual ~TransposeExecutor() = default;
+    };
+    using executorPtr = std::shared_ptr<TransposeExecutor>;
+    executorPtr execPtr = nullptr;
+
+    struct TransposeJitExecutor : public TransposeExecutor {
+        TransposeJitExecutor(const PermuteParams& params);
+        void exec(MKLDNNTransposeNode* node, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) override;
+
+        std::shared_ptr<PermuteKernel> pKernel;
+    };
+
+    struct TransposeRefExecutor : public TransposeExecutor {
+        TransposeRefExecutor() = default;
+        void exec(MKLDNNTransposeNode* node, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) override;
+
+        PermuteParams jep;
+    };
+
     template<typename T> void optimizedExecute(const int MB, const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
 
     InferenceEngine::SizeVector order;
@@ -46,7 +72,7 @@ private:
             std::vector<size_t>{0, 5, 1, 2, 3, 4},
     };
 
-    std::unique_ptr<PermuteKernel> permuteKernel;
+    PermuteParams params;
 
     struct TransposeContext {
         MKLDNNTransposeNode* nodePtr;
@@ -61,7 +87,11 @@ private:
             ctx.nodePtr->optimizedExecute<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
         }
     };
+
+    bool constMap[3] = { false };
+
+    static constexpr size_t INPUT_DATA_IDX = 0lu;
+    static constexpr size_t INPUT_ORDER_IDX = 1lu;
 };
 
 }  // namespace MKLDNNPlugin
-

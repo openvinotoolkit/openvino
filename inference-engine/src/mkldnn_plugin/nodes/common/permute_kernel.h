@@ -57,6 +57,9 @@ public:
 
     void execute(const uint8_t* src_data, uint8_t* dst_data);
     void execute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
+    const PermuteParams& getPermuteParams() const {
+        return params;
+    }
 
 private:
     void prepareParams();

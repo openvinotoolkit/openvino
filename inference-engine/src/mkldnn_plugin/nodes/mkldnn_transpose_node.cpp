@@ -3,37 +3,26 @@
 //
 
 #include "mkldnn_transpose_node.h"
+#include "ie_parallel.hpp"
 
 #include <algorithm>
 #include <string>
-#include <mkldnn_extension_utils.h>
-#include <mkldnn_selective_build.h>
-#include "ie_parallel.hpp"
-#include "utils/bfloat16.hpp"
-#include <utils/general_utils.h>
-#include "utils/ngraph_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 
-bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
+        if (!one_of(op->get_type_info(),
+                ov::op::v1::Transpose::type_info)) {
+            errorMessage = "Node is not an instance of the Transpose operation from opset1.";
             return false;
         }
 
-        const auto transposeOp = ngraph::as_type_ptr<const ngraph::op::v1::Transpose>(op);
-        if (!transposeOp) {
-            errorMessage = "Node is not an instance of the Transpose operation.";
-            return false;
-        }
-
-        auto orderOp = ngraph::as_type_ptr<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-        if (!orderOp) {
-            errorMessage = "Constant expected as the second input.";
+        if (!isDynamicNgraphNode(op) && op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v0::Constant::type_info) {
+            errorMessage = "Constant expected as the second input for static shapes.";
             return false;
         }
     } catch (...) {
@@ -42,20 +31,22 @@ bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ngrap
     return true;
 }
 
-MKLDNNTransposeNode::MKLDNNTransposeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+MKLDNNTransposeNode::MKLDNNTransposeNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    auto orderOp = ngraph::as_type_ptr<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-    order = orderOp->cast_vector<size_t>();
+    if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() == ov::op::v0::Constant::type_info) {
+        constMap[INPUT_ORDER_IDX] = true;
+        order = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(INPUT_ORDER_IDX))->cast_vector<size_t>();
 
-    if (order.empty()) {
-        size_t rank = op->get_input_shape(0).size();
-        for (size_t i = 1lu; i <= rank; ++i) {
-            order.emplace_back(rank - i);
+        if (order.empty()) {
+            size_t rank = getInputShapeAtPort(INPUT_DATA_IDX).getRank();
+            for (size_t i = 1lu; i <= rank; ++i) {
+                order.emplace_back(rank - i);
+            }
         }
     }
 }
@@ -77,22 +68,23 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(1);
     config.inConfs[0].inPlace = -1;
     config.inConfs[0].constant = false;
+    config.inConfs[1].constant = constMap[1];
+    config.inConfs[1].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(getOriginalInputPrecisionAtPort(1), getInputShapeAtPort(1));
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
-    config.inConfs[1].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(getOriginalInputPrecisionAtPort(1), getInputShapeAtPort(1));
 
     if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
         config.inConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getInputShapeAtPort(0));
         config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 
-        auto srcDims = getInputShapeAtPort(0).getStaticDims();
-        if (srcDims[1] % 8 == 0) {
+        auto srcDims = getInputShapeAtPort(0).getDims();
+        if (srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % 8 == 0) {
             config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp8c)->createSharedDesc(prec, getInputShapeAtPort(0));
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
-        if (srcDims[1] % 16 == 0) {
+        if (srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % 16 == 0) {
             config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp16c)->createSharedDesc(prec, getInputShapeAtPort(0));
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
@@ -110,34 +102,55 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool MKLDNNTransposeNode::needPrepareParams() const {
+    if (isOptimized)
+        return false;
+    return MKLDNNNode::needPrepareParams();
+}
+
+void MKLDNNTransposeNode::prepareParams() {
+    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    params.src_block_dims = srcDesc->getBlockDims();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    params.dst_block_dims = dstDesc->getBlockDims();
+    if (!constMap[INPUT_ORDER_IDX]) {
+        auto orderPtr = reinterpret_cast<const int32_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+        auto orderLen = getParentEdgeAt(0)->getMemoryPtr()->GetSize();
+        params.order.assign(orderPtr, orderPtr + orderLen);
+    }
+
+    execPtr = std::make_shared<TransposeJitExecutor>(params);
+}
+
 void MKLDNNTransposeNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory was not allocated.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory was not allocated.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor was not set.";
 
-    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
-        std::find(optimizedOrders.begin(), optimizedOrders.end(), order) != optimizedOrders.end()) {
+    if (getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
+            std::find(optimizedOrders.begin(), optimizedOrders.end(), order) != optimizedOrders.end()) {
         isOptimized = true;
+        execPtr = std::make_shared<TransposeRefExecutor>();
         return;
     }
 
-    PermuteParams params;
     params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
-    params.order = order;
-    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.src_block_dims = srcDesc->getBlockDims();
+    if (constMap[INPUT_ORDER_IDX])
+        params.order = order;
+    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     params.src_block_order = srcDesc->getOrder();
-
     auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.dst_block_dims = dstDesc->getBlockDims();
     params.dst_block_order = dstDesc->getOrder();
 
-    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+    if (inputShapesDefined()) {
+        prepareParams();
+        updateLastInputDims();
+    }
 }
 
 template <typename T>
@@ -242,27 +255,52 @@ void MKLDNNTransposeNode::optimizedExecute(const int MB, const MKLDNNMemoryPtr& 
 }
 
 void MKLDNNTransposeNode::execute(mkldnn::stream strm) {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    int MB = batchToProcess();
+    if (execPtr) {
+        auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto &srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
 
-    if (isOptimized) {
-        const size_t dataSize = getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size();
-        TransposeContext ctx = {this, srcMemPtr, dstMemPtr, MB};
-        OV_SWITCH(MKLDNNPlugin, TransposeOptimizedEmitter, ctx, dataSize,
-                  OV_CASE(1, PrecisionTrait<Precision::U8>::value_type),
-                  OV_CASE(2, PrecisionTrait<Precision::U16>::value_type),
-                  OV_CASE(4, PrecisionTrait<Precision::I32>::value_type));
+        int MB = 0;
+        if (isDynamicNode()) {
+            MB = srcMemPtr->getStaticDims()[0];
+        } else {
+            MB = batchToProcess();
+        }
 
-        return;
+        execPtr->exec(this, srcMemPtr, dstMemPtr, MB);
+    } else {
+        IE_THROW() << "Could not execute Transpose node. Primitive was not created.";
     }
+}
+
+void MKLDNNTransposeNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
+MKLDNNTransposeNode::TransposeJitExecutor::TransposeJitExecutor(const PermuteParams& params) {
+    pKernel = std::make_shared<PermuteKernel>(params);
+}
+
+void MKLDNNTransposeNode::TransposeJitExecutor::exec(MKLDNNTransposeNode* node, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) {
+    if (!pKernel)
+        IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
 
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
-    permuteKernel->execute(srcData, dstData, MB);
+
+    pKernel->execute(srcData, dstData, MB);
+}
+
+void MKLDNNTransposeNode::TransposeRefExecutor::exec(MKLDNNTransposeNode* node, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) {
+    const size_t dataSize = srcMemPtr->getDesc().getPrecision().size();
+    TransposeContext ctx = {node, srcMemPtr, dstMemPtr, MB};
+    OV_SWITCH(MKLDNNPlugin, TransposeOptimizedEmitter, ctx, dataSize,
+              OV_CASE(1, PrecisionTrait<Precision::U8>::value_type),
+              OV_CASE(2, PrecisionTrait<Precision::U16>::value_type),
+              OV_CASE(4, PrecisionTrait<Precision::I32>::value_type));
 }
 
 bool MKLDNNTransposeNode::created() const {
     return getType() == Transpose;
 }
+
 REG_MKLDNN_PRIM_FOR(MKLDNNTransposeNode, Transpose);
