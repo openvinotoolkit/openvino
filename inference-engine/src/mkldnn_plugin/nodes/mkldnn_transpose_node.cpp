@@ -18,20 +18,15 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 
-bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-
-        const auto transposeOp = ngraph::as_type_ptr<const ngraph::op::v1::Transpose>(op);
-        if (!transposeOp) {
+        if (!one_of(op->get_type_info(),
+                ov::op::v1::Transpose::type_info)) {
             errorMessage = "Node is not an instance of the Transpose operation.";
             return false;
         }
 
-        auto orderOp = ngraph::as_type_ptr<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
+        auto orderOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (!orderOp) {
             errorMessage = "Constant expected as the second input.";
             return false;
@@ -42,14 +37,14 @@ bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ngrap
     return true;
 }
 
-MKLDNNTransposeNode::MKLDNNTransposeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+MKLDNNTransposeNode::MKLDNNTransposeNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    auto orderOp = ngraph::as_type_ptr<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
+    auto orderOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     order = orderOp->cast_vector<size_t>();
 
     if (order.empty()) {
@@ -60,8 +55,7 @@ MKLDNNTransposeNode::MKLDNNTransposeNode(const std::shared_ptr<ngraph::Node>& op
     }
 }
 
-void MKLDNNTransposeNode::getSupportedDescriptors() {
-}
+void MKLDNNTransposeNode::getSupportedDescriptors() {}
 
 void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
@@ -86,13 +80,13 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 
-        auto srcDims = getInputShapeAtPort(0).getStaticDims();
-        if (srcDims[1] % 8 == 0) {
+        auto srcDims = getInputShapeAtPort(0).getDims();
+        if (srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % 8 == 0) {
             config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp8c)->createSharedDesc(prec, getInputShapeAtPort(0));
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
-        if (srcDims[1] % 16 == 0) {
+        if (srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % 16 == 0) {
             config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp16c)->createSharedDesc(prec, getInputShapeAtPort(0));
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
@@ -108,6 +102,25 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     }
+}
+
+bool MKLDNNTransposeNode::needPrepareParams() const {
+    if (isOptimized)
+        return false;
+    return inputShapesModified();
+}
+
+void MKLDNNTransposeNode::prepareParams() {
+    if (!inputShapesDefined()) {
+        IE_THROW() << "Can't prepare params for eltwise node with name: " << getName();
+    }
+
+    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    params.src_block_dims = srcDesc->getBlockDims();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    params.dst_block_dims = dstDesc->getBlockDims();
+
+    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
 }
 
 void MKLDNNTransposeNode::createPrimitive() {
@@ -126,18 +139,17 @@ void MKLDNNTransposeNode::createPrimitive() {
         return;
     }
 
-    PermuteParams params;
     params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
     params.order = order;
     auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.src_block_dims = srcDesc->getBlockDims();
     params.src_block_order = srcDesc->getOrder();
-
     auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.dst_block_dims = dstDesc->getBlockDims();
     params.dst_block_order = dstDesc->getOrder();
 
-    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+    if (inputShapesDefined()) {
+        prepareParams();
+        updateLastInputDims();
+    }
 }
 
 template <typename T>
@@ -244,7 +256,13 @@ void MKLDNNTransposeNode::optimizedExecute(const int MB, const MKLDNNMemoryPtr& 
 void MKLDNNTransposeNode::execute(mkldnn::stream strm) {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    int MB = batchToProcess();
+
+    int MB = 0;
+    if (isDynamicNode()) {
+        MB = srcMemPtr->getStaticDims()[0];
+    } else {
+        MB = batchToProcess();
+    }
 
     if (isOptimized) {
         const size_t dataSize = getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size();

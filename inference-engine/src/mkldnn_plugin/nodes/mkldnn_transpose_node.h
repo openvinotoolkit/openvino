@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
-#include <vector>
-#include <utility>
-#include <map>
-#include <memory>
 #include "common/permute_kernel.h"
+
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace MKLDNNPlugin {
 
@@ -33,6 +32,9 @@ public:
         return order;
     }
 
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+
 private:
     template<typename T> void optimizedExecute(const int MB, const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
 
@@ -46,6 +48,7 @@ private:
             std::vector<size_t>{0, 5, 1, 2, 3, 4},
     };
 
+    PermuteParams params;
     std::unique_ptr<PermuteKernel> permuteKernel;
 
     struct TransposeContext {
@@ -64,4 +67,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-
