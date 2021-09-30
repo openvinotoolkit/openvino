@@ -1382,4 +1382,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
     if (should_use_bs_fs_yx_bsv16_fsv16)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto& engine = get_engine();
+    if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+#endif
 }
