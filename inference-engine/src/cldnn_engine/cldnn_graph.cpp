@@ -4,6 +4,7 @@
 
 #include <cldnn/graph/network.hpp>
 #include <cldnn/runtime/profiling.hpp>
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #include "cldnn_graph.h"
 #include "simple_math.h"
@@ -82,6 +83,13 @@ void CLDNNGraph::Build() {
     }
 
     UpdateImplementationsMap();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dry_run_path.empty()) {
+        CNNNetwork net(GetExecGraphInfo());
+        net.serialize(debug_config->dry_run_path);
+        exit(0);
+    }
 }
 
 std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
