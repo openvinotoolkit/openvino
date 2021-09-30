@@ -420,8 +420,7 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
     if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
     if (userBlob->size() == 0 &&
-        !((foundInput && foundInput->getInputData()->isDynamic()) ||
-          (foundOutput && foundOutput->isDynamic()))) {
+        !((foundInput && foundInput->getInputData()->isDynamic()) || (foundOutput && foundOutput->isDynamic()))) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
 

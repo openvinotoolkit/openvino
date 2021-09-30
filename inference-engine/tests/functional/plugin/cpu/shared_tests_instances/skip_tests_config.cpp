@@ -92,6 +92,17 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=f16.*)",
         R"(.*smoke_(Auto|Multi)_BehaviorTests/OVExecNetwork.*type=i8.*)",
 
+        // CPU does not support dynamic rank
+        // Issue: CVS-66778
+        R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+        R"(.*smoke_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+        R"(.*smoke_BehaviorTests.*DynamicInputToDynamicOutput.*)",
+
+        // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
+        // Issue: CVS-66780
+        R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
+        R"(.*smoke_BehaviorTests.*InferDynamicNetworkWithGetTensor.*)",
+
         // Issue: 62746
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
         // Issue 66685

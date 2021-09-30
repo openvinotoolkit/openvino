@@ -670,9 +670,16 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
                 auto it = param_tensor_map.find(param);
                 if (it != param_tensor_map.end()) {
                     OPENVINO_ASSERT(partial_shape.second == partial_shapes.at(it->second),
-                        "Tensor with names {'", partial_shape.first, "', '", it->second, "'} has "
-                        "conflicting shapes ", partial_shape.second, " and ",
-                        partial_shapes.at(it->second), ", but they define the same tensor");
+                                    "Tensor with names {'",
+                                    partial_shape.first,
+                                    "', '",
+                                    it->second,
+                                    "'} has "
+                                    "conflicting shapes ",
+                                    partial_shape.second,
+                                    " and ",
+                                    partial_shapes.at(it->second),
+                                    ", but they define the same tensor");
                 } else {
                     param_tensor_map[param] = partial_shape.first;
                 }
