@@ -67,6 +67,8 @@ namespace SubgraphTestsDefinitions {
         auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split->output(1));
 
         function = std::make_shared<ngraph::Function>(sigm, input, "negative_memory_layer_offset_nonmemory");
+        functionRefs = ngraph::clone_function(*function);
+        functionRefs->set_friendly_name("negative_memory_layer_offset_nonmemory_refs");
     }
 
     void NegativeMemoryOffsetTest::Run() {
