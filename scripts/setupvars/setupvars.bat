@@ -39,13 +39,6 @@ set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PYTHONPATH%
 set "PATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PATH%"
 )
 
-
-:: Model Downloader
-if exist %INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader (
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PYTHONPATH%
-set "PATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PATH%"
-)
-
 :: OpenVINO runtime
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
