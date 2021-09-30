@@ -66,26 +66,26 @@ template <element::Type_t IN_ET>
 std::vector<FloorParams> generateParamsForFloorFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<FloorParams> roundParams{
-        FloorParams(ngraph::PartialShape{4},
+    std::vector<FloorParams> params{
+        FloorParams(ov::PartialShape{4},
                     IN_ET,
                     std::vector<T>{-2.5f, -2.0f, 0.3f, 4.8f},
                     std::vector<T>{-3.0f, -2.0f, 0.0f, 4.0f})
     };
-    return roundParams;
+    return params;
 }
 
 template <element::Type_t IN_ET>
 std::vector<FloorParams> generateParamsForFloorInt64() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<FloorParams> roundParams{
-        FloorParams(ngraph::PartialShape{3},
+    std::vector<FloorParams> params{
+        FloorParams(ov::PartialShape{3},
                     IN_ET,
                     std::vector<T>{0, 1, 0x4000000000000001},
                     std::vector<T>{0, 1, 0x4000000000000001})
     };
-    return roundParams;
+    return params;
 }
 
 
@@ -93,17 +93,17 @@ template <element::Type_t IN_ET>
 std::vector<FloorParams> generateParamsForFloorInt32() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<FloorParams> roundParams{
-        FloorParams(ngraph::PartialShape{4},
+    std::vector<FloorParams> params{
+        FloorParams(ov::PartialShape{4},
                     IN_ET,
                     std::vector<T>{2, 136314888, 0x40000010, 0x40000001},
                     std::vector<T>{2, 136314888, 0x40000010, 0x40000001})
     };
-    return roundParams;
+    return params;
 }
 
 std::vector<FloorParams> generateCombinedParamsForFloor() {
-    const std::vector<std::vector<FloorParams>> roundTypeParams{
+    const std::vector<std::vector<FloorParams>> allTypeParams{
         generateParamsForFloorFloat<element::Type_t::f32>(),
         generateParamsForFloorFloat<element::Type_t::f16>(),
         generateParamsForFloorInt64<element::Type_t::i64>(),
@@ -111,7 +111,7 @@ std::vector<FloorParams> generateCombinedParamsForFloor() {
 
     std::vector<FloorParams> combinedParams;
 
-    for (const auto& params : roundTypeParams) {
+    for (const auto& params : allTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
 
