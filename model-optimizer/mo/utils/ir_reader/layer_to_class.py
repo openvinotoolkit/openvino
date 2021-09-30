@@ -267,6 +267,9 @@ preprocessing_op_nodes = {
 postprocessing_op_nodes = {
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
+    # Call normalize Split outputs for generated IR by ir-reader
+    'Split': AddFakeOutputsToSplit.split_normalize_outputs,
+    'VariadicSplit': AddFakeOutputsToSplit.split_normalize_outputs,
 }
 
 
@@ -387,12 +390,6 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
 
     # Nodes postprocessing stage in new graph
     for op in new_graph.get_op_nodes():
-        # Call normalize node outputs for restored operations to connect temporary Result operations for discionnected
-        # output ports. We need to do that for correct shape inference. These Result operations will be removed during
-        # IR emitting.For TopK operation we should use specific function TopKNormalizer.normalize_outputs.
-        if op.soft_get('type') != 'TopK':
-            AddFakeOutputsToSplit.node_normalize_outputs(op)
-
         restore_tensor_names(op)
 
         # operations postprocessing with some special types
