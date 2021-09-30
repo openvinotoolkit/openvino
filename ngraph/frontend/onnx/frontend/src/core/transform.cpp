@@ -105,7 +105,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
         }
     }
     graph_proto->mutable_node()->Clear();
-    graph_proto->MergeFrom(new_graph);
+    graph_proto->mutable_node()->Swap(new_graph.mutable_node());
 }
 
 void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
