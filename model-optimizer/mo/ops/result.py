@@ -20,6 +20,5 @@ class Result(Op):
             'infer': lambda x: None,
             'value': None,
             'data_type': None,
-            'in_ports_count': 1,
-            'rt_info': RTInfo()
+            'in_ports_count': 1
         }, attrs)

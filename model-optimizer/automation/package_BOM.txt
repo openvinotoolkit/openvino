@@ -1075,6 +1075,7 @@ mo/utils/logger.py
 mo/utils/model_analysis.py
 mo/utils/pipeline_config.py
 mo/utils/replacement_pattern.py
+mo/utils/runtime_info.py
 mo/utils/shape.py
 mo/utils/simple_proto_parser.py
 mo/utils/str_to.py

@@ -6,7 +6,7 @@ import numpy as np
 from mo.front.common.partial_infer.utils import unmask_shape
 from mo.graph.graph import Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
-from mo.ops.op import Op, PermuteAttrs, RTInfo
+from mo.ops.op import Op, PermuteAttrs
 
 
 class Parameter(Op):
@@ -24,16 +24,11 @@ class Parameter(Op):
 
             'type_infer': self.type_infer,
 
-            'out_ports_count': 1,
-
-            'rt_info': RTInfo(),
+            'out_ports_count': 1
         }
         if 'data_type' not in attrs:
             mandatory_props['data_type'] = np.float32
         super().__init__(graph, mandatory_props, attrs)
-
-        if 'data_type' in self.attrs:
-            self.attrs['original_type'] = self.attrs['data_type']
 
     @staticmethod
     def type_infer(node):

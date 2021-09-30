@@ -15,7 +15,7 @@ class MergeNodesPermutations(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        return [ApplyNHWCtoNCHWpermutation, PostMiddleStart]
+        return [ApplyNHWCtoNCHWpermutation]
 
     def run_before(self):
         return []
