@@ -122,36 +122,6 @@ TEST(TransformationTests, PadFusionAvgPoolDontExcludePad) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, DISABLED_PadFusionMaxPool) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-
-    Shape data_shape{1, 3, 14, 14};
-    {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
-        auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-        auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-        auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-        auto max_pool = std::make_shared<opset5::MaxPool>(pad, Strides{1, 1},
-                                                          Shape{0, 0}, Shape{1, 1}, Shape{4, 4});
-        f = std::make_shared<Function>(NodeVector{max_pool}, ParameterVector{data});
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::PadFusion>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-    }
-    {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
-        auto max_pool = std::make_shared<opset5::MaxPool>(data, Strides{1, 1},
-                                                          Shape{1, 1}, Shape{3, 3}, Shape{4, 4},
-                                                          op::RoundingType::FLOOR, op::PadType::EXPLICIT);
-        f_ref = std::make_shared<Function>(NodeVector{max_pool}, ParameterVector{data});
-    }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
 TEST(TransformationTests, PadFusionConvolution) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
 
