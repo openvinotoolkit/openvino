@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
 #include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -43,15 +41,14 @@ protected:
 
 
 typedef std::tuple<
-    std::vector<size_t>,               // Input shapes
-    std::vector<size_t>,               // Indices shape
-    std::tuple<int, int>,              // Gather axis and batch
-    InferenceEngine::Precision,        // Network precision
-    InferenceEngine::Precision,        // Input precision
-    InferenceEngine::Precision,        // Output precision
-    InferenceEngine::Layout,           // Input layout
-    InferenceEngine::Layout,           // Output layout
-    std::string                        // Device name
+    std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>,  // Input shapes
+    std::tuple<int, int>,                                                                   // Gather axis and batch
+    InferenceEngine::Precision,                                                             // Network precision
+    InferenceEngine::Precision,                                                             // Input precision
+    InferenceEngine::Precision,                                                             // Output precision
+    InferenceEngine::Layout,                                                                // Input layout
+    InferenceEngine::Layout,                                                                // Output layout
+    std::string                                                                             // Device name
 > gather7ParamsTuple;
 
 class Gather7LayerTest : public testing::WithParamInterface<gather7ParamsTuple>,
@@ -61,6 +58,9 @@ public:
 
 protected:
     void SetUp() override;
+    void GenerateInputs() override;
+
+    int axis = 0;
 };
 
 class Gather8LayerTest : public testing::WithParamInterface<gather7ParamsTuple>,
