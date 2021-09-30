@@ -15,8 +15,10 @@ namespace {
         InferenceEngine::Precision::FP32
     };
 
-    std::map<std::string, std::string> config = {
-            {"GNA_COMPACT_MODE", "NO"}
+    std::vector<std::map<std::string, std::string>> config = {
+            { {"GNA_COMPACT_MODE", "NO"} },
+            { {"GNA_COMPACT_MODE", "NO"},
+              {"GNA_DEVICE_MODE", "GNA_SW_FP32"}}
     };
 
     std::vector<size_t> inputSizes = {
@@ -37,6 +39,6 @@ namespace {
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(inputSizes),
             ::testing::ValuesIn(hiddenSizes),
-            ::testing::Values(config)),
+            ::testing::ValuesIn(config)),
         ConcatQuantDuringMemoryRequantTest::getTestCaseName);
 }  // namespace

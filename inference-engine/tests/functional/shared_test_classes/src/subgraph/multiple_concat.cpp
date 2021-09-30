@@ -20,6 +20,9 @@ std::string MultipleConcatTest::getTestCaseName(const testing::TestParamInfo<mul
     result << "IS=" << inputSize << "_";
     result << "CS=" << constantSize << "_";
     result << "targetDevice=" << targetDevice;
+    for (auto const& configItem : config) {
+        result << "_configItem=" << configItem.second;
+    }
     return result.str();
 }
 
