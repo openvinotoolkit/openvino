@@ -36,8 +36,9 @@ def infer_data(data: dict, exec_net: ExecutableNetwork, input_blobs: list, outpu
     result = {}
 
     for blob_name in output_blobs:
-        batch_size, num_of_dims = exec_net.outputs[blob_name].shape
-        result[blob_name] = np.ndarray((matrix_shape[0], num_of_dims))
+        shape = exec_net.outputs[blob_name].shape
+        batch_size = shape[0]
+        result[blob_name] = np.ndarray((matrix_shape[0], shape[-1]))
 
     slice_begin = 0
     slice_end = batch_size
