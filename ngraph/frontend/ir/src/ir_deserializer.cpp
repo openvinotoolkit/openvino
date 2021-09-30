@@ -531,7 +531,7 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
                 IE_THROW() << "dimension (" << dimVal << ") in node " << node.name()
                            << " must be greater or equal to -1: at offset " << node.offset_debug();
             }
-            port.dims.push_back(dim);
+            port.dims.emplace_back(dim);
         }
 
         ngraph::element::Type type(ngraph::element::Type_t::undefined);
@@ -639,7 +639,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
             constant->alloc_buffer_on_visit_attributes(false);
         }
         ngraphNode->set_arguments(inputs);
-        XmlDeserializer visitor(node, weights, m_opsets, m_variables);
+        XmlDeserializer visitor(node, weights, m_opsets, m_variables, m_version);
 
         if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
@@ -651,7 +651,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
 
     if (!ngraphNode && m_use_framework_node) {
         ngraphNode = std::make_shared<ngraph::op::FrameworkNode>(inputs);
-        XmlDeserializer visitor(node, weights, m_opsets, m_variables);
+        XmlDeserializer visitor(node, weights, m_opsets, m_variables, m_version);
         ngraphNode->visit_attributes(visitor);
 
         size_t index{0};
@@ -712,26 +712,30 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
         }
     };
 
-    // set node runtime info attributes
-    set_runtime_info(ngraphNode->get_rt_info(), node.child("rt_info"));
 
-    // set output ports runtime info attributes
-    auto out_node = node.child("output");
-    if (!out_node.empty()) {
-        size_t index{0};
-        FOREACH_CHILD (rt_node, out_node, "port") {
-            set_runtime_info(ngraphNode->output(index).get_rt_info(), rt_node.child("rt_info"));
-            ++index;
+    // read runtime info only for IR v11+
+    if (m_version > 10) {
+        // set node runtime info attributes
+        set_runtime_info(ngraphNode->get_rt_info(), node.child("rt_info"));
+
+        // set output ports runtime info attributes
+        auto out_node = node.child("output");
+        if (!out_node.empty()) {
+            size_t index{0};
+            FOREACH_CHILD (rt_node, out_node, "port") {
+                set_runtime_info(ngraphNode->output(index).get_rt_info(), rt_node.child("rt_info"));
+                ++index;
+            }
         }
-    }
 
-    // set input ports runtime info attributes
-    auto in_node = node.child("input");
-    if (!in_node.empty()) {
-        size_t index{0};
-        FOREACH_CHILD (rt_node, in_node, "port") {
-            set_runtime_info(ngraphNode->input(index).get_rt_info(), rt_node.child("rt_info"));
-            ++index;
+        // set input ports runtime info attributes
+        auto in_node = node.child("input");
+        if (!in_node.empty()) {
+            size_t index{0};
+            FOREACH_CHILD (rt_node, in_node, "port") {
+                set_runtime_info(ngraphNode->input(index).get_rt_info(), rt_node.child("rt_info"));
+                ++index;
+            }
         }
     }
 

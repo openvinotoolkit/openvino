@@ -89,7 +89,7 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
         return false;
     }
 
-    return version == 10;
+    return version >= 10 || version <= 11;
 }
 
 InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {

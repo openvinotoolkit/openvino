@@ -57,11 +57,13 @@ public:
     explicit XmlDeserializer(const pugi::xml_node& node,
                              const ov::Weights& weights,
                              const std::unordered_map<std::string, ngraph::OpSet>& opsets,
-                             std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables)
+                             std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables,
+                             size_t version)
         : m_node(node),
           m_weights(weights),
           m_opsets(opsets),
-          m_variables(variables) {}
+          m_variables(variables),
+          m_version(version) {}
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
         std::string val;
@@ -187,5 +189,6 @@ private:
     IoMap io_map;
 
     bool m_use_framework_node{false};
+    size_t m_version;
 };
 }  // namespace ov

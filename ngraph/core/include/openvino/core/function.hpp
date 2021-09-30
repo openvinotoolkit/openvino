@@ -20,6 +20,7 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rtti.hpp"
+#include "openvino/core/variant.hpp"
 
 namespace ov {
 /// A user-defined function.
@@ -261,6 +262,12 @@ public:
 
     /// \brief Return a variable by specified variable_id.
     ngraph::VariablePtr get_variable_by_id(const std::string& variable_id) const;
+    RTMap& get_rt_info() {
+        return m_rt_info;
+    }
+    const RTMap& get_rt_info() const {
+        return m_rt_info;
+    }
 
 private:
     Function(const Function&) = delete;
@@ -288,6 +295,7 @@ private:
     ngraph::SinkVector m_sinks;
     ngraph::ParameterVector m_parameters;
     ngraph::VariableVector m_variables;
+    RTMap m_rt_info;
 };
 
 template <>
