@@ -52,9 +52,7 @@ TEST(TransformationTests, if_constant_folding) {
         auto add_res = make_shared<op::Result>(add);
         fun = make_shared<Function>(OutputVector{ add_res }, ParameterVector{ param_add });
         fun->validate_nodes_and_infer_types();
-
         ngraph::pass::ConstantFolding().run_on_function(fun);
-
     }
     std::shared_ptr<ngraph::Function> f_ref(nullptr);
     {
