@@ -17,8 +17,14 @@
 #include "ngraph/graph_util.hpp"
 #include "transformations/serialize.hpp"
 #include "cpp/ie_cnn_network.h"
+#include <common_test_utils/file_utils.hpp>
 #include <ie_core.hpp>
 #include <ie_common.h>
+
+#define path_delimiter "/"
+#ifdef _WIN32
+#define path_delimiter "\\"
+#endif
 
 namespace LayerTestsUtils {
 
@@ -36,7 +42,9 @@ public:
 enum class ExternalNetworkMode {
     DISABLED,
     IMPORT,
-    EXPORT
+    EXPORT,
+    EXPORT_MODELS_ONLY,
+    EXPORT_ARKS_ONLY
 };
 
 class ExternalNetworkTool {
@@ -54,6 +62,26 @@ private:
 
     static void writeToHashMap(const std::string &network_name, const std::string &hash);
 
+    template<typename T = float>
+    static void writeToArkFile(const std::string &fileName, const T *ptrMemory, uint32_t numRows, uint32_t numColumns) {
+        std::ios_base::openmode mode = std::ios::binary;
+        std::ofstream out_file(fileName.c_str(), mode);
+        const std::string &token = "input ";
+        if (out_file.good()) {
+            out_file.write(token.c_str(), token.length());
+            out_file.write("\0", 1);
+            out_file.write("BFM ", 4);
+            out_file.write("\4", 1);
+            out_file.write(reinterpret_cast<char*>(&numRows), sizeof(uint32_t));
+            out_file.write("\4", 1);
+            out_file.write(reinterpret_cast<char*>(&numColumns), sizeof(uint32_t));
+            out_file.write(reinterpret_cast<const char*>(ptrMemory), numRows * numColumns * sizeof(T));
+            out_file.close();
+        } else {
+            throw std::runtime_error(std::string("Failed to open %s for writing in saveArkFile()!\n") + fileName);
+        }
+    }
+
 protected:
     ExternalNetworkTool() = default;
 
@@ -69,7 +97,13 @@ public:
     std::shared_ptr<ngraph::Function> loadNetworkFromFile(const std::string &network_name) const;
 
     void updateFunctionNames(std::shared_ptr<ngraph::Function> network) const;
+
     // std::shared_ptr<ngraph::Function> renameFunction(std::shared_ptr<ngraph::Function>) const;
+
+    void saveArkFile(const std::string &network_name,
+                     const InferenceEngine::InputInfo::CPtr &input_info,
+                     const InferenceEngine::Blob::Ptr &blob,
+                     uint32_t id) const;
 
     static ExternalNetworkTool &getInstance();
 

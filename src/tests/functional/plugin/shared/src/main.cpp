@@ -39,6 +39,10 @@ int main(int argc, char *argv[]) {
                 LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::IMPORT);
             } else if (mode == "EXPORT") {
                 LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::EXPORT);
+            } else if (mode == "EXPORT_MODELS_ONLY") {
+                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::EXPORT_MODELS_ONLY);
+            } else if (mode == "EXPORT_ARKS_ONLY") {
+                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::EXPORT_ARKS_ONLY);
             } else {
                 throw std::runtime_error("Incorrect value of \"--external_network_mode\" argument");
             }
@@ -66,7 +70,7 @@ int main(int argc, char *argv[]) {
         std::cout << "       Allow to try to save report in cycle using timeout (in seconds). " << std::endl;
         std::cout << "  --external_network_mode" << std::endl;
         std::cout << "       Unlocks functionality to dump network to file or load it from file " << std::endl;
-        std::cout << "       for supported tests. The mode is defined by value of argument [IMPORT, EXPORT] " << std::endl;
+        std::cout << "       for supported tests. The mode is defined by value of argument [IMPORT, EXPORT, ARKS_ONLY] " << std::endl;
         std::cout << "       Example is --external_network_mode=EXPORT" << std::endl;
         std::cout << "  --external_network_path" << std::endl;
         std::cout << "       Set up path for dumping or loading (depends on --external_network_mode) network" << std::endl;

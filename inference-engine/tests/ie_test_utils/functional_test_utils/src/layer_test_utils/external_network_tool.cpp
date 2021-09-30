@@ -9,12 +9,7 @@
 using namespace LayerTestsUtils;
 
 #ifdef _WIN32
-# define getpid _getpid
-#endif
-
-#define path_delimiter "/"
-#ifdef _WIN32
-#define path_delimiter "\\"
+#define getpid _getpid
 #endif
 
 ExternalNetworkTool *ExternalNetworkTool::p_instance = nullptr;
@@ -86,6 +81,53 @@ void ExternalNetworkTool::updateFunctionNames(std::shared_ptr<ngraph::Function> 
         rename(node);
     }
 }
+
+void ExternalNetworkTool::saveArkFile(const std::string &network_name,
+                                      const InferenceEngine::InputInfo::CPtr &input_info,
+                                      const InferenceEngine::Blob::Ptr &blob,
+                                      uint32_t id) const {
+        const uint32_t utterance = 1;
+        const auto models_path = std::string{modelsPath};
+        const std::string arks_path = models_path.empty() ? "arks" : models_path + "_arks";
+        if (!CommonTestUtils::directoryExists(arks_path)) {
+            CommonTestUtils::createDirectory(arks_path);
+        }
+
+        const std::string hashed_network_name = "network_" + generateHashName(network_name);
+        const std::string model_arks_path = arks_path + path_delimiter + hashed_network_name;
+        if (!CommonTestUtils::directoryExists(model_arks_path)) {
+            CommonTestUtils::createDirectory(model_arks_path);
+        }
+
+        const auto& dims = input_info->getTensorDesc().getDims();
+        uint32_t elements_number = 1;
+        for (const auto& dim : dims) {
+            elements_number *= dim;
+        }
+
+        // const auto& parameter_name = input_info->name();
+        const std::string input_type_name = "Parameter";
+        std::string ark_name = input_type_name + "_"
+                             + std::to_string(id) + "_"
+                             + std::to_string(utterance) + "_"
+                             + std::to_string(elements_number) + ".ark";
+
+        std::string file_name = model_arks_path + path_delimiter + ark_name;
+
+        const auto &precision = input_info->getPrecision();
+
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+        const auto locked_memory = memory->rmap();
+        switch (precision) {
+        case InferenceEngine::Precision::FP32:
+            writeToArkFile(file_name, locked_memory.as<const float *>(), 1, elements_number);
+            break;
+        // TODO: add FP16, I16, I8 precisions support
+        default:
+            printf("%s precision doesn't supported", precision.name());
+            return;
+        }
+    }
 
 void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
                                             const std::string &network_name) const {

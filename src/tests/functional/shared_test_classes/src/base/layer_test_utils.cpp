@@ -351,7 +351,7 @@ void LayerTestsCommon::LoadNetwork() {
         node->get_friendly_name();
     }
     auto& e_t = ExternalNetworkTool::getInstance();
-    if (e_t.getMode() == ExternalNetworkMode::EXPORT) {
+    if (e_t.getMode() == ExternalNetworkMode::EXPORT || e_t.getMode() == ExternalNetworkMode::EXPORT_MODELS_ONLY) {
         e_t.dumpNetworkToFile(function, GetTestCaseName() + "_" + GetTestName());
     }
 
@@ -383,8 +383,17 @@ void LayerTestsCommon::GenerateInputs() {
         const auto& param = functionParams[i];
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
         GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+
         InferenceEngine::InputInfo::CPtr info = infoIt->second;
         InferenceEngine::Blob::Ptr blob = GenerateInput(*info);
+
+        auto& e_t = ExternalNetworkTool::getInstance();
+        if (e_t.getMode() == ExternalNetworkMode::EXPORT || e_t.getMode() == ExternalNetworkMode::EXPORT_ARKS_ONLY) {
+            std::string network_name = GetTestCaseName() + "_" + GetTestName();
+            uint32_t ir_id = functionParams.size() - 1 - i;  // topological sort dependency!
+            e_t.saveArkFile(network_name, info, blob, ir_id);
+        }
+
         inputs.push_back(blob);
     }
 }
