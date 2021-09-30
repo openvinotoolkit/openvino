@@ -4,14 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <vector>
-
 #include "base_reference_test.hpp"
 #include "ngraph_functions/builders.hpp"
+
+using namespace ov;
 
 namespace reference_tests {
 namespace ComparisonOpsRefTestDefinitions {
@@ -50,13 +46,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<ngraph::Function> CreateFunction(ngraph::helpers::ComparisonTypes comp_op_type, const ngraph::PartialShape& input_shape1,
-                                                            const ngraph::PartialShape& input_shape2, const ngraph::element::Type& input_type,
-                                                            const ngraph::element::Type& expected_output_type) {
-        const auto in = std::make_shared<ngraph::op::Parameter>(input_type, input_shape1);
-        const auto in2 = std::make_shared<ngraph::op::Parameter>(input_type, input_shape2);
+    static std::shared_ptr<ov::Function> CreateFunction(ngraph::helpers::ComparisonTypes comp_op_type, const ov::PartialShape& input_shape1,
+                                                            const ov::PartialShape& input_shape2, const ov::element::Type& input_type,
+                                                            const ov::element::Type& expected_output_type) {
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
+        const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto comp = ngraph::builder::makeComparison(in, in2, comp_op_type);
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector {comp}, ngraph::ParameterVector {in, in2});
+        return std::make_shared<ov::Function>(ov::NodeVector {comp}, ov::ParameterVector {in, in2});
     }
 };
 }  // namespace ComparisonOpsRefTestDefinitions

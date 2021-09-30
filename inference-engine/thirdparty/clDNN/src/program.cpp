@@ -423,9 +423,17 @@ void program::build_program(bool is_internal) {
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
-    prepare_memory_dependencies();
-    compile();
-    init_kernels();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+#ifdef GPU_DEBUG_CONFIG
+    if (debug_config->dry_run_path.empty()) {
+#else
+    {
+#endif
+        prepare_memory_dependencies();
+        compile();
+        init_kernels();
+    }
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
@@ -1374,4 +1382,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
     if (should_use_bs_fs_yx_bsv16_fsv16)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto& engine = get_engine();
+    if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+#endif
 }
