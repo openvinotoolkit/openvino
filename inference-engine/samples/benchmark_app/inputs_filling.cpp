@@ -177,7 +177,7 @@ void fillBlobRandom(Blob::Ptr& inputBlob,
     std::mt19937 gen(0);
     uniformDistribution<T2> distribution(rand_min, rand_max);
     for (size_t i = 0; i < inputBlob->size(); i++) {
-        inputBlobData[i] = static_cast<T>(distribution(gen));
+        inputBlobData[i] = static_cast<T>(0);
     }
 }
 

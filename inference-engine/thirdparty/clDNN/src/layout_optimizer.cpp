@@ -942,9 +942,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         impl_types impl_candidate = impl_types::onednn;
 
         // Unexpected layout
-        if (std::find(onednn_optimized_formats.begin(), onednn_optimized_formats.end(), preferred_format) == onednn_optimized_formats.end()) {
-            impl_candidate = impl_types::ocl;
-        }
+        // if (std::find(onednn_optimized_formats.begin(), onednn_optimized_formats.end(), preferred_format) == onednn_optimized_formats.end()) {
+        //     impl_candidate = impl_types::ocl;
+        // }
 
         // if (node.is_type<convolution>()) {
         //     // onednn doesn't have good support for groups with fsv16 fmt
